@@ -117,12 +117,14 @@ func TestAddMCPFetchServerIfNeeded(t *testing.T) {
 
 func TestRenderMCPFetchServerConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		format       string
-		indent       string
-		isLast       bool
-		includeTools bool
-		expectSubstr []string
+		name           string
+		format         string
+		indent         string
+		isLast         bool
+		includeTools   bool
+		allowedDomains string
+		expectSubstr   []string
+		notSubstr      []string
 	}{
 		{
 			name:         "JSON format, not last, without tools",
@@ -135,6 +137,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 				`"container": "mcp/fetch"`,
 				`},`,
 			},
+			notSubstr: []string{`"entrypointArgs"`},
 		},
 		{
 			name:         "JSON format, last, without tools",
@@ -147,6 +150,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 				`"container": "mcp/fetch"`,
 				`}`, // No comma
 			},
+			notSubstr: []string{`"entrypointArgs"`},
 		},
 		{
 			name:         "JSON format, not last, with tools",
@@ -159,6 +163,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 				`"container": "mcp/fetch"`,
 				`},`,
 			},
+			notSubstr: []string{`"entrypointArgs"`},
 		},
 		{
 			name:         "JSON format, last, with tools",
@@ -171,6 +176,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 				`"container": "mcp/fetch"`,
 				`}`, // No comma
 			},
+			notSubstr: []string{`"entrypointArgs"`},
 		},
 		{
 			name:         "TOML format",
@@ -182,18 +188,66 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 				`[mcp_servers."web-fetch"]`,
 				`container = "mcp/fetch"`,
 			},
+			notSubstr: []string{`entrypointArgs`},
+		},
+		{
+			name:           "JSON format with allowed domains",
+			format:         "json",
+			indent:         "    ",
+			isLast:         true,
+			includeTools:   false,
+			allowedDomains: "github.com,api.github.com",
+			expectSubstr: []string{
+				`"web-fetch": {`,
+				`"container": "mcp/fetch",`,
+				`"entrypointArgs": [`,
+				`"--allowed-domains"`,
+				`"github.com"`,
+				`"api.github.com"`,
+			},
+		},
+		{
+			name:           "TOML format with allowed domains",
+			format:         "toml",
+			indent:         "  ",
+			isLast:         false,
+			includeTools:   false,
+			allowedDomains: "github.com,api.github.com",
+			expectSubstr: []string{
+				`[mcp_servers."web-fetch"]`,
+				`container = "mcp/fetch"`,
+				`entrypointArgs = ["--allowed-domains", "github.com", "api.github.com"]`,
+			},
+		},
+		{
+			name:           "JSON format with single allowed domain",
+			format:         "json",
+			indent:         "    ",
+			isLast:         false,
+			includeTools:   false,
+			allowedDomains: "example.com",
+			expectSubstr: []string{
+				`"entrypointArgs": [`,
+				`"--allowed-domains"`,
+				`"example.com"`,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			renderMCPFetchServerConfig(&yaml, tt.format, tt.indent, tt.isLast, tt.includeTools, nil)
+			renderMCPFetchServerConfig(&yaml, tt.format, tt.indent, tt.isLast, tt.includeTools, nil, tt.allowedDomains)
 			output := yaml.String()
 
 			for _, substr := range tt.expectSubstr {
 				if !strings.Contains(output, substr) {
 					t.Errorf("Expected output to contain %q, but it didn't.\nFull output:\n%s", substr, output)
+				}
+			}
+			for _, substr := range tt.notSubstr {
+				if strings.Contains(output, substr) {
+					t.Errorf("Expected output NOT to contain %q, but it did.\nFull output:\n%s", substr, output)
 				}
 			}
 		})
@@ -251,6 +305,77 @@ func TestEngineSupportsWebSearch(t *testing.T) {
 			if actualSupport != tt.expectsSupport {
 				t.Errorf("Expected engine %s to have SupportsWebSearch()=%v, got %v",
 					tt.engineID, tt.expectsSupport, actualSupport)
+			}
+		})
+	}
+}
+
+func TestComputeWebFetchAllowedDomains(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expectEmpty  bool
+		expectSubstr string // substring that should appear in result if non-empty
+	}{
+		{
+			name:         "nil workflowData returns empty",
+			workflowData: nil,
+			expectEmpty:  true,
+		},
+		{
+			name:         "nil NetworkPermissions returns empty",
+			workflowData: &WorkflowData{},
+			expectEmpty:  true,
+		},
+		{
+			name: "wildcard allowed returns empty (no restriction)",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{"*"},
+				},
+			},
+			expectEmpty: true,
+		},
+		{
+			name: "firewall not enabled returns empty",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{"github.com"},
+					// No Firewall configured → isFirewallEnabled returns false
+				},
+			},
+			expectEmpty: true,
+		},
+		{
+			name: "firewall enabled with restricted domains returns non-empty",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "codex"},
+				NetworkPermissions: &NetworkPermissions{
+					Allowed:  []string{"github.com"},
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				Tools:    map[string]any{},
+				Runtimes: map[string]any{},
+			},
+			expectEmpty:  false,
+			expectSubstr: "github.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := computeWebFetchAllowedDomains(tt.workflowData)
+			if tt.expectEmpty {
+				if result != "" {
+					t.Errorf("Expected empty result, got %q", result)
+				}
+			} else {
+				if result == "" {
+					t.Errorf("Expected non-empty result for restricted workflow")
+				}
+				if tt.expectSubstr != "" && !strings.Contains(result, tt.expectSubstr) {
+					t.Errorf("Expected result to contain %q, got %q", tt.expectSubstr, result)
+				}
 			}
 		})
 	}

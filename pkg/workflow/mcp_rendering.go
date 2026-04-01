@@ -170,7 +170,7 @@ func buildStandardJSONMCPRenderers(
 			createRenderer(isLast).RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 		},
 		RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, webFetchIncludeTools, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, webFetchIncludeTools, deriveWriteSinkGuardPolicyFromWorkflow(workflowData), computeWebFetchAllowedDomains(workflowData))
 		},
 		RenderCustomMCPConfig: renderCustom,
 	}

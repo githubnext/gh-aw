@@ -1036,6 +1036,7 @@ jobs:
           
           [mcp_servers."web-fetch"]
           container = "mcp/fetch"
+          entrypointArgs = ["--allowed-domains", "*.githubusercontent.com", "172.30.0.1", "api.openai.com", "api.snapcraft.io", "archive.ubuntu.com", "azure.archive.ubuntu.com", "cdn.playwright.dev", "codeload.github.com", "crl.geotrust.com", "crl.globalsign.com", "crl.identrust.com", "crl.sectigo.com", "crl.thawte.com", "crl.usertrust.com", "crl.verisign.com", "crl3.digicert.com", "crl4.digicert.com", "crls.ssl.com", "docs.github.com", "github-cloud.githubusercontent.com", "github-cloud.s3.amazonaws.com", "github.blog", "github.com", "github.githubassets.com", "go.dev", "golang.org", "goproxy.io", "host.docker.internal", "json-schema.org", "json.schemastore.org", "keyserver.ubuntu.com", "lfs.github.com", "objects.githubusercontent.com", "ocsp.digicert.com", "ocsp.geotrust.com", "ocsp.globalsign.com", "ocsp.identrust.com", "ocsp.sectigo.com", "ocsp.ssl.com", "ocsp.thawte.com", "ocsp.usertrust.com", "ocsp.verisign.com", "openai.com", "packagecloud.io", "packages.cloud.google.com", "packages.microsoft.com", "pkg.go.dev", "playwright.download.prss.microsoft.com", "ppa.launchpad.net", "proxy.golang.org", "raw.githubusercontent.com", "s.symcb.com", "s.symcd.com", "security.ubuntu.com", "storage.googleapis.com", "sum.golang.org", "ts-crl.ws.symantec.com", "ts-ocsp.ws.symantec.com", "www.googleapis.com"]
           
           [mcp_servers.web-fetch."guard-policies"]
           
@@ -1153,6 +1154,68 @@ jobs:
               },
               "web-fetch": {
                 "container": "mcp/fetch",
+                "entrypointArgs": [
+                  "--allowed-domains",
+                  "*.githubusercontent.com",
+                  "172.30.0.1",
+                  "api.openai.com",
+                  "api.snapcraft.io",
+                  "archive.ubuntu.com",
+                  "azure.archive.ubuntu.com",
+                  "cdn.playwright.dev",
+                  "codeload.github.com",
+                  "crl.geotrust.com",
+                  "crl.globalsign.com",
+                  "crl.identrust.com",
+                  "crl.sectigo.com",
+                  "crl.thawte.com",
+                  "crl.usertrust.com",
+                  "crl.verisign.com",
+                  "crl3.digicert.com",
+                  "crl4.digicert.com",
+                  "crls.ssl.com",
+                  "docs.github.com",
+                  "github-cloud.githubusercontent.com",
+                  "github-cloud.s3.amazonaws.com",
+                  "github.blog",
+                  "github.com",
+                  "github.githubassets.com",
+                  "go.dev",
+                  "golang.org",
+                  "goproxy.io",
+                  "host.docker.internal",
+                  "json-schema.org",
+                  "json.schemastore.org",
+                  "keyserver.ubuntu.com",
+                  "lfs.github.com",
+                  "objects.githubusercontent.com",
+                  "ocsp.digicert.com",
+                  "ocsp.geotrust.com",
+                  "ocsp.globalsign.com",
+                  "ocsp.identrust.com",
+                  "ocsp.sectigo.com",
+                  "ocsp.ssl.com",
+                  "ocsp.thawte.com",
+                  "ocsp.usertrust.com",
+                  "ocsp.verisign.com",
+                  "openai.com",
+                  "packagecloud.io",
+                  "packages.cloud.google.com",
+                  "packages.microsoft.com",
+                  "pkg.go.dev",
+                  "playwright.download.prss.microsoft.com",
+                  "ppa.launchpad.net",
+                  "proxy.golang.org",
+                  "raw.githubusercontent.com",
+                  "s.symcb.com",
+                  "s.symcd.com",
+                  "security.ubuntu.com",
+                  "storage.googleapis.com",
+                  "sum.golang.org",
+                  "ts-crl.ws.symantec.com",
+                  "ts-ocsp.ws.symantec.com",
+                  "www.googleapis.com"
+                ],
                 "guard-policies": {
                   "write-sink": {
                     "accept": [

@@ -70,7 +70,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer.RenderMCPScriptsMCP(yaml, workflowData.MCPScripts, workflowData)
 			}
 		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
+			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData), computeWebFetchAllowedDomains(workflowData))
 		default:
 			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
 			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {

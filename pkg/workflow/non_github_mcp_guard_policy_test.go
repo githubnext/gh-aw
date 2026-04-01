@@ -260,7 +260,7 @@ func TestWebFetchMCPWithGuardPoliciesJSON(t *testing.T) {
 	}
 
 	var output strings.Builder
-	renderMCPFetchServerConfig(&output, "json", "              ", true, false, guardPolicies)
+	renderMCPFetchServerConfig(&output, "json", "              ", true, false, guardPolicies, "")
 
 	result := output.String()
 	assert.Contains(t, result, "\"guard-policies\"", "web-fetch should have guard-policies in JSON")
@@ -278,7 +278,7 @@ func TestWebFetchMCPWithGuardPoliciesTOML(t *testing.T) {
 	}
 
 	var output strings.Builder
-	renderMCPFetchServerConfig(&output, "toml", "          ", false, false, guardPolicies)
+	renderMCPFetchServerConfig(&output, "toml", "          ", false, false, guardPolicies, "")
 
 	result := output.String()
 	assert.Contains(t, result, "guard-policies", "web-fetch TOML should have guard-policies section")
@@ -516,7 +516,7 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 			// Also test web-fetch (has its own render function)
 			t.Run("web-fetch JSON", func(t *testing.T) {
 				var output strings.Builder
-				renderMCPFetchServerConfig(&output, "json", "              ", true, false, policies)
+				renderMCPFetchServerConfig(&output, "json", "              ", true, false, policies, "")
 				result := output.String()
 				assert.Contains(t, result, "\"guard-policies\"",
 					"web-fetch should have guard-policies when GitHub has allow-only policy: %s", tt.description)
