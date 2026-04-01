@@ -26,8 +26,8 @@ func TestDisplayStatsTable_Empty(t *testing.T) {
 	buf.ReadFrom(r)
 	output := buf.String()
 
-	if !strings.Contains(output, "No workflow statistics to display") {
-		t.Errorf("Expected warning message for empty stats list, got: %s", output)
+	if output != "" {
+		t.Errorf("Expected no output for empty stats list, got: %s", output)
 	}
 }
 

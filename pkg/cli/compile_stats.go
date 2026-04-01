@@ -95,7 +95,6 @@ func collectWorkflowStats(lockFilePath string) (*WorkflowStats, error) {
 func displayStatsTable(statsList []*WorkflowStats) {
 	compileStatsLog.Printf("Displaying stats table: workflow_count=%d", len(statsList))
 	if len(statsList) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow statistics to display"))
 		return
 	}
 

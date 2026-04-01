@@ -136,8 +136,6 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
 		}
-	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
 	}
 
 	compileBatchOperationsLog.Printf("Purged %d orphaned lock files", len(orphanedFiles))
