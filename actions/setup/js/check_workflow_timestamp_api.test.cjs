@@ -584,77 +584,42 @@ engine: copilot
     it("should fall back to context.repo when GITHUB_WORKFLOW_REF is not set", async () => {
       delete process.env.GITHUB_WORKFLOW_REF;
 
-      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
-      const lockFileContent = `# frontmatter-hash: ${validHash}
-name: Test Workflow
-on: push
-jobs:
-  test:
-    runs-on: ubuntu-latest`;
-
-      const mdFileContent = `---
-engine: copilot
----
-# Test Workflow`;
-
-      mockGithub.rest.repos.getContent
-        .mockResolvedValueOnce({
-          data: {
-            type: "file",
-            encoding: "base64",
-            content: Buffer.from(lockFileContent).toString("base64"),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            type: "file",
-            encoding: "base64",
-            content: Buffer.from(mdFileContent).toString("base64"),
-          },
-        });
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
 
       await main();
 
-      // Verify the API was called with context.repo (test-owner/test-repo) as fallback
-      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "test-owner", repo: "test-repo", ref: "abc123" }));
+      // Falls back to context.repo for owner/repo; ref is undefined because workflowRepo
+      // (test-owner/test-repo) differs from currentRepo (target-owner/target-repo) — cross-repo
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "test-owner", repo: "test-repo" }));
+      expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ ref: "abc123" }));
     });
 
     it("should fall back to context.repo when GITHUB_WORKFLOW_REF is malformed", async () => {
       process.env.GITHUB_WORKFLOW_REF = "not-a-valid-workflow-ref";
 
-      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
-      const lockFileContent = `# frontmatter-hash: ${validHash}
-name: Test Workflow
-on: push
-jobs:
-  test:
-    runs-on: ubuntu-latest`;
-
-      const mdFileContent = `---
-engine: copilot
----
-# Test Workflow`;
-
-      mockGithub.rest.repos.getContent
-        .mockResolvedValueOnce({
-          data: {
-            type: "file",
-            encoding: "base64",
-            content: Buffer.from(lockFileContent).toString("base64"),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            type: "file",
-            encoding: "base64",
-            content: Buffer.from(mdFileContent).toString("base64"),
-          },
-        });
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
 
       await main();
 
-      // When GITHUB_WORKFLOW_REF is malformed, fall back to context.repo and context.sha
-      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "test-owner", repo: "test-repo", ref: "abc123" }));
+      // Falls back to context.repo for owner/repo; ref is undefined (cross-repo, no parsed ref)
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "test-owner", repo: "test-repo" }));
+      expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ ref: "abc123" }));
+    });
+
+    it("should use the default branch for cross-repo when GITHUB_WORKFLOW_REF has no @ref segment", async () => {
+      // GITHUB_WORKFLOW_REF with owner/repo but missing the @ref suffix
+      process.env.GITHUB_WORKFLOW_REF = "source-owner/source-repo/.github/workflows/test.lock.yml";
+
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      // Should resolve to the source repo parsed from GITHUB_WORKFLOW_REF
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "source-owner", repo: "source-repo" }));
+      // Should NOT use context.sha — ref must be undefined so GitHub API uses the default branch
+      expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ ref: "abc123" }));
+      // Log should indicate default branch is being used
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("(default branch)"));
     });
   });
 });
