@@ -232,6 +232,36 @@ func TestMapToStep(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "step with integer and bool env values",
+			stepMap: map[string]any{
+				"name": "Run stale-repos tool",
+				"id":   "stale-repos",
+				"uses": "github/stale-repos@v9.0.6",
+				"env": map[string]any{
+					"GH_TOKEN":           "${{ secrets.GITHUB_TOKEN }}",
+					"ORGANIZATION":       "${{ env.ORGANIZATION }}",
+					"EXEMPT_TOPICS":      "keep,template",
+					"INACTIVE_DAYS":      365,
+					"ADDITIONAL_METRICS": "release,pr",
+					"DRY_RUN":            true,
+				},
+			},
+			want: &WorkflowStep{
+				Name: "Run stale-repos tool",
+				ID:   "stale-repos",
+				Uses: "github/stale-repos@v9.0.6",
+				Env: map[string]string{
+					"GH_TOKEN":           "${{ secrets.GITHUB_TOKEN }}",
+					"ORGANIZATION":       "${{ env.ORGANIZATION }}",
+					"EXEMPT_TOPICS":      "keep,template",
+					"INACTIVE_DAYS":      "365",
+					"ADDITIONAL_METRICS": "release,pr",
+					"DRY_RUN":            "true",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

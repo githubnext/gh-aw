@@ -377,6 +377,7 @@ jobs:
           ADDITIONAL_METRICS: release,pr
           EXEMPT_TOPICS: keep,template
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INACTIVE_DAYS: "365"
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale-repos tool

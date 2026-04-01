@@ -113,6 +113,9 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 		for k, v := range env {
 			if strVal, ok := v.(string); ok {
 				step.Env[k] = strVal
+			} else if v != nil {
+				// Convert non-string values (int, float, bool, etc.) to their string representation
+				step.Env[k] = fmt.Sprint(v)
 			}
 		}
 	}
