@@ -276,6 +276,13 @@ func getLatestBranchCommitSHA(repo, branch string) (string, error) {
 	return sha, nil
 }
 
+// runWorkflowReleasesAPIFn calls the GitHub Releases API for the given repository and
+// returns the newline-delimited tag names. It is a package-level variable so that
+// tests can replace it without spawning real gh CLI processes.
+var runWorkflowReleasesAPIFn = func(repo string) ([]byte, error) {
+	return workflow.RunGH("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+}
+
 // resolveLatestRelease resolves the latest compatible release for a workflow source
 func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	updateLog.Printf("Resolving latest release for repo %s (current: %s, allowMajor=%v)", repo, currentRef, allowMajor)
@@ -285,7 +292,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	// Get all releases using gh CLI
-	output, err := workflow.RunGH("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+	output, err := runWorkflowReleasesAPIFn(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}
@@ -298,21 +305,29 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	// Parse current version
 	currentVer := parseVersion(currentRef)
 	if currentVer == nil {
-		// If current version is not a valid semantic version, just return the latest release
-		latestRelease := releases[0]
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest release: "+latestRelease))
+		// If current version is not a valid semantic version, return the latest stable release
+		for _, release := range releases {
+			releaseVer := parseVersion(release)
+			if releaseVer == nil || releaseVer.Pre != "" {
+				continue
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest release: "+release))
+			}
+			return release, nil
 		}
-		return latestRelease, nil
+		return "", errors.New("no stable releases found")
 	}
 
-	// Find the latest compatible release
+	// Find the latest compatible non-prerelease release.
+	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease
+	// of a higher base version could be incorrectly selected as the upgrade target.
 	var latestCompatible string
 	var latestCompatibleVersion *semverutil.SemanticVersion
 
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
-		if releaseVer == nil {
+		if releaseVer == nil || releaseVer.Pre != "" {
 			continue
 		}
 
