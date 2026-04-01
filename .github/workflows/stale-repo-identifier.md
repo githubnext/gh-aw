@@ -104,7 +104,7 @@ Analyze repositories identified as potentially stale by the stale-repos tool and
 
 ## Context
 
-- **Organization**: ${{ env.ORGANIZATION }}
+- **Organization**: ${{ github.event.inputs.organization || 'github' }}
 - **Inactive Threshold**: 365 days
 - **Exempt Topics**: keep, template
 - **Repository**: ${{ github.repository }}

@@ -99,6 +99,9 @@ jq --arg urlPrefix "$URL_PREFIX" '
   .context.includeDirectories = ["/tmp/"]
 ' "$MCP_GATEWAY_OUTPUT" > "$GEMINI_SETTINGS_FILE"
 
+# Restrict permissions so only the current user can read the bearer token (security: #22908)
+chmod 0600 "$GEMINI_SETTINGS_FILE"
+
 echo "Gemini configuration written to $GEMINI_SETTINGS_FILE"
 echo ""
 echo "Converted configuration:"

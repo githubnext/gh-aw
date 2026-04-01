@@ -80,6 +80,9 @@ jq --arg urlPrefix "$URL_PREFIX" '
   )
 ' "$MCP_GATEWAY_OUTPUT" > /tmp/gh-aw/mcp-config/mcp-servers.json
 
+# Restrict permissions so only the current user can read the bearer token (security: #22908)
+chmod 0600 /tmp/gh-aw/mcp-config/mcp-servers.json
+
 echo "Claude configuration written to /tmp/gh-aw/mcp-config/mcp-servers.json"
 echo ""
 echo "Converted configuration:"

@@ -29,7 +29,9 @@ var (
 	workflowCallInputsRegex = regexp.MustCompile(`^inputs\.[a-zA-Z0-9_-]+$`)
 	awInputsRegex           = regexp.MustCompile(`^github\.aw\.inputs\.[a-zA-Z0-9_-]+$`)
 	awImportInputsRegex     = regexp.MustCompile(`^github\.aw\.import-inputs\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?$`)
-	envRegex                = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
+	// varsRegex allows vars.* (non-secret GitHub repository/org variables)
+	// env.* is intentionally excluded because it can reference encrypted secrets.
+	varsRegex = regexp.MustCompile(`^vars\.[a-zA-Z0-9_-]+$`)
 	// comparisonExtractionRegex extracts property accesses from comparison expressions
 	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
 	comparisonExtractionRegex = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<|>|<=|>=)\s*`)
@@ -72,7 +74,7 @@ func validateExpressionSafety(markdownContent string) error {
 					WorkflowCallInputsRe:    workflowCallInputsRegex,
 					AwInputsRe:              awInputsRegex,
 					AwImportInputsRe:        awImportInputsRegex,
-					EnvRe:                   envRegex,
+					VarsRe:                  varsRegex,
 					UnauthorizedExpressions: &unauthorizedExpressions,
 				})
 			})
@@ -87,7 +89,7 @@ func validateExpressionSafety(markdownContent string) error {
 				WorkflowCallInputsRe:    workflowCallInputsRegex,
 				AwInputsRe:              awInputsRegex,
 				AwImportInputsRe:        awImportInputsRegex,
-				EnvRe:                   envRegex,
+				VarsRe:                  varsRegex,
 				UnauthorizedExpressions: &unauthorizedExpressions,
 			})
 			if err != nil {
@@ -128,7 +130,8 @@ func validateExpressionSafety(markdownContent string) error {
 		allowedList.WriteString("  - github.aw.inputs.* (shared workflow inputs)\n")
 		allowedList.WriteString("  - github.aw.import-inputs.* (import-schema inputs)\n")
 		allowedList.WriteString("  - inputs.* (workflow_call)\n")
-		allowedList.WriteString("  - env.*\n")
+		allowedList.WriteString("  - vars.* (non-secret GitHub variables)\n")
+		allowedList.WriteString("  NOTE: env.* is not allowed (may expose secrets); use vars.* for configuration values\n")
 
 		return NewValidationError(
 			"expressions",
@@ -149,7 +152,7 @@ type ExpressionValidationOptions struct {
 	WorkflowCallInputsRe    *regexp.Regexp
 	AwInputsRe              *regexp.Regexp
 	AwImportInputsRe        *regexp.Regexp
-	EnvRe                   *regexp.Regexp
+	VarsRe                  *regexp.Regexp
 	UnauthorizedExpressions *[]string
 }
 
@@ -214,7 +217,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		allowed = true
 	} else if opts.AwImportInputsRe != nil && opts.AwImportInputsRe.MatchString(expression) {
 		allowed = true
-	} else if opts.EnvRe.MatchString(expression) {
+	} else if opts.VarsRe != nil && opts.VarsRe.MatchString(expression) {
 		allowed = true
 	} else if slices.Contains(constants.AllowedExpressions, expression) {
 		allowed = true
@@ -272,7 +275,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 						propertyAllowed = true
 					} else if opts.AwImportInputsRe != nil && opts.AwImportInputsRe.MatchString(property) {
 						propertyAllowed = true
-					} else if opts.EnvRe.MatchString(property) {
+					} else if opts.VarsRe != nil && opts.VarsRe.MatchString(property) {
 						propertyAllowed = true
 					} else if slices.Contains(constants.AllowedExpressions, property) {
 						propertyAllowed = true

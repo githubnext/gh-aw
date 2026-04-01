@@ -122,8 +122,14 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "authorized_env_variable",
-			content:     "Environment: ${{ env.MY_VAR }}",
+			name:           "authorized_env_variable",
+			content:        "Environment: ${{ env.MY_VAR }}",
+			expectError:    true,
+			expectedErrors: []string{"env.MY_VAR"},
+		},
+		{
+			name:        "authorized_vars_variable",
+			content:     "Config: ${{ vars.MY_CONFIG }}",
 			expectError: false,
 		},
 		{
@@ -143,7 +149,7 @@ func TestValidateExpressionSafety(t *testing.T) {
 			name:           "multiple_unauthorized_expressions",
 			content:        "Token: ${{ secrets.GITHUB_TOKEN }}, Valid: ${{ github.actor }}, Env: ${{ env.TEST }}",
 			expectError:    true,
-			expectedErrors: []string{"secrets.GITHUB_TOKEN"},
+			expectedErrors: []string{"secrets.GITHUB_TOKEN", "env.TEST"},
 		},
 		{
 			name:        "expressions_with_whitespace",
@@ -408,10 +414,17 @@ func TestValidateExpressionSafetyWithParser(t *testing.T) {
 - **Working directory**: ${{ github.workspace }}`,
 			wantErr: false,
 		},
-		// env.* with defaults
+		// env.* expressions are blocked at compile time (security: #22914)
 		{
-			name:    "env variable with string default",
-			content: `${{ env.LOG_LEVEL || 'info' }}`,
+			name:        "env variable with string default",
+			content:     `${{ env.LOG_LEVEL || 'info' }}`,
+			wantErr:     true,
+			errContains: "env.LOG_LEVEL",
+		},
+		// vars.* expressions are allowed as non-secret configuration values
+		{
+			name:    "vars variable with string default",
+			content: `${{ vars.TARGET_REPO || github.repository }}`,
 			wantErr: false,
 		},
 	}

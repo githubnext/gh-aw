@@ -204,7 +204,7 @@ safe-outputs:
 # Test Output Label No Allowed Labels
 
 This workflow tests label addition with no allowed labels restriction.
-Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
+Write your labels to the safe-outputs file, one per line.
 `
 
 	testFile := filepath.Join(tmpDir, "test-label-no-allowed.md")
@@ -281,7 +281,7 @@ safe-outputs:
 # Test Output Label Null Config
 
 This workflow tests label addition with null configuration (any labels allowed).
-Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
+Write your labels to the safe-outputs file, one per line.
 `
 
 	testFile := filepath.Join(tmpDir, "test-label-null-config.md")

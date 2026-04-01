@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"32da181169b45c3331196c90b357916a58548257641ff3b48b5bd98db44144fc","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8657105a364ca871e2a61c98b3366f368db26b09738a35bea2d0e3c8179d5bac","strict":true,"agent_id":"copilot"}
 
 name: "Stale Repository Identifier"
 "on":
@@ -135,7 +135,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_EXPR_BD84B27F: ${{ github.event.inputs.organization || 'github' }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -148,15 +148,15 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_04cc7f07fb47b59f_EOF'
+          cat << 'GH_AW_PROMPT_71feae30af7b6081_EOF'
           <system>
-          GH_AW_PROMPT_04cc7f07fb47b59f_EOF
+          GH_AW_PROMPT_71feae30af7b6081_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_04cc7f07fb47b59f_EOF'
+          cat << 'GH_AW_PROMPT_71feae30af7b6081_EOF'
           <safe-output-tools>
           Tools: create_issue(max:10), upload_asset, missing_tool, missing_data, noop
           
@@ -190,22 +190,22 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_04cc7f07fb47b59f_EOF
+          GH_AW_PROMPT_71feae30af7b6081_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_04cc7f07fb47b59f_EOF'
+          cat << 'GH_AW_PROMPT_71feae30af7b6081_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/jqschema.md}}
           {{#runtime-import .github/workflows/shared/trending-charts-simple.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/stale-repo-identifier.md}}
-          GH_AW_PROMPT_04cc7f07fb47b59f_EOF
+          GH_AW_PROMPT_71feae30af7b6081_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_EXPR_BD84B27F: ${{ github.event.inputs.organization || 'github' }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
@@ -221,7 +221,7 @@ jobs:
           GH_AW_ALLOWED_EXTENSIONS: ''
           GH_AW_CACHE_DESCRIPTION: ''
           GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_EXPR_BD84B27F: ${{ github.event.inputs.organization || 'github' }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -244,7 +244,7 @@ jobs:
                 GH_AW_ALLOWED_EXTENSIONS: process.env.GH_AW_ALLOWED_EXTENSIONS,
                 GH_AW_CACHE_DESCRIPTION: process.env.GH_AW_CACHE_DESCRIPTION,
                 GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR,
-                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
+                GH_AW_EXPR_BD84B27F: process.env.GH_AW_EXPR_BD84B27F,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
@@ -447,12 +447,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_31a537358bb21b4d_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_e9b68add426057cf_EOF'
           {"create_issue":{"expires":48,"group":true,"labels":["stale-repository","automated-analysis","cookie"],"max":10,"title_prefix":"[Stale Repository] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg"],"branch":"assets/${{ github.workflow }}","max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_31a537358bb21b4d_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_e9b68add426057cf_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_0c8110d127c8bd31_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_ebcd95f9c9be27ef_EOF'
           {
             "description_suffixes": {
               "create_issue": " CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[Stale Repository] \". Labels [\"stale-repository\" \"automated-analysis\" \"cookie\"] will be automatically added.",
@@ -461,8 +461,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_0c8110d127c8bd31_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_b481a899eceb925d_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_ebcd95f9c9be27ef_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_04772e10e86be072_EOF'
           {
             "create_issue": {
               "defaultMax": 1,
@@ -564,7 +564,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_b481a899eceb925d_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_04772e10e86be072_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -633,7 +633,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.11'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_8bf3865cd00153cd_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_2d6f126c636c1d87_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -677,7 +677,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_8bf3865cd00153cd_EOF
+          GH_AW_MCP_CONFIG_2d6f126c636c1d87_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

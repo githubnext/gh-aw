@@ -232,8 +232,14 @@ function sanitizeUrlDomains(s, allowed) {
   // 5. Stop before another https:// URL in query params (using negative lookahead)
   const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
 
-  return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
-    // Extract just the hostname (remove port if present)
+  // Match protocol-relative URLs (//hostname/path) and treat them equivalently to
+  // https://hostname/path for domain allowlist checks. Browsers on HTTPS pages resolve
+  // //hostname as https://hostname, bypassing the scheme-based sanitizeUrlProtocols check.
+  // The negative lookbehind (?<![:/\w]) prevents matching // that is part of https:// or a path.
+  const protocolRelativeUrlRegex = /(?<![:/\w])\/(\/)([\w.-]+(?::\d+)?)(\/(?:(?!\/\/)[^\s,])*)?/gi;
+
+  // Shared logic: check hostname against the domain allowlist and redact if not allowed
+  function checkDomain(match, hostnameWithPort, pathPart) {
     const hostname = hostnameWithPort.split(":")[0].toLowerCase();
     pathPart = pathPart || "";
 
@@ -272,7 +278,13 @@ function sanitizeUrlDomains(s, allowed) {
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
     }
-  });
+  }
+
+  s = s.replace(httpsUrlRegex, checkDomain);
+  // Apply domain allowlist check to protocol-relative URLs; the capture groups are shifted
+  // by one because the first group captures the second slash.
+  s = s.replace(protocolRelativeUrlRegex, (_match, _slash, hostnameWithPort, pathPart) => checkDomain(_match, hostnameWithPort, pathPart));
+  return s;
 }
 
 /**

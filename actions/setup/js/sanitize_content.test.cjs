@@ -777,6 +777,28 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Visit https://deep.nested.example.com/page");
       expect(result).toBe("Visit https://deep.nested.example.com/page");
     });
+
+    it("should redact protocol-relative URLs with disallowed domains (security: #23737)", () => {
+      const result = sanitizeContent("Click [here](//evil.com/steal)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative image embeds with disallowed domains", () => {
+      const result = sanitizeContent("![Track me](//evil.com/pixel.gif)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should allow protocol-relative URLs with allowed domains", () => {
+      const result = sanitizeContent("See //github.com/repo");
+      expect(result).toBe("See //github.com/repo");
+    });
+
+    it("should not match // inside existing https:// URLs (no false positives)", () => {
+      const result = sanitizeContent("Visit https://github.com/path//extra");
+      expect(result).toBe("Visit https://github.com/path//extra");
+    });
   });
 
   describe("domain sanitization", () => {

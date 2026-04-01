@@ -39,7 +39,7 @@ safe-outputs:
 
 ## Target Repository
 
-The target repository is `${{ env.TARGET_REPOSITORY }}`. All PR fetching and subagent dispatch use this value.
+The target repository is `${{ vars.TARGET_REPOSITORY || github.repository }}`. All PR fetching and subagent dispatch use this value.
 
 ## Overview
 
@@ -49,7 +49,7 @@ You do NOT evaluate PRs yourself. You delegate each evaluation to `.github/agent
 
 ## Pre-filtered PR List
 
-A `pre-agent` step has already queried and filtered PRs from `${{ env.TARGET_REPOSITORY }}`. The results are in `pr-filter-results.json` at the workspace root. Read this file first. It contains:
+A `pre-agent` step has already queried and filtered PRs from `${{ vars.TARGET_REPOSITORY || github.repository }}`. The results are in `pr-filter-results.json` at the workspace root. Read this file first. It contains:
 
 ```json
 {
@@ -70,7 +70,7 @@ For each PR number in the comma-separated list, delegate evaluation to the **con
 Call the contribution-checker subagent for each PR with this prompt:
 
 ```
-Evaluate PR ${{ env.TARGET_REPOSITORY }}#<number> against the contribution guidelines.
+Evaluate PR ${{ vars.TARGET_REPOSITORY || github.repository }}#<number> against the contribution guidelines.
 ```
 
 The subagent accepts any `owner/repo#number` reference — the target repo is not hardcoded.
@@ -176,9 +176,9 @@ If any subagent call failed (❓), also apply `outdated`.
 - **You are the orchestrator** — you dispatch and compile. You do NOT run the checklist yourself.
 - **PR fetching and filtering is pre-computed** — a `pre-agent` step writes `pr-filter-results.json`. Read it at the start.
 - **Subagent does the analysis** — `.github/agents/contribution-checker.agent.md` handles all per-PR evaluation logic.
-- **Read from `${{ env.TARGET_REPOSITORY }}`** — read-only access via GitHub MCP tools.
+- **Read from `${{ vars.TARGET_REPOSITORY || github.repository }}`** — read-only access via GitHub MCP tools.
 - **Write to `${{ github.repository }}`** — reports go here as issues.
-- **Use safe output tools for target repository interactions** — use `add-comment` and `add-labels` safe output tools to post comments and labels to PRs in the target repository `${{ env.TARGET_REPOSITORY }}`. Never use `gh` CLI or direct API calls for writes.
+- **Use safe output tools for target repository interactions** — use `add-comment` and `add-labels` safe output tools to post comments and labels to PRs in the target repository `${{ vars.TARGET_REPOSITORY || github.repository }}`. Never use `gh` CLI or direct API calls for writes.
 - Close the previous report issue when creating a new one (`close-older-issues: true`).
 - Be constructive in assessments — these reports help maintainers prioritize, not gatekeep.
 
