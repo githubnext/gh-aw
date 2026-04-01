@@ -333,6 +333,7 @@ export default defineConfig({
 						{ label: 'Safe Outputs (Staged Mode)', link: '/reference/staged-mode/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
 						{ label: 'Schedule Syntax', link: '/reference/schedule-syntax/' },
+						{ label: 'Supported Languages', link: '/reference/supported-languages/' },
 						{ label: 'Templating', link: '/reference/templating/' },
 						{ label: 'Threat Detection', link: '/reference/threat-detection/' },
 						{ label: 'Token Reference', link: '/reference/tokens/' },

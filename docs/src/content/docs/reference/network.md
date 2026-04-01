@@ -106,7 +106,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
 | `chrome` | Headless Chrome/Puppeteer browser testing (`*.google.com`, `*.googleapis.com`, `*.gvt1.com`) |
 
-Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists.
+Common identifiers: `python` (PyPI/pip), `node` (npm/yarn/pnpm), `containers` (Docker Hub/GHCR), `go` (proxy.golang.org). See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete domain lists, or the [Supported Languages](/gh-aw/reference/supported-languages/) page for a language-first overview.
 
 ## Strict Mode Validation
 
