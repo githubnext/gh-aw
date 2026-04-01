@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -132,7 +133,7 @@ type FrontmatterConfig struct {
 	Source         string   `json:"source,omitempty"`
 	TrackerID      string   `json:"tracker-id,omitempty"`
 	Version        string   `json:"version,omitempty"`
-	TimeoutMinutes int      `json:"timeout-minutes,omitempty"`
+	TimeoutMinutes *string  `json:"timeout-minutes,omitempty"`
 	Strict         *bool    `json:"strict,omitempty"`  // Pointer to distinguish unset from false
 	Private        *bool    `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
 	Labels         []string `json:"labels,omitempty"`
@@ -209,9 +210,18 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	frontmatterTypesLog.Printf("Parsing frontmatter config with %d fields", len(frontmatter))
 	var config FrontmatterConfig
 
+	// Preprocess timeout-minutes so that both integer literals and GitHub Actions
+	// expressions (e.g. "${{ inputs.timeout }}") can be stored in *string.
+	// We operate on a shallow copy to avoid mutating the caller's map.
+	frontmatterCopy := make(map[string]any, len(frontmatter))
+	maps.Copy(frontmatterCopy, frontmatter)
+	if err := preprocessIntFieldAsString(frontmatterCopy, "timeout-minutes", frontmatterTypesLog); err != nil {
+		return nil, fmt.Errorf("invalid timeout-minutes: %w", err)
+	}
+
 	// Use JSON marshaling for the entire frontmatter conversion
 	// This automatically handles all field mappings
-	jsonBytes, err := json.Marshal(frontmatter)
+	jsonBytes, err := json.Marshal(frontmatterCopy)
 	if err != nil {
 		frontmatterTypesLog.Printf("Failed to marshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to marshal frontmatter to JSON: %w", err)
@@ -535,8 +545,13 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Version != "" {
 		result["version"] = fc.Version
 	}
-	if fc.TimeoutMinutes != 0 {
-		result["timeout-minutes"] = fc.TimeoutMinutes
+	if fc.TimeoutMinutes != nil {
+		// Return as integer for numeric literals, string for expressions
+		if n, err := strconv.Atoi(*fc.TimeoutMinutes); err == nil {
+			result["timeout-minutes"] = n
+		} else {
+			result["timeout-minutes"] = *fc.TimeoutMinutes
+		}
 	}
 	if fc.Strict != nil {
 		result["strict"] = *fc.Strict

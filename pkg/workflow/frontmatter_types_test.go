@@ -125,8 +125,40 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if config.TimeoutMinutes != 60 {
-			t.Errorf("TimeoutMinutes = %d, want 60", config.TimeoutMinutes)
+		if config.TimeoutMinutes == nil {
+			t.Fatal("TimeoutMinutes should not be nil")
+		}
+		if *config.TimeoutMinutes != "60" {
+			t.Errorf("TimeoutMinutes = %q, want %q", *config.TimeoutMinutes, "60")
+		}
+	})
+
+	t.Run("handles timeout-minutes as expression string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"timeout-minutes": "${{ inputs.timeout }}",
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if config.TimeoutMinutes == nil {
+			t.Fatal("TimeoutMinutes should not be nil")
+		}
+		if *config.TimeoutMinutes != "${{ inputs.timeout }}" {
+			t.Errorf("TimeoutMinutes = %q, want %q", *config.TimeoutMinutes, "${{ inputs.timeout }}")
+		}
+	})
+
+	t.Run("rejects timeout-minutes as free-form string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"timeout-minutes": "not-an-expression",
+		}
+
+		_, err := ParseFrontmatterConfig(frontmatter)
+		if err == nil {
+			t.Error("expected error for non-expression string timeout-minutes, got nil")
 		}
 	})
 
