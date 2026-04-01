@@ -505,6 +505,14 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		addUnique("MCP_GATEWAY_API_KEY")
 	}
 
+	// Write-sink API key is a scoped bearer token generated alongside the gateway key.
+	// It must be excluded so that code running inside the agent container cannot read it
+	// directly from the environment; the agent accesses it only via the mcp-config.json
+	// entry produced by the gateway converter.
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		addUnique("GH_AW_WRITE_SINK_API_KEY")
+	}
+
 	// GitHub MCP server token is always a secret when the GitHub tool is present.
 	if hasGitHubTool(workflowData.ParsedTools) {
 		addUnique("GITHUB_MCP_SERVER_TOKEN")

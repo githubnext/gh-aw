@@ -215,3 +215,110 @@ func TestAPIKeyMaskingNoEmptyDeclaration(t *testing.T) {
 	assert.NotContains(t, output, "MCP_GATEWAY_API_KEY=\"\"\n          MCP_GATEWAY_API_KEY=$(openssl",
 		"Should not have empty MCP_GATEWAY_API_KEY declaration before assignment")
 }
+
+// TestWriteSinkAPIKeyGeneration verifies that a separate GH_AW_WRITE_SINK_API_KEY is generated
+// and masked when safe-outputs is enabled, implementing the write-sink token separation
+// security requirement (distinct bearer token, not shared with the gateway key).
+func TestWriteSinkAPIKeyGeneration(t *testing.T) {
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+		Tools: map[string]any{
+			"safe-outputs": map[string]any{},
+			"github": map[string]any{
+				"mode": "local",
+			},
+		},
+	}
+
+	compiler := &Compiler{}
+	mockEngine := NewClaudeEngine()
+
+	var yaml strings.Builder
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
+	output := yaml.String()
+
+	// 1. Write-sink key must be generated
+	keyGenIdx := strings.Index(output, "GH_AW_WRITE_SINK_API_KEY=$(openssl rand -base64 45")
+	assert.Greater(t, keyGenIdx, -1, "GH_AW_WRITE_SINK_API_KEY should be generated with openssl when safe-outputs is enabled")
+
+	// 2. Write-sink key must be masked immediately after generation
+	maskIdx := strings.Index(output, "echo \"::add-mask::${GH_AW_WRITE_SINK_API_KEY}\"")
+	assert.Greater(t, maskIdx, -1, "GH_AW_WRITE_SINK_API_KEY should be masked with ::add-mask::")
+	if keyGenIdx > 0 && maskIdx > 0 {
+		assert.Greater(t, maskIdx, keyGenIdx, "Masking must come after key generation")
+		betweenGenAndMask := output[keyGenIdx:maskIdx]
+		lines := strings.Split(betweenGenAndMask, "\n")
+		assert.LessOrEqual(t, len(lines), 2, "Masking should come immediately after generation (at most 2 lines between)")
+	}
+
+	// 3. Write-sink key must be exported
+	assert.Contains(t, output, "export GH_AW_WRITE_SINK_API_KEY",
+		"GH_AW_WRITE_SINK_API_KEY should be exported")
+
+	// 4. Write-sink key must be passed to the gateway container
+	assert.Contains(t, output, "-e GH_AW_WRITE_SINK_API_KEY",
+		"GH_AW_WRITE_SINK_API_KEY should be passed to the gateway container via -e")
+
+	// 5. Gateway key and write-sink key must be separate (different variable names)
+	assert.Contains(t, output, "MCP_GATEWAY_API_KEY=$(openssl rand -base64 45",
+		"MCP_GATEWAY_API_KEY should also be generated")
+	assert.NotEqual(t,
+		strings.Index(output, "MCP_GATEWAY_API_KEY=$(openssl"),
+		strings.Index(output, "GH_AW_WRITE_SINK_API_KEY=$(openssl"),
+		"Gateway key and write-sink key should be separate variables at different positions")
+}
+
+// TestWriteSinkAPIKeyNotGeneratedWithoutSafeOutputs verifies that GH_AW_WRITE_SINK_API_KEY
+// is NOT generated when safe-outputs is disabled, to avoid unnecessary key material.
+func TestWriteSinkAPIKeyNotGeneratedWithoutSafeOutputs(t *testing.T) {
+	workflowData := &WorkflowData{
+		// No safe-outputs configured
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "local",
+			},
+		},
+	}
+
+	compiler := &Compiler{}
+	mockEngine := NewClaudeEngine()
+
+	var yaml strings.Builder
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
+	output := yaml.String()
+
+	assert.NotContains(t, output, "GH_AW_WRITE_SINK_API_KEY",
+		"GH_AW_WRITE_SINK_API_KEY should NOT be generated when safe-outputs is disabled")
+}
+
+// TestSafeOutputsMCPConfigIncludesClientApiKey verifies that the safeoutputs server config
+// in the gateway input includes the clientApiKey field, implementing per-server token scoping.
+func TestSafeOutputsMCPConfigIncludesClientApiKey(t *testing.T) {
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+		Tools: map[string]any{
+			"safe-outputs": map[string]any{},
+		},
+	}
+
+	compiler := &Compiler{}
+	mockEngine := NewClaudeEngine()
+
+	var yaml strings.Builder
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData))
+	output := yaml.String()
+
+	// The safeoutputs server config must include clientApiKey pointing to the write-sink key
+	assert.Contains(t, output, "\"clientApiKey\"",
+		"safeoutputs config should include clientApiKey for per-server token scoping")
+	assert.Contains(t, output, "GH_AW_WRITE_SINK_API_KEY",
+		"clientApiKey should reference GH_AW_WRITE_SINK_API_KEY")
+
+	// The clientApiKey must be distinct from the upstream Authorization (headers.Authorization)
+	assert.Contains(t, output, "GH_AW_SAFE_OUTPUTS_API_KEY",
+		"Upstream Authorization (headers.Authorization) should still reference GH_AW_SAFE_OUTPUTS_API_KEY")
+}

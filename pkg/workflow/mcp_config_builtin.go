@@ -133,7 +133,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
 	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\",\n")
 
-	// Add Authorization header with API key
+	// Add Authorization header with API key (upstream auth: gateway → safeoutputs server)
 	yaml.WriteString("                \"headers\": {\n")
 	if includeCopilotFields {
 		// Copilot format: backslash-escaped shell variable reference
@@ -142,7 +142,22 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		// Claude/Custom format: direct shell variable reference
 		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 	}
-	yaml.WriteString("                }")
+	yaml.WriteString("                },\n")
+
+	// Add clientApiKey for per-server scoped authentication (client → gateway for safeoutputs).
+	// This is a distinct bearer token from the shared gateway key (MCP_GATEWAY_API_KEY), so
+	// possessing the gateway key does not grant write-sink access, and vice-versa.
+	// The gateway enforces clientApiKey as the required Authorization value for this endpoint
+	// and uses it in the output config served to the agent (MCP Gateway Spec §4.1.2).
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped so the shell heredoc passes the variable reference
+		// literally to the gateway, which resolves it from its own environment.
+		yaml.WriteString("                \"clientApiKey\": \"\\${GH_AW_WRITE_SINK_API_KEY}\"")
+	} else {
+		// Claude/Custom/Codex format: direct reference — the shell expands the variable when
+		// piping the config to the gateway, so the gateway receives the resolved value.
+		yaml.WriteString("                \"clientApiKey\": \"$GH_AW_WRITE_SINK_API_KEY\"")
+	}
 
 	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
 	// If so, generate a linked write-sink guard-policy for safeoutputs

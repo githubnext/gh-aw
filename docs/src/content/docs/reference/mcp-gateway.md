@@ -196,7 +196,8 @@ The gateway MUST accept configuration via stdin in JSON format conforming to the
       "tools": ["*"] | ["tool1", "tool2"],
       "headers": {
         "Authorization": "Bearer ${TOKEN}"
-      }
+      },
+      "clientApiKey": "string"
     }
   },
   "gateway": {
@@ -229,6 +230,7 @@ Each server configuration MUST support:
 | `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
 | `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
 | `auth` | object | No | Upstream authentication configuration for HTTP servers. See [Section 7.6](#76-upstream-authentication-oidc). |
+| `clientApiKey` | string | No | Per-server scoped bearer token for client-to-gateway authentication. When set, clients MUST use this key (not the gateway-level `apiKey`) when accessing this specific server's endpoint. The gateway includes the resolved value in the output configuration for this server. Values may contain variable expressions (e.g. `${GH_AW_WRITE_SINK_API_KEY}`). See [Section 7.7](#77-per-server-client-api-keys). |
 
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
@@ -1104,6 +1106,63 @@ This allows combining OIDC auth with non-auth headers:
 
 ---
 
+### 7.7 Per-Server Client API Keys
+
+The optional `clientApiKey` field in a server configuration establishes a **separate, scoped bearer token** for that specific MCP server endpoint. This separates the per-server client authentication token from the shared gateway-level `apiKey`, implementing the principle of least privilege for write-sink and other sensitive servers.
+
+#### 7.7.1 Purpose and Security Model
+
+When the same `apiKey` is used for all MCP servers, any caller that holds the gateway key can invoke any server — including write-sink servers such as `safeoutputs`. A `clientApiKey` breaks this shared-key trust boundary:
+
+- Clients that hold only the gateway `apiKey` cannot access servers protected by `clientApiKey`.
+- Clients that hold only a `clientApiKey` cannot access other gateway endpoints.
+- The gateway `apiKey` and per-server `clientApiKey` values MUST be different.
+
+This is required for write-sink servers (e.g. `safeoutputs`) to prevent a compromised read-only credential from being used to enqueue GitHub write operations.
+
+#### 7.7.2 Gateway Behaviour
+
+When `clientApiKey` is set for a server, the gateway MUST:
+
+1. Require the `clientApiKey` value (not the gateway `apiKey`) as the `Authorization` header for all requests to `/mcp/{server-name}`.
+2. Reject requests to that endpoint that present the gateway `apiKey` with HTTP 401.
+3. Resolve variable expressions in `clientApiKey` (e.g. `${GH_AW_WRITE_SINK_API_KEY}`) from the gateway's environment before enforcement, using the same rules as `gateway.apiKey`.
+4. Include the resolved `clientApiKey` value — not the gateway `apiKey` — as the `Authorization` header in the output configuration for that server (see Section 5.4).
+5. NOT log `clientApiKey` values in plaintext.
+
+#### 7.7.3 Output Configuration
+
+The gateway output MUST use the server's resolved `clientApiKey` as the `Authorization` credential in the per-server entry it writes for agent consumption:
+
+```json
+{
+  "mcpServers": {
+    "safeoutputs": {
+      "type": "http",
+      "url": "http://host.docker.internal:80/mcp/safeoutputs",
+      "headers": {
+        "Authorization": "<resolved-clientApiKey-value>"
+      }
+    },
+    "github": {
+      "type": "http",
+      "url": "http://host.docker.internal:80/mcp/github",
+      "headers": {
+        "Authorization": "<resolved-gateway-apiKey-value>"
+      }
+    }
+  }
+}
+```
+
+This ensures agent-accessible configuration files contain distinct tokens per server, so possessing one token does not grant access to other servers.
+
+#### 7.7.4 Variable Expression Resolution
+
+`clientApiKey` values support the same variable expression syntax as other configuration fields (e.g. `${VAR_NAME}`). The gateway resolves these from its environment at startup. Unresolved variables MUST cause a startup error.
+
+---
+
 ## 8. Health Monitoring
 
 ### 8.1 Health Endpoints
@@ -1628,6 +1687,20 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 2.0.0 (Draft)
+
+- **Added**: `clientApiKey` field to server configuration (Section 4.1.2)
+  - Optional per-server scoped bearer token for client-to-gateway authentication
+  - When set, the gateway enforces this key for requests to that server's endpoint instead of the shared gateway `apiKey`
+  - Enables separate, distinct tokens for write-sink servers (e.g. `safeoutputs`) vs read-only servers
+  - Values support variable expression syntax (e.g. `${GH_AW_WRITE_SINK_API_KEY}`)
+- **Added**: Section 7.7 — Per-Server Client API Keys
+  - Defines security model, gateway enforcement rules, and output config behaviour for `clientApiKey`
+- **Security**: Write-sink token separation
+  - The `safeoutputs` server now uses `clientApiKey: ${GH_AW_WRITE_SINK_API_KEY}`, a key distinct from `MCP_GATEWAY_API_KEY`
+  - Prevents the shared gateway key from granting access to write-sink operations
+  - Gateway output config contains different `Authorization` values per server, enforcing least privilege
 
 ### Version 1.9.0 (Draft)
 

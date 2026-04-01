@@ -542,6 +542,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          echo \"::add-mask::${MCP_GATEWAY_API_KEY}\"\n")
 	}
 
+	// Generate a separate write-sink API key for safe-outputs when enabled.
+	// This scopes the safeoutputs MCP server to a distinct bearer token so that the
+	// shared gateway key (MCP_GATEWAY_API_KEY) cannot be used to invoke write operations.
+	// The write-sink key is passed to the gateway via clientApiKey in the server config;
+	// the gateway enforces it as the required Authorization value for the safeoutputs endpoint.
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		yaml.WriteString("          # Generate write-sink API key (scoped to safeoutputs, distinct from gateway key)\n")
+		yaml.WriteString("          GH_AW_WRITE_SINK_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
+		yaml.WriteString("          echo \"::add-mask::${GH_AW_WRITE_SINK_API_KEY}\"\n")
+		yaml.WriteString("          export GH_AW_WRITE_SINK_API_KEY\n")
+	}
+
 	// Export payload directory and ensure it exists
 	payloadDir := gatewayConfig.PayloadDir
 	if payloadDir == "" {
@@ -673,6 +685,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_PORT")
 		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_API_KEY")
+		// Write-sink key: scoped bearer token for the safeoutputs endpoint only
+		containerCmd.WriteString(" -e GH_AW_WRITE_SINK_API_KEY")
 	}
 	if len(gatewayConfig.Env) > 0 {
 		// Using functional helper to extract map keys
