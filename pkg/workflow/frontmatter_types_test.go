@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -159,6 +160,10 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		_, err := ParseFrontmatterConfig(frontmatter)
 		if err == nil {
 			t.Error("expected error for non-expression string timeout-minutes, got nil")
+			return
+		}
+		if !strings.Contains(err.Error(), "timeout-minutes") {
+			t.Errorf("error message should mention 'timeout-minutes', got: %v", err)
 		}
 	})
 

@@ -212,7 +212,8 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 
 	// Preprocess timeout-minutes so that both integer literals and GitHub Actions
 	// expressions (e.g. "${{ inputs.timeout }}") can be stored in *string.
-	// We operate on a shallow copy to avoid mutating the caller's map.
+	// A shallow copy is sufficient here because preprocessIntFieldAsString only
+	// modifies the top-level "timeout-minutes" key, never nested values.
 	frontmatterCopy := make(map[string]any, len(frontmatter))
 	maps.Copy(frontmatterCopy, frontmatter)
 	if err := preprocessIntFieldAsString(frontmatterCopy, "timeout-minutes", frontmatterTypesLog); err != nil {
