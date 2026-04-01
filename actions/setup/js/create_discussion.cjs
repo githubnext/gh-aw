@@ -135,27 +135,43 @@ async function fetchLabelIds(githubClient, owner, repo, labelNames) {
   }
 
   try {
-    // Fetch first 100 labels from the repository
+    // Paginate through all labels in the repository
     const labelsQuery = `
-      query($owner: String!, $repo: String!) {
+      query($owner: String!, $repo: String!, $cursor: String) {
         repository(owner: $owner, name: $repo) {
-          labels(first: 100) {
+          labels(first: 100, after: $cursor) {
             nodes {
               id
               name
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
             }
           }
         }
       }
     `;
 
-    const queryResult = await githubClient.graphql(labelsQuery, {
-      owner: owner,
-      repo: repo,
-    });
+    const allLabels = [];
+    let cursor = null;
+    let hasNextPage = true;
 
-    const repoLabels = queryResult?.repository?.labels?.nodes || [];
-    const labelMap = new Map(repoLabels.map(label => [label.name.toLowerCase(), label]));
+    while (hasNextPage) {
+      const queryResult = await githubClient.graphql(labelsQuery, {
+        owner,
+        repo,
+        cursor,
+      });
+
+      const labelsPage = queryResult?.repository?.labels;
+      const nodes = labelsPage?.nodes || [];
+      allLabels.push(...nodes);
+      hasNextPage = labelsPage?.pageInfo?.hasNextPage ?? false;
+      cursor = labelsPage?.pageInfo?.endCursor ?? null;
+    }
+
+    const labelMap = new Map(allLabels.map(label => [label.name.toLowerCase(), label]));
 
     // Match requested labels (case-insensitive)
     const matchedLabels = [];
@@ -173,7 +189,7 @@ async function fetchLabelIds(githubClient, owner, repo, labelNames) {
 
     if (unmatchedLabels.length > 0) {
       core.warning(`Could not find label IDs for: ${unmatchedLabels.join(", ")}`);
-      core.info(`These labels may not exist in the repository. Available labels: ${repoLabels.map(l => l.name).join(", ")}`);
+      core.info(`These labels may not exist in the repository. Available labels: ${allLabels.map(l => l.name).join(", ")}`);
     }
 
     return matchedLabels;

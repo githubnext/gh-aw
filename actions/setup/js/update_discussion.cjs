@@ -38,21 +38,36 @@ async function fetchLabelNodeIds(githubClient, owner, repo, labelNames) {
   }
 
   const labelsQuery = `
-    query($owner: String!, $repo: String!) {
+    query($owner: String!, $repo: String!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
-        labels(first: 100) {
+        labels(first: 100, after: $cursor) {
           nodes {
             id
             name
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
           }
         }
       }
     }
   `;
 
-  const queryResult = await githubClient.graphql(labelsQuery, { owner, repo });
-  const repoLabels = queryResult?.repository?.labels?.nodes || [];
-  const labelMap = new Map(repoLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
+  const allLabels = [];
+  let cursor = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const queryResult = await githubClient.graphql(labelsQuery, { owner, repo, cursor });
+    const labelsPage = queryResult?.repository?.labels;
+    const nodes = labelsPage?.nodes || [];
+    allLabels.push(...nodes);
+    hasNextPage = labelsPage?.pageInfo?.hasNextPage ?? false;
+    cursor = labelsPage?.pageInfo?.endCursor ?? null;
+  }
+
+  const labelMap = new Map(allLabels.map(/** @param {any} l */ l => [l.name.toLowerCase(), l.id]));
 
   const labelIds = [];
   const unmatched = [];
