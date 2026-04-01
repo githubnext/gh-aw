@@ -381,6 +381,7 @@ type metricsRawRow struct {
 // buildMetricsTrend computes aggregate metrics (min/max/avg/total, spike detection)
 // from a slice of per-run raw metric rows.
 func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
+	auditCrossRunLog.Printf("Building metrics trend from %d rows", len(rows))
 	if len(rows) == 0 {
 		return MetricsTrendData{}
 	}
@@ -459,6 +460,9 @@ func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
 			}
 		}
 	}
+
+	auditCrossRunLog.Printf("Metrics trend computed: avg_cost=%.4f, avg_tokens=%d, avg_turns=%.1f, cost_spikes=%d, token_spikes=%d",
+		trend.AvgCost, trend.AvgTokens, trend.AvgTurns, len(trend.CostSpikes), len(trend.TokenSpikes))
 
 	return trend
 }
