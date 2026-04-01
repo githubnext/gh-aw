@@ -37,11 +37,14 @@ tools:
   edit:
   bash:
     - "cat pkg/workflow/js/safe_outputs_tools.json"
+    - "jq -r '.[].name' pkg/workflow/js/safe_outputs_tools.json"
     - "find actions/setup/js -name '*.cjs' ! -name '*.test.cjs' -type f"
     - "cat actions/setup/js/*.cjs"
     - "grep -r 'let \\|var \\|const ' actions/setup/js --include='*.cjs'"
     - "grep -r 'module.exports' actions/setup/js --include='*.cjs'"
     - "head -n * actions/setup/js/*.cjs"
+    - "git log -1 --format='%ai' -- actions/setup/js/*.cjs"
+    - "git log -3 --format='%ai %s' -- actions/setup/js/*.cjs"
 
 timeout-minutes: 45
 strict: true
