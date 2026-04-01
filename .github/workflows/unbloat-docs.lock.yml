@@ -456,7 +456,7 @@ jobs:
         with:
           key: gh-aw-qmd-2.0.1-${{ github.run_id }}
           path: /tmp/gh-aw/qmd-index/
-      - name: Restore qmd models cache
+      - name: Restore qmd models from cache
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/qmd/models/
@@ -661,7 +661,7 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "24"
-      - name: Start QMD MCP Server
+      - name: Start qmd MCP Server
         id: qmd-mcp-start
         env:
           INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite
@@ -1471,7 +1471,7 @@ jobs:
           path: /tmp/gh-aw/qmd-index/
           restore-keys: |
             gh-aw-qmd-2.0.1-
-      - name: Cache qmd models
+      - name: Save qmd models to cache
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/qmd/models/

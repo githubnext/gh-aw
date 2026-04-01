@@ -105,7 +105,7 @@ func qmdHasSources(qmdConfig *QmdToolConfig) bool {
 //
 // The two steps are:
 //  1. Setup Node.js – ensures node v24 is available before running npx.
-//  2. Start QMD MCP Server – installs @tobilu/qmd via npx, starts the HTTP server as a
+//  2. Start qmd MCP Server – installs @tobilu/qmd via npx, starts the HTTP server as a
 //     background process, and polls /health (up to 120 s) before continuing.
 //
 // The gateway then connects to http://localhost:{port}/mcp.
@@ -124,7 +124,7 @@ func generateQmdStartStep(qmdConfig *QmdToolConfig) string {
 	fmt.Fprintf(&sb, "          node-version: \"%s\"\n", string(constants.DefaultNodeVersion))
 
 	// Step 2: Start qmd natively
-	sb.WriteString("      - name: Start QMD MCP Server\n")
+	sb.WriteString("      - name: Start qmd MCP Server\n")
 	sb.WriteString("        id: qmd-mcp-start\n")
 	sb.WriteString("        env:\n")
 	sb.WriteString("          INDEX_PATH: /tmp/gh-aw/qmd-index/index.sqlite\n")
@@ -167,7 +167,7 @@ func generateQmdStartStep(qmdConfig *QmdToolConfig) string {
 func generateQmdModelsCacheStep() string {
 	version := string(constants.DefaultQmdVersion)
 	var sb strings.Builder
-	sb.WriteString("      - name: Cache qmd models\n")
+	sb.WriteString("      - name: Save qmd models to cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/qmd/models/\n")
@@ -199,7 +199,7 @@ func generateQmdNodeLlamaCppCacheStep() string {
 func generateQmdModelsCacheRestoreStep() string {
 	version := string(constants.DefaultQmdVersion)
 	var sb strings.Builder
-	sb.WriteString("      - name: Restore qmd models cache\n")
+	sb.WriteString("      - name: Restore qmd models from cache\n")
 	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 	sb.WriteString("        with:\n")
 	sb.WriteString("          path: ~/.cache/qmd/models/\n")

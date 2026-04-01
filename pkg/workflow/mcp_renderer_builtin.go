@@ -75,7 +75,7 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 
 // RenderQmdMCP generates the qmd documentation search MCP server configuration.
 // qmd runs natively on the host VM with HTTP transport, started by the
-// "Start QMD MCP Server" step before the gateway, so the gateway connects via HTTP.
+// "Start qmd MCP Server" step before the gateway, so the gateway connects via HTTP.
 // Using HTTP transport avoids node-llama-cpp's direct process.stdout writes (dot-progress
 // during model loading) from corrupting the stdio JSON-RPC stream.
 func (r *MCPConfigRendererUnified) RenderQmdMCP(yaml *strings.Builder, qmdTool any, workflowData *WorkflowData) {
