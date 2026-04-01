@@ -378,6 +378,124 @@ describe("add_comment", () => {
       expect(result.itemNumber).toBe(10);
       expect(result.isDiscussion).toBe(true);
     });
+
+    it("should post a threaded reply when triggered by discussion_comment event", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Change context to discussion_comment event
+      mockContext.eventName = "discussion_comment";
+      mockContext.payload = {
+        discussion: {
+          number: 10,
+        },
+        comment: {
+          node_id: "DC_kwDOTriggeringComment123",
+        },
+      };
+
+      let capturedReplyToId = undefined;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          capturedReplyToId = variables?.replyToId;
+          return {
+            addDiscussionComment: {
+              comment: {
+                id: "DC_kwDOTest456",
+                body: variables?.body,
+                createdAt: "2024-01-01",
+                url: "https://github.com/owner/repo/discussions/10#discussioncomment-456",
+              },
+            },
+          };
+        }
+        return {
+          repository: {
+            discussion: {
+              id: "D_kwDOTest123",
+              url: "https://github.com/owner/repo/discussions/10",
+            },
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "This is a threaded reply to a discussion comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.isDiscussion).toBe(true);
+      // The reply should be threaded - replyToId should be the triggering comment node_id
+      expect(capturedReplyToId).toBe("DC_kwDOTriggeringComment123");
+    });
+
+    it("should post a top-level comment (not threaded) when triggered by discussion_comment with explicit item_number", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Change context to discussion_comment event
+      mockContext.eventName = "discussion_comment";
+      mockContext.payload = {
+        discussion: {
+          number: 10,
+        },
+        comment: {
+          node_id: "DC_kwDOTriggeringComment123",
+        },
+      };
+
+      let capturedReplyToId = undefined;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          capturedReplyToId = variables?.replyToId;
+          return {
+            addDiscussionComment: {
+              comment: {
+                id: "DC_kwDOTest456",
+                body: variables?.body,
+                createdAt: "2024-01-01",
+                url: "https://github.com/owner/repo/discussions/20#discussioncomment-456",
+              },
+            },
+          };
+        }
+        return {
+          repository: {
+            discussion: {
+              id: "D_kwDOTest123",
+              url: "https://github.com/owner/repo/discussions/20",
+            },
+          },
+        };
+      };
+
+      // Make REST API return 404 so the code falls back to discussion
+      mockGithub.rest.issues.createComment = async () => {
+        const err = new Error("Not Found");
+        // @ts-expect-error - Simulating GitHub REST API error
+        err.status = 404;
+        throw err;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      // Explicit item_number targeting a different discussion (via 404 fallback)
+      const message = {
+        type: "add_comment",
+        item_number: 20,
+        body: "This should be a top-level comment on discussion #20",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.isDiscussion).toBe(true);
+      // Should NOT be threaded since item_number was explicitly provided
+      expect(capturedReplyToId).toBeUndefined();
+    });
   });
 
   describe("regression test for wrong PR bug", () => {
