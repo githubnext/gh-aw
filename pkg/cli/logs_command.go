@@ -196,7 +196,7 @@ Examples:
 	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs with DIFC (data integrity flow control) integrity-filtered items in the gateway logs")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
-	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout; note: trial uses minutes for its timeout)")
+	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
