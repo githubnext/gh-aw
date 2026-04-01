@@ -32,17 +32,18 @@ func TestResolveLatestRelease_PrereleaseTagsSkipped(t *testing.T) {
 }
 
 // TestResolveLatestRelease_PrereleaseSkippedWhenCurrentVersionInvalid verifies that when
-// the current version is not a valid semantic version, the first stable (non-prerelease)
-// release is returned rather than the first item in the list which could be a prerelease.
+// the current version is not a valid semantic version, the highest stable release by
+// semver is returned rather than the first item in the list (which could be a prerelease
+// or an older release listed first by the API).
 func TestResolveLatestRelease_PrereleaseSkippedWhenCurrentVersionInvalid(t *testing.T) {
 	mockWorkflowReleasesAPI(t, func(_ string) ([]byte, error) {
-		// Prerelease appears first in the list returned by the API.
-		return []byte("v2.0.0-rc.1\nv1.5.0"), nil
+		// Prerelease appears first, and older stable release appears before newer one.
+		return []byte("v2.0.0-rc.1\nv1.3.0\nv1.5.0"), nil
 	})
 
 	result, err := resolveLatestRelease("owner/repo", "not-a-version", true, false)
 	require.NoError(t, err, "should not error when stable release exists")
-	assert.Equal(t, "v1.5.0", result, "should skip prerelease and return first stable release")
+	assert.Equal(t, "v1.5.0", result, "should skip prerelease and return highest stable release by semver")
 }
 
 // TestResolveLatestRelease_ErrorWhenOnlyPrereleasesExist verifies that an error is

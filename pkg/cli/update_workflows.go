@@ -305,18 +305,31 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	// Parse current version
 	currentVer := parseVersion(currentRef)
 	if currentVer == nil {
-		// If current version is not a valid semantic version, return the latest stable release
+		// If current version is not a valid semantic version, select the latest stable release
+		// by semantic version so we are not sensitive to the ordering of the API response.
+		var latestStable string
+		var latestStableVersion *semverutil.SemanticVersion
+
 		for _, release := range releases {
 			releaseVer := parseVersion(release)
 			if releaseVer == nil || releaseVer.Pre != "" {
 				continue
 			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest release: "+release))
+			if latestStableVersion == nil || releaseVer.IsNewer(latestStableVersion) {
+				latestStable = release
+				latestStableVersion = releaseVer
 			}
-			return release, nil
 		}
-		return "", errors.New("no stable releases found")
+
+		if latestStable == "" {
+			return "", fmt.Errorf("no stable releases found for %s", repo)
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current version is not valid, using latest stable release: "+latestStable))
+		}
+
+		return latestStable, nil
 	}
 
 	// Find the latest compatible non-prerelease release.
