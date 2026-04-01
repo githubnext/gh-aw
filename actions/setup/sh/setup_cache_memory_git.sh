@@ -21,25 +21,52 @@ LEVELS=("merged" "approved" "unapproved" "none")
 mkdir -p "$CACHE_DIR"
 cd "$CACHE_DIR"
 
+# --- Security: clear git hooks before any git operations ---
+# Git hook files under .git/hooks/ are preserved in the cache but are NOT tracked
+# by git (git add -A ignores .git/). A compromised agent run could write executable
+# hooks (e.g. post-checkout, post-merge) that would be restored from cache and
+# executed on the host runner before the AWF sandbox is established. Remove all
+# non-sample hook files immediately after cache restore to prevent this.
+if [ -d .git/hooks ]; then
+  find .git/hooks -type f ! -name '*.sample' -delete
+fi
+
 # --- Format detection & migration ---
 if [ ! -d .git ]; then
   # No git repo yet — either a fresh cache or a legacy flat-file cache.
-  # Initialize a git repository and import existing files onto the merged branch,
-  # then create all integrity branches from the same baseline.
+  # Initialize a git repository with an empty baseline commit on the highest-trust
+  # branch, then create all other integrity branches from that empty state.
+  # IMPORTANT: Legacy flat files (written at unknown/none integrity in a previous
+  # version of gh-aw) are committed to the 'none' branch only to prevent trust
+  # escalation — do NOT commit them to 'merged' or any higher-trust branch.
   git init -b merged -q
   git config user.email "gh-aw@github.com"
   git config user.name "gh-aw"
-  git add -A
+  # Disable hooks immediately after init so that no cached hook file can fire
+  # during checkout or merge operations later in this script.
+  git config core.hooksPath /dev/null
+  # Create an empty initial commit as the trusted baseline for all branches
   git commit --allow-empty -m "initial" -q
 
-  # Create all integrity branches from the same baseline
+  # Create all integrity branches from the empty baseline
   for level in "${LEVELS[@]}"; do
     if [ "$level" != "merged" ]; then
       git branch "$level" 2>/dev/null || true
     fi
   done
 
+  # Migrate any pre-existing flat files to the 'none' branch only (lowest trust).
+  # Switching to 'none' before staging ensures legacy data cannot be read by
+  # higher-integrity runs via the merge-down step.
+  git checkout -q none
+  git add -A
+  git commit --allow-empty -m "migrate-legacy-files" -q
+
   echo "Cache memory git repository initialized with branches: ${LEVELS[*]}"
+else
+  # Existing repo: disable hooks as belt-and-suspenders after the hook-file
+  # deletion above, ensuring no residual configuration can re-enable hooks.
+  git config core.hooksPath /dev/null
 fi
 
 # --- Checkout current integrity branch ---
