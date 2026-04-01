@@ -538,12 +538,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		result["version"] = fc.Version
 	}
 	if fc.TimeoutMinutes != nil {
-		// Return as integer for numeric literals, string for expressions
-		if fc.TimeoutMinutes.IsExpression() {
-			result["timeout-minutes"] = fc.TimeoutMinutes.String()
-		} else {
-			result["timeout-minutes"] = fc.TimeoutMinutes.IntValue()
-		}
+		result["timeout-minutes"] = fc.TimeoutMinutes.ToValue()
 	}
 	if fc.Strict != nil {
 		result["strict"] = *fc.Strict

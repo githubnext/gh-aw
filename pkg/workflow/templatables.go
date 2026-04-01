@@ -112,6 +112,22 @@ func (t *TemplatableInt32) IntValue() int {
 	return 0 // expression strings are not evaluable at compile time
 }
 
+// ToValue returns the native Go value for use in map literals and JSON output:
+//   - an int for numeric literals (e.g. 30)
+//   - a string for GitHub Actions expressions (e.g. "${{ inputs.timeout }}")
+//
+// This is the canonical helper for producing a map[string]any entry;
+// callers should prefer it over calling IsExpression + IntValue/String manually.
+func (t *TemplatableInt32) ToValue() any {
+	if t.IsExpression() {
+		return string(*t)
+	}
+	if n, err := strconv.Atoi(string(*t)); err == nil {
+		return n
+	}
+	return string(*t)
+}
+
 // Ptr returns a pointer to a copy of t, convenient for constructing
 // *TemplatableInt32 values inline.
 func (t *TemplatableInt32) Ptr() *TemplatableInt32 {
