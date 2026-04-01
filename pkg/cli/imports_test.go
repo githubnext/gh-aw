@@ -30,7 +30,7 @@ More content.
 		},
 	}
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -70,7 +70,7 @@ More content.
 		},
 	}
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -101,7 +101,7 @@ engine: claude
 
 	commitSHA := "e2770974a7eaccb58ddafd5606c38a05ba52c631"
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -133,7 +133,7 @@ More content.
 		},
 	}
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, "", "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -246,7 +246,7 @@ Do research.
 
 	commitSHA := "e2770974a7eaccb58ddafd5606c38a05ba52c631"
 
-	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", false)
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", "", false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -261,6 +261,136 @@ Do research.
 	malformedPath := "githubnext/agentics/@e2770974"
 	if strings.Contains(result, malformedPath) {
 		t.Errorf("Result should NOT contain malformed path '%s' (the original bug)\nGot:\n%s", malformedPath, result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_PathResolution tests that body-level {{#import}}
+// paths are resolved relative to the workflow file's location, not the repo root.
+// Regression test for: gh aw add rewrites {{#import shared/X.md}} with incorrect
+// cross-repo path (resolves from repo root instead of .github/workflows/).
+func TestProcessIncludesWithWorkflowSpec_PathResolution(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/source-repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "", "", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Path should be resolved relative to .github/workflows/, not the repo root
+	expectedInclude := "{{#import github/source-repo/.github/workflows/shared/config.md@abc123def456}}"
+	if !strings.Contains(result, expectedInclude) {
+		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
+	}
+
+	// The old wrong form (resolving from repo root) must not appear
+	wrongPath := "{{#import github/source-repo/shared/config.md@abc123def456}}"
+	if strings.Contains(result, wrongPath) {
+		t.Errorf("Result must NOT contain repo-root-relative path '%s'\nGot:\n%s", wrongPath, result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_PreservesLocalIncludes tests that body-level
+// {{#import}} directives are preserved as-is when the target file exists in the
+// local workflow directory. This is the add-command equivalent of the update-command's
+// local preservation fix.
+func TestProcessIncludesWithWorkflowSpec_PreservesLocalIncludes(t *testing.T) {
+	// Create a temporary directory to act as the local workflow directory
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/shared", 0755); err != nil {
+		t.Fatalf("Failed to create shared dir: %v", err)
+	}
+	if err := os.WriteFile(tmpDir+"/shared/config.md", []byte("# Local config"), 0644); err != nil {
+		t.Fatalf("Failed to create local config file: %v", err)
+	}
+
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/source-repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// The import must be preserved as-is since the file exists locally
+	if !strings.Contains(result, "{{#import shared/config.md}}") {
+		t.Errorf("Expected local import to be preserved, got:\n%s", result)
+	}
+
+	// Cross-repo ref must NOT appear
+	if strings.Contains(result, "github/source-repo") {
+		t.Errorf("Cross-repo ref should NOT appear when local file exists, got:\n%s", result)
+	}
+}
+
+// TestProcessIncludesWithWorkflowSpec_RewritesBodyWhenLocalMissing tests that body-level
+// {{#import}} directives are rewritten to cross-repo refs when the target does not
+// exist in the local workflow directory.
+func TestProcessIncludesWithWorkflowSpec_RewritesBodyWhenLocalMissing(t *testing.T) {
+	tmpDir := t.TempDir() // empty — no shared files present
+
+	content := `---
+engine: copilot
+---
+
+# My Workflow
+
+{{#import shared/config.md}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/source-repo",
+		},
+		WorkflowPath: ".github/workflows/my-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "", tmpDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// File not present locally → must be rewritten with correct full path
+	expectedRef := "{{#import github/source-repo/.github/workflows/shared/config.md@abc123def456}}"
+	if !strings.Contains(result, expectedRef) {
+		t.Errorf("Expected cross-repo ref '%s' when file is missing locally, got:\n%s", expectedRef, result)
+	}
+
+	// Relative path must not remain
+	if strings.Contains(result, "{{#import shared/config.md}}") {
+		t.Errorf("Relative path should have been rewritten when file is missing locally, got:\n%s", result)
 	}
 }
 

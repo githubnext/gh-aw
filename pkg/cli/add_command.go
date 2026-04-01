@@ -416,13 +416,16 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		// fetchAndSaveRemoteFrontmatterImports already downloaded those files locally, so
 		// the compiler can resolve them from disk without any GitHub API calls.
 
-		// Process @include directives and replace with workflowspec
-		// For local workflows, use the workflow's directory as the base path
+		// Process @include directives and replace with workflowspec.
+		// For local workflows, use the workflow's directory as the package source path.
+		// Pass githubWorkflowsDir as localWorkflowDir so that any body-level import
+		// whose target already exists locally is preserved as a local reference rather
+		// than being rewritten to a cross-repo workflowspec.
 		includeSourceDir := ""
 		if sourceInfo != nil && sourceInfo.IsLocal {
 			includeSourceDir = filepath.Dir(workflowSpec.WorkflowPath)
 		}
-		processedContent, err := processIncludesWithWorkflowSpec(content, workflowSpec, commitSHA, includeSourceDir, opts.Verbose)
+		processedContent, err := processIncludesWithWorkflowSpec(content, workflowSpec, commitSHA, includeSourceDir, githubWorkflowsDir, opts.Verbose)
 		if err != nil {
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))

@@ -182,9 +182,11 @@ func reconstructWorkflowFileFromMap(frontmatter map[string]any, markdown string)
 }
 
 // processIncludesWithWorkflowSpec processes @include directives in content and replaces local file references
-// with workflowspec format (owner/repo/path@sha) for all includes found in the package
-func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA, packagePath string, verbose bool) (string, error) {
-	importsLog.Printf("Processing @include directives: repo=%s, sha=%s, package=%s", workflow.RepoSlug, commitSHA, packagePath)
+// with workflowspec format (owner/repo/path@sha) for all includes found in the package.
+// If localWorkflowDir is non-empty, any relative import path whose file exists under that directory is
+// left as a local relative path rather than being rewritten to a cross-repo reference.
+func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA, packagePath, localWorkflowDir string, verbose bool) (string, error) {
+	importsLog.Printf("Processing @include directives: repo=%s, sha=%s, package=%s, localWorkflowDir=%s", workflow.RepoSlug, commitSHA, packagePath, localWorkflowDir)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing @include directives to replace with workflowspec"))
 	}
@@ -210,6 +212,12 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 		if directive != nil {
 			isOptional := directive.IsOptional
 			includePath := directive.Path
+
+			// Skip if it's already a workflowspec (owner/repo/path@sha format)
+			if isWorkflowSpecFormat(includePath) {
+				result.WriteString(line + "\n")
+				continue
+			}
 
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string
@@ -241,8 +249,22 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			// Mark as visited
 			visited[filePath] = true
 
+			// Preserve relative {{#import}} paths whose files exist in the local workflow directory.
+			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
+				if isLocalFileForUpdate(localWorkflowDir, filePath) {
+					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
+					result.WriteString(line + "\n")
+					// Add file to queue for processing nested includes
+					queue = append(queue, fileToProcess{path: filePath})
+					continue
+				}
+			}
+
+			// Resolve the file path relative to the workflow file's directory
+			resolvedPath := resolveImportPath(filePath, workflow.WorkflowPath)
+
 			// Build workflowspec for this include
-			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, filePath, commitSHA, workflow.Version)
+			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
 
 			// Add section if present
 			if sectionName != "" {
@@ -360,7 +382,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			isOptional := directive.IsOptional
 			includePath := directive.Path
 
-			// Skip if it's already a workflowspec (contains repo/path format)
+			// Skip if it's already a workflowspec (owner/repo/path@sha format)
 			if isWorkflowSpecFormat(includePath) {
 				result.WriteString(line + "\n")
 				continue
@@ -385,7 +407,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 				continue
 			}
 
-			// Preserve relative @include paths whose files exist in the local workflow directory.
+			// Preserve relative {{#import}} paths whose files exist in the local workflow directory.
 			if localWorkflowDir != "" && !strings.HasPrefix(filePath, "/") {
 				if isLocalFileForUpdate(localWorkflowDir, filePath) {
 					importsLog.Printf("Include path exists locally, preserving: %s", filePath)
