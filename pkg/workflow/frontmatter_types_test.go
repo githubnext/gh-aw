@@ -129,8 +129,11 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		if config.TimeoutMinutes == nil {
 			t.Fatal("TimeoutMinutes should not be nil")
 		}
-		if *config.TimeoutMinutes != "60" {
-			t.Errorf("TimeoutMinutes = %q, want %q", *config.TimeoutMinutes, "60")
+		if config.TimeoutMinutes.IntValue() != 60 {
+			t.Errorf("TimeoutMinutes.IntValue() = %d, want 60", config.TimeoutMinutes.IntValue())
+		}
+		if config.TimeoutMinutes.IsExpression() {
+			t.Error("TimeoutMinutes.IsExpression() should be false for an integer literal")
 		}
 	})
 
@@ -147,8 +150,11 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		if config.TimeoutMinutes == nil {
 			t.Fatal("TimeoutMinutes should not be nil")
 		}
-		if *config.TimeoutMinutes != "${{ inputs.timeout }}" {
-			t.Errorf("TimeoutMinutes = %q, want %q", *config.TimeoutMinutes, "${{ inputs.timeout }}")
+		if config.TimeoutMinutes.String() != "${{ inputs.timeout }}" {
+			t.Errorf("TimeoutMinutes.String() = %q, want %q", config.TimeoutMinutes.String(), "${{ inputs.timeout }}")
+		}
+		if !config.TimeoutMinutes.IsExpression() {
+			t.Error("TimeoutMinutes.IsExpression() should be true for an expression")
 		}
 	})
 

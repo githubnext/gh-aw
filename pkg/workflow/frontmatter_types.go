@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -127,16 +126,16 @@ type ObservabilityConfig struct {
 // This provides compile-time type safety and clearer error messages compared to map[string]any
 type FrontmatterConfig struct {
 	// Core workflow fields
-	Name           string   `json:"name,omitempty"`
-	Description    string   `json:"description,omitempty"`
-	Engine         string   `json:"engine,omitempty"`
-	Source         string   `json:"source,omitempty"`
-	TrackerID      string   `json:"tracker-id,omitempty"`
-	Version        string   `json:"version,omitempty"`
-	TimeoutMinutes *string  `json:"timeout-minutes,omitempty"`
-	Strict         *bool    `json:"strict,omitempty"`  // Pointer to distinguish unset from false
-	Private        *bool    `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
-	Labels         []string `json:"labels,omitempty"`
+	Name           string            `json:"name,omitempty"`
+	Description    string            `json:"description,omitempty"`
+	Engine         string            `json:"engine,omitempty"`
+	Source         string            `json:"source,omitempty"`
+	TrackerID      string            `json:"tracker-id,omitempty"`
+	Version        string            `json:"version,omitempty"`
+	TimeoutMinutes *TemplatableInt32 `json:"timeout-minutes,omitempty"`
+	Strict         *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
+	Private        *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
+	Labels         []string          `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
 	Tools            *ToolsConfig       `json:"tools,omitempty"`
@@ -210,19 +209,11 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	frontmatterTypesLog.Printf("Parsing frontmatter config with %d fields", len(frontmatter))
 	var config FrontmatterConfig
 
-	// Preprocess timeout-minutes so that both integer literals and GitHub Actions
-	// expressions (e.g. "${{ inputs.timeout }}") can be stored in *string.
-	// A shallow copy is sufficient here because preprocessIntFieldAsString only
-	// modifies the top-level "timeout-minutes" key, never nested values.
-	frontmatterCopy := make(map[string]any, len(frontmatter))
-	maps.Copy(frontmatterCopy, frontmatter)
-	if err := preprocessIntFieldAsString(frontmatterCopy, "timeout-minutes", frontmatterTypesLog); err != nil {
-		return nil, fmt.Errorf("invalid timeout-minutes: %w", err)
-	}
-
-	// Use JSON marshaling for the entire frontmatter conversion
-	// This automatically handles all field mappings
-	jsonBytes, err := json.Marshal(frontmatterCopy)
+	// Use JSON marshaling for the entire frontmatter conversion.
+	// TemplatableInt32.UnmarshalJSON transparently handles both integer literals
+	// (e.g. timeout-minutes: 30) and GitHub Actions expressions
+	// (e.g. timeout-minutes: ${{ inputs.timeout }}) during unmarshaling.
+	jsonBytes, err := json.Marshal(frontmatter)
 	if err != nil {
 		frontmatterTypesLog.Printf("Failed to marshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to marshal frontmatter to JSON: %w", err)
@@ -548,10 +539,10 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 	if fc.TimeoutMinutes != nil {
 		// Return as integer for numeric literals, string for expressions
-		if n, err := strconv.Atoi(*fc.TimeoutMinutes); err == nil {
-			result["timeout-minutes"] = n
+		if fc.TimeoutMinutes.IsExpression() {
+			result["timeout-minutes"] = fc.TimeoutMinutes.String()
 		} else {
-			result["timeout-minutes"] = *fc.TimeoutMinutes
+			result["timeout-minutes"] = fc.TimeoutMinutes.IntValue()
 		}
 	}
 	if fc.Strict != nil {

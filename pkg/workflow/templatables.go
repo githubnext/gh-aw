@@ -9,6 +9,11 @@
 //
 // # Go side
 //
+// TemplatableInt32 is a named type that handles JSON unmarshaling of both
+// integer literals and GitHub Actions expression strings transparently.
+// Use it for any frontmatter field that accepts "${{ inputs.N }}" alongside
+// plain integers (e.g. timeout-minutes).
+//
 // preprocessBoolFieldAsString must be called before YAML unmarshaling so
 // that a struct field typed as *string can store both literal booleans
 // ("true"/"false") and GitHub Actions expression strings.  Free-form
@@ -28,12 +33,91 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
+
+// TemplatableInt32 represents an integer frontmatter field that also accepts
+// GitHub Actions expression strings (e.g. "${{ inputs.timeout }}").  The
+// underlying value is always stored as a string: numeric literals as their
+// decimal representation, expressions verbatim.
+//
+// Use *TemplatableInt32 in struct fields with json:"field,omitempty" so that
+// unset fields are omitted during marshaling.
+//
+// Example struct usage:
+//
+//	TimeoutMinutes *TemplatableInt32 `json:"timeout-minutes,omitempty"`
+//
+// Example frontmatter values both accepted:
+//
+//	timeout-minutes: 30
+//	timeout-minutes: ${{ inputs.timeout }}
+type TemplatableInt32 string
+
+// UnmarshalJSON allows TemplatableInt32 to accept both JSON numbers (integer
+// literals) and JSON strings that are GitHub Actions expressions.
+// Free-form string literals that are not expressions are rejected with an error.
+func (t *TemplatableInt32) UnmarshalJSON(data []byte) error {
+	// Try a JSON number first (e.g. 30)
+	var n int32
+	if err := json.Unmarshal(data, &n); err == nil {
+		*t = TemplatableInt32(strconv.FormatInt(int64(n), 10))
+		return nil
+	}
+	// Try a JSON string (e.g. "${{ inputs.timeout }}")
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %s", data)
+	}
+	if !strings.HasPrefix(s, "${{") || !strings.HasSuffix(s, "}}") {
+		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got string %q", s)
+	}
+	*t = TemplatableInt32(s)
+	return nil
+}
+
+// MarshalJSON emits a JSON number for numeric literals and a JSON string for
+// GitHub Actions expressions.
+func (t *TemplatableInt32) MarshalJSON() ([]byte, error) {
+	if n, err := strconv.Atoi(string(*t)); err == nil {
+		return json.Marshal(n)
+	}
+	return json.Marshal(string(*t))
+}
+
+// String returns the underlying string representation of the value.
+func (t *TemplatableInt32) String() string {
+	return string(*t)
+}
+
+// IsExpression returns true if the value is a GitHub Actions expression
+// (i.e. starts with "${{" and ends with "}}").
+func (t *TemplatableInt32) IsExpression() bool {
+	s := string(*t)
+	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
+}
+
+// IntValue returns the integer value for numeric literals.
+// Returns 0 for GitHub Actions expressions, which are not evaluable at
+// compile time.
+func (t *TemplatableInt32) IntValue() int {
+	if n, err := strconv.Atoi(string(*t)); err == nil {
+		return n
+	}
+	return 0 // expression strings are not evaluable at compile time
+}
+
+// Ptr returns a pointer to a copy of t, convenient for constructing
+// *TemplatableInt32 values inline.
+func (t *TemplatableInt32) Ptr() *TemplatableInt32 {
+	v := *t
+	return &v
+}
 
 // preprocessBoolFieldAsString converts the value of a boolean config field
 // to a string before YAML unmarshaling.  This lets struct fields typed as
