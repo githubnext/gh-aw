@@ -158,6 +158,17 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects timeout-minutes as float", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"timeout-minutes": 5.5,
+		}
+
+		_, err := ParseFrontmatterConfig(frontmatter)
+		if err == nil {
+			t.Error("expected error for float timeout-minutes, got nil")
+		}
+	})
+
 	t.Run("rejects timeout-minutes as free-form string", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"timeout-minutes": "not-an-expression",
@@ -491,6 +502,25 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 		}
 		if reconstructed["env"] == nil {
 			t.Error("env should not be nil")
+		}
+	})
+
+	t.Run("round-trip preserves timeout-minutes expression", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":            "test-workflow",
+			"engine":          "copilot",
+			"timeout-minutes": "${{ inputs.timeout }}",
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		reconstructed := config.ToMap()
+
+		if reconstructed["timeout-minutes"] != "${{ inputs.timeout }}" {
+			t.Errorf("timeout-minutes expression mismatch: got %v (%T)", reconstructed["timeout-minutes"], reconstructed["timeout-minutes"])
 		}
 	})
 
