@@ -38,11 +38,6 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
 
 tools:
-  repo-memory:
-    branch-name: memory/delight
-    description: "Track delight findings and historical patterns"
-    file-glob: ["memory/delight/*.json", "memory/delight/*.md"]
-    max-file-size: 102400  # 100KB
   github:
     toolsets: [default, discussions]
   edit:
@@ -56,6 +51,10 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/delight"
+      description: "Track delight findings and historical patterns"
   - shared/reporting.md
   - shared/jqschema.md
 

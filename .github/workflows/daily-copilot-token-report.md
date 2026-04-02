@@ -12,11 +12,6 @@ permissions:
 tracker-id: daily-copilot-token-report
 engine: copilot
 tools:
-  repo-memory:
-    branch-name: memory/token-metrics
-    description: "Historical token consumption and cost data"
-    file-glob: ["memory/token-metrics/*.json", "memory/token-metrics/*.jsonl", "memory/token-metrics/*.csv", "memory/token-metrics/*.md"]
-    max-file-size: 102400  # 100KB
   bash:
     - "*"
 steps:
@@ -44,6 +39,10 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 20
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/token-metrics"
+      description: "Historical token consumption and cost data"
   - copilot-setup-steps.yml    # Import setup steps from copilot-setup-steps.yml
   - shared/reporting.md
   - shared/python-dataviz.md

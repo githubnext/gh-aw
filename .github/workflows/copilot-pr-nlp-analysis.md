@@ -32,17 +32,14 @@ safe-outputs:
     close-older-discussions: true
 
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/nlp-analysis"
+      description: "Historical NLP analysis results"
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
   - shared/python-nlp.md
   - shared/reporting.md
-
-tools:
-  repo-memory:
-    branch-name: memory/nlp-analysis
-    description: "Historical NLP analysis results"
-    file-glob: ["memory/nlp-analysis/*.json", "memory/nlp-analysis/*.jsonl", "memory/nlp-analysis/*.csv", "memory/nlp-analysis/*.md"]
-    max-file-size: 102400  # 100KB
 
 steps:
   - name: Fetch PR comments for detailed analysis

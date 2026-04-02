@@ -31,15 +31,12 @@ safe-outputs:
     close-older-discussions: true
 
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/prompt-analysis"
+      description: "Historical prompt pattern analysis"
   - shared/copilot-pr-analysis-base.md
   - shared/reporting.md
-
-tools:
-  repo-memory:
-    branch-name: memory/prompt-analysis
-    description: "Historical prompt pattern analysis"
-    file-glob: ["memory/prompt-analysis/*.json", "memory/prompt-analysis/*.jsonl", "memory/prompt-analysis/*.csv", "memory/prompt-analysis/*.md"]
-    max-file-size: 102400  # 100KB
 
 timeout-minutes: 15
 

@@ -32,11 +32,6 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  repo-memory:
-    branch-name: memory/session-insights
-    description: "Historical session analysis data"
-    file-glob: ["memory/session-insights/*.json", "memory/session-insights/*.jsonl", "memory/session-insights/*.csv", "memory/session-insights/*.md"]
-    max-file-size: 102400  # 100KB
   github:
     toolsets: [default]
   bash:
@@ -48,6 +43,10 @@ tools:
     - "date *"
 
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/session-insights"
+      description: "Historical session analysis data"
   - shared/jqschema.md  # Must come before copilot-session-data-fetch.md (dependency)
   - shared/copilot-session-data-fetch.md
   - shared/session-analysis-charts.md
