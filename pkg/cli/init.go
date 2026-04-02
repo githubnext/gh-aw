@@ -51,11 +51,10 @@ func InitRepository(opts InitOptions) error {
 
 	// Configure .gitattributes
 	initLog.Print("Configuring .gitattributes")
-	if err := ensureGitAttributes(); err != nil {
+	if updated, err := ensureGitAttributes(); err != nil {
 		initLog.Printf("Failed to configure .gitattributes: %v", err)
 		return fmt.Errorf("failed to configure .gitattributes: %w", err)
-	}
-	if opts.Verbose {
+	} else if updated && opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 	}
 

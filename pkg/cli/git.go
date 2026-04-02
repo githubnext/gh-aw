@@ -213,12 +213,13 @@ func stageWorkflowChanges() {
 	}
 }
 
-// ensureGitAttributes ensures that .gitattributes contains the entry to mark .lock.yml files as generated
-func ensureGitAttributes() error {
+// ensureGitAttributes ensures that .gitattributes contains the entry to mark .lock.yml files as generated.
+// It returns true if the file was modified, false if it was already up to date.
+func ensureGitAttributes() (bool, error) {
 	gitLog.Print("Ensuring .gitattributes is updated")
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return err // Not in a git repository, skip
+		return false, err // Not in a git repository, skip
 	}
 
 	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
@@ -265,18 +266,18 @@ func ensureGitAttributes() error {
 
 	if !modified {
 		gitLog.Print(".gitattributes already contains required entries")
-		return nil
+		return false, nil
 	}
 
 	// Write back to file with owner-only read/write permissions (0600) for security best practices
 	content := strings.Join(lines, "\n")
 	if err := os.WriteFile(gitAttributesPath, []byte(content), 0600); err != nil {
 		gitLog.Printf("Failed to write .gitattributes: %v", err)
-		return fmt.Errorf("failed to write .gitattributes: %w", err)
+		return false, fmt.Errorf("failed to write .gitattributes: %w", err)
 	}
 
 	gitLog.Print("Successfully updated .gitattributes")
-	return nil
+	return true, nil
 }
 
 // stageGitAttributesIfChanged stages .gitattributes if it was modified
