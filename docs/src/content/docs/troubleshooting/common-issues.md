@@ -287,23 +287,14 @@ If your workflow fails during the Copilot inference step even though the `COPILO
 
 **Symptoms**: The workflow fails with authentication or quota errors when the Copilot CLI tries to generate a response.
 
-**Diagnosis**: Verify that the account associated with the `COPILOT_GITHUB_TOKEN` can successfully run inference by testing it locally.
+**Diagnosis**: Test locally by installing the [Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) and running:
 
-1. Install the Copilot CLI locally by following the [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli).
+```bash
+export COPILOT_GITHUB_TOKEN="<your-github-pat>"
+copilot -p "write a haiku"
+```
 
-2. Export the token as an environment variable:
-
-   ```bash
-   export COPILOT_GITHUB_TOKEN="<your-github-pat>"
-   ```
-
-3. Run a simple inference test:
-
-   ```bash
-   copilot -p "write a haiku"
-   ```
-
-If this command fails, the account associated with the token does not have a valid Copilot license or inference access. Contact your organization administrator to verify that the token owner has an active Copilot subscription with inference enabled.
+If this fails, the token owner lacks a valid Copilot license or inference access. Contact your organization administrator to enable it.
 
 > [!NOTE]
 > The `COPILOT_GITHUB_TOKEN` must belong to a user account with an active GitHub Copilot subscription. Organization-managed Copilot licenses may have additional restrictions on programmatic API access.
@@ -511,15 +502,7 @@ See [Integrity Filtering](/gh-aw/reference/integrity/) for details.
 
 ### Workflow Job Timed Out
 
-When a workflow job exceeds its configured time limit, GitHub Actions marks the run as `timed_out`. The failure tracking issue or comment posted by gh-aw will include a message indicating the timeout and a suggestion:
-
-```yaml wrap
----
-timeout-minutes: 30  # Increase from the previous value
----
-```
-
-If no `timeout-minutes` value is set in your workflow frontmatter, the default is 20 minutes. To increase the limit:
+When a workflow job exceeds its time limit, GitHub Actions marks the run as `timed_out`. The default is 20 minutes. Increase it with:
 
 ```yaml wrap
 ---
@@ -527,7 +510,7 @@ timeout-minutes: 60
 ---
 ```
 
-Recompile with `gh aw compile` after updating. If the workflow is consistently timing out, consider reducing the scope of the task or breaking it into smaller, focused workflows.
+Recompile with `gh aw compile` after updating. If timeouts persist, reduce the task scope or split into smaller workflows.
 
 ### Why Did My Workflow Fail?
 
@@ -564,49 +547,17 @@ Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, check MCP co
 
 ### Enable Debug Logging
 
-The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command. This reveals what the CLI is doing internally — compilation steps, MCP setup, tool configuration, and more.
-
-**Enable all debug logs:**
+The `DEBUG` environment variable activates detailed internal logging for any `gh aw` command:
 
 ```bash
-DEBUG=* gh aw compile
+DEBUG=* gh aw compile                              # all logs
+DEBUG=workflow:* gh aw compile my-workflow         # specific package
+DEBUG=workflow:*,cli:* gh aw compile my-workflow   # multiple packages
+DEBUG=*,-workflow:test gh aw compile my-workflow   # exclude a logger
+DEBUG_COLORS=0 DEBUG=* gh aw compile 2>&1 | tee debug.log  # capture to file
 ```
 
-**Enable logs for a specific package:**
-
-```bash
-DEBUG=cli:* gh aw audit 123456
-DEBUG=workflow:* gh aw compile my-workflow
-DEBUG=parser:* gh aw compile my-workflow
-```
-
-**Enable logs for multiple packages at once:**
-
-```bash
-DEBUG=workflow:*,cli:* gh aw compile my-workflow
-```
-
-**Exclude specific loggers:**
-
-```bash
-DEBUG=*,-workflow:test gh aw compile my-workflow
-```
-
-**Disable colors (useful when piping output):**
-
-```bash
-DEBUG_COLORS=0 DEBUG=* gh aw compile my-workflow 2>&1 | tee debug.log
-```
-
-> [!TIP]
-> Debug output goes to `stderr`. Pipe with `2>&1 | tee debug.log` to capture it to a file while still seeing it in your terminal.
-
-Each log line shows:
-- **Namespace** – the package and component that emitted it (e.g., `workflow:compiler`)
-- **Message** – what the CLI was doing at that moment
-- **Time elapsed** – time since the previous log entry (e.g., `+125ms`), which helps identify slow steps
-
-Log namespaces follow a `pkg:filename` convention. Common namespaces include `cli:compile_command`, `workflow:compiler`, `workflow:expression_extraction`, and `parser:frontmatter`. Wildcards (`*`) match any suffix, so `workflow:*` captures all workflow-package logs.
+Debug output goes to `stderr`. Each log line shows the namespace (`workflow:compiler`), message, and time elapsed since the previous entry. Common namespaces: `cli:compile_command`, `workflow:compiler`, `workflow:expression_extraction`, `parser:frontmatter`. Wildcards match any suffix (`workflow:*`).
 
 ## Operational Runbooks
 
