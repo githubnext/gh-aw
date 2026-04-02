@@ -37,13 +37,24 @@ fi
 mkdir -p /tmp/gh-aw/mcp-logs
 
 # Guard against symlink attacks on the predictable /tmp/gh-aw/mcp-config path.
-# An attacker who can create files in /tmp could pre-create this path as a symlink
-# and redirect our credential writes to an arbitrary location.
+# An attacker who can create files in /tmp could pre-create /tmp/gh-aw or
+# /tmp/gh-aw/mcp-config as symlinks and redirect our credential writes to an
+# arbitrary location.  Check both path components before and after creation.
+if [ -L /tmp/gh-aw ]; then
+  echo "ERROR: /tmp/gh-aw is a symlink — possible symlink attack, aborting"
+  exit 1
+fi
 if [ -L /tmp/gh-aw/mcp-config ]; then
   echo "ERROR: /tmp/gh-aw/mcp-config is a symlink — possible symlink attack, aborting"
   exit 1
 fi
 mkdir -p /tmp/gh-aw/mcp-config
+# Post-creation check: verify neither path was replaced with a symlink after mkdir
+# (mitigates the TOCTOU window between the pre-check and mkdir).
+if [ -L /tmp/gh-aw ] || [ -L /tmp/gh-aw/mcp-config ]; then
+  echo "ERROR: /tmp/gh-aw/mcp-config was replaced with a symlink — possible symlink attack, aborting"
+  exit 1
+fi
 # Restrict directory permissions so only the runner process owner can read config files
 # (which contain bearer tokens and API keys)
 chmod 700 /tmp/gh-aw/mcp-config
