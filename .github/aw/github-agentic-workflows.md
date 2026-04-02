@@ -162,9 +162,26 @@ The YAML frontmatter supports these fields:
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
   - Write permissions are not allowed for security reasons; use `safe-outputs` for write operations instead
   - Exception: `id-token: write` is allowed to enable OIDC token minting for external authentication, but use with caution and follow security best practices
-- **`runs-on:`** - Runner type (string, array, or object)
-- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer, defaults to 20 minutes; custom  and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set)
+- **`runs-on:`** - Runner type for the main agent job (string, array, or object)
+- **`runs-on-slim:`** - Runner type for all framework/generated jobs (activation, safe-outputs, unlock, etc.). Defaults to `ubuntu-slim`. `safe-outputs.runs-on` takes precedence for safe-output jobs specifically.
+- **`timeout-minutes:`** - Agent execution step timeout in minutes (integer or GitHub Actions expression, defaults to 20 minutes; custom and safe-output jobs use the GitHub Actions platform default of 360 minutes unless explicitly set). Expressions enable `workflow_call` reusable workflows to parameterize timeouts: `timeout-minutes: ${{ inputs.timeout }}`
 - **`concurrency:`** - Concurrency control (string or object)
+  - **`job-discriminator:`** - Expression appended to compiler-generated job-level concurrency groups (`agent`, `output`, and `conclusion` jobs), preventing fan-out cancellations when multiple workflow instances run concurrently with different inputs. Common usage:
+
+    ```yaml
+    concurrency:
+      job-discriminator: ${{ inputs.finding_id }}
+    ```
+
+    Common expressions:
+
+    | Scenario | Expression |
+    |---|---|
+    | Fan-out by input | `${{ inputs.finding_id }}` |
+    | Universal uniqueness | `${{ github.run_id }}` |
+    | Dispatched or scheduled fallback | `${{ inputs.organization \|\| github.run_id }}` |
+
+    `job-discriminator` is a gh-aw extension stripped from the compiled lock file. Has no effect on `workflow_dispatch`-only, `push`, or `pull_request` triggered workflows.
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)
@@ -235,6 +252,8 @@ The YAML frontmatter supports these fields:
     - `copilot-requests: true` - Use GitHub Actions token for Copilot authentication instead of `COPILOT_GITHUB_TOKEN` secret
     - `disable-xpia-prompt: true` - Disable the built-in cross-prompt injection attack (XPIA) system prompt
     - `action-tag: "v0"` - Pin compiled action references to a specific version of the `gh-aw-actions` repository. Accepts version tags (e.g., `"v0"`, `"v1"`, `"v1.0.0"`) or a full 40-character commit SHA. When set, overrides the compiler's default action mode and resolves all action references from the external `github/gh-aw-actions` repository at the specified tag.
+    - `action-mode: "script"` - Control how the compiler generates action references: `"dev"` (local paths, default), `"release"` (SHA-pinned remote), `"action"` (gh-aw-actions repo), `"script"` (direct shell calls). Can also be overridden via `--action-mode` CLI flag.
+    - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
 
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
@@ -356,7 +375,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     engine:
       id: copilot                       # Required: coding agent identifier (copilot, claude, codex, or gemini)
-      version: beta                     # Optional: version of the action (has sensible default)
+      version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
       max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
@@ -364,6 +383,8 @@ The YAML frontmatter supports these fields:
       env:                              # Optional: custom environment variables (object)
         DEBUG_MODE: "true"
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
+      api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
+      command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
       error_patterns:                   # Optional: custom error pattern recognition (array)
         - pattern: "ERROR: (.+)"
           level_group: 1
@@ -449,6 +470,8 @@ The YAML frontmatter supports these fields:
   - `bash:` - Shell command tools
   - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
+  - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
+  - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`
 
 - **`safe-outputs:`** - Safe output processing configuration (preferred way to handle GitHub API write operations)
   - `create-issue:` - Safe GitHub issue creation (bugs, features)
@@ -2401,7 +2424,7 @@ The `--tool` flag provides detailed information about a specific tool, including
 The workflow frontmatter is validated against JSON Schema during compilation. Common validation errors:
 
 - **Invalid field names** - Only fields in the schema are allowed
-- **Wrong field types** - e.g., `timeout-minutes` must be integer
+- **Wrong field types** - e.g., `timeout-minutes` must be an integer or GitHub Actions expression string
 - **Invalid enum values** - e.g., `engine` must be "copilot", "claude", "codex", or "gemini"
 - **Missing required fields** - Some triggers require specific configuration
 
