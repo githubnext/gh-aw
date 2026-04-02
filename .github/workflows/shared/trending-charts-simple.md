@@ -17,7 +17,7 @@ steps:
   - name: Setup Python environment
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-      pip install --user --quiet numpy pandas matplotlib seaborn scipy
+      pip install --break-system-packages --quiet numpy pandas matplotlib seaborn scipy
 
   - name: Upload charts
     if: always()

@@ -14,7 +14,7 @@ steps:
   - name: Setup Python NLP environment
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-      pip install --user --quiet nltk scikit-learn textblob wordcloud
+      pip install --break-system-packages --quiet nltk scikit-learn textblob wordcloud
 
       # Download required NLTK corpora
       python3 -c "
