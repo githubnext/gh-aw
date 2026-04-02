@@ -7,6 +7,8 @@ const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
 
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
@@ -69,33 +71,77 @@ async function ensureAgentRunsIssue() {
 }
 
 /**
- * Handle posting a no-op message to the agent runs issue
- * This script is called from the conclusion job when the agent produced only a noop safe-output
- * It only posts the message when:
- * 1. The agent succeeded (no failures)
- * 2. There are no safe-outputs other than noop
+ * Process no-op safe outputs and optionally post to the no-op runs issue.
+ * This merged step replaces the separate "Process No-Op Messages" + "Handle No-Op Message"
+ * steps, eliminating the cross-step output dependency on GH_AW_NOOP_MESSAGE.
+ *
+ * Behaviour:
+ * 1. Load noop items directly from the agent output artifact.
+ * 2. In staged mode: write a summary preview and exit without posting.
+ * 3. Otherwise: write a summary, set the `noop_message` step output, then post to the
+ *    "[aw] No-Op Runs" tracking issue when the agent produced only noop outputs.
  */
 async function main() {
   try {
-    // Get workflow context
+    // --- Load and filter noop items from agent output ---
+    const result = loadAgentOutput();
+    if (!result.success) {
+      core.info("Could not load agent output, skipping");
+      return;
+    }
+
+    const maxCount = parseInt(process.env.GH_AW_NOOP_MAX || "0", 10);
+    const allNoopItems = (result.items || []).filter(/** @param {any} item */ item => item.type === "noop");
+    const noopItems = maxCount > 0 ? allNoopItems.slice(0, maxCount) : allNoopItems;
+
+    if (noopItems.length === 0) {
+      core.info("No noop items found in agent output");
+      return;
+    }
+
+    core.info(`Found ${noopItems.length} noop item(s)`);
+    const noopMessage = noopItems[0].message;
+
+    // --- Staged mode: preview only, do not post ---
+    if (isStagedMode()) {
+      let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
+      summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
+      for (let i = 0; i < noopItems.length; i++) {
+        const item = noopItems[i];
+        summaryContent += `### Message ${i + 1}\n`;
+        summaryContent += `${item.message}\n\n`;
+        summaryContent += "---\n\n";
+      }
+      await core.summary.addRaw(summaryContent).write();
+      core.info("📝 No-op message preview written to step summary");
+      return;
+    }
+
+    // --- Write step summary ---
+    let summaryContent = "\n\n## No-Op Messages\n\n";
+    summaryContent += "The following messages were logged for transparency:\n\n";
+    for (let i = 0; i < noopItems.length; i++) {
+      const item = noopItems[i];
+      core.info(`No-op message ${i + 1}: ${item.message}`);
+      summaryContent += `- ${item.message}\n`;
+    }
+    await core.summary.addRaw(summaryContent).write();
+
+    // Export for downstream steps/jobs
+    core.setOutput("noop_message", noopMessage);
+    core.info(`Successfully processed ${noopItems.length} noop message(s)`);
+
+    // --- Post to no-op runs issue ---
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "unknown";
     const runUrl = process.env.GH_AW_RUN_URL || "";
-    const noopMessage = process.env.GH_AW_NOOP_MESSAGE || "";
     const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
     const reportAsIssue = process.env.GH_AW_NOOP_REPORT_AS_ISSUE !== "false"; // Default to true
 
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Run URL: ${runUrl}`);
-    core.info(`No-op message: ${noopMessage}`);
     core.info(`Agent conclusion: ${agentConclusion}`);
     core.info(`Report as issue: ${reportAsIssue}`);
 
-    if (!noopMessage) {
-      core.info("No no-op message found, skipping");
-      return;
-    }
-
-    // Check if report-as-issue is disabled
     if (!reportAsIssue) {
       core.info("report-as-issue is disabled (set to false), skipping no-op message posting to issue");
       return;
@@ -111,17 +157,8 @@ async function main() {
       return;
     }
 
-    // Check that there are no safe-outputs other than noop
-    const { loadAgentOutput } = require("./load_agent_output.cjs");
-    const agentOutputResult = loadAgentOutput();
-
-    if (!agentOutputResult.success || !agentOutputResult.items) {
-      core.info("No agent output found, skipping");
-      return;
-    }
-
-    // Check if there are any non-noop outputs
-    const nonNoopItems = agentOutputResult.items.filter(({ type }) => type !== "noop");
+    // Skip posting when there are non-noop outputs (agent did real work)
+    const nonNoopItems = result.items.filter(/** @param {any} item */ ({ type }) => type !== "noop");
     if (nonNoopItems.length > 0) {
       core.info(`Found ${nonNoopItems.length} non-noop output(s), skipping no-op message posting`);
       return;

@@ -64,23 +64,32 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data))...)
 
-	// Add noop processing step if noop is configured
+	// Add noop processing step if noop is configured.
+	// This single step replaces the former two-step "Process No-Op Messages" + "Handle No-Op Message"
+	// sequence: handle_noop_message.cjs now loads agent output directly (no cross-step dep).
 	if data.SafeOutputs.NoOp != nil {
-		// Build custom environment variables specific to noop
+		// Build custom environment variables for the merged noop step
 		var noopEnvVars []string
 		noopEnvVars = append(noopEnvVars, buildTemplatableIntEnvVar("GH_AW_NOOP_MAX", data.SafeOutputs.NoOp.Max)...)
 
 		// Add workflow metadata for consistency
 		noopEnvVars = append(noopEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 
-		// Build the noop processing step (without artifact downloads - already added above)
+		// Agent conclusion and run URL are used to decide whether to post to the runs issue
+		noopEnvVars = append(noopEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+		noopEnvVars = append(noopEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+		noopEnvVars = append(noopEnvVars, buildTemplatableBoolEnvVar("GH_AW_NOOP_REPORT_AS_ISSUE", data.SafeOutputs.NoOp.ReportAsIssue)...)
+		if data.SafeOutputs.NoOp.ReportAsIssue == nil {
+			noopEnvVars = append(noopEnvVars, "          GH_AW_NOOP_REPORT_AS_ISSUE: \"true\"\n")
+		}
+
+		// Build the merged noop step (without artifact downloads - already added above)
 		noopSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 			StepName:      "Process No-Op Messages",
 			StepID:        "noop",
 			MainJobName:   mainJobName,
 			CustomEnvVars: noopEnvVars,
-			Script:        getNoOpScript(),
-			ScriptFile:    "noop.cjs",
+			ScriptFile:    "handle_noop_message.cjs",
 			CustomToken:   data.SafeOutputs.NoOp.GitHubToken,
 		})
 		steps = append(steps, noopSteps...)
@@ -129,6 +138,17 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Add agent failure handling step - creates/updates an issue when agent job fails
 	// This step always runs and checks if the agent job failed
 	// Build environment variables for the agent failure handler
+
+	// Serialize messages config once for reuse in both handler steps below.
+	var messagesJSON string
+	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
+		if json, jsonErr := serializeMessagesConfig(data.SafeOutputs.Messages); jsonErr != nil {
+			notifyCommentLog.Printf("Warning: failed to serialize messages config: %v", jsonErr)
+		} else {
+			messagesJSON = json
+		}
+	}
+
 	var agentFailureEnvVars []string
 	agentFailureEnvVars = append(agentFailureEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 	agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
@@ -205,14 +225,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// errors even when the agent job was skipped due to the lockdown check failing.
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.%s.outputs.lockdown_check_failed }}\n", string(constants.ActivationJobName)))
 
-	// Pass custom messages config if present
-	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
-		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
-		if err != nil {
-			notifyCommentLog.Printf("Warning: failed to serialize messages config for agent failure handler: %v", err)
-		} else if messagesJSON != "" {
-			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
-		}
+	// Pass custom messages config if present (JSON computed once above)
+	if messagesJSON != "" {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
 	}
 
 	// Pass repo-memory failure outputs if repo-memory is configured
@@ -270,58 +285,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	})
 	steps = append(steps, agentFailureSteps...)
 
-	// Add noop message handling step - posts noop messages to the "agent runs" issue
-	// This step runs when the agent succeeded with only noop outputs (no other safe-outputs)
-	// Build environment variables for the noop message handler
-	var noopMessageEnvVars []string
-	noopMessageEnvVars = append(noopMessageEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
-	noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-	// Pass the agent conclusion to check if the agent succeeded
-	noopMessageEnvVars = append(noopMessageEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
-	// Pass the noop message from the noop processing step
-	if data.SafeOutputs.NoOp != nil {
-		noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}\n")
-		// Pass the report-as-issue configuration
-		noopMessageEnvVars = append(noopMessageEnvVars, buildTemplatableBoolEnvVar("GH_AW_NOOP_REPORT_AS_ISSUE", data.SafeOutputs.NoOp.ReportAsIssue)...)
-		if data.SafeOutputs.NoOp.ReportAsIssue == nil {
-			noopMessageEnvVars = append(noopMessageEnvVars, "          GH_AW_NOOP_REPORT_AS_ISSUE: \"true\"\n")
-		}
-	}
-
-	// Build the noop message handling step
-	noopMessageSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-		StepName:      "Handle No-Op Message",
-		StepID:        "handle_noop_message",
-		MainJobName:   mainJobName,
-		CustomEnvVars: noopMessageEnvVars,
-		Script:        "const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs'); await main();",
-		ScriptFile:    "handle_noop_message.cjs",
-		CustomToken:   "", // Will use default GITHUB_TOKEN
-	})
-	steps = append(steps, noopMessageSteps...)
-
-	// Add create_pull_request error handling step if create-pull-request is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
-		// Build environment variables for the create PR error handler
-		var createPRErrorEnvVars []string
-		// Note: With consolidated safe outputs, individual handler errors are not exposed as outputs.
-		// The error handler script will skip gracefully if CREATE_PR_ERROR_MESSAGE is not set.
-		createPRErrorEnvVars = append(createPRErrorEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
-		createPRErrorEnvVars = append(createPRErrorEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-
-		// Build the create PR error handling step
-		createPRErrorSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Handle Create Pull Request Error",
-			StepID:        "handle_create_pr_error",
-			MainJobName:   mainJobName,
-			CustomEnvVars: createPRErrorEnvVars,
-			Script:        "const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_create_pr_error.cjs'); await main();",
-			ScriptFile:    "handle_create_pr_error.cjs",
-			CustomToken:   "", // Will use default GITHUB_TOKEN
-		})
-		steps = append(steps, createPRErrorSteps...)
-	}
-
 	// Build environment variables for the conclusion script
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
@@ -345,14 +308,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		customEnvVars = append(customEnvVars, "          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}\n")
 	}
 
-	// Pass custom messages config if present
-	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
-		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
-		if err != nil {
-			notifyCommentLog.Printf("Warning: failed to serialize messages config: %v", err)
-		} else if messagesJSON != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
-		}
+	// Pass custom messages config if present (JSON computed once above, reused here)
+	if messagesJSON != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
 	}
 
 	// Pass safe output job information for link generation
