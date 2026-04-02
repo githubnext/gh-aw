@@ -802,6 +802,7 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 	tests := []struct {
 		name              string
 		workflowID        string
+		discriminator     string
 		expectConcurrency bool
 		expectedGroup     string
 	}{
@@ -816,14 +817,29 @@ func TestConclusionJobConcurrencyGroup(t *testing.T) {
 			workflowID:        "",
 			expectConcurrency: false,
 		},
+		{
+			name:              "job-discriminator appended to conclusion concurrency group",
+			workflowID:        "my-workflow",
+			discriminator:     "${{ github.event.issue.number || github.run_id }}",
+			expectConcurrency: true,
+			expectedGroup:     "gh-aw-conclusion-my-workflow-${{ github.event.issue.number || github.run_id }}",
+		},
+		{
+			name:              "job-discriminator with run_id for universal uniqueness",
+			workflowID:        "pentest-triage",
+			discriminator:     "${{ github.run_id }}",
+			expectConcurrency: true,
+			expectedGroup:     "gh-aw-conclusion-pentest-triage-${{ github.run_id }}",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
 			workflowData := &WorkflowData{
-				Name:       "Test Workflow",
-				WorkflowID: tt.workflowID,
+				Name:                        "Test Workflow",
+				WorkflowID:                  tt.workflowID,
+				ConcurrencyJobDiscriminator: tt.discriminator,
 				SafeOutputs: &SafeOutputsConfig{
 					MissingTool: &MissingToolConfig{},
 				},

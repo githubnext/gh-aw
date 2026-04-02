@@ -473,6 +473,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	var concurrency string
 	if data.WorkflowID != "" {
 		group := "gh-aw-conclusion-" + data.WorkflowID
+		// If the user specified a job-discriminator, append it so that concurrent
+		// runs with different inputs (fan-out pattern) do not share the same group.
+		if data.ConcurrencyJobDiscriminator != "" {
+			notifyCommentLog.Printf("Appending job discriminator to conclusion job concurrency group: %s", data.ConcurrencyJobDiscriminator)
+			group = fmt.Sprintf("%s-%s", group, data.ConcurrencyJobDiscriminator)
+		}
 		concurrency = c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", group), "    ")
 		notifyCommentLog.Printf("Configuring conclusion job concurrency group: %s", group)
 	}
