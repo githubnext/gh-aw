@@ -33,7 +33,7 @@ safe-outputs:
 imports:
   - shared/reporting.md
 
-timeout-minutes: 10
+timeout-minutes: 20
 strict: true
 features:
   copilot-requests: true
