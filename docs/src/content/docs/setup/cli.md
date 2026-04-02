@@ -177,7 +177,7 @@ gh aw new my-workflow --force          # Overwrite if exists
 gh aw new my-workflow --engine claude  # Inject engine into frontmatter
 ```
 
-**Options:** `--force`, `--engine/-e`
+**Options:** `--force`, `--engine/-e`, `--interactive/-i`
 
 When `--engine` is specified, the engine is injected into the generated frontmatter template:
 
