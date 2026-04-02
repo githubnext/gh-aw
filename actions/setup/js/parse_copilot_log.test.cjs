@@ -232,7 +232,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.logEntries).toBeDefined();
       const resultEntry = result.logEntries.find(e => e.type === "result");
       expect(resultEntry).toBeDefined();
-      expect(resultEntry.num_turns).toBe(5);
+      expect(resultEntry?.num_turns).toBe(5);
     });
 
     it("should parse debug log format with reasoning_text", () => {

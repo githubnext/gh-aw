@@ -315,7 +315,7 @@ function parsePrettyPrintFormat(logContent) {
   // Derive the number of turns from the CLI's "Turns:" statistic if available.
   // Fallback to the number of tool entries to preserve existing behavior when absent.
   let numTurns = toolEntries.length;
-  const turnsMatch = logContent && logContent.match(/Turns:\s*(\d+)/i);
+  const turnsMatch = logContent.match(/Turns:\s*(\d+)/i);
   if (turnsMatch && turnsMatch[1]) {
     const parsedTurns = parseInt(turnsMatch[1], 10);
     if (!Number.isNaN(parsedTurns) && parsedTurns > 0) {
