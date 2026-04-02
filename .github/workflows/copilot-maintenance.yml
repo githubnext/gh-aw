@@ -15,7 +15,7 @@ on:
         description: 'Maximum number of branches to delete'
         required: false
         type: number
-        default: 1
+        default: 10
 
 permissions:
   contents: write
@@ -73,16 +73,16 @@ jobs:
       - name: Run copilot branch cleanup script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '1' }}
+          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '10' }}
         run: |
           echo "Running copilot branch cleanup script..."
           ./scripts/delete-old-copilot-branches.sh
 
       - name: Execute deletion commands
-        if: github.event.inputs.delete_branches == 'true'
+        if: github.event.inputs.delete_branches == 'true' || github.event_name == 'schedule'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '1' }}
+          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '10' }}
         run: |
           echo "Executing deletion commands..."
           ./scripts/delete-old-copilot-branches.sh | \
@@ -95,7 +95,7 @@ jobs:
           echo "✓ Copilot branch cleanup completed"
 
       - name: Preview mode notice
-        if: github.event.inputs.delete_branches != 'true'
+        if: github.event.inputs.delete_branches != 'true' && github.event_name != 'schedule'
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "⚠️  PREVIEW MODE - No branches were deleted"
