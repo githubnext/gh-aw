@@ -481,9 +481,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Skipped results should NOT trigger fail-fast cancellation of subsequent messages.
       if (result && result.success === false && result.skipped === true && !result.deferred) {
         const msg = result.error || "Handler returned success: false with skipped: true";
-        if (CODE_PUSH_TYPES.has(messageType)) {
-          core.info(`⏭ Message ${i + 1} (${messageType}) skipped — ${msg}`);
-        }
+        core.info(`⏭ Message ${i + 1} (${messageType}) skipped — ${msg}`);
         results.push({
           type: messageType,
           messageIndex: i,
@@ -1090,6 +1088,7 @@ async function main() {
     const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
     const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
+    const skippedHandlerResults = processingResult.results.filter(r => r.skipped && !r.reason && !r.deferred && !r.cancelled);
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
@@ -1100,6 +1099,11 @@ async function main() {
     }
     if (deferredCount > 0) {
       core.info(`Deferred: ${deferredCount}`);
+    }
+    if (skippedHandlerResults.length > 0) {
+      core.info(`Skipped (no context or limit reached): ${skippedHandlerResults.length}`);
+      const skippedHandlerTypes = [...new Set(skippedHandlerResults.map(r => r.type))];
+      core.info(`  Types: ${skippedHandlerTypes.join(", ")}`);
     }
     if (skippedStandaloneResults.length > 0) {
       core.info(`Skipped (standalone step): ${skippedStandaloneResults.length}`);
