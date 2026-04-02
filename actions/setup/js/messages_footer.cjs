@@ -205,6 +205,10 @@ function getFooterAgentFailureIssueMessage(ctx) {
 
   // Default footer template with link to workflow run
   let defaultFooter = "> Generated from [{workflow_name}]({agentic_workflow_url})";
+  // Append effective tokens with ● symbol when available (compact format, no "ET" label)
+  if (effectiveTokens) {
+    defaultFooter += `{effective_tokens_suffix}`;
+  }
   // Append history link when available
   if (ctx.historyUrl) {
     defaultFooter += " · [◷]({history_url})";
@@ -239,6 +243,10 @@ function getFooterAgentFailureCommentMessage(ctx) {
 
   // Default footer template with link to workflow run
   let defaultFooter = "> Generated from [{workflow_name}]({agentic_workflow_url})";
+  // Append effective tokens with ● symbol when available (compact format, no "ET" label)
+  if (effectiveTokens) {
+    defaultFooter += `{effective_tokens_suffix}`;
+  }
   // Append history link when available
   if (ctx.historyUrl) {
     defaultFooter += " · [◷]({history_url})";

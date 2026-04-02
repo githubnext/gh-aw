@@ -33,6 +33,7 @@ describe("messages.cjs", () => {
     delete process.env.GH_AW_TRACKER_ID;
     delete process.env.GITHUB_RUN_ID;
     delete process.env.GH_AW_WORKFLOW_ID;
+    delete process.env.GH_AW_EFFECTIVE_TOKENS;
     // Clear cache by reimporting
     vi.resetModules();
   });
@@ -676,54 +677,153 @@ describe("messages.cjs", () => {
     });
   });
 
-  describe("getCloseOlderDiscussionMessage", () => {
-    it("should return default close older discussion message", async () => {
-      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+  describe("getFooterAgentFailureIssueMessage", () => {
+    it("should return default footer without effective tokens when env var is not set", async () => {
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
 
-      const result = getCloseOlderDiscussionMessage({
-        newDiscussionUrl: "https://github.com/test/repo/discussions/10",
-        newDiscussionNumber: 10,
+      const result = getFooterAgentFailureIssueMessage({
         workflowName: "Test Workflow",
         runUrl: "https://github.com/test/repo/actions/runs/123",
       });
 
-      expect(result).toContain("This discussion has been marked as **outdated**");
-      expect(result).toContain("[Test Workflow](https://github.com/test/repo/actions/runs/123)");
-      expect(result).toContain("[Discussion #10](https://github.com/test/repo/discussions/10)");
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123/agentic_workflow)");
+      expect(result).not.toContain("●");
     });
 
-    it("should use custom close older discussion template", async () => {
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        closeOlderDiscussion: "This is outdated. See [{new_discussion_number}]({new_discussion_url}).",
+    it("should include effective tokens in default footer when env var is set", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureIssueMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
       });
 
-      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
-
-      const result = getCloseOlderDiscussionMessage({
-        newDiscussionUrl: "https://github.com/test/repo/discussions/15",
-        newDiscussionNumber: 15,
-        workflowName: "Custom Bot",
-        runUrl: "https://example.com/run/456",
-      });
-
-      expect(result).toBe("This is outdated. See [15](https://github.com/test/repo/discussions/15).");
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123/agentic_workflow) · ● 12.5K");
     });
 
-    it("should support snake_case placeholders", async () => {
+    it("should include effective tokens before history link in default footer", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      const historyUrl = "https://github.com/search?q=repo:test/repo+is:issue&type=issues";
+
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureIssueMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        historyUrl,
+      });
+
+      expect(result).toBe(`> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123/agentic_workflow) · ● 5K · [◷](${historyUrl})`);
+    });
+
+    it("should not include effective tokens in custom footer unless placeholder is used", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
-        closeOlderDiscussion: "Outdated by {workflow_name}. New: #{new_discussion_number}",
+        agentFailureIssue: "> Custom: [{workflow_name}]({run_url})",
       });
 
-      const { getCloseOlderDiscussionMessage } = await import("./messages.cjs");
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
 
-      const result = getCloseOlderDiscussionMessage({
-        newDiscussionUrl: "https://github.com/test/repo/discussions/20",
-        newDiscussionNumber: 20,
-        workflowName: "Weekly Report",
-        runUrl: "https://example.com/run/789",
+      const result = getFooterAgentFailureIssueMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
       });
 
-      expect(result).toBe("Outdated by Weekly Report. New: #20");
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)");
+      expect(result).not.toContain("●");
+    });
+
+    it("should allow custom footer template to include effective tokens via placeholder", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        agentFailureIssue: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
+      });
+
+      const { getFooterAgentFailureIssueMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureIssueMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · ● 5K");
+    });
+  });
+
+  describe("getFooterAgentFailureCommentMessage", () => {
+    it("should return default footer without effective tokens when env var is not set", async () => {
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123/agentic_workflow)");
+      expect(result).not.toContain("●");
+    });
+
+    it("should include effective tokens in default footer when env var is set", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "12500";
+
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123/agentic_workflow) · ● 12.5K");
+    });
+
+    it("should include effective tokens before history link in default footer", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      const historyUrl = "https://github.com/search?q=repo:test/repo+is:issue&type=issues";
+
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+        historyUrl,
+      });
+
+      expect(result).toBe(`> Generated from [Test Workflow](https://github.com/test/repo/actions/runs/123/agentic_workflow) · ● 5K · [◷](${historyUrl})`);
+    });
+
+    it("should not include effective tokens in custom footer unless placeholder is used", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        agentFailureComment: "> Custom: [{workflow_name}]({run_url})",
+      });
+
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123)");
+      expect(result).not.toContain("●");
+    });
+
+    it("should allow custom footer template to include effective tokens via placeholder", async () => {
+      process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        agentFailureComment: "> Custom: [{workflow_name}]({run_url}){effective_tokens_suffix}",
+      });
+
+      const { getFooterAgentFailureCommentMessage } = await import("./messages.cjs");
+
+      const result = getFooterAgentFailureCommentMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · ● 5K");
     });
   });
 });
