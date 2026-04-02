@@ -14,15 +14,12 @@ permissions:
 engine: claude
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[typist] "
+      expires: 1d
   - shared/reporting.md
   - shared/mcp/serena-go.md
-
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   github:
@@ -41,7 +38,6 @@ tools:
 timeout-minutes: 20
 strict: true
 ---
-
 # Typist - Go Type Consistency Analysis
 
 You are the Typist Agent - an expert system that analyzes Go codebases to identify duplicated type definitions and untyped usages, providing actionable refactoring recommendations.

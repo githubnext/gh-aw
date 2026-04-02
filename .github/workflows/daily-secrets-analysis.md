@@ -15,22 +15,15 @@ tools:
   github:
     toolsets: [default, discussions]
   bash: true
-safe-outputs:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    title-prefix: "[daily secrets] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 20
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily secrets] "
   - shared/reporting.md
 features:
   copilot-requests: true
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Secrets Analysis Agent

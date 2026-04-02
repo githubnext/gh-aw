@@ -18,15 +18,13 @@ network:
     - fonts
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 20
 strict: false
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[mcp-inspector] "
+      expires: 1d
   - shared/mcp/arxiv.md
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
@@ -50,7 +48,6 @@ tools:
   bash: true
   cache-memory: true
 ---
-
 # MCP Inspector Agent
 
 Systematically investigate and document all MCP server configurations in `.github/workflows/shared/mcp/*.md`.

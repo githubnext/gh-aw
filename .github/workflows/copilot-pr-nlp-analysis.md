@@ -23,15 +23,11 @@ network:
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[nlp-analysis] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[nlp-analysis] "
+      expires: 1d
   - shared/copilot-pr-analysis-base.md
   - shared/python-dataviz.md
   - shared/python-nlp.md
@@ -72,7 +68,6 @@ timeout-minutes: 20
 features:
   copilot-requests: true
 ---
-
 # Copilot PR Conversation NLP Analysis
 
 You are an AI analytics agent specialized in Natural Language Processing (NLP) and conversation analysis. Your mission is to analyze GitHub Copilot pull request conversations to identify trends, sentiment patterns, and recurring topics.

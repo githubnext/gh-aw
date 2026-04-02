@@ -21,17 +21,16 @@ tools:
     - "*"
 safe-outputs:
   upload-asset:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    close-older-discussions: true
-
 network:
   allowed:
     - defaults
     - node
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[docs-noob-tester] "
+      expires: 1d
   - shared/docs-server-lifecycle.md
   - shared/reporting.md
   - shared/keep-it-short.md

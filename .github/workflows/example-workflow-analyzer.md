@@ -13,17 +13,14 @@ tools:
   agentic-workflows:
   github:
     toolsets: [default, actions]
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[workflow-analysis] "
-    category: "audits"
-    close-older-discussions: true
 timeout-minutes: 10
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[workflow-analysis] "
+      expires: 1d
   - shared/reporting.md
 ---
-
 # Weekly Workflow Analysis
 
 Analyze GitHub Actions workflow runs from the past week and identify improvement opportunities.

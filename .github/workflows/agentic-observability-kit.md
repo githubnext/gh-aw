@@ -20,12 +20,6 @@ safe-outputs:
   mentions: false
   allowed-github-references: []
   concurrency-group: "agentic-observability-kit-safe-outputs"
-  create-discussion:
-    expires: 7d
-    category: "audits"
-    title-prefix: "[observability] "
-    max: 1
-    close-older-discussions: true
   create-issue:
     title-prefix: "[observability escalation] "
     labels: [agentics, warning, observability]
@@ -35,9 +29,12 @@ safe-outputs:
     report-as-issue: false
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[observability] "
+      expires: 7d
   - shared/reporting.md
 ---
-
 # Agentic Observability Kit
 
 You are an agentic workflow observability analyst. Produce one executive report that teams can read quickly, and create at most one escalation issue only when repeated patterns show that repository owners need to take action.

@@ -38,22 +38,15 @@ tools:
   bash:
     - "*"
 
-safe-outputs:
-  upload-asset:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    title-prefix: "[integrity] "
-    max: 1
-    close-older-discussions: true
-
 timeout-minutes: 30
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[integrity] "
   - shared/reporting.md
   - shared/python-dataviz.md
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily DIFC Integrity-Filtered Events Analyzer

@@ -17,18 +17,14 @@ tools:
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    title-prefix: "[Schema Consistency] "
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[Schema Consistency] "
+      expires: 1d
   - shared/reporting.md
 ---
-
 # Schema Consistency Checker
 
 You are an expert system that detects inconsistencies between:

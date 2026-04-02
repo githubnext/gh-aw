@@ -9,20 +9,17 @@ permissions:
    pull-requests: read
    actions: read
 engine: claude
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[safe-output-health] "
+      expires: 1d
   - shared/aw-logs-24h-fetch.md
   - shared/jqschema.md
   - shared/reporting.md
 ---
-
 # Safe Output Health Monitor
 
 You are the Safe Output Health Monitor - an expert system that monitors and analyzes the health of safe output jobs in agentic workflows.

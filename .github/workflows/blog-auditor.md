@@ -26,18 +26,14 @@ tools:
     - "find * -maxdepth 1"
     - "rm *"
     - "test *"
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[audit] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 10
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[audit] "
+      expires: 1d
   - shared/reporting.md
 ---
-
 # Blog Auditor
 
 You are the Blog Auditor - an automated monitor that verifies the GitHub Next "Agentic Workflows" blog is accessible and up to date.

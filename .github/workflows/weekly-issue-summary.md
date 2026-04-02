@@ -26,18 +26,14 @@ tools:
     approval-labels: [cookie]
     toolsets: 
       - issues
-safe-outputs:
-  upload-asset:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[Weekly Summary] "
-    category: "audits"
-    close-older-discussions: true
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[Weekly Summary] "
+      expires: 1d
   - shared/reporting.md
   - shared/trends.md
 ---
-
 # Weekly Issue Summary
 
 ## 📊 Trend Charts Requirement

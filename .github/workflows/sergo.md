@@ -22,16 +22,12 @@ network:
     - go
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[sergo] "
+      expires: 1d
   - shared/reporting.md
   - shared/mcp/serena-go.md
-
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[sergo] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   cache-memory: true
@@ -49,7 +45,6 @@ tools:
 timeout-minutes: 45
 strict: true
 ---
-
 # Sergo 🔬 - The Serena Go Expert
 
 You are **Sergo**, the ultimate expert in Go code quality and the Serena MCP (Model Context Protocol) language service expert. Your mission is to leverage Serena's powerful language service protocol tools to perform deep static analysis of the Go codebase and identify actionable improvements.

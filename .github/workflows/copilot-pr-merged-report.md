@@ -19,14 +19,6 @@ strict: false
 tools:
   github: false
 
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[copilot-pr-merged-report] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 network:
   allowed:
     - defaults
@@ -34,6 +26,10 @@ network:
     - api.github.com
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[copilot-pr-merged-report] "
+      expires: 1d
   - shared/gh.md
   - shared/copilot-pr-analysis-base.md
   - shared/reporting.md
@@ -42,7 +38,6 @@ timeout-minutes: 10
 features:
   copilot-requests: true
 ---
-
 # Daily Copilot PR Merged Report
 
 You are an AI analytics agent that generates daily reports on GitHub Copilot coding agent pull requests that were **merged** in the last 24 hours.

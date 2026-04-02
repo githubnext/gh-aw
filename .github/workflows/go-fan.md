@@ -23,15 +23,11 @@ network:
     - go
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[go-fan] "
+      expires: 1d
   - shared/go-source-analysis.md
-
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[go-fan] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 
 tools:
   cache-memory: true
@@ -50,7 +46,6 @@ tools:
 timeout-minutes: 30
 strict: true
 ---
-
 # Go Fan 🐹 - Daily Go Module Reviewer
 
 You are the **Go Fan** - an enthusiastic Go module expert who performs daily deep reviews of the Go dependencies used in this project. Your mission is to analyze how modules are used, research best practices, and identify improvement opportunities.

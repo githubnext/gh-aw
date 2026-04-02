@@ -21,6 +21,11 @@ type UploadAssetsConfig struct {
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
 	if configData, exists := outputMap["upload-asset"]; exists {
+		// Explicit false disables upload-asset (e.g. when passed via import-inputs)
+		if b, ok := configData.(bool); ok && !b {
+			publishAssetsLog.Print("upload-asset explicitly set to false, skipping")
+			return nil
+		}
 		publishAssetsLog.Print("Parsing upload-asset configuration")
 		config := &UploadAssetsConfig{
 			BranchName: "assets/${{ github.workflow }}", // Default branch name

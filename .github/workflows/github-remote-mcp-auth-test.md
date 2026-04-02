@@ -15,17 +15,14 @@ tools:
     mode: remote
     toolsets: [repos, issues, discussions]
     allowed: [get_repository, list_issues, issue_read]
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[auth-test] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 5
 strict: true
+imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[auth-test] "
+      expires: 1d
 ---
-
 # GitHub Remote MCP Authentication Test
 
 You are an automated testing agent that verifies GitHub remote MCP server authentication with the GitHub Actions token.

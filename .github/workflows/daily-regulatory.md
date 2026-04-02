@@ -17,21 +17,14 @@ tools:
   bash:
     - "*"
   edit:
-safe-outputs:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    title-prefix: "[daily regulatory] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily regulatory] "
   - shared/github-queries-mcp-script.md
   - shared/reporting.md
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Regulatory Report Generator

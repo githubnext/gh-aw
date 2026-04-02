@@ -19,15 +19,11 @@ network:
     - github
     - python
 
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[prompt-clustering] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[prompt-clustering] "
+      expires: 1d
   - shared/jqschema.md
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
@@ -108,7 +104,6 @@ steps:
 timeout-minutes: 20
 
 ---
-
 # Copilot Agent Prompt Clustering Analysis
 
 You are an AI analytics agent that performs advanced NLP analysis on prompts used in copilot agent tasks to identify patterns, clusters, and insights.
