@@ -93,8 +93,21 @@ async function main() {
       return null;
     }
 
-    const localLockFilePath = path.join(workspace, lockFilePath);
-    const localMdFilePath = path.join(workspace, workflowMdPath);
+    // Resolve and validate both paths to prevent path traversal attacks.
+    // GH_AW_WORKFLOW_FILE could theoretically contain "../" segments; reject any
+    // resolved path that escapes the workspace/.github/workflows directory.
+    const allowedDir = path.resolve(workspace, ".github", "workflows");
+    const localLockFilePath = path.resolve(workspace, lockFilePath);
+    const localMdFilePath = path.resolve(workspace, workflowMdPath);
+
+    if (!localLockFilePath.startsWith(allowedDir + path.sep) && localLockFilePath !== allowedDir) {
+      core.info(`Resolved lock file path escapes workspace: ${localLockFilePath}`);
+      return null;
+    }
+    if (!localMdFilePath.startsWith(allowedDir + path.sep) && localMdFilePath !== allowedDir) {
+      core.info(`Resolved source file path escapes workspace: ${localMdFilePath}`);
+      return null;
+    }
 
     core.info(`Attempting local filesystem fallback for hash comparison:`);
     core.info(`  Lock file: ${localLockFilePath}`);

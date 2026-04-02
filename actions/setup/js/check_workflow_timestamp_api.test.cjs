@@ -746,5 +746,45 @@ engine: copilot
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
+
+    it("should fall back to local files when API lock file fetch succeeds but md file fetch throws", async () => {
+      // First API call (lock file) succeeds, second (md file) throws — triggers the catch-block fallback
+      const lockFileContent = `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`;
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: {
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(lockFileContent).toString("base64"),
+          },
+        })
+        .mockRejectedValueOnce(new Error("Resource not accessible by integration"));
+
+      // Local files have matching hashes
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`);
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: copilot\n---\n# Test");
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not compute frontmatter hash via API"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("local filesystem fallback"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should reject path traversal in GH_AW_WORKFLOW_FILE via local filesystem fallback", async () => {
+      // Craft a malicious workflow file name that tries to escape the workspace
+      process.env.GH_AW_WORKFLOW_FILE = "../../etc/passwd.lock.yml";
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      // The path traversal is rejected before any file read
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("escapes workspace"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("integrity check failed"));
+    });
   });
 });
