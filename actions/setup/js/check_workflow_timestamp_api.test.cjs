@@ -629,6 +629,9 @@ engine: copilot
 
   describe("local filesystem fallback for cross-org reusable workflows", () => {
     let tmpDir;
+    let workflowsDir;
+    // Pre-computed hash for frontmatter "engine: copilot" (used across multiple tests)
+    const copilotFrontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
 
     beforeEach(async () => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
@@ -638,7 +641,8 @@ engine: copilot
 
       // Create temp directory structure mimicking $GITHUB_WORKSPACE after checkout
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-"));
-      fs.mkdirSync(path.join(tmpDir, ".github", "workflows"), { recursive: true });
+      workflowsDir = path.join(tmpDir, ".github", "workflows");
+      fs.mkdirSync(workflowsDir, { recursive: true });
 
       const module = await import("./check_workflow_timestamp_api.cjs");
       main = module.main;
@@ -653,11 +657,8 @@ engine: copilot
       // Simulate cross-org API permission error
       mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
 
-      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
-      const workflowsDir = path.join(tmpDir, ".github", "workflows");
-
-      // Write local files — hash for "engine: copilot" frontmatter
-      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${validHash}\nname: Test\n`);
+      // Write local files — hash matches "engine: copilot" frontmatter
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`);
       fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: copilot\n---\n# Test");
 
       process.env.GITHUB_WORKSPACE = tmpDir;
@@ -673,12 +674,8 @@ engine: copilot
       // Simulate cross-org API permission error
       mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
 
-      // Hash for "engine: copilot" frontmatter
-      const storedHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
-      const workflowsDir = path.join(tmpDir, ".github", "workflows");
-
       // Lock file stores copilot hash but .md file now has claude frontmatter
-      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${storedHash}\nname: Test\n`);
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`);
       fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: claude\n---\n# Test");
 
       process.env.GITHUB_WORKSPACE = tmpDir;
@@ -718,8 +715,7 @@ engine: copilot
     });
 
     it("should use API if available even in cross-repo scenario (API preferred over local files)", async () => {
-      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
-      const lockFileContent = `# frontmatter-hash: ${validHash}\nname: Test\n`;
+      const lockFileContent = `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`;
       const mdFileContent = "---\nengine: copilot\n---\n# Test";
 
       // API succeeds
@@ -740,7 +736,6 @@ engine: copilot
         });
 
       // Local files also available (but should not be used since API succeeds)
-      const workflowsDir = path.join(tmpDir, ".github", "workflows");
       fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), "# frontmatter-hash: different-hash\nname: Test\n");
       fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: claude\n---\n# Different");
       process.env.GITHUB_WORKSPACE = tmpDir;
