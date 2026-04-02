@@ -143,10 +143,10 @@ function normalizeHeredocDelimiters(content) {
 // ── Load golden file ─────────────────────────────────────────────────
 function loadGoldenFile(testName) {
   // Golden files follow the charmbracelet/x/exp/golden convention:
-  // testdata/TestName/subtest_name.golden
+  // pkg/workflow/testdata/TestWasmGolden_CompileFixtures/<name>.golden
   const goldenPath = join(
-    GOLDEN_DIR,
-    "TestWasmGolden_CompileFixtures",
+    ROOT,
+    "pkg/workflow/testdata/TestWasmGolden_CompileFixtures",
     testName + ".golden"
   );
   if (!existsSync(goldenPath)) {
