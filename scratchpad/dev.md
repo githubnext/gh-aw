@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 4.9
-**Last Updated**: 2026-04-01
+**Version**: 5.0
+**Last Updated**: 2026-04-02
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2655,6 +2655,12 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Security Review (Template Injection)](./security_review.md) - Security review of zizmor template injection findings: both findings are false positives; includes analysis of undefined environment variable edge case
 - [Engine Architecture Review](./engine-architecture-review.md) - Deep review of ISP engine interface design, all engine implementations (Copilot, Claude, Codex, Custom), test coverage, and extensibility assessment
 - [Engine Review Summary](./engine-review-summary.md) - Summary findings from engine architecture review: interface design, security, testing, documentation status, and conclusion
+- [Capitalization Guidelines](./capitalization.md) - Context-based capitalization rules: product name (GitHub Agentic Workflows) vs. generic workflow references; decision flowchart and automated test enforcement
+- [Label Guidelines](./labels.md) - Label taxonomy for issue tracking: type, priority, component, and automation labels; lifecycle and hygiene practices
+- [Gastown Multi-Agent Analysis](./gastown.md) - Conceptual mapping of Gastown orchestration patterns (persistent state, crash recovery, structured handoffs) to gh-aw concepts
+- [mdflow Deep Research](./mdflow.md) - Technical comparison of mdflow and gh-aw: custom engine opportunities, template variable patterns, and import mechanism differences
+- [mdflow Syntax Comparison](./mdflow-comparison.md) - Detailed comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, and execution patterns
+- [oh-my-opencode Comparison](./oh-my-code.md) - Deep research comparison of oh-my-opencode and gh-aw: architecture, use cases, tool ecosystems, security models, and implementation patterns
 
 ### External References
 
@@ -2666,6 +2672,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.0 (2026-04-02): Maintenance tone scan — fixed 3 tone issues across 2 previously uncovered spec files: `capitalization.md` (2 fixes: "maintains professional consistency"→removed, "simplifies both user comprehension"→"reduces ambiguity for contributors"), `mdflow.md` ("significantly exceeds"→"supports capabilities not currently available in"). Added 7 new Related Documentation links for 7 previously uncovered spec files (capitalization.md, labels.md, gastown.md, mdflow.md, mdflow-comparison.md, oh-my-code.md). Coverage: 69 spec files (7 new).
 - v4.9 (2026-04-01): Maintenance tone scan — fixed 5 tone issues across 4 spec files: `engine-architecture-review.md` (removed "well-implemented", replaced 5-star ratings with factual assessment), `engine-review-summary.md` (removed "production-ready", replaced rating section with factual conclusion), `mcp_logs_guardrails.md` (2 fixes: "helpful guidance"→"jq filter suggestions and schema", "Keeps output manageable"→"Limits response size"), `visual-regression-testing.md` (removed "negatively impact the user experience"). Added 21 new Related Documentation links for previously uncovered spec files. Coverage: 62 spec files.
 - v4.8 (2026-03-31): Added CLI Breaking Changes subsection to Release Management (from `breaking-cli-rules.md`: breaking vs. non-breaking categories, decision tree, changeset format, review checklist, JSON output standards). Added Workflow Size and Refactoring subsection to Workflow Patterns (from `workflow-refactoring-patterns.md`: size guidelines, module extraction via `imports:`, refactoring checklist, anti-patterns). Added 2 new Related Documentation links. Coverage: 68 spec files (2 new).
 - v4.7 (2026-03-30): Added 4 previously uncovered subdirectory spec files (`agents/hierarchical-agents.md`, `agents/hierarchical-agents-quickstart.md`, `mods/README.md`, `mods/jsonschema-go.md`). Fixed 3 tone issues in `mods/jsonschema-go.md`: "Active maintenance and community support" → "MIT licensed; maintained by Google" (line 13), "Developer-Friendly API" heading → "API Design" (line 111), "Good integration with Go idioms" removed and "Concise function signatures" → "Function signatures follow Go idioms" (lines 112–113). Coverage: 66 spec files (4 new).

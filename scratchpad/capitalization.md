@@ -5,7 +5,7 @@ sidebar:
   order: 900
 ---
 
-The gh-aw CLI follows context-based capitalization to distinguish between the product name and generic workflow references. This approach provides clarity and maintains professional consistency across all user-facing text.
+The gh-aw CLI follows context-based capitalization to distinguish between the product name and generic workflow references in user-facing text.
 
 ## Capitalization Rules
 
@@ -19,7 +19,7 @@ The CLI uses different capitalization based on context:
 
 ## Design Rationale
 
-This capitalization convention distinguishes between the product name (GitHub Agentic Workflows) and the concept (agentic workflows), following industry standards similar to "GitHub Actions" vs. "actions". The consistent pattern across all commands, help text, and documentation simplifies both user comprehension and contributor decision-making.
+This capitalization convention distinguishes between the product name (GitHub Agentic Workflows) and the concept (agentic workflows), following industry standards similar to "GitHub Actions" vs. "actions". The consistent pattern across all commands, help text, and documentation reduces ambiguity for contributors.
 
 ## Examples
 

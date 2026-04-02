@@ -14,7 +14,7 @@ This document provides a deep technical analysis of mdflow and GitHub Agentic Wo
 
 1. **Custom Engine Opportunities**: mdflow's architecture demonstrates local-execution patterns applicable to gh-aw custom engines
 2. **Template System**: mdflow's LiquidJS template system with special variables offers inspiration for enhanced gh-aw template capabilities
-3. **Import Mechanism**: mdflow's flexible import system (glob, line ranges, symbol extraction) significantly exceeds gh-aw's capabilities
+3. **Import Mechanism**: mdflow's import system (glob, line ranges, symbol extraction) supports capabilities not currently available in gh-aw
 4. **Security vs Flexibility**: Fundamental tradeoff between mdflow's "trust the user" model and gh-aw's "security-first" approach
 
 ---
