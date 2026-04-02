@@ -82,10 +82,17 @@ This issue helps you:
     });
 
     // Mock core
+    const mockSummary = {
+      addRaw: vi.fn(),
+      write: vi.fn().mockResolvedValue(undefined),
+    };
+    mockSummary.addRaw.mockReturnValue(mockSummary);
     mockCore = {
       info: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),
+      setOutput: vi.fn(),
+      summary: mockSummary,
     };
 
     // Mock GitHub API
@@ -137,16 +144,25 @@ This issue helps you:
     vi.clearAllMocks();
   });
 
-  it("should skip if no noop message is present", async () => {
+  it("should skip if no noop items in agent output", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
-    process.env.GH_AW_NOOP_MESSAGE = "";
     process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+    // Create agent output file with no noop items
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(
+      outputFile,
+      JSON.stringify({
+        items: [{ type: "create_issue", title: "Some issue" }],
+      })
+    );
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
 
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No no-op message found, skipping"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No noop items found in agent output"));
     expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
   });
 
@@ -271,8 +287,17 @@ This issue helps you:
   it("should skip if agent conclusion is cancelled (not success or failure)", async () => {
     process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test-owner/test-repo/actions/runs/123";
-    process.env.GH_AW_NOOP_MESSAGE = "Some message";
     process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+
+    // Create agent output file with noop items so we reach the conclusion check
+    const outputFile = path.join(tempDir, "agent_output.json");
+    fs.writeFileSync(
+      outputFile,
+      JSON.stringify({
+        items: [{ type: "noop", message: "Some message" }],
+      })
+    );
+    process.env.GH_AW_AGENT_OUTPUT = outputFile;
 
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
@@ -290,7 +315,7 @@ This issue helps you:
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No agent output found, skipping"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not load agent output, skipping"));
     expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
   });
 
