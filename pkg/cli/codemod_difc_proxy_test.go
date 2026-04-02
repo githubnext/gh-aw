@@ -239,5 +239,38 @@ tools:
 		assert.Contains(t, result, "min-integrity: approved", "Should preserve min-integrity")
 		assert.Contains(t, result, "allowed-repos: all", "Should preserve allowed-repos")
 		assert.NotContains(t, result, "difc-proxy", "Should remove difc-proxy from features")
+		// Verify integrity-proxy uses same indentation as other fields (4-space context)
+		assert.Contains(t, result, "    integrity-proxy: false", "integrity-proxy: false should use same indentation as other fields")
+	})
+
+	t.Run("string 'false' value treated as false (adds integrity-proxy: false)", func(t *testing.T) {
+		content := `---
+engine: copilot
+features:
+  difc-proxy: "false"
+tools:
+  github:
+    min-integrity: approved
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"features": map[string]any{
+				"difc-proxy": "false",
+			},
+			"tools": map[string]any{
+				"github": map[string]any{
+					"min-integrity": "approved",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Should not error")
+		assert.True(t, applied, "Should have applied the codemod")
+		assert.NotContains(t, result, "difc-proxy", "Should remove features.difc-proxy")
+		assert.Contains(t, result, "integrity-proxy: false", "String 'false' should be treated as false")
 	})
 }

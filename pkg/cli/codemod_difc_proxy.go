@@ -59,6 +59,8 @@ func getDIFCProxyToIntegrityProxyCodemod() Codemod {
 }
 
 // getDIFCProxyFlagValue returns the boolean value of features.difc-proxy and whether it exists.
+// Note: string values are checked case-insensitively; "false" returns false, any other non-empty
+// string returns true. This matches the existing behavior of isFeatureEnabled in features.go.
 func getDIFCProxyFlagValue(frontmatter map[string]any) (bool, bool) {
 	featuresAny, hasFeatures := frontmatter["features"]
 	if !hasFeatures {
@@ -75,8 +77,11 @@ func getDIFCProxyFlagValue(frontmatter map[string]any) (bool, bool) {
 	if boolVal, ok := val.(bool); ok {
 		return boolVal, true
 	}
-	// Non-boolean string values: treat non-empty as true
+	// Handle string values: "false" is treated as false; other non-empty strings as true.
 	if strVal, ok := val.(string); ok {
+		if strings.EqualFold(strVal, "false") {
+			return false, true
+		}
 		return strVal != "", true
 	}
 	return false, true
@@ -102,10 +107,14 @@ func hasToolsGithubMap(frontmatter map[string]any) bool {
 
 // addIntegrityProxyFalseToToolsGitHub inserts 'integrity-proxy: false' inside the
 // tools.github block. The line is inserted immediately after the 'github:' key line.
+// The indentation is derived from the first existing sub-field inside the github block.
 func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
 	var result []string
 	var inTools bool
 	var toolsIndent string
+	var inGitHub bool
+	var githubIndent string
+	var fieldInserted bool
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -122,22 +131,45 @@ func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
 		if inTools && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
 			if hasExitedBlock(line, toolsIndent) {
 				inTools = false
+				inGitHub = false
 			}
 		}
 
-		// Detect 'github:' inside tools and inject integrity-proxy: false after it
-		if inTools && strings.HasPrefix(trimmed, "github:") {
-			githubIndent := getIndentation(line)
+		// Detect 'github:' inside tools
+		if inTools && !inGitHub && strings.HasPrefix(trimmed, "github:") {
+			inGitHub = true
+			githubIndent = getIndentation(line)
 			result = append(result, line)
-			// Indent for github sub-fields is two more spaces than github:
-			fieldIndent := githubIndent + "  "
-			result = append(result, fieldIndent+"integrity-proxy: false")
-			difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github")
-			inTools = false // done, no need to track further
 			continue
 		}
 
+		// Inside github block: inject integrity-proxy: false before the first sub-field
+		if inGitHub && !fieldInserted && len(trimmed) > 0 && !strings.HasPrefix(trimmed, "#") {
+			if hasExitedBlock(line, githubIndent) {
+				// Exited github block without seeing any sub-fields; use default indentation
+				fieldIndent := githubIndent + "  "
+				result = append(result, fieldIndent+"integrity-proxy: false")
+				difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (before exit)")
+				fieldInserted = true
+				inGitHub = false
+			} else {
+				// Use the indentation of the first existing sub-field
+				fieldIndent := getIndentation(line)
+				result = append(result, fieldIndent+"integrity-proxy: false")
+				difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github")
+				fieldInserted = true
+				inGitHub = false
+			}
+		}
+
 		result = append(result, line)
+	}
+
+	// Edge case: github block was the last entry in the file
+	if inGitHub && !fieldInserted {
+		fieldIndent := githubIndent + "  "
+		result = append(result, fieldIndent+"integrity-proxy: false")
+		difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (end of file)")
 	}
 
 	return result
