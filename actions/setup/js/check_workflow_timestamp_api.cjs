@@ -6,8 +6,15 @@
  * This script verifies that the stored frontmatter hash in the lock file
  * matches the recomputed hash from the source .md file, regardless of
  * commit timestamps.
+ *
+ * Supports both same-repo and cross-repo reusable workflow scenarios:
+ * - Primary: GitHub API (uses GITHUB_WORKFLOW_REF to identify source repo)
+ * - Fallback: local filesystem ($GITHUB_WORKSPACE) when API access is unavailable
+ *   (e.g., cross-org reusable workflows where the caller token can't read the source repo)
  */
 
+const fs = require("fs");
+const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
 const { getFileContent } = require("./github_api_helpers.cjs");
@@ -73,15 +80,83 @@ async function main() {
     core.info(`Same-repo invocation: checking out ${workflowRepo} @ ${ref}`);
   }
 
-  // Helper function to compute and compare frontmatter hashes
-  // Returns: { match: boolean, storedHash: string, recomputedHash: string } or null on error
+  // Fallback: compare frontmatter hashes using local filesystem files.
+  // Used when the GitHub API is inaccessible (e.g., cross-org reusable workflow where
+  // the caller's GITHUB_TOKEN cannot read the source repo).
+  // The activation job's "Checkout .github and .agents folders" step always runs before
+  // this check and places the workflow source files in $GITHUB_WORKSPACE, so the local
+  // files are always available at this point.
+  async function compareFrontmatterHashesFromLocalFiles() {
+    const workspace = process.env.GITHUB_WORKSPACE;
+    if (!workspace) {
+      core.info("GITHUB_WORKSPACE not available for local filesystem fallback");
+      return null;
+    }
+
+    // Resolve and validate both paths to prevent path traversal attacks.
+    // GH_AW_WORKFLOW_FILE could theoretically contain "../" segments; reject any
+    // resolved path that escapes the workspace/.github/workflows directory.
+    const allowedDir = path.resolve(workspace, ".github", "workflows");
+    const localLockFilePath = path.resolve(workspace, lockFilePath);
+    const localMdFilePath = path.resolve(workspace, workflowMdPath);
+
+    if (!localLockFilePath.startsWith(allowedDir + path.sep) && localLockFilePath !== allowedDir) {
+      core.info(`Resolved lock file path escapes workspace: ${localLockFilePath}`);
+      return null;
+    }
+    if (!localMdFilePath.startsWith(allowedDir + path.sep) && localMdFilePath !== allowedDir) {
+      core.info(`Resolved source file path escapes workspace: ${localMdFilePath}`);
+      return null;
+    }
+
+    core.info(`Attempting local filesystem fallback for hash comparison:`);
+    core.info(`  Lock file: ${localLockFilePath}`);
+    core.info(`  Source: ${localMdFilePath}`);
+
+    if (!fs.existsSync(localLockFilePath)) {
+      core.info(`Local lock file not found: ${localLockFilePath}`);
+      return null;
+    }
+
+    if (!fs.existsSync(localMdFilePath)) {
+      core.info(`Local source file not found: ${localMdFilePath}`);
+      return null;
+    }
+
+    try {
+      const localLockContent = fs.readFileSync(localLockFilePath, "utf8");
+      const storedHash = extractHashFromLockFile(localLockContent);
+      if (!storedHash) {
+        core.info("No frontmatter hash found in local lock file");
+        return null;
+      }
+
+      // computeFrontmatterHash uses the local filesystem reader by default
+      const recomputedHash = await computeFrontmatterHash(localMdFilePath);
+
+      const match = storedHash === recomputedHash;
+
+      core.info(`Frontmatter hash comparison (local filesystem fallback):`);
+      core.info(`  Lock file hash:    ${storedHash}`);
+      core.info(`  Recomputed hash:   ${recomputedHash}`);
+      core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
+
+      return { match, storedHash, recomputedHash };
+    } catch (error) {
+      core.info(`Could not compute frontmatter hash from local files: ${getErrorMessage(error)}`);
+      return null;
+    }
+  }
+
+  // Primary: compare frontmatter hashes using the GitHub API.
+  // Falls back to local filesystem if the API is inaccessible.
   async function compareFrontmatterHashes() {
     try {
       // Fetch lock file content to extract stored hash
       const lockFileContent = await getFileContent(github, owner, repo, lockFilePath, ref);
       if (!lockFileContent) {
-        core.info("Unable to fetch lock file content for hash comparison");
-        return null;
+        core.info("Unable to fetch lock file content for hash comparison via API, trying local filesystem fallback");
+        return await compareFrontmatterHashesFromLocalFiles();
       }
 
       const storedHash = extractHashFromLockFile(lockFileContent);
@@ -106,8 +181,10 @@ async function main() {
       return { match, storedHash, recomputedHash };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      core.info(`Could not compute frontmatter hash: ${errorMessage}`);
-      return null;
+      core.info(`Could not compute frontmatter hash via API: ${errorMessage}`);
+      // Fall back to local filesystem when API is unavailable
+      // (e.g., cross-org reusable workflow where caller token lacks source repo access)
+      return await compareFrontmatterHashesFromLocalFiles();
     }
   }
 

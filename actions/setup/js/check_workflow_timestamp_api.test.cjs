@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 const mockCore = {
   debug: vi.fn(),
@@ -48,6 +51,7 @@ describe("check_workflow_timestamp_api.cjs", () => {
     delete process.env.GH_AW_WORKFLOW_FILE;
     delete process.env.GITHUB_WORKFLOW_REF;
     delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_WORKSPACE;
 
     // Dynamically import the module to get fresh instance
     const module = await import("./check_workflow_timestamp_api.cjs");
@@ -620,6 +624,167 @@ engine: copilot
       expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ ref: "abc123" }));
       // Log should indicate default branch is being used
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("(default branch)"));
+    });
+  });
+
+  describe("local filesystem fallback for cross-org reusable workflows", () => {
+    let tmpDir;
+    let workflowsDir;
+    // Pre-computed hash for frontmatter "engine: copilot" (used across multiple tests)
+    const copilotFrontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+
+    beforeEach(async () => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+      // Simulate cross-org: workflow defined in source-org/source-repo, running in target-org/target-repo
+      process.env.GITHUB_WORKFLOW_REF = "source-org/source-repo/.github/workflows/test.lock.yml@v1";
+      process.env.GITHUB_REPOSITORY = "target-org/target-repo";
+
+      // Create temp directory structure mimicking $GITHUB_WORKSPACE after checkout
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-test-"));
+      workflowsDir = path.join(tmpDir, ".github", "workflows");
+      fs.mkdirSync(workflowsDir, { recursive: true });
+
+      const module = await import("./check_workflow_timestamp_api.cjs");
+      main = module.main;
+    });
+
+    afterEach(() => {
+      delete process.env.GITHUB_WORKSPACE;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it("should pass when API fails but local files have matching hashes", async () => {
+      // Simulate cross-org API permission error
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+      // Write local files — hash matches "engine: copilot" frontmatter
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`);
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: copilot\n---\n# Test");
+
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("local filesystem fallback"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when API fails and local files have mismatched hashes", async () => {
+      // Simulate cross-org API permission error
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+
+      // Lock file stores copilot hash but .md file now has claude frontmatter
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`);
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: claude\n---\n# Test");
+
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("local filesystem fallback"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("frontmatter has changed"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should fail when both API and local filesystem are unavailable", async () => {
+      // Simulate cross-org API permission error
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+      // Do not set GITHUB_WORKSPACE — local filesystem fallback also unavailable
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Unable to fetch lock file content for hash comparison via API"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKSPACE not available"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("integrity check failed"));
+    });
+
+    it("should fail when API fails and local lock file is missing", async () => {
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+      // Workspace exists but lock file not present
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Local lock file not found"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("integrity check failed"));
+    });
+
+    it("should use API if available even in cross-repo scenario (API preferred over local files)", async () => {
+      const lockFileContent = `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`;
+      const mdFileContent = "---\nengine: copilot\n---\n# Test";
+
+      // API succeeds
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: {
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(lockFileContent).toString("base64"),
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(mdFileContent).toString("base64"),
+          },
+        });
+
+      // Local files also available (but should not be used since API succeeds)
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), "# frontmatter-hash: different-hash\nname: Test\n");
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: claude\n---\n# Different");
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      // API result takes precedence (hashes match via API)
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fall back to local files when API lock file fetch succeeds but md file fetch throws", async () => {
+      // First API call (lock file) succeeds, second (md file) throws — triggers the catch-block fallback
+      const lockFileContent = `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`;
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: {
+            type: "file",
+            encoding: "base64",
+            content: Buffer.from(lockFileContent).toString("base64"),
+          },
+        })
+        .mockRejectedValueOnce(new Error("Resource not accessible by integration"));
+
+      // Local files have matching hashes
+      fs.writeFileSync(path.join(workflowsDir, "test.lock.yml"), `# frontmatter-hash: ${copilotFrontmatterHash}\nname: Test\n`);
+      fs.writeFileSync(path.join(workflowsDir, "test.md"), "---\nengine: copilot\n---\n# Test");
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not compute frontmatter hash via API"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("local filesystem fallback"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date (hashes match)"));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should reject path traversal in GH_AW_WORKFLOW_FILE via local filesystem fallback", async () => {
+      // Craft a malicious workflow file name that tries to escape the workspace
+      process.env.GH_AW_WORKFLOW_FILE = "../../etc/passwd.lock.yml";
+      mockGithub.rest.repos.getContent.mockRejectedValue(new Error("Resource not accessible by integration"));
+      process.env.GITHUB_WORKSPACE = tmpDir;
+
+      await main();
+
+      // The path traversal is rejected before any file read
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("escapes workspace"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("integrity check failed"));
     });
   });
 });

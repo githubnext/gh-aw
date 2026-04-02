@@ -17,7 +17,12 @@ steps:
   - name: Setup Python environment
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-      pip install --user --quiet numpy pandas matplotlib seaborn scipy
+      # Create a virtual environment for proper package isolation (avoids --break-system-packages)
+      if [ ! -d /tmp/gh-aw/venv ]; then
+        python3 -m venv /tmp/gh-aw/venv
+      fi
+      echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
 
   - name: Upload charts
     if: always()

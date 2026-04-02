@@ -170,6 +170,71 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("Log format not recognized");
     });
 
+    it("should parse pretty-print format with success (●) and failure (✗) markers", () => {
+      const prettyLog = ["● Bash", "    └ echo hello", "✗ mcp__github__create_issue", "    └ Error: permission denied", "Task completed."].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      // MCP tool name is formatted as server::name
+      expect(result.markdown).toContain("github::create_issue");
+      // Continuation output appears in the details
+      expect(result.markdown).toContain("echo hello");
+      expect(result.markdown).toContain("Error: permission denied");
+    });
+
+    it("should parse pretty-print format with success (✓) marker", () => {
+      const prettyLog = ["✓ Read", "    └ file contents here", "✓ Bash", "    └ command output"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).toContain("🤖 Commands and Tools");
+      // Read tool name appears in the Reasoning section summary
+      expect(result.markdown).toContain("Read");
+      // Continuation output appears in the details
+      expect(result.markdown).toContain("file contents here");
+      expect(result.markdown).toContain("command output");
+    });
+
+    it("should capture continuation/indented output for pretty-print tool calls", () => {
+      const prettyLog = ["● Bash", "    └ line1 of output", "    └ line2 of output", "✗ Write", "    └ error details here"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).toContain("line1 of output");
+      expect(result.markdown).toContain("error details here");
+    });
+
+    it("should extract token counts from pretty-print format breakdown section", () => {
+      const prettyLog = ["● Bash", "    └ ok", "", "Breakdown by AI model:", "  gpt-4o  10k in, 2k out, 1k cached", "", "Total usage est: 12k tokens"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      // Token counts should be reflected in the Information section
+      expect(result.markdown).toContain("10,000");
+      expect(result.markdown).toContain("2,000");
+    });
+
+    it("should set premium flag and use _premium_requests from pretty-print format", () => {
+      const prettyLog = ["● Bash", "    └ ok", "", "Breakdown by AI model:", "  gpt-4o  10k in, 2k out (Est. 1 Premium request)", "", "Total usage est: 12k tokens"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).toContain("Premium Requests Consumed");
+    });
+
+    it("should use Turns: count from pretty-print format when available", () => {
+      const prettyLog = ["● Bash", "    └ ok", "● Bash", "    └ ok2", "", "Turns: 5", "Total usage est: 100 tokens"].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      // num_turns should be 5 (from Turns: line), not 2 (from toolEntries.length)
+      expect(result.logEntries).toBeDefined();
+      const resultEntry = result.logEntries.find(e => e.type === "result");
+      expect(resultEntry).toBeDefined();
+      expect(resultEntry?.num_turns).toBe(5);
+    });
+
     it("should parse debug log format with reasoning_text", () => {
       const debugLog = [
         "2026-02-21T00:06:13.708Z [INFO] Starting Copilot CLI: 0.0.412",

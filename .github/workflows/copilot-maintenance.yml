@@ -15,7 +15,7 @@ on:
         description: 'Maximum number of branches to delete'
         required: false
         type: number
-        default: 1
+        default: 10
 
 permissions:
   contents: write
@@ -24,6 +24,7 @@ jobs:
   delete-old-copilot-branches:
     name: Delete Old Copilot Branches
     runs-on: ubuntu-latest
+    if: github.repository == 'github/gh-aw'
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -73,16 +74,16 @@ jobs:
       - name: Run copilot branch cleanup script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '1' }}
+          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '10' }}
         run: |
           echo "Running copilot branch cleanup script..."
           ./scripts/delete-old-copilot-branches.sh
 
       - name: Execute deletion commands
-        if: github.event.inputs.delete_branches == 'true'
+        if: github.event.inputs.delete_branches == 'true' || github.event_name == 'schedule'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '1' }}
+          MAX_BRANCHES: ${{ github.event.inputs.max_branches || '10' }}
         run: |
           echo "Executing deletion commands..."
           ./scripts/delete-old-copilot-branches.sh | \
@@ -95,7 +96,7 @@ jobs:
           echo "✓ Copilot branch cleanup completed"
 
       - name: Preview mode notice
-        if: github.event.inputs.delete_branches != 'true'
+        if: github.event.inputs.delete_branches != 'true' && github.event_name != 'schedule'
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "⚠️  PREVIEW MODE - No branches were deleted"

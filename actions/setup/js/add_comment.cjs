@@ -601,7 +601,6 @@ async function main(config = {}) {
       const errorMessage = getErrorMessage(error);
 
       // Check if this is a 404 error (discussion/issue was deleted or wrong type)
-      // @ts-expect-error - Error handling with optional chaining
       const is404 = error?.status === 404 || errorMessage.includes("404") || errorMessage.toLowerCase().includes("not found");
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
@@ -617,7 +616,6 @@ async function main(config = {}) {
           return recordComment(comment, true);
         } catch (discussionError) {
           const discussionErrorMessage = getErrorMessage(discussionError);
-          // @ts-expect-error - Error handling with optional chaining
           const isDiscussion404 = discussionError?.status === 404 || discussionErrorMessage.toLowerCase().includes("not found");
 
           if (isDiscussion404) {

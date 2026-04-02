@@ -12,18 +12,8 @@ import (
 func TestNewListItem(t *testing.T) {
 	item := NewListItem("Title", "Description", "value")
 
-	assert.Equal(t, "Title", item.Title())
-	assert.Equal(t, "Description", item.Description())
-}
-
-func TestListItem_Title(t *testing.T) {
-	item := ListItem{title: "My Title", description: "desc", value: "val"}
-	assert.Equal(t, "My Title", item.Title())
-}
-
-func TestListItem_Description(t *testing.T) {
-	item := ListItem{title: "title", description: "My Description", value: "val"}
-	assert.Equal(t, "My Description", item.Description())
+	assert.Equal(t, "Title", item.title)
+	assert.Equal(t, "Description", item.description)
 }
 
 func TestShowInteractiveList_EmptyItems(t *testing.T) {

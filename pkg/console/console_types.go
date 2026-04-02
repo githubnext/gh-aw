@@ -63,9 +63,3 @@ func NewListItem(title, description, value string) ListItem {
 		value:       value,
 	}
 }
-
-// Title returns the item's title
-func (i ListItem) Title() string { return i.title }
-
-// Description returns the item's description
-func (i ListItem) Description() string { return i.description }

@@ -77,7 +77,7 @@ func TestGolden_TableRendering(t *testing.T) {
 			defer func() { os.Stdout = origStdout }()
 
 			output := RenderTable(tt.config)
-			golden.RequireEqual(t, []byte(output))
+			golden.RequireEqual(t, output)
 		})
 	}
 }
@@ -124,7 +124,7 @@ func TestGolden_BoxRendering(t *testing.T) {
 			for _, line := range output {
 				fullOutput.WriteString(line + "\n")
 			}
-			golden.RequireEqual(t, []byte(fullOutput.String()))
+			golden.RequireEqual(t, fullOutput.String())
 		})
 	}
 }
@@ -217,7 +217,7 @@ func TestGolden_ErrorFormatting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := FormatError(tt.err)
-			golden.RequireEqual(t, []byte(output))
+			golden.RequireEqual(t, output)
 		})
 	}
 }
@@ -265,7 +265,7 @@ func TestGolden_ErrorWithSuggestions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := FormatErrorWithSuggestions(tt.message, tt.suggestions)
-			golden.RequireEqual(t, []byte(output))
+			golden.RequireEqual(t, output)
 		})
 	}
 }
@@ -312,7 +312,7 @@ func TestGolden_MessageFormatting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := tt.format(tt.message)
-			golden.RequireEqual(t, []byte(output))
+			golden.RequireEqual(t, output)
 		})
 	}
 }
@@ -348,7 +348,7 @@ func TestGolden_InfoSection(t *testing.T) {
 			for _, line := range output {
 				fullOutput.WriteString(line + "\n")
 			}
-			golden.RequireEqual(t, []byte(fullOutput.String()))
+			golden.RequireEqual(t, fullOutput.String())
 		})
 	}
 }

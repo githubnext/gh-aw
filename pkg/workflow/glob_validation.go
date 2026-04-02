@@ -35,10 +35,6 @@ type invalidGlobPattern struct {
 	Column int
 }
 
-func (e invalidGlobPattern) Error() string {
-	return fmt.Sprintf("%d: %s", e.Column, e.Message)
-}
-
 // globValidator holds the state for iterative glob scanning.
 type globValidator struct {
 	isRef bool

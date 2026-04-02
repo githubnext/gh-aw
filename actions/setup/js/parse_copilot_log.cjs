@@ -57,6 +57,14 @@ function parseCopilotLog(logContent) {
     } else {
       // Try JSONL format using shared function
       logEntries = parseLogEntries(logContent);
+
+      // If still nothing, try the pretty-print stdout format (✗/● markers)
+      if (!logEntries || logEntries.length === 0) {
+        const prettyPrintEntries = parsePrettyPrintFormat(logContent);
+        if (prettyPrintEntries && prettyPrintEntries.length > 0) {
+          logEntries = prettyPrintEntries;
+        }
+      }
     }
   }
 
@@ -121,7 +129,8 @@ function parseCopilotLog(logContent) {
       // Display premium request consumption if using a premium model
       const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
       if (isPremiumModel) {
-        const premiumRequestCount = extractPremiumRequestCount(logContent);
+        // Prefer the count stored in the result entry (pretty-print format), fall back to regex scan
+        const premiumRequestCount = entry._premium_requests != null ? entry._premium_requests : extractPremiumRequestCount(logContent);
         return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
       }
       return "";
@@ -129,6 +138,204 @@ function parseCopilotLog(logContent) {
   });
 
   return { markdown, logEntries };
+}
+
+/**
+ * Parses the "pretty-print" stdout format emitted by the Copilot CLI when
+ * debug logs are written to a --log-dir directory (not captured on stdout).
+ * This format uses ✗ for failed tool calls and ● or ✓ for successful ones.
+ * @param {string} logContent - Raw log content as a string
+ * @returns {Array} Array of log entries in structured format, or empty array if not detected
+ */
+function parsePrettyPrintFormat(logContent) {
+  // Only attempt this format if the characteristic markers are present
+  if (!/^[✗●✓]/m.test(logContent)) {
+    return [];
+  }
+
+  const INFRA_LINE_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+  const FAILED_TOOL_RE = /^✗\s+(\S+)/;
+  const SUCCESS_TOOL_RE = /^(?:●|✓)\s+(\S+)/;
+  const CONTINUATION_RE = /^\s+[└│]/;
+  const DEEP_INDENT_RE = /^ {4,}/;
+  const MODEL_BREAKDOWN_RE = /^Breakdown by AI model:/;
+  const MODEL_LINE_RE = /^ +(\S+)\s+([\d.]+k?)\s+in,\s+([\d.]+k?)\s+out(?:,\s+([\d.]+k?)\s+cached)?/;
+  const USAGE_LINES_RE = /^(Total usage est:|API time spent:|Total session time:|Total code changes:)/;
+
+  const parseTokenCount = s => {
+    const n = parseFloat(s);
+    return s.endsWith("k") ? Math.round(n * 1000) : n;
+  };
+
+  const lines = logContent.split("\n").filter(line => !INFRA_LINE_RE.test(line));
+
+  const toolEntries = [];
+  const agentTextLines = [];
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheReadTokens = 0;
+  let premiumRequests = 1;
+  let modelName = "unknown";
+  let hasPremiumModel = false;
+  let inModelBreakdown = false;
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      inModelBreakdown = false;
+      i++;
+      continue;
+    }
+
+    // Failed tool call: ✗ tool_name
+    const failedMatch = trimmed.match(FAILED_TOOL_RE);
+    if (failedMatch) {
+      inModelBreakdown = false;
+      const toolName = failedMatch[1];
+      const outputLines = [];
+      i++;
+      while (i < lines.length && (CONTINUATION_RE.test(lines[i]) || DEEP_INDENT_RE.test(lines[i]))) {
+        outputLines.push(lines[i].replace(/^\s*[└│]\s?/, "").replace(/^ {4}/, ""));
+        i++;
+      }
+      toolEntries.push({ name: toolName, success: false, output: outputLines.join("\n").trim() });
+      continue;
+    }
+
+    // Successful tool call: ● tool_name
+    const successMatch = trimmed.match(SUCCESS_TOOL_RE);
+    if (successMatch) {
+      inModelBreakdown = false;
+      const toolName = successMatch[1];
+      const outputLines = [];
+      i++;
+      while (i < lines.length && (CONTINUATION_RE.test(lines[i]) || DEEP_INDENT_RE.test(lines[i]))) {
+        outputLines.push(lines[i].replace(/^\s*[└│]\s?/, "").replace(/^ {4}/, ""));
+        i++;
+      }
+      toolEntries.push({ name: toolName, success: true, output: outputLines.join("\n").trim() });
+      continue;
+    }
+
+    // Skip usage stat lines
+    if (USAGE_LINES_RE.test(trimmed)) {
+      const premMatch = trimmed.match(/(\d+(?:\.\d+)?)\s+Premium\s+request/i);
+      if (premMatch) {
+        premiumRequests = parseFloat(premMatch[1]);
+        hasPremiumModel = true;
+      }
+      i++;
+      continue;
+    }
+
+    // Model breakdown header
+    if (MODEL_BREAKDOWN_RE.test(trimmed)) {
+      inModelBreakdown = true;
+      i++;
+      continue;
+    }
+
+    // Model breakdown line: "  model_name  Xk in, Xk out, Xk cached"
+    if (inModelBreakdown) {
+      const modelMatch = line.match(MODEL_LINE_RE);
+      if (modelMatch) {
+        if (modelName === "unknown") modelName = modelMatch[1];
+        inputTokens += parseTokenCount(modelMatch[2]);
+        outputTokens += parseTokenCount(modelMatch[3]);
+        if (modelMatch[4]) cacheReadTokens += parseTokenCount(modelMatch[4]);
+        const isPremMatch = line.match(/\(Est\.\s+[\d.]+\s+Premium\s+request/i);
+        if (isPremMatch) hasPremiumModel = true;
+        i++;
+        continue;
+      }
+      inModelBreakdown = false;
+    }
+
+    // Agent text line
+    agentTextLines.push(trimmed);
+    i++;
+  }
+
+  if (toolEntries.length === 0 && agentTextLines.length === 0) {
+    return [];
+  }
+
+  const entries = [];
+
+  // System init entry
+  const initEntry = {
+    type: "system",
+    subtype: "init",
+    model: modelName,
+    tools: [],
+    session_id: null,
+  };
+  if (hasPremiumModel) {
+    initEntry.model_info = { billing: { is_premium: true } };
+  }
+  entries.push(initEntry);
+
+  // Tool call entries (assistant + user result pairs)
+  for (let j = 0; j < toolEntries.length; j++) {
+    const tc = toolEntries[j];
+    const toolId = `pretty_tool_${j}`;
+    entries.push({
+      type: "assistant",
+      message: {
+        content: [{ type: "tool_use", id: toolId, name: tc.name, input: {} }],
+      },
+    });
+    entries.push({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: toolId,
+            content: tc.output || (tc.success ? "success" : "error"),
+            is_error: !tc.success,
+          },
+        ],
+      },
+    });
+  }
+
+  // Agent text (if any)
+  const agentText = agentTextLines.join("\n").trim();
+  if (agentText) {
+    entries.push({
+      type: "assistant",
+      message: { content: [{ type: "text", text: agentText }] },
+    });
+  }
+
+  // Derive the number of turns from the CLI's "Turns:" statistic if available.
+  // Fallback to the number of tool entries to preserve existing behavior when absent.
+  let numTurns = toolEntries.length;
+  const turnsMatch = logContent.match(/Turns:\s*(\d+)/i);
+  if (turnsMatch && turnsMatch[1]) {
+    const parsedTurns = parseInt(turnsMatch[1], 10);
+    if (!Number.isNaN(parsedTurns) && parsedTurns > 0) {
+      numTurns = parsedTurns;
+    }
+  }
+
+  // Result entry with token usage
+  const usage = {};
+  if (inputTokens > 0) usage.input_tokens = inputTokens;
+  if (outputTokens > 0) usage.output_tokens = outputTokens;
+  if (cacheReadTokens > 0) usage.cache_read_input_tokens = cacheReadTokens;
+  entries.push({
+    type: "result",
+    num_turns: numTurns,
+    usage,
+    _premium_requests: premiumRequests,
+  });
+
+  return entries;
 }
 
 /**
@@ -702,5 +909,6 @@ if (typeof module !== "undefined" && module.exports) {
     main,
     parseCopilotLog,
     extractPremiumRequestCount,
+    parsePrettyPrintFormat,
   };
 }
