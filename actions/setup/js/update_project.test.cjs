@@ -891,7 +891,7 @@ describe("updateProject", () => {
 
     queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-draft")]);
 
-    await expect(updateProject(output)).rejects.toThrow(/Invalid temporary_id format.*aw_ followed by 3 to 12 alphanumeric characters/);
+    await expect(updateProject(output)).rejects.toThrow(/Invalid temporary_id format.*aw_ followed by 3 to 12 alphanumeric or underscore characters/);
   });
 
   it("rejects malformed auto-generated draft_issue_id with aw_ prefix", async () => {
@@ -906,7 +906,7 @@ describe("updateProject", () => {
 
     queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-draft")]);
 
-    await expect(updateProject(output, temporaryIdMap)).rejects.toThrow(/Invalid draft_issue_id format.*aw_ followed by 3 to 12 alphanumeric characters/);
+    await expect(updateProject(output, temporaryIdMap)).rejects.toThrow(/Invalid draft_issue_id format.*aw_ followed by 3 to 12 alphanumeric or underscore characters/);
   });
 
   it("rejects draft_issue without title when creating (no draft_issue_id)", async () => {

@@ -52,13 +52,19 @@ describe("temporary_id.cjs", () => {
       expect(isTemporaryId("aw_123456789abc")).toBe(true); // 12 chars - at the limit
     });
 
+    it("should return true for valid aw_ prefixed strings with underscores", async () => {
+      const { isTemporaryId } = await import("./temporary_id.cjs");
+      expect(isTemporaryId("aw_id_123")).toBe(true); // Contains underscore - now valid
+      expect(isTemporaryId("aw_pr_fix")).toBe(true); // Underscore-separated words
+      expect(isTemporaryId("aw_pr_testfix")).toBe(true); // From the original issue
+    });
+
     it("should return false for invalid strings", async () => {
       const { isTemporaryId } = await import("./temporary_id.cjs");
       expect(isTemporaryId("abc123def456")).toBe(false); // Missing aw_ prefix
       expect(isTemporaryId("aw_ab")).toBe(false); // Too short (2 chars)
       expect(isTemporaryId("aw_1234567890abc")).toBe(false); // Too long (13 chars)
       expect(isTemporaryId("aw_test-id")).toBe(false); // Contains hyphen
-      expect(isTemporaryId("aw_id_123")).toBe(false); // Contains underscore
       expect(isTemporaryId("")).toBe(false);
       expect(isTemporaryId("temp_abc123")).toBe(false); // Wrong prefix
     });
@@ -170,6 +176,52 @@ describe("temporary_id.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalledTimes(2);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_toolongname123"));
+    });
+  });
+
+  describe("getOrGenerateTemporaryId", () => {
+    it("should auto-generate a temporary ID when not provided", async () => {
+      const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");
+      const result = getOrGenerateTemporaryId({ title: "Test" });
+      expect(result.error).toBeNull();
+      expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+    });
+
+    it("should return valid temporary ID when provided", async () => {
+      const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");
+      const result = getOrGenerateTemporaryId({ temporary_id: "aw_abc123" });
+      expect(result.error).toBeNull();
+      expect(result.temporaryId).toBe("aw_abc123");
+    });
+
+    it("should accept temporary ID with underscores", async () => {
+      const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");
+      const result = getOrGenerateTemporaryId({ temporary_id: "aw_pr_fix" });
+      expect(result.error).toBeNull();
+      expect(result.temporaryId).toBe("aw_pr_fix");
+    });
+
+    it("should accept the aw_pr_testfix format from the original issue", async () => {
+      const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");
+      const result = getOrGenerateTemporaryId({ temporary_id: "aw_pr_testfix" });
+      expect(result.error).toBeNull();
+      expect(result.temporaryId).toBe("aw_pr_testfix");
+    });
+
+    it("should warn and auto-generate when format is invalid instead of failing", async () => {
+      const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");
+      const result = getOrGenerateTemporaryId({ temporary_id: "aw_toolongidentifier123" });
+      expect(result.error).toBeNull();
+      expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("aw_toolongidentifier123"));
+    });
+
+    it("should return error when temporary_id is not a string", async () => {
+      const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");
+      const result = getOrGenerateTemporaryId({ temporary_id: 123 });
+      expect(result.error).toContain("temporary_id must be a string");
+      expect(result.temporaryId).toBeNull();
     });
   });
 
@@ -323,7 +375,7 @@ describe("temporary_id.cjs", () => {
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("Invalid temporary ID format");
       expect(result.errorMessage).toContain("aw_test-id");
-      expect(result.errorMessage).toContain("3 to 12 alphanumeric characters");
+      expect(result.errorMessage).toContain("3 to 12 alphanumeric or underscore characters");
     });
 
     it("should return specific error for malformed temporary ID (too short)", async () => {
