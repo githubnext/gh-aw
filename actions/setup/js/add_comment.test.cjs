@@ -319,6 +319,42 @@ describe("add_comment", () => {
       expect(capturedOwner).toBe("other-org");
       expect(capturedRepo).toBe("other-repo");
     });
+
+    it("should return skipped (not failed) when target is 'triggering' but running in schedule context", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let infoCalls = [];
+      let warningCalls = [];
+      mockCore.info = msg => {
+        infoCalls.push(msg);
+      };
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      // Simulate a schedule run — no issue or PR in context
+      mockContext.eventName = "schedule";
+      mockContext.payload = {};
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Status comment from scheduled run",
+      };
+
+      const result = await handler(message, {});
+
+      // Should be skipped, not failed — schedule runs have no triggering issue/PR
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("triggering");
+
+      // Should use core.info, not core.warning, since this is an expected non-failure skip
+      const skipInfo = infoCalls.find(msg => msg.includes("triggering"));
+      expect(skipInfo).toBeTruthy();
+      expect(warningCalls.filter(msg => msg.includes("triggering")).length).toBe(0);
+    });
   });
 
   describe("discussion support", () => {

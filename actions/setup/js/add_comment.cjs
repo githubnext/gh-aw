@@ -414,11 +414,21 @@ async function main(config = {}) {
         });
 
         if (!targetResult.success) {
-          core.warning(targetResult.error);
-          return {
-            success: false,
-            error: targetResult.error,
-          };
+          if (targetResult.shouldFail) {
+            core.warning(targetResult.error);
+            return {
+              success: false,
+              error: targetResult.error,
+            };
+          } else {
+            // No triggering context (e.g. schedule run) — silently skip rather than fail
+            core.info(targetResult.error);
+            return {
+              success: false,
+              skipped: true,
+              error: targetResult.error,
+            };
+          }
         }
 
         itemNumber = targetResult.number;
