@@ -77,7 +77,7 @@ verify_checksum() {
 
   if [ -z "$EXPECTED_CHECKSUM" ]; then
     echo "ERROR: Could not find checksum for ${fname} in checksums.txt"
-    exit 1
+    return 1
   fi
 
   ACTUAL_CHECKSUM=$(sha256_hash "$file" | tr 'A-F' 'a-f')
@@ -87,7 +87,7 @@ verify_checksum() {
     echo "  Expected: $EXPECTED_CHECKSUM"
     echo "  Got:      $ACTUAL_CHECKSUM"
     echo "  The downloaded file may be corrupted or tampered with"
-    exit 1
+    return 1
   fi
 
   echo "✓ Checksum verification passed for ${fname}"
@@ -112,10 +112,16 @@ install_bundle() {
 
   echo "Node.js >= 20 detected ($(node --version)), using lightweight bundle..."
   echo "Downloading bundle from ${bundle_url@Q}..."
-  curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"
+  if ! curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
+    echo "⚠ Bundle download failed (asset may not exist for this version)"
+    return 1
+  fi
 
   # Verify checksum
-  verify_checksum "${TEMP_DIR}/${bundle_name}" "${bundle_name}"
+  if ! verify_checksum "${TEMP_DIR}/${bundle_name}" "${bundle_name}"; then
+    echo "⚠ Bundle checksum verification failed"
+    return 1
+  fi
 
   # Install bundle to lib directory
   sudo mkdir -p "${AWF_LIB_DIR}"
@@ -177,11 +183,7 @@ install_darwin_binary() {
   sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 }
 
-# Try lightweight bundle first, fall back to platform binary
-if has_node_20; then
-  install_bundle
-else
-  echo "Node.js >= 20 not available, falling back to platform binary..."
+install_platform_binary() {
   case "$OS" in
     Linux)
       install_linux_binary
@@ -194,6 +196,17 @@ else
       exit 1
       ;;
   esac
+}
+
+# Try lightweight bundle first, fall back to platform binary
+if has_node_20; then
+  if ! install_bundle; then
+    echo "⚠ Bundle install failed, falling back to platform binary..."
+    install_platform_binary
+  fi
+else
+  echo "Node.js >= 20 not available, falling back to platform binary..."
+  install_platform_binary
 fi
 
 # Verify installation
