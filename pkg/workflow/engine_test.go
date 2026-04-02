@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/types"
 )
 
 // TestEngineVersionTypeHandling tests that engine.version correctly handles
@@ -334,7 +336,7 @@ func TestParseEngineTokenWeights(t *testing.T) {
 		raw              any
 		wantNil          bool
 		wantMultipliers  map[string]float64
-		wantClassWeights *EngineTokenClassWeights
+		wantClassWeights *types.TokenClassWeights
 	}{
 		{
 			name:    "nil input returns nil",
@@ -371,7 +373,7 @@ func TestParseEngineTokenWeights(t *testing.T) {
 					"output": float64(6.0),
 				},
 			},
-			wantClassWeights: &EngineTokenClassWeights{
+			wantClassWeights: &types.TokenClassWeights{
 				Output: 6.0,
 			},
 		},
@@ -390,7 +392,7 @@ func TestParseEngineTokenWeights(t *testing.T) {
 				},
 			},
 			wantMultipliers: map[string]float64{"custom-model": 1.5},
-			wantClassWeights: &EngineTokenClassWeights{
+			wantClassWeights: &types.TokenClassWeights{
 				Input:       1.0,
 				CachedInput: 0.05,
 				Output:      5.0,
@@ -502,7 +504,7 @@ func TestTokenWeightsSingleQuoteEscapingInYAML(t *testing.T) {
 		Name: "Test Workflow",
 		EngineConfig: &EngineConfig{
 			ID: "claude",
-			TokenWeights: &EngineTokenWeights{
+			TokenWeights: &types.TokenWeights{
 				Multipliers: map[string]float64{
 					"bob's-model": 2.0, // Single quote in key
 				},

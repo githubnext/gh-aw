@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
+	"github.com/github/gh-aw/pkg/types"
 )
 
 var tokenUsageLog = logger.New("cli:token_usage")
@@ -78,7 +79,7 @@ const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
 // Custom weights, when non-nil, override the built-in model multipliers and token class
 // weights for effective token computation.
-func parseTokenUsageFile(filePath string, customWeights *CustomTokenWeights) (*TokenUsageSummary, error) {
+func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
 	file, err := os.Open(filePath)
@@ -238,7 +239,7 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 
 // extractCustomTokenWeightsFromDir reads aw_info.json from a run directory and returns
 // any custom token weights embedded there at compile time. Returns nil when not found.
-func extractCustomTokenWeightsFromDir(runDir string) *CustomTokenWeights {
+func extractCustomTokenWeightsFromDir(runDir string) *types.TokenWeights {
 	awInfoPath := findAwInfoPath(runDir)
 	if awInfoPath == "" {
 		return nil

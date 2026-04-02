@@ -5,6 +5,7 @@ package cli
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -238,7 +239,7 @@ func TestResolveEffectiveWeightsNoCustom(t *testing.T) {
 func TestResolveEffectiveWeightsCustomMultipliers(t *testing.T) {
 	loadedMultipliers = nil
 
-	custom := &CustomTokenWeights{
+	custom := &types.TokenWeights{
 		Multipliers: map[string]float64{
 			"my-custom-model":   2.5,
 			"claude-sonnet-4.5": 1.5, // override existing
@@ -257,8 +258,8 @@ func TestResolveEffectiveWeightsCustomMultipliers(t *testing.T) {
 func TestResolveEffectiveWeightsCustomClassWeights(t *testing.T) {
 	loadedMultipliers = nil
 
-	custom := &CustomTokenWeights{
-		TokenClassWeights: &customTokenClassWeights{
+	custom := &types.TokenWeights{
+		TokenClassWeights: &types.TokenClassWeights{
 			Output:      6.0,
 			CachedInput: 0.05,
 		},
@@ -288,7 +289,7 @@ func TestPopulateEffectiveTokensWithCustomWeights(t *testing.T) {
 		},
 	}
 
-	custom := &CustomTokenWeights{
+	custom := &types.TokenWeights{
 		Multipliers: map[string]float64{
 			"my-custom-model": 3.0,
 		},

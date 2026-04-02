@@ -7,30 +7,10 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/types"
 )
 
 var engineLog = logger.New("workflow:engine")
-
-// EngineTokenClassWeights holds per-token-class weights for effective token computation.
-// Each field corresponds to one token class; a zero value means "use default".
-type EngineTokenClassWeights struct {
-	Input       float64 `json:"input,omitempty"`
-	CachedInput float64 `json:"cached-input,omitempty"`
-	Output      float64 `json:"output,omitempty"`
-	Reasoning   float64 `json:"reasoning,omitempty"`
-	CacheWrite  float64 `json:"cache-write,omitempty"`
-}
-
-// EngineTokenWeights defines custom model cost information for effective token computation.
-// It mirrors the structure of model_multipliers.json and allows per-workflow overrides.
-// Specified under engine.token-weights in the workflow frontmatter.
-type EngineTokenWeights struct {
-	// Multipliers maps model names to cost multipliers relative to the reference model.
-	// Keys are matched case-insensitively with prefix matching as a fallback.
-	Multipliers map[string]float64 `json:"multipliers,omitempty"`
-	// TokenClassWeights overrides the per-token-class weights used before the model multiplier.
-	TokenClassWeights *EngineTokenClassWeights `json:"token-class-weights,omitempty"`
-}
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
@@ -49,7 +29,7 @@ type EngineConfig struct {
 	APITarget        string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 	// TokenWeights provides custom model cost data for effective token computation.
 	// When set, overrides or extends the built-in model_multipliers.json values.
-	TokenWeights *EngineTokenWeights
+	TokenWeights *types.TokenWeights
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
@@ -432,17 +412,17 @@ func parseRequestShape(requestObj map[string]any) *RequestShape {
 }
 
 // parseEngineTokenWeights converts a raw token-weights config value (from engine.token-weights)
-// into an EngineTokenWeights. Returns nil when the input is not a usable map or contains
+// into a types.TokenWeights. Returns nil when the input is not a usable map or contains
 // no recognisable data. Multiplier values of unexpected numeric types (anything other than
 // float64, int, or uint64) are silently ignored — this matches the behaviour of the YAML
 // parser which produces float64 for JSON-number literals and integers for integer literals.
-func parseEngineTokenWeights(raw any) *EngineTokenWeights {
+func parseEngineTokenWeights(raw any) *types.TokenWeights {
 	obj, ok := raw.(map[string]any)
 	if !ok {
 		return nil
 	}
 
-	tw := &EngineTokenWeights{}
+	tw := &types.TokenWeights{}
 
 	// Parse multipliers: map of model name → float64
 	if multipliersRaw, ok := obj["multipliers"]; ok {
@@ -464,7 +444,7 @@ func parseEngineTokenWeights(raw any) *EngineTokenWeights {
 	// Parse token-class-weights
 	if tcwRaw, ok := obj["token-class-weights"]; ok {
 		if tcwMap, ok := tcwRaw.(map[string]any); ok {
-			tcw := &EngineTokenClassWeights{}
+			tcw := &types.TokenClassWeights{}
 			setFloat := func(dst *float64, key string) {
 				if v, ok := tcwMap[key]; ok {
 					switch f := v.(type) {

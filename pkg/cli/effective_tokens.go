@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/types"
 )
 
 var effectiveTokensLog = logger.New("cli:effective_tokens")
@@ -49,32 +50,6 @@ type tokenClassWeights struct {
 	Output      float64 `json:"output"`
 	Reasoning   float64 `json:"reasoning"`
 	CacheWrite  float64 `json:"cache_write"`
-}
-
-// customTokenClassWeights holds per-token-class weight overrides from aw_info.json.
-// The JSON keys use hyphens to match the frontmatter schema (engine.token-weights.token-class-weights).
-// A zero value for any field means "not set — use the built-in default" rather than
-// "weight is zero". This matches the convention in model_multipliers.json and means users
-// cannot explicitly request a zero weight through this mechanism.
-type customTokenClassWeights struct {
-	Input       float64 `json:"input"`
-	CachedInput float64 `json:"cached-input"`
-	Output      float64 `json:"output"`
-	Reasoning   float64 `json:"reasoning"`
-	CacheWrite  float64 `json:"cache-write"`
-}
-
-// CustomTokenWeights provides per-workflow overrides for effective token computation.
-// It is populated from the token_weights field in aw_info.json, which is written at
-// compile time from the engine.token-weights frontmatter configuration.
-type CustomTokenWeights struct {
-	// Multipliers maps model names to cost multipliers (relative to reference model).
-	// Keys are normalized to lowercase before being stored; matching is case-insensitive
-	// with longest-prefix fallback (e.g. "my-model-v2" matches "my-model" if present).
-	Multipliers map[string]float64 `json:"multipliers,omitempty"`
-	// TokenClassWeights overrides any or all per-token-class weights.
-	// A nil pointer means no overrides; individual zero fields mean "use default".
-	TokenClassWeights *customTokenClassWeights `json:"token-class-weights,omitempty"`
 }
 
 // modelMultipliersData is the top-level structure of model_multipliers.json.
@@ -230,7 +205,7 @@ func populateEffectiveTokens(summary *TokenUsageSummary) {
 // merges custom into the built-in weights before computing effective tokens.
 // Custom weights take precedence over the defaults loaded from model_multipliers.json.
 // It is a no-op when summary is nil.
-func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom *CustomTokenWeights) {
+func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom *types.TokenWeights) {
 	if summary == nil {
 		return
 	}
@@ -256,7 +231,7 @@ func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom
 
 // resolveEffectiveWeights merges optional custom weights with the built-in defaults.
 // The returned multipliers map is a copy so callers may not modify loadedMultipliers.
-func resolveEffectiveWeights(custom *CustomTokenWeights) (map[string]float64, tokenClassWeights) {
+func resolveEffectiveWeights(custom *types.TokenWeights) (map[string]float64, tokenClassWeights) {
 	initMultipliers()
 
 	// Copy the base multipliers to avoid mutating the shared global

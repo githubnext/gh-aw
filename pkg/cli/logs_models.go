@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -279,7 +280,7 @@ type AwInfo struct {
 	Steps           AwInfoSteps         `json:"steps,omitzero"`             // Steps metadata
 	CreatedAt       string              `json:"created_at"`
 	Context         *AwContext          `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
-	TokenWeights    *CustomTokenWeights `json:"token_weights,omitempty"` // Custom model cost data (from engine.token-weights)
+	TokenWeights    *types.TokenWeights `json:"token_weights,omitempty"` // Custom model cost data (from engine.token-weights)
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`
