@@ -28,7 +28,7 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		Branch            string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 		AfterRunID        int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID       int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-		Timeout           int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs (default: 50 for MCP server)"`
+		Timeout           int    `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
 		MaxTokens         int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
 	}
 
@@ -42,7 +42,7 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 	if err := AddSchemaDefault(logsSchema, "count", 100); err != nil {
 		mcpLog.Printf("Failed to add default for count: %v", err)
 	}
-	if err := AddSchemaDefault(logsSchema, "timeout", 50); err != nil {
+	if err := AddSchemaDefault(logsSchema, "timeout", 1); err != nil {
 		mcpLog.Printf("Failed to add default for timeout: %v", err)
 	}
 	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
@@ -150,10 +150,10 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
 		}
 
-		// Set timeout to 50 seconds for MCP server if not explicitly specified
+		// Set timeout to 1 minute for MCP server if not explicitly specified
 		timeoutValue := args.Timeout
 		if timeoutValue == 0 {
-			timeoutValue = 50
+			timeoutValue = 1
 		}
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
