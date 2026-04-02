@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -32,6 +33,29 @@ func (td *ThreatDetectionConfig) HasRunnableDetection() bool {
 // the detection job.
 func IsDetectionJobEnabled(so *SafeOutputsConfig) bool {
 	return so != nil && so.ThreatDetection != nil && so.ThreatDetection.HasRunnableDetection()
+}
+
+// isThreatDetectionExplicitlyDisabledInConfigs checks whether any of the provided
+// safe-outputs config JSON strings has threat-detection explicitly set to false.
+// This is used to determine whether the default detection should be applied when
+// safe-outputs comes from imports/includes (i.e. no safe-outputs: section in the
+// main workflow frontmatter).
+func isThreatDetectionExplicitlyDisabledInConfigs(configs []string) bool {
+	for _, configJSON := range configs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+		var config map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+			continue
+		}
+		if tdVal, exists := config["threat-detection"]; exists {
+			if disabled, ok := tdVal.(bool); ok && !disabled {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // parseThreatDetectionConfig handles threat-detection configuration

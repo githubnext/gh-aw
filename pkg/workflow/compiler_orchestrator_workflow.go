@@ -842,6 +842,19 @@ func (c *Compiler) extractAdditionalConfigurations(
 	}
 	workflowData.SafeOutputs = mergedSafeOutputs
 
+	// Apply default threat detection when safe-outputs came entirely from imports/includes
+	// (i.e. the main frontmatter has no safe-outputs: section). In this case the merge
+	// produces a non-nil SafeOutputs but leaves ThreatDetection nil, which would suppress
+	// the detection gate on the safe_outputs job. Mirroring the behaviour of
+	// extractSafeOutputsConfig for direct frontmatter declarations, we enable detection by
+	// default unless any imported config explicitly sets threat-detection: false.
+	if safeOutputs == nil && workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection == nil {
+		if !isThreatDetectionExplicitlyDisabledInConfigs(allSafeOutputsConfigs) {
+			orchestratorWorkflowLog.Print("Applying default threat-detection for safe-outputs assembled from imports/includes")
+			workflowData.SafeOutputs.ThreatDetection = &ThreatDetectionConfig{}
+		}
+	}
+
 	// Auto-inject create-issues if safe-outputs is configured but has no non-builtin outputs.
 	// This ensures every workflow with safe-outputs has at least one meaningful action handler.
 	applyDefaultCreateIssue(workflowData)
