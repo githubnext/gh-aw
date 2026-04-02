@@ -4,8 +4,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var helpersLog = logger.New("cli:helpers")
 
 // getParentDir returns the directory part of a path
 func getParentDir(path string) string {
@@ -20,8 +23,10 @@ func getParentDir(path string) string {
 // and returns the "owner/repo" portion (e.g. "github/gh-aw"). Returns "" if the file
 // cannot be read, has no source field, or the field is not in the expected format.
 func readSourceRepoFromFile(path string) string {
+	helpersLog.Printf("Reading source repo from file: %s", path)
 	content, err := os.ReadFile(path)
 	if err != nil {
+		helpersLog.Printf("Failed to read file: %s", err)
 		return ""
 	}
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
@@ -41,7 +46,9 @@ func readSourceRepoFromFile(path string) string {
 	if len(slashParts) < 2 {
 		return ""
 	}
-	return slashParts[0] + "/" + slashParts[1]
+	repo := slashParts[0] + "/" + slashParts[1]
+	helpersLog.Printf("Extracted source repo: %s", repo)
+	return repo
 }
 
 // sourceRepoLabel returns the source repo string for display in error messages.

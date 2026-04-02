@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var playwrightToolsLog = logger.New("workflow:playwright_tools")
+
 // GetPlaywrightTools returns the list of Playwright browser tool names available in the
 // copilot agent MCP server configuration.
 // This is a shared function used by all engines for consistent Playwright tool configuration.
@@ -33,5 +37,6 @@ func GetPlaywrightTools() []any {
 	for i, tool := range tools {
 		result[i] = tool
 	}
+	playwrightToolsLog.Printf("Returning %d Playwright tools", len(result))
 	return result
 }

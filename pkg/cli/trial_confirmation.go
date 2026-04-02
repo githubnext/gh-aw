@@ -7,12 +7,16 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+var trialConfirmationLog = logger.New("cli:trial_confirmation")
+
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
 func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool, engineOverride string) error {
+	trialConfirmationLog.Printf("Showing trial confirmation: workflows=%d, hostRepo=%s, cloneRepo=%s, repeat=%d, directMode=%v", len(parsedSpecs), hostRepoSlug, cloneRepoSlug, repeatCount, directTrialMode)
 	githubHost := getGitHubHost()
 	hostRepoSlugURL := fmt.Sprintf("%s/%s", githubHost, hostRepoSlug)
 
@@ -109,6 +113,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	if err := checkCmd.Run(); err == nil {
 		hostRepoExists = true
 	}
+	trialConfirmationLog.Printf("Host repo check: exists=%v, forceDelete=%v", hostRepoExists, forceDeleteHostRepo)
 
 	// Step 1: Repository creation/reuse
 	stepNum := 1
@@ -213,8 +218,10 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	}
 
 	if !confirmed {
+		trialConfirmationLog.Print("Trial cancelled by user")
 		return errors.New("trial cancelled by user")
 	}
 
+	trialConfirmationLog.Print("Trial confirmed by user, proceeding")
 	return nil
 }

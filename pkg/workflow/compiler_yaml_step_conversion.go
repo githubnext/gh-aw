@@ -6,12 +6,16 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var stepConversionLog = logger.New("workflow:compiler_yaml_step_conversion")
 
 // ConvertStepToYAML converts a step map to YAML string with proper indentation.
 // This is a shared utility function used by all engines and the compiler.
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
+	stepConversionLog.Printf("Converting step to YAML: fields=%d", len(stepMap))
 	// Use OrderMapFields to get ordered MapSlice
 	orderedStep := OrderMapFields(stepMap, constants.PriorityStepFields)
 
@@ -40,6 +44,7 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 		}
 	}
 
+	stepConversionLog.Printf("Step conversion complete: %d lines generated", len(lines))
 	return result.String(), nil
 }
 
@@ -95,6 +100,8 @@ func unquoteUsesWithComments(yamlStr string) string {
 
 // renderStepFromMap renders a GitHub Actions step from a map to YAML
 func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+	stepName, _ := step["name"].(string)
+	stepConversionLog.Printf("Rendering step from map: name=%q, fields=%d", stepName, len(step))
 	// Start the step with a dash
 	yaml.WriteString(indent + "- ")
 
