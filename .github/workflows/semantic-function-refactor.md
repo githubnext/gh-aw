@@ -13,8 +13,7 @@ permissions:
 engine: claude
 
 imports:
-  - shared/reporting.md
-  - shared/mcp/serena-go.md
+  - shared/go-source-analysis.md
 
 safe-outputs:
   close-issue:
@@ -31,15 +30,6 @@ tools:
   github:
     toolsets: [default, issues]
   edit:
-  bash:
-    - "find pkg -name '*.go' ! -name '*_test.go' -type f"
-    - "find pkg -type f -name '*.go' ! -name '*_test.go'"
-    - "find pkg/ -maxdepth 1 -ls"
-    - "find pkg/workflow/ -maxdepth 1 -ls"
-    - "wc -l pkg/**/*.go"
-    - "head -n * pkg/**/*.go"
-    - "grep -r 'func ' pkg --include='*.go'"
-    - "cat pkg/**/*.go"
 
 timeout-minutes: 20
 strict: true

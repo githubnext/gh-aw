@@ -17,9 +17,8 @@ engine: copilot
 
 imports:
   - shared/activation-app.md
-  - shared/reporting.md
+  - shared/go-source-analysis.md
   - shared/safe-output-app.md
-  - shared/mcp/serena-go.md
 
 safe-outputs:
   create-issue:
@@ -34,11 +33,6 @@ tools:
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"
-    - "wc -l pkg/**/*.go"
-    - "cat pkg/**/*.go"
-    - "head -n * pkg/**/*.go"
-    - "grep -r 'func ' pkg --include='*.go'"
-    - "find pkg/ -maxdepth 1 -ls"
 
 timeout-minutes: 20
 strict: true
