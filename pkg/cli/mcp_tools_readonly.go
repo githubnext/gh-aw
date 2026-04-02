@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -129,7 +130,16 @@ Returns JSON array with validation results for each workflow:
 		if args.Zizmor || args.Poutine || args.Actionlint {
 			// Check if Docker images are available; if not, start downloading and return retry message
 			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint); err != nil {
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, err.Error(), nil)
+				// Build per-workflow validation errors instead of throwing an MCP protocol error,
+				// so callers always receive consistent JSON regardless of the failure mode.
+				results := buildDockerErrorResults(args.Workflows, err.Error())
+				jsonBytes, jsonErr := json.Marshal(results)
+				if jsonErr != nil {
+					return nil, nil, newMCPError(jsonrpc.CodeInternalError, err.Error(), nil)
+				}
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+				}, nil, nil
 			}
 
 			// Check for cancellation after Docker image preparation
@@ -287,4 +297,46 @@ Returns formatted text output showing:
 			},
 		}, nil, nil
 	})
+}
+
+// buildDockerErrorResults builds a []ValidationResult with a config_error for each target
+// workflow. It is used when Docker is unavailable so the compile tool returns consistent
+// structured JSON instead of a protocol-level error.
+func buildDockerErrorResults(requestedWorkflows []string, errMsg string) []ValidationResult {
+	// Determine which workflow names to report
+	var workflowNames []string
+	if len(requestedWorkflows) > 0 {
+		for _, w := range requestedWorkflows {
+			workflowNames = append(workflowNames, filepath.Base(w))
+		}
+	} else {
+		// Discover all workflow files in the default directory.
+		// An empty string means "use the default .github/workflows directory".
+		if mdFiles, err := getMarkdownWorkflowFiles(""); err == nil {
+			for _, f := range mdFiles {
+				workflowNames = append(workflowNames, filepath.Base(f))
+			}
+		}
+	}
+
+	// Fallback: if we could not determine workflow names, emit a single generic entry
+	if len(workflowNames) == 0 {
+		return []ValidationResult{{
+			Workflow: "",
+			Valid:    false,
+			Errors:   []CompileValidationError{{Type: "config_error", Message: errMsg}},
+			Warnings: []CompileValidationError{},
+		}}
+	}
+
+	results := make([]ValidationResult, 0, len(workflowNames))
+	for _, name := range workflowNames {
+		results = append(results, ValidationResult{
+			Workflow: name,
+			Valid:    false,
+			Errors:   []CompileValidationError{{Type: "config_error", Message: errMsg}},
+			Warnings: []CompileValidationError{},
+		})
+	}
+	return results
 }
