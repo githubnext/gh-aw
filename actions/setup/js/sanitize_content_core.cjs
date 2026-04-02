@@ -285,14 +285,20 @@ function sanitizeUrlDomains(s, allowed) {
   // Second pass: handle protocol-relative URLs (//hostname/path).
   // Browsers on HTTPS pages resolve these to https://, so they must be subject
   // to the same domain allowlist check as explicit https:// URLs.
-  // The negative lookbehind (?<![:/]) avoids matching the // inside https://.
+  // We only treat // as a protocol-relative URL when it appears at the start of
+  // the string or immediately after a clear delimiter (whitespace, brackets,
+  // or quotes). This avoids matching // segments inside the path of an allowed
+  // https:// URL, such as "https://github.com//issues".
   // The path stop-condition (?!\/\/) stops before the next protocol-relative URL
   // (analogous to how the httpsUrlRegex stops before the next https:// URL).
-  // The path capture group is present for structural symmetry with httpsUrlRegex
-  // but is not needed by applyDomainFilter — the full match is used instead.
-  const protoRelativeUrlRegex = /(?<![:/])\/\/([\w.-]+(?::\d+)?)(\/(?:(?!\/\/)[^\s,])*)?/gi;
+  // Capture groups:
+  //   1: prefix (start-of-string or delimiter)
+  //   2: full protocol-relative URL (starting with //)
+  //   3: hostname (and optional port)
+  //   4: optional path
+  const protoRelativeUrlRegex = /(^|[\s([{"'])(\/\/([\w.-]+(?::\d+)?)(\/(?:(?!\/\/)[^\s,])*)?)/gi;
 
-  s = s.replace(protoRelativeUrlRegex, (match, hostnameWithPort) => applyDomainFilter(match, hostnameWithPort));
+  s = s.replace(protoRelativeUrlRegex, (match, prefix, url, hostnameWithPort) => prefix + applyDomainFilter(url, hostnameWithPort));
 
   return s;
 }

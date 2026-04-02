@@ -822,6 +822,13 @@ describe("sanitize_content.cjs", () => {
       expect(result).not.toContain("//evil.com");
     });
 
+    it("should not treat double slashes in https URL paths as protocol-relative URLs", () => {
+      const result = sanitizeContent("https://github.com//issues and //evil.com/path");
+      expect(result).toContain("https://github.com//issues");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
     it("should redact protocol-relative URL with path and query string", () => {
       const result = sanitizeContent("//evil.com/path?query=value");
       expect(result).toContain("(evil.com/redacted)");
