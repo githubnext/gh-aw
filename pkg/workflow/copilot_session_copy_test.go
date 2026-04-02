@@ -49,9 +49,20 @@ func TestCopilotSessionFileCopyStep(t *testing.T) {
 		t.Error("Expected step to reference '/tmp/gh-aw/sandbox/agent/logs' directory")
 	}
 
-	// Verify .jsonl file copy
+	// Verify recursive find for .jsonl files in session subdirectories
+	if !strings.Contains(stepContent, "find") {
+		t.Error("Expected step to use 'find' for recursive .jsonl file discovery")
+	}
 	if !strings.Contains(stepContent, "*.jsonl") {
-		t.Error("Expected step to copy *.jsonl files")
+		t.Error("Expected step to search for *.jsonl files")
+	}
+
+	// Verify session ID is preserved in the output filename
+	if !strings.Contains(stepContent, "session_id=$(basename") {
+		t.Error("Expected step to extract session_id from parent directory")
+	}
+	if !strings.Contains(stepContent, "${filename}-${session_id}.jsonl") {
+		t.Error("Expected step to include session_id in output filename to avoid collisions")
 	}
 
 	// Verify cp command

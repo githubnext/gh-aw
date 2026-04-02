@@ -435,8 +435,10 @@ func extractAddDirPaths(args []string) []string {
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy Copilot session state files
-// from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
-// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+// from ~/.copilot/session-state/<session-uuid>/ to /tmp/gh-aw/sandbox/agent/logs/
+// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them.
+// Copilot CLI writes events.jsonl inside session subdirectories, so we use find
+// to recursively locate them and preserve the session ID in the filename.
 func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	var step []string
 
@@ -452,7 +454,14 @@ func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	step = append(step, "          if [ -d \"$SESSION_STATE_DIR\" ]; then")
 	step = append(step, "            echo \"Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR\"")
 	step = append(step, "            mkdir -p \"$LOGS_DIR\"")
-	step = append(step, "            cp -v \"$SESSION_STATE_DIR\"/*.jsonl \"$LOGS_DIR/\" 2>/dev/null || true")
+	step = append(step, "            # Copilot CLI writes events.jsonl inside session subdirectories:")
+	step = append(step, "            #   ~/.copilot/session-state/<session-uuid>/events.jsonl")
+	step = append(step, "            # Use find to recursively locate .jsonl files and preserve session ID in filename")
+	step = append(step, "            find \"$SESSION_STATE_DIR\" -name '*.jsonl' -type f | while read -r f; do")
+	step = append(step, "              session_id=$(basename \"$(dirname \"$f\")\")")
+	step = append(step, "              filename=$(basename \"$f\" .jsonl)")
+	step = append(step, "              cp -v \"$f\" \"$LOGS_DIR/${filename}-${session_id}.jsonl\"")
+	step = append(step, "            done")
 	step = append(step, "            echo \"Session state files copied successfully\"")
 	step = append(step, "          else")
 	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")

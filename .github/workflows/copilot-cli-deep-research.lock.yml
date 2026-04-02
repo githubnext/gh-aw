@@ -671,7 +671,14 @@ jobs:
           if [ -d "$SESSION_STATE_DIR" ]; then
             echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
             mkdir -p "$LOGS_DIR"
-            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            # Copilot CLI writes events.jsonl inside session subdirectories:
+            #   ~/.copilot/session-state/<session-uuid>/events.jsonl
+            # Use find to recursively locate .jsonl files and preserve session ID in filename
+            find "$SESSION_STATE_DIR" -name '*.jsonl' -type f | while read -r f; do
+              session_id=$(basename "$(dirname "$f")")
+              filename=$(basename "$f" .jsonl)
+              cp -v "$f" "$LOGS_DIR/${filename}-${session_id}.jsonl"
+            done
             echo "Session state files copied successfully"
           else
             echo "No session-state directory found at $SESSION_STATE_DIR"
