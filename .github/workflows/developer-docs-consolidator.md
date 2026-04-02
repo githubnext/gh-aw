@@ -22,10 +22,6 @@ network:
     - github
 
 safe-outputs:
-  create-discussion:
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   create-pull-request:
     expires: 2d
     title-prefix: "[docs] "
@@ -52,6 +48,9 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[developer-docs] "
   - shared/reporting.md
   - shared/mcp/serena-go.md
   - uses: shared/qmd.md
@@ -67,7 +66,6 @@ imports:
           context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
 
 ---
-
 # Developer Documentation Consolidator
 
 You are an AI documentation consistency agent that daily reviews markdown files in the `scratchpad/` directory, ensures they have a consistent technical tone, and produces a consolidated `developer.instructions.md` file.

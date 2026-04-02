@@ -72,7 +72,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	if timeout > 0 {
 		startTime = time.Now()
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d seconds", timeout)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeout)))
 		}
 	}
 
@@ -98,7 +98,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		// Check timeout if specified
 		if timeout > 0 {
 			elapsed := time.Since(startTime).Seconds()
-			if elapsed >= float64(timeout) {
+			if elapsed >= float64(timeout)*60 {
 				timeoutReached = true
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", elapsed)))
@@ -335,6 +335,11 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				run.ErrorCount = 0
 				run.WarningCount = 0
 				run.LogsPath = result.LogsPath
+
+				// Propagate effective tokens from cached firewall proxy summary when available
+				if result.TokenUsage != nil && result.TokenUsage.TotalEffectiveTokens > 0 {
+					run.EffectiveTokens = result.TokenUsage.TotalEffectiveTokens
+				}
 
 				// Add failed jobs to error count
 				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
@@ -780,6 +785,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					}
 				}
 				result.TokenUsage = tokenUsage
+
+				// Propagate effective tokens from the firewall proxy summary when available
+				if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
+					result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
+				}
 
 				// Count safe output items created in GitHub (from manifest artifact)
 				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))

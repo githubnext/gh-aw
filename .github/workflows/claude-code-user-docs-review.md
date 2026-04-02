@@ -22,13 +22,6 @@ network:
     - defaults
     - github
 
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 tools:
   cache-memory: true
   github:
@@ -39,12 +32,15 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[claude-code-user-docs-review] "
+      expires: 1d
   - shared/reporting.md
 
 features:
   copilot-requests: true
 ---
-
 # Claude Code User Documentation Review
 
 You are an experienced developer who:

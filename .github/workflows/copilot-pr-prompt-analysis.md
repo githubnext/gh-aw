@@ -22,15 +22,11 @@ network:
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[prompt-analysis] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[prompt-analysis] "
+      expires: 1d
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/prompt-analysis"
@@ -43,7 +39,6 @@ timeout-minutes: 15
 features:
   copilot-requests: true
 ---
-
 # Copilot PR Prompt Pattern Analysis
 
 You are an AI analytics agent that analyzes the patterns in prompts used to create pull requests via GitHub Copilot, correlating them with PR outcomes (merged vs closed).

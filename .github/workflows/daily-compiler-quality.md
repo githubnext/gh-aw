@@ -11,6 +11,10 @@ permissions:
 tracker-id: daily-compiler-quality
 engine: copilot
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily-compiler-quality] "
+      expires: 1d
   - shared/go-source-analysis.md
 tools:
   github:
@@ -24,18 +28,11 @@ tools:
     - "git log --since='7 days ago' --format='%h %s' -- pkg/workflow/compiler*.go"
     - "git diff HEAD~7 -- pkg/workflow/compiler*.go"
     - "git show HEAD:pkg/workflow/compiler*.go"
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 features:
   copilot-requests: true
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Compiler Quality Check Agent 🔍

@@ -2,7 +2,7 @@
 description: Daily report tracking Copilot token consumption and costs across all agentic workflows with trend analysis
 on:
   schedule:
-    - cron: "0 11 * * 1-5"  # Daily at 11 AM UTC, weekdays only
+    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,15 +30,11 @@ steps:
         echo "❌ Failed to download logs"
         exit 1
       fi
-safe-outputs:
-  upload-asset:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 20
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily-copilot-token-report] "
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/token-metrics"
@@ -49,7 +45,6 @@ imports:
 features:
   copilot-requests: true
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Copilot Token Consumption Report

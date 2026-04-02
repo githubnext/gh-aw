@@ -15,6 +15,10 @@ timeout-minutes: 10
 strict: true
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[terminal-stylist] "
+      expires: 1d
   - shared/mcp/serena-go.md
   - shared/reporting.md
 
@@ -25,14 +29,7 @@ tools:
   bash:
     - "*"
 
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 ---
-
 # Terminal Stylist - Console Output Analysis
 
 You are the Terminal Stylist Agent - an expert system that analyzes console output patterns in the codebase to ensure consistent, well-formatted terminal output.

@@ -3,7 +3,7 @@ description: Runs Markdown quality checks using Super Linter and creates issues 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 14 * * 1-5" # 2 PM UTC, weekdays only
+    - cron: "daily around 14:00 on weekdays" # ~2 PM UTC, weekdays only
 permissions:
   contents: read
   actions: read

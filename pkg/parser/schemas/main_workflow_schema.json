@@ -9137,6 +9137,54 @@
               "description": "Custom API endpoint hostname for the agentic engine. Used for GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints. Example: 'api.acme.ghe.com' for GHEC, 'api.enterprise.githubcopilot.com' for GHES, or custom endpoint hostnames.",
               "examples": ["api.acme.ghe.com", "api.enterprise.githubcopilot.com", "api.custom.endpoint.com"]
             },
+            "token-weights": {
+              "type": "object",
+              "description": "Custom model token weights for effective token computation. Overrides or extends the built-in model multipliers from model_multipliers.json. Useful for custom models or adjusted cost ratios.",
+              "properties": {
+                "multipliers": {
+                  "type": "object",
+                  "description": "Per-model cost multipliers relative to the reference model (claude-sonnet-4.5 = 1.0). Keys are model names (case-insensitive, prefix matching supported). Values are numeric multipliers.",
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "examples": [{ "my-custom-model": 2.5, "gpt-5": 3.0 }]
+                },
+                "token-class-weights": {
+                  "type": "object",
+                  "description": "Per-token-class weights applied before the model multiplier. Any specified weight overrides the corresponding default.",
+                  "properties": {
+                    "input": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Weight for input tokens (default: 1.0)"
+                    },
+                    "cached-input": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Weight for cached input tokens (default: 0.1)"
+                    },
+                    "output": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Weight for output tokens (default: 4.0)"
+                    },
+                    "reasoning": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Weight for reasoning tokens (default: 4.0)"
+                    },
+                    "cache-write": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Weight for cache write tokens (default: 1.0)"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
             "args": {
               "type": "array",
               "items": {

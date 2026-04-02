@@ -1005,7 +1005,7 @@ not-json
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
       expect(md).toContain("### 📊 Token Usage");
-      expect(md).toContain("| Model | Input | Output | Cache Read | Cache Write | Requests | Duration |");
+      expect(md).toContain("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
       expect(md).toContain("claude-sonnet-4-6");
     });
 
@@ -1039,6 +1039,63 @@ not-json
       const largeIdx = md.indexOf("large-model");
       const smallIdx = md.indexOf("small-model");
       expect(largeIdx).toBeLessThan(smallIdx);
+    });
+
+    test("includes ET column in table", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("| ET |");
+    });
+
+    test("shows ● footer line when effective tokens > 0", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
+      const md = generateTokenUsageSummary(summary);
+      // Column header still says ET; footer uses compact ● symbol only
+      expect(md).toContain("| ET |");
+      expect(md).toContain("●");
+    });
+
+    test("includes cache efficiency after ● ET in footer line", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
+      const summary = parseTokenUsageJsonl(content);
+      const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("●");
+      expect(md).toContain("Cache efficiency: 90.0%");
+      // ET should appear before cache efficiency
+      const etIdx = md.indexOf("●");
+      const ceIdx = md.indexOf("Cache efficiency");
+      expect(etIdx).toBeLessThan(ceIdx);
+    });
+  });
+
+  describe("parseTokenUsageJsonl - effective tokens", () => {
+    test("computes effectiveTokens per model", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary).not.toBeNull();
+      expect(summary.byModel["m"].effectiveTokens).toBeGreaterThan(0);
+    });
+
+    test("includes totalEffectiveTokens in summary", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary).not.toBeNull();
+      expect(typeof summary.totalEffectiveTokens).toBe("number");
+      expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
+    });
+
+    test("totalEffectiveTokens is sum of per-model ET", () => {
+      const lines = [
+        JSON.stringify({ model: "m1", input_tokens: 100, output_tokens: 50, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "m2", input_tokens: 200, output_tokens: 100, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 200 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const m1ET = summary.byModel["m1"].effectiveTokens;
+      const m2ET = summary.byModel["m2"].effectiveTokens;
+      expect(summary.totalEffectiveTokens).toBe(m1ET + m2ET);
     });
   });
 });

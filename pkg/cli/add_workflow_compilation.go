@@ -41,7 +41,7 @@ func compileWorkflowWithRefresh(filePath string, verbose bool, quiet bool, engin
 	addWorkflowCompilationLog.Print("Compilation completed successfully")
 
 	// Ensure .gitattributes marks .lock.yml files as generated
-	if err := ensureGitAttributes(); err != nil {
+	if _, err := ensureGitAttributes(); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 		}
@@ -75,15 +75,16 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 
 	addWorkflowCompilationLog.Printf("Lock file %s exists: %v", lockFile, lockFileExists)
 
-	// Check if .gitattributes exists before ensuring it
-	gitRoot, err := gitutil.FindGitRoot()
-	if err != nil {
-		return err
-	}
-	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
-	gitAttributesExists := false
-	if _, err := os.Stat(gitAttributesPath); err == nil {
-		gitAttributesExists = true
+	// Check if .gitattributes exists before compilation so we know whether to
+	// use TrackCreated or TrackModified if ensureGitAttributes modifies it later.
+	gitRoot, gitRootErr := gitutil.FindGitRoot()
+	gitAttributesPath := ""
+	gitAttributesExisted := false
+	if gitRootErr == nil {
+		gitAttributesPath = filepath.Join(gitRoot, ".gitattributes")
+		if _, err := os.Stat(gitAttributesPath); err == nil {
+			gitAttributesExisted = true
+		}
 	}
 
 	// Track the lock file before compilation
@@ -91,13 +92,6 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 		tracker.TrackModified(lockFile)
 	} else {
 		tracker.TrackCreated(lockFile)
-	}
-
-	// Track .gitattributes file before modification
-	if gitAttributesExists {
-		tracker.TrackModified(gitAttributesPath)
-	} else {
-		tracker.TrackCreated(gitAttributesPath)
 	}
 
 	// Create compiler with auto-detected version and action mode
@@ -112,10 +106,18 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 		return err
 	}
 
-	// Ensure .gitattributes marks .lock.yml files as generated
-	if err := ensureGitAttributes(); err != nil {
+	// Ensure .gitattributes marks .lock.yml files as generated; only track it if it was actually
+	// modified. Errors here are non-fatal — gitattributes update failure does not prevent the
+	// compiled workflow from being usable.
+	if updated, err := ensureGitAttributes(); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+		}
+	} else if updated && gitRootErr == nil {
+		if gitAttributesExisted {
+			tracker.TrackModified(gitAttributesPath)
+		} else {
+			tracker.TrackCreated(gitAttributesPath)
 		}
 	}
 

@@ -17,21 +17,16 @@ tools:
     max-file-size: 102400  # 100KB
     max-patch-size: 51200  # 50KB - increased from default 10KB to handle history.jsonl growth
   bash: true
-safe-outputs:
-  upload-asset:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 strict: true
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily-code-metrics] "
   - shared/reporting.md
   - shared/python-dataviz.md
   - shared/trends.md
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Code Metrics and Trend Tracking Agent

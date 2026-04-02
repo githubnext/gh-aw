@@ -3,8 +3,8 @@ name: Glossary Maintainer
 description: Maintains and updates the documentation glossary based on codebase changes
 on:
   schedule:
-    # Every weekday at 10am UTC (avoiding weekends)
-    - cron: "0 10 * * 1-5"
+    # ~10 AM UTC weekdays (scattered to avoid thundering herd)
+    - cron: "daily around 10:00 on weekdays"
   workflow_dispatch:
 
 permissions:

@@ -25,14 +25,13 @@ steps:
       mkdir -p /tmp/portfolio-logs
       ./gh-aw logs --start-date -30d -c 5000 -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
 safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[portfolio] "
-    category: "audits"
-    close-older-discussions: true
   upload-asset:
 timeout-minutes: 20
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[portfolio] "
+      expires: 1d
   - shared/reporting.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md

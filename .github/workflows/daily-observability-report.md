@@ -14,20 +14,14 @@ tools:
   github:
     toolsets: [default, discussions, actions]
   agentic-workflows: true
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    title-prefix: "[observability] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 45
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[observability] "
+      expires: 1d
   - shared/reporting.md
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Observability Report for AWF Firewall and MCP Gateway

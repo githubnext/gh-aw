@@ -19,12 +19,6 @@ timeout-minutes: 45
 
 safe-outputs:
   upload-asset:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 tools:
   agentic-workflows:
   github:
@@ -34,6 +28,9 @@ tools:
     - "*"
   edit:
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily-firewall-report] "
   - shared/reporting.md
   - shared/trending-charts-simple.md
 ---

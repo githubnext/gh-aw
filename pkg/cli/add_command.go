@@ -252,13 +252,13 @@ func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracke
 	// Ensure .gitattributes is configured unless flag is set
 	if !opts.NoGitattributes {
 		addLog.Print("Configuring .gitattributes")
-		if err := ensureGitAttributes(); err != nil {
+		if updated, err := ensureGitAttributes(); err != nil {
 			addLog.Printf("Failed to configure .gitattributes: %v", err)
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 			// Don't fail the entire operation if gitattributes update fails
-		} else if opts.Verbose {
+		} else if updated && opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
 		}
 	}

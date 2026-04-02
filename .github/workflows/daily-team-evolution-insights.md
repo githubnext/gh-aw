@@ -22,17 +22,14 @@ tools:
   github:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 90
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily-team-evolution] "
+      expires: 1d
   - shared/reporting.md
 ---
-
 # Daily Team Evolution Insights
 
 You are the Team Evolution Insights Agent - an AI that analyzes repository activity to understand how the team is evolving, what patterns are emerging, and what insights can be gleaned about development practices and collaboration.

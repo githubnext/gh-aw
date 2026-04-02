@@ -33,7 +33,7 @@ This command:
 Only required secrets are prompted for. Optional secrets are not shown.
 
 For full details, including precedence rules, see the GitHub Tokens
-reference in the documentation.
+reference at https://github.github.io/gh-aw/reference/tokens/.
 
 Examples:
   gh aw secrets bootstrap                        # Check and set up all required secrets

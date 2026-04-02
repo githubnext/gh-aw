@@ -86,6 +86,24 @@ async function main(core, ctx) {
     awInfo.cli_version = cliVersion;
   }
 
+  // Include custom token weights when set (engine.token-weights in workflow frontmatter).
+  // Deep structure validation is intentionally minimal here: the JSON schema and Go parser
+  // already validate the structure at compile time. We only verify the top-level type to
+  // guard against unexpected env-var values at runtime.
+  const tokenWeightsEnv = process.env.GH_AW_INFO_TOKEN_WEIGHTS;
+  if (tokenWeightsEnv) {
+    try {
+      const tokenWeights = JSON.parse(tokenWeightsEnv);
+      if (tokenWeights !== null && typeof tokenWeights === "object" && !Array.isArray(tokenWeights)) {
+        awInfo.token_weights = tokenWeights;
+      } else {
+        core.warning(`GH_AW_INFO_TOKEN_WEIGHTS must be a JSON object, ignoring`);
+      }
+    } catch {
+      core.warning(`Failed to parse GH_AW_INFO_TOKEN_WEIGHTS: ${tokenWeightsEnv}`);
+    }
+  }
+
   // Include aw_context when the workflow was triggered via workflow_dispatch with
   // the aw_context input set by a calling agentic workflow's dispatch_workflow handler.
   // Validates JSON format and structure before populating the context key in aw_info.json.

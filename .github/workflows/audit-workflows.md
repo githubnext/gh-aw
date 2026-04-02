@@ -15,13 +15,12 @@ tools:
   timeout: 300
 safe-outputs:
   upload-asset:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[audit-workflows] "
+      expires: 1d
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/audit-workflows"

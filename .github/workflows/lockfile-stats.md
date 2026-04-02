@@ -11,18 +11,15 @@ engine: claude
 tools:
   cache-memory: true
   bash: true
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    max: 1
-    close-older-discussions: true
 timeout-minutes: 15
 strict: true
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[lockfile-stats] "
+      expires: 1d
   - shared/reporting.md
 ---
-
 # Lockfile Statistics Analysis Agent
 
 You are the Lockfile Statistics Analysis Agent - an expert system that performs statistical and structural analysis of agentic workflow lock files (.lock.yml) in this repository.

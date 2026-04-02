@@ -4,7 +4,7 @@ description: Analyzes the largest Go source file daily and creates an issue to r
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 13 * * 1-5"  # Weekdays at 1 PM UTC
+    - cron: "daily around 13:00 on weekdays"  # ~Weekdays at 1 PM UTC (scattered)
   skip-if-match: 'is:issue is:open in:title "[file-diet]"'
 
 permissions:

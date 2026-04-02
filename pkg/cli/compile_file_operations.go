@@ -234,7 +234,7 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	// Only update if we successfully compiled workflows or have action cache entries
 	if successCount > 0 || hasActionCacheEntries {
-		if err := ensureGitAttributes(); err != nil {
+		if _, err := ensureGitAttributes(); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}

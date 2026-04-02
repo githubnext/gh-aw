@@ -18,10 +18,6 @@ tools:
   cache-memory: true
   edit:
 safe-outputs:
-  create-discussion:
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   create-pull-request:
     expires: 2d
     title-prefix: "[mcp-tools] "
@@ -30,9 +26,11 @@ safe-outputs:
     draft: false
 timeout-minutes: 15
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[mcp-tools-report] "
   - shared/reporting.md
 ---
-
 # GitHub MCP Remote Server Tools Report Generator
 
 You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.

@@ -21,15 +21,11 @@ network:
     - defaults
     - github
 
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    title-prefix: "[copilot-agent-analysis] "
-    category: "audits"
-    max: 1
-    close-older-discussions: true
-
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[copilot-agent-analysis] "
+      expires: 1d
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/copilot-agent-analysis"
@@ -40,7 +36,6 @@ imports:
 timeout-minutes: 15
 
 ---
-
 # Copilot Agent PR Analysis
 
 You are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.

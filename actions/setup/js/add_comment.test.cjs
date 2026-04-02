@@ -2027,6 +2027,7 @@ describe("add_comment", () => {
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(true);
       expect(result3.success).toBe(false);
+      expect(result3.skipped).toBe(true);
       expect(result3.error).toMatch(/max count/i);
     });
   });

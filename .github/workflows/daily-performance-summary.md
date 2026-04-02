@@ -17,16 +17,11 @@ tools:
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:
-  create-discussion:
-    expires: 3d
-    category: "audits"
-    title-prefix: "[daily performance] "
-    max: 1
-    close-older-discussions: true
-  close-discussion:
-    max: 10
 timeout-minutes: 30
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
   - shared/trending-charts-simple.md
   - shared/reporting.md

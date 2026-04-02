@@ -58,6 +58,7 @@ type LogsSummary struct {
 	TotalRuns              int     `json:"total_runs" console:"header:Total Runs"`
 	TotalDuration          string  `json:"total_duration" console:"header:Total Duration"`
 	TotalTokens            int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
+	TotalEffectiveTokens   int     `json:"total_effective_tokens" console:"header:Total Effective Tokens,format:number"`
 	TotalCost              float64 `json:"total_cost" console:"header:Total Cost,format:cost"`
 	TotalActionMinutes     float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
 	TotalTurns             int     `json:"total_turns" console:"header:Total Turns"`
@@ -82,6 +83,7 @@ type RunData struct {
 	Duration            string               `json:"duration,omitempty" console:"header:Duration,omitempty"`
 	ActionMinutes       float64              `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	TokenUsage          int                  `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
+	EffectiveTokens     int                  `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
 	EstimatedCost       float64              `json:"estimated_cost,omitempty" console:"header:Cost ($),format:cost,omitempty"`
 	Turns               int                  `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount          int                  `json:"error_count" console:"header:Errors"`
@@ -162,6 +164,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build summary
 	var totalDuration time.Duration
 	var totalTokens int
+	var totalEffectiveTokens int
 	var totalCost float64
 	var totalActionMinutes float64
 	var totalTurns int
@@ -181,6 +184,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			totalDuration += run.Duration
 		}
 		totalTokens += run.TokenUsage
+		totalEffectiveTokens += run.EffectiveTokens
 		totalCost += run.EstimatedCost
 		totalActionMinutes += run.ActionMinutes
 		totalTurns += run.Turns
@@ -215,6 +219,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Status:              run.Status,
 			Conclusion:          run.Conclusion,
 			TokenUsage:          run.TokenUsage,
+			EffectiveTokens:     run.EffectiveTokens,
 			EstimatedCost:       run.EstimatedCost,
 			ActionMinutes:       run.ActionMinutes,
 			Turns:               run.Turns,
@@ -255,17 +260,18 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	}
 
 	summary := LogsSummary{
-		TotalRuns:          len(processedRuns),
-		TotalDuration:      timeutil.FormatDuration(totalDuration),
-		TotalTokens:        totalTokens,
-		TotalCost:          totalCost,
-		TotalActionMinutes: totalActionMinutes,
-		TotalTurns:         totalTurns,
-		TotalErrors:        totalErrors,
-		TotalWarnings:      totalWarnings,
-		TotalMissingTools:  totalMissingTools,
-		TotalMissingData:   totalMissingData,
-		TotalSafeItems:     totalSafeItems,
+		TotalRuns:            len(processedRuns),
+		TotalDuration:        timeutil.FormatDuration(totalDuration),
+		TotalTokens:          totalTokens,
+		TotalEffectiveTokens: totalEffectiveTokens,
+		TotalCost:            totalCost,
+		TotalActionMinutes:   totalActionMinutes,
+		TotalTurns:           totalTurns,
+		TotalErrors:          totalErrors,
+		TotalWarnings:        totalWarnings,
+		TotalMissingTools:    totalMissingTools,
+		TotalMissingData:     totalMissingData,
+		TotalSafeItems:       totalSafeItems,
 	}
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)

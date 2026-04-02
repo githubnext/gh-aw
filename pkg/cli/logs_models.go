@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/types"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -60,6 +61,7 @@ type WorkflowRun struct {
 	MissingDataCount int
 	NoopCount        int
 	SafeItemsCount   int
+	EffectiveTokens  int // Cost-normalized token count computed from per-model multipliers
 	LogsPath         string
 }
 
@@ -266,18 +268,19 @@ type AwContext struct {
 
 // AwInfo represents the structure of aw_info.json files
 type AwInfo struct {
-	EngineID        string      `json:"engine_id"`
-	EngineName      string      `json:"engine_name"`
-	Model           string      `json:"model"`
-	Version         string      `json:"version"`
-	CLIVersion      string      `json:"cli_version,omitempty"` // gh-aw CLI version
-	WorkflowName    string      `json:"workflow_name"`
-	Staged          bool        `json:"staged"`
-	AwfVersion      string      `json:"awf_version,omitempty"`      // AWF firewall version (new name)
-	FirewallVersion string      `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
-	Steps           AwInfoSteps `json:"steps,omitzero"`             // Steps metadata
-	CreatedAt       string      `json:"created_at"`
-	Context         *AwContext  `json:"context,omitempty"` // aw_context data passed via workflow_dispatch inputs
+	EngineID        string              `json:"engine_id"`
+	EngineName      string              `json:"engine_name"`
+	Model           string              `json:"model"`
+	Version         string              `json:"version"`
+	CLIVersion      string              `json:"cli_version,omitempty"` // gh-aw CLI version
+	WorkflowName    string              `json:"workflow_name"`
+	Staged          bool                `json:"staged"`
+	AwfVersion      string              `json:"awf_version,omitempty"`      // AWF firewall version (new name)
+	FirewallVersion string              `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
+	Steps           AwInfoSteps         `json:"steps,omitzero"`             // Steps metadata
+	CreatedAt       string              `json:"created_at"`
+	Context         *AwContext          `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
+	TokenWeights    *types.TokenWeights `json:"token_weights,omitempty"` // Custom model cost data (from engine.token-weights)
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`

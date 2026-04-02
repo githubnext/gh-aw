@@ -22,10 +22,6 @@ network:
     - github
 
 safe-outputs:
-  create-discussion:
-    category: "audits"
-    max: 1
-    close-older-discussions: true
   create-issue:
     expires: 2d
     labels: [delight, cookie]
@@ -51,6 +47,9 @@ tools:
 timeout-minutes: 30
 
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[delight] "
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/delight"
@@ -61,7 +60,6 @@ imports:
 features:
   copilot-requests: true
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Delight Agent 📊

@@ -3,7 +3,10 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/types"
 )
 
 // TestEngineVersionTypeHandling tests that engine.version correctly handles
@@ -324,5 +327,202 @@ func TestAPITargetExtraction(t *testing.T) {
 				t.Errorf("Expected api-target %q, got %q", tt.expectedAPITarget, config.APITarget)
 			}
 		})
+	}
+}
+
+func TestParseEngineTokenWeights(t *testing.T) {
+	tests := []struct {
+		name             string
+		raw              any
+		wantNil          bool
+		wantMultipliers  map[string]float64
+		wantClassWeights *types.TokenClassWeights
+	}{
+		{
+			name:    "nil input returns nil",
+			raw:     nil,
+			wantNil: true,
+		},
+		{
+			name:    "non-map input returns nil",
+			raw:     "not-a-map",
+			wantNil: true,
+		},
+		{
+			name:    "empty map returns nil",
+			raw:     map[string]any{},
+			wantNil: true,
+		},
+		{
+			name: "multipliers only",
+			raw: map[string]any{
+				"multipliers": map[string]any{
+					"my-model": float64(2.5),
+					"gpt-5":    float64(3.0),
+				},
+			},
+			wantMultipliers: map[string]float64{
+				"my-model": 2.5,
+				"gpt-5":    3.0,
+			},
+		},
+		{
+			name: "token-class-weights only",
+			raw: map[string]any{
+				"token-class-weights": map[string]any{
+					"output": float64(6.0),
+				},
+			},
+			wantClassWeights: &types.TokenClassWeights{
+				Output: 6.0,
+			},
+		},
+		{
+			name: "both multipliers and token-class-weights",
+			raw: map[string]any{
+				"multipliers": map[string]any{
+					"custom-model": float64(1.5),
+				},
+				"token-class-weights": map[string]any{
+					"input":        float64(1.0),
+					"cached-input": float64(0.05),
+					"output":       float64(5.0),
+					"reasoning":    float64(5.0),
+					"cache-write":  float64(1.0),
+				},
+			},
+			wantMultipliers: map[string]float64{"custom-model": 1.5},
+			wantClassWeights: &types.TokenClassWeights{
+				Input:       1.0,
+				CachedInput: 0.05,
+				Output:      5.0,
+				Reasoning:   5.0,
+				CacheWrite:  1.0,
+			},
+		},
+		{
+			name: "integer multiplier values are accepted",
+			raw: map[string]any{
+				"multipliers": map[string]any{
+					"int-model": int(2),
+				},
+			},
+			wantMultipliers: map[string]float64{"int-model": 2.0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseEngineTokenWeights(tt.raw)
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("expected nil, got %+v", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatal("expected non-nil result")
+			}
+			if tt.wantMultipliers != nil {
+				for model, want := range tt.wantMultipliers {
+					if got.Multipliers[model] != want {
+						t.Errorf("multiplier[%q] = %v, want %v", model, got.Multipliers[model], want)
+					}
+				}
+			}
+			if tt.wantClassWeights != nil {
+				if got.TokenClassWeights == nil {
+					t.Fatal("expected TokenClassWeights to be set")
+				}
+				want := tt.wantClassWeights
+				tcw := got.TokenClassWeights
+				if want.Input != 0 && tcw.Input != want.Input {
+					t.Errorf("Input weight = %v, want %v", tcw.Input, want.Input)
+				}
+				if want.CachedInput != 0 && tcw.CachedInput != want.CachedInput {
+					t.Errorf("CachedInput weight = %v, want %v", tcw.CachedInput, want.CachedInput)
+				}
+				if want.Output != 0 && tcw.Output != want.Output {
+					t.Errorf("Output weight = %v, want %v", tcw.Output, want.Output)
+				}
+				if want.Reasoning != 0 && tcw.Reasoning != want.Reasoning {
+					t.Errorf("Reasoning weight = %v, want %v", tcw.Reasoning, want.Reasoning)
+				}
+				if want.CacheWrite != 0 && tcw.CacheWrite != want.CacheWrite {
+					t.Errorf("CacheWrite weight = %v, want %v", tcw.CacheWrite, want.CacheWrite)
+				}
+			}
+		})
+	}
+}
+
+func TestExtractEngineConfigTokenWeights(t *testing.T) {
+	compiler := NewCompiler()
+
+	frontmatter := map[string]any{
+		"engine": map[string]any{
+			"id": "claude",
+			"token-weights": map[string]any{
+				"multipliers": map[string]any{
+					"my-custom-model": float64(2.5),
+				},
+				"token-class-weights": map[string]any{
+					"output": float64(6.0),
+				},
+			},
+		},
+	}
+
+	_, config := compiler.ExtractEngineConfig(frontmatter)
+	if config == nil {
+		t.Fatal("Expected non-nil config")
+	}
+	if config.TokenWeights == nil {
+		t.Fatal("Expected TokenWeights to be set")
+	}
+	if config.TokenWeights.Multipliers["my-custom-model"] != 2.5 {
+		t.Errorf("Expected multiplier 2.5, got %v", config.TokenWeights.Multipliers["my-custom-model"])
+	}
+	if config.TokenWeights.TokenClassWeights == nil {
+		t.Fatal("Expected TokenClassWeights to be set")
+	}
+	if config.TokenWeights.TokenClassWeights.Output != 6.0 {
+		t.Errorf("Expected output weight 6.0, got %v", config.TokenWeights.TokenClassWeights.Output)
+	}
+}
+
+func TestTokenWeightsSingleQuoteEscapingInYAML(t *testing.T) {
+	compiler := NewCompiler()
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get claude engine: %v", err)
+	}
+
+	// Model name containing a single quote — must not break YAML single-quoted scalar
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+			TokenWeights: &types.TokenWeights{
+				Multipliers: map[string]float64{
+					"bob's-model": 2.0, // Single quote in key
+				},
+			},
+		},
+	}
+
+	var out strings.Builder
+	compiler.generateCreateAwInfo(&out, workflowData, engine)
+	output := out.String()
+
+	// The generated YAML must not contain an un-escaped single quote inside a single-quoted value.
+	// In YAML, a single quote inside a single-quoted scalar is represented as ”.
+	if !strings.Contains(output, "bob''s-model") {
+		t.Errorf("Expected single quote to be escaped as '' in YAML output, got:\n%s", output)
+	}
+	// There must be no dangling unescaped single quote inside the GH_AW_INFO_TOKEN_WEIGHTS value
+	if strings.Contains(output, "bob's-model") {
+		t.Errorf("Unescaped single quote found in YAML output:\n%s", output)
 	}
 }

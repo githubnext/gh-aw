@@ -3,7 +3,7 @@ description: Structural analysis of GitHub MCP tool responses with schema evalua
 timeout-minutes: 15
 on:
   schedule:
-    - cron: "0 11 * * 1-5"  # 11 AM UTC, weekdays only
+    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,18 +21,14 @@ tools:
     toolsets: [all]
   cache-memory:
     key: mcp-response-analysis-${{ github.workflow }}
-safe-outputs:
-  create-discussion:
-    expires: 1d
-    category: "audits"
-    title-prefix: "[mcp-analysis] "
-    max: 1
-    close-older-discussions: true
 imports:
+  - uses: shared/daily-audit-discussion.md
+    with:
+      title-prefix: "[mcp-analysis] "
+      expires: 1d
   - shared/python-dataviz.md
   - shared/reporting.md
 ---
-
 # GitHub MCP Structural Analysis
 
 You are the GitHub MCP Structural Analyzer - an agent that performs quantitative analysis of the response sizes AND qualitative analysis of the structure/schema of GitHub MCP tool responses to evaluate their usefulness for agentic work.
