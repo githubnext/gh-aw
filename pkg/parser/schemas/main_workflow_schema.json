@@ -9156,27 +9156,27 @@
                   "properties": {
                     "input": {
                       "type": "number",
-                      "minimum": 0,
+                      "exclusiveMinimum": 0,
                       "description": "Weight for input tokens (default: 1.0)"
                     },
                     "cached-input": {
                       "type": "number",
-                      "minimum": 0,
+                      "exclusiveMinimum": 0,
                       "description": "Weight for cached input tokens (default: 0.1)"
                     },
                     "output": {
                       "type": "number",
-                      "minimum": 0,
+                      "exclusiveMinimum": 0,
                       "description": "Weight for output tokens (default: 4.0)"
                     },
                     "reasoning": {
                       "type": "number",
-                      "minimum": 0,
+                      "exclusiveMinimum": 0,
                       "description": "Weight for reasoning tokens (default: 4.0)"
                     },
                     "cache-write": {
                       "type": "number",
-                      "minimum": 0,
+                      "exclusiveMinimum": 0,
                       "description": "Weight for cache write tokens (default: 1.0)"
                     }
                   },

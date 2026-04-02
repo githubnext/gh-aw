@@ -705,7 +705,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// Embed custom token weights when specified in engine.token-weights
 	if data.EngineConfig != nil && data.EngineConfig.TokenWeights != nil {
 		if tokenWeightsJSON, err := json.Marshal(data.EngineConfig.TokenWeights); err == nil {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", string(tokenWeightsJSON))
+			// Escape single quotes for YAML single-quoted scalar safety
+			escapedTokenWeightsJSON := strings.ReplaceAll(string(tokenWeightsJSON), "'", "''")
+			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", escapedTokenWeightsJSON)
 		}
 	}
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))

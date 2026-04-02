@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -485,5 +486,41 @@ func TestExtractEngineConfigTokenWeights(t *testing.T) {
 	}
 	if config.TokenWeights.TokenClassWeights.Output != 6.0 {
 		t.Errorf("Expected output weight 6.0, got %v", config.TokenWeights.TokenClassWeights.Output)
+	}
+}
+
+func TestTokenWeightsSingleQuoteEscapingInYAML(t *testing.T) {
+	compiler := NewCompiler()
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get claude engine: %v", err)
+	}
+
+	// Model name containing a single quote — must not break YAML single-quoted scalar
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+			TokenWeights: &EngineTokenWeights{
+				Multipliers: map[string]float64{
+					"bob's-model": 2.0, // Single quote in key
+				},
+			},
+		},
+	}
+
+	var out strings.Builder
+	compiler.generateCreateAwInfo(&out, workflowData, engine)
+	output := out.String()
+
+	// The generated YAML must not contain an un-escaped single quote inside a single-quoted value.
+	// In YAML, a single quote inside a single-quoted scalar is represented as ”.
+	if !strings.Contains(output, "bob''s-model") {
+		t.Errorf("Expected single quote to be escaped as '' in YAML output, got:\n%s", output)
+	}
+	// There must be no dangling unescaped single quote inside the GH_AW_INFO_TOKEN_WEIGHTS value
+	if strings.Contains(output, "bob's-model") {
+		t.Errorf("Unescaped single quote found in YAML output:\n%s", output)
 	}
 }
