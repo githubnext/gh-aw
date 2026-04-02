@@ -508,6 +508,11 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		}
 	}
 
+	// Pass effective tokens from the agent job so footer templates can use {effective_tokens_suffix}.
+	// The value is set by parse_mcp_gateway_log.cjs in the agent job and exposed as a job output.
+	// An empty/missing value is handled gracefully by getEffectiveTokensFromEnv() in messages_footer.cjs.
+	envVars["GH_AW_EFFECTIVE_TOKENS"] = fmt.Sprintf("${{ needs.%s.outputs.effective_tokens }}", constants.AgentJobName)
+
 	// Add safe output job environment variables (staged/target repo)
 	if data.SafeOutputs != nil && (c.trialMode || data.SafeOutputs.Staged) {
 		envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""

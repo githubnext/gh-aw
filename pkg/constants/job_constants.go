@@ -133,6 +133,11 @@ const CheckSkipIfCheckFailingStepID StepID = "check_skip_if_check_failing"
 // emitted in the pre-activation job when on.github-app is configured alongside skip-if checks.
 const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
 
+// ParseMCPGatewayStepID is the step ID for the MCP gateway log parsing step in the agent job.
+// Its effective_tokens output is exposed as an agent job output so that the safe_outputs job
+// can pass the value as GH_AW_EFFECTIVE_TOKENS to the footer template renderer.
+const ParseMCPGatewayStepID StepID = "parse-mcp-gateway"
+
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"

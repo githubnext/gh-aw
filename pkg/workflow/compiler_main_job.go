@@ -141,6 +141,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Always include model output for reuse in other jobs - now sourced from activation job
 	outputs := map[string]string{
 		"model": "${{ needs.activation.outputs.model }}",
+		// effective_tokens is the total ET for the run, captured by the MCP gateway log parser step.
+		// It is exposed here so that the safe_outputs job can set GH_AW_EFFECTIVE_TOKENS and render
+		// the {effective_tokens_suffix} template expression in footer templates.
+		"effective_tokens": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens }}", constants.ParseMCPGatewayStepID),
 	}
 
 	// Note: secret_verification_result is now an output of the activation job (not the agent job).

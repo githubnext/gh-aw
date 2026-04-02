@@ -3,6 +3,8 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 func getObservabilityJobSummaryMode(data *WorkflowData) string {
@@ -104,6 +106,7 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Parse MCP Gateway logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        id: %s\n", constants.ParseMCPGatewayStepID)
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
