@@ -13,25 +13,25 @@ func TestTimeoutFlagParsing(t *testing.T) {
 		name            string
 		timeout         int
 		expectTimeout   bool
-		expectedSeconds int
+		expectedMinutes int
 	}{
 		{
 			name:            "no timeout specified",
 			timeout:         0,
 			expectTimeout:   false,
-			expectedSeconds: 0,
+			expectedMinutes: 0,
 		},
 		{
-			name:            "timeout of 50 seconds",
-			timeout:         50,
+			name:            "timeout of 5 minutes",
+			timeout:         5,
 			expectTimeout:   true,
-			expectedSeconds: 50,
+			expectedMinutes: 5,
 		},
 		{
-			name:            "timeout of 120 seconds",
-			timeout:         120,
+			name:            "timeout of 30 minutes",
+			timeout:         30,
 			expectTimeout:   true,
-			expectedSeconds: 120,
+			expectedMinutes: 30,
 		},
 	}
 
@@ -44,8 +44,8 @@ func TestTimeoutFlagParsing(t *testing.T) {
 			if !tt.expectTimeout && tt.timeout != 0 {
 				t.Errorf("Expected no timeout but got %d", tt.timeout)
 			}
-			if tt.expectTimeout && tt.timeout != tt.expectedSeconds {
-				t.Errorf("Expected timeout of %d seconds but got %d", tt.expectedSeconds, tt.timeout)
+			if tt.expectTimeout && tt.timeout != tt.expectedMinutes {
+				t.Errorf("Expected timeout of %d minutes but got %d", tt.expectedMinutes, tt.timeout)
 			}
 		})
 	}
@@ -62,41 +62,47 @@ func TestTimeoutLogic(t *testing.T) {
 		{
 			name:          "no timeout set",
 			timeout:       0,
-			elapsed:       100 * time.Second,
+			elapsed:       100 * time.Minute,
 			shouldTimeout: false,
 		},
 		{
 			name:          "timeout not reached",
 			timeout:       60,
-			elapsed:       30 * time.Second,
+			elapsed:       30 * time.Minute,
+			shouldTimeout: false,
+		},
+		{
+			name:          "just under boundary",
+			timeout:       1,
+			elapsed:       59 * time.Second,
 			shouldTimeout: false,
 		},
 		{
 			name:          "timeout exactly reached",
-			timeout:       50,
-			elapsed:       50 * time.Second,
+			timeout:       1,
+			elapsed:       60 * time.Second,
 			shouldTimeout: true,
 		},
 		{
 			name:          "timeout exceeded",
-			timeout:       30,
-			elapsed:       45 * time.Second,
+			timeout:       1,
+			elapsed:       90 * time.Second,
 			shouldTimeout: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Simulate the timeout check logic
+			// Simulate the timeout check logic (timeout is in minutes, elapsed in seconds)
 			var timeoutReached bool
 			if tt.timeout > 0 {
-				if tt.elapsed.Seconds() >= float64(tt.timeout) {
+				if tt.elapsed.Seconds() >= float64(tt.timeout)*60 {
 					timeoutReached = true
 				}
 			}
 
 			if timeoutReached != tt.shouldTimeout {
-				t.Errorf("Expected timeout reached=%v but got %v (timeout=%d, elapsed=%.1fs)",
+				t.Errorf("Expected timeout reached=%v but got %v (timeout=%d min, elapsed=%.1fs)",
 					tt.shouldTimeout, timeoutReached, tt.timeout, tt.elapsed.Seconds())
 			}
 		})
@@ -105,23 +111,23 @@ func TestTimeoutLogic(t *testing.T) {
 
 // TestMCPServerDefaultTimeout tests that the MCP server sets a default timeout
 func TestMCPServerDefaultTimeout(t *testing.T) {
-	// Test that when no timeout is specified, MCP server uses 50 seconds
+	// Test that when no timeout is specified, MCP server uses 1 minute
 	timeoutValue := 0
 	if timeoutValue == 0 {
-		timeoutValue = 50
+		timeoutValue = 1
 	}
 
-	if timeoutValue != 50 {
-		t.Errorf("Expected MCP server default timeout to be 50 but got %d", timeoutValue)
+	if timeoutValue != 1 {
+		t.Errorf("Expected MCP server default timeout to be 1 but got %d", timeoutValue)
 	}
 
 	// Test that explicit timeout overrides the default
-	timeoutValue = 120
+	timeoutValue = 5
 	if timeoutValue == 0 {
-		timeoutValue = 50
+		timeoutValue = 1
 	}
 
-	if timeoutValue != 120 {
+	if timeoutValue != 5 {
 		t.Errorf("Expected explicit timeout to be preserved but got %d", timeoutValue)
 	}
 }
