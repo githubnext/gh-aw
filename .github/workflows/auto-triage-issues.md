@@ -24,7 +24,8 @@ tools:
   github:
     toolsets:
       - issues
-    min-integrity: none
+    min-integrity: approved
+    approval-labels: [community]
   bash:
     - "jq *"
 safe-outputs:
