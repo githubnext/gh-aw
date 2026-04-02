@@ -6,7 +6,7 @@
  */
 
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
-const { generateWorkflowCallIdMarker } = require("./generate_footer.cjs");
+const { generateWorkflowCallIdMarker, matchesWorkflowId } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
@@ -27,19 +27,6 @@ const { generateHistoryUrl } = require("./generate_history_link.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
-
-/**
- * Check if a comment body matches a workflow ID marker.
- * Supports standalone (<!-- gh-aw-workflow-id: value -->) and combined XML marker formats.
- * @param {string|null|undefined} body - Comment body
- * @param {string} workflowId - Workflow ID to match
- * @returns {boolean}
- */
-function matchesWorkflowId(body, workflowId) {
-  if (!body || body.includes(`<!-- gh-aw-comment-type: reaction -->`)) return false;
-  if (body.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`)) return true;
-  return body.includes(`<!-- gh-aw-agentic-workflow:`) && (body.includes(`workflow_id: ${workflowId},`) || body.includes(`workflow_id: ${workflowId} -->`));
-}
 
 async function minimizeComment(github, nodeId, reason = "outdated") {
   const query = /* GraphQL */ `
