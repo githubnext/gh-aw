@@ -408,6 +408,10 @@ describe("add_comment", () => {
             },
           };
         }
+        // Mock replyTo resolution: top-level comment has no parent
+        if (query.includes("replyTo")) {
+          return { node: { replyTo: null } };
+        }
         return {
           repository: {
             discussion: {
@@ -431,6 +435,64 @@ describe("add_comment", () => {
       expect(result.isDiscussion).toBe(true);
       // The reply should be threaded - replyToId should be the triggering comment node_id
       expect(capturedReplyToId).toBe("DC_kwDOTriggeringComment123");
+    });
+
+    it("should use parent comment node ID when the triggering comment is itself a threaded reply", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Change context to discussion_comment event where the triggering comment is itself a reply
+      mockContext.eventName = "discussion_comment";
+      mockContext.payload = {
+        discussion: {
+          number: 10,
+        },
+        comment: {
+          node_id: "DC_kwDOReplyComment789", // This is a reply, not a top-level comment
+        },
+      };
+
+      let capturedReplyToId = undefined;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          capturedReplyToId = variables?.replyToId;
+          return {
+            addDiscussionComment: {
+              comment: {
+                id: "DC_kwDOTest456",
+                body: variables?.body,
+                createdAt: "2024-01-01",
+                url: "https://github.com/owner/repo/discussions/10#discussioncomment-456",
+              },
+            },
+          };
+        }
+        // Mock replyTo resolution: the triggering comment is a reply with a parent
+        if (query.includes("replyTo")) {
+          return { node: { replyTo: { id: "DC_kwDOParentComment456" } } };
+        }
+        return {
+          repository: {
+            discussion: {
+              id: "D_kwDOTest123",
+              url: "https://github.com/owner/repo/discussions/10",
+            },
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Reply to a reply - should use parent node ID",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.isDiscussion).toBe(true);
+      // The replyToId should be the parent (top-level) comment node ID, not the triggering reply
+      expect(capturedReplyToId).toBe("DC_kwDOParentComment456");
     });
 
     it("should post a top-level comment (not threaded) when triggered by discussion_comment with explicit item_number", async () => {

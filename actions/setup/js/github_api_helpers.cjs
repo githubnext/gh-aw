@@ -141,8 +141,38 @@ async function fetchAllRepoLabels(githubClient, owner, repo) {
   return allLabels;
 }
 
+/**
+ * Resolves the top-level parent comment node ID for GitHub Discussion replies.
+ * GitHub Discussions only supports two nesting levels: top-level comments and one level of replies.
+ * If the given comment is itself a reply (has a replyTo parent), the parent's node ID is returned
+ * so that replyToId always points to a top-level comment.
+ *
+ * @param {Object} github - GitHub API client (must support graphql)
+ * @param {string|null|undefined} commentNodeId - The node_id of the triggering comment
+ * @returns {Promise<string|null|undefined>} The node ID to use as replyToId (parent if reply, otherwise the original)
+ */
+async function resolveTopLevelDiscussionCommentId(github, commentNodeId) {
+  if (!commentNodeId) {
+    return commentNodeId;
+  }
+  const result = await github.graphql(
+    `query($nodeId: ID!) {
+      node(id: $nodeId) {
+        ... on DiscussionComment {
+          replyTo {
+            id
+          }
+        }
+      }
+    }`,
+    { nodeId: commentNodeId }
+  );
+  return result?.node?.replyTo?.id ?? commentNodeId;
+}
+
 module.exports = {
   fetchAllRepoLabels,
   getFileContent,
   logGraphQLError,
+  resolveTopLevelDiscussionCommentId,
 };

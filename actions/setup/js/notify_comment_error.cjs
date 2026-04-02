@@ -12,6 +12,7 @@ const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -215,7 +216,9 @@ async function main() {
           return;
         }
 
-        const replyToId = eventName === "discussion_comment" ? context.payload?.comment?.node_id : null;
+        // GitHub Discussions only supports two nesting levels, so if the triggering comment is
+        // itself a reply, we resolve the top-level parent's node ID.
+        const replyToId = eventName === "discussion_comment" ? await resolveTopLevelDiscussionCommentId(github, context.payload?.comment?.node_id) : null;
         const mutation = replyToId
           ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
               addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {

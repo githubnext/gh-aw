@@ -84,6 +84,14 @@ const createTestableFunction = scriptContent => {
         },
       };
     }
+    if (module === "./github_api_helpers.cjs") {
+      return {
+        resolveTopLevelDiscussionCommentId: async (githubClient, commentNodeId) => {
+          // In tests, simulate that the triggering comment is always a top-level comment
+          return commentNodeId;
+        },
+      };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(

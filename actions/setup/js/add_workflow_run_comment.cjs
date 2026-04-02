@@ -9,6 +9,7 @@ const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -240,8 +241,10 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     // Get discussion node ID using helper function
     const discussionId = await getDiscussionNodeId(discussionNumber);
 
-    // Get the comment node ID to use as the parent for threading
-    const commentNodeId = context.payload?.comment?.node_id;
+    // Get the comment node ID to use as the parent for threading.
+    // GitHub Discussions only supports two nesting levels, so if the triggering comment is
+    // itself a reply, we resolve the top-level parent's node ID.
+    const commentNodeId = await resolveTopLevelDiscussionCommentId(github, context.payload?.comment?.node_id);
 
     const result = await github.graphql(
       `

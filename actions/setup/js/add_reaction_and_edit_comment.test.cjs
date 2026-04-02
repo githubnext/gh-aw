@@ -313,6 +313,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       mockGithub.graphql
         .mockResolvedValueOnce({ addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: "EYES" } } })
         .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABcD1M4AaBbC", url: "https://github.com/testowner/testrepo/discussions/10" } } })
+        .mockResolvedValueOnce({ node: { replyTo: null } }) // resolveTopLevelDiscussionCommentId: top-level comment
         .mockResolvedValueOnce({
           addDiscussionComment: {
             comment: { id: "DC_kwDOABcD1M4AaBbE", url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-789" },

@@ -9,6 +9,7 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateXMLMarker } = require("./generate_footer.cjs");
 const { getFooterMessage } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 
 /**
  * Update the activation comment with a link to the created pull request or issue
@@ -117,7 +118,9 @@ async function updateActivationCommentWithMessage(github, context, core, message
           return;
         }
 
-        const replyToId = eventName === "discussion_comment" ? context.payload?.comment?.node_id : null;
+        // GitHub Discussions only supports two nesting levels, so if the triggering comment is
+        // itself a reply, we resolve the top-level parent's node ID.
+        const replyToId = eventName === "discussion_comment" ? await resolveTopLevelDiscussionCommentId(github, context.payload?.comment?.node_id) : null;
         const mutation = replyToId
           ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
               addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {

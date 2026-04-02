@@ -19,6 +19,7 @@ const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
+const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
@@ -575,8 +576,10 @@ async function main(config = {}) {
       if (isDiscussion) {
         // When triggered by a discussion_comment event (without explicit item_number),
         // reply as a threaded comment to the triggering comment instead of posting top-level.
+        // GitHub Discussions only supports two nesting levels, so if the triggering comment is
+        // itself a reply, we resolve the top-level parent's node ID to use as replyToId.
         const hasExplicitItemNumber = message.item_number !== undefined && message.item_number !== null;
-        const replyToId = context.eventName === "discussion_comment" && !hasExplicitItemNumber ? context.payload?.comment?.node_id : null;
+        const replyToId = context.eventName === "discussion_comment" && !hasExplicitItemNumber ? await resolveTopLevelDiscussionCommentId(githubClient, context.payload?.comment?.node_id) : null;
         if (replyToId) {
           core.info(`Replying as threaded comment to discussion comment node ID: ${replyToId}`);
         }

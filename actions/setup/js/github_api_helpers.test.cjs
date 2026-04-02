@@ -10,6 +10,7 @@ describe("github_api_helpers.cjs", () => {
   let getFileContent;
   let logGraphQLError;
   let fetchAllRepoLabels;
+  let resolveTopLevelDiscussionCommentId;
   let mockGithub;
 
   beforeEach(async () => {
@@ -28,6 +29,7 @@ describe("github_api_helpers.cjs", () => {
     getFileContent = module.getFileContent;
     logGraphQLError = module.logGraphQLError;
     fetchAllRepoLabels = module.fetchAllRepoLabels;
+    resolveTopLevelDiscussionCommentId = module.resolveTopLevelDiscussionCommentId;
   });
 
   describe("getFileContent", () => {
@@ -331,6 +333,45 @@ describe("github_api_helpers.cjs", () => {
       const result = await fetchAllRepoLabels({ graphql: mockGraphql }, "owner", "repo");
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("resolveTopLevelDiscussionCommentId", () => {
+    it("should return the original node ID when the comment is a top-level comment (no replyTo)", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        node: {
+          replyTo: null,
+        },
+      });
+
+      const result = await resolveTopLevelDiscussionCommentId({ graphql: mockGraphql }, "DC_topLevel123");
+
+      expect(result).toBe("DC_topLevel123");
+      expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("replyTo"), { nodeId: "DC_topLevel123" });
+    });
+
+    it("should return the parent node ID when the comment is itself a threaded reply", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        node: {
+          replyTo: {
+            id: "DC_parentComment456",
+          },
+        },
+      });
+
+      const result = await resolveTopLevelDiscussionCommentId({ graphql: mockGraphql }, "DC_replyComment789");
+
+      expect(result).toBe("DC_parentComment456");
+    });
+
+    it("should return the original node ID when node response has no DiscussionComment data", async () => {
+      const mockGraphql = vi.fn().mockResolvedValueOnce({
+        node: null,
+      });
+
+      const result = await resolveTopLevelDiscussionCommentId({ graphql: mockGraphql }, "DC_unknown123");
+
+      expect(result).toBe("DC_unknown123");
     });
   });
 });
