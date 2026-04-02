@@ -143,19 +143,19 @@ function parseCopilotLog(logContent) {
 /**
  * Parses the "pretty-print" stdout format emitted by the Copilot CLI when
  * debug logs are written to a --log-dir directory (not captured on stdout).
- * This format uses ✗ for failed tool calls and ● for successful ones.
+ * This format uses ✗ for failed tool calls and ● or ✓ for successful ones.
  * @param {string} logContent - Raw log content as a string
  * @returns {Array} Array of log entries in structured format, or empty array if not detected
  */
 function parsePrettyPrintFormat(logContent) {
   // Only attempt this format if the characteristic markers are present
-  if (!/^[✗●]/m.test(logContent)) {
+  if (!/^[✗●✓]/m.test(logContent)) {
     return [];
   }
 
   const INFRA_LINE_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
   const FAILED_TOOL_RE = /^✗\s+(\S+)/;
-  const SUCCESS_TOOL_RE = /^●\s+(\S+)/;
+  const SUCCESS_TOOL_RE = /^(?:●|✓)\s+(\S+)/;
   const CONTINUATION_RE = /^\s+[└│]/;
   const DEEP_INDENT_RE = /^ {4,}/;
   const MODEL_BREAKDOWN_RE = /^Breakdown by AI model:/;
@@ -312,6 +312,17 @@ function parsePrettyPrintFormat(logContent) {
     });
   }
 
+  // Derive the number of turns from the CLI's "Turns:" statistic if available.
+  // Fallback to the number of tool entries to preserve existing behavior when absent.
+  let numTurns = toolEntries.length;
+  const turnsMatch = logContent && logContent.match(/Turns:\s*(\d+)/i);
+  if (turnsMatch && turnsMatch[1]) {
+    const parsedTurns = parseInt(turnsMatch[1], 10);
+    if (!Number.isNaN(parsedTurns) && parsedTurns > 0) {
+      numTurns = parsedTurns;
+    }
+  }
+
   // Result entry with token usage
   const usage = {};
   if (inputTokens > 0) usage.input_tokens = inputTokens;
@@ -319,7 +330,7 @@ function parsePrettyPrintFormat(logContent) {
   if (cacheReadTokens > 0) usage.cache_read_input_tokens = cacheReadTokens;
   entries.push({
     type: "result",
-    num_turns: toolEntries.length,
+    num_turns: numTurns,
     usage,
     _premium_requests: premiumRequests,
   });
