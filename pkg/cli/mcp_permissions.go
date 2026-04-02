@@ -2,10 +2,8 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -13,67 +11,6 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 )
-
-// newMCPError creates a jsonrpc.Error with the given code, message, and optional data.
-// The data value is marshaled via mcpErrorData.
-func newMCPError(code int64, msg string, data any) error {
-	return &jsonrpc.Error{Code: code, Message: msg, Data: mcpErrorData(data)}
-}
-
-// mcpErrorData marshals data to JSON for use in jsonrpc.Error.Data field.
-// Returns nil if marshaling fails to avoid errors in error handling.
-func mcpErrorData(v any) json.RawMessage {
-	if v == nil {
-		return nil
-	}
-	data, err := json.Marshal(v)
-	if err != nil {
-		// Log the error but return nil to avoid breaking error handling
-		mcpLog.Printf("Failed to marshal error data: %v", err)
-		return nil
-	}
-	return data
-}
-
-// boolPtr returns a pointer to the given bool value, used for optional *bool fields.
-func boolPtr(b bool) *bool { return &b }
-
-// getRepository retrieves the current repository name (owner/repo format).
-// Results are cached for 1 hour to avoid repeated queries.
-// Checks GITHUB_REPOSITORY environment variable first, then falls back to gh repo view.
-func getRepository() (string, error) {
-	// Check cache first
-	if repo, ok := mcpCache.GetRepo(); ok {
-		mcpLog.Printf("Using cached repository: %s", repo)
-		return repo, nil
-	}
-
-	// Try GITHUB_REPOSITORY environment variable first
-	repo := os.Getenv("GITHUB_REPOSITORY")
-	if repo != "" {
-		mcpLog.Printf("Got repository from GITHUB_REPOSITORY: %s", repo)
-		mcpCache.SetRepo(repo)
-		return repo, nil
-	}
-
-	// Fall back to gh repo view
-	mcpLog.Print("Querying repository using gh repo view")
-	cmd := workflow.ExecGH("repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
-	output, err := cmd.Output()
-	if err != nil {
-		mcpLog.Printf("Failed to get repository: %v", err)
-		return "", fmt.Errorf("failed to get repository: %w", err)
-	}
-
-	repo = strings.TrimSpace(string(output))
-	if repo == "" {
-		return "", errors.New("repository not found")
-	}
-
-	mcpLog.Printf("Got repository from gh repo view: %s", repo)
-	mcpCache.SetRepo(repo)
-	return repo, nil
-}
 
 // queryActorRole queries the GitHub API to determine the actor's role in the repository.
 // Returns the permission level (admin, maintain, write, triage, read) or an error.

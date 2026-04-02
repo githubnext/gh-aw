@@ -6,11 +6,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/timeutil"
 )
 
 var crossRunRenderLog = logger.New("cli:audit_cross_run_render")
@@ -344,11 +344,7 @@ func formatRunIDs(ids []int64) string {
 
 // formatDurationNs formats a nanosecond duration as a human-readable string.
 func formatDurationNs(ns int64) string {
-	if ns <= 0 {
-		return "—"
-	}
-	d := time.Duration(ns)
-	return d.Round(time.Second).String()
+	return timeutil.FormatDurationNs(ns)
 }
 
 // safePercent returns percentage of part/total, returning 0 when total is 0.
