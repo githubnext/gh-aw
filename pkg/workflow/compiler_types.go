@@ -22,11 +22,6 @@ func WithEngineOverride(engine string) CompilerOption {
 	return func(c *Compiler) { c.engineOverride = engine }
 }
 
-// WithCustomOutput sets a custom output path for the compiled workflow
-func WithCustomOutput(path string) CompilerOption {
-	return func(c *Compiler) { c.customOutput = path }
-}
-
 // WithSkipValidation configures whether to skip schema validation
 func WithSkipValidation(skip bool) CompilerOption {
 	return func(c *Compiler) { c.skipValidation = skip }
