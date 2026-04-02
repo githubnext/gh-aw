@@ -134,46 +134,76 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		}
 	}
 
-	// Walk through all files in the log directory
-	err := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	// Try events.jsonl first – it provides a precise, structured event list from the Copilot CLI
+	// session state and is the most reliable source for tool calls, turns, and usage metrics.
+	// Fall back to walking .log files if events.jsonl is not present or cannot be parsed.
+	var err error
+	eventsJSONLParsed := false
+	if eventsJSONLPath := findEventsJSONLFile(logDir); eventsJSONLPath != "" {
+		if verbose {
+			fileInfo, statErr := os.Stat(eventsJSONLPath)
+			if statErr == nil {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found events.jsonl (%s), using as primary metrics source", console.FormatFileSize(fileInfo.Size()))))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found events.jsonl, using as primary metrics source"))
+			}
 		}
+		eventsMetrics, eventsErr := parseEventsJSONLFile(eventsJSONLPath, verbose)
+		if eventsErr == nil {
+			metrics = eventsMetrics
+			eventsJSONLParsed = true
+			logsMetricsLog.Printf("events.jsonl parsed: turns=%d premiumRequests=%d toolCalls=%d",
+				metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls))
+		} else {
+			logsMetricsLog.Printf("Failed to parse events.jsonl, falling back to log files: %v", eventsErr)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse events.jsonl: %v", eventsErr)))
+			}
+		}
+	}
 
-		// Skip directories
-		if info.IsDir() {
+	// Walk through all .log files when events.jsonl was not available or failed to parse
+	if !eventsJSONLParsed {
+		err = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Skip directories
+			if info.IsDir() {
+				return nil
+			}
+
+			// Process log files - exclude output artifacts like aw_output.txt and agent_output.json
+			fileName := strings.ToLower(info.Name())
+			if (strings.HasSuffix(fileName, ".log") ||
+				(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+				!strings.Contains(fileName, "aw_output") &&
+				fileName != constants.AgentOutputFilename {
+
+				fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotCodingAgent, verbose)
+				if err != nil && verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
+					return nil // Continue processing other files
+				}
+
+				// Aggregate metrics
+				metrics.TokenUsage += fileMetrics.TokenUsage
+				metrics.EstimatedCost += fileMetrics.EstimatedCost
+				if fileMetrics.Turns > metrics.Turns {
+					// For turns, take the maximum rather than summing, since turns represent
+					// the total conversation turns for the entire workflow run
+					metrics.Turns = fileMetrics.Turns
+				}
+
+				// Aggregate tool sequences and tool calls
+				metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
+				metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
+			}
+
 			return nil
-		}
-
-		// Process log files - exclude output artifacts like aw_output.txt and agent_output.json
-		fileName := strings.ToLower(info.Name())
-		if (strings.HasSuffix(fileName, ".log") ||
-			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
-			!strings.Contains(fileName, "aw_output") &&
-			fileName != constants.AgentOutputFilename {
-
-			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotCodingAgent, verbose)
-			if err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
-				return nil // Continue processing other files
-			}
-
-			// Aggregate metrics
-			metrics.TokenUsage += fileMetrics.TokenUsage
-			metrics.EstimatedCost += fileMetrics.EstimatedCost
-			if fileMetrics.Turns > metrics.Turns {
-				// For turns, take the maximum rather than summing, since turns represent
-				// the total conversation turns for the entire workflow run
-				metrics.Turns = fileMetrics.Turns
-			}
-
-			// Aggregate tool sequences and tool calls
-			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
-			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
-		}
-
-		return nil
-	})
+		})
+	}
 
 	// Try to parse gateway.jsonl if it exists
 	gatewayMetrics, gatewayErr := parseGatewayLogs(logDir, verbose)
