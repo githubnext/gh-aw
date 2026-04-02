@@ -79,6 +79,11 @@ const filteredHead = head.filter(({ tag, attrs }) => {
   import '../scripts/search-aria.ts';
 </script>
 
+<!-- Copy button accessibility enhancement: mirrors title→aria-label on Expressive Code copy buttons -->
+<script>
+  import '../scripts/copy-button-aria.ts';
+</script>
+
 <script is:inline>
   (function() {
     const storedTheme = localStorage.getItem('starlight-theme') || 'auto';
