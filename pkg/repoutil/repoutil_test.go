@@ -2,7 +2,12 @@
 
 package repoutil
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func TestSplitRepoSlug(t *testing.T) {
 	tests := []struct {
@@ -52,19 +57,11 @@ func TestSplitRepoSlug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			owner, repo, err := SplitRepoSlug(tt.slug)
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("SplitRepoSlug(%q) expected error, got nil", tt.slug)
-				}
+				require.Error(t, err, "SplitRepoSlug(%q) should return an error", tt.slug)
 			} else {
-				if err != nil {
-					t.Errorf("SplitRepoSlug(%q) unexpected error: %v", tt.slug, err)
-				}
-				if owner != tt.expectedOwner {
-					t.Errorf("SplitRepoSlug(%q) owner = %q; want %q", tt.slug, owner, tt.expectedOwner)
-				}
-				if repo != tt.expectedRepo {
-					t.Errorf("SplitRepoSlug(%q) repo = %q; want %q", tt.slug, repo, tt.expectedRepo)
-				}
+				require.NoError(t, err, "SplitRepoSlug(%q) should not return an error", tt.slug)
+				assert.Equal(t, tt.expectedOwner, owner, "SplitRepoSlug(%q) owner mismatch", tt.slug)
+				assert.Equal(t, tt.expectedRepo, repo, "SplitRepoSlug(%q) repo mismatch", tt.slug)
 			}
 		})
 	}
@@ -81,40 +78,51 @@ func BenchmarkSplitRepoSlug(b *testing.B) {
 
 func TestSplitRepoSlug_Whitespace(t *testing.T) {
 	tests := []struct {
-		name        string
-		slug        string
-		expectError bool
+		name          string
+		slug          string
+		expectedOwner string
+		expectedRepo  string
+		expectError   bool
 	}{
 		{
-			name:        "leading whitespace",
-			slug:        " owner/repo",
-			expectError: false, // Will split but owner will have space
+			name:          "leading whitespace",
+			slug:          " owner/repo",
+			expectedOwner: " owner",
+			expectedRepo:  "repo",
+			expectError:   false, // Will split but owner will have space
 		},
 		{
-			name:        "trailing whitespace",
-			slug:        "owner/repo ",
-			expectError: false, // Will split but repo will have space
+			name:          "trailing whitespace",
+			slug:          "owner/repo ",
+			expectedOwner: "owner",
+			expectedRepo:  "repo ",
+			expectError:   false, // Will split but repo will have space
 		},
 		{
-			name:        "whitespace in middle",
-			slug:        "owner /repo",
-			expectError: false, // Split will work but owner will have space
+			name:          "whitespace in middle",
+			slug:          "owner /repo",
+			expectedOwner: "owner ",
+			expectedRepo:  "repo",
+			expectError:   false, // Split will work but owner will have space
 		},
 		{
-			name:        "tab character",
-			slug:        "owner\t/repo",
-			expectError: false,
+			name:          "tab character",
+			slug:          "owner\t/repo",
+			expectedOwner: "owner\t",
+			expectedRepo:  "repo",
+			expectError:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := SplitRepoSlug(tt.slug)
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for slug %q", tt.slug)
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for slug %q: %v", tt.slug, err)
+			owner, repo, err := SplitRepoSlug(tt.slug)
+			if tt.expectError {
+				require.Error(t, err, "SplitRepoSlug(%q) should return an error", tt.slug)
+			} else {
+				require.NoError(t, err, "SplitRepoSlug(%q) should not return an error", tt.slug)
+				assert.Equal(t, tt.expectedOwner, owner, "SplitRepoSlug(%q) owner mismatch", tt.slug)
+				assert.Equal(t, tt.expectedRepo, repo, "SplitRepoSlug(%q) repo mismatch", tt.slug)
 			}
 		})
 	}
@@ -169,17 +177,11 @@ func TestSplitRepoSlug_SpecialCharacters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			owner, repo, err := SplitRepoSlug(tt.slug)
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for slug %q", tt.slug)
-				}
+				require.Error(t, err, "SplitRepoSlug(%q) should return an error", tt.slug)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error for slug %q: %v", tt.slug, err)
-				}
-				if owner != tt.expectedOwner || repo != tt.expectedRepo {
-					t.Errorf("SplitRepoSlug(%q) = (%q, %q); want (%q, %q)",
-						tt.slug, owner, repo, tt.expectedOwner, tt.expectedRepo)
-				}
+				require.NoError(t, err, "SplitRepoSlug(%q) should not return an error", tt.slug)
+				assert.Equal(t, tt.expectedOwner, owner, "SplitRepoSlug(%q) owner mismatch", tt.slug)
+				assert.Equal(t, tt.expectedRepo, repo, "SplitRepoSlug(%q) repo mismatch", tt.slug)
 			}
 		})
 	}
@@ -195,16 +197,13 @@ func TestSplitRepoSlug_Idempotent(t *testing.T) {
 	}
 
 	for _, slug := range slugs {
-		owner, repo, err := SplitRepoSlug(slug)
-		if err != nil {
-			t.Errorf("Unexpected error for slug %q: %v", slug, err)
-			continue
-		}
+		t.Run(slug, func(t *testing.T) {
+			owner, repo, err := SplitRepoSlug(slug)
+			require.NoError(t, err, "SplitRepoSlug(%q) should not return an error", slug)
 
-		rejoined := owner + "/" + repo
-		if rejoined != slug {
-			t.Errorf("Split and rejoin changed slug: %q -> %q", slug, rejoined)
-		}
+			rejoined := owner + "/" + repo
+			assert.Equal(t, slug, rejoined, "Split and rejoin should preserve the original slug %q", slug)
+		})
 	}
 }
 
