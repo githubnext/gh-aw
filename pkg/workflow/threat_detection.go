@@ -50,7 +50,9 @@ func isThreatDetectionExplicitlyDisabledInConfigs(configs []string) bool {
 			continue
 		}
 		if tdVal, exists := config["threat-detection"]; exists {
-			if disabled, ok := tdVal.(bool); ok && !disabled {
+			// tdBool is the raw bool value of the threat-detection key.
+			// When threat-detection: false, tdBool == false, so !tdBool == true → disabled.
+			if tdBool, ok := tdVal.(bool); ok && !tdBool {
 				return true
 			}
 		}
