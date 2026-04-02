@@ -272,6 +272,18 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			ShellCondition: shellCondition,
 			EnvVars:        envVars,
 		})
+
+		// When push_to_pull_request_branch is configured, add guidance to prefer it over
+		// create_pull_request when the workflow was triggered by a PR comment.
+		if data.SafeOutputs != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
+			unifiedPromptLog.Print("Adding push-to-PR-branch tool preference guidance for PR comment context")
+			sections = append(sections, PromptSection{
+				Content:        prContextPushToPRBranchGuidanceFile,
+				IsFile:         true,
+				ShellCondition: shellCondition,
+				EnvVars:        envVars,
+			})
+		}
 	}
 
 	return sections

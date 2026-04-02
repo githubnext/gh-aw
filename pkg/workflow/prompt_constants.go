@@ -10,6 +10,7 @@ import (
 const (
 	promptsDir                              = constants.GhAwRootDirShell + "/prompts"
 	prContextPromptFile                     = "pr_context_prompt.md"
+	prContextPushToPRBranchGuidanceFile     = "pr_context_push_to_pr_branch_guidance.md"
 	tempFolderPromptFile                    = "temp_folder_prompt.md"
 	playwrightPromptFile                    = "playwright_prompt.md"
 	qmdPromptFile                           = "qmd_prompt.md"

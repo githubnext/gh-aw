@@ -245,6 +245,9 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md"
           fi
+          if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
+            cat "${RUNNER_TEMP}/gh-aw/prompts/pr_context_push_to_pr_branch_guidance.md"
+          fi
           cat << 'GH_AW_PROMPT_5fc315a4df6b25f8_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}

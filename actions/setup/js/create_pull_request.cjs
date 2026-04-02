@@ -895,6 +895,16 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             } else {
               core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
 
+              // In shallow clones (fetch-depth: 1) the base commit may not be locally available.
+              // Attempt to fetch it explicitly before checking whether it exists.
+              try {
+                await exec.exec("git", ["fetch", "origin", originalBaseCommit, "--depth=1"]);
+              } catch (fetchError) {
+                // Non-fatal: the commit may already be available, or the server may not support
+                // fetching individual SHAs (e.g. some GHE configurations). Log for troubleshooting.
+                core.info(`Note: could not fetch base commit ${originalBaseCommit} explicitly (${fetchError instanceof Error ? fetchError.message : String(fetchError)}); will verify local availability next`);
+              }
+
               // Verify the base commit is available in this repo (may not exist cross-repo)
               await exec.exec("git", ["cat-file", "-e", originalBaseCommit]);
               core.info("Original base commit exists locally - proceeding with fallback");
