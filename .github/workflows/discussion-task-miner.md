@@ -31,7 +31,7 @@ safe-outputs:
   add-comment:
     max: 3
   messages:
-    footer: "> 🔍 *Task mining by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🔍 *Task mining by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements..."
     run-success: "✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊"
     run-failure: "⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."

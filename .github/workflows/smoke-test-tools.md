@@ -39,7 +39,7 @@ safe-outputs:
       hide-older-comments: true
       max: 2
     messages:
-      footer: "> 🔧 *Tool validation by [{workflow_name}]({run_url})*{history_link}"
+      footer: "> 🔧 *Tool validation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
       run-started: "🔧 Starting tool validation... [{workflow_name}]({run_url}) is checking the agent container tools..."
       run-success: "✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready."
       run-failure: "❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}"

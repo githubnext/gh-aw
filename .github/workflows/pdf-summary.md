@@ -40,7 +40,7 @@ safe-outputs:
     expires: 1d
     max: 1
   messages:
-    footer: "> 📄 *Summary compiled by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 📄 *Summary compiled by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📖 Page by page! [{workflow_name}]({run_url}) is reading through this {event_type}..."
     run-success: "📚 TL;DR ready! [{workflow_name}]({run_url}) has distilled the essence. Knowledge condensed! ✨"
     run-failure: "📖 Reading interrupted! [{workflow_name}]({run_url}) {status}. The document remains unsummarized..."

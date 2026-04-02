@@ -94,7 +94,7 @@ safe-outputs:
     max: 1
   upload-asset:
   messages:
-    footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."
     run-success: "🗜️ Docs on a diet! [{workflow_name}]({run_url}) has removed the bloat. Lean and mean! 💪"
     run-failure: "📦 Unbloating paused! [{workflow_name}]({run_url}) {status}. The docs remain... fluffy."

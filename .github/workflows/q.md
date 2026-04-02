@@ -41,7 +41,7 @@ safe-outputs:
     if-no-changes: "ignore"
     protected-files: fallback-to-issue
   messages:
-    footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🎩 *Equipped by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔧 Pay attention, 007! [{workflow_name}]({run_url}) is preparing your gadgets for this {event_type}..."
     run-success: "🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫"
     run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."

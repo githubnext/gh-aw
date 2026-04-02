@@ -37,7 +37,7 @@ safe-outputs:
   add-comment:
     max: 1
   messages:
-    footer: "> 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🎤 *Magnifique! Performance by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🎵 Comme d'habitude! [{workflow_name}]({run_url}) takes the stage on this {event_type}..."
     run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!"

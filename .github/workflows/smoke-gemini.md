@@ -44,7 +44,7 @@ safe-outputs:
     add-labels:
       allowed: [smoke-gemini]
     messages:
-      footer: "> ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*{history_link}"
+      footer: "> ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*{effective_tokens_suffix}{history_link}"
       run-started: "✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}..."
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges..."

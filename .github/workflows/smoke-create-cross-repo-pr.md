@@ -50,7 +50,7 @@ safe-outputs:
     hide-older-comments: true
     max: 2
   messages:
-    footer: "> 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🔬 *Cross-repo smoke test by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔬 [{workflow_name}]({run_url}) is testing cross-repo PR creation in githubnext/gh-aw-side-repo..."
     run-success: "✅ [{workflow_name}]({run_url}) successfully created a cross-repo PR in githubnext/gh-aw-side-repo!"
     run-failure: "❌ [{workflow_name}]({run_url}) failed to create a cross-repo PR: {status}"

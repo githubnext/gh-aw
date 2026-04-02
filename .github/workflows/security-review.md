@@ -22,7 +22,7 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 10
   messages:
-    footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications..."
     run-success: "🔒 [{workflow_name}]({run_url}) completed the security review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during security review."

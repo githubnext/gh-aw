@@ -407,7 +407,7 @@ safe-outputs:
     max: 3
     target: "*"
   messages:
-    footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🍪 *Om nom nom by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom..."
     run-success: "🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋"
     run-failure: "🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢"
