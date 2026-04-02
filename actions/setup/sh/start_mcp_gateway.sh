@@ -8,6 +8,12 @@
 
 set -e
 
+# Restrict default file creation mode to owner-only (rw-------) for all new files.
+# This prevents the race window between file creation via output redirection and
+# a subsequent chmod, which would leave credential-bearing files world-readable
+# (mode 0644) with a typical umask of 022.
+umask 077
+
 # Timing helper functions
 print_timing() {
   local start_time=$1
@@ -29,6 +35,14 @@ fi
 
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs
+
+# Guard against symlink attacks on the predictable /tmp/gh-aw/mcp-config path.
+# An attacker who can create files in /tmp could pre-create this path as a symlink
+# and redirect our credential writes to an arbitrary location.
+if [ -L /tmp/gh-aw/mcp-config ]; then
+  echo "ERROR: /tmp/gh-aw/mcp-config is a symlink — possible symlink attack, aborting"
+  exit 1
+fi
 mkdir -p /tmp/gh-aw/mcp-config
 # Restrict directory permissions so only the runner process owner can read config files
 # (which contain bearer tokens and API keys)

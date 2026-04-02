@@ -5,6 +5,12 @@
 
 set -e
 
+# Restrict default file creation mode to owner-only (rw-------) for all new files.
+# This prevents the race window between file creation via output redirection and
+# a subsequent chmod, which would leave credential-bearing files world-readable
+# (mode 0644) with a typical umask of 022.
+umask 077
+
 # Required environment variables:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
 # - MCP_GATEWAY_DOMAIN: Domain to use for MCP server URLs (e.g., host.docker.internal)
