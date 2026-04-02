@@ -418,21 +418,22 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
-#### DIFC Proxy (`features.difc-proxy`)
+#### DIFC Proxy (`tools.github.integrity-proxy`)
 
-Opt in to DIFC (Data Integrity and Flow Control) proxy injection. When enabled alongside `tools.github.min-integrity`, the compiler inserts proxy steps around the agent that enforce integrity-level isolation at the network boundary.
+Controls DIFC (Data Integrity and Flow Control) proxy injection. When `tools.github.min-integrity` is configured, the compiler inserts proxy steps around the agent that enforce integrity-level isolation at the network boundary. The proxy is **enabled by default** — set `integrity-proxy: false` to opt out.
 
 ```yaml wrap
-features:
-  difc-proxy: true
 tools:
   github:
     min-integrity: approved
+    # integrity-proxy: false  # uncomment to disable proxy injection
 ```
 
-Without this flag, configuring `min-integrity` alone performs content filtering at the MCP gateway level but does not inject the additional proxy steps. Enable `difc-proxy` when you need the full proxy-based enforcement.
+Without `min-integrity`, `integrity-proxy` has no effect. When both are configured, the proxy enforces network-boundary integrity filtering in addition to the MCP gateway-level filtering. Set `integrity-proxy: false` when you only need gateway-level filtering.
 
-The flag can also be set via the environment variable `GH_AW_FEATURES=difc-proxy`.
+:::note[Migration]
+The deprecated `features.difc-proxy: true` flag is replaced by this field. Run `gh aw fix` to automatically migrate existing workflows.
+:::
 
 ### AI Engine (`engine:`)
 

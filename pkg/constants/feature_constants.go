@@ -22,9 +22,9 @@ const (
 	// When enabled: no secret validation step is generated, copilot-requests: write permission is added,
 	// and the GitHub Actions token is used as the agentic engine secret.
 	CopilotRequestsFeatureFlag FeatureFlag = "copilot-requests"
-	// DIFCProxyFeatureFlag is the feature flag name for enabling the DIFC proxy.
-	// When enabled, the compiler injects DIFC proxy steps (start/stop) around pre-agent
-	// gh CLI steps and qmd indexing steps when guard policies are configured.
-	// By default (flag absent), DIFC proxy steps are not emitted.
+	// DIFCProxyFeatureFlag is the deprecated feature flag name for the DIFC proxy.
+	// Deprecated: Use tools.github.integrity-proxy instead. The proxy is now enabled
+	// by default when guard policies are configured. Set tools.github.integrity-proxy: false
+	// to disable it. The codemod "features-difc-proxy-to-tools-github" migrates this flag.
 	DIFCProxyFeatureFlag FeatureFlag = "difc-proxy"
 )

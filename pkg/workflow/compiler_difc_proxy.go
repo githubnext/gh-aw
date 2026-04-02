@@ -68,14 +68,15 @@ import (
 var difcProxyLog = logger.New("workflow:difc_proxy")
 
 // hasDIFCGuardsConfigured returns true if the GitHub tool has explicit guard policies configured
-// (min-integrity is set) AND the "difc-proxy" feature flag is enabled.
+// (min-integrity is set) AND the DIFC proxy has not been explicitly disabled via
+// tools.github.integrity-proxy: false.
 // This is the base condition for DIFC proxy injection.
 func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 	if data == nil {
 		return false
 	}
-	if !isFeatureEnabled(constants.DIFCProxyFeatureFlag, data) {
-		difcProxyLog.Print("difc-proxy feature flag not enabled, skipping DIFC proxy injection")
+	if isIntegrityProxyDisabled(data) {
+		difcProxyLog.Print("integrity-proxy disabled via tools.github.integrity-proxy: false, skipping DIFC proxy injection")
 		return false
 	}
 	githubTool, hasGitHub := data.Tools["github"]
@@ -83,6 +84,31 @@ func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 		return false
 	}
 	return len(getGitHubGuardPolicies(githubTool)) > 0
+}
+
+// isIntegrityProxyDisabled returns true if the user has explicitly disabled the DIFC proxy
+// by setting tools.github.integrity-proxy: false.
+// The proxy is enabled by default (opt-out model).
+func isIntegrityProxyDisabled(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub {
+		return false
+	}
+	toolConfig, ok := githubTool.(map[string]any)
+	if !ok {
+		return false
+	}
+	val, hasField := toolConfig["integrity-proxy"]
+	if !hasField {
+		return false
+	}
+	if enabled, ok := val.(bool); ok {
+		return !enabled
+	}
+	return false
 }
 
 // hasDIFCProxyNeeded returns true if the DIFC proxy should be injected in the main job.

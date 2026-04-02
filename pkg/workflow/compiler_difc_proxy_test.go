@@ -65,20 +65,21 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 			desc:     "guard policy without GH_TOKEN pre-agent steps should not trigger proxy",
 		},
 		{
-			name: "guard policy + custom steps with GH_TOKEN but feature flag disabled",
+			name: "guard policy + custom steps with GH_TOKEN but integrity-proxy disabled",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
-						"min-integrity": "approved",
+						"min-integrity":   "approved",
+						"integrity-proxy": false,
 					},
 				},
 				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			},
 			expected: false,
-			desc:     "feature flag absent → proxy not triggered even when guard policy and GH_TOKEN present",
+			desc:     "integrity-proxy: false → proxy not triggered even when guard policy and GH_TOKEN present",
 		},
 		{
-			name: "guard policy + custom steps with GH_TOKEN + feature flag enabled",
+			name: "guard policy + custom steps with GH_TOKEN (proxy enabled by default)",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -86,10 +87,23 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 					},
 				},
 				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
-				Features:    map[string]any{"difc-proxy": true},
 			},
 			expected: true,
-			desc:     "guard policy + custom steps with GH_TOKEN + difc-proxy feature flag should trigger proxy",
+			desc:     "guard policy + custom steps with GH_TOKEN should trigger proxy by default (no feature flag needed)",
+		},
+		{
+			name: "guard policy + custom steps with GH_TOKEN + integrity-proxy explicitly true",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{
+						"min-integrity":   "approved",
+						"integrity-proxy": true,
+					},
+				},
+				CustomSteps: "steps:\n  - name: Fetch issues\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
+			},
+			expected: true,
+			desc:     "integrity-proxy: true explicitly set should trigger proxy",
 		},
 		{
 			name: "guard policy + repo-memory configured",
@@ -108,7 +122,7 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 			desc:     "guard policy + repo-memory should NOT trigger proxy: repo-memory clones use direct git URLs, not GH_HOST",
 		},
 		{
-			name: "guard policy with allowed-repos + custom steps with GH_TOKEN + feature flag enabled",
+			name: "guard policy with allowed-repos + custom steps with GH_TOKEN (default enabled)",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -117,10 +131,9 @@ func TestHasDIFCProxyNeeded(t *testing.T) {
 					},
 				},
 				CustomSteps: "steps:\n  - name: Fetch PRs\n    env:\n      GH_TOKEN: ${{ secrets.MY_TOKEN }}\n    run: gh pr list",
-				Features:    map[string]any{"difc-proxy": true},
 			},
 			expected: true,
-			desc:     "allowed-repos + min-integrity + GH_TOKEN custom steps + difc-proxy flag should trigger proxy",
+			desc:     "allowed-repos + min-integrity + GH_TOKEN custom steps should trigger proxy by default",
 		},
 	}
 
@@ -306,7 +319,6 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 			},
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
-			Features:      map[string]any{"difc-proxy": true},
 		}
 		ensureDefaultMCPGatewayConfig(data)
 		c.generateStartDIFCProxyStep(&yaml, data)
@@ -349,7 +361,6 @@ func TestGenerateStopDIFCProxyStep(t *testing.T) {
 			},
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
-			Features:      map[string]any{"difc-proxy": true},
 		}
 		c.generateStopDIFCProxyStep(&yaml, data)
 
@@ -378,7 +389,6 @@ func TestDIFCProxyLogPaths(t *testing.T) {
 				"github": map[string]any{"min-integrity": "approved"},
 			},
 			CustomSteps: "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
-			Features:    map[string]any{"difc-proxy": true},
 		}
 		paths := difcProxyLogPaths(data)
 		require.Len(t, paths, 2, "should return include path and exclusion path")
@@ -394,8 +404,6 @@ func TestDIFCProxyStepOrderInCompiledWorkflow(t *testing.T) {
 	workflow := `---
 on: issues
 engine: copilot
-features:
-  difc-proxy: true
 tools:
   github:
     mode: local
@@ -413,7 +421,7 @@ steps:
 
 # Test Workflow
 
-Test that DIFC proxy is injected when min-integrity is set with custom steps using GH_TOKEN.
+Test that DIFC proxy is injected by default when min-integrity is set with custom steps using GH_TOKEN.
 `
 	compiler := NewCompiler()
 	data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
@@ -506,9 +514,9 @@ Test that DIFC proxy is NOT injected when min-integrity is not set.
 		"compiled workflow should NOT contain proxy stop step without guard policy")
 }
 
-// TestDIFCProxyNotInjectedWithoutFeatureFlag verifies no proxy injection when
-// guard policies are configured but the "difc-proxy" feature flag is absent.
-func TestDIFCProxyNotInjectedWithoutFeatureFlag(t *testing.T) {
+// TestDIFCProxyNotInjectedWhenIntegrityProxyFalse verifies no proxy injection when
+// guard policies are configured but tools.github.integrity-proxy: false is set.
+func TestDIFCProxyNotInjectedWhenIntegrityProxyFalse(t *testing.T) {
 	workflow := `---
 on: issues
 engine: copilot
@@ -517,6 +525,7 @@ tools:
     mode: local
     toolsets: [default]
     min-integrity: approved
+    integrity-proxy: false
 steps:
   - name: Fetch repo data
     env:
@@ -526,7 +535,7 @@ steps:
 
 # Test Workflow
 
-Test that DIFC proxy is NOT injected when min-integrity is set but difc-proxy feature flag is absent.
+Test that DIFC proxy is NOT injected when integrity-proxy: false is set.
 `
 	compiler := NewCompiler()
 	data, err := compiler.ParseWorkflowString(workflow, "test-workflow.md")
@@ -568,24 +577,40 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "github tool with min-integrity but feature flag disabled",
+			name: "github tool with min-integrity (enabled by default)",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{"min-integrity": "approved"},
 				},
 			},
-			expected: false,
+			expected: true,
 		},
 		{
-			name: "github tool with min-integrity and feature flag enabled",
+			name: "github tool with min-integrity and integrity-proxy: true",
 			data: &WorkflowData{
-				Tools:    map[string]any{"github": map[string]any{"min-integrity": "approved"}},
-				Features: map[string]any{"difc-proxy": true},
+				Tools: map[string]any{
+					"github": map[string]any{
+						"min-integrity":   "approved",
+						"integrity-proxy": true,
+					},
+				},
 			},
 			expected: true,
 		},
 		{
-			name: "github tool with allowed-repos and min-integrity and feature flag enabled",
+			name: "github tool with min-integrity and integrity-proxy: false",
+			data: &WorkflowData{
+				Tools: map[string]any{
+					"github": map[string]any{
+						"min-integrity":   "approved",
+						"integrity-proxy": false,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "github tool with allowed-repos and min-integrity (enabled by default)",
 			data: &WorkflowData{
 				Tools: map[string]any{
 					"github": map[string]any{
@@ -593,7 +618,6 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 						"min-integrity": "merged",
 					},
 				},
-				Features: map[string]any{"difc-proxy": true},
 			},
 			expected: true,
 		},
@@ -639,7 +663,6 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 			},
 			QmdConfig:     &QmdToolConfig{},
 			SandboxConfig: &SandboxConfig{},
-			Features:      map[string]any{"difc-proxy": true},
 		}
 		ensureDefaultMCPGatewayConfig(data)
 
@@ -666,7 +689,6 @@ func TestDIFCProxyInjectedInIndexingJob(t *testing.T) {
 				CacheKey: "qmd-test",
 			},
 			SandboxConfig: &SandboxConfig{},
-			Features:      map[string]any{"difc-proxy": true},
 		}
 		ensureDefaultMCPGatewayConfig(data)
 
@@ -759,7 +781,6 @@ func TestGenerateSetGHRepoAfterDIFCProxyStep(t *testing.T) {
 			},
 			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
 			SandboxConfig: &SandboxConfig{},
-			Features:      map[string]any{"difc-proxy": true},
 		}
 		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
 
