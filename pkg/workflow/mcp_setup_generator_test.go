@@ -536,3 +536,62 @@ Test that multiple secrets are passed to gateway container.
 	assert.Contains(t, yamlStr, "-e DD_APP_KEY",
 		"DD_APP_KEY should be passed to container")
 }
+
+// TestSafeOutputsHTTPServerPassesOutputEnvVar verifies that the "Start Safe Outputs MCP HTTP Server"
+// step explicitly sets GH_AW_SAFE_OUTPUTS so the background Node.js process writes outputs.jsonl
+// to the exact same path that downstream ingestion steps read from.
+//
+// Regression test for: safe outputs MCP server returns success but outputs.jsonl is empty (v0.65.5).
+// Root cause: without this env var the server fell back to process.env.RUNNER_TEMP which could
+// differ from the value captured by set-runtime-paths when RUNNER_TEMP is not exported explicitly.
+func TestSafeOutputsHTTPServerPassesOutputEnvVar(t *testing.T) {
+	frontmatter := `---
+on: issues
+engine: claude
+safe-outputs:
+  create-discussion: {}
+  create-issue: {}
+---
+
+# Test Safe Outputs Output Path
+
+Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify the "Start Safe Outputs MCP HTTP Server" step exists
+	assert.Contains(t, yamlStr, "Start Safe Outputs MCP HTTP Server",
+		"Should have safe outputs server startup step")
+
+	// The critical fix: GH_AW_SAFE_OUTPUTS must be in the startup step's env block
+	// so the Node.js server process writes outputs.jsonl to the exact path that the
+	// ingestion step reads from.
+	assert.Contains(t, yamlStr,
+		"GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
+		"Start Safe Outputs step must include GH_AW_SAFE_OUTPUTS in env block so the server writes to the correct path")
+
+	// Verify the export is also present so the background process inherits the env var
+	assert.Contains(t, yamlStr, "export GH_AW_SAFE_OUTPUTS",
+		"GH_AW_SAFE_OUTPUTS must be exported so the background Node.js server process inherits it")
+
+	// Sanity check: other required env vars are still present
+	assert.Contains(t, yamlStr, "GH_AW_SAFE_OUTPUTS_PORT:",
+		"GH_AW_SAFE_OUTPUTS_PORT should be in startup step env block")
+	assert.Contains(t, yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG_PATH:",
+		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH should be in startup step env block")
+}

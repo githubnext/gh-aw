@@ -480,6 +480,7 @@ jobs:
         id: safe-outputs-start
         env:
           DEBUG: '*'
+          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}
           GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json
@@ -488,6 +489,7 @@ jobs:
         run: |
           # Environment variables are set above to prevent template injection
           export DEBUG
+          export GH_AW_SAFE_OUTPUTS
           export GH_AW_SAFE_OUTPUTS_PORT
           export GH_AW_SAFE_OUTPUTS_API_KEY
           export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
