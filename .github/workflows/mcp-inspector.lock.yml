@@ -165,7 +165,7 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
           cat << 'GH_AW_PROMPT_39e9df45ca8e8383_EOF'
           <safe-output-tools>
-          Tools: create_discussion, close_discussion(max:10), missing_tool, missing_data, noop, notion_add_comment, post_to_slack_channel
+          Tools: create_discussion, missing_tool, missing_data, noop, notion_add_comment, post_to_slack_channel
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -499,14 +499,13 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_e821f472e60500fa_EOF'
-          {"close_discussion":{"max":10},"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[mcp-inspector] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"}}
+          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[mcp-inspector] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_e821f472e60500fa_EOF
       - name: Write Safe Outputs Tools
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_55b8c7812060dc96_EOF'
           {
             "description_suffixes": {
-              "close_discussion": " CONSTRAINTS: Maximum 10 discussion(s) can be closed.",
               "create_discussion": " CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[mcp-inspector] \". Discussions will be created in category \"audits\"."
             },
             "repo_params": {},
@@ -550,33 +549,6 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_META_55b8c7812060dc96_EOF
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_cd2dccfae7440f98_EOF'
           {
-            "close_discussion": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "discussion_number": {
-                  "optionalPositiveInteger": true
-                },
-                "reason": {
-                  "type": "string",
-                  "enum": [
-                    "RESOLVED",
-                    "DUPLICATE",
-                    "OUTDATED",
-                    "ANSWERED"
-                  ]
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                }
-              }
-            },
             "create_discussion": {
               "defaultMax": 1,
               "fields": {
@@ -1749,7 +1721,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"notion_add_comment\":\"\",\"post_to_slack_channel\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":10},\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[mcp-inspector] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[mcp-inspector] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
