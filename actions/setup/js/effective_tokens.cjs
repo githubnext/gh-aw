@@ -68,7 +68,7 @@ function getMultipliersData() {
         weights[key] = defaults[key];
       }
     }
-    const multipliers = {};
+    const multipliers = /** @type {Record<string, number>} */ {};
     for (const [model, mult] of Object.entries(parsed.multipliers || {})) {
       multipliers[model.toLowerCase()] = Number(mult);
     }
