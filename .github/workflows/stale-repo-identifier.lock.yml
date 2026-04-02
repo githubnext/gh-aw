@@ -899,7 +899,7 @@ jobs:
       contents: write
       issues: write
     concurrency:
-      group: "gh-aw-conclusion-stale-repo-identifier"
+      group: "gh-aw-conclusion-stale-repo-identifier-${{ inputs.organization || github.run_id }}"
       cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
