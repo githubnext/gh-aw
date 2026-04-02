@@ -3,7 +3,7 @@ name: Daily MCP Tool Concurrency Analysis
 description: Performs deep-dive concurrency analysis on each safe-outputs MCP server tool to ensure thread-safety and detect race conditions
 on:
   schedule:
-    - cron: "0 9 * * 1-5"  # Weekdays at 9 AM UTC
+    - cron: "daily around 9:00 on weekdays"  # ~Weekdays at 9 AM UTC (scattered)
   workflow_dispatch:
 
 permissions:

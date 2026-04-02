@@ -4,7 +4,7 @@ description: Generates optimized prompts for voice dictation and speech-to-text 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 6 * * 0"  # Weekly on Sundays at 6 AM UTC
+    - cron: "weekly on sunday around 6:00"  # ~6 AM UTC on Sundays (scattered)
 
 permissions:
   contents: read

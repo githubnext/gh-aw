@@ -2,7 +2,7 @@
 timeout-minutes: 5
 strict: true
 on:
-  schedule: "0 14 * * 1-5"
+  schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
 permissions:
   issues: read

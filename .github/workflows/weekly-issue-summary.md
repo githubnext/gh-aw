@@ -4,7 +4,7 @@ timeout-minutes: 20
 strict: true
 on:
   schedule:
-    - cron: "0 15 * * 1"  # Weekly on Mondays at 3 PM UTC
+    - cron: "weekly on monday around 15:00"  # ~3 PM UTC on Mondays (scattered)
   workflow_dispatch:
 permissions:
   issues: read

@@ -2,7 +2,7 @@
 description: Investigates suspicious repository activity and maintains a single triage issue
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "every 6h"  # Every ~6 hours (scattered to avoid thundering herd)
   workflow_dispatch:
 permissions:
   contents: read

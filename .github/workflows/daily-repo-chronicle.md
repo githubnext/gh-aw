@@ -2,7 +2,7 @@
 description: Creates a narrative chronicle of daily repository activity including commits, PRs, issues, and discussions
 on:
   schedule:
-    - cron: "0 16 * * 1-5"  # 8 AM PST (4 PM UTC), weekdays only
+    - cron: "daily around 16:00 on weekdays"  # ~8 AM PST (4 PM UTC), weekdays only
   workflow_dispatch:
 permissions:
   contents: read

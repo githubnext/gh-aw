@@ -2,8 +2,8 @@
 description: Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 on:
   schedule:
-    # Run every other business day: Monday, Wednesday, Friday at 9 AM UTC
-    - cron: "0 9 * * 1,3,5"
+    # ~9 AM UTC, Monday, Wednesday, Friday (offset to avoid thundering herd)
+    - cron: "20 9 * * 1,3,5"
   workflow_dispatch:
 
 timeout-minutes: 20

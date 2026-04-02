@@ -4,7 +4,7 @@ description: Analyzes Go type usage patterns and identifies opportunities for be
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 11 * * 1-5"  # Daily at 11 AM UTC, weekdays only
+    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
 
 permissions:
   contents: read

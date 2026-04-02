@@ -3,7 +3,7 @@ name: Functional Pragmatist
 description: Identifies opportunities to apply moderate functional programming techniques systematically - immutability, functional options, pure functions, reducing mutation and reusable logic wrappers
 on:
   schedule:
-    - cron: "0 9 * * 2,4"  # Tuesday and Thursday at 9 AM UTC
+    - cron: "25 9 * * 2,4"  # ~Tuesday and Thursday at 9 AM UTC (offset to avoid thundering herd)
   workflow_dispatch:
 
 permissions:

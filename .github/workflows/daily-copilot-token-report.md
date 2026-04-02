@@ -2,7 +2,7 @@
 description: Daily report tracking Copilot token consumption and costs across all agentic workflows with trend analysis
 on:
   schedule:
-    - cron: "0 11 * * 1-5"  # Daily at 11 AM UTC, weekdays only
+    - cron: "daily around 11:00 on weekdays"  # ~11 AM UTC, weekdays only
   workflow_dispatch:
 permissions:
   contents: read

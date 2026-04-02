@@ -3,8 +3,8 @@ name: Daily Copilot PR Merged Report
 description: Generates a daily report analyzing Copilot pull requests merged in the last 24 hours, tracking code generation, tests, and token usage
 on:
   schedule:
-    # Daily at 3 PM UTC, Monday-Friday (avoids weekends)
-    - cron: "0 15 * * 1-5"
+    # ~3 PM UTC, Monday-Friday (scattered to avoid thundering herd)
+    - cron: "daily around 15:00 on weekdays"
   workflow_dispatch:
 
 permissions:
