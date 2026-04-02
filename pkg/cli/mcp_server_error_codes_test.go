@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,7 +94,16 @@ func TestMCPServer_ErrorCodes_InvalidParams(t *testing.T) {
 
 }
 
-// TestMCPServer_ErrorCodes_InternalError tests that InternalError code is returned for execution failures
+// isTestEnvPermissionError returns true when the error string indicates a permission or
+// authentication issue expected in CI/test environments without full GitHub credentials.
+func isTestEnvPermissionError(errMsg string) bool {
+	return strings.Contains(errMsg, "could not determine repository") ||
+		strings.Contains(errMsg, "permission denied") ||
+		strings.Contains(errMsg, "failed to get repository")
+}
+
+// TestMCPServer_ErrorCodes_InternalError tests that audit failures return structured JSON
+// content rather than a protocol-level MCP error (-32603).
 func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"
@@ -123,27 +133,46 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 	}
 	defer session.Close()
 
-	// Test: audit tool with invalid run_id_or_url (should cause internal error)
-	t.Run("audit_invalid_run_id", func(t *testing.T) {
+	// Test: audit tool with invalid run_id_or_url returns a JSON error envelope, not an MCP error.
+	t.Run("audit_invalid_run_id_returns_json", func(t *testing.T) {
 		params := &mcp.CallToolParams{
 			Name: "audit",
 			Arguments: map[string]any{
-				"run_id_or_url": "1", // Invalid run ID
+				"run_id_or_url": "1", // Invalid / non-existent run ID
 			},
 		}
 
-		_, err := session.CallTool(ctx, params)
-		if err == nil {
-			t.Error("Expected error for invalid run_id_or_url, got nil")
+		result, err := session.CallTool(ctx, params)
+		if err != nil {
+			// A permission-check failure (e.g. no gh auth) is acceptable in CI.
+			if isTestEnvPermissionError(err.Error()) {
+				t.Logf("Skipping assertion: permission check failed as expected in test environment: %s", err.Error())
+				return
+			}
+			t.Errorf("Expected audit to return JSON content, not an MCP error, got: %s", err.Error())
 			return
 		}
 
-		// The error message should contain the failed audit error or validation error
-		errMsg := err.Error()
-		if !strings.Contains(errMsg, "failed to audit") && !strings.Contains(errMsg, "could not determine repository") {
-			t.Errorf("Expected error message about failed audit or invalid parameters, got: %s", errMsg)
-		} else {
-			t.Logf("✓ Correct error for failed audit: %s", errMsg)
+		// The tool must return text content that is valid JSON containing an "error" field.
+		if len(result.Content) == 0 {
+			t.Fatal("Expected non-empty content from audit tool")
 		}
+		textContent, ok := result.Content[0].(*mcp.TextContent)
+		if !ok {
+			t.Fatal("Expected text content from audit tool")
+		}
+
+		var envelope map[string]any
+		if jsonErr := json.Unmarshal([]byte(textContent.Text), &envelope); jsonErr != nil {
+			t.Errorf("Audit response is not valid JSON: %v\nContent: %s", jsonErr, textContent.Text)
+			return
+		}
+		if _, hasError := envelope["error"]; !hasError {
+			t.Errorf("Expected 'error' field in audit JSON response, got: %s", textContent.Text)
+		}
+		if _, hasRunID := envelope["run_id_or_url"]; !hasRunID {
+			t.Errorf("Expected 'run_id_or_url' field in audit JSON response, got: %s", textContent.Text)
+		}
+		t.Logf("✓ audit returned JSON error envelope: %s", textContent.Text)
 	})
 }

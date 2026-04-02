@@ -10,8 +10,7 @@ permissions:
   pull-requests: read
 engine: codex
 imports:
-  - shared/mcp/serena-go.md
-  - shared/reporting.md
+  - shared/go-source-analysis.md
 safe-outputs:
   create-issue:
     expires: 2d

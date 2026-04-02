@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os/exec"
 	"strconv"
@@ -90,11 +91,26 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 
 		// Validate workflow name before executing command
 		if err := validateMCPWorkflowName(args.WorkflowName); err != nil {
-			mcpLog.Printf("Workflow name validation failed: %v", err)
-			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), map[string]any{
-				"workflow_name": args.WorkflowName,
-				"error_type":    "workflow_not_found",
-			})
+			mcpLog.Printf("Workflow name validation failed, returning empty result: %v", err)
+			// Return an empty structured result instead of an MCP protocol error so
+			// callers can always expect consistent JSON from this tool.
+			// Use explicit empty slices so JSON marshaling produces "runs":[], etc.,
+			// rather than null (nil slices), and set TotalDuration to match the normal
+			// zero-duration formatting.
+			emptyData := LogsData{
+				Runs:     []RunData{},
+				Episodes: []EpisodeData{},
+				Edges:    []EpisodeEdge{},
+				Message:  err.Error(),
+			}
+			emptyData.Summary.TotalDuration = "0ns"
+			jsonBytes, jsonErr := json.Marshal(emptyData)
+			if jsonErr != nil {
+				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
+			}
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+			}, nil, nil
 		}
 
 		// Build command arguments
@@ -287,26 +303,15 @@ Returns JSON with the following structure:
 		outputStr := string(stdout)
 
 		if err != nil {
-			// Try to get stderr and exit code for detailed error reporting
+			// Try to get stderr for message extraction
 			var stderr string
-			var exitCode int
 			var exitErr *exec.ExitError
 			if errors.As(err, &exitErr) {
 				stderr = string(exitErr.Stderr)
-				exitCode = exitErr.ExitCode()
 			}
 
-			mcpLog.Printf("Audit command exited with error: %v (stdout length: %d, stderr length: %d, exit_code: %d)",
-				err, len(outputStr), len(stderr), exitCode)
-
-			// Build detailed error data
-			errorData := map[string]any{
-				"error":         err.Error(),
-				"exit_code":     exitCode,
-				"stdout":        outputStr,
-				"stderr":        stderr,
-				"run_id_or_url": args.RunIDOrURL,
-			}
+			mcpLog.Printf("Audit command exited with error: %v (stdout length: %d, stderr length: %d)",
+				err, len(outputStr), len(stderr))
 
 			// Extract the user-facing message from stderr, filtering out debug log lines
 			// (e.g. "workflow:script_registry Creating new script registry +151ns")
@@ -315,7 +320,20 @@ Returns JSON with the following structure:
 			if mainMsg == "" {
 				mainMsg = err.Error()
 			}
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+mainMsg, errorData)
+
+			// Return a JSON error envelope instead of an MCP protocol error so
+			// callers always receive consistent JSON and the run ID is always present.
+			errorEnvelope := map[string]any{
+				"error":         "failed to audit workflow run: " + mainMsg,
+				"run_id_or_url": args.RunIDOrURL,
+			}
+			jsonBytes, jsonErr := json.Marshal(errorEnvelope)
+			if jsonErr != nil {
+				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+mainMsg, nil)
+			}
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+			}, nil, nil
 		}
 
 		return &mcp.CallToolResult{

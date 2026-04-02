@@ -36,6 +36,7 @@ type LogsData struct {
 	RedactedDomains   *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
 	Continuation      *ContinuationData          `json:"continuation,omitempty" console:"-"`
 	LogsLocation      string                     `json:"logs_location" console:"-"`
+	Message           string                     `json:"message,omitempty" console:"-"`
 }
 
 // ContinuationData provides parameters to continue querying when timeout is reached

@@ -23,8 +23,7 @@ network:
     - go
 
 imports:
-  - shared/reporting.md
-  - shared/mcp/serena-go.md
+  - shared/go-source-analysis.md
 
 safe-outputs:
   create-discussion:

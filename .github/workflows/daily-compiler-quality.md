@@ -11,8 +11,7 @@ permissions:
 tracker-id: daily-compiler-quality
 engine: copilot
 imports:
-  - shared/mcp/serena-go.md
-  - shared/reporting.md
+  - shared/go-source-analysis.md
 tools:
   github:
     toolsets:
