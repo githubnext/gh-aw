@@ -11,6 +11,9 @@ const {
   getRpcRequestLabel,
   generateRpcMessagesSummary,
   printAllGatewayFiles,
+  parseTokenUsageJsonl,
+  generateTokenUsageSummary,
+  formatDurationMs,
 } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
@@ -891,6 +894,150 @@ Some content here.`;
       const summary = generateRpcMessagesSummary({ requests: [], responses: [], other: [] }, difcEvents);
       expect(summary).toContain("1 blocked");
       expect(summary).toContain("All tool calls were blocked");
+    });
+  });
+
+  describe("formatDurationMs", () => {
+    test("formats sub-second durations as milliseconds", () => {
+      expect(formatDurationMs(0)).toBe("0ms");
+      expect(formatDurationMs(500)).toBe("500ms");
+      expect(formatDurationMs(999)).toBe("999ms");
+    });
+
+    test("formats second-range durations with one decimal place", () => {
+      expect(formatDurationMs(1000)).toBe("1.0s");
+      expect(formatDurationMs(2500)).toBe("2.5s");
+      expect(formatDurationMs(59999)).toBe("60.0s");
+    });
+
+    test("formats minute-range durations as MmSs", () => {
+      expect(formatDurationMs(60000)).toBe("1m0s");
+      expect(formatDurationMs(90000)).toBe("1m30s");
+      expect(formatDurationMs(120000)).toBe("2m0s");
+    });
+  });
+
+  describe("parseTokenUsageJsonl", () => {
+    test("returns null for empty content", () => {
+      expect(parseTokenUsageJsonl("")).toBeNull();
+      expect(parseTokenUsageJsonl("   \n  ")).toBeNull();
+    });
+
+    test("parses a single entry and aggregates totals", () => {
+      const content = JSON.stringify({
+        timestamp: "2026-04-01T17:56:38.042Z",
+        request_id: "abc-123",
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        path: "/v1/messages",
+        status: 200,
+        streaming: true,
+        input_tokens: 100,
+        output_tokens: 200,
+        cache_read_tokens: 5000,
+        cache_write_tokens: 3000,
+        duration_ms: 2500,
+        response_bytes: 1500,
+      });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary).not.toBeNull();
+      expect(summary.totalInputTokens).toBe(100);
+      expect(summary.totalOutputTokens).toBe(200);
+      expect(summary.totalCacheReadTokens).toBe(5000);
+      expect(summary.totalCacheWriteTokens).toBe(3000);
+      expect(summary.totalRequests).toBe(1);
+      expect(summary.totalDurationMs).toBe(2500);
+    });
+
+    test("aggregates multiple entries across models", () => {
+      const lines = [
+        JSON.stringify({ provider: "anthropic", model: "claude-sonnet-4-6", input_tokens: 10, output_tokens: 20, cache_read_tokens: 100, cache_write_tokens: 50, duration_ms: 1000 }),
+        JSON.stringify({ provider: "anthropic", model: "claude-sonnet-4-6", input_tokens: 5, output_tokens: 15, cache_read_tokens: 200, cache_write_tokens: 0, duration_ms: 500 }),
+        JSON.stringify({ provider: "openai", model: "gpt-4o", input_tokens: 30, output_tokens: 40, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 2000 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      expect(summary).not.toBeNull();
+      expect(summary.totalRequests).toBe(3);
+      expect(summary.totalInputTokens).toBe(45);
+      expect(summary.totalOutputTokens).toBe(75);
+      expect(summary.totalCacheReadTokens).toBe(300);
+      expect(summary.totalCacheWriteTokens).toBe(50);
+      expect(summary.totalDurationMs).toBe(3500);
+      expect(summary.byModel["claude-sonnet-4-6"].requests).toBe(2);
+      expect(summary.byModel["claude-sonnet-4-6"].inputTokens).toBe(15);
+      expect(summary.byModel["gpt-4o"].requests).toBe(1);
+    });
+
+    test("skips malformed lines and still parses valid ones", () => {
+      const content = `{"model":"gpt-4o","input_tokens":10,"output_tokens":5,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":100}
+not-json
+{"model":"gpt-4o","input_tokens":20,"output_tokens":10,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":200}`;
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary).not.toBeNull();
+      expect(summary.totalRequests).toBe(2);
+      expect(summary.totalInputTokens).toBe(30);
+    });
+
+    test("uses 'unknown' for entries without a model field", () => {
+      const content = JSON.stringify({ input_tokens: 10, output_tokens: 5, duration_ms: 100 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary).not.toBeNull();
+      expect(summary.byModel["unknown"]).toBeDefined();
+    });
+
+    test("computes cache efficiency", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
+      const summary = parseTokenUsageJsonl(content);
+      expect(summary).not.toBeNull();
+      // cache_read / (input + cache_read) = 900 / 1000 = 0.9
+      expect(summary.cacheEfficiency).toBeCloseTo(0.9);
+    });
+  });
+
+  describe("generateTokenUsageSummary", () => {
+    test("returns empty string for null or zero-request summary", () => {
+      expect(generateTokenUsageSummary(null)).toBe("");
+      expect(generateTokenUsageSummary({ totalRequests: 0, byModel: {} })).toBe("");
+    });
+
+    test("renders header and table columns", () => {
+      const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
+      const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("### 📊 Token Usage");
+      expect(md).toContain("| Model | Input | Output | Cache Read | Cache Write | Requests | Duration |");
+      expect(md).toContain("claude-sonnet-4-6");
+    });
+
+    test("includes totals row", () => {
+      const summary = parseTokenUsageJsonl(JSON.stringify({ model: "m", input_tokens: 10, output_tokens: 20, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 }));
+      const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("**Total**");
+    });
+
+    test("includes cache efficiency when non-zero", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 900, cache_write_tokens: 0, duration_ms: 100 });
+      const summary = parseTokenUsageJsonl(content);
+      const md = generateTokenUsageSummary(summary);
+      expect(md).toContain("Cache efficiency: 90.0%");
+    });
+
+    test("omits cache efficiency line when zero", () => {
+      const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 });
+      const summary = parseTokenUsageJsonl(content);
+      const md = generateTokenUsageSummary(summary);
+      expect(md).not.toContain("Cache efficiency");
+    });
+
+    test("sorts models by total tokens descending", () => {
+      const lines = [
+        JSON.stringify({ model: "small-model", input_tokens: 5, output_tokens: 5, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 100 }),
+        JSON.stringify({ model: "large-model", input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 500 }),
+      ];
+      const summary = parseTokenUsageJsonl(lines.join("\n"));
+      const md = generateTokenUsageSummary(summary);
+      const largeIdx = md.indexOf("large-model");
+      const smallIdx = md.indexOf("small-model");
+      expect(largeIdx).toBeLessThan(smallIdx);
     });
   });
 });

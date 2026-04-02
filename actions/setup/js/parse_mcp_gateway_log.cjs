@@ -13,7 +13,150 @@ const { ERR_PARSE } = require("./error_codes.cjs");
  *  - /tmp/gh-aw/mcp-logs/gateway.md (markdown summary from gateway, preferred for general content)
  *  - /tmp/gh-aw/mcp-logs/gateway.log (main gateway log, fallback)
  *  - /tmp/gh-aw/mcp-logs/stderr.log (stderr output, fallback)
+ *  - /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl (token usage from firewall proxy)
  */
+
+const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
+
+/**
+ * Formats milliseconds as a human-readable duration string.
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration (e.g. "500ms", "2.5s", "1m30s")
+ */
+function formatDurationMs(ms) {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${minutes}m${secs}s`;
+}
+
+/**
+ * Parses token-usage.jsonl content and returns an aggregated summary.
+ * @param {string} jsonlContent - The token-usage.jsonl file content
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, byModel: Object} | null}
+ */
+function parseTokenUsageJsonl(jsonlContent) {
+  const summary = {
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalCacheReadTokens: 0,
+    totalCacheWriteTokens: 0,
+    totalRequests: 0,
+    totalDurationMs: 0,
+    cacheEfficiency: 0,
+    byModel: {},
+  };
+
+  const lines = jsonlContent.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const entry = JSON.parse(trimmed);
+      if (!entry || typeof entry !== "object") continue;
+
+      summary.totalInputTokens += entry.input_tokens || 0;
+      summary.totalOutputTokens += entry.output_tokens || 0;
+      summary.totalCacheReadTokens += entry.cache_read_tokens || 0;
+      summary.totalCacheWriteTokens += entry.cache_write_tokens || 0;
+      summary.totalRequests++;
+      summary.totalDurationMs += entry.duration_ms || 0;
+
+      const model = entry.model || "unknown";
+      if (!summary.byModel[model]) {
+        summary.byModel[model] = {
+          provider: entry.provider || "",
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          requests: 0,
+          durationMs: 0,
+        };
+      }
+      const m = summary.byModel[model];
+      m.inputTokens += entry.input_tokens || 0;
+      m.outputTokens += entry.output_tokens || 0;
+      m.cacheReadTokens += entry.cache_read_tokens || 0;
+      m.cacheWriteTokens += entry.cache_write_tokens || 0;
+      m.requests++;
+      m.durationMs += entry.duration_ms || 0;
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  if (summary.totalRequests === 0) return null;
+
+  const totalInputPlusCacheRead = summary.totalInputTokens + summary.totalCacheReadTokens;
+  if (totalInputPlusCacheRead > 0) {
+    summary.cacheEfficiency = summary.totalCacheReadTokens / totalInputPlusCacheRead;
+  }
+
+  return summary;
+}
+
+/**
+ * Generates a markdown summary section for token usage data.
+ * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, byModel: Object}} summary
+ * @returns {string} Markdown section, or empty string if no data
+ */
+function generateTokenUsageSummary(summary) {
+  if (!summary || summary.totalRequests === 0) return "";
+
+  const lines = [];
+  lines.push("### 📊 Token Usage\n");
+  lines.push("| Model | Input | Output | Cache Read | Cache Write | Requests | Duration |");
+  lines.push("|-------|------:|-------:|-----------:|------------:|---------:|---------:|");
+
+  // Sort models by total tokens descending
+  const models = Object.entries(summary.byModel).sort(([, a], [, b]) => {
+    const aTotal = a.inputTokens + a.outputTokens + a.cacheReadTokens + a.cacheWriteTokens;
+    const bTotal = b.inputTokens + b.outputTokens + b.cacheReadTokens + b.cacheWriteTokens;
+    return bTotal - aTotal;
+  });
+
+  for (const [model, usage] of models) {
+    lines.push(
+      `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
+    );
+  }
+
+  lines.push(
+    `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
+  );
+
+  if (summary.cacheEfficiency > 0) {
+    lines.push(`\n_Cache efficiency: ${(summary.cacheEfficiency * 100).toFixed(1)}%_`);
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+/**
+ * Appends the token usage section to the step summary if data is present, then writes it.
+ * This is the final call in each main() exit path — it consolidates the summary write
+ * so callers don't need to chain addRaw() + write() themselves.
+ * @param {typeof core} coreObj - The GitHub Actions core object
+ */
+function writeStepSummaryWithTokenUsage(coreObj) {
+  if (!fs.existsSync(TOKEN_USAGE_PATH)) {
+    coreObj.debug(`No token-usage.jsonl found at: ${TOKEN_USAGE_PATH}`);
+  } else {
+    const content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
+    if (content && content.trim()) {
+      coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
+      const summary = parseTokenUsageJsonl(content);
+      const markdown = summary ? generateTokenUsageSummary(summary) : "";
+      if (markdown.length > 0) {
+        coreObj.summary.addRaw(markdown);
+      }
+    }
+  }
+  coreObj.summary.write();
+}
 
 /**
  * Prints all gateway-related files to core.info for debugging
@@ -250,7 +393,7 @@ async function main() {
           core.summary.addRaw(difcSummary);
         }
 
-        core.summary.write();
+        writeStepSummaryWithTokenUsage(core);
         return;
       }
     } else {
@@ -268,11 +411,12 @@ async function main() {
       if (totalMessages > 0 || difcFilteredEvents.length > 0) {
         const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents);
         if (rpcSummary.length > 0) {
-          core.summary.addRaw(rpcSummary).write();
+          core.summary.addRaw(rpcSummary);
         }
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
       }
+      writeStepSummaryWithTokenUsage(core);
       return;
     }
 
@@ -296,9 +440,10 @@ async function main() {
       core.info(`No stderr.log found at: ${stderrLogPath}`);
     }
 
-    // If no legacy log content and no DIFC events, nothing to do
+    // If no legacy log content and no DIFC events, check if token usage is available
     if ((!gatewayLogContent || gatewayLogContent.trim().length === 0) && (!stderrLogContent || stderrLogContent.trim().length === 0) && difcFilteredEvents.length === 0) {
       core.info("MCP gateway log files are empty or missing");
+      writeStepSummaryWithTokenUsage(core);
       return;
     }
 
@@ -314,8 +459,9 @@ async function main() {
     const fullSummary = [legacySummary, difcSummary].filter(s => s.length > 0).join("\n");
 
     if (fullSummary.length > 0) {
-      core.summary.addRaw(fullSummary).write();
+      core.summary.addRaw(fullSummary);
     }
+    writeStepSummaryWithTokenUsage(core);
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }
@@ -436,6 +582,9 @@ if (typeof module !== "undefined" && module.exports) {
     getRpcRequestLabel,
     generateRpcMessagesSummary,
     printAllGatewayFiles,
+    parseTokenUsageJsonl,
+    generateTokenUsageSummary,
+    formatDurationMs,
   };
 }
 
