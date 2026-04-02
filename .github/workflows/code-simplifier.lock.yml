@@ -637,20 +637,7 @@ jobs:
       - name: Copy Copilot session state files to logs
         if: always()
         continue-on-error: true
-        run: |
-          # Copy entire Copilot session-state directory to logs for artifact collection
-          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
-          SESSION_STATE_DIR="$HOME/.copilot/session-state"
-          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs/copilot-session-state"
-          
-          if [ -d "$SESSION_STATE_DIR" ]; then
-            echo "Copying Copilot session state from $SESSION_STATE_DIR to $LOGS_DIR"
-            mkdir -p "$LOGS_DIR"
-            cp -rv "$SESSION_STATE_DIR"/. "$LOGS_DIR/" 2>/dev/null || true
-            echo "Session state directory copied successfully"
-          else
-            echo "No session-state directory found at $SESSION_STATE_DIR"
-          fi
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh
       - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
