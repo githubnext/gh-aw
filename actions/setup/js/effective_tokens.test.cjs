@@ -211,11 +211,10 @@ describe("effective_tokens", () => {
       expect(et).toBe(100);
     });
 
-    test("rounds result to nearest integer", () => {
+    test("computes ET as real-valued product (no rounding)", () => {
       // gpt-4o-mini multiplier = 0.1, base = 1.0 × 100 = 100, ET = 0.1 × 100 = 10
       const et = computeEffectiveTokens("gpt-4o-mini", 100, 0, 0, 0, 0);
       expect(et).toBe(10);
-      expect(Number.isInteger(et)).toBe(true);
     });
 
     test("correctly handles high multiplier model (claude-opus)", () => {

@@ -5,7 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
-const { computeEffectiveTokens } = require("./effective_tokens.cjs");
+const { computeEffectiveTokens, getTokenClassWeights } = require("./effective_tokens.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -136,13 +136,13 @@ function generateTokenUsageSummary(summary) {
   });
 
   for (const [model, usage] of models) {
-    const et = (usage.effectiveTokens || 0).toLocaleString();
+    const et = Math.round(usage.effectiveTokens || 0).toLocaleString();
     lines.push(
       `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${et} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
     );
   }
 
-  const totalET = (summary.totalEffectiveTokens || 0).toLocaleString();
+  const totalET = Math.round(summary.totalEffectiveTokens || 0).toLocaleString();
   lines.push(
     `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${totalET}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
@@ -150,13 +150,16 @@ function generateTokenUsageSummary(summary) {
   // Footer line with ET summary using ● symbol and optional cache efficiency
   const footerParts = [];
   if (summary.totalEffectiveTokens > 0) {
-    footerParts.push(`● ${summary.totalEffectiveTokens.toLocaleString()} ET`);
+    footerParts.push(`● ${Math.round(summary.totalEffectiveTokens).toLocaleString()} ET`);
   }
   if (summary.cacheEfficiency > 0) {
     footerParts.push(`Cache efficiency: ${(summary.cacheEfficiency * 100).toFixed(1)}%`);
   }
   if (footerParts.length > 0) {
     lines.push(`\n_${footerParts.join(" · ")}_`);
+    // Disclose the token class weights used to compute ET (required by the ET spec)
+    const w = getTokenClassWeights();
+    lines.push(`<sub>ET weights: input=${w.input} · cached_input=${w.cached_input} · output=${w.output} · reasoning=${w.reasoning} · cache_write=${w.cache_write}</sub>`);
   }
 
   return lines.join("\n") + "\n";
@@ -185,8 +188,9 @@ function writeStepSummaryWithTokenUsage(coreObj) {
       // Export total effective tokens as a GitHub Actions env var for use in
       // generated footers (GH_AW_EFFECTIVE_TOKENS is read by messages_footer.cjs)
       if (parsedSummary && parsedSummary.totalEffectiveTokens > 0) {
-        coreObj.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(parsedSummary.totalEffectiveTokens));
-        coreObj.info(`Effective tokens: ${parsedSummary.totalEffectiveTokens}`);
+        const roundedET = Math.round(parsedSummary.totalEffectiveTokens);
+        coreObj.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(roundedET));
+        coreObj.info(`Effective tokens: ${roundedET}`);
       }
     }
   }

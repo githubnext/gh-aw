@@ -23,8 +23,8 @@
  * Falls back to m=1.0 (reference baseline) for unknown models.
  */
 
-/** @type {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null} */
-let _parsedMultipliers = null;
+/** @type {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined} */
+let _parsedMultipliers = undefined; // undefined = not yet parsed; null = parsed but unavailable
 
 /**
  * Default token class weights from the ET specification (Section 4.2).
@@ -46,25 +46,28 @@ function defaultTokenClassWeights() {
  * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null}
  */
 function getMultipliersData() {
-  if (_parsedMultipliers !== null) {
+  if (_parsedMultipliers !== undefined) {
     return _parsedMultipliers;
   }
 
   const raw = process.env.GH_AW_MODEL_MULTIPLIERS;
   if (!raw || !raw.trim()) {
+    _parsedMultipliers = null;
     return null;
   }
 
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
+      _parsedMultipliers = null;
       return null;
     }
     const weights = { ...defaultTokenClassWeights(), ...(parsed.token_class_weights || {}) };
-    // Ensure zero-valued weights fall back to defaults
+    // Ensure missing or invalid weights fall back to defaults, but preserve explicit 0 overrides
     const defaults = defaultTokenClassWeights();
     for (const key of Object.keys(defaults)) {
-      if (!weights[key]) {
+      const value = weights[key];
+      if (value == null || !Number.isFinite(value)) {
         weights[key] = defaults[key];
       }
     }
@@ -75,6 +78,7 @@ function getMultipliersData() {
     _parsedMultipliers = { token_class_weights: weights, multipliers };
     return _parsedMultipliers;
   } catch {
+    _parsedMultipliers = null;
     return null;
   }
 }
@@ -134,8 +138,11 @@ function getModelMultiplier(model) {
 /**
  * Computes the base weighted token count for a single invocation.
  *
- * Formula (ET specification Section 4.3):
+ * Formula (base spec Section 4.3 + cache_write implementation extension):
  *   base = (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
+ *
+ * Note: cache_write (W) with weight w_cache_write is an implementation extension;
+ * the core spec formula covers I, C, O, and R only.
  *
  * @param {number} inputTokens - Raw input tokens (I)
  * @param {number} outputTokens - Raw output tokens (O)
@@ -155,7 +162,8 @@ function computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, c
  * Formula (ET specification Section 4.4):
  *   effective_tokens = m × base_weighted_tokens
  *
- * Result is rounded to the nearest integer.
+ * Returns the exact real-valued product. Round only at presentation boundaries
+ * (e.g., when displaying in a step summary or exporting to an env var).
  *
  * @param {string} model - Model name used for the invocation
  * @param {number} inputTokens - Raw input tokens (I)
@@ -163,7 +171,7 @@ function computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, c
  * @param {number} cacheReadTokens - Cached input tokens (C)
  * @param {number} cacheWriteTokens - Cache write tokens (W)
  * @param {number} [reasoningTokens=0] - Reasoning tokens (R)
- * @returns {number} Effective token count (rounded integer)
+ * @returns {number} Effective token count (exact real value)
  */
 function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens = 0) {
   const base = computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens);
@@ -171,7 +179,7 @@ function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadToken
     return 0;
   }
   const m = getModelMultiplier(model);
-  return Math.round(base * m);
+  return base * m;
 }
 
 /**
@@ -179,7 +187,7 @@ function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadToken
  * @internal
  */
 function _resetCache() {
-  _parsedMultipliers = null;
+  _parsedMultipliers = undefined;
 }
 
 module.exports = {
