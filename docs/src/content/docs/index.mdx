@@ -57,13 +57,43 @@ Developed by GitHub Next and Microsoft Research, workflows run with added guardr
 
 ## Guardrails Built-In
 
-Workflows run with read-only permissions by default. Write operations require explicit approval through sanitized [safe outputs](/gh-aw/reference/glossary/#safe-outputs) (pre-approved GitHub operations), with sandboxed execution, tool allowlisting, and network isolation ensuring AI agents operate within controlled boundaries.
+AI agents can be manipulated into taking unintended actions—through malicious repository content, compromised tools, or prompt injection. GitHub Agentic Workflows addresses this with five security layers that work together to contain the impact of a confused or compromised agent.
 
-Every workflow runs through a three-stage security pipeline before any write operation can occur:
+### Read-only tokens
+
+The AI agent receives a GitHub token scoped to read-only permissions. Even if the agent attempts to create a pull request, push code, or delete a file, the underlying token simply doesn't allow it. The agent can observe your repository; it cannot change it.
+
+### Zero secrets in the agent
+
+The agent process never receives write tokens, API keys, or other sensitive credentials. Those secrets exist only in separate, isolated jobs that run _after_ the agent has finished and its output has passed review. A compromised agent has nothing to steal and no credentials to misuse.
+
+### Containerized with a network firewall
+
+The agent runs inside an isolated container. A built-in network firewall—the [Agent Workflow Firewall](/gh-aw/introduction/architecture/#agent-workflow-firewall-awf)—routes all outbound traffic through a Squid proxy enforcing an explicit domain allowlist. Traffic to any other destination is dropped at the kernel level, so a compromised agent cannot exfiltrate data or call out to unexpected servers.
+
+### Safe outputs with strong guardrails
+
+The agent cannot write to GitHub directly. Instead, it produces a structured artifact describing its intended actions—for example, "create an issue with this title and body." A separate job with [scoped write permissions](/gh-aw/reference/safe-outputs/) reads that artifact and applies only what your workflow explicitly permits: hard limits per operation (such as a maximum of one issue per run), required title prefixes, and label constraints. The agent requests; a gated job decides.
+
+### Agentic threat detection
+
+Before any output is applied, a dedicated [threat detection job](/gh-aw/reference/threat-detection/) runs an AI-powered scan of the agent's proposed changes. It checks for prompt injection attacks, leaked credentials, and malicious code patterns. If anything looks suspicious, the workflow fails immediately and nothing is written to your repository.
 
 ```mermaid
 flowchart LR
-    Agent["🤖 Agent"] --> Detection["🔍 Detection"] --> SafeOutputs["✅ Safe Outputs"]
+    Event["📥 GitHub Event"] --> Agent
+
+    subgraph Sandbox["🛡️ Isolated Container · Read-only Token · Firewall-Protected"]
+        Agent["🤖 AI Agent"]
+    end
+
+    Agent --> Output["📄 Proposed Output<br/>(artifact)"]
+    Output --> Detect["🔍 Threat Detection<br/>(AI-powered scan)"]
+
+    Detect -->|"✅ safe"| Write["📝 Write Job<br/>(scoped write token)"]
+    Detect -->|"❌ suspicious"| Fail["🚫 Blocked"]
+
+    Write --> GitHub["⚡ GitHub API"]
 ```
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for a full breakdown of the layered defense-in-depth model.
