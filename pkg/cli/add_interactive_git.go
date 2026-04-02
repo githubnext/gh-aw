@@ -209,16 +209,7 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 		lsCmd := exec.Command("git", "ls-remote", "--symref", "origin", "HEAD")
 		lsOutput, lsErr := lsCmd.CombinedOutput()
 		if lsErr == nil {
-			// Output looks like: "ref: refs/heads/master\tHEAD\n..."
-			for line := range strings.SplitSeq(string(lsOutput), "\n") {
-				if strings.HasPrefix(line, "ref: refs/heads/") {
-					parts := strings.Fields(line)
-					if len(parts) >= 2 {
-						defaultBranch = strings.TrimPrefix(parts[0], "ref: refs/heads/")
-						break
-					}
-				}
-			}
+			defaultBranch = parseDefaultBranchFromLsRemote(string(lsOutput))
 		}
 	}
 
@@ -308,4 +299,30 @@ func editPRTitle(prNumber int, newTitle, repoOverride string) error {
 		return fmt.Errorf("failed to update PR title: %w (output: %s)", err, string(output))
 	}
 	return nil
+}
+
+// parseDefaultBranchFromLsRemote extracts the default branch name from
+// the output of `git ls-remote --symref origin HEAD`.
+//
+// Example output:
+//
+//	ref: refs/heads/main	abc123
+//	abc123	HEAD
+//
+// Returns "" if the branch cannot be determined.
+func parseDefaultBranchFromLsRemote(output string) string {
+	for line := range strings.SplitSeq(output, "\n") {
+		if !strings.HasPrefix(line, "ref: refs/heads/") {
+			continue
+		}
+		// line is e.g. "ref: refs/heads/main\tabc123"
+		// Split on tab first to isolate the symref part from the hash.
+		tabParts := strings.SplitN(line, "\t", 2)
+		ref := strings.TrimPrefix(tabParts[0], "ref: refs/heads/")
+		ref = strings.TrimSpace(ref)
+		if ref != "" {
+			return ref
+		}
+	}
+	return ""
 }
