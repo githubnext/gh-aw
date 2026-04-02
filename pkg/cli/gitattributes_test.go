@@ -42,31 +42,37 @@ func TestEnsureGitAttributes(t *testing.T) {
 		name            string
 		existingContent string
 		expectedContent string
+		expectUpdated   bool
 	}{
 		{
 			name:            "creates new gitattributes file",
 			existingContent: "",
 			expectedContent: ".github/workflows/*.lock.yml linguist-generated=true merge=ours",
+			expectUpdated:   true,
 		},
 		{
 			name:            "adds entry to existing file",
 			existingContent: "*.generated linguist-generated=true\n",
 			expectedContent: "*.generated linguist-generated=true\n\n.github/workflows/*.lock.yml linguist-generated=true merge=ours",
+			expectUpdated:   true,
 		},
 		{
 			name:            "does not duplicate existing entry",
 			existingContent: ".github/workflows/*.lock.yml linguist-generated=true merge=ours\n",
 			expectedContent: ".github/workflows/*.lock.yml linguist-generated=true merge=ours",
+			expectUpdated:   false,
 		},
 		{
 			name:            "does not duplicate entry with different order",
 			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto\n",
 			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto",
+			expectUpdated:   false,
 		},
 		{
 			name:            "updates old format entry",
 			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true\n*.txt text=auto\n",
 			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto",
+			expectUpdated:   true,
 		},
 	}
 
@@ -85,9 +91,13 @@ func TestEnsureGitAttributes(t *testing.T) {
 			}
 
 			// Call the function
-			err := ensureGitAttributes()
+			updated, err := ensureGitAttributes()
 			if err != nil {
 				t.Fatalf("ensureGitAttributes() returned error: %v", err)
+			}
+
+			if updated != tt.expectUpdated {
+				t.Errorf("ensureGitAttributes() updated=%v, want %v", updated, tt.expectUpdated)
 			}
 
 			// Check that file exists
@@ -116,6 +126,17 @@ func TestEnsureGitAttributes(t *testing.T) {
 			if strings.Contains(string(content), ".github/workflows/*.campaign.g.md") {
 				t.Errorf("Did not expect .gitattributes to contain '.github/workflows/*.campaign.g.md' (should be in .gitignore)")
 			}
+
+			// Verify that calling again when already up to date returns updated=false
+			if tt.expectUpdated {
+				updatedAgain, errAgain := ensureGitAttributes()
+				if errAgain != nil {
+					t.Fatalf("ensureGitAttributes() second call returned error: %v", errAgain)
+				}
+				if updatedAgain {
+					t.Errorf("ensureGitAttributes() second call updated=true, want false (already up to date)")
+				}
+			}
 		})
 	}
 }
@@ -142,7 +163,7 @@ func TestEnsureGitAttributesNotInGitRepo(t *testing.T) {
 	}
 
 	// Call ensureGitAttributes in non-git directory
-	err = ensureGitAttributes()
+	_, err = ensureGitAttributes()
 	if err == nil {
 		t.Errorf("Expected error when not in git repository, got nil")
 	}

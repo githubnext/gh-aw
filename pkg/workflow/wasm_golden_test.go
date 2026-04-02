@@ -3,22 +3,15 @@
 package workflow
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/exp/golden"
 	"github.com/stretchr/testify/require"
 )
-
-var updateGolden = flag.Bool("update", false, "update golden test files")
-
-// isUpdateMode checks if the -update flag was passed to regenerate golden files.
-func isUpdateMode() bool {
-	return *updateGolden
-}
 
 // TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API
 // (the same code path used by the wasm compiler) and compares against golden files.
@@ -33,16 +26,14 @@ func isUpdateMode() bool {
 func TestWasmGolden_CompileFixtures(t *testing.T) {
 	fixturesDir := filepath.Join("testdata", "wasm_golden", "fixtures")
 
-	// Change to fixtures dir so relative imports resolve correctly
 	origDir, err := os.Getwd()
 	require.NoError(t, err)
 	absFixturesDir, err := filepath.Abs(fixturesDir)
 	require.NoError(t, err)
-	err = os.Chdir(absFixturesDir)
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(origDir) }()
 
-	entries, err := os.ReadDir(".")
+	// Read fixture list using an absolute path so we don't need to change the
+	// working directory before the subtests start.
+	entries, err := os.ReadDir(absFixturesDir)
 	require.NoError(t, err, "failed to read fixtures directory")
 
 	var fixtures []string
@@ -53,12 +44,14 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 	}
 	require.NotEmpty(t, fixtures, "no .md fixtures found in %s", fixturesDir)
 
-	// Golden files are stored relative to the original test directory
-	goldenDir := filepath.Join(origDir, "testdata", "wasm_golden")
-
 	for _, fixture := range fixtures {
 		testName := strings.TrimSuffix(fixture, ".md")
 		t.Run(testName, func(t *testing.T) {
+			// Change to fixtures dir so relative imports resolve correctly during
+			// compilation. Cleanup always restores to origDir regardless of outcome.
+			require.NoError(t, os.Chdir(absFixturesDir))
+			t.Cleanup(func() { _ = os.Chdir(origDir) })
+
 			content, err := os.ReadFile(fixture)
 			require.NoError(t, err, "failed to read fixture %s", fixture)
 
@@ -85,18 +78,13 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 			}
 			require.NotEmpty(t, yamlOutput, "empty YAML output for %s", fixture)
 
-			// Compare against golden file (golden files stored in goldenDir)
-			goldenPath := filepath.Join(goldenDir, "TestWasmGolden_CompileFixtures", testName+".golden")
-			if isUpdateMode() {
-				dir := filepath.Dir(goldenPath)
-				require.NoError(t, os.MkdirAll(dir, 0o755))
-				// Normalize heredoc delimiters before writing so golden files are stable across compilations
-				require.NoError(t, os.WriteFile(goldenPath, []byte(normalizeHeredocDelimiters(yamlOutput)), 0o644))
-				return
-			}
-			expected, err := os.ReadFile(goldenPath)
-			require.NoError(t, err, "golden file not found for %s (run with -update to create)", fixture)
-			require.Equal(t, string(expected), normalizeHeredocDelimiters(yamlOutput), "output differs from golden for %s", fixture)
+			// Switch back to the package dir so golden.RequireEqual resolves
+			// testdata/ relative to the package root (not the fixtures dir).
+			require.NoError(t, os.Chdir(origDir))
+
+			// Normalize heredoc delimiters before comparing so golden files are
+			// stable across compilations (randomized token is replaced by a placeholder).
+			golden.RequireEqual(t, normalizeHeredocDelimiters(yamlOutput))
 		})
 	}
 }
