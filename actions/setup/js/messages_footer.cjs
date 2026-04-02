@@ -54,7 +54,7 @@ function getFooterMessage(ctx) {
     defaultFooter += " for issue #{triggering_number}";
   }
   // Append effective tokens with ● symbol when available
-  if (ctx.effectiveTokens && ctx.effectiveTokens > 0) {
+  if (ctx.effectiveTokens) {
     defaultFooter += ` · ● ${ctx.effectiveTokens.toLocaleString()} ET`;
   }
   // Append history link when available
