@@ -18,9 +18,9 @@ safe-outputs:
   messages:
     footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{history_link}"
     footer-workflow-recompile: "> 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*"
-    run-started: "🔍 [{workflow_name}]({run_url}) is searching the web on this {event_type}..."
+    run-started: "🔍 [{workflow_name}]({run_url}) is searching the web on this {event_type}."
     run-success: "✅ Research complete. [{workflow_name}]({run_url}) has returned with results."
-    run-failure: "❌ Search failed. [{workflow_name}]({run_url}) {status}. No web sources available."
+    run-failure: "❌ Search failed. [{workflow_name}]({run_url}) {status}. Unable to retrieve web sources."
 timeout-minutes: 10
 features:
   copilot-requests: true
