@@ -638,7 +638,7 @@ func applyImportSchemaDefaults(rawContent string, inputs map[string]any) map[str
 	}
 
 	// Copy the inputs map and add defaults for unprovided parameters.
-	augmented := make(map[string]any, len(inputs)+len(schemaMap))
+	augmented := make(map[string]any, len(inputs))
 	maps.Copy(augmented, inputs)
 	for paramName, paramDefRaw := range schemaMap {
 		if _, provided := augmented[paramName]; provided {
