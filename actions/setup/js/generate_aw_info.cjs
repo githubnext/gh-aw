@@ -86,7 +86,10 @@ async function main(core, ctx) {
     awInfo.cli_version = cliVersion;
   }
 
-  // Include custom token weights when set (engine.token-weights in workflow frontmatter)
+  // Include custom token weights when set (engine.token-weights in workflow frontmatter).
+  // Deep structure validation is intentionally minimal here: the JSON schema and Go parser
+  // already validate the structure at compile time. We only verify the top-level type to
+  // guard against unexpected env-var values at runtime.
   const tokenWeightsEnv = process.env.GH_AW_INFO_TOKEN_WEIGHTS;
   if (tokenWeightsEnv) {
     try {

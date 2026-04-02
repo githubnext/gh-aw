@@ -432,7 +432,10 @@ func parseRequestShape(requestObj map[string]any) *RequestShape {
 }
 
 // parseEngineTokenWeights converts a raw token-weights config value (from engine.token-weights)
-// into an EngineTokenWeights. Returns nil when the input is not a usable map.
+// into an EngineTokenWeights. Returns nil when the input is not a usable map or contains
+// no recognisable data. Multiplier values of unexpected numeric types (anything other than
+// float64, int, or uint64) are silently ignored — this matches the behaviour of the YAML
+// parser which produces float64 for JSON-number literals and integers for integer literals.
 func parseEngineTokenWeights(raw any) *EngineTokenWeights {
 	obj, ok := raw.(map[string]any)
 	if !ok {

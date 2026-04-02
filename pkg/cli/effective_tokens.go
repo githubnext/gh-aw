@@ -53,6 +53,9 @@ type tokenClassWeights struct {
 
 // customTokenClassWeights holds per-token-class weight overrides from aw_info.json.
 // The JSON keys use hyphens to match the frontmatter schema (engine.token-weights.token-class-weights).
+// A zero value for any field means "not set — use the built-in default" rather than
+// "weight is zero". This matches the convention in model_multipliers.json and means users
+// cannot explicitly request a zero weight through this mechanism.
 type customTokenClassWeights struct {
 	Input       float64 `json:"input"`
 	CachedInput float64 `json:"cached-input"`
@@ -66,9 +69,11 @@ type customTokenClassWeights struct {
 // compile time from the engine.token-weights frontmatter configuration.
 type CustomTokenWeights struct {
 	// Multipliers maps model names to cost multipliers (relative to reference model).
-	// Keys are matched case-insensitively with prefix matching as fallback.
+	// Keys are normalized to lowercase before being stored; matching is case-insensitive
+	// with longest-prefix fallback (e.g. "my-model-v2" matches "my-model" if present).
 	Multipliers map[string]float64 `json:"multipliers,omitempty"`
 	// TokenClassWeights overrides any or all per-token-class weights.
+	// A nil pointer means no overrides; individual zero fields mean "use default".
 	TokenClassWeights *customTokenClassWeights `json:"token-class-weights,omitempty"`
 }
 
