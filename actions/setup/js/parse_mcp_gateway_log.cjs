@@ -65,17 +65,15 @@ function parseTokenUsageJsonl(jsonlContent) {
       summary.totalDurationMs += entry.duration_ms || 0;
 
       const model = entry.model || "unknown";
-      if (!summary.byModel[model]) {
-        summary.byModel[model] = {
-          provider: entry.provider || "",
-          inputTokens: 0,
-          outputTokens: 0,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
-          requests: 0,
-          durationMs: 0,
-        };
-      }
+      summary.byModel[model] ??= {
+        provider: entry.provider || "",
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        requests: 0,
+        durationMs: 0,
+      };
       const m = summary.byModel[model];
       m.inputTokens += entry.input_tokens || 0;
       m.outputTokens += entry.output_tokens || 0;
@@ -146,10 +144,9 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     coreObj.debug(`No token-usage.jsonl found at: ${TOKEN_USAGE_PATH}`);
   } else {
     const content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
-    if (content && content.trim()) {
+    if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
-      const summary = parseTokenUsageJsonl(content);
-      const markdown = summary ? generateTokenUsageSummary(summary) : "";
+      const markdown = generateTokenUsageSummary(parseTokenUsageJsonl(content));
       if (markdown.length > 0) {
         coreObj.summary.addRaw(markdown);
       }
