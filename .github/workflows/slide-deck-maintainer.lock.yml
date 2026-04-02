@@ -885,7 +885,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: "gh-aw-conclusion-slide-deck-maintainer"
+      group: "gh-aw-conclusion-slide-deck-maintainer-${{ inputs.focus || github.run_id }}"
       cancel-in-progress: false
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
