@@ -346,13 +346,29 @@ on:
   reaction: "eyes"
 ```
 
-The reaction is added to the triggering item. For issues/PRs, a comment with the workflow run link is created. For comment events in command workflows, the comment is edited to include the run link.
+The reaction is added to the triggering item. Use `none` to disable reactions entirely.
 
 **Available reactions:** `+1` 👍, `-1` 👎, `laugh` 😄, `confused` 😕, `heart` ❤️, `hooray` 🎉, `rocket` 🚀, `eyes` 👀
 
+### Status Comments (`status-comment:`)
+
+Post a started/completed comment on the triggering item with a link to the workflow run:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  reaction: "eyes"
+  status-comment: true
+```
+
+When `status-comment: true`, the activation job posts a comment when the workflow starts and updates it when the run completes. This must be **explicitly enabled** — setting `reaction:` alone does not create status comments.
+
+To suppress status comments, omit `status-comment:` or set it to `false`.
+
 ### Activation Token (`on.github-token:`, `on.github-app:`)
 
-Configure a custom GitHub token or GitHub App for the activation job **and all skip-if search checks**. The activation job posts the initial reaction and status comment on the triggering item, and skip-if checks use the same token to query the GitHub Search API. By default all of these operations use the workflow's `GITHUB_TOKEN`.
+Configure a custom GitHub token or GitHub App for the activation job **and all skip-if search checks**. The activation job posts the initial reaction (and status comment if `status-comment: true`) on the triggering item, and skip-if checks use the same token to query the GitHub Search API. By default all of these operations use the workflow's `GITHUB_TOKEN`.
 
 Use `github-token:` to supply a PAT or custom token:
 
@@ -376,7 +392,7 @@ on:
     private-key: ${{ secrets.APP_KEY }}
 ```
 
-The `github-app` object accepts the same fields as the GitHub App configuration used elsewhere in the framework (`app-id`, `private-key`, and optionally `owner` and `repositories`). The token is minted once in the pre-activation job and is shared across the reaction step, the status comment step, and any skip-if search steps.
+The `github-app` object accepts the same fields as the GitHub App configuration used elsewhere in the framework (`app-id`, `private-key`, and optionally `owner` and `repositories`). The token is minted once in the pre-activation job and is shared across the reaction step, the status comment step (if `status-comment: true`), and any skip-if search steps.
 
 Both `github-token` and `github-app` can be defined in a **shared agentic workflow** and will be automatically inherited by any workflow that imports it (first-wins strategy). This means a central CentralRepoOps shared workflow can define the app config once and all importing workflows benefit automatically:
 
