@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { defaultTokenClassWeights, getTokenClassWeights, getModelMultiplier, computeBaseWeightedTokens, computeEffectiveTokens, _resetCache } = require("./effective_tokens.cjs");
+const { defaultTokenClassWeights, getTokenClassWeights, getModelMultiplier, computeBaseWeightedTokens, computeEffectiveTokens, formatET, _resetCache } = require("./effective_tokens.cjs");
 
 // Model multipliers JSON used in tests (matches pkg/cli/data/model_multipliers.json)
 const TEST_MULTIPLIERS_JSON = JSON.stringify({
@@ -298,6 +298,34 @@ describe("effective_tokens", () => {
       // Should not throw or cause inconsistencies
       expect(getModelMultiplier("model-a")).toBe(2.0);
       expect(getModelMultiplier("model-b")).toBe(1.0);
+    });
+  });
+
+  describe("formatET", () => {
+    test("returns exact string for values under 1000", () => {
+      expect(formatET(0)).toBe("0");
+      expect(formatET(1)).toBe("1");
+      expect(formatET(900)).toBe("900");
+      expect(formatET(999)).toBe("999");
+    });
+
+    test("formats values in the thousands as K", () => {
+      expect(formatET(1000)).toBe("1K");
+      expect(formatET(1200)).toBe("1.2K");
+      expect(formatET(12345)).toBe("12.3K");
+      expect(formatET(450000)).toBe("450K");
+      expect(formatET(999999)).toBe("1000K");
+    });
+
+    test("formats values in the millions as M", () => {
+      expect(formatET(1_000_000)).toBe("1M");
+      expect(formatET(1_200_000)).toBe("1.2M");
+      expect(formatET(12_345_678)).toBe("12.3M");
+    });
+
+    test("omits trailing .0 in K/M format", () => {
+      expect(formatET(2000)).toBe("2K");
+      expect(formatET(5_000_000)).toBe("5M");
     });
   });
 });

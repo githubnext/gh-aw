@@ -42,8 +42,8 @@ function defaultTokenClassWeights() {
 
 /**
  * Loads and parses the model multipliers from the GH_AW_MODEL_MULTIPLIERS env var.
- * Caches the result after first parse. Returns null if not available or invalid.
- * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null}
+ * Caches the result after first parse (including null when unavailable). Returns null if not available or invalid.
+ * @returns {{ token_class_weights: { input: number, cached_input: number, output: number, reasoning: number, cache_write: number }, multipliers: Record<string, number> } | null | undefined}
  */
 function getMultipliersData() {
   if (_parsedMultipliers !== undefined) {
@@ -71,7 +71,8 @@ function getMultipliersData() {
         weights[key] = defaults[key];
       }
     }
-    const multipliers = /** @type {Record<string, number>} */ {};
+    /** @type {Record<string, number>} */
+    const multipliers = {};
     for (const [model, mult] of Object.entries(parsed.multipliers || {})) {
       multipliers[model.toLowerCase()] = Number(mult);
     }
@@ -183,6 +184,23 @@ function computeEffectiveTokens(model, inputTokens, outputTokens, cacheReadToken
 }
 
 /**
+ * Formats an ET number in a compact, human-readable form.
+ *
+ * Ranges:
+ *   < 1,000        → exact integer (e.g. "900")
+ *   1,000–999,999  → Xk with one decimal when non-zero (e.g. "1.2K", "450K")
+ *   >= 1,000,000   → Xm with one decimal when non-zero (e.g. "1.2M", "3M")
+ *
+ * @param {number} n - Non-negative ET value (should be rounded before passing)
+ * @returns {string} Compact string representation
+ */
+function formatET(n) {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+}
+
+/**
  * Resets the cached multipliers (for testing purposes).
  * @internal
  */
@@ -196,5 +214,6 @@ module.exports = {
   getModelMultiplier,
   computeBaseWeightedTokens,
   computeEffectiveTokens,
+  formatET,
   _resetCache,
 };

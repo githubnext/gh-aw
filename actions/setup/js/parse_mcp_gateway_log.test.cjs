@@ -1048,13 +1048,14 @@ not-json
       expect(md).toContain("| ET |");
     });
 
-    test("shows ● ET footer line when effective tokens > 0", () => {
+    test("shows ● footer line when effective tokens > 0", () => {
       const content = JSON.stringify({ model: "m", input_tokens: 100, output_tokens: 200, cache_read_tokens: 0, cache_write_tokens: 0, duration_ms: 1000 });
       const summary = parseTokenUsageJsonl(content);
       expect(summary.totalEffectiveTokens).toBeGreaterThan(0);
       const md = generateTokenUsageSummary(summary);
+      // Column header still says ET; footer uses compact ● symbol only
+      expect(md).toContain("| ET |");
       expect(md).toContain("●");
-      expect(md).toContain("ET");
     });
 
     test("includes cache efficiency after ● ET in footer line", () => {

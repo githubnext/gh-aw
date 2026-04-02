@@ -5,7 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
-const { computeEffectiveTokens, getTokenClassWeights } = require("./effective_tokens.cjs");
+const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./effective_tokens.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -136,13 +136,13 @@ function generateTokenUsageSummary(summary) {
   });
 
   for (const [model, usage] of models) {
-    const et = Math.round(usage.effectiveTokens || 0).toLocaleString();
+    const et = formatET(Math.round(usage.effectiveTokens || 0));
     lines.push(
       `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${et} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
     );
   }
 
-  const totalET = Math.round(summary.totalEffectiveTokens || 0).toLocaleString();
+  const totalET = formatET(Math.round(summary.totalEffectiveTokens || 0));
   lines.push(
     `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${totalET}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
@@ -150,7 +150,7 @@ function generateTokenUsageSummary(summary) {
   // Footer line with ET summary using ● symbol and optional cache efficiency
   const footerParts = [];
   if (summary.totalEffectiveTokens > 0) {
-    footerParts.push(`● ${Math.round(summary.totalEffectiveTokens).toLocaleString()} ET`);
+    footerParts.push(`● ${formatET(Math.round(summary.totalEffectiveTokens))}`);
   }
   if (summary.cacheEfficiency > 0) {
     footerParts.push(`Cache efficiency: ${(summary.cacheEfficiency * 100).toFixed(1)}%`);

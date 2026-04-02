@@ -12,6 +12,7 @@ const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cj
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
+const { formatET } = require("./effective_tokens.cjs");
 
 /**
  * @typedef {Object} FooterContext
@@ -23,7 +24,7 @@ const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gatewa
  * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
  * @property {string} [historyUrl] - GitHub search URL for items created by this workflow (for the history link)
  * @property {string} [historyLink] - Pre-formatted markdown history link (e.g. " · [◷](url)"), or "" if unavailable
- * @property {number} [effectiveTokens] - Total effective token count for the run (shown as ● N ET when > 0)
+ * @property {number} [effectiveTokens] - Total effective token count for the run (shown as ● N when > 0, in compact format)
  */
 
 /**
@@ -53,9 +54,9 @@ function getFooterMessage(ctx) {
   if (ctx.triggeringNumber) {
     defaultFooter += " for issue #{triggering_number}";
   }
-  // Append effective tokens with ● symbol when available
+  // Append effective tokens with ● symbol when available (compact format, no "ET" label)
   if (ctx.effectiveTokens) {
-    defaultFooter += ` · ● ${ctx.effectiveTokens.toLocaleString()} ET`;
+    defaultFooter += ` · ● ${formatET(ctx.effectiveTokens)}`;
   }
   // Append history link when available
   if (ctx.historyUrl) {
