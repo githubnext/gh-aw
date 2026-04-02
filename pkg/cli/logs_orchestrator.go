@@ -72,7 +72,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	if timeout > 0 {
 		startTime = time.Now()
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d seconds", timeout)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeout)))
 		}
 	}
 
@@ -98,7 +98,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		// Check timeout if specified
 		if timeout > 0 {
 			elapsed := time.Since(startTime).Seconds()
-			if elapsed >= float64(timeout) {
+			if elapsed >= float64(timeout)*60 {
 				timeoutReached = true
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", elapsed)))
