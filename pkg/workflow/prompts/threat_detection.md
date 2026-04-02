@@ -22,6 +22,17 @@ The agent output has been saved to the following file (if any):
 
 Read and analyze this file to check for security threats.
 
+## Codebase Context (when patch is present)
+
+When a patch or bundle file is provided above, the full repository source is available at the runner workspace (`$GITHUB_WORKSPACE`). Use it to understand the broader context of the changes:
+
+- Review the files modified by the patch in their surrounding context to distinguish legitimate patterns from suspicious ones
+- Check existing dependency manifests (e.g. `go.mod`, `package.json`, `requirements.txt`) to determine whether newly introduced packages are already trusted in the project
+- Inspect calling code and module structure to distinguish novel patterns from established conventions
+- Examine the repository directory structure to understand the project type and conventions
+
+If the workspace is not available (no patch was produced), skip this section and analyze only the agent output file above.
+
 ## Code Changes (Patch or Bundle)
 The following code changes were made by the agent (if any):
 

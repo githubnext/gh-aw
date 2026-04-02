@@ -434,29 +434,18 @@ func extractAddDirPaths(args []string) []string {
 	return dirs
 }
 
-// generateCopilotSessionFileCopyStep generates a step to copy Copilot session state files
-// from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
-// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them
+// generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot
+// session-state directory from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
+// This ensures all session files (events.jsonl, session.db, plan.md, checkpoints, etc.)
+// are in /tmp/gh-aw/ where secret redaction can scan them and they get uploaded as artifacts.
+// The logic is in actions/setup/sh/copy_copilot_session_state.sh.
 func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	var step []string
 
 	step = append(step, "      - name: Copy Copilot session state files to logs")
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: |")
-	step = append(step, "          # Copy Copilot session state files to logs folder for artifact collection")
-	step = append(step, "          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them")
-	step = append(step, "          SESSION_STATE_DIR=\"$HOME/.copilot/session-state\"")
-	step = append(step, "          LOGS_DIR=\"/tmp/gh-aw/sandbox/agent/logs\"")
-	step = append(step, "          ")
-	step = append(step, "          if [ -d \"$SESSION_STATE_DIR\" ]; then")
-	step = append(step, "            echo \"Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR\"")
-	step = append(step, "            mkdir -p \"$LOGS_DIR\"")
-	step = append(step, "            cp -v \"$SESSION_STATE_DIR\"/*.jsonl \"$LOGS_DIR/\" 2>/dev/null || true")
-	step = append(step, "            echo \"Session state files copied successfully\"")
-	step = append(step, "          else")
-	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")
-	step = append(step, "          fi")
+	step = append(step, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh")
 
 	return GitHubActionStep(step)
 }

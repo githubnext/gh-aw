@@ -41,6 +41,7 @@ type AuditData struct {
 	MissingData             []MissingDataReport      `json:"missing_data,omitempty"`
 	Noops                   []NoopReport             `json:"noops,omitempty"`
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures,omitempty"`
+	FirewallTokenUsage      *TokenUsageSummary       `json:"firewall_token_usage,omitempty"`
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
 	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis,omitempty"`
@@ -365,6 +366,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		MissingData:             processedRun.MissingData,
 		Noops:                   processedRun.Noops,
 		MCPFailures:             processedRun.MCPFailures,
+		FirewallTokenUsage:      processedRun.TokenUsage,
 		FirewallAnalysis:        processedRun.FirewallAnalysis,
 		PolicyAnalysis:          processedRun.PolicyAnalysis,
 		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,

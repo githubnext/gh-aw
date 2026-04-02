@@ -39,23 +39,13 @@ func TestCopilotSessionFileCopyStep(t *testing.T) {
 		t.Error("Expected step to have 'continue-on-error: true'")
 	}
 
-	// Verify source directory reference
-	if !strings.Contains(stepContent, "$HOME/.copilot/session-state") {
-		t.Error("Expected step to reference '$HOME/.copilot/session-state' directory")
+	// Verify it delegates to the external shell script
+	if !strings.Contains(stepContent, "copy_copilot_session_state.sh") {
+		t.Error("Expected step to invoke copy_copilot_session_state.sh")
 	}
 
-	// Verify target directory reference
-	if !strings.Contains(stepContent, "/tmp/gh-aw/sandbox/agent/logs") {
-		t.Error("Expected step to reference '/tmp/gh-aw/sandbox/agent/logs' directory")
-	}
-
-	// Verify .jsonl file copy
-	if !strings.Contains(stepContent, "*.jsonl") {
-		t.Error("Expected step to copy *.jsonl files")
-	}
-
-	// Verify cp command
-	if !strings.Contains(stepContent, "cp -v") {
-		t.Error("Expected step to use 'cp -v' command")
+	// Verify it uses the RUNNER_TEMP-based actions path
+	if !strings.Contains(stepContent, "${RUNNER_TEMP}/gh-aw/actions/") {
+		t.Error("Expected step to reference script via ${RUNNER_TEMP}/gh-aw/actions/")
 	}
 }

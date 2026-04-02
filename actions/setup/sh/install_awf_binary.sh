@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
-# Install AWF (Agentic Workflow Firewall) binary with SHA256 checksum verification
+# Install AWF (Agentic Workflow Firewall) with SHA256 checksum verification
 # Usage: install_awf_binary.sh VERSION
 #
-# This script downloads the AWF binary directly from GitHub releases and verifies
+# This script downloads the AWF bundle or binary from GitHub releases and verifies
 # its SHA256 checksum before installation to protect against supply chain attacks.
 #
 # Arguments:
-#   VERSION - AWF version to install (e.g., v0.10.0)
+#   VERSION - AWF version to install (e.g., v0.25.10)
 #
-# Platform support:
+# Install strategy:
+#   1. If Node.js >= 20 is available, download the lightweight awf-bundle.js (~357KB)
+#   2. Otherwise, fall back to platform-specific pkg binary (~50MB)
+#
+# Platform support (fallback binary):
 #   - Linux (x64, arm64): Downloads pre-built binary
 #   - macOS (x64, arm64): Downloads pre-built binary
 #
 # Security features:
-#   - Downloads binary directly from GitHub releases
+#   - Downloads directly from GitHub releases
 #   - Verifies SHA256 checksum against official checksums.txt
 #   - Fails fast if checksum verification fails
 #   - Eliminates trust dependency on installer scripts
@@ -25,6 +29,7 @@ AWF_VERSION="${1:-}"
 AWF_REPO="github/gh-aw-firewall"
 AWF_INSTALL_DIR="/usr/local/bin"
 AWF_INSTALL_NAME="awf"
+AWF_LIB_DIR="/usr/local/lib/awf"
 
 if [ -z "$AWF_VERSION" ]; then
   echo "ERROR: AWF version is required"
@@ -72,7 +77,7 @@ verify_checksum() {
 
   if [ -z "$EXPECTED_CHECKSUM" ]; then
     echo "ERROR: Could not find checksum for ${fname} in checksums.txt"
-    exit 1
+    return 1
   fi
 
   ACTUAL_CHECKSUM=$(sha256_hash "$file" | tr 'A-F' 'a-f')
@@ -82,10 +87,54 @@ verify_checksum() {
     echo "  Expected: $EXPECTED_CHECKSUM"
     echo "  Got:      $ACTUAL_CHECKSUM"
     echo "  The downloaded file may be corrupted or tampered with"
-    exit 1
+    return 1
   fi
 
   echo "✓ Checksum verification passed for ${fname}"
+}
+
+# Check if Node.js >= 20 is available
+has_node_20() {
+  if ! command -v node &>/dev/null; then
+    return 1
+  fi
+  local node_major
+  node_major=$(node --version | sed 's/^v//' | cut -d. -f1)
+  if [ "$node_major" -ge 20 ] 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+install_bundle() {
+  local bundle_name="awf-bundle.js"
+  local bundle_url="${BASE_URL}/${bundle_name}"
+
+  echo "Node.js >= 20 detected ($(node --version)), using lightweight bundle..."
+  echo "Downloading bundle from ${bundle_url@Q}..."
+  if ! curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
+    echo "⚠ Bundle download failed (asset may not exist for this version)"
+    return 1
+  fi
+
+  # Verify checksum
+  if ! verify_checksum "${TEMP_DIR}/${bundle_name}" "${bundle_name}"; then
+    echo "⚠ Bundle checksum verification failed"
+    return 1
+  fi
+
+  # Install bundle to lib directory
+  sudo mkdir -p "${AWF_LIB_DIR}"
+  sudo cp "${TEMP_DIR}/${bundle_name}" "${AWF_LIB_DIR}/${bundle_name}"
+
+  # Create wrapper script
+  sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<'WRAPPER'
+#!/bin/bash
+exec node /usr/local/lib/awf/awf-bundle.js "$@"
+WRAPPER
+  sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
+
+  echo "✓ Installed awf bundle to ${AWF_LIB_DIR}/${bundle_name}"
 }
 
 install_linux_binary() {
@@ -134,18 +183,31 @@ install_darwin_binary() {
   sudo mv "${TEMP_DIR}/${awf_binary}" "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 }
 
-case "$OS" in
-  Linux)
-    install_linux_binary
-    ;;
-  Darwin)
-    install_darwin_binary
-    ;;
-  *)
-    echo "ERROR: Unsupported operating system: ${OS}"
-    exit 1
-    ;;
-esac
+install_platform_binary() {
+  case "$OS" in
+    Linux)
+      install_linux_binary
+      ;;
+    Darwin)
+      install_darwin_binary
+      ;;
+    *)
+      echo "ERROR: Unsupported operating system: ${OS}"
+      exit 1
+      ;;
+  esac
+}
+
+# Try lightweight bundle first, fall back to platform binary
+if has_node_20; then
+  if ! install_bundle; then
+    echo "⚠ Bundle install failed, falling back to platform binary..."
+    install_platform_binary
+  fi
+else
+  echo "Node.js >= 20 not available, falling back to platform binary..."
+  install_platform_binary
+fi
 
 # Verify installation
 which awf

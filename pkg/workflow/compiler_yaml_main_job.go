@@ -445,6 +445,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
+	if isFirewallEnabled(data) {
+		c.generateTokenUsageSummary(yaml)
+	}
+
 	// Optionally synthesize a compact observability section from runtime artifacts.
 	c.generateObservabilitySummary(yaml, data)
 

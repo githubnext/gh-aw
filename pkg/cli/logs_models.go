@@ -83,6 +83,7 @@ type ProcessedRun struct {
 	Noops                   []NoopReport
 	MCPFailures             []MCPFailureReport
 	MCPToolUsage            *MCPToolUsageData
+	TokenUsage              *TokenUsageSummary
 	JobDetails              []JobInfoWithDuration
 }
 
@@ -198,6 +199,7 @@ type RunSummary struct {
 	Noops                   []NoopReport             `json:"noops"`                          // Noop messages
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures"`                   // MCP server failures
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`       // MCP tool usage data
+	TokenUsage              *TokenUsageSummary       `json:"token_usage_summary,omitempty"`  // Token usage from firewall proxy
 	ArtifactsList           []string                 `json:"artifacts_list"`                 // List of downloaded artifact files
 	JobDetails              []JobInfoWithDuration    `json:"job_details"`                    // Job execution details
 }
@@ -218,6 +220,7 @@ type DownloadResult struct {
 	Noops                   []NoopReport
 	MCPFailures             []MCPFailureReport
 	MCPToolUsage            *MCPToolUsageData
+	TokenUsage              *TokenUsageSummary
 	JobDetails              []JobInfoWithDuration
 	Error                   error
 	Skipped                 bool
