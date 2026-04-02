@@ -373,5 +373,32 @@ describe("github_api_helpers.cjs", () => {
 
       expect(result).toBe("DC_unknown123");
     });
+
+    it("should return null without calling graphql when commentNodeId is null", async () => {
+      const mockGraphql = vi.fn();
+
+      const result = await resolveTopLevelDiscussionCommentId({ graphql: mockGraphql }, null);
+
+      expect(result).toBeNull();
+      expect(mockGraphql).not.toHaveBeenCalled();
+    });
+
+    it("should return undefined without calling graphql when commentNodeId is undefined", async () => {
+      const mockGraphql = vi.fn();
+
+      const result = await resolveTopLevelDiscussionCommentId({ graphql: mockGraphql }, undefined);
+
+      expect(result).toBeUndefined();
+      expect(mockGraphql).not.toHaveBeenCalled();
+    });
+
+    it("should return the original node ID and log error when graphql throws", async () => {
+      const mockGraphql = vi.fn().mockRejectedValueOnce(new Error("GraphQL network error"));
+
+      const result = await resolveTopLevelDiscussionCommentId({ graphql: mockGraphql }, "DC_fallback123");
+
+      expect(result).toBe("DC_fallback123");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resolving top-level discussion comment"));
+    });
   });
 });

@@ -155,19 +155,24 @@ async function resolveTopLevelDiscussionCommentId(github, commentNodeId) {
   if (!commentNodeId) {
     return commentNodeId;
   }
-  const result = await github.graphql(
-    `query($nodeId: ID!) {
-      node(id: $nodeId) {
-        ... on DiscussionComment {
-          replyTo {
-            id
+  try {
+    const result = await github.graphql(
+      `query($nodeId: ID!) {
+        node(id: $nodeId) {
+          ... on DiscussionComment {
+            replyTo {
+              id
+            }
           }
         }
-      }
-    }`,
-    { nodeId: commentNodeId }
-  );
-  return result?.node?.replyTo?.id ?? commentNodeId;
+      }`,
+      { nodeId: commentNodeId }
+    );
+    return result?.node?.replyTo?.id ?? commentNodeId;
+  } catch (error) {
+    logGraphQLError(/** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown, status?: number }} */ error, "resolving top-level discussion comment");
+    return commentNodeId;
+  }
 }
 
 module.exports = {
