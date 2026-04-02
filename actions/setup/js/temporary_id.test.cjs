@@ -177,6 +177,16 @@ describe("temporary_id.cjs", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_toolongname123"));
     });
+
+    it("should warn about malformed temporary ID reference containing a hyphen", async () => {
+      const { replaceTemporaryIdReferences } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_test-id for details";
+      const result = replaceTemporaryIdReferences(text, map, "owner/repo");
+      expect(result).toBe("Check #aw_test-id for details");
+      expect(mockCore.warning).toHaveBeenCalledOnce();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_test-id"));
+    });
   });
 
   describe("getOrGenerateTemporaryId", () => {

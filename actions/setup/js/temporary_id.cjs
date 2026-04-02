@@ -30,10 +30,12 @@ const crypto = require("crypto");
 const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9_]{3,12})\b/gi;
 
 /**
- * Regex pattern for detecting candidate #aw_ references (any length, word-boundary delimited)
- * Used to identify malformed temporary ID references that don't match TEMPORARY_ID_PATTERN
+ * Regex pattern for detecting candidate #aw_ references (any alphanumeric, underscore, or hyphen content)
+ * Used to identify malformed temporary ID references that don't match TEMPORARY_ID_PATTERN.
+ * Uses a broader character set (including hyphens) than the valid pattern to capture the full token
+ * and warn about references like #aw_test-id where the hyphen makes the whole token invalid.
  */
-const TEMPORARY_ID_CANDIDATE_PATTERN = /#aw_([A-Za-z0-9_]+)\b/gi;
+const TEMPORARY_ID_CANDIDATE_PATTERN = /#aw_([A-Za-z0-9_-]+)/gi;
 
 /**
  * @typedef {Object} RepoIssuePair
