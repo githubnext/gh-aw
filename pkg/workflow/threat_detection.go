@@ -36,7 +36,9 @@ func IsDetectionJobEnabled(so *SafeOutputsConfig) bool {
 }
 
 // isThreatDetectionExplicitlyDisabledInConfigs checks whether any of the provided
-// safe-outputs config JSON strings has threat-detection explicitly set to false.
+// safe-outputs config JSON strings has threat-detection explicitly set to disabled.
+// Supports both the boolean form (threat-detection: false) and the object form
+// (threat-detection: { enabled: false }), mirroring parseThreatDetectionConfig.
 // This is used to determine whether the default detection should be applied when
 // safe-outputs comes from imports/includes (i.e. no safe-outputs: section in the
 // main workflow frontmatter).
@@ -50,10 +52,17 @@ func isThreatDetectionExplicitlyDisabledInConfigs(configs []string) bool {
 			continue
 		}
 		if tdVal, exists := config["threat-detection"]; exists {
-			// tdBool is the raw bool value of the threat-detection key.
-			// When threat-detection: false, tdBool == false, so !tdBool == true → disabled.
+			// Boolean form: threat-detection: false
 			if tdBool, ok := tdVal.(bool); ok && !tdBool {
 				return true
+			}
+			// Object form: threat-detection: { enabled: false }
+			if tdMap, ok := tdVal.(map[string]any); ok {
+				if enabled, exists := tdMap["enabled"]; exists {
+					if enabledBool, ok := enabled.(bool); ok && !enabledBool {
+						return true
+					}
+				}
 			}
 		}
 	}

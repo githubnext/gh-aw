@@ -405,6 +405,16 @@ func TestIsThreatDetectionExplicitlyDisabledInConfigs(t *testing.T) {
 			expected: false,
 		},
 		{
+			name:     "config with threat-detection object and enabled: false",
+			configs:  []string{`{"create-issue": {"max": 1}, "threat-detection": {"enabled": false}}`},
+			expected: true,
+		},
+		{
+			name:     "config with threat-detection object and enabled: true",
+			configs:  []string{`{"create-issue": {"max": 1}, "threat-detection": {"enabled": true}}`},
+			expected: false,
+		},
+		{
 			name:     "multiple configs, one has false",
 			configs:  []string{`{"create-issue": {"max": 1}}`, `{"create-discussion": {"max": 1}, "threat-detection": false}`},
 			expected: true,
@@ -620,5 +630,65 @@ Test that safe_outputs depends on detection when safe-outputs comes from imports
 	}
 	if !strings.Contains(safeOutputsSection, "detection.result == 'success'") {
 		t.Error("Expected safe_outputs job to gate on detection.result == 'success'")
+	}
+}
+
+// TestDefaultThreatDetectionNotAppliedWhenImportedConfigObjectFormDisables verifies that
+// when an imported config disables detection via the object form (threat-detection: { enabled: false }),
+// the default is NOT applied — mirroring parseThreatDetectionConfig's object-form support.
+func TestDefaultThreatDetectionNotAppliedWhenImportedConfigObjectFormDisables(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Shared workflow disables threat detection using the object form
+	sharedWorkflow := `---
+safe-outputs:
+  create-issue:
+    max: 1
+  threat-detection:
+    enabled: false
+---
+
+# Shared Safe Outputs (detection disabled via object form)
+`
+	sharedFile := filepath.Join(workflowsDir, "shared-no-detection-obj.md")
+	if err := os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Main workflow has NO safe-outputs: section
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-no-detection-obj.md
+---
+
+# Workflow with detection disabled via object form in import
+`
+	mainFile := filepath.Join(workflowsDir, "no-detection-obj.md")
+	if err := os.WriteFile(mainFile, []byte(mainWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write main file: %v", err)
+	}
+
+	// Parse the main workflow
+	workflowData, err := compiler.ParseWorkflowFile(mainFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected SafeOutputs to be non-nil after importing shared safe-outputs config")
+	}
+
+	// When imported config uses { enabled: false }, the default should NOT be applied.
+	if workflowData.SafeOutputs.ThreatDetection != nil {
+		t.Error("Expected ThreatDetection to be nil (disabled) when imported config uses threat-detection: { enabled: false }")
 	}
 }
