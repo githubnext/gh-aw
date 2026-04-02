@@ -2,8 +2,8 @@
 description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
 on:
   schedule:
-    # Daily at 3pm UTC, weekdays only
-    - cron: "0 15 * * 1-5"
+    # ~3 PM UTC, weekdays only (scattered to avoid thundering herd)
+    - cron: "daily around 15:00 on weekdays"
   workflow_dispatch:
 
 permissions:

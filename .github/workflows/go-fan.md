@@ -3,7 +3,7 @@ name: Go Fan
 description: Daily Go module usage reviewer - analyzes direct dependencies prioritizing recently updated ones
 on:
   schedule:
-    - cron: "0 7 * * 1-5"  # Weekdays at 7 AM UTC
+    - cron: "daily around 7:00 on weekdays"  # ~7 AM UTC weekdays
   workflow_dispatch:
 
 permissions:

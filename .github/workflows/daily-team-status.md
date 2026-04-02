@@ -3,7 +3,7 @@ timeout-minutes: 10
 strict: true
 on:
   schedule:
-  - cron: 0 9 * * 1-5
+  - cron: "daily around 9:00 on weekdays"
   stop-after: +1mo
   workflow_dispatch: null
 permissions:

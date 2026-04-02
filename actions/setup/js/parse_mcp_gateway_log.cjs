@@ -5,6 +5,7 @@ const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
+const { computeEffectiveTokens, getTokenClassWeights, formatET } = require("./effective_tokens.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -34,8 +35,9 @@ function formatDurationMs(ms) {
 
 /**
  * Parses token-usage.jsonl content and returns an aggregated summary.
+ * Computes effective tokens (ET) per model using the GH_AW_MODEL_MULTIPLIERS env var.
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, byModel: Object} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, totalEffectiveTokens: number, byModel: Object} | null}
  */
 function parseTokenUsageJsonl(jsonlContent) {
   const summary = {
@@ -46,6 +48,7 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalRequests: 0,
     totalDurationMs: 0,
     cacheEfficiency: 0,
+    totalEffectiveTokens: 0,
     byModel: {},
   };
 
@@ -57,10 +60,15 @@ function parseTokenUsageJsonl(jsonlContent) {
       const entry = JSON.parse(trimmed);
       if (!entry || typeof entry !== "object") continue;
 
-      summary.totalInputTokens += entry.input_tokens || 0;
-      summary.totalOutputTokens += entry.output_tokens || 0;
-      summary.totalCacheReadTokens += entry.cache_read_tokens || 0;
-      summary.totalCacheWriteTokens += entry.cache_write_tokens || 0;
+      const inputTokens = entry.input_tokens || 0;
+      const outputTokens = entry.output_tokens || 0;
+      const cacheReadTokens = entry.cache_read_tokens || 0;
+      const cacheWriteTokens = entry.cache_write_tokens || 0;
+
+      summary.totalInputTokens += inputTokens;
+      summary.totalOutputTokens += outputTokens;
+      summary.totalCacheReadTokens += cacheReadTokens;
+      summary.totalCacheWriteTokens += cacheWriteTokens;
       summary.totalRequests++;
       summary.totalDurationMs += entry.duration_ms || 0;
 
@@ -73,12 +81,13 @@ function parseTokenUsageJsonl(jsonlContent) {
         cacheWriteTokens: 0,
         requests: 0,
         durationMs: 0,
+        effectiveTokens: 0,
       };
       const m = summary.byModel[model];
-      m.inputTokens += entry.input_tokens || 0;
-      m.outputTokens += entry.output_tokens || 0;
-      m.cacheReadTokens += entry.cache_read_tokens || 0;
-      m.cacheWriteTokens += entry.cache_write_tokens || 0;
+      m.inputTokens += inputTokens;
+      m.outputTokens += outputTokens;
+      m.cacheReadTokens += cacheReadTokens;
+      m.cacheWriteTokens += cacheWriteTokens;
       m.requests++;
       m.durationMs += entry.duration_ms || 0;
     } catch {
@@ -93,12 +102,22 @@ function parseTokenUsageJsonl(jsonlContent) {
     summary.cacheEfficiency = summary.totalCacheReadTokens / totalInputPlusCacheRead;
   }
 
+  // Compute effective tokens per model and aggregate total
+  let totalEffectiveTokens = 0;
+  for (const [model, usage] of Object.entries(summary.byModel)) {
+    const et = computeEffectiveTokens(model, usage.inputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens);
+    usage.effectiveTokens = et;
+    totalEffectiveTokens += et;
+  }
+  summary.totalEffectiveTokens = totalEffectiveTokens;
+
   return summary;
 }
 
 /**
  * Generates a markdown summary section for token usage data.
- * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, byModel: Object} | null} summary
+ * Includes an Effective Tokens (ET) column per model and a ● ET summary line.
+ * @param {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, cacheEfficiency: number, totalEffectiveTokens: number, byModel: Object} | null} summary
  * @returns {string} Markdown section, or empty string if no data
  */
 function generateTokenUsageSummary(summary) {
@@ -106,8 +125,8 @@ function generateTokenUsageSummary(summary) {
 
   const lines = [];
   lines.push("### 📊 Token Usage\n");
-  lines.push("| Model | Input | Output | Cache Read | Cache Write | Requests | Duration |");
-  lines.push("|-------|------:|-------:|-----------:|------------:|---------:|---------:|");
+  lines.push("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
+  lines.push("|-------|------:|-------:|-----------:|------------:|---:|---------:|---------:|");
 
   // Sort models by total tokens descending
   const models = Object.entries(summary.byModel).sort(([, a], [, b]) => {
@@ -117,17 +136,30 @@ function generateTokenUsageSummary(summary) {
   });
 
   for (const [model, usage] of models) {
+    const et = formatET(Math.round(usage.effectiveTokens || 0));
     lines.push(
-      `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
+      `| ${model} | ${usage.inputTokens.toLocaleString()} | ${usage.outputTokens.toLocaleString()} | ${usage.cacheReadTokens.toLocaleString()} | ${usage.cacheWriteTokens.toLocaleString()} | ${et} | ${usage.requests} | ${formatDurationMs(usage.durationMs)} |`
     );
   }
 
+  const totalET = formatET(Math.round(summary.totalEffectiveTokens || 0));
   lines.push(
-    `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
+    `| **Total** | **${summary.totalInputTokens.toLocaleString()}** | **${summary.totalOutputTokens.toLocaleString()}** | **${summary.totalCacheReadTokens.toLocaleString()}** | **${summary.totalCacheWriteTokens.toLocaleString()}** | **${totalET}** | **${summary.totalRequests}** | **${formatDurationMs(summary.totalDurationMs)}** |`
   );
 
+  // Footer line with ET summary using ● symbol and optional cache efficiency
+  const footerParts = [];
+  if (summary.totalEffectiveTokens > 0) {
+    footerParts.push(`● ${formatET(Math.round(summary.totalEffectiveTokens))}`);
+  }
   if (summary.cacheEfficiency > 0) {
-    lines.push(`\n_Cache efficiency: ${(summary.cacheEfficiency * 100).toFixed(1)}%_`);
+    footerParts.push(`Cache efficiency: ${(summary.cacheEfficiency * 100).toFixed(1)}%`);
+  }
+  if (footerParts.length > 0) {
+    lines.push(`\n_${footerParts.join(" · ")}_`);
+    // Disclose the token class weights used to compute ET (required by the ET spec)
+    const w = getTokenClassWeights();
+    lines.push(`<sub>ET weights: input=${w.input} · cached_input=${w.cached_input} · output=${w.output} · reasoning=${w.reasoning} · cache_write=${w.cache_write}</sub>`);
   }
 
   return lines.join("\n") + "\n";
@@ -135,6 +167,8 @@ function generateTokenUsageSummary(summary) {
 
 /**
  * Appends the token usage section to the step summary if data is present, then writes it.
+ * Also exports GH_AW_EFFECTIVE_TOKENS as a GitHub Actions environment variable so
+ * subsequent steps can display the ET value in generated footers.
  * This is the final call in each main() exit path — it consolidates the summary write
  * so callers don't need to chain addRaw() + write() themselves.
  * @param {typeof import('@actions/core')} coreObj - The GitHub Actions core object
@@ -146,9 +180,17 @@ function writeStepSummaryWithTokenUsage(coreObj) {
     const content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
     if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
-      const markdown = generateTokenUsageSummary(parseTokenUsageJsonl(content));
+      const parsedSummary = parseTokenUsageJsonl(content);
+      const markdown = generateTokenUsageSummary(parsedSummary);
       if (markdown.length > 0) {
         coreObj.summary.addRaw(markdown);
+      }
+      // Export total effective tokens as a GitHub Actions env var for use in
+      // generated footers (GH_AW_EFFECTIVE_TOKENS is read by messages_footer.cjs)
+      if (parsedSummary && parsedSummary.totalEffectiveTokens > 0) {
+        const roundedET = Math.round(parsedSummary.totalEffectiveTokens);
+        coreObj.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(roundedET));
+        coreObj.info(`Effective tokens: ${roundedET}`);
       }
     }
   }

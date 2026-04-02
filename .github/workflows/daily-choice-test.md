@@ -2,7 +2,7 @@
 description: Daily test workflow using Claude with custom safe-output job containing choice inputs
 on:
   schedule:
-    - cron: "0 12 * * 1-5"  # 12 PM UTC, weekdays only
+    - cron: "daily around 12:00 on weekdays"  # ~12 PM UTC, weekdays only
   workflow_dispatch:
 permissions:
   contents: read

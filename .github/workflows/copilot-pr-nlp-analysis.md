@@ -3,8 +3,8 @@ name: Copilot PR Conversation NLP Analysis
 description: Performs natural language processing analysis on Copilot PR conversations to extract insights and patterns from user interactions
 on:
   schedule:
-    # Every day at 10am UTC (weekdays only)
-    - cron: "0 10 * * 1-5"
+    # ~10 AM UTC, weekdays only (scattered to avoid thundering herd)
+    - cron: "daily around 10:00 on weekdays"
   workflow_dispatch:
 
 permissions:

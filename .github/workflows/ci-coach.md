@@ -2,7 +2,7 @@
 description: Daily CI optimization coach that analyzes workflow runs for efficiency improvements and cost reduction opportunities
 on:
   schedule:
-    - cron: "0 13 * * 1-5"  # 1 PM UTC on weekdays
+    - cron: "daily around 13:00 on weekdays"  # ~1 PM UTC on weekdays (scattered)
   workflow_dispatch:
 permissions:
   contents: read

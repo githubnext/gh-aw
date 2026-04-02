@@ -3,8 +3,8 @@ name: Layout Specification Maintainer
 description: Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 on:
   schedule:
-    # Weekly on Mondays at 7am UTC
-    - cron: "0 7 * * 1"
+    # ~7 AM UTC on Mondays (scattered to avoid thundering herd)
+    - cron: "weekly on monday around 7:00"
   workflow_dispatch:
 
 # Minimal permissions: only what's needed for the workflow
