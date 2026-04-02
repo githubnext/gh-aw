@@ -72,6 +72,12 @@ func TestTimeoutLogic(t *testing.T) {
 			shouldTimeout: false,
 		},
 		{
+			name:          "just under boundary",
+			timeout:       1,
+			elapsed:       59 * time.Second,
+			shouldTimeout: false,
+		},
+		{
 			name:          "timeout exactly reached",
 			timeout:       1,
 			elapsed:       60 * time.Second,
