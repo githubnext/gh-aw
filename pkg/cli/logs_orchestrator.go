@@ -336,6 +336,11 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				run.WarningCount = 0
 				run.LogsPath = result.LogsPath
 
+				// Propagate effective tokens from cached firewall proxy summary when available
+				if result.TokenUsage != nil && result.TokenUsage.TotalEffectiveTokens > 0 {
+					run.EffectiveTokens = result.TokenUsage.TotalEffectiveTokens
+				}
+
 				// Add failed jobs to error count
 				if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
 					run.ErrorCount += failedJobCount
@@ -780,6 +785,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					}
 				}
 				result.TokenUsage = tokenUsage
+
+				// Propagate effective tokens from the firewall proxy summary when available
+				if tokenUsage != nil && tokenUsage.TotalEffectiveTokens > 0 {
+					result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
+				}
 
 				// Count safe output items created in GitHub (from manifest artifact)
 				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))

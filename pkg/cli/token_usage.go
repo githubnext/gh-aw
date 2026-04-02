@@ -42,6 +42,7 @@ type TokenUsageSummary struct {
 	TotalDurationMs       int                         `json:"total_duration_ms"`
 	TotalResponseBytes    int                         `json:"total_response_bytes"`
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
+	TotalEffectiveTokens  int                         `json:"total_effective_tokens" console:"header:Effective Tokens,format:number"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
 }
 
@@ -55,6 +56,7 @@ type ModelTokenUsage struct {
 	Requests         int    `json:"requests" console:"header:Requests"`
 	DurationMs       int    `json:"duration_ms"`
 	ResponseBytes    int    `json:"response_bytes"`
+	EffectiveTokens  int    `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
 }
 
 // ModelTokenUsageRow is a flattened version for console table rendering
@@ -65,6 +67,7 @@ type ModelTokenUsageRow struct {
 	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
 	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
 	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	EffectiveTokens  int    `json:"effective_tokens" console:"header:Effective Tokens,format:number"`
 	Requests         int    `json:"requests" console:"header:Requests"`
 	AvgDuration      string `json:"avg_duration" console:"header:Avg Duration"`
 }
@@ -151,6 +154,9 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsed %d entries: %d input, %d output, %d cache_read, %d cache_write, %d requests",
 		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
 		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
+
+	// Compute effective tokens using per-model multipliers
+	populateEffectiveTokens(summary)
 
 	return summary, nil
 }
@@ -257,6 +263,7 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 			OutputTokens:     usage.OutputTokens,
 			CacheReadTokens:  usage.CacheReadTokens,
 			CacheWriteTokens: usage.CacheWriteTokens,
+			EffectiveTokens:  usage.EffectiveTokens,
 			Requests:         usage.Requests,
 			AvgDuration:      FormatDurationMs(avgDur),
 		})

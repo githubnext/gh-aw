@@ -60,6 +60,7 @@ type WorkflowRun struct {
 	MissingDataCount int
 	NoopCount        int
 	SafeItemsCount   int
+	EffectiveTokens  int // Cost-normalized token count computed from per-model multipliers
 	LogsPath         string
 }
 
