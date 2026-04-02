@@ -279,6 +279,7 @@ Some content here.`;
         // Mock core and fs for the test
         const mockCore = {
           info: vi.fn(),
+          debug: vi.fn(),
           startGroup: vi.fn(),
           endGroup: vi.fn(),
           notice: vi.fn(),
