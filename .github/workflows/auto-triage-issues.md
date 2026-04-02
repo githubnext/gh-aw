@@ -24,6 +24,7 @@ tools:
   github:
     toolsets:
       - issues
+    min-integrity: none
   bash:
     - "jq *"
 safe-outputs:
@@ -116,9 +117,11 @@ Apply component labels based on mentioned areas:
 
 - `cli` - Mentions CLI commands, command-line interface, `gh aw` commands
 - `workflows` - Mentions workflow files, `.md` workflows, compilation, `.lock.yml`
+- `compiler` - Mentions `gh aw compile`, `.lock.yml` generation, frontmatter parsing, compilation pipeline
 - `mcp` - Mentions MCP servers, tools, integrations
 - `security` - Mentions security issues, vulnerabilities, CVE, authentication
 - `performance` - Mentions speed, performance, slow, optimization, memory usage
+- `threat-detection` - Mentions threat detection, detection job, `detection_agentic_execution`, safe outputs detection
 
 ### Priority Indicators
 
