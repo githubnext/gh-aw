@@ -56,6 +56,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18714 _(direct issue)_
 
+### @abillingsley
+
+- #23736 _(direct issue)_
+
 ### @adam-cobb
 
 - #18295 _(direct issue)_
@@ -63,6 +67,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @adhikjoshi
 
 - #18781 _(direct issue)_
+
+### @ajfeldman6
+
+- #23924 _(direct issue)_
 
 ### @AlexanderWert
 
@@ -152,6 +160,11 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18825 _(direct issue)_
 
+### @corygehr
+
+- #23944 _(direct issue)_
+- #23753 _(direct issue)_
+
 ### @corymhall
 
 - #19839 _(direct issue)_
@@ -175,6 +188,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @deyaaeldeen
 
+- #23198 _(direct issue)_
 - #23024 _(direct issue)_
 - #23020 _(direct issue)_
 - #22957 _(direct issue)_
@@ -209,6 +223,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @dsyme
 
+- #23936 _(direct issue)_
 - #22340 _(direct issue)_
 - #20953 _(direct issue)_
 - #20952 _(direct issue)_
@@ -258,6 +273,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #20222 _(direct issue)_
 
+### @ericstj
+
+- #23766 _(direct issue)_
+
 ### @flatiron32
 
 - #22469 _(direct issue)_
@@ -294,6 +313,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #20394 _(direct issue)_
 
+### @Henry-Shan
+
+- #23461 _(direct issue)_
+
 ### @holwerda
 
 - #21243 _(direct issue)_
@@ -323,6 +346,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @jaroslawgajewski
 
+- #23779 _(direct issue)_
 - #23558 _(direct issue)_
 - #22647 _(direct issue)_
 - #21816 _(direct issue)_
@@ -340,6 +364,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @johnpreed
 
+- #23777 _(direct issue)_
+- #23212 _(direct issue)_
 - #21334 _(direct issue)_
 
 ### @johnwilliams-12
@@ -366,6 +392,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @kbreit-insight
 
+- #23725 _(direct issue)_
 - #22430 _(direct issue)_
 - #21978 _(direct issue)_
 
@@ -517,6 +544,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #18373 _(direct issue)_
 - #15595 _(direct issue)_
 
+### @Rubyj
+
+- #21432 _(direct issue)_
+
 ### @samuelkahessay
 
 - #22380 _(direct issue)_
@@ -548,6 +579,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @srgibbs99
 
+- #22939 _(direct issue)_
 - #19640 _(direct issue)_
 - #19622 _(direct issue)_
 - #18751 _(direct issue)_
@@ -570,7 +602,9 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @strawgate
 
+- #23768 _(direct issue)_
 - #21157 _(direct issue)_
+- #21144 _(direct issue)_
 - #19982 _(direct issue)_
 - #21135 _(direct issue)_
 - #21028 _(direct issue)_
@@ -609,6 +643,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @swimmesberger
 
 - #19421 _(direct issue)_
+
+### @szabta89
+
+- #24037 _(direct issue)_
 
 ### @theletterf
 
@@ -651,6 +689,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @whoschek
 
 - #15510 _(direct issue)_
+
+### @yskopets
+
+- #23914 _(direct issue)_
 
 </details>
 
