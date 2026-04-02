@@ -99,6 +99,10 @@ A guardrail feature that controls which GitHub content an agent can access, filt
 
 Two additional fields extend integrity filtering beyond the level threshold: `blocked-users` unconditionally denies content from listed GitHub usernames regardless of level, and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
+### DIFC Proxy (`features.difc-proxy`)
+
+An opt-in feature flag enabling full Data Integrity and Flow Control (DIFC) proxy enforcement. When enabled alongside `tools.github.min-integrity`, the compiler injects proxy steps around the agent job that enforce integrity-level isolation at the network boundary. Without `difc-proxy`, `min-integrity` alone performs content filtering only at the MCP gateway level. Enable it when network-boundary enforcement is required in addition to gateway-level filtering. Filtered content is recorded as `DIFC_FILTERED` events in `gateway.jsonl` for later inspection. Can also be enabled via the `GH_AW_FEATURES=difc-proxy` environment variable. See [Integrity Filtering](/gh-aw/reference/integrity/).
+
 ### Status Comment
 
 A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Defaults to `true` for `slash_command` and `label_command` triggers; must be explicitly enabled for other trigger types. Set `status-comment: false` to disable. Not automatically bundled with `ai-reaction` — each must be configured independently.
