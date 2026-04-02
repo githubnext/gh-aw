@@ -756,23 +756,16 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          # Copy Copilot session state files to logs folder for artifact collection
+          # Copy entire Copilot session-state directory to logs for artifact collection
           # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
           SESSION_STATE_DIR="$HOME/.copilot/session-state"
-          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs/copilot-session-state"
           
           if [ -d "$SESSION_STATE_DIR" ]; then
-            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            echo "Copying Copilot session state from $SESSION_STATE_DIR to $LOGS_DIR"
             mkdir -p "$LOGS_DIR"
-            # Copilot CLI writes events.jsonl inside session subdirectories:
-            #   ~/.copilot/session-state/<session-uuid>/events.jsonl
-            # Use find to recursively locate .jsonl files and preserve session ID in filename
-            find "$SESSION_STATE_DIR" -name '*.jsonl' -type f | while read -r f; do
-              session_id=$(basename "$(dirname "$f")")
-              filename=$(basename "$f" .jsonl)
-              cp -v "$f" "$LOGS_DIR/${filename}-${session_id}.jsonl"
-            done
-            echo "Session state files copied successfully"
+            cp -rv "$SESSION_STATE_DIR"/. "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state directory copied successfully"
           else
             echo "No session-state directory found at $SESSION_STATE_DIR"
           fi

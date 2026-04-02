@@ -434,11 +434,10 @@ func extractAddDirPaths(args []string) []string {
 	return dirs
 }
 
-// generateCopilotSessionFileCopyStep generates a step to copy Copilot session state files
-// from ~/.copilot/session-state/<session-uuid>/ to /tmp/gh-aw/sandbox/agent/logs/
-// This ensures session files are in /tmp/gh-aw/ where secret redaction can scan them.
-// Copilot CLI writes events.jsonl inside session subdirectories, so we use find
-// to recursively locate them and preserve the session ID in the filename.
+// generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot
+// session-state directory from ~/.copilot/session-state/ to /tmp/gh-aw/sandbox/agent/logs/
+// This ensures all session files (events.jsonl, session.db, plan.md, checkpoints, etc.)
+// are in /tmp/gh-aw/ where secret redaction can scan them and they get uploaded as artifacts.
 func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	var step []string
 
@@ -446,23 +445,16 @@ func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
 	step = append(step, "        run: |")
-	step = append(step, "          # Copy Copilot session state files to logs folder for artifact collection")
+	step = append(step, "          # Copy entire Copilot session-state directory to logs for artifact collection")
 	step = append(step, "          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them")
 	step = append(step, "          SESSION_STATE_DIR=\"$HOME/.copilot/session-state\"")
-	step = append(step, "          LOGS_DIR=\"/tmp/gh-aw/sandbox/agent/logs\"")
+	step = append(step, "          LOGS_DIR=\"/tmp/gh-aw/sandbox/agent/logs/copilot-session-state\"")
 	step = append(step, "          ")
 	step = append(step, "          if [ -d \"$SESSION_STATE_DIR\" ]; then")
-	step = append(step, "            echo \"Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR\"")
+	step = append(step, "            echo \"Copying Copilot session state from $SESSION_STATE_DIR to $LOGS_DIR\"")
 	step = append(step, "            mkdir -p \"$LOGS_DIR\"")
-	step = append(step, "            # Copilot CLI writes events.jsonl inside session subdirectories:")
-	step = append(step, "            #   ~/.copilot/session-state/<session-uuid>/events.jsonl")
-	step = append(step, "            # Use find to recursively locate .jsonl files and preserve session ID in filename")
-	step = append(step, "            find \"$SESSION_STATE_DIR\" -name '*.jsonl' -type f | while read -r f; do")
-	step = append(step, "              session_id=$(basename \"$(dirname \"$f\")\")")
-	step = append(step, "              filename=$(basename \"$f\" .jsonl)")
-	step = append(step, "              cp -v \"$f\" \"$LOGS_DIR/${filename}-${session_id}.jsonl\"")
-	step = append(step, "            done")
-	step = append(step, "            echo \"Session state files copied successfully\"")
+	step = append(step, "            cp -rv \"$SESSION_STATE_DIR\"/. \"$LOGS_DIR/\" 2>/dev/null || true")
+	step = append(step, "            echo \"Session state directory copied successfully\"")
 	step = append(step, "          else")
 	step = append(step, "            echo \"No session-state directory found at $SESSION_STATE_DIR\"")
 	step = append(step, "          fi")
