@@ -16,7 +16,7 @@ import (
 func NewAuditDiffSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff <run-id-1> <run-id-2>",
-		Short: "Compare workflow run behavior across two workflow runs",
+		Short: "Compare behavior across two workflow runs",
 		Long: `Compare workflow run behavior between two workflow runs to detect policy regressions,
 new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
 
