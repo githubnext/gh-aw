@@ -139,7 +139,7 @@ function generateTokenUsageSummary(summary) {
  * Appends the token usage section to the step summary if data is present, then writes it.
  * This is the final call in each main() exit path — it consolidates the summary write
  * so callers don't need to chain addRaw() + write() themselves.
- * @param {typeof core} coreObj - The GitHub Actions core object
+ * @param {typeof import('@actions/core')} coreObj - The GitHub Actions core object
  */
 function writeStepSummaryWithTokenUsage(coreObj) {
   if (!fs.existsSync(TOKEN_USAGE_PATH)) {
