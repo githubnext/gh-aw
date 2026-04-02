@@ -173,45 +173,62 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 			flattenedDir := filepath.Join(logDir, relPath)
 			logsParsingCoreLog.Printf("Checking flattened location for logs: %s", flattenedDir)
 			if fileutil.DirExists(flattenedDir) {
-				// Find the first .log file in this directory
-				var foundFile string
+				// Prefer events.jsonl (structured Copilot session format) over debug .log files.
+				// Walk the full tree: stop immediately when events.jsonl is found (preferred),
+				// but keep walking after a .log match in case events.jsonl appears later.
+				var foundEventsJsonl, foundLogFile string
 				_ = filepath.Walk(flattenedDir, func(path string, info os.FileInfo, err error) error {
 					if err != nil || info == nil {
 						return nil
 					}
-					if !info.IsDir() && strings.HasSuffix(info.Name(), ".log") && foundFile == "" {
-						foundFile = path
-						logsParsingCoreLog.Printf("Found session log file: %s", path)
-						return errors.New("stop") // sentinel to stop walking early
+					if !info.IsDir() {
+						if info.Name() == "events.jsonl" && foundEventsJsonl == "" {
+							foundEventsJsonl = path
+							logsParsingCoreLog.Printf("Found events.jsonl file: %s", path)
+							return errors.New("stop") // sentinel to stop walking early
+						} else if strings.HasSuffix(info.Name(), ".log") && foundLogFile == "" {
+							foundLogFile = path
+							logsParsingCoreLog.Printf("Found session log file: %s", path)
+						}
 					}
 					return nil
 				})
-				if foundFile != "" {
-					return foundFile, true
+				if foundEventsJsonl != "" {
+					return foundEventsJsonl, true
+				}
+				if foundLogFile != "" {
+					return foundLogFile, true
 				}
 			}
 		}
 
-		// Fallback: search recursively in logDir for session*.log or process*.log files
+		// Fallback: search recursively in logDir for events.jsonl, session*.log or process*.log files
 		// This handles cases where the artifact structure is different than expected
 		// Note: Copilot changed from session-*.log to process-*.log naming convention
-		logsParsingCoreLog.Printf("Searching recursively in %s for session*.log or process*.log files", logDir)
-		var foundFile string
+		logsParsingCoreLog.Printf("Searching recursively in %s for events.jsonl, session*.log or process*.log files", logDir)
+		var foundEventsJsonl, foundLogFile string
 		_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info == nil {
 				return nil
 			}
-			// Look for session*.log or process*.log files
 			fileName := info.Name()
-			if !info.IsDir() && (strings.HasPrefix(fileName, "session") || strings.HasPrefix(fileName, "process")) && strings.HasSuffix(fileName, ".log") && foundFile == "" {
-				foundFile = path
-				logsParsingCoreLog.Printf("Found Copilot log file via recursive search: %s", path)
-				return errors.New("stop") // sentinel to stop walking early
+			if !info.IsDir() {
+				if fileName == "events.jsonl" && foundEventsJsonl == "" {
+					foundEventsJsonl = path
+					logsParsingCoreLog.Printf("Found events.jsonl via recursive search: %s", path)
+					return errors.New("stop") // sentinel to stop walking early
+				} else if (strings.HasPrefix(fileName, "session") || strings.HasPrefix(fileName, "process")) && strings.HasSuffix(fileName, ".log") && foundLogFile == "" {
+					foundLogFile = path
+					logsParsingCoreLog.Printf("Found Copilot log file via recursive search: %s", path)
+				}
 			}
 			return nil
 		})
-		if foundFile != "" {
-			return foundFile, true
+		if foundEventsJsonl != "" {
+			return foundEventsJsonl, true
+		}
+		if foundLogFile != "" {
+			return foundLogFile, true
 		}
 	}
 

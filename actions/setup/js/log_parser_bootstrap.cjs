@@ -21,6 +21,30 @@ async function runLogParser(options) {
   const path = require("path");
   const { parseLog, parserName, supportsDirectories = false } = options;
 
+  /**
+   * Recursively searches a directory tree for the first events.jsonl file.
+   * This file is written by the Copilot CLI and contains structured session events.
+   * @param {string} dirPath - Directory to search
+   * @returns {string|null} Absolute path to events.jsonl, or null if not found
+   */
+  function findEventsJsonlRecursive(dirPath) {
+    try {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          const found = findEventsJsonlRecursive(fullPath);
+          if (found) return found;
+        } else if (entry.name === "events.jsonl") {
+          return fullPath;
+        }
+      }
+    } catch (e) {
+      // Ignore read errors (e.g. permission denied on subdirectories)
+    }
+    return null;
+  }
+
   try {
     const logPath = process.env.GH_AW_AGENT_OUTPUT;
     if (!logPath) {
@@ -43,29 +67,36 @@ async function runLogParser(options) {
         return;
       }
 
-      // Read all log files from the directory and concatenate them
-      const files = fs.readdirSync(logPath);
-      const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+      // Prefer events.jsonl (structured Copilot session format) over debug .log files
+      const eventsJsonlPath = findEventsJsonlRecursive(logPath);
+      if (eventsJsonlPath) {
+        core.info(`Using Copilot session events from: ${eventsJsonlPath}`);
+        content = fs.readFileSync(eventsJsonlPath, "utf8");
+      } else {
+        // Read all log files from the directory and concatenate them
+        const files = fs.readdirSync(logPath);
+        const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
 
-      if (logFiles.length === 0) {
-        core.info(`No log files found in directory: ${logPath}`);
-        return;
-      }
-
-      // Sort log files by name to ensure consistent ordering
-      logFiles.sort();
-
-      // Concatenate all log files
-      for (const file of logFiles) {
-        const filePath = path.join(logPath, file);
-        const fileContent = fs.readFileSync(filePath, "utf8");
-
-        // Add a newline before this file if the previous content doesn't end with one
-        if (content.length > 0 && !content.endsWith("\n")) {
-          content += "\n";
+        if (logFiles.length === 0) {
+          core.info(`No log files found in directory: ${logPath}`);
+          return;
         }
 
-        content += fileContent;
+        // Sort log files by name to ensure consistent ordering
+        logFiles.sort();
+
+        // Concatenate all log files
+        for (const file of logFiles) {
+          const filePath = path.join(logPath, file);
+          const fileContent = fs.readFileSync(filePath, "utf8");
+
+          // Add a newline before this file if the previous content doesn't end with one
+          if (content.length > 0 && !content.endsWith("\n")) {
+            content += "\n";
+          }
+
+          content += fileContent;
+        }
       }
     } else {
       // Read the single log file

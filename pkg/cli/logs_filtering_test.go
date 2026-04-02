@@ -371,6 +371,78 @@ func TestFindAgentLogFile(t *testing.T) {
 		}
 	})
 
+	// Test Copilot engine with events.jsonl in session-state subdirectory
+	t.Run("copilot_engine_events_jsonl_in_session_state", func(t *testing.T) {
+		copilotDir := filepath.Join(tmpDir, "copilot_events_jsonl_test")
+
+		// Create the expected directory structure:
+		// sandbox/agent/logs/copilot-session-state/<uuid>/events.jsonl
+		sessionStateDir := filepath.Join(copilotDir, "sandbox", "agent", "logs", "copilot-session-state", "abc-123-uuid")
+		err := os.MkdirAll(sessionStateDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create session state directory: %v", err)
+		}
+
+		eventsJsonl := filepath.Join(sessionStateDir, "events.jsonl")
+		err = os.WriteFile(eventsJsonl, []byte(`{"type":"system","subtype":"init"}`+"\n"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create events.jsonl: %v", err)
+		}
+
+		copilotEngine := workflow.NewCopilotEngine()
+
+		found, ok := findAgentLogFile(copilotDir, copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find events.jsonl for Copilot engine")
+		}
+
+		if !strings.HasSuffix(found, "events.jsonl") {
+			t.Errorf("Expected to find events.jsonl, but found %s", found)
+		}
+
+		if found != eventsJsonl {
+			t.Errorf("Expected path %s, got %s", eventsJsonl, found)
+		}
+	})
+
+	// Test Copilot engine prefers events.jsonl over debug .log files
+	t.Run("copilot_engine_events_jsonl_preferred_over_log", func(t *testing.T) {
+		copilotDir := filepath.Join(tmpDir, "copilot_prefer_events_test")
+
+		// Create the flattened logs directory with both a .log and an events.jsonl
+		logsDir := filepath.Join(copilotDir, "sandbox", "agent", "logs")
+		sessionStateDir := filepath.Join(logsDir, "copilot-session-state", "abc-123-uuid")
+		err := os.MkdirAll(sessionStateDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create session state directory: %v", err)
+		}
+
+		// Create a debug .log file
+		processLog := filepath.Join(logsDir, "process-12345.log")
+		err = os.WriteFile(processLog, []byte("debug log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create process log file: %v", err)
+		}
+
+		// Create events.jsonl (should be preferred)
+		eventsJsonl := filepath.Join(sessionStateDir, "events.jsonl")
+		err = os.WriteFile(eventsJsonl, []byte(`{"type":"system","subtype":"init"}`+"\n"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create events.jsonl: %v", err)
+		}
+
+		copilotEngine := workflow.NewCopilotEngine()
+
+		found, ok := findAgentLogFile(copilotDir, copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find a log file for Copilot engine")
+		}
+
+		if !strings.HasSuffix(found, "events.jsonl") {
+			t.Errorf("Expected events.jsonl to be preferred over .log, but found %s", found)
+		}
+	})
+
 	// Test 2: Claude engine with agent-stdio.log
 	t.Run("Claude engine uses agent-stdio.log", func(t *testing.T) {
 		claudeEngine := workflow.NewClaudeEngine()
