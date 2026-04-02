@@ -37,7 +37,6 @@ type GitHubActionStep []string
 //   CapabilityProvider (feature detection - optional)
 //   ├── SupportsToolsAllowlist()
 //   ├── SupportsMaxTurns()
-//   ├── SupportsWebFetch()
 //   └── SupportsWebSearch()
 //
 //   WorkflowExecutor (compilation - required)
@@ -109,9 +108,6 @@ type CapabilityProvider interface {
 
 	// SupportsMaxTurns returns true if this engine supports the max-turns feature
 	SupportsMaxTurns() bool
-
-	// SupportsWebFetch returns true if this engine has built-in support for the web-fetch tool
-	SupportsWebFetch() bool
 
 	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
 	SupportsWebSearch() bool
@@ -251,7 +247,6 @@ type BaseEngine struct {
 	supportsToolsAllowlist   bool
 	supportsMaxTurns         bool
 	supportsMaxContinuations bool
-	supportsWebFetch         bool
 	supportsWebSearch        bool
 	llmGatewayPort           int
 }
@@ -278,10 +273,6 @@ func (e *BaseEngine) SupportsToolsAllowlist() bool {
 
 func (e *BaseEngine) SupportsMaxTurns() bool {
 	return e.supportsMaxTurns
-}
-
-func (e *BaseEngine) SupportsWebFetch() bool {
-	return e.supportsWebFetch
 }
 
 func (e *BaseEngine) SupportsWebSearch() bool {

@@ -22,9 +22,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
 	// Copilot uses JSON format with type and tools fields, and inline args
-	// webFetchIncludeTools=true: Copilot requires a tools field in the web-fetch server config
 	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"/home/runner/.copilot/mcp-config.json", true, true, true,
+		"/home/runner/.copilot/mcp-config.json", true, true,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCopilotMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		},

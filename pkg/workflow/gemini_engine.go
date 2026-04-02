@@ -25,7 +25,6 @@ func NewGeminiEngine() *GeminiEngine {
 			supportsToolsAllowlist:   true,
 			supportsMaxTurns:         false,
 			supportsMaxContinuations: false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
-			supportsWebFetch:         false,
 			supportsWebSearch:        false,
 			llmGatewayPort:           constants.GeminiLLMGatewayPort,
 		},

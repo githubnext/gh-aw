@@ -14,7 +14,7 @@ func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 
 	// Gemini uses JSON format without Copilot-specific fields and multi-line args
 	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false, false,
+		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return renderCustomMCPConfigWrapperWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		}, nil)

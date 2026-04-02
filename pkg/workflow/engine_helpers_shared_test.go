@@ -384,7 +384,6 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
 					RenderCustomMCPConfig:  nil,
 				},
 			},
@@ -417,7 +416,6 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
 					RenderCustomMCPConfig:  nil,
 				},
 				FilterTool: func(toolName string) bool {
@@ -449,7 +447,6 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
 					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
 					RenderCustomMCPConfig:  nil,
 				},
 				PostEOFCommands: func(yaml *strings.Builder) {
@@ -463,28 +460,6 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			unexpectedContent: []string{
 				"echo \"DEBUG OUTPUT\"",
 				"cat /tmp/debug-config.json",
-			},
-		},
-		{
-			name:     "Config with web-fetch tool",
-			tools:    map[string]any{},
-			mcpTools: []string{"web-fetch"},
-			options: JSONMCPConfigOptions{
-				ConfigPath: "/tmp/web-fetch-config.json",
-				Renderers: MCPToolRenderers{
-					RenderGitHub:           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {},
-					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
-					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
-					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-					RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-						yaml.WriteString("              \"web-fetch\": { \"enabled\": true }\n")
-					},
-					RenderCustomMCPConfig: nil,
-				},
-			},
-			expectedContent: []string{
-				"\"web-fetch\": { \"enabled\": true }",
 			},
 		},
 	}
@@ -525,9 +500,8 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 	tools := map[string]any{
 		"github":     map[string]any{},
 		"playwright": map[string]any{},
-		"web-fetch":  map[string]any{},
 	}
-	mcpTools := []string{"github", "playwright", "web-fetch"}
+	mcpTools := []string{"github", "playwright"}
 
 	var callOrder []string
 	var isLastValues []bool
@@ -546,11 +520,7 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 			RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
 			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
 			RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				callOrder = append(callOrder, "web-fetch")
-				isLastValues = append(isLastValues, isLast)
-			},
-			RenderCustomMCPConfig: nil,
+			RenderCustomMCPConfig:  nil,
 		},
 	}
 
@@ -562,7 +532,7 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 	}
 
 	// Verify call order
-	expectedOrder := []string{"github", "playwright", "web-fetch"}
+	expectedOrder := []string{"github", "playwright"}
 	if len(callOrder) != len(expectedOrder) {
 		t.Fatalf("Expected %d calls, got %d", len(expectedOrder), len(callOrder))
 	}
@@ -573,7 +543,7 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 	}
 
 	// Verify isLast values
-	expectedIsLast := []bool{false, false, true}
+	expectedIsLast := []bool{false, true}
 	if len(isLastValues) != len(expectedIsLast) {
 		t.Fatalf("Expected %d isLast values, got %d", len(expectedIsLast), len(isLastValues))
 	}

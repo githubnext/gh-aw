@@ -28,7 +28,6 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsToolsAllowlist:   true,
 			supportsMaxTurns:         true,  // Claude supports max-turns feature
 			supportsMaxContinuations: false, // Claude Code does not support --max-autopilot-continues-style continuation
-			supportsWebFetch:         true,  // Claude has built-in WebFetch support
 			supportsWebSearch:        true,  // Claude has built-in WebSearch support
 			llmGatewayPort:           constants.ClaudeLLMGatewayPort,
 		},

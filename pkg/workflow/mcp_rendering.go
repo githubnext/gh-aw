@@ -89,7 +89,6 @@ func noOpCacheMemoryRenderer(_ *strings.Builder, _ bool, _ *WorkflowData) {}
 //   - configPath: engine-specific MCP config file path
 //   - includeCopilotFields: whether to include "type" and "tools" fields (true for Copilot)
 //   - inlineArgs: whether to render args inline (true for Copilot) vs multi-line
-//   - webFetchIncludeTools: whether the web-fetch server includes a tools field (true for Copilot)
 //   - renderCustom: engine-specific handler for custom MCP tool entries
 //   - filterTool: optional tool filter function; nil to include all tools
 func renderStandardJSONMCPConfig(
@@ -100,7 +99,6 @@ func renderStandardJSONMCPConfig(
 	configPath string,
 	includeCopilotFields bool,
 	inlineArgs bool,
-	webFetchIncludeTools bool,
 	renderCustom RenderCustomMCPToolConfigHandler,
 	filterTool func(string) bool,
 ) error {
@@ -109,7 +107,7 @@ func renderStandardJSONMCPConfig(
 	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    configPath,
 		GatewayConfig: buildMCPGatewayConfig(workflowData),
-		Renderers:     buildStandardJSONMCPRenderers(workflowData, createRenderer, webFetchIncludeTools, renderCustom),
+		Renderers:     buildStandardJSONMCPRenderers(workflowData, createRenderer, renderCustom),
 		FilterTool:    filterTool,
 	})
 }
@@ -135,20 +133,16 @@ func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeC
 // shared across JSON-format engines (Claude, Gemini, Copilot, Codex gateway).
 //
 // All standard tool callbacks (GitHub, Playwright, CacheMemory, AgenticWorkflows,
-// SafeOutputs, MCPScripts, WebFetch) are wired to the corresponding unified renderer methods
+// SafeOutputs, MCPScripts) are wired to the corresponding unified renderer methods
 // via createRenderer. Cache-memory is always a no-op for these engines.
-//
-// webFetchIncludeTools controls whether the web-fetch server includes a tools field:
-// set to true for Copilot (which uses inline args) and false for all other engines.
 //
 // renderCustom is the engine-specific handler for custom MCP tool configuration entries.
 func buildStandardJSONMCPRenderers(
 	workflowData *WorkflowData,
 	createRenderer func(bool) *MCPConfigRendererUnified,
-	webFetchIncludeTools bool,
 	renderCustom RenderCustomMCPToolConfigHandler,
 ) MCPToolRenderers {
-	mcpRenderingLog.Printf("Building standard JSON MCP renderers: webFetchIncludeTools=%t", webFetchIncludeTools)
+	mcpRenderingLog.Printf("Building standard JSON MCP renderers")
 	return MCPToolRenderers{
 		RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 			createRenderer(isLast).RenderGitHubMCP(yaml, githubTool, workflowData)
@@ -168,9 +162,6 @@ func buildStandardJSONMCPRenderers(
 		},
 		RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
 			createRenderer(isLast).RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
-		},
-		RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, webFetchIncludeTools, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
 		},
 		RenderCustomMCPConfig: renderCustom,
 	}

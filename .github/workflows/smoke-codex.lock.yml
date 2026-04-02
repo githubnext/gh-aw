@@ -502,7 +502,7 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.10 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.10 ghcr.io/github/gh-aw-firewall/squid:0.25.10 ghcr.io/github/gh-aw-mcpg:v0.2.11 ghcr.io/github/github-mcp-server:v0.32.0 ghcr.io/github/serena-mcp-server:latest mcp/fetch mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.10 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.10 ghcr.io/github/gh-aw-firewall/squid:0.25.10 ghcr.io/github/gh-aw-mcpg:v0.2.11 ghcr.io/github/github-mcp-server:v0.32.0 ghcr.io/github/serena-mcp-server:latest mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
@@ -1033,14 +1033,6 @@ jobs:
           
           [mcp_servers.serena."guard-policies".write-sink]
           accept = ["*"]
-          
-          [mcp_servers."web-fetch"]
-          container = "mcp/fetch"
-          
-          [mcp_servers.web-fetch."guard-policies"]
-          
-          [mcp_servers.web-fetch."guard-policies".write-sink]
-          accept = ["*"]
           GH_AW_MCP_CONFIG_e401634eb22c99ed_EOF
           
           # Generate JSON config for MCP gateway
@@ -1150,16 +1142,6 @@ jobs:
                   ]
                 }
               }
-              },
-              "web-fetch": {
-                "container": "mcp/fetch",
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ]
-                  }
-                }
               }
             },
             "gateway": {

@@ -69,8 +69,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			if hasMCPScripts {
 				renderer.RenderMCPScriptsMCP(yaml, workflowData.MCPScripts, workflowData)
 			}
-		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false, deriveWriteSinkGuardPolicyFromWorkflow(workflowData))
 		default:
 			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
 			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
@@ -105,7 +103,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
 	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false, false,
+		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		}, nil)

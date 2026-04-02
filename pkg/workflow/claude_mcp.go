@@ -14,7 +14,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 
 	// Claude uses JSON format without Copilot-specific fields and multi-line args
 	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false, false,
+		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderClaudeMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		}, nil)

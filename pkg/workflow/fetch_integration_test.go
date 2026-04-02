@@ -13,20 +13,19 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestWebFetchMCPServerAddition tests that when a Codex workflow uses web-fetch,
-// the web-fetch MCP server is automatically added
-func TestWebFetchMCPServerAddition(t *testing.T) {
-	// Create a temporary directory for the test
+// compileWebFetchWorkflow is a shared helper that compiles a workflow with web-fetch enabled
+// for the given engine and returns the lock file content.
+func compileWebFetchWorkflow(t *testing.T, engine string) string {
+	t.Helper()
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test workflow that uses web-fetch with Codex engine (which doesn't support web-fetch natively)
 	workflowContent := `---
 on: workflow_dispatch
 permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: codex
+engine: ` + engine + `
 tools:
   web-fetch:
 ---
@@ -41,170 +40,48 @@ Fetch content from the web.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	// Create a compiler
 	compiler := NewCompiler()
-
-	// Compile the workflow
-	err := compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	// Read the generated lock file
 	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockData, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
+	return string(lockData)
+}
 
-	// Verify that the compiled workflow contains the web-fetch MCP server configuration
-	lockContent := string(lockData)
+// TestMCPFetchNotAddedForAnyEngine tests that the mcp/fetch container is never added
+// to any compiled workflow, regardless of engine, since the fallback has been removed.
+func TestMCPFetchNotAddedForAnyEngine(t *testing.T) {
+	engines := []string{"codex", "claude", "copilot"}
 
-	// The TOML config should contain the web-fetch server
-	if !strings.Contains(lockContent, `[mcp_servers."web-fetch"]`) {
-		t.Errorf("Expected compiled workflow to contain web-fetch MCP server configuration, but it didn't")
-	}
-
-	// Verify the container image is present (MCP Gateway schema: container key)
-	if !strings.Contains(lockContent, `container = "mcp/fetch"`) {
-		t.Errorf("Expected web-fetch MCP server to use the mcp/fetch container image, but it didn't")
+	for _, engine := range engines {
+		t.Run(engine, func(t *testing.T) {
+			lockContent := compileWebFetchWorkflow(t, engine)
+			if strings.Contains(lockContent, `mcp/fetch`) {
+				t.Errorf("Engine %q: expected no mcp/fetch container in compiled workflow, but it was present", engine)
+			}
+		})
 	}
 }
 
-// TestWebFetchNotAddedForClaudeEngine tests that when a Claude workflow uses web-fetch,
-// the web-fetch MCP server is NOT added (because Claude has native support)
-func TestWebFetchNotAddedForClaudeEngine(t *testing.T) {
-	// Create a temporary directory for the test
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create a test workflow that uses web-fetch with Claude engine (which supports web-fetch natively)
-	workflowContent := `---
-on: workflow_dispatch
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-engine: claude
-tools:
-  web-fetch:
----
-
-# Test Workflow
-
-Fetch content from the web.
-`
-
-	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write test workflow: %v", err)
-	}
-
-	// Create a compiler
-	compiler := NewCompiler()
-
-	// Compile the workflow
-	err := compiler.CompileWorkflow(workflowPath)
-	if err != nil {
-		t.Fatalf("Failed to compile workflow: %v", err)
-	}
-
-	// Read the generated lock file
-	lockPath := stringutil.MarkdownToLockFile(workflowPath)
-	lockData, err := os.ReadFile(lockPath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	// Verify that the compiled workflow does NOT contain the web-fetch MCP server configuration
-	lockContent := string(lockData)
-
-	// Claude uses JSON format, check that web-fetch is NOT configured as an MCP server
-	// Look for the MCP server configuration pattern with "container": "mcp/fetch"
-	// We can't simply search for "web-fetch" because Claude will have it in the allowed tools
-	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"container": "mcp/fetch"`) {
-		// Check if both appear close together (indicating MCP server config)
-		containerIdx := strings.Index(lockContent, `"container": "mcp/fetch"`)
-		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)
-		if containerIdx > 0 && webFetchIdx > 0 && containerIdx-webFetchIdx < 200 {
-			t.Errorf("Expected Claude workflow NOT to contain web-fetch MCP server (since Claude has native web-fetch support), but it did")
-		}
-	}
-
-	// Instead, Claude should have the WebFetch tool in its allowed tools list
+// TestWebFetchClaudeAllowedTools tests that a Claude workflow with web-fetch
+// includes WebFetch in the allowed tools list.
+func TestWebFetchClaudeAllowedTools(t *testing.T) {
+	lockContent := compileWebFetchWorkflow(t, "claude")
 	if !strings.Contains(lockContent, "WebFetch") {
 		t.Errorf("Expected Claude workflow to have WebFetch in allowed tools, but it didn't")
 	}
 }
 
-// TestWebFetchNotAddedForCopilotEngine tests that when a Copilot workflow uses web-fetch,
-// the web-fetch MCP server is NOT added (because Copilot has native support)
-func TestWebFetchNotAddedForCopilotEngine(t *testing.T) {
-	// Create a temporary directory for the test
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	// Create a test workflow that uses web-fetch with Copilot engine (which supports web-fetch natively)
-	workflowContent := `---
-on: workflow_dispatch
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-engine: copilot
-tools:
-  web-fetch:
----
-
-# Test Workflow
-
-Fetch content from the web.
-`
-
-	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write test workflow: %v", err)
-	}
-
-	// Create a compiler
-	compiler := NewCompiler()
-
-	// Compile the workflow
-	err := compiler.CompileWorkflow(workflowPath)
-	if err != nil {
-		t.Fatalf("Failed to compile workflow: %v", err)
-	}
-
-	// Read the generated lock file
-	lockPath := stringutil.MarkdownToLockFile(workflowPath)
-	lockData, err := os.ReadFile(lockPath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	// Verify that the compiled workflow does NOT contain the web-fetch MCP server configuration
-	lockContent := string(lockData)
-
-	// Check that web-fetch is NOT configured as an MCP server (no mcp_servers configuration)
-	if strings.Contains(lockContent, `[mcp_servers."web-fetch"]`) {
-		t.Errorf("Expected Copilot workflow NOT to contain web-fetch MCP server (since Copilot has native web-fetch support), but it did")
-	}
-
-	// Also check for JSON format MCP server config
-	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"container": "mcp/fetch"`) {
-		containerIdx := strings.Index(lockContent, `"container": "mcp/fetch"`)
-		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)
-		if containerIdx > 0 && webFetchIdx > 0 && containerIdx-webFetchIdx < 200 {
-			t.Errorf("Expected Copilot workflow NOT to contain web-fetch MCP server, but it did")
-		}
-	}
-}
-
 // TestNoWebFetchNoMCPFetchServer tests that when a workflow doesn't use web-fetch,
-// the web-fetch MCP server is not added
+// no web-fetch MCP server configuration is added.
 func TestNoWebFetchNoMCPFetchServer(t *testing.T) {
-	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")
 
-	// Create a test workflow that doesn't use web-fetch
 	workflowContent := `---
 on: workflow_dispatch
 permissions:
@@ -227,27 +104,19 @@ Run some bash commands.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	// Create a compiler
 	compiler := NewCompiler()
-
-	// Compile the workflow
-	err := compiler.CompileWorkflow(workflowPath)
-	if err != nil {
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
 
-	// Read the generated lock file
 	lockPath := stringutil.MarkdownToLockFile(workflowPath)
 	lockData, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	// Verify that the compiled workflow does NOT contain the web-fetch MCP server configuration
 	lockContent := string(lockData)
-
-	// Check for web-fetch MCP server configuration (Docker-based)
-	if strings.Contains(lockContent, `"web-fetch"`) || strings.Contains(lockContent, `[mcp_servers."web-fetch"]`) {
-		t.Errorf("Expected workflow without web-fetch NOT to contain web-fetch MCP server, but it did")
+	if strings.Contains(lockContent, `mcp/fetch`) {
+		t.Errorf("Expected workflow without web-fetch NOT to contain mcp/fetch, but it did")
 	}
 }

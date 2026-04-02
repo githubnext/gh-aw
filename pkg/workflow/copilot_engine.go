@@ -41,7 +41,6 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsToolsAllowlist:   true,
 			supportsMaxTurns:         false, // Copilot CLI does not support max-turns feature yet
 			supportsMaxContinuations: true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
-			supportsWebFetch:         true,  // Copilot CLI has built-in web-fetch support
 			supportsWebSearch:        false, // Copilot CLI does not have built-in web-search support
 			llmGatewayPort:           constants.CopilotLLMGatewayPort,
 		},
