@@ -37,6 +37,30 @@ import (
 
 var compileBatchOperationsLog = logger.New("cli:compile_batch_operations")
 
+// RunActionlintOnFiles runs actionlint on multiple lock files in a single batch.
+// This is more efficient than running actionlint once per file.
+func RunActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+	return runActionlintOnFiles(lockFiles, verbose, strict)
+}
+
+// RunZizmorOnFiles runs zizmor on multiple lock files in a single batch.
+// This is more efficient than running zizmor once per file.
+func RunZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+	return runZizmorOnFiles(lockFiles, verbose, strict)
+}
+
+// RunPoutineOnDirectory runs poutine security scanner once on a directory.
+// Poutine scans all workflows in a directory, so it only needs to run once.
+func RunPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error {
+	return runPoutineOnDirectory(workflowDir, verbose, strict)
+}
+
 // runBatchLockFileTool runs a batch tool on lock files with uniform error handling
 func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, strict bool, runner func([]string, bool, bool) error) error {
 	if len(lockFiles) == 0 {

@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/timeutil"
 )
 
 var tokenUsageLog = logger.New("cli:token_usage")
@@ -236,18 +236,10 @@ func (s *TokenUsageSummary) AvgDurationMs() int {
 	return s.TotalDurationMs / s.TotalRequests
 }
 
-// FormatDurationMs formats milliseconds as a human-readable string
+// FormatDurationMs formats milliseconds as a human-readable string.
+// Deprecated: Use timeutil.FormatDurationMs instead.
 func FormatDurationMs(ms int) string {
-	if ms < 1000 {
-		return fmt.Sprintf("%dms", ms)
-	}
-	seconds := float64(ms) / 1000.0
-	if seconds < 60 {
-		return fmt.Sprintf("%.1fs", seconds)
-	}
-	minutes := int(seconds) / 60
-	secs := math.Mod(seconds, 60)
-	return fmt.Sprintf("%dm%.0fs", minutes, secs)
+	return timeutil.FormatDurationMs(ms)
 }
 
 // ModelRows returns the by-model data as sorted rows for console rendering

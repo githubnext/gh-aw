@@ -3481,6 +3481,11 @@
                   "description": "Enable lockdown mode to limit content surfaced from public repositories (only items authored by users with push access). Default: false",
                   "default": false
                 },
+                "integrity-proxy": {
+                  "type": "boolean",
+                  "description": "Controls DIFC proxy injection for pre-agent gh CLI steps when guard policies (min-integrity) are configured. Default: true (enabled). Set to false to disable proxy injection and rely solely on MCP gateway-level filtering.",
+                  "default": true
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."

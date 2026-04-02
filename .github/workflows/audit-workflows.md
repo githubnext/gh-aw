@@ -12,11 +12,6 @@ tracker-id: audit-workflows-daily
 engine: claude
 tools:
   agentic-workflows:
-  repo-memory:
-    branch-name: memory/audit-workflows
-    description: "Historical audit data and patterns"
-    file-glob: ["memory/audit-workflows/*.json", "memory/audit-workflows/*.jsonl", "memory/audit-workflows/*.csv", "memory/audit-workflows/*.md"]
-    max-file-size: 102400  # 100KB
   timeout: 300
 safe-outputs:
   upload-asset:
@@ -26,6 +21,10 @@ imports:
     with:
       title-prefix: "[audit-workflows] "
       expires: 1d
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/audit-workflows"
+      description: "Historical audit data and patterns"
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trending-charts-simple.md

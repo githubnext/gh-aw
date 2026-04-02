@@ -68,14 +68,15 @@ import (
 var difcProxyLog = logger.New("workflow:difc_proxy")
 
 // hasDIFCGuardsConfigured returns true if the GitHub tool has explicit guard policies configured
-// (min-integrity is set) AND the "difc-proxy" feature flag is enabled.
+// (min-integrity is set) AND the DIFC proxy has not been explicitly disabled via
+// tools.github.integrity-proxy: false.
 // This is the base condition for DIFC proxy injection.
 func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 	if data == nil {
 		return false
 	}
-	if !isFeatureEnabled(constants.DIFCProxyFeatureFlag, data) {
-		difcProxyLog.Print("difc-proxy feature flag not enabled, skipping DIFC proxy injection")
+	if !isIntegrityProxyEnabled(data) {
+		difcProxyLog.Print("integrity-proxy disabled via tools.github.integrity-proxy: false, skipping DIFC proxy injection")
 		return false
 	}
 	githubTool, hasGitHub := data.Tools["github"]
@@ -83,6 +84,31 @@ func hasDIFCGuardsConfigured(data *WorkflowData) bool {
 		return false
 	}
 	return len(getGitHubGuardPolicies(githubTool)) > 0
+}
+
+// isIntegrityProxyEnabled returns true unless the user has explicitly disabled the DIFC proxy
+// by setting tools.github.integrity-proxy: false.
+// The proxy is enabled by default (opt-out model): absent or true → enabled; false → disabled.
+func isIntegrityProxyEnabled(data *WorkflowData) bool {
+	if data == nil {
+		return true
+	}
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub {
+		return true
+	}
+	toolConfig, ok := githubTool.(map[string]any)
+	if !ok {
+		return true
+	}
+	val, hasField := toolConfig["integrity-proxy"]
+	if !hasField {
+		return true // default: enabled
+	}
+	if enabled, ok := val.(bool); ok {
+		return enabled
+	}
+	return true
 }
 
 // hasDIFCProxyNeeded returns true if the DIFC proxy should be injected in the main job.
@@ -216,12 +242,12 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	// Store policy and image in env vars to avoid shell-quoting issues with
+	// inline JSON arguments and to keep the run: command clean.
+	fmt.Fprintf(&sb, "          DIFC_PROXY_POLICY: '%s'\n", policyJSON)
+	fmt.Fprintf(&sb, "          DIFC_PROXY_IMAGE: '%s'\n", containerImage)
 	sb.WriteString("        run: |\n")
-	// The policy JSON contains only static values from the workflow frontmatter
-	// (min-integrity and repos). It never contains GitHub Actions expressions (${{ }})
-	// because getDIFCProxyPolicyJSON() only includes compile-time values, making
-	// single-quoting safe here.
-	fmt.Fprintf(&sb, "          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '%s' '%s'\n", policyJSON, containerImage)
+	sb.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh\n")
 	return sb.String()
 }
 

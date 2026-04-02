@@ -3,20 +3,18 @@
 # This script starts the awmg proxy container that routes gh CLI calls
 # through DIFC integrity filtering before the agent runs.
 #
-# Arguments:
-#   $1 - POLICY: JSON guard policy string
-#   $2 - CONTAINER_IMAGE: Container image to use (e.g., ghcr.io/github/gh-aw-mcpg:v0.2.2)
-#
 # Environment:
-#   GH_TOKEN - GitHub token passed to the proxy container
-#   GITHUB_SERVER_URL - GitHub server URL for upstream routing (e.g. https://github.com or https://TENANT.ghe.com)
-#   GITHUB_REPOSITORY - Repository name (owner/repo) for git remote
-#   GITHUB_ENV - Path to GitHub Actions environment file
+#   DIFC_PROXY_POLICY   - JSON guard policy string
+#   DIFC_PROXY_IMAGE    - Container image to use (e.g., ghcr.io/github/gh-aw-mcpg:v0.2.2)
+#   GH_TOKEN            - GitHub token passed to the proxy container
+#   GITHUB_SERVER_URL   - GitHub server URL for upstream routing (e.g. https://github.com or https://TENANT.ghe.com)
+#   GITHUB_REPOSITORY   - Repository name (owner/repo) for git remote
+#   GITHUB_ENV          - Path to GitHub Actions environment file
 
 set -e
 
-POLICY="$1"
-CONTAINER_IMAGE="$2"
+POLICY="${DIFC_PROXY_POLICY:-}"
+CONTAINER_IMAGE="${DIFC_PROXY_IMAGE:-}"
 
 if [ -z "$POLICY" ]; then
   echo "::warning::DIFC proxy policy not specified, skipping proxy start"

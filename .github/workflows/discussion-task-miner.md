@@ -37,11 +37,6 @@ safe-outputs:
     run-failure: "⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
 
 tools:
-  repo-memory:
-    branch-name: memory/discussion-task-miner
-    description: "Track processed discussions and extracted tasks"
-    file-glob: ["memory/discussion-task-miner/*.json", "memory/discussion-task-miner/*.md"]
-    max-file-size: 102400  # 100KB
   github:
     min-integrity: approved
     approval-labels: [cookie]
@@ -53,6 +48,10 @@ tools:
     - "date *"
 
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/discussion-task-miner"
+      description: "Track processed discussions and extracted tasks"
   - shared/jqschema.md
   - shared/reporting.md
 

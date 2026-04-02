@@ -2976,10 +2976,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          DIFC_PROXY_POLICY: '{"allow-only":{"repos":"all","min-integrity":"none"}}'
         run: |
-          bash actions/setup/sh/start_difc_proxy.sh \
-            '{"allow-only":{"repos":"all","min-integrity":"none"}}' \
-            "$DIFC_PROXY_IMAGE"
+          bash actions/setup/sh/start_difc_proxy.sh
 
       - name: Verify DIFC proxy started
         run: |

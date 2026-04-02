@@ -7,6 +7,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -80,7 +81,11 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// produce valid YAML inline syntax (e.g. ["go","typescript"]).
 	rawContent := string(content)
 	if len(item.inputs) > 0 {
-		rawContent = substituteImportInputsInContent(rawContent, item.inputs)
+		// Apply import-schema defaults for any optional parameters not supplied by the caller,
+		// so that ${{ github.aw.import-inputs.<key> }} expressions for defaulted parameters
+		// are replaced with their declared default values rather than left as literal strings.
+		inputsWithDefaults := applyImportSchemaDefaults(rawContent, item.inputs)
+		rawContent = substituteImportInputsInContent(rawContent, inputsWithDefaults)
 	}
 
 	// Extract tools from imported file.
@@ -595,6 +600,59 @@ func validateImportInputType(name string, value any, declaredType string, paramD
 		return validateObjectInput(name, value, paramDef, importPath)
 	}
 	return nil
+}
+
+// applyImportSchemaDefaults reads the import-schema from rawContent and returns a copy
+// of inputs augmented with default values for any schema parameters that are declared
+// with a "default" field but not present in the provided inputs map. Parameters that
+// are already in inputs are left unchanged.
+func applyImportSchemaDefaults(rawContent string, inputs map[string]any) map[string]any {
+	parsed, err := ExtractFrontmatterFromContent(rawContent)
+	if err != nil {
+		return inputs
+	}
+	rawSchema, ok := parsed.Frontmatter["import-schema"]
+	if !ok {
+		return inputs
+	}
+	schemaMap, ok := rawSchema.(map[string]any)
+	if !ok || len(schemaMap) == 0 {
+		return inputs
+	}
+
+	// Check if there are any defaults to apply - avoid copying if not needed.
+	hasDefaults := false
+	for paramName, paramDefRaw := range schemaMap {
+		if _, provided := inputs[paramName]; provided {
+			continue
+		}
+		if paramDef, ok := paramDefRaw.(map[string]any); ok {
+			if _, hasDefault := paramDef["default"]; hasDefault {
+				hasDefaults = true
+				break
+			}
+		}
+	}
+	if !hasDefaults {
+		return inputs
+	}
+
+	// Copy the inputs map and add defaults for unprovided parameters.
+	augmented := make(map[string]any, len(inputs))
+	maps.Copy(augmented, inputs)
+	for paramName, paramDefRaw := range schemaMap {
+		if _, provided := augmented[paramName]; provided {
+			continue
+		}
+		paramDef, ok := paramDefRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if defaultVal, hasDefault := paramDef["default"]; hasDefault {
+			augmented[paramName] = defaultVal
+		}
+	}
+	return augmented
 }
 
 // importInputsExprRegex matches ${{ github.aw.import-inputs.<key> }} and

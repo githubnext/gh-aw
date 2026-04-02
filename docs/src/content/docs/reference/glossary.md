@@ -99,9 +99,9 @@ A guardrail feature that controls which GitHub content an agent can access, filt
 
 Two additional fields extend integrity filtering beyond the level threshold: `blocked-users` unconditionally denies content from listed GitHub usernames regardless of level, and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
-### DIFC Proxy (`features.difc-proxy`)
+### DIFC Proxy (`tools.github.integrity-proxy`)
 
-An opt-in feature flag enabling full Data Integrity and Flow Control (DIFC) proxy enforcement. When enabled alongside `tools.github.min-integrity`, the compiler injects proxy steps around the agent job that enforce integrity-level isolation at the network boundary. Without `difc-proxy`, `min-integrity` alone performs content filtering only at the MCP gateway level. Enable it when network-boundary enforcement is required in addition to gateway-level filtering. Filtered content is recorded as `DIFC_FILTERED` events in `gateway.jsonl` for later inspection. Can also be enabled via the `GH_AW_FEATURES=difc-proxy` environment variable. See [Integrity Filtering](/gh-aw/reference/integrity/).
+Controls full Data Integrity and Flow Control (DIFC) proxy enforcement. When `tools.github.min-integrity` is configured, the compiler injects proxy steps around the agent job that enforce integrity-level isolation at the network boundary. The proxy is **enabled by default** — set `tools.github.integrity-proxy: false` to disable it and rely solely on MCP gateway-level filtering. Filtered content is recorded as `DIFC_FILTERED` events in `gateway.jsonl` for later inspection. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
 ### Status Comment
 

@@ -36,11 +36,6 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  repo-memory:
-    branch-name: memory/daily-news
-    description: "Historical news digest data"
-    file-glob: ["memory/daily-news/*.json", "memory/daily-news/*.jsonl", "memory/daily-news/*.csv", "memory/daily-news/*.md"]
-    max-file-size: 102400  # 100KB
   edit:
   bash:
     - "*"
@@ -281,6 +276,10 @@ steps:
       find /tmp/gh-aw/daily-news-data/ -maxdepth 1 -ls
 
 imports:
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: "memory/daily-news"
+      description: "Historical news digest data"
   - shared/mcp/tavily.md
   - shared/jqschema.md
   - shared/reporting.md
