@@ -329,8 +329,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
+          DIFC_PROXY_POLICY: '{"allow-only":{"min-integrity":"approved","repos":"all"}}'
+          DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.11'
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '{"allow-only":{"min-integrity":"approved","repos":"all"}}' 'ghcr.io/github/gh-aw-mcpg:v0.2.11'
+          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh
       - name: Set GH_REPO for proxied steps
         run: |
           echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"

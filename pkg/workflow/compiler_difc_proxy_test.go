@@ -328,10 +328,12 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 		assert.Contains(t, result, "Start DIFC proxy for pre-agent gh calls", "step name should be present")
 		assert.Contains(t, result, "GH_TOKEN:", "step should include GH_TOKEN env var")
 		assert.Contains(t, result, "GITHUB_SERVER_URL:", "step should include GITHUB_SERVER_URL env var")
+		assert.Contains(t, result, "DIFC_PROXY_POLICY:", "step should include policy as env var")
+		assert.Contains(t, result, "DIFC_PROXY_IMAGE:", "step should include image as env var")
 		assert.Contains(t, result, "start_difc_proxy.sh", "step should call the proxy script")
-		assert.Contains(t, result, `"allow-only"`, "step should include guard policy JSON")
-		assert.Contains(t, result, `"min-integrity":"approved"`, "step should include min-integrity in policy")
-		assert.Contains(t, result, "ghcr.io/github/gh-aw-mcpg", "step should include container image")
+		assert.Contains(t, result, `"allow-only"`, "step should include guard policy JSON in env var")
+		assert.Contains(t, result, `"min-integrity":"approved"`, "step should include min-integrity in policy env var")
+		assert.Contains(t, result, "ghcr.io/github/gh-aw-mcpg", "step should include container image in env var")
 		assert.NotContains(t, result, "blocked-users", "proxy policy should not include dynamic blocked-users")
 		assert.NotContains(t, result, "approval-labels", "proxy policy should not include dynamic approval-labels")
 	})
@@ -469,16 +471,17 @@ Test that DIFC proxy is injected by default when min-integrity is set with custo
 
 	// Verify the policy JSON in the proxy start step does NOT contain dynamic fields.
 	// Note: the MCP gateway config may include approval-labels/blocked-users, but the proxy policy must not.
-	proxyStartLine := ""
+	// The policy is stored in the DIFC_PROXY_POLICY env var line.
+	proxyPolicyLine := ""
 	for line := range strings.SplitSeq(result, "\n") {
-		if strings.Contains(line, "start_difc_proxy.sh") {
-			proxyStartLine = line
+		if strings.Contains(line, "DIFC_PROXY_POLICY") {
+			proxyPolicyLine = line
 			break
 		}
 	}
-	require.NotEmpty(t, proxyStartLine, "should find the start_difc_proxy.sh invocation line")
-	assert.NotContains(t, proxyStartLine, "blocked-users", "proxy policy invocation should not include blocked-users")
-	assert.NotContains(t, proxyStartLine, "approval-labels", "proxy policy invocation should not include approval-labels")
+	require.NotEmpty(t, proxyPolicyLine, "should find the DIFC_PROXY_POLICY env var line")
+	assert.NotContains(t, proxyPolicyLine, "blocked-users", "proxy policy should not include blocked-users")
+	assert.NotContains(t, proxyPolicyLine, "approval-labels", "proxy policy should not include approval-labels")
 }
 
 // TestDIFCProxyNotInjectedWithoutGuardPolicy verifies no proxy injection without guard policy.

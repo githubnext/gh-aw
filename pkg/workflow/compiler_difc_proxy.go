@@ -242,12 +242,12 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	// Store policy and image in env vars to avoid shell-quoting issues with
+	// inline JSON arguments and to keep the run: command clean.
+	fmt.Fprintf(&sb, "          DIFC_PROXY_POLICY: '%s'\n", policyJSON)
+	fmt.Fprintf(&sb, "          DIFC_PROXY_IMAGE: '%s'\n", containerImage)
 	sb.WriteString("        run: |\n")
-	// The policy JSON contains only static values from the workflow frontmatter
-	// (min-integrity and repos). It never contains GitHub Actions expressions (${{ }})
-	// because getDIFCProxyPolicyJSON() only includes compile-time values, making
-	// single-quoting safe here.
-	fmt.Fprintf(&sb, "          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh '%s' '%s'\n", policyJSON, containerImage)
+	sb.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh\n")
 	return sb.String()
 }
 
