@@ -136,7 +136,12 @@
     "docker/login-action@v4": {
       "repo": "docker/login-action",
       "version": "v4",
-      "sha": "b45d80f862d83dbcd57f89517bcf500b2ab88fb2"
+      "sha": "4907a6ddec9925e35a0a9e82d7399ccc52663121"
+    },
+    "docker/login-action@v4.1.0": {
+      "repo": "docker/login-action",
+      "version": "v4.1.0",
+      "sha": "4907a6ddec9925e35a0a9e82d7399ccc52663121"
     },
     "docker/metadata-action@v6": {
       "repo": "docker/metadata-action",
@@ -168,6 +173,11 @@
       "version": "v9.0.6",
       "sha": "7683f9d6900857a9e6dad8a3277a33bcc0b51d44"
     },
+    "github/stale-repos@v9.0.7": {
+      "repo": "github/stale-repos",
+      "version": "v9.0.7",
+      "sha": "25946246f29e8692a397502045e457c4dc96c6e4"
+    },
     "haskell-actions/setup@v2.10.3": {
       "repo": "haskell-actions/setup",
       "version": "v2.10.3",
@@ -192,6 +202,11 @@
       "repo": "super-linter/super-linter",
       "version": "v8.5.0",
       "sha": "61abc07d755095a68f4987d1c2c3d1d64408f1f9"
+    },
+    "super-linter/super-linter@v8.6.0": {
+      "repo": "super-linter/super-linter",
+      "version": "v8.6.0",
+      "sha": "9e863354e3ff62e0727d37183162c4a88873df41"
     }
   }
 }

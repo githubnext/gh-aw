@@ -58,7 +58,7 @@ jobs:
           working-directory: /tmp/gh-aw/apm-workspace
       - name: Upload APM bundle artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm
           path: ${{ steps.apm_pack.outputs.bundle-path }}
@@ -66,7 +66,7 @@ jobs:
 
 steps:
   - name: Download APM bundle artifact
-    uses: actions/download-artifact@v4
+    uses: actions/download-artifact@v8.0.1
     with:
       name: ${{ needs.activation.outputs.artifact_prefix }}apm
       path: /tmp/gh-aw/apm-bundle
