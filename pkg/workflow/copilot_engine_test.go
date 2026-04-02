@@ -1418,14 +1418,14 @@ func TestGenerateCopilotSessionFileCopyStep(t *testing.T) {
 	if !strings.Contains(content, "always()") {
 		t.Error("Step should run always()")
 	}
-	if !strings.Contains(content, ".copilot/session-state") {
-		t.Error("Step should reference the Copilot session-state directory")
-	}
-	if !strings.Contains(content, "/tmp/gh-aw/sandbox/agent/logs") {
-		t.Error("Step should copy files into the gh-aw logs directory")
-	}
 	if !strings.Contains(content, "continue-on-error: true") {
 		t.Error("Step should be marked continue-on-error")
+	}
+	if !strings.Contains(content, "copy_copilot_session_state.sh") {
+		t.Error("Step should invoke copy_copilot_session_state.sh")
+	}
+	if !strings.Contains(content, "${RUNNER_TEMP}/gh-aw/actions/") {
+		t.Error("Step should reference script via ${RUNNER_TEMP}/gh-aw/actions/")
 	}
 }
 

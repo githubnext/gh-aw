@@ -1,0 +1,279 @@
+package cli
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var tokenUsageLog = logger.New("cli:token_usage")
+
+// TokenUsageEntry represents a single line from token-usage.jsonl
+type TokenUsageEntry struct {
+	Timestamp        string `json:"timestamp"`
+	RequestID        string `json:"request_id"`
+	Provider         string `json:"provider"`
+	Model            string `json:"model"`
+	Path             string `json:"path"`
+	Status           int    `json:"status"`
+	Streaming        bool   `json:"streaming"`
+	InputTokens      int    `json:"input_tokens"`
+	OutputTokens     int    `json:"output_tokens"`
+	CacheReadTokens  int    `json:"cache_read_tokens"`
+	CacheWriteTokens int    `json:"cache_write_tokens"`
+	DurationMs       int    `json:"duration_ms"`
+	ResponseBytes    int    `json:"response_bytes"`
+}
+
+// TokenUsageSummary contains aggregated token usage from the firewall proxy
+type TokenUsageSummary struct {
+	TotalInputTokens      int                         `json:"total_input_tokens" console:"header:Input Tokens,format:number"`
+	TotalOutputTokens     int                         `json:"total_output_tokens" console:"header:Output Tokens,format:number"`
+	TotalCacheReadTokens  int                         `json:"total_cache_read_tokens" console:"header:Cache Read,format:number"`
+	TotalCacheWriteTokens int                         `json:"total_cache_write_tokens" console:"header:Cache Write,format:number"`
+	TotalRequests         int                         `json:"total_requests" console:"header:Requests"`
+	TotalDurationMs       int                         `json:"total_duration_ms"`
+	TotalResponseBytes    int                         `json:"total_response_bytes"`
+	CacheEfficiency       float64                     `json:"cache_efficiency"`
+	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
+}
+
+// ModelTokenUsage contains per-model token usage statistics
+type ModelTokenUsage struct {
+	Provider         string `json:"provider"`
+	InputTokens      int    `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	Requests         int    `json:"requests" console:"header:Requests"`
+	DurationMs       int    `json:"duration_ms"`
+	ResponseBytes    int    `json:"response_bytes"`
+}
+
+// ModelTokenUsageRow is a flattened version for console table rendering
+type ModelTokenUsageRow struct {
+	Model            string `json:"model" console:"header:Model"`
+	Provider         string `json:"provider" console:"header:Provider"`
+	InputTokens      int    `json:"input_tokens" console:"header:Input,format:number"`
+	OutputTokens     int    `json:"output_tokens" console:"header:Output,format:number"`
+	CacheReadTokens  int    `json:"cache_read_tokens" console:"header:Cache Read,format:number"`
+	CacheWriteTokens int    `json:"cache_write_tokens" console:"header:Cache Write,format:number"`
+	Requests         int    `json:"requests" console:"header:Requests"`
+	AvgDuration      string `json:"avg_duration" console:"header:Avg Duration"`
+}
+
+// tokenUsageJSONLPath is the relative path within the firewall logs directory
+const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
+
+// parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary
+func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
+	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open token usage file: %w", err)
+	}
+	defer file.Close()
+
+	summary := &TokenUsageSummary{
+		ByModel: make(map[string]*ModelTokenUsage),
+	}
+
+	scanner := bufio.NewScanner(file)
+	// Increase buffer size for potentially large lines
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		var entry TokenUsageEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
+			continue
+		}
+
+		// Aggregate totals
+		summary.TotalInputTokens += entry.InputTokens
+		summary.TotalOutputTokens += entry.OutputTokens
+		summary.TotalCacheReadTokens += entry.CacheReadTokens
+		summary.TotalCacheWriteTokens += entry.CacheWriteTokens
+		summary.TotalRequests++
+		summary.TotalDurationMs += entry.DurationMs
+		summary.TotalResponseBytes += entry.ResponseBytes
+
+		// Aggregate by model
+		model := entry.Model
+		if model == "" {
+			model = "unknown"
+		}
+		if _, exists := summary.ByModel[model]; !exists {
+			summary.ByModel[model] = &ModelTokenUsage{
+				Provider: entry.Provider,
+			}
+		}
+		m := summary.ByModel[model]
+		m.InputTokens += entry.InputTokens
+		m.OutputTokens += entry.OutputTokens
+		m.CacheReadTokens += entry.CacheReadTokens
+		m.CacheWriteTokens += entry.CacheWriteTokens
+		m.Requests++
+		m.DurationMs += entry.DurationMs
+		m.ResponseBytes += entry.ResponseBytes
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading token usage file: %w", err)
+	}
+
+	if summary.TotalRequests == 0 {
+		tokenUsageLog.Print("No token usage entries found")
+		return nil, nil
+	}
+
+	// Compute cache efficiency: cache_read / (input + cache_read)
+	totalInputPlusCacheRead := summary.TotalInputTokens + summary.TotalCacheReadTokens
+	if totalInputPlusCacheRead > 0 {
+		summary.CacheEfficiency = float64(summary.TotalCacheReadTokens) / float64(totalInputPlusCacheRead)
+	}
+
+	tokenUsageLog.Printf("Parsed %d entries: %d input, %d output, %d cache_read, %d cache_write, %d requests",
+		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
+		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
+
+	return summary, nil
+}
+
+// findTokenUsageFile searches for token-usage.jsonl in the run directory
+func findTokenUsageFile(runDir string) string {
+	// Primary path: sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
+	primary := filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath)
+	if _, err := os.Stat(primary); err == nil {
+		tokenUsageLog.Printf("Found token usage file at primary path: %s", primary)
+		return primary
+	}
+
+	// Check firewall-audit-logs artifact directory
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return ""
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "firewall-audit-logs") || strings.HasPrefix(name, "firewall-logs") {
+			candidate := filepath.Join(runDir, name, tokenUsageJSONLPath)
+			if _, err := os.Stat(candidate); err == nil {
+				tokenUsageLog.Printf("Found token usage file in %s: %s", name, candidate)
+				return candidate
+			}
+		}
+	}
+
+	// Walk sandbox directory for any token-usage.jsonl
+	_ = filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if info.Name() == "token-usage.jsonl" {
+			primary = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
+		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
+		return primary
+	}
+
+	tokenUsageLog.Print("No token usage file found")
+	return ""
+}
+
+// analyzeTokenUsage finds and parses the token-usage.jsonl file from a run directory
+func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) {
+	tokenUsageLog.Printf("Analyzing token usage in: %s", runDir)
+
+	filePath := findTokenUsageFile(runDir)
+	if filePath == "" {
+		return nil, nil
+	}
+
+	if verbose {
+		fileInfo, _ := os.Stat(filePath)
+		if fileInfo != nil {
+			fmt.Fprintf(os.Stderr, "  Found token usage file: %s (%d bytes)\n", filepath.Base(filePath), fileInfo.Size())
+		}
+	}
+
+	return parseTokenUsageFile(filePath)
+}
+
+// TotalTokens returns the sum of all token types
+func (s *TokenUsageSummary) TotalTokens() int {
+	return s.TotalInputTokens + s.TotalOutputTokens + s.TotalCacheReadTokens + s.TotalCacheWriteTokens
+}
+
+// AvgDurationMs returns the average request duration in milliseconds
+func (s *TokenUsageSummary) AvgDurationMs() int {
+	if s.TotalRequests == 0 {
+		return 0
+	}
+	return s.TotalDurationMs / s.TotalRequests
+}
+
+// FormatDurationMs formats milliseconds as a human-readable string
+func FormatDurationMs(ms int) string {
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	seconds := float64(ms) / 1000.0
+	if seconds < 60 {
+		return fmt.Sprintf("%.1fs", seconds)
+	}
+	minutes := int(seconds) / 60
+	secs := math.Mod(seconds, 60)
+	return fmt.Sprintf("%dm%.0fs", minutes, secs)
+}
+
+// ModelRows returns the by-model data as sorted rows for console rendering
+func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
+	rows := make([]ModelTokenUsageRow, 0, len(s.ByModel))
+	for model, usage := range s.ByModel {
+		avgDur := 0
+		if usage.Requests > 0 {
+			avgDur = usage.DurationMs / usage.Requests
+		}
+		rows = append(rows, ModelTokenUsageRow{
+			Model:            model,
+			Provider:         usage.Provider,
+			InputTokens:      usage.InputTokens,
+			OutputTokens:     usage.OutputTokens,
+			CacheReadTokens:  usage.CacheReadTokens,
+			CacheWriteTokens: usage.CacheWriteTokens,
+			Requests:         usage.Requests,
+			AvgDuration:      FormatDurationMs(avgDur),
+		})
+	}
+	// Sort by total tokens descending
+	sort.Slice(rows, func(i, j int) bool {
+		iTot := rows[i].InputTokens + rows[i].OutputTokens + rows[i].CacheReadTokens + rows[i].CacheWriteTokens
+		jTot := rows[j].InputTokens + rows[j].OutputTokens + rows[j].CacheReadTokens + rows[j].CacheWriteTokens
+		return iTot > jTot
+	})
+	return rows
+}

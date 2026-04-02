@@ -366,6 +366,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					Noops:                   result.Noops,
 					MCPFailures:             result.MCPFailures,
 					MCPToolUsage:            result.MCPToolUsage,
+					TokenUsage:              result.TokenUsage,
 					JobDetails:              result.JobDetails,
 				}
 				processedRuns = append(processedRuns, processedRun)
@@ -629,6 +630,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					Noops:                   summary.Noops,
 					MCPFailures:             summary.MCPFailures,
 					MCPToolUsage:            summary.MCPToolUsage,
+					TokenUsage:              summary.TokenUsage,
 					JobDetails:              summary.JobDetails,
 					LogsPath:                runOutputDir,
 					Cached:                  true, // Mark as cached
@@ -770,6 +772,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.MCPToolUsage = mcpToolUsage
 
+				// Analyze token usage from firewall proxy logs
+				tokenUsage, tokenErr := analyzeTokenUsage(runOutputDir, verbose)
+				if tokenErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", run.DatabaseID, tokenErr)))
+					}
+				}
+				result.TokenUsage = tokenUsage
+
 				// Count safe output items created in GitHub (from manifest artifact)
 				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
 
@@ -799,6 +810,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					Noops:                   noops,
 					MCPFailures:             mcpFailures,
 					MCPToolUsage:            mcpToolUsage,
+					TokenUsage:              tokenUsage,
 					JobDetails:              jobDetails,
 				}
 				awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
@@ -826,6 +838,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					Noops:                   noops,
 					MCPFailures:             mcpFailures,
 					MCPToolUsage:            mcpToolUsage,
+					TokenUsage:              tokenUsage,
 					ArtifactsList:           artifacts,
 					JobDetails:              jobDetails,
 				}

@@ -548,6 +548,28 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 	}
 }
 
+// buildWorkspaceCheckoutForDetectionStep creates a checkout step for the detection job.
+// It runs only when the agent job produced a patch, so the detection engine can
+// analyze code changes in the context of the surrounding codebase.
+func (c *Compiler) buildWorkspaceCheckoutForDetectionStep(data *WorkflowData) []string {
+	checkoutPin := GetActionPin("actions/checkout")
+	if checkoutPin == "" {
+		threatLog.Print("No action pin found for actions/checkout, skipping workspace checkout step")
+		return nil
+	}
+
+	steps := []string{
+		"      - name: Checkout repository for patch context\n",
+		fmt.Sprintf("        if: needs.%s.outputs.has_patch == 'true'\n", constants.AgentJobName),
+		fmt.Sprintf("        uses: %s\n", checkoutPin),
+		"        with:\n",
+		"          persist-credentials: false\n",
+	}
+
+	threatLog.Print("Added conditional workspace checkout step for patch context")
+	return steps
+}
+
 // buildDetectionJob creates a separate detection job that runs after the agent job.
 // The job downloads the agent artifact to access output files, then runs all threat detection
 // steps. It outputs detection_success and detection_conclusion for downstream jobs.
@@ -582,6 +604,10 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	// Use agent-downstream prefix since this job depends on the agent job.
 	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix)...)
+
+	// Conditionally checkout the target repository so the detection engine can
+	// analyze patches in the context of the surrounding codebase.
+	steps = append(steps, c.buildWorkspaceCheckoutForDetectionStep(data)...)
 
 	// Add all threat detection steps
 	detectionStepsContent := c.buildDetectionJobSteps(data)
@@ -625,17 +651,15 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	jobCondition := RenderCondition(jobConditionNode)
 
 	// Determine permissions for the detection job.
-	// - In dev/script mode, need contents: read if the actions folder checkout is needed.
+	// - Always grant contents: read because the workspace checkout (for patch context)
+	//   requires it, and contents: read is a minimal read-only permission.
+	//   The checkout is conditional on has_patch at runtime, but permissions cannot
+	//   be set conditionally in GitHub Actions.
+	// - In dev/script mode, contents: read is also needed for the actions folder checkout.
 	// - When the copilot-requests feature is enabled, the detection job runs the Copilot CLI
 	//   and requires copilot-requests: write for authentication.
-	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 	copilotRequestsEnabled := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, data)
-	var perms *Permissions
-	if needsContentsRead {
-		perms = NewPermissionsContentsRead()
-	} else {
-		perms = NewPermissions()
-	}
+	perms := NewPermissionsContentsRead()
 	if copilotRequestsEnabled {
 		perms.Set(PermissionCopilotRequests, PermissionWrite)
 	}

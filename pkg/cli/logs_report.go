@@ -108,7 +108,8 @@ type RunData struct {
 	TaskDomain          *TaskDomainInfo      `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint *BehaviorFingerprint `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments  []AgenticAssessment  `json:"agentic_assessments,omitempty" console:"-"`
-	AwContext           *AwContext           `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
+	AwContext           *AwContext           `json:"context,omitempty" console:"-"`             // aw_context data from aw_info.json
+	TokenUsageSummary   *TokenUsageSummary   `json:"token_usage_summary,omitempty" console:"-"` // Token usage from firewall proxy
 }
 
 // ToolUsageSummary contains aggregated tool usage statistics
@@ -235,6 +236,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			BehaviorFingerprint: pr.BehaviorFingerprint,
 			AgenticAssessments:  pr.AgenticAssessments,
 			AwContext:           awContext,
+			TokenUsageSummary:   pr.TokenUsage,
 		}
 		if awInfo != nil {
 			runData.Repository = awInfo.Repository

@@ -150,9 +150,15 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 	addWorkflowPRLog.Printf("Pushing branch %s to remote", branchName)
 	if err := pushBranch(branchName, opts.Verbose); err != nil {
 		addWorkflowPRLog.Printf("Failed to push branch: %v", err)
-		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
-		}
+		// Treat push failure as a warning: keep the files and commit intact so the
+		// user can push manually. Do NOT rollback.
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to push branch %s: %v", branchName, err)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			"The workflow files have been committed to local branch "+branchName+".\n"+
+				"  To push the branch and create a pull request, run:\n\n"+
+				"    git push -u origin "+branchName+"\n"+
+				"    gh pr create --title "+fmt.Sprintf("%q", prTitle),
+		))
 		return 0, "", fmt.Errorf("failed to push branch %s: %w", branchName, err)
 	}
 
