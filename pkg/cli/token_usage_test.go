@@ -20,7 +20,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		content := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"abc-123","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":100,"output_tokens":200,"cache_read_tokens":5000,"cache_write_tokens":3000,"duration_ms":2500,"response_bytes":1500}`
 		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644), "should write test file")
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err, "should parse without error")
 		require.NotNil(t, summary, "should return non-nil summary")
 
@@ -49,7 +49,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 {"timestamp":"2026-04-01T17:58:00.000Z","request_id":"3","provider":"anthropic","model":"claude-haiku-4-5","path":"/v1/messages","status":200,"streaming":false,"input_tokens":769,"output_tokens":86,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":700,"response_bytes":500}`
 		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644), "should write test file")
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err, "should parse without error")
 		require.NotNil(t, summary, "should return non-nil summary")
 
@@ -75,7 +75,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
 		require.NoError(t, os.WriteFile(filePath, []byte(""), 0o644))
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err, "should not error on empty file")
 		assert.Nil(t, summary, "should return nil for empty file")
 	})
@@ -85,7 +85,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
 		require.NoError(t, os.WriteFile(filePath, []byte("\n\n\n"), 0o644))
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err, "should not error on blank-only file")
 		assert.Nil(t, summary, "should return nil for blank-only file")
 	})
@@ -99,7 +99,7 @@ func TestParseTokenUsageFile(t *testing.T) {
 also not json`
 		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err, "should not error on mixed content")
 		require.NotNil(t, summary, "should return summary from valid lines")
 		assert.Equal(t, 1, summary.TotalRequests, "should count only valid entries")
@@ -107,7 +107,7 @@ also not json`
 	})
 
 	t.Run("file not found returns error", func(t *testing.T) {
-		_, err := parseTokenUsageFile("/nonexistent/path/token-usage.jsonl")
+		_, err := parseTokenUsageFile("/nonexistent/path/token-usage.jsonl", nil)
 		assert.Error(t, err, "should error on missing file")
 	})
 
@@ -118,7 +118,7 @@ also not json`
 		content := `{"timestamp":"2026-04-01T17:56:38.042Z","request_id":"1","provider":"anthropic","model":"","path":"/v1/messages","status":200,"streaming":true,"input_tokens":50,"output_tokens":25,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":500,"response_bytes":200}`
 		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err, "should parse without error")
 		require.NotNil(t, summary, "should return non-nil summary")
 		require.Contains(t, summary.ByModel, "unknown", "should use 'unknown' for empty model")
@@ -266,7 +266,7 @@ func TestCacheEfficiency(t *testing.T) {
 		content := `{"provider":"anthropic","model":"sonnet","input_tokens":100,"output_tokens":50,"cache_read_tokens":0,"cache_write_tokens":0,"duration_ms":100}`
 		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err)
 		require.NotNil(t, summary)
 		assert.InDelta(t, 0.0, summary.CacheEfficiency, 0.001, "cache efficiency should be 0 with no cache reads")
@@ -278,7 +278,7 @@ func TestCacheEfficiency(t *testing.T) {
 		content := `{"provider":"anthropic","model":"sonnet","input_tokens":100,"output_tokens":50,"cache_read_tokens":9900,"cache_write_tokens":0,"duration_ms":100}`
 		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644))
 
-		summary, err := parseTokenUsageFile(filePath)
+		summary, err := parseTokenUsageFile(filePath, nil)
 		require.NoError(t, err)
 		require.NotNil(t, summary)
 		assert.InDelta(t, 0.99, summary.CacheEfficiency, 0.001, "cache efficiency should be ~99%")

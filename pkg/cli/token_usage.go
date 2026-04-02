@@ -75,8 +75,10 @@ type ModelTokenUsageRow struct {
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
 const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
 
-// parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary
-func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
+// parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
+// Custom weights, when non-nil, override the built-in model multipliers and token class
+// weights for effective token computation.
+func parseTokenUsageFile(filePath string, customWeights *CustomTokenWeights) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
 	file, err := os.Open(filePath)
@@ -155,8 +157,8 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
 		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
 
-	// Compute effective tokens using per-model multipliers
-	populateEffectiveTokens(summary)
+	// Compute effective tokens using per-model multipliers (with optional custom overrides)
+	populateEffectiveTokensWithCustomWeights(summary, customWeights)
 
 	return summary, nil
 }
@@ -210,7 +212,9 @@ func findTokenUsageFile(runDir string) string {
 	return ""
 }
 
-// analyzeTokenUsage finds and parses the token-usage.jsonl file from a run directory
+// analyzeTokenUsage finds and parses the token-usage.jsonl file from a run directory.
+// It automatically reads custom token weights from aw_info.json when present and
+// applies them to the effective token computation.
 func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage in: %s", runDir)
 
@@ -226,7 +230,24 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 		}
 	}
 
-	return parseTokenUsageFile(filePath)
+	// Try to load custom token weights from aw_info.json for this run
+	customWeights := extractCustomTokenWeightsFromDir(runDir)
+
+	return parseTokenUsageFile(filePath, customWeights)
+}
+
+// extractCustomTokenWeightsFromDir reads aw_info.json from a run directory and returns
+// any custom token weights embedded there at compile time. Returns nil when not found.
+func extractCustomTokenWeightsFromDir(runDir string) *CustomTokenWeights {
+	awInfoPath := findAwInfoPath(runDir)
+	if awInfoPath == "" {
+		return nil
+	}
+	awInfo, err := parseAwInfo(awInfoPath, false)
+	if err != nil || awInfo == nil {
+		return nil
+	}
+	return awInfo.TokenWeights
 }
 
 // TotalTokens returns the sum of all token types

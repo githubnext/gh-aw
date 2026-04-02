@@ -30,6 +30,7 @@ package cli
 import (
 	_ "embed"
 	"encoding/json"
+	"maps"
 	"math"
 	"strings"
 
@@ -48,6 +49,27 @@ type tokenClassWeights struct {
 	Output      float64 `json:"output"`
 	Reasoning   float64 `json:"reasoning"`
 	CacheWrite  float64 `json:"cache_write"`
+}
+
+// customTokenClassWeights holds per-token-class weight overrides from aw_info.json.
+// The JSON keys use hyphens to match the frontmatter schema (engine.token-weights.token-class-weights).
+type customTokenClassWeights struct {
+	Input       float64 `json:"input"`
+	CachedInput float64 `json:"cached-input"`
+	Output      float64 `json:"output"`
+	Reasoning   float64 `json:"reasoning"`
+	CacheWrite  float64 `json:"cache-write"`
+}
+
+// CustomTokenWeights provides per-workflow overrides for effective token computation.
+// It is populated from the token_weights field in aw_info.json, which is written at
+// compile time from the engine.token-weights frontmatter configuration.
+type CustomTokenWeights struct {
+	// Multipliers maps model names to cost multipliers (relative to reference model).
+	// Keys are matched case-insensitively with prefix matching as fallback.
+	Multipliers map[string]float64 `json:"multipliers,omitempty"`
+	// TokenClassWeights overrides any or all per-token-class weights.
+	TokenClassWeights *customTokenClassWeights `json:"token-class-weights,omitempty"`
 }
 
 // modelMultipliersData is the top-level structure of model_multipliers.json.
@@ -196,28 +218,105 @@ func computeModelEffectiveTokens(model string, inputTokens, outputTokens, cacheR
 // entry and computes the TotalEffectiveTokens aggregate on the summary.
 // It is a no-op when summary is nil.
 func populateEffectiveTokens(summary *TokenUsageSummary) {
+	populateEffectiveTokensWithCustomWeights(summary, nil)
+}
+
+// populateEffectiveTokensWithCustomWeights is like populateEffectiveTokens but
+// merges custom into the built-in weights before computing effective tokens.
+// Custom weights take precedence over the defaults loaded from model_multipliers.json.
+// It is a no-op when summary is nil.
+func populateEffectiveTokensWithCustomWeights(summary *TokenUsageSummary, custom *CustomTokenWeights) {
 	if summary == nil {
 		return
 	}
+
+	multipliers, classWeights := resolveEffectiveWeights(custom)
 
 	total := 0
 	for model, usage := range summary.ByModel {
 		if usage == nil {
 			continue
 		}
-		eff := computeModelEffectiveTokens(
-			model,
-			usage.InputTokens,
-			usage.OutputTokens,
-			usage.CacheReadTokens,
-			usage.CacheWriteTokens,
-		)
+		eff := computeModelEffectiveTokensWithWeights(model, usage.InputTokens, usage.OutputTokens,
+			usage.CacheReadTokens, usage.CacheWriteTokens, multipliers, classWeights)
 		usage.EffectiveTokens = eff
 		total += eff
 	}
 	summary.TotalEffectiveTokens = total
 
 	if effectiveTokensLog.Enabled() {
-		effectiveTokensLog.Printf("Effective tokens: total=%d models=%d", total, len(summary.ByModel))
+		effectiveTokensLog.Printf("Effective tokens: total=%d models=%d custom=%v", total, len(summary.ByModel), custom != nil)
 	}
+}
+
+// resolveEffectiveWeights merges optional custom weights with the built-in defaults.
+// The returned multipliers map is a copy so callers may not modify loadedMultipliers.
+func resolveEffectiveWeights(custom *CustomTokenWeights) (map[string]float64, tokenClassWeights) {
+	initMultipliers()
+
+	// Copy the base multipliers to avoid mutating the shared global
+	merged := make(map[string]float64, len(loadedMultipliers))
+	maps.Copy(merged, loadedMultipliers)
+	classWeights := loadedTokenWeights
+
+	if custom == nil {
+		return merged, classWeights
+	}
+
+	// Override/add per-model multipliers (normalise keys to lowercase)
+	for model, mult := range custom.Multipliers {
+		merged[strings.ToLower(strings.TrimSpace(model))] = mult
+	}
+
+	// Override per-token-class weights where non-zero values are provided
+	if tcw := custom.TokenClassWeights; tcw != nil {
+		if tcw.Input != 0 {
+			classWeights.Input = tcw.Input
+		}
+		if tcw.CachedInput != 0 {
+			classWeights.CachedInput = tcw.CachedInput
+		}
+		if tcw.Output != 0 {
+			classWeights.Output = tcw.Output
+		}
+		if tcw.Reasoning != 0 {
+			classWeights.Reasoning = tcw.Reasoning
+		}
+		if tcw.CacheWrite != 0 {
+			classWeights.CacheWrite = tcw.CacheWrite
+		}
+	}
+
+	return merged, classWeights
+}
+
+// computeModelEffectiveTokensWithWeights computes effective tokens using caller-provided
+// multiplier table and token class weights instead of the global defaults.
+func computeModelEffectiveTokensWithWeights(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int, multipliers map[string]float64, w tokenClassWeights) int {
+	base := w.Input*float64(inputTokens) +
+		w.CachedInput*float64(cacheReadTokens) +
+		w.Output*float64(outputTokens) +
+		w.CacheWrite*float64(cacheWriteTokens)
+	if base == 0 {
+		return 0
+	}
+
+	key := strings.ToLower(strings.TrimSpace(model))
+	mult := 1.0
+	if key != "" {
+		if m, ok := multipliers[key]; ok {
+			mult = m
+		} else {
+			// Longest prefix match
+			best := ""
+			for name, m := range multipliers {
+				if strings.HasPrefix(key, name) && len(name) > len(best) {
+					best = name
+					mult = m
+				}
+			}
+		}
+	}
+
+	return int(math.Round(base * mult))
 }

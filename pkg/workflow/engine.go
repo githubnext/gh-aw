@@ -11,6 +11,27 @@ import (
 
 var engineLog = logger.New("workflow:engine")
 
+// EngineTokenClassWeights holds per-token-class weights for effective token computation.
+// Each field corresponds to one token class; a zero value means "use default".
+type EngineTokenClassWeights struct {
+	Input       float64 `json:"input,omitempty"`
+	CachedInput float64 `json:"cached-input,omitempty"`
+	Output      float64 `json:"output,omitempty"`
+	Reasoning   float64 `json:"reasoning,omitempty"`
+	CacheWrite  float64 `json:"cache-write,omitempty"`
+}
+
+// EngineTokenWeights defines custom model cost information for effective token computation.
+// It mirrors the structure of model_multipliers.json and allows per-workflow overrides.
+// Specified under engine.token-weights in the workflow frontmatter.
+type EngineTokenWeights struct {
+	// Multipliers maps model names to cost multipliers relative to the reference model.
+	// Keys are matched case-insensitively with prefix matching as a fallback.
+	Multipliers map[string]float64 `json:"multipliers,omitempty"`
+	// TokenClassWeights overrides the per-token-class weights used before the model multiplier.
+	TokenClassWeights *EngineTokenClassWeights `json:"token-class-weights,omitempty"`
+}
+
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
 	ID               string
@@ -26,6 +47,9 @@ type EngineConfig struct {
 	Args             []string
 	Agent            string // Agent identifier for copilot --agent flag (copilot engine only)
 	APITarget        string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
+	// TokenWeights provides custom model cost data for effective token computation.
+	// When set, overrides or extends the built-in model_multipliers.json values.
+	TokenWeights *EngineTokenWeights
 
 	// Inline definition fields (populated when engine.runtime is specified in frontmatter)
 	IsInlineDefinition bool   // true when the engine is defined inline via engine.runtime + optional engine.provider
@@ -284,6 +308,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
+			// Extract optional 'token-weights' field (custom model cost data)
+			if tokenWeightsRaw, hasTokenWeights := engineObj["token-weights"]; hasTokenWeights {
+				if tw := parseEngineTokenWeights(tokenWeightsRaw); tw != nil {
+					config.TokenWeights = tw
+					engineLog.Printf("Extracted token-weights: %d multipliers", len(tw.Multipliers))
+				}
+			}
+
 			// Return the ID as the engineSetting for backwards compatibility
 			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)
 			return config.ID, config
@@ -397,4 +429,67 @@ func parseRequestShape(requestObj map[string]any) *RequestShape {
 		}
 	}
 	return shape
+}
+
+// parseEngineTokenWeights converts a raw token-weights config value (from engine.token-weights)
+// into an EngineTokenWeights. Returns nil when the input is not a usable map.
+func parseEngineTokenWeights(raw any) *EngineTokenWeights {
+	obj, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	tw := &EngineTokenWeights{}
+
+	// Parse multipliers: map of model name → float64
+	if multipliersRaw, ok := obj["multipliers"]; ok {
+		if multipliersMap, ok := multipliersRaw.(map[string]any); ok && len(multipliersMap) > 0 {
+			tw.Multipliers = make(map[string]float64, len(multipliersMap))
+			for model, val := range multipliersMap {
+				switch v := val.(type) {
+				case float64:
+					tw.Multipliers[model] = v
+				case int:
+					tw.Multipliers[model] = float64(v)
+				case uint64:
+					tw.Multipliers[model] = float64(v)
+				}
+			}
+		}
+	}
+
+	// Parse token-class-weights
+	if tcwRaw, ok := obj["token-class-weights"]; ok {
+		if tcwMap, ok := tcwRaw.(map[string]any); ok {
+			tcw := &EngineTokenClassWeights{}
+			setFloat := func(dst *float64, key string) {
+				if v, ok := tcwMap[key]; ok {
+					switch f := v.(type) {
+					case float64:
+						*dst = f
+					case int:
+						*dst = float64(f)
+					case uint64:
+						*dst = float64(f)
+					}
+				}
+			}
+			setFloat(&tcw.Input, "input")
+			setFloat(&tcw.CachedInput, "cached-input")
+			setFloat(&tcw.Output, "output")
+			setFloat(&tcw.Reasoning, "reasoning")
+			setFloat(&tcw.CacheWrite, "cache-write")
+			// Only assign if at least one weight was set
+			if tcw.Input != 0 || tcw.CachedInput != 0 || tcw.Output != 0 ||
+				tcw.Reasoning != 0 || tcw.CacheWrite != 0 {
+				tw.TokenClassWeights = tcw
+			}
+		}
+	}
+
+	// Return nil when nothing useful was parsed
+	if len(tw.Multipliers) == 0 && tw.TokenClassWeights == nil {
+		return nil
+	}
+	return tw
 }
