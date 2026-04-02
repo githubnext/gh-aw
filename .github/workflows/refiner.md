@@ -6,10 +6,11 @@ permissions:
   pull-requests: read
   issues: read
 engine: copilot
+imports:
+  - shared/github-guard-policy.md
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [pull_requests, repos, issues]
 safe-outputs:
   create-pull-request:

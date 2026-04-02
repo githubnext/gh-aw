@@ -20,6 +20,7 @@ engine:
   id: copilot
   max-continuations: 2
 imports:
+  - shared/github-guard-policy.md
   - shared/gh.md
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
@@ -38,7 +39,6 @@ tools:
     - "*"
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     trusted-users:
       - pelikhan
   playwright:

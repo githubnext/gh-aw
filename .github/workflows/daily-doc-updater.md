@@ -35,7 +35,6 @@ tools:
   github:
     toolsets: [default]
     min-integrity: approved
-    approval-labels: [cookie]
   edit:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"
@@ -49,6 +48,7 @@ tools:
 timeout-minutes: 45
 
 imports:
+  - shared/github-guard-policy.md
   - uses: shared/qmd.md
     with:
       runs-on: aw-gpu-runner-T4

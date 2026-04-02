@@ -22,13 +22,15 @@ network:
 sandbox:
   agent: awf  # Firewall enabled
 
+imports:
+  - shared/github-guard-policy.md
+
 tools:
   edit:
   bash:
     - "*"
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets:
       - repos
       - pull_requests

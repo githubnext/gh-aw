@@ -13,12 +13,13 @@ permissions:
 name: "Smoke Agent: public/approved"
 engine: codex
 strict: true
+imports:
+  - shared/github-guard-policy.md
 tools:
   github:
     mode: local
     allowed-repos: "public"
     min-integrity: approved
-    approval-labels: [cookie]
 network:
   allowed:
     - defaults

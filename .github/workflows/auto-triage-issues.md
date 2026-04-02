@@ -19,13 +19,13 @@ network:
     - defaults
     - github
 imports:
+  - shared/github-guard-policy.md
   - shared/reporting.md
 tools:
   github:
     toolsets:
       - issues
     min-integrity: approved
-    approval-labels: [community]
   bash:
     - "jq *"
 safe-outputs:

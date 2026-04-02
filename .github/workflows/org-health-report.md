@@ -13,7 +13,6 @@ engine: copilot
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets:
       - repos
       - issues
@@ -36,6 +35,7 @@ network:
     - defaults
     - python
 imports:
+  - shared/github-guard-policy.md
   - shared/python-dataviz.md
   - shared/jqschema.md
   - shared/reporting.md

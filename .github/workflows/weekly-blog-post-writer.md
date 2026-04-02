@@ -22,7 +22,6 @@ tools:
     allowed-repos:
       - github/gh-aw
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets:
       - repos
       - pull_requests
@@ -31,6 +30,7 @@ tools:
     description: "Agent of the Week history – tracks which workflows have been featured so we rotate fairly"
 
 imports:
+  - shared/github-guard-policy.md
   - uses: shared/qmd.md
     with:
       runs-on: aw-gpu-runner-T4

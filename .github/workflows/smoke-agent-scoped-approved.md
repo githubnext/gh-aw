@@ -13,6 +13,8 @@ permissions:
 name: "Smoke Agent: scoped/approved"
 engine: codex
 strict: true
+imports:
+  - shared/github-guard-policy.md
 tools:
   github:
     mode: local
@@ -20,7 +22,6 @@ tools:
       - "github/gh-aw"
       - "github/*"
     min-integrity: approved
-    approval-labels: [cookie]
 network:
   allowed:
     - defaults

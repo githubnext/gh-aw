@@ -378,6 +378,7 @@ engine:
   model: gpt-5.1-codex-mini
 
 imports:
+  - shared/github-guard-policy.md
   - shared/activation-app.md
 
 timeout-minutes: 30
@@ -385,7 +386,6 @@ timeout-minutes: 30
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [default, pull_requests]
 
 if: needs.pre_activation.outputs.has_issues == 'true'

@@ -11,11 +11,11 @@ permissions:
   pull-requests: read
 engine: codex
 imports:
+  - shared/github-guard-policy.md
   - shared/pr-code-review-config.md
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
 safe-outputs:
   create-pull-request-review-comment:
     max: 5

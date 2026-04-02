@@ -14,12 +14,12 @@ network:
     - defaults
     - github
 imports:
+  - shared/github-guard-policy.md
   - shared/jqschema.md
   - shared/reporting.md
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets:
       - issues
   bash:

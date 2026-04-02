@@ -39,7 +39,6 @@ safe-outputs:
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [default, discussions]
   bash:
     - "find .github -name '*.md'"
@@ -48,6 +47,7 @@ tools:
     - "date *"
 
 imports:
+  - shared/github-guard-policy.md
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/discussion-task-miner"
