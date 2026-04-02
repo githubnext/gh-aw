@@ -16,7 +16,7 @@ safe-outputs:
   add-comment:
     max: 1
   messages:
-    footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🦁 *Search results brought to you by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     footer-workflow-recompile: "> 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*"
     run-started: "🔍 [{workflow_name}]({run_url}) is searching the web on this {event_type}."
     run-success: "✅ Research complete. [{workflow_name}]({run_url}) has returned with results."

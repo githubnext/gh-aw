@@ -26,7 +26,7 @@ safe-outputs:
   add-comment:
     max: 1
   messages:
-    footer: "> 📊 *Diagram rendered by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 📊 *Diagram rendered by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     footer-workflow-recompile: "> 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*"
     footer-workflow-recompile-comment: "> 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*"
     run-started: "📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}..."

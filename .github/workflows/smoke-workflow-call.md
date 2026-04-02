@@ -41,7 +41,7 @@ safe-outputs:
     max: 1
   messages:
     append-only-comments: true
-    footer: "> 🔁 *workflow_call smoke test by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🔁 *workflow_call smoke test by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔁 [{workflow_name}]({run_url}) is validating workflow_call checkout..."
     run-success: "✅ [{workflow_name}]({run_url}) successfully validated workflow_call checkout."
     run-failure: "❌ [{workflow_name}]({run_url}) failed to validate workflow_call checkout. Check the logs."

@@ -136,7 +136,7 @@ safe-outputs:
 
   # Custom messages in poetic style
   messages:
-    footer: "> 🪶 *Verses penned by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🪶 *Verses penned by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}..."
     run-success: "🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏"
     run-failure: "🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung..."

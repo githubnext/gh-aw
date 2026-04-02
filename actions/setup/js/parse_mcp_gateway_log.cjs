@@ -190,6 +190,10 @@ function writeStepSummaryWithTokenUsage(coreObj) {
       if (parsedSummary && parsedSummary.totalEffectiveTokens > 0) {
         const roundedET = Math.round(parsedSummary.totalEffectiveTokens);
         coreObj.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(roundedET));
+        // Also set as a step output so the value can flow to the safe_outputs job
+        // via the agent job's effective_tokens output (job-level env vars are not
+        // inherited by downstream jobs — only job outputs are).
+        coreObj.setOutput("effective_tokens", String(roundedET));
         coreObj.info(`Effective tokens: ${roundedET}`);
       }
     }

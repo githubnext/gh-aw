@@ -28,7 +28,7 @@ safe-outputs:
     hide-older-comments: true
     max: 2
   messages:
-    footer: "> 🤖 *Guard policy smoke test by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🤖 *Guard policy smoke test by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) testing guard policy: `repos=public, min-integrity=none`..."
     run-success: "✅ [{workflow_name}]({run_url}) completed guard policy test."
     run-failure: "❌ [{workflow_name}]({run_url}) {status}. Check the logs for details."

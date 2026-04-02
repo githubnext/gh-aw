@@ -49,7 +49,7 @@ safe-outputs:
     draft: false
   upload-asset:
   messages:
-    footer: "> 📝 *Documentation by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 📝 *Documentation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}..."
     run-success: "📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨"
     run-failure: "✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank..."

@@ -28,7 +28,7 @@ safe-outputs:
     max: 2
     group: true
   messages:
-    footer: "> 📊 *User experience analysis by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 📊 *User experience analysis by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities..."
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has identified targeted improvements for user experience."
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."

@@ -43,7 +43,7 @@ safe-outputs:
   add-labels:
     max: 1
   messages:
-    footer: "> 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*{history_link}"
+    footer: "> 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}..."
     run-success: "🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️"
     run-failure: "🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party..."

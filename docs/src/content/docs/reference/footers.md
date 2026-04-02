@@ -135,7 +135,7 @@ safe-outputs:
     title-prefix: "[bot] "
 ```
 
-The `messages.footer` template supports variables like `{workflow_name}`, `{agentic_workflow_url}`, `{run_url}`, `{triggering_number}`, and more. `{agentic_workflow_url}` links directly to the agentic workflow file view for the run (equivalent to `{run_url}/agentic_workflow`), while `{run_url}` links to the plain Actions run page. See [Custom Messages](/gh-aw/reference/safe-outputs/#custom-messages-messages) for complete documentation on message templates and available variables.
+The `messages.footer` template supports variables like `{workflow_name}`, `{agentic_workflow_url}`, `{run_url}`, `{triggering_number}`, `{effective_tokens_suffix}`, and more. `{agentic_workflow_url}` links directly to the agentic workflow file view for the run (equivalent to `{run_url}/agentic_workflow`), while `{run_url}` links to the plain Actions run page. `{effective_tokens_suffix}` is a pre-formatted, always-safe suffix (e.g. `" · ● 1.2K"` or `""`) that you can place directly before `{history_link}` — the same `●` format the default footer uses. See [Custom Messages](/gh-aw/reference/safe-outputs/#custom-messages-messages) for complete documentation on message templates and available variables.
 
 ## Related Documentation
 

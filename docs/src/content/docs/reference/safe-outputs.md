@@ -1525,7 +1525,9 @@ safe-outputs:
 
 **Options**: `append-only-comments` (default: `false`)
 
-**Variables**: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`
+**Variables**: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{event_type}`, `{status}`, `{operation}`, `{effective_tokens}`, `{effective_tokens_formatted}`, `{effective_tokens_suffix}`
+
+`{effective_tokens}` contains the raw total effective token count for the run (e.g. `1200`), and `{effective_tokens_formatted}` is the compact human-readable form (e.g. `1.2K`, `3M`). Both are only present when the effective token count is greater than zero. `{effective_tokens_suffix}` is a pre-formatted, always-safe suffix string (e.g. `" · ● 1.2K"` or `""`) that can be inserted directly into footer templates alongside `{history_link}`. The default footer automatically includes the formatted value — use these variables in custom footer templates to include token usage in your own format. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) for details on how effective tokens are computed.
 
 ## Staged Mode
 

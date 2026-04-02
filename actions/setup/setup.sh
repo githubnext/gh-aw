@@ -262,6 +262,7 @@ SAFE_OUTPUTS_FILES=(
   "messages_run_status.cjs"
   "messages_staged.cjs"
   "messages_close_discussion.cjs"
+  "effective_tokens.cjs"
   "estimate_tokens.cjs"
   "generate_git_patch.cjs"
   "generate_git_bundle.cjs"

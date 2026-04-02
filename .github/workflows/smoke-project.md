@@ -56,7 +56,7 @@ safe-outputs:
       github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
     messages:
       append-only-comments: true
-      footer: "> 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{history_link}"
+      footer: "> 🧪 *Project smoke test report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
       run-started: "🧪 [{workflow_name}]({run_url}) is now testing project operations..."
       run-success: "✅ [{workflow_name}]({run_url}) completed successfully. All project operations validated."
       run-failure: "❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details."

@@ -34,7 +34,7 @@ safe-outputs:
       hide-older-comments: true
       max: 2
     messages:
-      footer: "> 🔌 *Service ports validation by [{workflow_name}]({run_url})*{history_link}"
+      footer: "> 🔌 *Service ports validation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
       run-started: "🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity..."
       run-success: "✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis."
       run-failure: "❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}"

@@ -22,7 +22,7 @@
 #
 # Smoke test to validate --allow-host-service-ports with Redis service container
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f87ff09b47856fe5762f2eb7eddf0eee24e2dd583dd1b53a14f1ed9fef367457","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"e5ce1ba22e481b76f0eb27bdfc0c0a87048dbff2c7d9b94295bd1713658bf76c","strict":true,"agent_id":"copilot"}
 
 name: "Smoke Service Ports"
 "on":
@@ -128,7 +128,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Service Ports"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -151,14 +151,14 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_adf052b962132837_EOF'
+          cat << 'GH_AW_PROMPT_c31fae809a703351_EOF'
           <system>
-          GH_AW_PROMPT_adf052b962132837_EOF
+          GH_AW_PROMPT_c31fae809a703351_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_adf052b962132837_EOF'
+          cat << 'GH_AW_PROMPT_c31fae809a703351_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), missing_tool, missing_data, noop
           </safe-output-tools>
@@ -190,12 +190,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_adf052b962132837_EOF
+          GH_AW_PROMPT_c31fae809a703351_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_adf052b962132837_EOF'
+          cat << 'GH_AW_PROMPT_c31fae809a703351_EOF'
           </system>
           {{#runtime-import .github/workflows/smoke-service-ports.md}}
-          GH_AW_PROMPT_adf052b962132837_EOF
+          GH_AW_PROMPT_c31fae809a703351_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -286,6 +286,7 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: smokeserviceports
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
@@ -366,12 +367,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_540b8636a24c7a08_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_157c2d9ba58bbb86_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_540b8636a24c7a08_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_157c2d9ba58bbb86_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_66bf068d6618c38e_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_c83d4be4db7ea1c1_EOF'
           {
             "description_suffixes": {
               "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added."
@@ -379,8 +380,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_66bf068d6618c38e_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_736754397af27d75_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_c83d4be4db7ea1c1_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_78a41162c66dcf65_EOF'
           {
             "add_comment": {
               "defaultMax": 1,
@@ -458,7 +459,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_736754397af27d75_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_78a41162c66dcf65_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -528,7 +529,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.11'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_dd21a14b63d12243_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_4d3271670f04abd8_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -569,7 +570,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_dd21a14b63d12243_EOF
+          GH_AW_MCP_CONFIG_4d3271670f04abd8_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -693,6 +694,7 @@ jobs:
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
+        id: parse-mcp-gateway
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -846,7 +848,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_TIMEOUT_MINUTES: "5"
@@ -868,7 +870,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Service Ports"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1073,9 +1075,10 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/smoke-service-ports"
+      GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔌 *Service ports validation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔌 Starting service ports validation... [{workflow_name}]({run_url}) is testing Redis connectivity...\",\"runSuccess\":\"✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis.\",\"runFailure\":\"❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}\"}"
       GH_AW_WORKFLOW_ID: "smoke-service-ports"
       GH_AW_WORKFLOW_NAME: "Smoke Service Ports"
     outputs:
