@@ -94,12 +94,16 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 			mcpLog.Printf("Workflow name validation failed, returning empty result: %v", err)
 			// Return an empty structured result instead of an MCP protocol error so
 			// callers can always expect consistent JSON from this tool.
-			// Use an explicit empty slice for Runs so JSON marshaling produces "runs":[]
-			// rather than "runs":null (nil slice).
+			// Use explicit empty slices so JSON marshaling produces "runs":[], etc.,
+			// rather than null (nil slices), and set TotalDuration to match the normal
+			// zero-duration formatting.
 			emptyData := LogsData{
-				Runs:    []RunData{},
-				Message: err.Error(),
+				Runs:     []RunData{},
+				Episodes: []EpisodeData{},
+				Edges:    []EpisodeEdge{},
+				Message:  err.Error(),
 			}
+			emptyData.Summary.TotalDuration = "0ns"
 			jsonBytes, jsonErr := json.Marshal(emptyData)
 			if jsonErr != nil {
 				return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)

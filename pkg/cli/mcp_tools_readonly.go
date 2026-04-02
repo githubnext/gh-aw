@@ -135,7 +135,7 @@ Returns JSON array with validation results for each workflow:
 				results := buildDockerErrorResults(args.Workflows, err.Error())
 				jsonBytes, jsonErr := json.Marshal(results)
 				if jsonErr != nil {
-					return nil, nil, newMCPError(jsonrpc.CodeInternalError, err.Error(), nil)
+					return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal docker error results", jsonErr.Error())
 				}
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
@@ -307,6 +307,12 @@ func buildDockerErrorResults(requestedWorkflows []string, errMsg string) []Valid
 	var workflowNames []string
 	if len(requestedWorkflows) > 0 {
 		for _, w := range requestedWorkflows {
+			// Normalize workflow identifiers so they match the standard compile output.
+			// If the caller passed an ID without an extension (e.g. "test1"),
+			// treat it as a markdown workflow file ("test1.md") before taking the basename.
+			if filepath.Ext(w) == "" {
+				w = w + ".md"
+			}
 			workflowNames = append(workflowNames, filepath.Base(w))
 		}
 	} else {
