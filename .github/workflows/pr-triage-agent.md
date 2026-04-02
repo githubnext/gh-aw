@@ -9,10 +9,11 @@ permissions:
   pull-requests: read
   # Note: issues and discussions write handled via safe-outputs
 engine: copilot
+imports:
+  - shared/github-guard-policy.md
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [pull_requests, repos, issues, labels]
   repo-memory:
     branch-name: memory/pr-triage

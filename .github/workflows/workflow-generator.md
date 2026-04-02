@@ -13,10 +13,11 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+imports:
+  - shared/github-guard-policy.md
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [default]
 if: startsWith(github.event.issue.title, '[Workflow]')
 safe-outputs:

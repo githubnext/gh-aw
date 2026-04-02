@@ -23,10 +23,10 @@ tools:
     - "*"
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: 
       - issues
 imports:
+  - shared/github-guard-policy.md
   - uses: shared/daily-audit-discussion.md
     with:
       title-prefix: "[Weekly Summary] "

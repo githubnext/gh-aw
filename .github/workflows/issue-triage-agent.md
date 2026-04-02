@@ -9,13 +9,13 @@ permissions:
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [issues, labels]
 safe-outputs:
   add-labels:
     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
   add-comment: {}
 imports:
+  - shared/github-guard-policy.md
   - shared/reporting.md
 ---
 

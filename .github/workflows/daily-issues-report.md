@@ -14,10 +14,10 @@ tracker-id: daily-issues-report
 tools:
   github:
     min-integrity: approved
-    approval-labels: [cookie]
     toolsets: [default, discussions]
 timeout-minutes: 30
 imports:
+  - shared/github-guard-policy.md
   - uses: shared/daily-audit-discussion.md
     with:
       title-prefix: "[daily issues] "
