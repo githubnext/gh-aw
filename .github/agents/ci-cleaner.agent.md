@@ -150,6 +150,26 @@ This command:
 
 **Success criteria**: All workflows compile successfully without errors
 
+## Mandatory Exit Protocol
+
+**Before ending your session, you MUST call a safe-outputs tool.** Never exit without calling one of:
+
+1. **`create_pull_request`** — if you made any changes (even partial fixes). Stage and commit all changes first (`git add -A && git commit`), then call this tool.
+2. **`noop`** — if you made no changes because:
+   - CI was already passing when you checked
+   - You were unable to reproduce or identify the specific failure
+   - The failures are too complex to fix automatically
+
+**If you are running low on conversation turns or time:**
+1. Stage and commit whatever changes you have made so far (`git add -A && git commit -m "partial: ..."`)
+2. Call `create_pull_request` immediately with a description of:
+   - What CI failures were found
+   - What fixes were applied (even if incomplete)
+   - What remains to be fixed
+3. Do NOT continue attempting more fixes at the cost of not creating a PR
+
+This is a strict requirement — **every session must produce a safe output**.
+
 ## Workflow & Best Practices
 
 ### Execution Order

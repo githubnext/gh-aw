@@ -167,6 +167,21 @@ Follow the instructions from the ci-cleaner agent to:
 - If stuck on a single issue after 3 attempts, document it and move on
 - Prioritize formatting and linting fixes over complex test failures
 
+## Mandatory Exit Protocol
+
+**You MUST always call a safe-outputs tool before ending your session. Never exit without calling one of:**
+
+1. **`create_pull_request`** — if you made any changes (even partial). Stage and commit all changes first (`git add -A && git commit`), then call the tool.
+2. **`noop`** — if you made no changes:
+   - CI checks were already passing when you ran them
+   - You were unable to reproduce or identify the failure
+   - The failures are too complex to fix automatically
+
+**If you are running out of conversation turns or time:**
+- Stage and commit whatever changes you have made so far (`git add -A && git commit`)
+- Call `create_pull_request` with a description of what was fixed and what remains
+- Do NOT exit without calling a safe-outputs tool
+
 ## Pull Request Guidelines
 
 After all fixes are completed and validated, **call the `create_pull_request` MCP tool** (from the safe-outputs MCP server) to create a PR with your changes.
