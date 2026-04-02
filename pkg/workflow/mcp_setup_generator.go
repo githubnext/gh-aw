@@ -308,6 +308,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Add env block with step outputs
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          DEBUG: '*'\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: ${{ runner.temp }}/gh-aw/safeoutputs/tools.json\n")
@@ -317,6 +318,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
 		yaml.WriteString("          export DEBUG\n")
+		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS\n")
 		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_PORT\n")
 		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_API_KEY\n")
 		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_TOOLS_PATH\n")

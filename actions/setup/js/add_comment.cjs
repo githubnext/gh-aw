@@ -330,6 +330,7 @@ async function main(config = {}) {
       core.warning(`Skipping add_comment: max count of ${maxCount} reached`);
       return {
         success: false,
+        skipped: true,
         error: `Max count of ${maxCount} reached`,
       };
     }
