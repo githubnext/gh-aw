@@ -80,7 +80,6 @@ async function checkBotStatus(actor, owner, repo) {
       // If we get a 404, the [bot]-suffixed form may not be listed as a collaborator.
       // Fall back to checking the non-[bot] (slug) form, as some GitHub Apps appear
       // under their plain slug name rather than the [bot]-suffixed form.
-      // @ts-expect-error - Error handling with optional chaining
       if (botError?.status === 404) {
         try {
           const slugPermission = await github.rest.repos.getCollaboratorPermissionLevel({
@@ -91,7 +90,6 @@ async function checkBotStatus(actor, owner, repo) {
           core.info(`Bot '${actor}' is active (via slug form) with permission level: ${slugPermission.data.permission}`);
           return { isBot: true, isActive: true };
         } catch (slugError) {
-          // @ts-expect-error - Error handling with optional chaining
           if (slugError?.status === 404) {
             core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
             return { isBot: true, isActive: false };
