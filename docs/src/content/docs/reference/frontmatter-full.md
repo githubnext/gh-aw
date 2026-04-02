@@ -1631,7 +1631,7 @@ sandbox:
       # Array of Mount specification in format 'source:destination:mode'
 
     # Memory limit for the AWF container (e.g., '4g', '8g'). Passed as --memory-limit
-    # to AWF. If not specified, AWF's default memory limit is used.
+    # to AWF. If not specified, AWF's default memory limit of 6g is used.
     # (optional)
     memory: "example-value"
 
@@ -1872,6 +1872,29 @@ engine:
   # (optional)
   args: []
     # Array of strings
+
+  # Custom model token weights for effective token computation. Overrides or
+  # extends the built-in model multipliers from model_multipliers.json. Useful
+  # for custom models or adjusted cost ratios.
+  # (optional)
+  token-weights:
+    # Per-model cost multipliers relative to the reference model
+    # (claude-sonnet-4.5 = 1.0). Keys are model names (case-insensitive,
+    # prefix matching supported).
+    # (optional)
+    multipliers:
+      my-custom-model: 2.5
+
+    # Per-token-class weights applied before the model multiplier. Defaults:
+    # input: 1.0, cached-input: 0.1, output: 4.0, reasoning: 4.0,
+    # cache-write: 1.0
+    # (optional)
+    token-class-weights:
+      input: 1.0
+      cached-input: 0.1
+      output: 4.0
+      reasoning: 4.0
+      cache-write: 1.0
 
 # Option 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a

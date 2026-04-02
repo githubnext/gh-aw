@@ -252,6 +252,26 @@ engine:
   args: ["--verbose"]
 ```
 
+### Custom Token Weights (`token-weights`)
+
+Override the built-in token cost multipliers used when computing [Effective Tokens](/gh-aw/reference/effective-tokens-specification/). Useful when your workflow uses a custom model not in the built-in list, or when you want to adjust the relative cost ratios for your use case.
+
+```yaml wrap
+engine:
+  id: claude
+  token-weights:
+    multipliers:
+      my-custom-model: 2.5      # 2.5x the cost of claude-sonnet-4.5
+      experimental-llm: 0.8    # Override an existing model's multiplier
+    token-class-weights:
+      output: 6.0              # Override output token weight (default: 4.0)
+      cached-input: 0.05       # Override cached input weight (default: 0.1)
+```
+
+`multipliers` is a map of model names to numeric multipliers relative to `claude-sonnet-4.5` (= 1.0). Keys are case-insensitive and support prefix matching. `token-class-weights` overrides the per-class weights applied before the model multiplier; the defaults are `input: 1.0`, `cached-input: 0.1`, `output: 4.0`, `reasoning: 4.0`, `cache-write: 1.0`.
+
+Custom weights are embedded in the compiled workflow YAML and read by `gh aw logs` and `gh aw audit` when analyzing runs.
+
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference

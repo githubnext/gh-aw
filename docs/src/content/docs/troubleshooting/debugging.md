@@ -103,6 +103,21 @@ Audit output includes:
 - **Firewall analysis** — blocked domains and allowed traffic
 - **Safe-outputs** — structured outputs the agent produced
 
+To compare behavior between two runs and detect regressions, use `audit diff`:
+
+```bash
+gh aw audit diff 12345678 12345679
+gh aw audit diff 12345678 12345679 --format markdown
+```
+
+For trends across multiple runs, use `audit report`:
+
+```bash
+gh aw audit report --workflow "my-workflow" --last 10
+```
+
+See [Audit Commands](/gh-aw/reference/audit/) for complete flag documentation.
+
 ### Analyzing Workflow Logs
 
 `gh aw logs` downloads and analyzes logs across multiple runs with tool usage, network patterns, errors, and warnings:
