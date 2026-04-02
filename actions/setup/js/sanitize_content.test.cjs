@@ -779,6 +779,118 @@ describe("sanitize_content.cjs", () => {
     });
   });
 
+  describe("protocol-relative URL sanitization", () => {
+    it("should redact disallowed protocol-relative URLs", () => {
+      const result = sanitizeContent("Visit //evil.com/steal");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative URLs in markdown links", () => {
+      const result = sanitizeContent("[click here](//evil.com/steal)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative URLs in markdown image embeds", () => {
+      const result = sanitizeContent("![Track me](//evil.com/pixel.gif)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should allow protocol-relative URLs on allowed domains", () => {
+      const result = sanitizeContent("Visit //github.com/repo");
+      expect(result).toContain("//github.com/repo");
+    });
+
+    it("should allow protocol-relative URLs on allowed subdomains", () => {
+      const result = sanitizeContent("Visit //subdomain.github.com/page");
+      expect(result).toContain("//subdomain.github.com/page");
+    });
+
+    it("should redact protocol-relative URLs with custom allowed domains", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "trusted.net";
+      const result = sanitizeContent("Visit //evil.com/steal");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should not affect https:// URLs when handling protocol-relative URLs", () => {
+      const result = sanitizeContent("https://github.com/repo and //evil.com/path");
+      expect(result).toContain("https://github.com/repo");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should not treat double slashes in https URL paths as protocol-relative URLs", () => {
+      const result = sanitizeContent("https://github.com//issues and //evil.com/path");
+      expect(result).toContain("https://github.com//issues");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact protocol-relative URL with path and query string", () => {
+      const result = sanitizeContent("//evil.com/path?query=value");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should log redacted protocol-relative URL domains", () => {
+      sanitizeContent("Visit //evil.com/steal");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Redacted URL:"));
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
+    });
+
+    it("should redact protocol-relative URL with port number", () => {
+      const result = sanitizeContent("Visit //evil.com:8080/api");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact all protocol-relative URLs when multiple appear in one string", () => {
+      const result = sanitizeContent("//evil.com/a and //bad.org/b");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).toContain("(bad.org/redacted)");
+      expect(result).not.toContain("//evil.com");
+      expect(result).not.toContain("//bad.org");
+    });
+
+    it("should redact protocol-relative URL in an HTML attribute (double-quote delimiter)", () => {
+      const result = sanitizeContent('src="//evil.com/img.png"');
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should redact a protocol-relative URL with no path (hostname only)", () => {
+      const result = sanitizeContent("Visit //evil.com");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("//evil.com");
+    });
+
+    it("should allow protocol-relative URL matching a wildcard allowed domain", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "*.githubusercontent.com";
+      const result = sanitizeContent("Image at //raw.githubusercontent.com/user/repo/main/img.png");
+      expect(result).toContain("//raw.githubusercontent.com/user/repo/main/img.png");
+    });
+
+    it("should allow protocol-relative URL matching a custom allowed domain", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "trusted.net";
+      const result = sanitizeContent("Visit //trusted.net/path");
+      expect(result).toContain("//trusted.net/path");
+    });
+
+    it("should allow protocol-relative URL in a curly-brace delimited context", () => {
+      const result = sanitizeContent("{//github.com/repo}");
+      expect(result).toContain("//github.com/repo");
+    });
+
+    it("should not treat // preceded by non-delimiter word characters as a protocol-relative URL", () => {
+      // "word//evil.com/path" has no delimiter before //, so it should not be caught
+      const result = sanitizeContent("word//evil.com/path");
+      expect(result).toContain("word//evil.com/path");
+    });
+  });
+
   describe("domain sanitization", () => {
     let sanitizeDomainName;
 

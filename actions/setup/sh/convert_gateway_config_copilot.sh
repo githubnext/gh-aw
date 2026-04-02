@@ -5,6 +5,12 @@
 
 set -e
 
+# Restrict default file creation mode to owner-only (rw-------) for all new files.
+# This prevents the race window between file creation via output redirection and
+# a subsequent chmod, which would leave credential-bearing files world-readable
+# (mode 0644) with a typical umask of 022.
+umask 077
+
 # Required environment variables:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
 # - MCP_GATEWAY_DOMAIN: Domain to use for MCP server URLs (e.g., host.docker.internal)
@@ -81,6 +87,12 @@ jq --arg urlPrefix "$URL_PREFIX" '
     )
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
+
+# Restrict permissions so only the runner process owner can read this file.
+# mcp-config.json contains the bearer token for the MCP gateway; an attacker
+# who reads it could bypass the --allowed-tools constraint by issuing raw
+# JSON-RPC calls directly to the gateway.
+chmod 600 /home/runner/.copilot/mcp-config.json
 
 echo "Copilot configuration written to /home/runner/.copilot/mcp-config.json"
 echo ""

@@ -8,6 +8,12 @@
 
 set -e
 
+# Restrict default file creation mode to owner-only (rw-------) for all new files.
+# This prevents the race window between file creation via output redirection and
+# a subsequent chmod, which would leave credential-bearing files world-readable
+# (mode 0644) with a typical umask of 022.
+umask 077
+
 # Timing helper functions
 print_timing() {
   local start_time=$1
@@ -29,7 +35,29 @@ fi
 
 # Create logs directory for gateway
 mkdir -p /tmp/gh-aw/mcp-logs
+
+# Guard against symlink attacks on the predictable /tmp/gh-aw/mcp-config path.
+# An attacker who can create files in /tmp could pre-create /tmp/gh-aw or
+# /tmp/gh-aw/mcp-config as symlinks and redirect our credential writes to an
+# arbitrary location.  Check both path components before and after creation.
+if [ -L /tmp/gh-aw ]; then
+  echo "ERROR: /tmp/gh-aw is a symlink — possible symlink attack, aborting"
+  exit 1
+fi
+if [ -L /tmp/gh-aw/mcp-config ]; then
+  echo "ERROR: /tmp/gh-aw/mcp-config is a symlink — possible symlink attack, aborting"
+  exit 1
+fi
 mkdir -p /tmp/gh-aw/mcp-config
+# Post-creation check: verify neither path was replaced with a symlink after mkdir
+# (mitigates the TOCTOU window between the pre-check and mkdir).
+if [ -L /tmp/gh-aw ] || [ -L /tmp/gh-aw/mcp-config ]; then
+  echo "ERROR: /tmp/gh-aw/mcp-config was replaced with a symlink — possible symlink attack, aborting"
+  exit 1
+fi
+# Restrict directory permissions so only the runner process owner can read config files
+# (which contain bearer tokens and API keys)
+chmod 700 /tmp/gh-aw/mcp-config
 
 # Validate container syntax first (before accessing files)
 # Container should be a valid docker command starting with "docker run"
@@ -309,6 +337,9 @@ if [ ! -s /tmp/gh-aw/mcp-config/gateway-output.json ]; then
   kill $GATEWAY_PID 2>/dev/null || true
   exit 1
 fi
+
+# Restrict gateway output file permissions - it contains the bearer token / API key
+chmod 600 /tmp/gh-aw/mcp-config/gateway-output.json
 
 # Check if output contains an error payload instead of valid configuration
 # Per MCP Gateway Specification v1.0.0 section 9.1, errors are written to stdout as error payloads

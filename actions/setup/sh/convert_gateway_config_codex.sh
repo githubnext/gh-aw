@@ -5,6 +5,12 @@
 
 set -e
 
+# Restrict default file creation mode to owner-only (rw-------) for all new files.
+# This prevents the race window between file creation via output redirection and
+# a subsequent chmod, which would leave credential-bearing files world-readable
+# (mode 0644) with a typical umask of 022.
+umask 077
+
 # Required environment variables:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
 # - MCP_GATEWAY_DOMAIN: Domain to use for MCP server URLs (e.g., host.docker.internal)
@@ -84,6 +90,11 @@ jq -r --arg urlPrefix "$URL_PREFIX" '
   "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
   "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
+
+# Restrict permissions so only the runner process owner can read this file.
+# config.toml contains the bearer token for the MCP gateway; an attacker
+# who reads it could issue raw JSON-RPC calls directly to the gateway.
+chmod 600 /tmp/gh-aw/mcp-config/config.toml
 
 echo "Codex configuration written to /tmp/gh-aw/mcp-config/config.toml"
 echo ""
