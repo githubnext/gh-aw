@@ -823,7 +823,7 @@ jobs:
             echo "$BASE_CONFIG" > "$SETTINGS"
           fi
         env:
-          GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","replace","run_shell_command","write_file"]}}'
+          GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","replace","run_shell_command","web_fetch","write_file"]}}'
       - name: Execute Gemini CLI
         id: agentic_execution
         run: |

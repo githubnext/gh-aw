@@ -94,6 +94,13 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 		toolsCore = append(toolsCore, "write_file")
 	}
 
+	// Map web-fetch neutral tool to web_fetch (Gemini's native HTTP fetch tool)
+	// See: https://geminicli.com/docs/tools/web-fetch/
+	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
+		geminiToolsLog.Print("web-fetch → web_fetch")
+		toolsCore = append(toolsCore, "web_fetch")
+	}
+
 	sort.Strings(toolsCore)
 	return toolsCore
 }

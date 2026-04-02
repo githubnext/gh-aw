@@ -772,6 +772,41 @@ func TestCodexEngineWebSearch(t *testing.T) {
 	})
 }
 
+func TestCodexEngineWebFetch(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("fetch tool disabled by default when tool not specified", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, `-c fetch="disabled"`) {
+			t.Errorf(`Expected -c fetch="disabled" config when web-fetch tool is not specified, got:\n%s`, stepContent)
+		}
+	})
+
+	t.Run("fetch tool enabled when web-fetch tool is specified", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			ParsedTools: &ToolsConfig{
+				WebFetch: &WebFetchToolConfig{},
+			},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, `-c fetch="disabled"`) {
+			t.Errorf(`Expected no -c fetch="disabled" config when web-fetch tool is specified, got:\n%s`, stepContent)
+		}
+	})
+}
+
 func TestCodexEngineWithExpressionVersion(t *testing.T) {
 	engine := NewCodexEngine()
 

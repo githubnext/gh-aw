@@ -182,6 +182,16 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		webSearchParam = ""
 	}
 
+	// Build fetch parameter: disable the native fetch tool by default, enable only if web-fetch tool is present.
+	// Codex enables the fetch tool by default, so we must explicitly set fetch="disabled" to disable it.
+	// See https://developers.openai.com/api/docs/mcp#fetch-tool
+	// Leading space is intentional: the format string concatenates this directly after webSearchParam with no space separator.
+	webFetchParam := ` -c fetch="disabled"`
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
+		// Fetch is enabled by default in Codex; no extra flag needed.
+		webFetchParam = ""
+	}
+
 	// See https://github.com/github/gh-aw/issues/892
 	// --dangerously-bypass-approvals-and-sandbox: Skips all confirmation prompts and disables sandboxing
 	// This is safe because AWF already provides a container-level sandbox layer
@@ -209,8 +219,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %sexec%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam)
+	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
@@ -276,13 +286,13 @@ touch %s
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, commandName, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
 		}
 	}
 
