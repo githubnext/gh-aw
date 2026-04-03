@@ -841,26 +841,52 @@ func TestCreateCodeScanningAlertIncludesSARIFUploadStep(t *testing.T) {
 					"Upload step should reference sarif_file output")
 				assert.Contains(t, stepsContent, "wait-for-processing: true",
 					"Upload step should wait for processing")
+				// Verify ref and sha inputs are present to associate SARIF with triggering commit
+				assert.Contains(t, stepsContent, "ref: ${{ github.ref }}",
+					"Upload step should include ref input to associate SARIF with triggering commit")
+				assert.Contains(t, stepsContent, "sha: ${{ github.sha }}",
+					"Upload step should include sha input to associate SARIF with triggering commit")
+				// Verify the git checkout step is present before the upload step
+				assert.Contains(t, stepsContent, "Reset git HEAD to triggering commit for SARIF upload",
+					"A git checkout step must reset HEAD to github.sha before SARIF upload")
+				assert.Contains(t, stepsContent, "git checkout ${{ github.sha }}",
+					"The git checkout step must run git checkout with the triggering SHA")
+				// The reset step must also be conditional on sarif_file being set
+				resetStepStart := strings.Index(stepsContent, "Reset git HEAD to triggering commit for SARIF upload")
+				require.Greater(t, resetStepStart, -1, "Reset git HEAD step must exist")
+				resetStepSection := stepsContent[resetStepStart:]
+				nextStepIdx := strings.Index(resetStepSection[len("      - name:"):], "      - name:")
+				if nextStepIdx > -1 {
+					resetStepSection = resetStepSection[:nextStepIdx+len("      - name:")]
+				}
+				assert.Contains(t, resetStepSection, "steps.process_safe_outputs.outputs.sarif_file != ''",
+					"Reset git HEAD step should only run when sarif_file output is set")
 				// github/codeql-action/upload-sarif uses 'token' not 'github-token'
 				// Extract the upload-sarif step section to check it specifically
 				uploadStepStart := strings.Index(stepsContent, "- name: Upload SARIF to GitHub Code Scanning")
 				require.Greater(t, uploadStepStart, -1, "Upload SARIF step must exist in steps content")
 				uploadStepSection := stepsContent[uploadStepStart:]
 				// Find the end of this step (next step starts with "      - name:")
-				nextStepIdx := strings.Index(uploadStepSection[len("      - name:"):], "      - name:")
-				if nextStepIdx > -1 {
-					uploadStepSection = uploadStepSection[:nextStepIdx+len("      - name:")]
+				nextUploadStepIdx := strings.Index(uploadStepSection[len("      - name:"):], "      - name:")
+				if nextUploadStepIdx > -1 {
+					uploadStepSection = uploadStepSection[:nextUploadStepIdx+len("      - name:")]
 				}
 				assert.Contains(t, uploadStepSection, "token:",
 					"Upload step should use 'token' input (not 'github-token')")
 				assert.NotContains(t, uploadStepSection, "github-token:",
 					"Upload step must not use 'github-token' - upload-sarif only accepts 'token'")
 
+				// Verify the reset step appears before the upload step
+				resetStepPos := strings.Index(stepsContent, "Reset git HEAD to triggering commit for SARIF upload")
+				uploadSARIFPos := strings.Index(stepsContent, "id: upload_code_scanning_sarif")
+				require.Greater(t, resetStepPos, -1, "Reset git HEAD step must exist")
+				require.Greater(t, uploadSARIFPos, -1, "upload_code_scanning_sarif step must exist")
+				assert.Less(t, resetStepPos, uploadSARIFPos,
+					"Reset git HEAD step must appear before upload_code_scanning_sarif step")
+
 				// Verify the upload step appears after the process_safe_outputs step
 				processSafeOutputsPos := strings.Index(stepsContent, "id: process_safe_outputs")
-				uploadSARIFPos := strings.Index(stepsContent, "id: upload_code_scanning_sarif")
 				require.Greater(t, processSafeOutputsPos, -1, "process_safe_outputs step must exist")
-				require.Greater(t, uploadSARIFPos, -1, "upload_code_scanning_sarif step must exist")
 				assert.Greater(t, uploadSARIFPos, processSafeOutputsPos,
 					"upload_code_scanning_sarif must appear after process_safe_outputs in compiled steps")
 
