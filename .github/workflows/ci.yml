@@ -477,6 +477,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -631,6 +632,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -1073,6 +1075,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -1321,6 +1324,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -1416,6 +1420,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -1630,6 +1635,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -1699,6 +1705,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
@@ -2092,6 +2099,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -e
@@ -2214,6 +2222,7 @@ jobs:
           fi
 
       - name: Download dependencies with retry
+        if: steps.setup-go.outputs.cache-hit != 'true'
         run: |
           set -e
           MAX_RETRIES=3
