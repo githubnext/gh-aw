@@ -448,7 +448,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
 	if isFirewallEnabled(data) {
 		c.generateTokenUsageSummary(yaml)
-		// Include the aggregated usage.json in the agent artifact so third-party
+		// Include the aggregated agent_usage.json in the agent artifact so third-party
 		// tools can consume structured token data without parsing the step summary.
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
 	}

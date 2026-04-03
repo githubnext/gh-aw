@@ -10,7 +10,7 @@
 #   - Written to $GITHUB_OUTPUT so they are accessible as job outputs to
 #     downstream jobs: input_tokens, output_tokens, cache_read_tokens,
 #     cache_write_tokens
-#   - Written to /tmp/gh-aw/usage.json so the data is bundled in the agent
+#   - Written to /tmp/gh-aw/agent_usage.json so the data is bundled in the agent
 #     artifact and accessible to third-party tools
 
 set -euo pipefail
@@ -152,7 +152,7 @@ END {
 }
 ' "$TOKEN_USAGE_FILE" >> "$GITHUB_OUTPUT"
 
-# Write usage.json to the artifact folder so the data is bundled in the
+# Write agent_usage.json to the artifact folder so the data is bundled in the
 # agent artifact and accessible to third-party tools.
 awk '
 BEGIN { ti=0; to=0; cr=0; cw=0 }
@@ -166,6 +166,6 @@ END {
   printf "{\"input_tokens\":%d,\"output_tokens\":%d,\"cache_read_tokens\":%d,\"cache_write_tokens\":%d}\n", \
     ti, to, cr, cw
 }
-' "$TOKEN_USAGE_FILE" > /tmp/gh-aw/usage.json
+' "$TOKEN_USAGE_FILE" > /tmp/gh-aw/agent_usage.json
 
 echo "Token usage summary appended to step summary"
