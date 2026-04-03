@@ -27,43 +27,56 @@ type EpisodeEdge struct {
 	EpisodeID   string   `json:"episode_id,omitempty"`
 }
 
+// EpisodeToolCall represents a single MCP tool call within an episode.
+// It provides per-call observability for token consumption, latency, and error details.
+type EpisodeToolCall struct {
+	Tool       string  `json:"tool"`
+	Server     string  `json:"server"`
+	Tokens     int     `json:"tokens"`
+	DurationMS float64 `json:"duration_ms"`
+	Status     string  `json:"status"`
+	Error      string  `json:"error,omitempty"`
+}
+
 // EpisodeData represents a deterministic episode rollup derived from workflow runs.
 type EpisodeData struct {
-	EpisodeID                      string   `json:"episode_id"`
-	Kind                           string   `json:"kind"`
-	Confidence                     string   `json:"confidence"`
-	Reasons                        []string `json:"reasons,omitempty"`
-	RootRunID                      int64    `json:"root_run_id,omitempty"`
-	RunIDs                         []int64  `json:"run_ids"`
-	WorkflowNames                  []string `json:"workflow_names"`
-	PrimaryWorkflow                string   `json:"primary_workflow,omitempty"`
-	TotalRuns                      int      `json:"total_runs"`
-	TotalTokens                    int      `json:"total_tokens"`
-	TotalEstimatedCost             float64  `json:"total_estimated_cost"`
-	TotalDuration                  string   `json:"total_duration"`
-	RiskyNodeCount                 int      `json:"risky_node_count"`
-	ChangedNodeCount               int      `json:"changed_node_count"`
-	WriteCapableNodeCount          int      `json:"write_capable_node_count"`
-	MissingToolCount               int      `json:"missing_tool_count"`
-	MCPFailureCount                int      `json:"mcp_failure_count"`
-	BlockedRequestCount            int      `json:"blocked_request_count"`
-	LatestSuccessFallbackCount     int      `json:"latest_success_fallback_count"`
-	NewMCPFailureRunCount          int      `json:"new_mcp_failure_run_count"`
-	BlockedRequestIncreaseRunCount int      `json:"blocked_request_increase_run_count"`
-	ResourceHeavyNodeCount         int      `json:"resource_heavy_node_count"`
-	PoorControlNodeCount           int      `json:"poor_control_node_count"`
-	RiskDistribution               string   `json:"risk_distribution"`
-	EscalationEligible             bool     `json:"escalation_eligible"`
-	EscalationReason               string   `json:"escalation_reason,omitempty"`
-	SuggestedRoute                 string   `json:"suggested_route,omitempty"`
+	EpisodeID                      string            `json:"episode_id"`
+	Kind                           string            `json:"kind"`
+	Confidence                     string            `json:"confidence"`
+	Reasons                        []string          `json:"reasons,omitempty"`
+	RootRunID                      int64             `json:"root_run_id,omitempty"`
+	RunIDs                         []int64           `json:"run_ids"`
+	WorkflowNames                  []string          `json:"workflow_names"`
+	PrimaryWorkflow                string            `json:"primary_workflow,omitempty"`
+	TotalRuns                      int               `json:"total_runs"`
+	TotalTokens                    int               `json:"total_tokens"`
+	TotalEstimatedCost             float64           `json:"total_estimated_cost"`
+	TotalDuration                  string            `json:"total_duration"`
+	RiskyNodeCount                 int               `json:"risky_node_count"`
+	ChangedNodeCount               int               `json:"changed_node_count"`
+	WriteCapableNodeCount          int               `json:"write_capable_node_count"`
+	MissingToolCount               int               `json:"missing_tool_count"`
+	MCPFailureCount                int               `json:"mcp_failure_count"`
+	BlockedRequestCount            int               `json:"blocked_request_count"`
+	LatestSuccessFallbackCount     int               `json:"latest_success_fallback_count"`
+	NewMCPFailureRunCount          int               `json:"new_mcp_failure_run_count"`
+	BlockedRequestIncreaseRunCount int               `json:"blocked_request_increase_run_count"`
+	ResourceHeavyNodeCount         int               `json:"resource_heavy_node_count"`
+	PoorControlNodeCount           int               `json:"poor_control_node_count"`
+	RiskDistribution               string            `json:"risk_distribution"`
+	EscalationEligible             bool              `json:"escalation_eligible"`
+	EscalationReason               string            `json:"escalation_reason,omitempty"`
+	SuggestedRoute                 string            `json:"suggested_route,omitempty"`
+	ToolCalls                      []EpisodeToolCall `json:"tool_calls,omitempty"`
 }
 
 type episodeAccumulator struct {
-	metadata EpisodeData
-	duration time.Duration
-	runSet   map[int64]bool
-	nameSet  map[string]bool
-	rootTime time.Time
+	metadata  EpisodeData
+	duration  time.Duration
+	runSet    map[int64]bool
+	nameSet   map[string]bool
+	rootTime  time.Time
+	toolCalls []EpisodeToolCall
 }
 
 type episodeSeed struct {
@@ -173,6 +186,12 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 			if pr.FirewallAnalysis != nil {
 				acc.metadata.BlockedRequestCount += pr.FirewallAnalysis.BlockedRequests
 			}
+			// Collect per-tool-call metrics for this run.
+			if pr.MCPToolUsage != nil {
+				for _, tc := range pr.MCPToolUsage.ToolCalls {
+					acc.toolCalls = append(acc.toolCalls, mcpToolCallToEpisodeToolCall(tc))
+				}
+			}
 		}
 		if !run.CreatedAt.IsZero() && (acc.metadata.RootRunID == 0 || run.CreatedAt.Before(acc.rootTime)) {
 			acc.rootTime = run.CreatedAt
@@ -218,6 +237,9 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		}
 		acc.metadata.EscalationEligible, acc.metadata.EscalationReason = classifyEpisodeEscalation(acc.metadata)
 		acc.metadata.SuggestedRoute = buildSuggestedRoute(acc.metadata)
+		if len(acc.toolCalls) > 0 {
+			acc.metadata.ToolCalls = acc.toolCalls
+		}
 		episodes = append(episodes, acc.metadata)
 	}
 
@@ -236,6 +258,26 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 
 	logsEpisodeLog.Printf("Built %d episodes and %d edges from %d runs", len(episodes), len(edges), len(runs))
 	return episodes, edges
+}
+
+// mcpToolCallToEpisodeToolCall converts an MCPToolCall record to the lightweight
+// EpisodeToolCall format used in episode rollups.
+// Token count is estimated from input/output byte sizes using CharsPerToken.
+// Duration is converted from a formatted string to milliseconds.
+func mcpToolCallToEpisodeToolCall(tc MCPToolCall) EpisodeToolCall {
+	tokens := (tc.InputSize + tc.OutputSize) / CharsPerToken
+	var durationMS float64
+	if tc.Duration != "" {
+		durationMS = float64(parseDurationString(tc.Duration).Milliseconds())
+	}
+	return EpisodeToolCall{
+		Tool:       tc.ToolName,
+		Server:     tc.ServerName,
+		Tokens:     tokens,
+		DurationMS: durationMS,
+		Status:     tc.Status,
+		Error:      tc.Error,
+	}
 }
 
 func findEpisodeParent(parents map[int64]int64, runID int64) int64 {

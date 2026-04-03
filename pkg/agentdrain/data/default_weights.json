@@ -107,12 +107,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -158,21 +153,12 @@
         "id": 1,
         "size": 50,
         "stage": "finish",
-        "template": [
-          "stage=finish",
-          "\u003c*\u003e",
-          "tokens=\u003cNUM\u003e"
-        ]
+        "template": ["stage=finish", "\u003c*\u003e", "tokens=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -218,21 +204,12 @@
         "id": 1,
         "size": 22,
         "stage": "plan",
-        "template": [
-          "stage=plan",
-          "errors=\u003cNUM\u003e",
-          "turns=\u003cNUM\u003e"
-        ]
+        "template": ["stage=plan", "errors=\u003cNUM\u003e", "turns=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -276,12 +253,7 @@
     "clusters": null,
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -325,12 +297,7 @@
     "clusters": null,
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -644,12 +611,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
