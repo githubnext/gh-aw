@@ -61,6 +61,12 @@ func TestTrainDrain3Weights_WithRuns(t *testing.T) {
 	err = json.Unmarshal(data, &weights)
 	require.NoError(t, err, "weights file should be valid JSON")
 	assert.NotEmpty(t, weights, "weights JSON should have stage keys")
+
+	// Should contain at least one of the expected stage keys.
+	expectedStages := []string{"plan", "tool_call", "error", "finish"}
+	for _, stage := range expectedStages {
+		assert.Contains(t, weights, stage, "weights should contain stage %q", stage)
+	}
 }
 
 func TestTrainDrain3Weights_JSONStructure(t *testing.T) {

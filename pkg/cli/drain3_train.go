@@ -71,10 +71,12 @@ func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose 
 
 	// Pretty-print the weights for readability.
 	var raw map[string]any
-	if err := json.Unmarshal(weightsData, &raw); err == nil {
-		if pretty, err := json.MarshalIndent(raw, "", "  "); err == nil {
-			weightsData = pretty
-		}
+	if unmarshalErr := json.Unmarshal(weightsData, &raw); unmarshalErr != nil {
+		drain3TrainLog.Printf("Could not unmarshal weights for pretty-printing: %v", unmarshalErr)
+	} else if pretty, marshalErr := json.MarshalIndent(raw, "", "  "); marshalErr != nil {
+		drain3TrainLog.Printf("Could not indent weights JSON: %v", marshalErr)
+	} else {
+		weightsData = pretty
 	}
 
 	outputPath := filepath.Join(outputDir, drain3WeightsFilename)
