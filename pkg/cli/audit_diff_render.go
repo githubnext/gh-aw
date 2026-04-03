@@ -50,7 +50,7 @@ func renderAuditDiffPretty(diff *AuditDiff) {
 	var summaryParts []string
 	anomalyCount := 0
 
-	if diff.FirewallDiff != nil && !isEmptyDiff(diff.FirewallDiff) {
+	if diff.FirewallDiff != nil && !isEmptyFirewallDiff(diff.FirewallDiff) {
 		fwParts := []string{}
 		if len(diff.FirewallDiff.NewDomains) > 0 {
 			fwParts = append(fwParts, fmt.Sprintf("%d new domains", len(diff.FirewallDiff.NewDomains)))
@@ -102,7 +102,7 @@ func renderAuditDiffPretty(diff *AuditDiff) {
 
 // renderFirewallDiffMarkdownSection renders the firewall diff sub-section as markdown
 func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
-	if diff == nil || isEmptyDiff(diff) {
+	if diff == nil || isEmptyFirewallDiff(diff) {
 		return
 	}
 
@@ -232,7 +232,7 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 
 // renderFirewallDiffPrettySection renders the firewall diff as a pretty console sub-section
 func renderFirewallDiffPrettySection(diff *FirewallDiff) {
-	if diff == nil || isEmptyDiff(diff) {
+	if diff == nil || isEmptyFirewallDiff(diff) {
 		return
 	}
 
@@ -370,8 +370,8 @@ func statusEmoji(status string) string {
 	}
 }
 
-// isEmptyDiff returns true if the firewall diff contains no changes
-func isEmptyDiff(diff *FirewallDiff) bool {
+// isEmptyFirewallDiff returns true if the firewall diff contains no changes
+func isEmptyFirewallDiff(diff *FirewallDiff) bool {
 	return len(diff.NewDomains) == 0 &&
 		len(diff.RemovedDomains) == 0 &&
 		len(diff.StatusChanges) == 0 &&
@@ -387,7 +387,7 @@ func isEmptyMCPToolsDiff(diff *MCPToolsDiff) bool {
 
 // isEmptyAuditDiff returns true if the audit diff contains no changes across all sections
 func isEmptyAuditDiff(diff *AuditDiff) bool {
-	fwEmpty := diff.FirewallDiff == nil || isEmptyDiff(diff.FirewallDiff)
+	fwEmpty := diff.FirewallDiff == nil || isEmptyFirewallDiff(diff.FirewallDiff)
 	mcpEmpty := diff.MCPToolsDiff == nil || isEmptyMCPToolsDiff(diff.MCPToolsDiff)
 	metricsEmpty := diff.RunMetricsDiff == nil
 	return fwEmpty && mcpEmpty && metricsEmpty

@@ -306,12 +306,12 @@ func TestStatusEmoji(t *testing.T) {
 
 func TestIsEmptyDiff(t *testing.T) {
 	emptyDiff := &FirewallDiff{}
-	assert.True(t, isEmptyDiff(emptyDiff), "Empty diff should be detected")
+	assert.True(t, isEmptyFirewallDiff(emptyDiff), "Empty diff should be detected")
 
 	nonEmptyDiff := &FirewallDiff{
 		NewDomains: []DomainDiffEntry{{Domain: "test.com"}},
 	}
-	assert.False(t, isEmptyDiff(nonEmptyDiff), "Non-empty diff should not be detected as empty")
+	assert.False(t, isEmptyFirewallDiff(nonEmptyDiff), "Non-empty diff should not be detected as empty")
 }
 
 // findDiffEntry is a test helper to find a domain in a list of diff entries
