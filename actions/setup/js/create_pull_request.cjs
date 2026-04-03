@@ -701,47 +701,16 @@ async function main(config = {}) {
       // unlike git format-patch which flattens history and drops merge resolution content.
       core.info(`Applying changes from bundle: ${bundleFilePath}`);
       const bundleBranchRef = originalAgentBranch || branchName;
-      let bundleApplied = false;
       try {
         // Fetch from bundle: creates a local branch pointing to the bundle's tip commit.
         // The bundle contains refs/heads/<bundleBranchRef> which was the agent's working branch.
         await exec.exec("git", ["fetch", bundleFilePath, `refs/heads/${bundleBranchRef}:refs/heads/${branchName}`]);
         core.info(`Created local branch ${branchName} from bundle`);
-        bundleApplied = true;
+        await exec.exec("git", ["checkout", branchName]);
+        core.info(`Checked out branch ${branchName} from bundle`);
       } catch (bundleError) {
-        // The bundle may not contain refs/heads/<bundleBranchRef> (e.g. when the bundle was
-        // created from HEAD instead of a named branch).  Fall back to listing available refs.
-        core.warning(`Branch ref 'refs/heads/${bundleBranchRef}' not found in bundle, trying fallback refs`);
-        core.debug(`Primary fetch failed: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
-        try {
-          const { stdout: headsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath]);
-          const fallbackRef = headsOutput
-            .trim()
-            .split("\n")
-            .map(line => line.trim().split(" "))
-            .filter(parts => parts.length >= 2)
-            .map(parts => parts[1])
-            .find(ref => ref && ref.startsWith("refs/heads/"));
-          if (!fallbackRef) {
-            throw new Error(`No refs/heads/* found in bundle (output: ${headsOutput})`);
-          }
-          core.info(`Falling back to bundle ref '${fallbackRef}'`);
-          await exec.exec("git", ["fetch", bundleFilePath, `${fallbackRef}:refs/heads/${branchName}`]);
-          core.info(`Created local branch ${branchName} from bundle using fallback ref ${fallbackRef}`);
-          bundleApplied = true;
-        } catch (fallbackError) {
-          core.error(`Failed to apply bundle: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
-          return { success: false, error: "Failed to apply bundle" };
-        }
-      }
-      if (bundleApplied) {
-        try {
-          await exec.exec("git", ["checkout", branchName]);
-          core.info(`Checked out branch ${branchName} from bundle`);
-        } catch (checkoutError) {
-          core.error(`Failed to checkout branch from bundle: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`);
-          return { success: false, error: "Failed to apply bundle" };
-        }
+        core.error(`Failed to apply bundle: ${bundleError instanceof Error ? bundleError.message : String(bundleError)}`);
+        return { success: false, error: "Failed to apply bundle" };
       }
 
       // Push the commits from the bundle to the remote branch
