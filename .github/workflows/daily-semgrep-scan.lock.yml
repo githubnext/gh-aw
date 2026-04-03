@@ -1105,9 +1105,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Reset git HEAD to triggering commit for SARIF upload
+      - name: Restore checkout to triggering commit for SARIF upload
         if: steps.process_safe_outputs.outputs.sarif_file != ''
-        run: git checkout ${{ github.sha }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 1
       - name: Upload SARIF to GitHub Code Scanning
         id: upload_code_scanning_sarif
         if: steps.process_safe_outputs.outputs.sarif_file != ''
