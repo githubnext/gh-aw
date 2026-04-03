@@ -319,6 +319,11 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return err
 	}
 
+	// Parse permissions once for reuse in the three validation checks below.
+	// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix).
+	// Always produces a non-nil *Permissions (ToPermissions never returns nil).
+	cachedPermissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
@@ -334,12 +339,8 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		if hasPermissions && !workflowData.HasExplicitGitHubTool {
 			log.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
 		} else {
-			// Parse permissions from the workflow data
-			// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix)
-			permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
-
 			// Validate permissions using the typed GitHub tool configuration
-			validationResult := ValidatePermissions(permissions, workflowData.ParsedTools.GitHub)
+			validationResult := ValidatePermissions(cachedPermissions, workflowData.ParsedTools.GitHub)
 
 			if validationResult.HasValidationIssues {
 				// Format the validation message
@@ -361,18 +362,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 
 	// Emit warning if id-token: write permission is detected
 	log.Printf("Checking for id-token: write permission")
-	if workflowData.Permissions != "" {
-		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
-		if permissions != nil {
-			level, exists := permissions.Get(PermissionIdToken)
-			if exists && level == PermissionWrite {
-				warningMsg := `This workflow grants id-token: write permission
+	if level, exists := cachedPermissions.Get(PermissionIdToken); exists && level == PermissionWrite {
+		warningMsg := `This workflow grants id-token: write permission
 OIDC tokens can authenticate to cloud providers (AWS, Azure, GCP).
 Ensure proper audience validation and trust policies are configured.`
-				fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
-				c.IncrementWarningCount()
-			}
-		}
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
+		c.IncrementWarningCount()
 	}
 
 	// Validate GitHub tools against enabled toolsets
@@ -399,11 +394,8 @@ Ensure proper audience validation and trust policies are configured.`
 	// Validate permissions for agentic-workflows tool
 	log.Printf("Validating permissions for agentic-workflows tool")
 	if _, hasAgenticWorkflows := workflowData.Tools["agentic-workflows"]; hasAgenticWorkflows {
-		// Parse permissions from the workflow data
-		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
-
 		// Check if actions: read permission exists
-		actionsLevel, hasActions := permissions.Get(PermissionActions)
+		actionsLevel, hasActions := cachedPermissions.Get(PermissionActions)
 		if !hasActions || actionsLevel == PermissionNone {
 			// Missing actions: read permission
 			message := "ERROR: Missing required permission for agentic-workflows tool:\n"

@@ -283,7 +283,23 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             debugLog(`Strategy 2: Found ${commitCount} commits between GITHUB_SHA and HEAD`);
 
             if (commitCount > 0) {
-              execGitSync(["bundle", "create", bundlePath, `${githubSha}..HEAD`], { cwd });
+              // If branchName is provided and doesn't exist locally (Strategy 1 already failed),
+              // create a local branch pointing to HEAD so the bundle contains
+              // refs/heads/<branchName> — required by create_pull_request.cjs when applying the bundle.
+              let rangeEnd = "HEAD";
+              if (branchName) {
+                try {
+                  // Use -f (force) to overwrite any stale local branch from previous runs,
+                  // since Strategy 1 verified the named branch does not exist as a proper local ref.
+                  // Use -- so a branch name beginning with "-" is not parsed as another option.
+                  execGitSync(["branch", "-f", "--", branchName, "HEAD"], { cwd });
+                  rangeEnd = branchName;
+                  debugLog(`Strategy 2: Created local branch '${branchName}' pointing to HEAD for bundle ref`);
+                } catch (branchErr) {
+                  debugLog(`Strategy 2: Could not create branch '${branchName}': ${getErrorMessage(branchErr)}, using HEAD`);
+                }
+              }
+              execGitSync(["bundle", "create", bundlePath, `${githubSha}..${rangeEnd}`], { cwd });
 
               if (fs.existsSync(bundlePath)) {
                 const stat = fs.statSync(bundlePath);

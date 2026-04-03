@@ -84,6 +84,13 @@ type FormattedParserError struct {
 func (e *FormattedParserError) Error() string { return e.formatted }
 func (e *FormattedParserError) Unwrap() error { return e.cause }
 
+// NewFormattedParserError creates a FormattedParserError with the given pre-formatted
+// message string. Use this in external packages (e.g. pkg/workflow) to return an error
+// that isFormattedCompilerError can detect without double-wrapping.
+func NewFormattedParserError(formatted string) *FormattedParserError {
+	return &FormattedParserError{formatted: formatted}
+}
+
 // FormatImportError formats an import error as a compilation error with source location
 func FormatImportError(err *ImportError, yamlContent string) error {
 	importErrorLog.Printf("Formatting import error: path=%s, file=%s, line=%d", err.ImportPath, err.FilePath, err.Line)

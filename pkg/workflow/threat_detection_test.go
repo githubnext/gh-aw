@@ -77,6 +77,27 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "object with custom post-steps",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"post-steps": []any{
+						map[string]any{
+							"name": "Custom post validation",
+							"run":  "echo 'Post validating...'",
+						},
+					},
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				PostSteps: []any{
+					map[string]any{
+						"name": "Custom post validation",
+						"run":  "echo 'Post validating...'",
+					},
+				},
+			},
+		},
+		{
 			name: "object with custom prompt",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
@@ -88,15 +109,21 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "object with all overrides",
+			name: "object with all overrides including pre and post steps",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
 					"enabled": true,
 					"prompt":  "Check for backdoor installations.",
 					"steps": []any{
 						map[string]any{
-							"name": "Extra step",
-							"uses": "actions/custom@v1",
+							"name": "Pre step",
+							"uses": "actions/setup@v1",
+						},
+					},
+					"post-steps": []any{
+						map[string]any{
+							"name": "Post step",
+							"uses": "actions/cleanup@v1",
 						},
 					},
 				},
@@ -105,8 +132,14 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				Prompt: "Check for backdoor installations.",
 				Steps: []any{
 					map[string]any{
-						"name": "Extra step",
-						"uses": "actions/custom@v1",
+						"name": "Pre step",
+						"uses": "actions/setup@v1",
+					},
+				},
+				PostSteps: []any{
+					map[string]any{
+						"name": "Post step",
+						"uses": "actions/cleanup@v1",
 					},
 				},
 			},
@@ -144,6 +177,10 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 
 			if len(result.Steps) != len(tt.expectedConfig.Steps) {
 				t.Errorf("Expected %d steps, got %d", len(tt.expectedConfig.Steps), len(result.Steps))
+			}
+
+			if len(result.PostSteps) != len(tt.expectedConfig.PostSteps) {
+				t.Errorf("Expected %d post-steps, got %d", len(tt.expectedConfig.PostSteps), len(result.PostSteps))
 			}
 
 			if result.RunsOn != tt.expectedConfig.RunsOn {
@@ -334,58 +371,202 @@ func TestThreatDetectionWithEngineConfig(t *testing.T) {
 func TestThreatDetectionStepsOrdering(t *testing.T) {
 	compiler := NewCompiler()
 
-	data := &WorkflowData{
-		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Steps: []any{
-					map[string]any{
-						"name": "Custom Threat Scan",
-						"run":  "echo 'Custom scanning...'",
+	t.Run("pre-steps come before engine execution", func(t *testing.T) {
+		data := &WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					Steps: []any{
+						map[string]any{
+							"name": "Custom Pre Scan",
+							"run":  "echo 'Custom pre-scanning...'",
+						},
 					},
 				},
 			},
-		},
-	}
+		}
 
-	steps := compiler.buildDetectionJobSteps(data)
+		steps := compiler.buildDetectionJobSteps(data)
 
-	if len(steps) == 0 {
-		t.Fatal("Expected non-empty steps")
-	}
+		if len(steps) == 0 {
+			t.Fatal("Expected non-empty steps")
+		}
 
-	// Join all steps into a single string for easier verification
-	stepsString := strings.Join(steps, "")
+		// Join all steps into a single string for easier verification
+		stepsString := strings.Join(steps, "")
 
-	// Find the positions of key steps
-	customStepPos := strings.Index(stepsString, "Custom Threat Scan")
-	concludeStepPos := strings.Index(stepsString, "Parse and conclude threat detection")
-	uploadStepPos := strings.Index(stepsString, "Upload threat detection log")
+		// Find the positions of key steps
+		preStepPos := strings.Index(stepsString, "Custom Pre Scan")
+		setupStepPos := strings.Index(stepsString, "Setup threat detection")
+		uploadStepPos := strings.Index(stepsString, "Upload threat detection log")
 
-	// Verify all steps exist
-	if customStepPos == -1 {
-		t.Error("Expected to find 'Custom Threat Scan' step")
-	}
-	if concludeStepPos == -1 {
-		t.Error("Expected to find 'Parse and conclude threat detection' step")
-	}
-	if uploadStepPos == -1 {
-		t.Error("Expected to find 'Upload threat detection log' step")
-	}
+		// Verify all steps exist
+		if preStepPos == -1 {
+			t.Error("Expected to find 'Custom Pre Scan' step")
+		}
+		if setupStepPos == -1 {
+			t.Error("Expected to find 'Setup threat detection' step")
+		}
+		if uploadStepPos == -1 {
+			t.Error("Expected to find 'Upload threat detection log' step")
+		}
+		if !strings.Contains(stepsString, "Parse and conclude threat detection") {
+			t.Error("Expected to find 'Parse and conclude threat detection' step")
+		}
 
-	// Verify ordering: custom steps should come before upload step
-	if customStepPos > uploadStepPos {
-		t.Errorf("Custom threat detection steps should come before 'Upload threat detection log' step. Got custom at position %d, upload at position %d", customStepPos, uploadStepPos)
-	}
+		// Verify ordering: pre-steps should come before setup threat detection
+		if preStepPos > setupStepPos {
+			t.Errorf("Custom pre-steps should come before 'Setup threat detection'. Got pre-step at position %d, setup at position %d", preStepPos, setupStepPos)
+		}
 
-	// Verify ordering: upload step should come before the conclude step
-	if uploadStepPos > concludeStepPos {
-		t.Errorf("'Upload threat detection log' step should come before 'Parse and conclude threat detection' step. Got upload at position %d, conclude at position %d", uploadStepPos, concludeStepPos)
-	}
+		// Verify ordering: pre-steps should come before upload and conclude
+		if preStepPos > uploadStepPos {
+			t.Errorf("Custom pre-steps should come before 'Upload threat detection log'. Got pre-step at position %d, upload at position %d", preStepPos, uploadStepPos)
+		}
+	})
 
-	// Verify the expected order: custom -> upload -> conclude
-	if customStepPos >= uploadStepPos || uploadStepPos >= concludeStepPos {
-		t.Errorf("Expected step order: custom steps < upload log < conclude. Got positions: custom=%d, upload=%d, conclude=%d", customStepPos, uploadStepPos, concludeStepPos)
-	}
+	t.Run("post-steps come after engine execution and before upload", func(t *testing.T) {
+		data := &WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					PostSteps: []any{
+						map[string]any{
+							"name": "Custom Post Scan",
+							"run":  "echo 'Custom post-scanning...'",
+						},
+					},
+				},
+			},
+		}
+
+		steps := compiler.buildDetectionJobSteps(data)
+
+		if len(steps) == 0 {
+			t.Fatal("Expected non-empty steps")
+		}
+
+		stepsString := strings.Join(steps, "")
+
+		postStepPos := strings.Index(stepsString, "Custom Post Scan")
+		// Use the engine execution step ID as the stable marker for the engine step boundary
+		engineStepPos := strings.Index(stepsString, "id: detection_agentic_execution")
+		uploadStepPos := strings.Index(stepsString, "Upload threat detection log")
+		concludeStepPos := strings.Index(stepsString, "Parse and conclude threat detection")
+
+		if postStepPos == -1 {
+			t.Error("Expected to find 'Custom Post Scan' step")
+		}
+		if engineStepPos == -1 {
+			t.Error("Expected to find 'id: detection_agentic_execution' engine step")
+		}
+		if uploadStepPos == -1 {
+			t.Error("Expected to find 'Upload threat detection log' step")
+		}
+		if concludeStepPos == -1 {
+			t.Error("Expected to find 'Parse and conclude threat detection' step")
+		}
+
+		// Verify ordering: post-steps should come after the engine execution step
+		if postStepPos < engineStepPos {
+			t.Errorf("Custom post-steps should come after engine execution step. Got post-step at position %d, engine at position %d", postStepPos, engineStepPos)
+		}
+		if postStepPos > uploadStepPos {
+			t.Errorf("Custom post-steps should come before 'Upload threat detection log'. Got post-step at position %d, upload at position %d", postStepPos, uploadStepPos)
+		}
+		if postStepPos > concludeStepPos {
+			t.Errorf("Custom post-steps should come before 'Parse and conclude threat detection'. Got post-step at position %d, conclude at position %d", postStepPos, concludeStepPos)
+		}
+	})
+
+	t.Run("pre-steps and post-steps both present in correct order", func(t *testing.T) {
+		data := &WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					Steps: []any{
+						map[string]any{
+							"name": "Custom Pre Step",
+							"run":  "echo 'pre'",
+						},
+					},
+					PostSteps: []any{
+						map[string]any{
+							"name": "Custom Post Step",
+							"run":  "echo 'post'",
+						},
+					},
+				},
+			},
+		}
+
+		steps := compiler.buildDetectionJobSteps(data)
+		stepsString := strings.Join(steps, "")
+
+		preStepPos := strings.Index(stepsString, "Custom Pre Step")
+		postStepPos := strings.Index(stepsString, "Custom Post Step")
+		engineStepPos := strings.Index(stepsString, "id: detection_agentic_execution")
+		uploadStepPos := strings.Index(stepsString, "Upload threat detection log")
+
+		if preStepPos == -1 {
+			t.Error("Expected to find 'Custom Pre Step'")
+		}
+		if postStepPos == -1 {
+			t.Error("Expected to find 'Custom Post Step'")
+		}
+		if engineStepPos == -1 {
+			t.Error("Expected to find 'id: detection_agentic_execution' engine step")
+		}
+
+		// pre-steps before engine, post-steps after engine but before upload
+		if preStepPos > engineStepPos {
+			t.Errorf("Pre-steps should come before engine execution step. Got pre=%d, engine=%d", preStepPos, engineStepPos)
+		}
+		if postStepPos < engineStepPos {
+			t.Errorf("Post-steps should come after engine execution step. Got post=%d, engine=%d", postStepPos, engineStepPos)
+		}
+		if postStepPos > uploadStepPos {
+			t.Errorf("Post-steps should come before 'Upload threat detection log'. Got post=%d, upload=%d", postStepPos, uploadStepPos)
+		}
+		// pre-steps before post-steps
+		if preStepPos > postStepPos {
+			t.Errorf("Pre-steps should come before post-steps. Got pre=%d, post=%d", preStepPos, postStepPos)
+		}
+	})
+}
+
+func TestCustomThreatDetectionStepsGuardCondition(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("injects detection guard condition when no if: present", func(t *testing.T) {
+		steps := []any{
+			map[string]any{
+				"name": "No If Step",
+				"run":  "echo hello",
+			},
+		}
+		result := compiler.buildCustomThreatDetectionSteps(steps)
+		stepsStr := strings.Join(result, "")
+		if !strings.Contains(stepsStr, detectionStepCondition) {
+			t.Errorf("Expected detection guard condition to be injected, got:\n%s", stepsStr)
+		}
+	})
+
+	t.Run("preserves user-provided if: condition", func(t *testing.T) {
+		userCondition := "always()"
+		steps := []any{
+			map[string]any{
+				"name": "User If Step",
+				"if":   userCondition,
+				"run":  "echo hello",
+			},
+		}
+		result := compiler.buildCustomThreatDetectionSteps(steps)
+		stepsStr := strings.Join(result, "")
+		if strings.Contains(stepsStr, detectionStepCondition) {
+			t.Error("Expected detection guard condition NOT to be injected when user provides if:")
+		}
+		if !strings.Contains(stepsStr, userCondition) {
+			t.Errorf("Expected user if: condition %q to be preserved, got:\n%s", userCondition, stepsStr)
+		}
+	})
 }
 
 func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T) {

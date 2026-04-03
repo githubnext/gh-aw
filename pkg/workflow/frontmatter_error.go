@@ -73,11 +73,11 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 				context := errorStr[loc[0]+1:] // +1 to skip the leading newline
 				// Return VSCode-compatible format on first line, followed by source context only
 				frontmatterErrorLog.Print("Formatting error for VSCode compatibility")
-				return fmt.Errorf("%s\n%s", vscodeFormat, context)
+				return parser.NewFormattedParserError(fmt.Sprintf("%s\n%s", vscodeFormat, context))
 			}
 
 			// If we can't extract source context, return just the VSCode format
-			return fmt.Errorf("%s", vscodeFormat)
+			return parser.NewFormattedParserError(vscodeFormat)
 		}
 
 		// Fallback if we can't parse the line/col

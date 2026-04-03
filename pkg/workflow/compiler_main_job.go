@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -67,8 +68,16 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		return nil, fmt.Errorf("failed to generate main job steps: %w", err)
 	}
 
-	// Split the steps content into individual step entries
+	// Compiler invariant: the agent job must not mint GitHub App tokens.
+	// All token minting (create-github-app-token) must happen in the activation job so that
+	// app-id / private-key secrets never reach the agent's environment. Fail fast during
+	// compilation if this invariant is violated to catch regressions early.
 	stepsContent := stepBuilder.String()
+	if strings.Contains(stepsContent, "create-github-app-token") {
+		return nil, errors.New("compiler invariant violated: agent job contains a GitHub App token minting step (create-github-app-token); token minting must only occur in the activation job")
+	}
+
+	// Split the steps content into individual step entries
 	if stepsContent != "" {
 		steps = append(steps, stepsContent)
 	}

@@ -7756,7 +7756,14 @@
                 },
                 "steps": {
                   "type": "array",
-                  "description": "Array of extra job steps to run after detection",
+                  "description": "Array of extra job steps to run before engine execution",
+                  "items": {
+                    "$ref": "#/$defs/githubActionsStep"
+                  }
+                },
+                "post-steps": {
+                  "type": "array",
+                  "description": "Array of extra job steps to run after engine execution",
                   "items": {
                     "$ref": "#/$defs/githubActionsStep"
                   }

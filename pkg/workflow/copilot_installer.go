@@ -20,10 +20,11 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 
 	// Use the install_copilot_cli.sh script from actions/setup/sh
 	// This script includes retry logic for robustness against transient network failures.
-	// The script downloads the Copilot CLI using curl with hardcoded github.com URLs
-	// and does not use gh CLI, so GH_HOST does not affect the download. No step-level
-	// GH_HOST override is needed here; the correct host is already set in GITHUB_ENV
-	// by configure_gh_for_ghe.sh (or by the Derive GH_HOST step when DIFC proxy is active).
+	// The script downloads the Copilot CLI using curl with hardcoded github.com URLs.
+	//
+	// GH_HOST is pinned to github.com at the step level to prevent any workflow-level
+	// env.GH_HOST (common on GHES deployments) from leaking into this step and
+	// interfering with the Copilot CLI install/auth path, which requires github.com.
 	if ExpressionPattern.MatchString(version) {
 		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
 		// Pass it via an env var instead of direct shell interpolation to prevent injection.
@@ -32,6 +33,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 			"      - name: " + stepName,
 			`        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh "${ENGINE_VERSION}"`,
 			"        env:",
+			"          GH_HOST: github.com",
 			"          ENGINE_VERSION: " + version,
 		}
 		return []GitHubActionStep{GitHubActionStep(stepLines)}
@@ -40,6 +42,8 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 	stepLines := []string{
 		"      - name: " + stepName,
 		"        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + version,
+		"        env:",
+		"          GH_HOST: github.com",
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

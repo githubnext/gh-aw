@@ -294,9 +294,11 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	if hasGitHubTool(workflowData.ParsedTools) {
-		// If GitHub App is configured, use the app token (overrides custom and default tokens)
+		// If GitHub App is configured, use the app token minted in the activation job.
+		// The token is passed via needs.activation.outputs to keep app-id/private-key
+		// secrets out of the agent job.
 		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.GitHubApp != nil {
-			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+			env["GITHUB_MCP_SERVER_TOKEN"] = "${{ needs.activation.outputs.github_mcp_app_token }}"
 		} else {
 			customGitHubToken := getGitHubToken(workflowData.Tools["github"])
 			// Use effective token with precedence: custom > default

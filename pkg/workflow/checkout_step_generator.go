@@ -33,6 +33,8 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 
 // GenerateCheckoutAppTokenInvalidationSteps generates token invalidation steps
 // for all checkout entries that use app authentication.
+// The tokens were minted in the activation job and are referenced via
+// needs.activation.outputs.checkout_app_token_{index}.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler) []string {
 	var steps []string
 	for i, entry := range cm.ordered {
@@ -41,9 +43,9 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler
 		}
 		checkoutManagerLog.Printf("Generating app token invalidation step for checkout index=%d", i)
 		rawSteps := c.buildGitHubAppTokenInvalidationStep()
-		stepID := fmt.Sprintf("checkout-app-token-%d", i)
+		outputName := fmt.Sprintf("checkout_app_token_%d", i)
 		for _, step := range rawSteps {
-			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps."+stepID+".outputs.token")
+			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "needs.activation.outputs."+outputName)
 			// Update step name to indicate it's for checkout
 			modified = strings.ReplaceAll(modified, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
 			steps = append(steps, modified)
@@ -159,7 +161,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if override.githubApp != nil {
 			// The default checkout is always at index 0 in the ordered list
 			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-			effectiveOverrideToken = "${{ steps.checkout-app-token-0.outputs.token }}"
+			effectiveOverrideToken = "${{ needs.activation.outputs.checkout_app_token_0 }}"
 		}
 		if effectiveOverrideToken != "" {
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
@@ -226,7 +228,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	effectiveToken := entry.token
 	if entry.githubApp != nil {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		effectiveToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+		effectiveToken = fmt.Sprintf("${{ needs.activation.outputs.checkout_app_token_%d }}", index)
 	}
 	if effectiveToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
@@ -314,7 +316,7 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	token := entry.token
 	if entry.githubApp != nil {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
+		token = fmt.Sprintf("${{ needs.activation.outputs.checkout_app_token_%d }}", index)
 	}
 	if token == "" {
 		token = getEffectiveGitHubToken("")

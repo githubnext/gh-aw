@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -118,6 +119,32 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Track whether the token minting succeeded so the conclusion job can surface
 		// GitHub App authentication errors in the failure issue.
 		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
+	}
+
+	// Mint the GitHub MCP app token in the activation job so that the agent job never
+	// receives the app-id / private-key secrets. The minted token is exposed as a job
+	// output and consumed by the agent job via needs.activation.outputs.github_mcp_app_token.
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.GitHubApp != nil {
+		steps = append(steps, c.generateGitHubMCPAppTokenMintingSteps(data)...)
+		outputs["github_mcp_app_token"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+	}
+
+	// Mint checkout app tokens in the activation job so that the agent job never
+	// receives the app-id / private-key secrets. Each token is exposed as a job output
+	// and consumed by the agent job via needs.activation.outputs.checkout_app_token_{index}.
+	checkoutMgrForActivation := NewCheckoutManager(data.CheckoutConfigs)
+	if checkoutMgrForActivation.HasAppAuth() {
+		compilerActivationJobLog.Print("Generating checkout app token minting steps in activation job")
+		var checkoutPermissions *Permissions
+		if data.Permissions != "" {
+			parser := NewPermissionsParser(data.Permissions)
+			checkoutPermissions = parser.ToPermissions()
+		} else {
+			checkoutPermissions = NewPermissions()
+		}
+		checkoutAppTokenSteps := checkoutMgrForActivation.GenerateCheckoutAppTokenSteps(c, checkoutPermissions)
+		steps = append(steps, checkoutAppTokenSteps...)
+		maps.Copy(outputs, checkoutMgrForActivation.CheckoutAppTokenOutputs())
 	}
 
 	// Add reaction step right after generate_aw_info so it is shown to the user as fast as

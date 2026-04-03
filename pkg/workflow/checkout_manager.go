@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -281,6 +282,25 @@ func (cm *CheckoutManager) HasAppAuth() bool {
 		}
 	}
 	return false
+}
+
+// CheckoutAppTokenOutputs returns a map of activation job output names to their
+// step token expressions, for all checkouts using app authentication.
+// Output names follow the pattern "checkout_app_token_{index}".
+// Step ID expressions follow the pattern "steps.checkout-app-token-{index}.outputs.token".
+// These outputs are set by the activation job so the agent job can reference them as
+// needs.activation.outputs.checkout_app_token_{index}.
+func (cm *CheckoutManager) CheckoutAppTokenOutputs() map[string]string {
+	outputs := make(map[string]string)
+	for i, entry := range cm.ordered {
+		if entry.githubApp == nil {
+			continue
+		}
+		outputName := fmt.Sprintf("checkout_app_token_%d", i)
+		stepID := fmt.Sprintf("checkout-app-token-%d", i)
+		outputs[outputName] = fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)
+	}
+	return outputs
 }
 
 // HasExternalRootCheckout returns true if any checkout entry targets an external

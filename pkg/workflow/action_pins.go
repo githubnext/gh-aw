@@ -11,7 +11,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var actionPinsLog = logger.New("workflow:action_pins")
@@ -48,6 +47,9 @@ type ActionPinsData struct {
 var (
 	// cachedActionPins holds the parsed and sorted action pins
 	cachedActionPins []ActionPin
+	// cachedActionPinsByRepo maps repo name to its sorted (version-descending) pins.
+	// Built alongside cachedActionPins to enable O(1) repo lookups without linear scans.
+	cachedActionPinsByRepo map[string][]ActionPin
 	// actionPinsOnce ensures the action pins are loaded only once
 	actionPinsOnce sync.Once
 )
@@ -106,9 +108,40 @@ func getActionPins() []ActionPin {
 
 		actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
 		cachedActionPins = pins
+
+		// Build per-repo index for O(1) lookups.
+		// Each repo's slice is sorted by semantic version (descending) so callers can
+		// pick the highest compatible version without an additional sort pass.
+		byRepo := make(map[string][]ActionPin, len(pins))
+		for _, pin := range pins {
+			byRepo[pin.Repo] = append(byRepo[pin.Repo], pin)
+		}
+		// The global sort above orders all pins together, so grouping them by repo
+		// does not guarantee per-repo ordering.  Re-sort each repo's slice using the
+		// semantic comparator (compareVersions) so that the index matches what
+		// sortPinsByVersion would return for any subset of pins.
+		for repo, repoPins := range byRepo {
+			sort.Slice(repoPins, func(i, j int) bool {
+				v1 := strings.TrimPrefix(repoPins[i].Version, "v")
+				v2 := strings.TrimPrefix(repoPins[j].Version, "v")
+				return compareVersions(v1, v2) > 0
+			})
+			byRepo[repo] = repoPins
+		}
+		cachedActionPinsByRepo = byRepo
+		actionPinsLog.Printf("Built per-repo action pin index for %d repos", len(byRepo))
 	})
 
 	return cachedActionPins
+}
+
+// getActionPinsByRepo returns the sorted (version-descending) list of action pins
+// for the given repository, initialising the cache on first call.
+// Returns nil if the repo has no pins.
+func getActionPinsByRepo(repo string) []ActionPin {
+	// Ensure the cache is initialised (both slices are populated in one sync.Once call).
+	getActionPins()
+	return cachedActionPinsByRepo[repo]
 }
 
 // sortPinsByVersion sorts action pins by version in descending order (highest first).
@@ -135,23 +168,16 @@ func sortPinsByVersion(pins []ActionPin) []ActionPin {
 // If no pin is found, it returns an empty string
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPin(actionRepo string) string {
-	actionPins := getActionPins()
-
-	// Find all pins matching the repo - using functional filter
-	matchingPins := sliceutil.Filter(actionPins, func(pin ActionPin) bool {
-		return pin.Repo == actionRepo
-	})
+	// Use the pre-built per-repo index for O(1) lookup (avoids scanning all pins).
+	matchingPins := getActionPinsByRepo(actionRepo)
 
 	if len(matchingPins) == 0 {
 		// If no pin exists, return empty string to signal that this action is not pinned
 		return ""
 	}
 
-	// Sort matching pins by version (descending - latest first) - immutable operation
-	sortedPins := sortPinsByVersion(matchingPins)
-
-	// Return the latest version (first after sorting)
-	latestPin := sortedPins[0]
+	// The per-repo slice is already sorted by version descending; pick the first entry.
+	latestPin := matchingPins[0]
 	return formatActionReference(actionRepo, latestPin.SHA, latestPin.Version)
 }
 
@@ -187,14 +213,10 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		}
 	}
 
-	// Dynamic resolution failed, try hardcoded pins
+	// Dynamic resolution failed, try hardcoded pins.
+	// Use the pre-built per-repo index for O(1) lookup (avoids scanning all pins).
 	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
-	actionPins := getActionPins()
-
-	// Find all pins matching the repo - using functional filter
-	matchingPins := sliceutil.Filter(actionPins, func(pin ActionPin) bool {
-		return pin.Repo == actionRepo
-	})
+	matchingPins := getActionPinsByRepo(actionRepo)
 
 	if len(matchingPins) == 0 {
 		// No pins found for this repo, will handle below
@@ -202,8 +224,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	} else {
 		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
 
-		// Sort matching pins by version (descending - highest first) - immutable operation
-		matchingPins = sortPinsByVersion(matchingPins)
+		// The per-repo slice is already sorted by version descending; no extra sort needed.
 
 		// First, try to find an exact version match (for version tags)
 		for _, pin := range matchingPins {
@@ -231,18 +252,21 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		// Semver compatibility means respecting major version boundaries
 		// (e.g., v5 -> highest v5.x.x, not v6.x.x)
 		if !data.StrictMode && len(matchingPins) > 0 {
-			// Filter for semver-compatible pins (matching major version) - using functional filter
-			compatiblePins := sliceutil.Filter(matchingPins, func(pin ActionPin) bool {
-				return isSemverCompatible(pin.Version, version)
-			})
-
-			// If we found compatible pins, use the highest one (first after sorting)
-			// Otherwise fall back to the highest overall pin
+			// Find the first semver-compatible pin (already sorted descending, so first match is highest)
 			var selectedPin ActionPin
-			if len(compatiblePins) > 0 {
-				selectedPin = compatiblePins[0]
+			foundCompatible := false
+			for _, pin := range matchingPins {
+				if isSemverCompatible(pin.Version, version) {
+					selectedPin = pin
+					foundCompatible = true
+					break
+				}
+			}
+
+			if foundCompatible {
 				actionPinsLog.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
 			} else {
+				// Fall back to the highest overall pin
 				selectedPin = matchingPins[0]
 				actionPinsLog.Printf("No exact match for version %s, no semver-compatible versions found, using highest available: %s", version, selectedPin.Version)
 			}
@@ -409,20 +433,13 @@ func ApplyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*W
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
 // When multiple versions exist for the same repo, it returns the latest version by semver
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
-	actionPins := getActionPins()
-
-	// Find all pins matching the repo - using functional filter
-	matchingPins := sliceutil.Filter(actionPins, func(pin ActionPin) bool {
-		return pin.Repo == repo
-	})
+	// Use the pre-built per-repo index for O(1) lookup (avoids scanning all pins).
+	matchingPins := getActionPinsByRepo(repo)
 
 	if len(matchingPins) == 0 {
 		return ActionPin{}, false
 	}
 
-	// Sort matching pins by version (descending - latest first) - immutable operation
-	sortedPins := sortPinsByVersion(matchingPins)
-
-	// Return the latest version (first after sorting)
-	return sortedPins[0], true
+	// The per-repo slice is already sorted by version descending; pick the first entry.
+	return matchingPins[0], true
 }

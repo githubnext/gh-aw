@@ -77,7 +77,10 @@ safe-outputs:
   threat-detection:
     enabled: true                    # Enable/disable detection
     prompt: "Focus on SQL injection" # Additional analysis instructions
-    steps:                           # Custom detection steps
+    steps:                           # Custom steps run before engine execution
+      - name: Setup Security Gateway
+        run: echo "Connecting to security gateway..."
+    post-steps:                      # Custom steps run after engine execution
       - name: Custom Security Check
         run: echo "Running additional checks"
 ```
@@ -90,7 +93,8 @@ safe-outputs:
 | `prompt` | string | Custom instructions appended to default detection prompt |
 | `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
 | `runs-on` | string/array/object | Runner for the detection job (default: inherits from workflow `runs-on`) |
-| `steps` | array | Additional GitHub Actions steps to run after AI analysis |
+| `steps` | array | Additional GitHub Actions steps to run **before** AI analysis (pre-steps) |
+| `post-steps` | array | Additional GitHub Actions steps to run **after** AI analysis (post-steps) |
 
 ## AI-Based Detection (Default)
 
@@ -186,13 +190,32 @@ safe-outputs:
 
 ## Custom Detection Steps
 
-Add specialized security scanning tools alongside or instead of AI detection:
+Add specialized security scanning tools alongside or instead of AI detection. You can run steps **before** the AI engine (for setup, gateway connections, etc.) and steps **after** (for additional scanning based on AI results).
+
+### Pre-Steps (`steps:`)
+
+Steps defined under `steps:` run **before** the AI engine executes. Use these for setup tasks such as connecting to a private AI gateway, installing security tools, or preparing artifacts.
 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
     steps:
+      - name: Connect to Security Gateway
+        run: |
+          echo "Setting up secure connection to analysis gateway..."
+          # Authentication and connection setup
+```
+
+### Post-Steps (`post-steps:`)
+
+Steps defined under `post-steps:` run **after** the AI engine completes its analysis. Use these for additional security scanning, reporting, or cleanup.
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    post-steps:
       - name: Run Security Scanner
         run: |
           echo "Scanning agent output for threats..."
@@ -206,11 +229,11 @@ safe-outputs:
 
 **Available Artifacts:** Custom steps have access to `/tmp/gh-aw/threat-detection/prompt.txt` (workflow prompt), `agent_output.json` (safe output items), and `aw.patch` (git patch file).
 
-**Execution Order:** Download artifacts → Run AI analysis (if enabled) → Execute custom steps → Upload detection log.
+**Execution Order:** Download artifacts → Execute pre-steps (`steps:`) → Run AI analysis (if enabled) → Execute post-steps (`post-steps:`) → Upload detection log.
 
 ## Example: LlamaGuard Integration
 
-Use Ollama with LlamaGuard 3 for specialized threat detection:
+Use Ollama with LlamaGuard 3 for specialized threat detection running after AI analysis:
 
 ```yaml wrap
 ---
@@ -219,7 +242,7 @@ engine: copilot
 safe-outputs:
   create-pull-request:
   threat-detection:
-    steps:
+    post-steps:
       - name: Ollama LlamaGuard 3 Scan
         uses: actions/github-script@v8
         with:
@@ -261,7 +284,7 @@ safe-outputs:
   threat-detection:
     prompt: "Check for authentication bypass vulnerabilities"
     engine: copilot
-    steps:
+    post-steps:
       - name: Static Analysis
         run: |
           # Run static analysis tool
@@ -271,6 +294,24 @@ safe-outputs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: /tmp/gh-aw/threat-detection/aw.patch
+```
+
+## Example: Private AI Gateway
+
+Connect to a private AI gateway before running the detection engine:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    steps:
+      - name: Connect to AI Gateway
+        run: |
+          # Authenticate and set up connection to private AI gateway
+          echo "Setting up gateway connection..."
+          ./scripts/setup-gateway.sh
+    engine:
+      id: copilot
 ```
 
 ## Error Handling

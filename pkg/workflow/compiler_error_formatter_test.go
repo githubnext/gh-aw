@@ -46,6 +46,11 @@ func TestIsFormattedCompilerError(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "error from parser.NewFormattedParserError is detected as formatted",
+			err:      parser.NewFormattedParserError("workflow.md:5:3: error: bad value"),
+			expected: true,
+		},
+		{
 			name:     "plain error is not formatted",
 			err:      errors.New("plain error"),
 			expected: false,

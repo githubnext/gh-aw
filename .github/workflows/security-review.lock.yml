@@ -441,6 +441,8 @@ jobs:
             await main();
       - name: Install GitHub Copilot CLI
         run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh latest
+        env:
+          GH_HOST: github.com
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.13
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -925,6 +927,7 @@ jobs:
             /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/safeoutputs.jsonl
@@ -1163,6 +1166,8 @@ jobs:
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install GitHub Copilot CLI
         run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh latest
+        env:
+          GH_HOST: github.com
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.13
       - name: Execute GitHub Copilot CLI

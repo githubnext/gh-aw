@@ -5,6 +5,9 @@
 #
 # The token-usage.jsonl file is produced by AWF v0.25.8+ and contains one JSON
 # object per line with per-request token usage data from the AI provider API.
+#
+# Aggregated token totals are also written to /tmp/gh-aw/agent_usage.json so
+# the data is bundled in the agent artifact and accessible to third-party tools.
 
 set -euo pipefail
 
@@ -125,5 +128,21 @@ END {
 } >> "$GITHUB_STEP_SUMMARY"
 
 rm -f /tmp/gh-aw-token-rows.tmp
+
+# Write agent_usage.json to the artifact folder so the data is bundled in the
+# agent artifact and accessible to third-party tools.
+awk '
+BEGIN { ti=0; to=0; cr=0; cw=0 }
+{
+  if (match($0, /"input_tokens" *: *([0-9]+)/, m)) ti += m[1]+0
+  if (match($0, /"output_tokens" *: *([0-9]+)/, m)) to += m[1]+0
+  if (match($0, /"cache_read_tokens" *: *([0-9]+)/, m)) cr += m[1]+0
+  if (match($0, /"cache_write_tokens" *: *([0-9]+)/, m)) cw += m[1]+0
+}
+END {
+  printf "{\"input_tokens\":%d,\"output_tokens\":%d,\"cache_read_tokens\":%d,\"cache_write_tokens\":%d}\n", \
+    ti, to, cr, cw
+}
+' "$TOKEN_USAGE_FILE" > /tmp/gh-aw/agent_usage.json
 
 echo "Token usage summary appended to step summary"
