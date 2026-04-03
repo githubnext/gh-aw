@@ -675,7 +675,7 @@ jobs:
 
   push_repo_memory:
     needs: agent
-    if: always()
+    if: always() && needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
       contents: write

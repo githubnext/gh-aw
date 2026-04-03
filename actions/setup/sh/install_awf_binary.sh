@@ -210,7 +210,15 @@ else
 fi
 
 # Verify installation
-which awf
-awf --version
+# Use the absolute path to avoid PATH issues on self-hosted or GPU runners
+# where ${AWF_INSTALL_DIR} may not be in the user PATH. The binary is always
+# accessible in subsequent steps via sudo (which includes /usr/local/bin).
+# Also clear DIFC (Data Integrity and Filtering Controls) proxy env vars
+# set by start_difc_proxy.sh. When the DIFC proxy is active, GITHUB_API_URL
+# and GITHUB_GRAPHQL_URL point to localhost:18443 and GH_HOST is overridden.
+# The AWF bundle may try to reach these endpoints on startup, causing the
+# version check to fail with a connection error if the proxy rejects the request.
+env -u GITHUB_API_URL -u GITHUB_GRAPHQL_URL -u GH_HOST \
+    "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" --version
 
 echo "✓ AWF installation complete"
