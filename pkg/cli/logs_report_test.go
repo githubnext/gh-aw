@@ -847,3 +847,64 @@ func TestBuildLogsDataIncludesDateFields(t *testing.T) {
 		t.Errorf("Expected UpdatedAt = %v, got %v", updatedAt, run.UpdatedAt)
 	}
 }
+
+// TestDeriveRunClassification tests the classification mapping helper.
+func TestDeriveRunClassification(t *testing.T) {
+	tests := []struct {
+		name       string
+		comparison *AuditComparisonData
+		want       string
+	}{
+		{
+			name:       "nil comparison returns unclassified",
+			comparison: nil,
+			want:       "unclassified",
+		},
+		{
+			name:       "no baseline found returns baseline",
+			comparison: &AuditComparisonData{BaselineFound: false},
+			want:       "baseline",
+		},
+		{
+			name: "nil classification with baseline returns unclassified",
+			comparison: &AuditComparisonData{
+				BaselineFound:  true,
+				Classification: nil,
+			},
+			want: "unclassified",
+		},
+		{
+			name: "risky label returns risky",
+			comparison: &AuditComparisonData{
+				BaselineFound:  true,
+				Classification: &AuditComparisonClassification{Label: "risky"},
+			},
+			want: "risky",
+		},
+		{
+			name: "stable label returns normal",
+			comparison: &AuditComparisonData{
+				BaselineFound:  true,
+				Classification: &AuditComparisonClassification{Label: "stable"},
+			},
+			want: "normal",
+		},
+		{
+			name: "changed label returns normal",
+			comparison: &AuditComparisonData{
+				BaselineFound:  true,
+				Classification: &AuditComparisonClassification{Label: "changed"},
+			},
+			want: "normal",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := deriveRunClassification(tt.comparison)
+			if got != tt.want {
+				t.Errorf("deriveRunClassification() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
