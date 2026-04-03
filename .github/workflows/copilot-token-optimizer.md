@@ -83,6 +83,7 @@ steps:
       # Find the most expensive workflow (by total tokens across all its runs)
       echo "🔍 Identifying most expensive workflow..."
       jq -r '
+        sort_by(.workflow_name) |
         group_by(.workflow_name) |
         map({
           workflow: .[0].workflow_name,
