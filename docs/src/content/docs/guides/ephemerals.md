@@ -89,7 +89,18 @@ See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete docume
 
 ### Manual Maintenance Operations
 
-The generated `agentics-maintenance.yml` workflow also supports manual bulk operations via `workflow_dispatch`. Admin or maintainer users can trigger it from the GitHub Actions UI or the CLI to disable or enable all agentic workflows in the repository at once. The operation is restricted to admin and maintainer roles and is not available on forks.
+The generated `agentics-maintenance.yml` workflow also supports manual bulk operations via `workflow_dispatch`. Admin or maintainer users can trigger it from the GitHub Actions UI or the CLI. The operation is restricted to admin and maintainer roles and is not available on forks.
+
+Available operations:
+
+| Operation | Description |
+|-----------|-------------|
+| `safe_outputs` | Auto-close expired issues, discussions, and pull requests |
+| `disable` | Disable all agentic workflows in the repository |
+| `enable` | Re-enable all agentic workflows in the repository |
+| `create_labels` | Create any repository labels referenced in safe-outputs that do not yet exist. Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. |
+
+The `create_labels` operation requires `issues: write` permission and runs in a dedicated job. It is useful when adding new workflows that reference labels that have not yet been created in the repository.
 
 ### Close Older Issues
 

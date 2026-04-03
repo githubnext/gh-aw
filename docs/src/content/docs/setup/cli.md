@@ -77,7 +77,7 @@ gh aw logs workflow --repo github.enterprise.com/owner/repo      # Use with comm
 
 For GHE Cloud with data residency (`*.ghe.com`), see the dedicated [Debugging GHE Cloud guide](/gh-aw/troubleshooting/debug-ghe/) for setup and troubleshooting steps.
 
-Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw add-wizard`, `gh aw init`, `gh aw update`, and `gh aw upgrade`) automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. No extra flags are needed.
+Commands that support `--create-pull-request` (such as `gh aw add`, `gh aw init`, `gh aw update`, and `gh aw upgrade`) automatically detect the enterprise host from the git remote and route PR creation to the correct GHES instance. No extra flags are needed.
 
 `gh aw audit` and `gh aw add-wizard` also auto-detect the GHES host from the git remote, so running them inside a GHES repository works without setting `GH_HOST` manually.
 
@@ -254,9 +254,11 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--watch`, `--purge`, `--stats`
+**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--no-emit`, `--watch`, `--purge`, `--stats`
 
 **Error Reporting:** Displays detailed error messages with file paths, line numbers, column positions, and contextual code snippets.
+
+**JSON Output (`--json`):** Emits an array of `ValidationResult` objects. Each result includes a `labels` field listing all repository labels referenced in safe-outputs (`create-issue.labels`, `create-discussion.labels`, `create-pull-request.labels`, `add-labels.allowed`). Use `--json --no-emit` to collect label references without writing compiled files.
 
 **Dependabot Integration (`--dependabot`):** Generates dependency manifests and `.github/dependabot.yml` by analyzing runtime tools across all workflows. See [Dependabot Support reference](/gh-aw/reference/dependabot/).
 
@@ -380,7 +382,14 @@ gh aw logs "CI Failure Doctor"             # Display name
 gh aw logs "ci failure doctor"             # Case-insensitive display name
 ```
 
-**Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
+**`--train` flag:** Trains log template weights from the downloaded runs and writes `drain3_weights.json` to the logs output directory. The trained weights improve anomaly detection accuracy in subsequent `gh aw audit` and `gh aw logs` runs. To embed weights into the binary as defaults, copy the file to `pkg/agentdrain/data/default_weights.json` and rebuild.
+
+```bash wrap
+gh aw logs --train                    # Train on last 10 runs
+gh aw logs my-workflow --train -c 50  # Train on up to 50 runs of a specific workflow
+```
+
+**Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--train`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
 
 #### `audit`
 
@@ -449,6 +458,8 @@ gh aw audit report --repo owner/repo --last 10              # Report on a specif
 ```
 
 Output is Markdown by default (suitable for security reviews, piping to files, or `$GITHUB_STEP_SUMMARY`).
+
+The report includes an **Agent Event Pattern Analysis** section that mines log templates across runs using an online clustering algorithm. It surfaces distinct event patterns, stage sequences, and anomalies (new templates, low-similarity events, rare clusters) with severity indicators.
 
 **Options:** `--workflow/-w` (filter by workflow name or filename), `--last` (number of recent runs to analyze; default: 20, max: 50), `--format` (markdown, pretty; default: markdown), `--json`, `--repo/-r`
 
