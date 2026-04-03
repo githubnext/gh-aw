@@ -385,6 +385,12 @@ The YAML frontmatter supports these fields:
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
       api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
       command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
+      token-weights:                    # Optional: custom token cost weights for effective token computation
+        multipliers:
+          my-custom-model: 2.5          # 2.5x the cost of claude-sonnet-4.5 (= 1.0)
+        token-class-weights:
+          output: 6.0                   # Override output token weight (default: 4.0)
+          cached-input: 0.05            # Override cached input weight (default: 0.1)
       error_patterns:                   # Optional: custom error pattern recognition (array)
         - pattern: "ERROR: (.+)"
           level_group: 1
@@ -1227,7 +1233,7 @@ The YAML frontmatter supports these fields:
 
       With `[]`, references like `#123` become `` `#123` `` and `other/repo#456` becomes `` `other/repo#456` ``, preventing timeline clutter while preserving information.
   - `messages:` - Custom message templates for safe-output footer and notification messages (object)
-    - Available placeholders: `{workflow_name}`, `{run_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{operation}`, `{event_type}`, `{status}`
+    - Available placeholders: `{workflow_name}`, `{run_url}`, `{agentic_workflow_url}`, `{triggering_number}`, `{workflow_source}`, `{workflow_source_url}`, `{operation}`, `{event_type}`, `{status}`, `{effective_tokens}`, `{effective_tokens_formatted}`, `{effective_tokens_suffix}`
     - Message types:
       - `footer:` - Custom footer for AI-generated content
       - `footer-install:` - Installation instructions appended to footer
