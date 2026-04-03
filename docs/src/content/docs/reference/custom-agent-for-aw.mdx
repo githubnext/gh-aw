@@ -27,20 +27,13 @@ Follow these steps to set up your repository for agentic workflows using the cus
    Initialize this repository for GitHub Agentic Workflows using https://github.com/github/gh-aw/blob/main/install.md
    ```
 
-This will guide your coding agent to:
-- Install the `gh-aw` CLI extension
-- Run `gh aw init` to create necessary configuration files
-- Commit and push the changes, or create a pull request
-
 Alternatively just run
 
 ```bash
 gh aw init
 ```
 
-After initialization, you'll have:
-- `.github/agents/agentic-workflows.agent.md` - [A Copilot file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
-- Additional configuration files for workflow authoring
+After initialization, you'll have `.github/agents/agentic-workflows.agent.md`, a [Copilot agent file](/gh-aw/reference/glossary/#agent-files) that registers the `/agent agentic-workflows` command in Copilot Chat.
 
 ## Using the Copilot Agent Files for Agentic Workflows
 
@@ -82,14 +75,10 @@ Import workflows from any accessible GitHub repository:
 /agent agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
 ```
 
-When importing, you can specify customizations:
+When importing, you can specify customizations such as engine or tools:
 
 ```text wrap
-# Import and change engine
 /agent agentic-workflows import issue-triage from githubnext/agentics and use claude engine
-
-# Import and add tools
-/agent agentic-workflows import pr-review from owner/repo and add web-fetch tool
 ```
 
 ### Debugging Agentic Workflows
@@ -100,40 +89,13 @@ When workflows fail or behave unexpectedly, use the agentic-workflows agent to i
 /agent agentic-workflows debug why is my issue-triage workflow failing?
 ```
 
-You can investigate a specific workflow run using its ID or URL:
+For the fastest diagnosis, pass the full run URL from the GitHub Actions page:
 
 ```text wrap
-# Debug by run ID
-/agent agentic-workflows debug run 1234567890
-
-# Debug from GitHub Actions URL
-/agent agentic-workflows debug https://github.com/owner/repo/actions/runs/1234567890
+/agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-> [!TIP]
-> For the fastest diagnosis, give the agent the full run URL from the GitHub Actions page:
->
-> ```text wrap
-> /agent agentic-workflows debug https://github.com/OWNER/REPO/actions/runs/RUN_ID
-> ```
->
-> Replace `OWNER`, `REPO`, and `RUN_ID` with your values. The agent will audit logs, identify the root cause, and suggest targeted fixes.
-
-The agent can help with various debugging scenarios:
-
-```text wrap
-# Permission errors
-/agent agentic-workflows debug getting 403 errors in my workflow
-
-# Missing tools
-/agent agentic-workflows debug workflow says tool not found
-
-# Network access issues
-/agent agentic-workflows debug workflow cannot access external API
-
-# Safe-output problems
-/agent agentic-workflows debug agent output not creating issues
-```
+The agent audits logs, identifies the root cause, and suggests targeted fixes. It handles permission errors, missing tools, network access issues, and safe-output problems — just describe the issue in natural language.
 
 ### Self-Contained Debugging (Without Copilot)
 
@@ -148,10 +110,6 @@ The failed workflow run is at https://github.com/OWNER/REPO/actions/runs/RUN_ID
 <CopyEntireFileButton filePath="https://raw.githubusercontent.com/github/gh-aw/main/debug.md" label="Copy debug instructions" />
 
 The `debug.md` file is a self-contained prompt that works with any coding agent or AI assistant. It guides the agent to install `gh aw`, analyze the run logs, identify the root cause, and open a pull request with the fix.
-
-## Other Agents and Chats
-
-The agent file can be loaded into other AI chat interfaces that support custom instructions. The agent is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
 
 ## Creating Agentic Workflows with an AI Chatbot
 
