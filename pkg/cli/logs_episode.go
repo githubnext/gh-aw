@@ -30,12 +30,12 @@ type EpisodeEdge struct {
 // EpisodeToolCall represents a single MCP tool call within an episode.
 // It provides per-call observability for token consumption, latency, and error details.
 type EpisodeToolCall struct {
-	Tool       string  `json:"tool"`
-	Server     string  `json:"server"`
-	Tokens     int     `json:"tokens"`
-	DurationMS float64 `json:"duration_ms"`
-	Status     string  `json:"status"`
-	Error      string  `json:"error,omitempty"`
+	Tool       string `json:"tool"`
+	Server     string `json:"server"`
+	Tokens     int    `json:"tokens"`
+	DurationMS int64  `json:"duration_ms"`
+	Status     string `json:"status"`
+	Error      string `json:"error,omitempty"`
 }
 
 // EpisodeData represents a deterministic episode rollup derived from workflow runs.
@@ -67,6 +67,8 @@ type EpisodeData struct {
 	EscalationEligible             bool              `json:"escalation_eligible"`
 	EscalationReason               string            `json:"escalation_reason,omitempty"`
 	SuggestedRoute                 string            `json:"suggested_route,omitempty"`
+	Repository                     string            `json:"repository,omitempty"`
+	Organization                   string            `json:"organization,omitempty"`
 	ToolCalls                      []EpisodeToolCall `json:"tool_calls,omitempty"`
 }
 
@@ -201,6 +203,12 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
 			acc.metadata.PrimaryWorkflow = run.WorkflowName
 		}
+		if acc.metadata.Repository == "" && run.Repository != "" {
+			acc.metadata.Repository = run.Repository
+			if parts := strings.SplitN(run.Repository, "/", 2); len(parts) == 2 {
+				acc.metadata.Organization = parts[0]
+			}
+		}
 		if run.StartedAt.IsZero() && run.UpdatedAt.IsZero() {
 			acc.duration += run.CreatedAt.Sub(run.CreatedAt)
 		} else if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() && run.UpdatedAt.After(run.StartedAt) {
@@ -238,6 +246,16 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		acc.metadata.EscalationEligible, acc.metadata.EscalationReason = classifyEpisodeEscalation(acc.metadata)
 		acc.metadata.SuggestedRoute = buildSuggestedRoute(acc.metadata)
 		if len(acc.toolCalls) > 0 {
+			// Sort tool calls for deterministic output (server, then tool name, then status).
+			slices.SortFunc(acc.toolCalls, func(a, b EpisodeToolCall) int {
+				if a.Server != b.Server {
+					return cmp.Compare(a.Server, b.Server)
+				}
+				if a.Tool != b.Tool {
+					return cmp.Compare(a.Tool, b.Tool)
+				}
+				return cmp.Compare(a.Status, b.Status)
+			})
 			acc.metadata.ToolCalls = acc.toolCalls
 		}
 		episodes = append(episodes, acc.metadata)
@@ -266,9 +284,9 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 // Duration is converted from a formatted string to milliseconds.
 func mcpToolCallToEpisodeToolCall(tc MCPToolCall) EpisodeToolCall {
 	tokens := (tc.InputSize + tc.OutputSize) / CharsPerToken
-	var durationMS float64
+	var durationMS int64
 	if tc.Duration != "" {
-		durationMS = float64(parseDurationString(tc.Duration).Milliseconds())
+		durationMS = parseDurationString(tc.Duration).Milliseconds()
 	}
 	return EpisodeToolCall{
 		Tool:       tc.ToolName,

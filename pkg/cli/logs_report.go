@@ -101,6 +101,7 @@ type RunData struct {
 	HeadSHA             string               `json:"head_sha,omitempty" console:"-"`
 	DisplayTitle        string               `json:"display_title,omitempty" console:"-"`
 	Repository          string               `json:"repository,omitempty" console:"-"`
+	Organization        string               `json:"organization,omitempty" console:"-"`
 	Ref                 string               `json:"ref,omitempty" console:"-"`
 	SHA                 string               `json:"sha,omitempty" console:"-"`
 	Actor               string               `json:"actor,omitempty" console:"-"`
@@ -246,6 +247,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 		if awInfo != nil {
 			runData.Repository = awInfo.Repository
+			if awInfo.Repository != "" {
+				if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
+					runData.Organization = parts[0]
+				}
+			}
 			runData.Ref = awInfo.Ref
 			runData.SHA = awInfo.SHA
 			runData.Actor = awInfo.Actor

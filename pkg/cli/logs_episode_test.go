@@ -57,23 +57,26 @@ func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
 	ep := episodes[0]
 	require.Len(t, ep.ToolCalls, 2, "expected two tool calls in episode")
 
-	// First tool call: success
-	tc0 := ep.ToolCalls[0]
-	assert.Equal(t, "get_file_contents", tc0.Tool, "tool name should match")
-	assert.Equal(t, "github", tc0.Server, "server name should match")
-	assert.Equal(t, (400+9200)/CharsPerToken, tc0.Tokens, "tokens should be estimated from sizes")
-	assert.InDelta(t, float64(350), tc0.DurationMS, 0.001, "duration_ms should be 350")
-	assert.Equal(t, "success", tc0.Status, "status should match")
-	assert.Empty(t, tc0.Error, "no error expected")
+	// Tool calls are sorted by server, then tool name. With server="github":
+	// "create_pull_request" < "get_file_contents" alphabetically.
 
-	// Second tool call: error
+	// First (alphabetically): create_pull_request — error call
+	tc0 := ep.ToolCalls[0]
+	assert.Equal(t, "create_pull_request", tc0.Tool, "tool name should match")
+	assert.Equal(t, "github", tc0.Server, "server name should match")
+	assert.Equal(t, (200+3000)/CharsPerToken, tc0.Tokens, "tokens should be estimated from sizes")
+	assert.Equal(t, int64(600), tc0.DurationMS, "duration_ms should be 600")
+	assert.Equal(t, "error", tc0.Status, "status should match")
+	assert.Equal(t, "403 Resource not accessible by integration", tc0.Error, "error message should match")
+
+	// Second (alphabetically): get_file_contents — success call
 	tc1 := ep.ToolCalls[1]
-	assert.Equal(t, "create_pull_request", tc1.Tool, "tool name should match")
+	assert.Equal(t, "get_file_contents", tc1.Tool, "tool name should match")
 	assert.Equal(t, "github", tc1.Server, "server name should match")
-	assert.Equal(t, (200+3000)/CharsPerToken, tc1.Tokens, "tokens should be estimated from sizes")
-	assert.InDelta(t, float64(600), tc1.DurationMS, 0.001, "duration_ms should be 600")
-	assert.Equal(t, "error", tc1.Status, "status should match")
-	assert.Equal(t, "403 Resource not accessible by integration", tc1.Error, "error message should match")
+	assert.Equal(t, (400+9200)/CharsPerToken, tc1.Tokens, "tokens should be estimated from sizes")
+	assert.Equal(t, int64(350), tc1.DurationMS, "duration_ms should be 350")
+	assert.Equal(t, "success", tc1.Status, "status should match")
+	assert.Empty(t, tc1.Error, "no error expected")
 }
 
 func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
@@ -173,7 +176,7 @@ func TestMCPToolCallToEpisodeToolCall(t *testing.T) {
 		expectedTool   string
 		expectedServer string
 		expectedTokens int
-		expectedDurMS  float64
+		expectedDurMS  int64
 		expectedStatus string
 		expectedError  string
 	}{
@@ -235,7 +238,7 @@ func TestMCPToolCallToEpisodeToolCall(t *testing.T) {
 			assert.Equal(t, tt.expectedTool, got.Tool, "Tool should match")
 			assert.Equal(t, tt.expectedServer, got.Server, "Server should match")
 			assert.Equal(t, tt.expectedTokens, got.Tokens, "Tokens should be estimated from sizes")
-			assert.InDelta(t, tt.expectedDurMS, got.DurationMS, 0.001, "DurationMS should match")
+			assert.Equal(t, tt.expectedDurMS, got.DurationMS, "DurationMS should match")
 			assert.Equal(t, tt.expectedStatus, got.Status, "Status should match")
 			assert.Equal(t, tt.expectedError, got.Error, "Error should match")
 		})

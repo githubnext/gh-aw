@@ -28,12 +28,21 @@ jobs:
       - name: Build gh-aw
         run: make build
 
+      - name: Restore logs cache
+        id: cache-logs
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: /tmp/drain3-logs
+          key: drain3-logs-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            drain3-logs-${{ runner.os }}-
+
       - name: Download run logs and train weights
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/drain3-logs
-          ./gh-aw logs --train --output /tmp/drain3-logs --count 1000
+          ./gh-aw logs --train --output /tmp/drain3-logs --count 100
 
       - name: Copy trained weights to source tree
         run: |

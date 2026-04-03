@@ -816,3 +816,102 @@ func TestBuildMCPFailuresSummary(t *testing.T) {
 		t.Errorf("Expected playwright in 2 workflows, got %d", len(summary[0].Workflows))
 	}
 }
+
+// TestBuildLogsDataRepositoryAndOrganizationFields verifies that repository and organization
+// fields are populated on both RunData and EpisodeData from aw_info.json.
+func TestBuildLogsDataRepositoryAndOrganizationFields(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-repo-org-*")
+	runDir := filepath.Join(tmpDir, "run-9001")
+
+	writeTestAwInfo(t, runDir, map[string]any{
+		"engine_id":  "copilot",
+		"repository": "myorg/myrepo",
+		"ref":        "refs/heads/main",
+		"sha":        "abc123",
+		"actor":      "monalisa",
+	})
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   9001,
+				WorkflowName: "test-workflow",
+				WorkflowPath: ".github/workflows/test-workflow.yml",
+				Status:       "completed",
+				Conclusion:   "success",
+				CreatedAt:    time.Date(2024, 3, 1, 10, 0, 0, 0, time.UTC),
+				StartedAt:    time.Date(2024, 3, 1, 10, 0, 0, 0, time.UTC),
+				UpdatedAt:    time.Date(2024, 3, 1, 10, 5, 0, 0, time.UTC),
+				LogsPath:     runDir,
+			},
+		},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	// Verify RunData fields
+	if len(logsData.Runs) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(logsData.Runs))
+	}
+	run := logsData.Runs[0]
+	if run.Repository != "myorg/myrepo" {
+		t.Errorf("Expected run.Repository 'myorg/myrepo', got %q", run.Repository)
+	}
+	if run.Organization != "myorg" {
+		t.Errorf("Expected run.Organization 'myorg', got %q", run.Organization)
+	}
+
+	// Verify EpisodeData fields
+	if len(logsData.Episodes) != 1 {
+		t.Fatalf("Expected 1 episode, got %d", len(logsData.Episodes))
+	}
+	episode := logsData.Episodes[0]
+	if episode.Repository != "myorg/myrepo" {
+		t.Errorf("Expected episode.Repository 'myorg/myrepo', got %q", episode.Repository)
+	}
+	if episode.Organization != "myorg" {
+		t.Errorf("Expected episode.Organization 'myorg', got %q", episode.Organization)
+	}
+}
+
+// TestBuildLogsDataOrganizationEmptyWhenNoRepository verifies that organization is empty
+// when no repository is set (e.g., older aw_info.json without repository field).
+func TestBuildLogsDataOrganizationEmptyWhenNoRepository(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-no-repo-*")
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   9002,
+				WorkflowName: "test-workflow",
+				Status:       "completed",
+				Conclusion:   "success",
+				CreatedAt:    time.Date(2024, 3, 1, 10, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	if len(logsData.Runs) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(logsData.Runs))
+	}
+	run := logsData.Runs[0]
+	if run.Repository != "" {
+		t.Errorf("Expected empty run.Repository, got %q", run.Repository)
+	}
+	if run.Organization != "" {
+		t.Errorf("Expected empty run.Organization, got %q", run.Organization)
+	}
+
+	if len(logsData.Episodes) != 1 {
+		t.Fatalf("Expected 1 episode, got %d", len(logsData.Episodes))
+	}
+	episode := logsData.Episodes[0]
+	if episode.Repository != "" {
+		t.Errorf("Expected empty episode.Repository, got %q", episode.Repository)
+	}
+	if episode.Organization != "" {
+		t.Errorf("Expected empty episode.Organization, got %q", episode.Organization)
+	}
+}

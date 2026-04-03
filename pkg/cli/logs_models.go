@@ -32,6 +32,9 @@ const (
 	BatchSizeForAllWorkflows = 250
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
+	// APICallCooldown is the pause between successive batch-fetch iterations to avoid
+	// hitting the GitHub API rate limit when processing many runs in a single invocation.
+	APICallCooldown = 500 * time.Millisecond
 )
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics
