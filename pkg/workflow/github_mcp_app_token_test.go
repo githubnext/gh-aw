@@ -535,3 +535,104 @@ Test that write is rejected in tools.github.github-app.permissions.
 	assert.Contains(t, err.Error(), `"write" is not allowed`, "Error should mention that write is not allowed")
 	assert.Contains(t, err.Error(), "members", "Error should mention the offending scope")
 }
+
+// TestAgentJobDoesNotMintGitHubAppTokens verifies the compiler invariant that no
+// GitHub App token minting step (create-github-app-token) appears in the agent job.
+// All minting must happen in the activation job so that app-id / private-key secrets
+// never reach the agent's environment.
+func TestAgentJobDoesNotMintGitHubAppTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		markdown string
+	}{
+		{
+			name: "tools.github.github-app token not minted in agent job",
+			markdown: `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+strict: false
+tools:
+  github:
+    mode: local
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+Test workflow - MCP app token must not be minted in agent job.
+`,
+		},
+		{
+			name: "checkout.github-app token not minted in agent job",
+			markdown: `---
+on: issues
+permissions:
+  contents: read
+strict: false
+checkout:
+  repository: myorg/private-repo
+  path: private
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+Test workflow - checkout app token must not be minted in agent job.
+`,
+		},
+		{
+			name: "top-level github-app fallback for checkout not minted in agent job",
+			markdown: `---
+on: issues
+permissions:
+  contents: read
+strict: false
+github-app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+checkout:
+  repository: myorg/private-repo
+  path: private
+---
+
+Test workflow - top-level github-app checkout token must not be minted in agent job.
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompilerWithVersion("1.0.0")
+			tmpDir := t.TempDir()
+			testFile := filepath.Join(tmpDir, "test.md")
+			err := os.WriteFile(testFile, []byte(tt.markdown), 0644)
+			require.NoError(t, err, "Failed to write test file")
+
+			err = compiler.CompileWorkflow(testFile)
+			require.NoError(t, err, "Workflow should compile successfully")
+
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			content, err := os.ReadFile(lockFile)
+			require.NoError(t, err, "Failed to read lock file")
+			lockContent := string(content)
+
+			// Locate the agent job section (after "  agent:" and before the next top-level job)
+			agentJobStart := strings.Index(lockContent, "\n  agent:\n")
+			require.NotEqual(t, -1, agentJobStart, "Agent job should be present")
+
+			// Find the next top-level job after agent (or end of file)
+			nextJobStart := strings.Index(lockContent[agentJobStart+len("\n  agent:\n"):], "\n  ")
+			var agentJobContent string
+			if nextJobStart == -1 {
+				agentJobContent = lockContent[agentJobStart:]
+			} else {
+				agentJobContent = lockContent[agentJobStart : agentJobStart+len("\n  agent:\n")+nextJobStart]
+			}
+
+			assert.NotContains(t, agentJobContent, "create-github-app-token",
+				"Agent job must not mint GitHub App tokens; minting must be in activation job")
+		})
+	}
+}
