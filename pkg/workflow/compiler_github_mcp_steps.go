@@ -152,10 +152,21 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 	githubConfigLog.Print("Generating GitHub App token invalidation step for GitHub MCP server")
 
 	// The token was minted in the activation job; reference it via needs.activation.outputs.
-	steps := c.buildGitHubAppTokenInvalidationStep("needs.activation.outputs.github_mcp_app_token")
-	for _, step := range steps {
-		yaml.WriteString(step)
-	}
+	const tokenExpr = "needs.activation.outputs.github_mcp_app_token"
+
+	yaml.WriteString("      - name: Invalidate GitHub App token\n")
+	fmt.Fprintf(yaml, "        if: always() && %s != ''\n", tokenExpr)
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          TOKEN: ${{ %s }}\n", tokenExpr)
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"Revoking GitHub App installation token...\"\n")
+	yaml.WriteString("          # GitHub CLI will auth with the token being revoked.\n")
+	yaml.WriteString("          gh api \\\n")
+	yaml.WriteString("            --method DELETE \\\n")
+	yaml.WriteString("            -H \"Authorization: token $TOKEN\" \\\n")
+	yaml.WriteString("            /installation/token || echo \"Token revoke may already be expired.\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          echo \"Token invalidation step complete.\"\n")
 }
 
 // generateParseGuardVarsStep generates a step that parses the blocked-users, trusted-users, and

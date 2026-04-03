@@ -116,11 +116,10 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		steps = append(steps, config.PostSteps...)
 	}
 
-	// Add GitHub App token invalidation step if app is configured.
-	// The token was minted in the activation job and is referenced via needs.activation.outputs.
+	// Add GitHub App token invalidation step if app is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		safeOutputsJobsLog.Print("Adding GitHub App token invalidation step")
-		steps = append(steps, c.buildGitHubAppTokenInvalidationStep("needs.activation.outputs.safe_outputs_app_token")...)
+		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
 	// Determine job condition

@@ -308,17 +308,59 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		return nil, nil, nil
 	}
 
-	// Token minting for safe-outputs.github-app has been moved to the activation job
-	// so that app-id / private-key never reach the safe_outputs job.
-	// Track the minting outcome via the activation output (requires activation in needs).
+	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
-		outputs["app_token_minting_failed"] = fmt.Sprintf("${{ needs.%s.outputs.safe_outputs_app_token_minting_failed }}", constants.ActivationJobName)
+		// Track whether the app token minting succeeded so the conclusion job can surface
+		// authentication errors in the failure issue.
+		outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
+
+		// For workflow_call relay workflows, scope the token to the platform repo name only
+		// (not the full slug) because actions/create-github-app-token expects repo names
+		// without the owner prefix when `owner` is also set.
+		var appTokenFallbackRepo string
+		if hasWorkflowCallTrigger(data.On) {
+			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
+		}
+		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)
+		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
+		insertIndex := 0
+
+		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
+		setupActionRef := c.resolveActionReference("./actions/setup", data)
+		if setupActionRef != "" {
+			insertIndex += len(c.generateCheckoutActionsFolder(data))
+			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs)))
+		}
+
+		// Add artifact download steps count
+		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix))
+
+		// Add patch download steps if present
+		// Download from unified agent artifact (prefixed in workflow_call context)
+		if usesPatchesAndCheckouts(data.SafeOutputs) {
+			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+				ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
+				DownloadPath: "/tmp/gh-aw/",
+				SetupEnvStep: false,
+				StepName:     "Download patch artifact",
+			})
+			insertIndex += len(patchDownloadSteps)
+		}
+
+		// Note: App token step must be inserted BEFORE shared checkout steps
+		// because those steps reference steps.safe-outputs-app-token.outputs.token
+
+		// Insert app token steps
+		var newSteps []string
+		newSteps = append(newSteps, steps[:insertIndex]...)
+		newSteps = append(newSteps, appTokenSteps...)
+		newSteps = append(newSteps, steps[insertIndex:]...)
+		steps = newSteps
 	}
 
-	// Add GitHub App token invalidation step at the end if app is configured.
-	// The token was minted in the activation job and is referenced via needs.activation.outputs.
+	// Add GitHub App token invalidation step at the end if app is configured
 	if data.SafeOutputs.GitHubApp != nil {
-		steps = append(steps, c.buildGitHubAppTokenInvalidationStep(fmt.Sprintf("needs.%s.outputs.safe_outputs_app_token", constants.ActivationJobName))...)
+		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
 	// Upload the safe output items manifest as an artifact (non-staged mode only).
@@ -369,8 +411,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// - create_pull_request or push_to_pull_request_branch (need the activation artifact)
 	// - lock-for-agent (need the activation lock)
 	// - workflow_call trigger (need needs.activation.outputs.target_repo for cross-repo token/dispatch)
-	// - safe-outputs github-app is configured (token was minted in activation job)
-	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent || hasWorkflowCallTrigger(data.On) || data.SafeOutputs.GitHubApp != nil {
+	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent || hasWorkflowCallTrigger(data.On) {
 		needs = append(needs, string(constants.ActivationJobName))
 	}
 	// Add unlock job dependency if lock-for-agent is enabled

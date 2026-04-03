@@ -40,12 +40,12 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler
 			continue
 		}
 		checkoutManagerLog.Printf("Generating app token invalidation step for checkout index=%d", i)
+		rawSteps := c.buildGitHubAppTokenInvalidationStep()
 		stepID := fmt.Sprintf("checkout-app-token-%d", i)
-		tokenExpr := fmt.Sprintf("steps.%s.outputs.token", stepID)
-		rawSteps := c.buildGitHubAppTokenInvalidationStep(tokenExpr)
 		for _, step := range rawSteps {
+			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps."+stepID+".outputs.token")
 			// Update step name to indicate it's for checkout
-			modified := strings.ReplaceAll(step, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
+			modified = strings.ReplaceAll(modified, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
 			steps = append(steps, modified)
 		}
 	}

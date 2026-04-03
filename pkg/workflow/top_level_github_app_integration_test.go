@@ -50,10 +50,9 @@ Test workflow verifying top-level github-app fallback for safe-outputs.
 		require.NoError(t, err)
 		compiled := string(compiledBytes)
 
-		// The activation job should now generate the safe-outputs app token minting step
-		// (token minting moved from safe_outputs job to activation job)
+		// The safe-outputs job should use the top-level github-app for token minting
 		assert.Contains(t, compiled, "id: safe-outputs-app-token",
-			"Activation job should generate a token minting step for safe-outputs")
+			"Safe outputs job should generate a token minting step")
 		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
 			"Token minting step should use the top-level APP_ID")
 		assert.Contains(t, compiled, "private-key: ${{ secrets.APP_PRIVATE_KEY }}",

@@ -141,15 +141,15 @@ Test workflow with discussions permission.
 	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
 	require.NotNil(t, workflowData.SafeOutputs.CreateDiscussions, "CreateDiscussions should not be nil")
 
-	// Token minting has moved to the activation job; verify the permissions appear there.
-	activationJob, err := compiler.buildActivationJob(workflowData, false, "", testFile)
-	require.NoError(t, err, "Failed to build activation job")
-	require.NotNil(t, activationJob, "Activation job should not be nil")
+	// Build the consolidated safe_outputs job
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "main", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
 
-	activationStepsStr := strings.Join(activationJob.Steps, "")
+	// Convert steps to string for easier assertion
+	stepsStr := strings.Join(job.Steps, "")
 
-	// Verify that permission-discussions: write and permission-contents: read are in the
-	// activation job's GitHub App token minting step.
-	assert.Contains(t, activationStepsStr, "permission-discussions: write", "GitHub App token should include discussions write permission")
-	assert.Contains(t, activationStepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+	// Verify that permission-discussions: write is included in the GitHub App token minting step
+	assert.Contains(t, stepsStr, "permission-discussions: write", "GitHub App token should include discussions write permission")
+	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
 }

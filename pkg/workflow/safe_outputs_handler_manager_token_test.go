@@ -121,7 +121,7 @@ func TestHandlerManagerGitHubTokenEnvVarForCrossRepo(t *testing.T) {
 					},
 				},
 			},
-			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ needs.activation.outputs.safe_outputs_app_token }}",
+			expectedGitHubTokenLine: "GITHUB_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}",
 			shouldHaveGitHubToken:   true,
 		},
 		{

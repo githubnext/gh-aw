@@ -194,7 +194,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 			checkContains: []string{
-				"token: ${{ needs.activation.outputs.safe_outputs_app_token }}",
+				"token: ${{ steps.safe-outputs-app-token.outputs.token }}",
 			},
 		},
 		{

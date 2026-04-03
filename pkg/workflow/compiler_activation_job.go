@@ -128,24 +128,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["github_mcp_app_token"] = "${{ steps.github-mcp-app-token.outputs.token }}"
 	}
 
-	// Mint the safe-outputs app token in the activation job so that the safe_outputs and
-	// conclusion jobs never receive the app-id / private-key secrets. The minted token is
-	// exposed as a job output and consumed by downstream jobs via
-	// needs.activation.outputs.safe_outputs_app_token.
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		safeOutputsPermissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-		// In workflow_call scenarios, scope the token to the platform (host) repo name.
-		// The resolve-host-repo step already ran above and its output is available.
-		var safeOutputsFallbackRepo string
-		if hasWorkflowCallTrigger(data.On) {
-			safeOutputsFallbackRepo = "${{ steps.resolve-host-repo.outputs.target_repo_name }}"
-		}
-		safeOutputsTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, safeOutputsPermissions, safeOutputsFallbackRepo)
-		steps = append(steps, safeOutputsTokenSteps...)
-		outputs["safe_outputs_app_token"] = "${{ steps.safe-outputs-app-token.outputs.token }}"
-		outputs["safe_outputs_app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
-	}
-
 	// Add reaction step right after generate_aw_info so it is shown to the user as fast as
 	// possible. generate_aw_info runs first so its data is captured even if the reaction fails.
 	// This runs in the activation job so it can use any configured github-token or github-app.
