@@ -6,9 +6,12 @@
 # The token-usage.jsonl file is produced by AWF v0.25.8+ and contains one JSON
 # object per line with per-request token usage data from the AI provider API.
 #
-# Aggregated token totals are also written to $GITHUB_OUTPUT so they are
-# accessible as job outputs to downstream jobs:
-#   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens
+# Aggregated token totals are also:
+#   - Written to $GITHUB_OUTPUT so they are accessible as job outputs to
+#     downstream jobs: input_tokens, output_tokens, cache_read_tokens,
+#     cache_write_tokens
+#   - Written to /tmp/gh-aw/usage.json so the data is bundled in the agent
+#     artifact and accessible to third-party tools
 
 set -euo pipefail
 
@@ -148,5 +151,21 @@ END {
   printf "cache_write_tokens=%d\n", cw
 }
 ' "$TOKEN_USAGE_FILE" >> "$GITHUB_OUTPUT"
+
+# Write usage.json to the artifact folder so the data is bundled in the
+# agent artifact and accessible to third-party tools.
+awk '
+BEGIN { ti=0; to=0; cr=0; cw=0 }
+{
+  if (match($0, /"input_tokens" *: *([0-9]+)/, m)) ti += m[1]+0
+  if (match($0, /"output_tokens" *: *([0-9]+)/, m)) to += m[1]+0
+  if (match($0, /"cache_read_tokens" *: *([0-9]+)/, m)) cr += m[1]+0
+  if (match($0, /"cache_write_tokens" *: *([0-9]+)/, m)) cw += m[1]+0
+}
+END {
+  printf "{\"input_tokens\":%d,\"output_tokens\":%d,\"cache_read_tokens\":%d,\"cache_write_tokens\":%d}\n", \
+    ti, to, cr, cw
+}
+' "$TOKEN_USAGE_FILE" > /tmp/gh-aw/usage.json
 
 echo "Token usage summary appended to step summary"
