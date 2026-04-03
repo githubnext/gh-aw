@@ -995,6 +995,7 @@ jobs:
         run: cd actions/setup/js && npm test -- qmd_index.test.cjs
 
   js-integration-live-api:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: validate-yaml
@@ -2858,6 +2859,7 @@ jobs:
           retention-days: 14
 
   integration-release-availability:
+    if: github.ref == 'refs/heads/main'
     name: Integration Release Availability
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -2958,6 +2960,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
   sh-difc-proxy:
+    if: github.ref == 'refs/heads/main'
     name: DIFC Proxy sh Integration Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -3064,6 +3067,7 @@ jobs:
           echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY
 
   sh-gh-host-pr-checkout-repro:
+    if: github.ref == 'refs/heads/main'
     name: GH_HOST Proxy PR Checkout Repro (Issue #23461)
     runs-on: ubuntu-latest
     timeout-minutes: 10
