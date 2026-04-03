@@ -110,16 +110,19 @@ steps:
       fi
 
       # Find the most expensive workflow (by total tokens across all its runs)
+      # Schema: gh aw logs --json → LogsData.runs[] (RunData from pkg/cli/logs_report.go)
+      #   .workflow_name (string), .token_usage (int, omitempty → null when 0),
+      #   .estimated_cost (float, omitempty), .database_id (int64), .created_at (time), .url (string)
       echo "🔍 Identifying most expensive workflow..."
       jq -r '
         sort_by(.workflow_name) |
         group_by(.workflow_name) |
         map({
           workflow: .[0].workflow_name,
-          total_tokens: (map(.token_usage) | add),
-          total_cost: 0,
+          total_tokens: (map(.token_usage // 0) | add),
+          total_cost: (map(.estimated_cost // 0) | add),
           run_count: length,
-          avg_tokens: ((map(.token_usage) | add) / length),
+          avg_tokens: ((map(.token_usage // 0) | add) / length),
           run_ids: map(.database_id),
           latest_run_id: (sort_by(.created_at) | last | .database_id),
           latest_run_url: (sort_by(.created_at) | last | .url)
