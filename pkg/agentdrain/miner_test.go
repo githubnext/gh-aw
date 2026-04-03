@@ -222,11 +222,11 @@ func TestConcurrency(t *testing.T) {
 	const goroutines = 10
 	const linesEach = 50
 
-	for g := 0; g < goroutines; g++ {
+	for g := range goroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for i := 0; i < linesEach; i++ {
+			for i := range linesEach {
 				line := fmt.Sprintf("stage=work goroutine=%d iter=%d", id, i)
 				if _, err := m.Train(line); err != nil {
 					t.Errorf("Train: %v", err)

@@ -3,6 +3,7 @@
 package agentdrain
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -38,7 +39,7 @@ func (m *Miner) Train(line string) (*MatchResult, error) {
 	masked := m.masker.Mask(line)
 	tokens := Tokenize(masked)
 	if len(tokens) == 0 {
-		return nil, fmt.Errorf("agentdrain: Train: empty line after masking")
+		return nil, errors.New("agentdrain: Train: empty line after masking")
 	}
 
 	m.mu.Lock()
@@ -74,7 +75,7 @@ func (m *Miner) Match(line string) (*MatchResult, bool, error) {
 	masked := m.masker.Mask(line)
 	tokens := Tokenize(masked)
 	if len(tokens) == 0 {
-		return nil, false, fmt.Errorf("agentdrain: Match: empty line after masking")
+		return nil, false, errors.New("agentdrain: Match: empty line after masking")
 	}
 
 	m.mu.RLock()
@@ -140,7 +141,7 @@ func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, erro
 	masked := m.masker.Mask(line)
 	tokens := Tokenize(masked)
 	if len(tokens) == 0 {
-		return nil, nil, fmt.Errorf("agentdrain: AnalyzeEvent: empty event after masking")
+		return nil, nil, errors.New("agentdrain: AnalyzeEvent: empty event after masking")
 	}
 
 	m.mu.RLock()

@@ -310,6 +310,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	redactedDomains := buildRedactedDomainsSummary(processedRuns)
 
 	observability := buildLogsObservabilityInsights(processedRuns, toolUsage)
+	observability = append(observability, buildDrain3InsightsMultiRun(processedRuns)...)
 
 	absOutputDir, _ := filepath.Abs(outputDir)
 
