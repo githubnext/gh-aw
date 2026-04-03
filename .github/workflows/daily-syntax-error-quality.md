@@ -16,7 +16,7 @@ tools:
       - default
   bash:
     - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
-    - "gh aw compile"
+    - "gh aw compile *"
     - "cat .github/workflows/*.md"
     - "head -n * .github/workflows/*.md"
     - "cp .github/workflows/*.md /tmp/*.md"
