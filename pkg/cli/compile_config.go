@@ -59,4 +59,5 @@ type ValidationResult struct {
 	Errors       []CompileValidationError `json:"errors"`
 	Warnings     []CompileValidationError `json:"warnings"`
 	CompiledFile string                   `json:"compiled_file,omitempty"`
+	Labels       []string                 `json:"labels,omitempty"` // Labels referenced in safe-outputs configurations
 }
