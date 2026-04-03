@@ -291,7 +291,8 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
                 try {
                   // Use -f (force) to overwrite any stale local branch from previous runs,
                   // since Strategy 1 verified the named branch does not exist as a proper local ref.
-                  execGitSync(["branch", "-f", branchName, "HEAD"], { cwd });
+                  // Use -- so a branch name beginning with "-" is not parsed as another option.
+                  execGitSync(["branch", "-f", "--", branchName, "HEAD"], { cwd });
                   rangeEnd = branchName;
                   debugLog(`Strategy 2: Created local branch '${branchName}' pointing to HEAD for bundle ref`);
                 } catch (branchErr) {
