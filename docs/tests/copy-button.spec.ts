@@ -6,18 +6,14 @@ test.describe('Copy Entire File Button', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     // Navigate to the agentic authoring page
-    await page.goto('/gh-aw/tools/creating-workflows/');
-    
-    // Debug: print URL and take screenshot
-    console.log('Current URL:', page.url());
-    await page.screenshot({ path: 'test-debug-screenshot.png', fullPage: true });
+    await page.goto('/gh-aw/guides/agentic-authoring/');
 
     // Wait for the page to be fully loaded
     await page.waitForLoadState('networkidle');
 
-    // Find the "Copy full instructions" button
+    // Find the "Copy dictation instructions" button
     const copyButton = page.locator('.copy-entire-file-btn', {
-      hasText: 'Copy full instructions',
+      hasText: 'Copy dictation instructions',
     });
 
     // Ensure the button is visible
@@ -41,12 +37,12 @@ test.describe('Copy Entire File Button', () => {
 
     // Verify the clipboard contains the dictation instructions
     expect(clipboardContent).toContain('# Dictation Instructions');
-    expect(clipboardContent).toContain('Fix text-to-speech errors');
+    expect(clipboardContent).toContain('Fix Speech-to-Text Errors');
     expect(clipboardContent).toContain('Project Glossary');
 
     // Wait for the button to reset to original text
     await expect(copyButton.locator('.btn-text')).toHaveText(
-      'Copy full instructions',
+      'Copy dictation instructions',
       { timeout: 3000 }
     );
   });
@@ -56,19 +52,19 @@ test.describe('Copy Entire File Button', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     // Navigate to the agentic authoring page
-    await page.goto('/gh-aw/tools/creating-workflows/');
+    await page.goto('/gh-aw/guides/agentic-authoring/');
 
     // Wait for the page to be fully loaded
     await page.waitForLoadState('networkidle');
 
     // Intercept the fetch request and make it fail
-    await page.route('**/*.instructions.md', (route) => {
+    await page.route('**/SKILL.md', (route) => {
       route.abort('failed');
     });
 
-    // Find the "Copy full instructions" button
+    // Find the "Copy dictation instructions" button
     const copyButton = page.locator('.copy-entire-file-btn', {
-      hasText: 'Copy full instructions',
+      hasText: 'Copy dictation instructions',
     });
 
     // Ensure the button is visible
@@ -98,7 +94,7 @@ test.describe('Copy Entire File Button', () => {
 
     // Wait for the button to reset to original text
     await expect(copyButton.locator('.btn-text')).toHaveText(
-      'Copy full instructions',
+      'Copy dictation instructions',
       { timeout: 4000 }
     );
   });
@@ -108,22 +104,22 @@ test.describe('Copy Entire File Button', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     // Navigate to the agentic authoring page
-    await page.goto('/gh-aw/tools/creating-workflows/');
+    await page.goto('/gh-aw/guides/agentic-authoring/');
 
     // Wait for the page to be fully loaded
     await page.waitForLoadState('networkidle');
 
     // Intercept the fetch request and return 404
-    await page.route('**/*.instructions.md', (route) => {
+    await page.route('**/SKILL.md', (route) => {
       route.fulfill({
         status: 404,
         body: 'Not Found',
       });
     });
 
-    // Find the "Copy full instructions" button
+    // Find the "Copy dictation instructions" button
     const copyButton = page.locator('.copy-entire-file-btn', {
-      hasText: 'Copy full instructions',
+      hasText: 'Copy dictation instructions',
     });
 
     // Ensure the button is visible
@@ -152,7 +148,7 @@ test.describe('Copy Entire File Button', () => {
 
     // Wait for the button to reset to original text
     await expect(copyButton.locator('.btn-text')).toHaveText(
-      'Copy full instructions',
+      'Copy dictation instructions',
       { timeout: 4000 }
     );
   });
