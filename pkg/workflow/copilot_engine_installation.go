@@ -26,19 +26,15 @@ var copilotInstallLog = logger.New("workflow:copilot_engine_installation")
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if copilot-requests feature is enabled or custom command is specified.
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		copilotInstallLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
 	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
 		copilotInstallLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
 		return GitHubActionStep{}
 	}
-	return GenerateMultiSecretValidationStep(
+	return BuildDefaultSecretValidationStep(
+		workflowData,
 		[]string{"COPILOT_GITHUB_TOKEN"},
 		"GitHub Copilot CLI",
 		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
-		getEngineEnvOverrides(workflowData),
 	)
 }
 
@@ -47,7 +43,7 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 // Secret validation is handled separately in the activation job via GetSecretValidationStep.
 // The installation order is:
 // 1. Node.js setup
-// 2. Sandbox installation (SRT or AWF, if needed)
+// 2. Sandbox installation (AWF, if needed)
 // 3. Copilot CLI installation
 //
 // If a custom command is specified in the engine configuration, this function returns
@@ -61,67 +57,16 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		return []GitHubActionStep{}
 	}
 
-	var steps []GitHubActionStep
-
-	// Define engine configuration for shared validation
-	config := EngineInstallConfig{
-		Secrets:         []string{"COPILOT_GITHUB_TOKEN"},
-		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
-		NpmPackage:      "@github/copilot",
-		Version:         string(constants.DefaultCopilotVersion),
-		Name:            "GitHub Copilot CLI",
-		CliName:         "copilot",
-		InstallStepName: "Install GitHub Copilot CLI",
-	}
-
-	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
-
 	// Determine Copilot version
-	copilotVersion := config.Version
+	copilotVersion := string(constants.DefaultCopilotVersion)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		copilotVersion = workflowData.EngineConfig.Version
 	}
 
-	// Determine if Copilot should be installed globally
-	// Always install globally now (SRT removed)
-	installGlobally := true
-
-	// Generate install steps based on installation scope
-	var npmSteps []GitHubActionStep
-	if installGlobally {
-		// Use the new installer script for global installation
-		copilotInstallLog.Print("Using new installer script for Copilot installation")
-		npmSteps = GenerateCopilotInstallerSteps(copilotVersion, config.InstallStepName)
-	}
-
-	// Add Node.js setup step first (before sandbox installation)
-	if len(npmSteps) > 0 {
-		steps = append(steps, npmSteps[0]) // Setup Node.js step
-	}
-
-	// Add sandbox installation steps (AWF only)
-	if isFirewallEnabled(workflowData) {
-		// Install AWF after Node.js setup but before Copilot CLI installation
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-	}
-
-	// Add Copilot CLI installation step after sandbox installation
-	if len(npmSteps) > 1 {
-		steps = append(steps, npmSteps[1:]...) // Install Copilot CLI and subsequent steps
-	}
-
-	return steps
+	// Use the installer script for global installation
+	copilotInstallLog.Print("Using new installer script for Copilot installation")
+	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI")
+	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
 // generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary

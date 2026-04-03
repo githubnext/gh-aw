@@ -46,38 +46,19 @@ func (e *ClaudeEngine) GetAPMTarget() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Claude engine
-// This includes ANTHROPIC_API_KEY and optionally MCP_GATEWAY_API_KEY
+// This includes ANTHROPIC_API_KEY and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
 func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	secrets := []string{"ANTHROPIC_API_KEY"}
-
-	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
-	if HasMCPServers(workflowData) {
-		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
-	}
-
-	// Add mcp-scripts secret names
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
-		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
-		for varName := range mcpScriptsSecrets {
-			secrets = append(secrets, varName)
-		}
-	}
-
-	return secrets
+	return append([]string{"ANTHROPIC_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
 }
 
 // GetSecretValidationStep returns the secret validation step for the Claude engine.
 // Returns an empty step if custom command is specified.
 func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		claudeLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	return GenerateMultiSecretValidationStep(
+	return BuildDefaultSecretValidationStep(
+		workflowData,
 		[]string{"ANTHROPIC_API_KEY"},
 		"Claude Code",
 		"https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-		getEngineEnvOverrides(workflowData),
 	)
 }
 
@@ -90,63 +71,14 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		return []GitHubActionStep{}
 	}
 
-	var steps []GitHubActionStep
-
-	// Define engine configuration for shared validation
-	config := EngineInstallConfig{
-		Secrets:         []string{"ANTHROPIC_API_KEY"},
-		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-		NpmPackage:      "@anthropic-ai/claude-code",
-		Version:         string(constants.DefaultClaudeCodeVersion),
-		Name:            "Claude Code",
-		CliName:         "claude",
-		InstallStepName: "Install Claude Code CLI",
-	}
-
-	// Secret validation step is now generated in the activation job (GetSecretValidationStep).
-
-	// Determine Claude version
-	claudeVersion := config.Version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		claudeVersion = workflowData.EngineConfig.Version
-	}
-
-	// Add Node.js setup step first (before sandbox installation)
-	npmSteps := GenerateNpmInstallSteps(
-		config.NpmPackage,
-		claudeVersion,
-		config.InstallStepName,
-		config.CliName,
-		true, // Include Node.js setup
+	npmSteps := BuildStandardNpmEngineInstallSteps(
+		"@anthropic-ai/claude-code",
+		string(constants.DefaultClaudeCodeVersion),
+		"Install Claude Code CLI",
+		"claude",
+		workflowData,
 	)
-
-	if len(npmSteps) > 0 {
-		steps = append(steps, npmSteps[0]) // Setup Node.js step
-	}
-
-	// Add AWF installation if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		// Install AWF after Node.js setup but before Claude CLI installation
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// Install AWF binary (or skip if custom command is specified)
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-	}
-
-	// Add Claude CLI installation step after sandbox installation
-	if len(npmSteps) > 1 {
-		steps = append(steps, npmSteps[1:]...) // Install Claude CLI and subsequent steps
-	}
-
-	return steps
+	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
 // GetDeclaredOutputFiles returns the output files that Claude may produce

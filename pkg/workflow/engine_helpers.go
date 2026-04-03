@@ -181,6 +181,96 @@ func BuildStandardNpmEngineInstallSteps(
 	)
 }
 
+// BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js
+// setup step and the CLI install steps when the firewall is enabled. This eliminates the
+// duplicated AWF-injection pattern shared by Claude, Gemini, and Copilot engines.
+//
+// The expected layout of npmSteps is:
+//   - npmSteps[0]  – Node.js setup step
+//   - npmSteps[1:] – CLI installation step(s)
+//
+// Parameters:
+//   - npmSteps: Pre-computed npm installation steps (from BuildStandardNpmEngineInstallSteps
+//     or GenerateCopilotInstallerSteps)
+//   - workflowData: The workflow data (used to determine firewall configuration)
+//
+// Returns:
+//   - []GitHubActionStep: Steps in order: Node.js setup, AWF (if enabled), CLI install
+func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	if len(npmSteps) > 0 {
+		steps = append(steps, npmSteps[0]) // Node.js setup step
+	}
+
+	// Inject AWF installation after Node.js setup but before the CLI install steps
+	if isFirewallEnabled(workflowData) {
+		firewallConfig := getFirewallConfig(workflowData)
+		agentConfig := getAgentConfig(workflowData)
+		var awfVersion string
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+		}
+		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
+		if len(awfInstall) > 0 {
+			steps = append(steps, awfInstall)
+		}
+	}
+
+	if len(npmSteps) > 1 {
+		steps = append(steps, npmSteps[1:]...) // CLI installation and subsequent steps
+	}
+
+	return steps
+}
+
+// BuildDefaultSecretValidationStep returns a secret validation step for the given engine
+// configuration, or an empty step when a custom command is specified. This consolidates
+// the common guard+delegate pattern shared across all engine GetSecretValidationStep
+// implementations.
+//
+// Parameters:
+//   - workflowData: The workflow data (checked for custom command)
+//   - secrets: The secret names to validate (e.g., []string{"ANTHROPIC_API_KEY"})
+//   - name: The engine display name used in the step (e.g., "Claude Code")
+//   - docsURL: The documentation URL shown when validation fails
+//
+// Returns:
+//   - GitHubActionStep: The validation step, or an empty step if a custom command is set
+func BuildDefaultSecretValidationStep(workflowData *WorkflowData, secrets []string, name, docsURL string) GitHubActionStep {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		engineHelpersLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
+		return GitHubActionStep{}
+	}
+	return GenerateMultiSecretValidationStep(secrets, name, docsURL, getEngineEnvOverrides(workflowData))
+}
+
+// collectCommonMCPSecrets returns the MCP-related secret names shared across all engines:
+//   - MCP_GATEWAY_API_KEY (when MCP servers are present)
+//   - mcp-scripts secrets (when mcp-scripts feature is enabled)
+//
+// Parameters:
+//   - workflowData: The workflow data used to check MCP server and mcp-scripts configuration
+//
+// Returns:
+//   - []string: Common MCP secret names (may be empty)
+func collectCommonMCPSecrets(workflowData *WorkflowData) []string {
+	var secrets []string
+
+	if HasMCPServers(workflowData) {
+		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
+	}
+
+	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
+		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
+		for varName := range mcpScriptsSecrets {
+			secrets = append(secrets, varName)
+		}
+	}
+
+	return secrets
+}
+
 // RenderCustomMCPToolConfigHandler is a function type that engines must provide to render their specific MCP config
 // FormatStepWithCommandAndEnv formats a GitHub Actions step with command and environment variables.
 // This shared function extracts the common pattern used by Copilot and Codex engines.

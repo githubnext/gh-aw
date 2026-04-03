@@ -53,38 +53,19 @@ func (e *CodexEngine) GetModelEnvVarName() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
-// This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY
+// This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY and mcp-scripts secrets
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	secrets := []string{"CODEX_API_KEY", "OPENAI_API_KEY"}
-
-	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
-	if HasMCPServers(workflowData) {
-		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
-	}
-
-	// Add mcp-scripts secret names
-	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
-		mcpScriptsSecrets := collectMCPScriptsSecrets(workflowData.MCPScripts)
-		for varName := range mcpScriptsSecrets {
-			secrets = append(secrets, varName)
-		}
-	}
-
-	return secrets
+	return append([]string{"CODEX_API_KEY", "OPENAI_API_KEY"}, collectCommonMCPSecrets(workflowData)...)
 }
 
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
 // Returns an empty step if custom command is specified.
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		codexEngineLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	return GenerateMultiSecretValidationStep(
+	return BuildDefaultSecretValidationStep(
+		workflowData,
 		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
 		"Codex",
 		"https://github.github.com/gh-aw/reference/engines/#openai-codex",
-		getEngineEnvOverrides(workflowData),
 	)
 }
 
