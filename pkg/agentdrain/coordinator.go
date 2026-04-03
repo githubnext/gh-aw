@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var coordinatorLog = logger.New("agentdrain:coordinator")
 
 // Coordinator manages one Miner per agent pipeline stage.
 type Coordinator struct {
@@ -16,6 +20,7 @@ type Coordinator struct {
 
 // NewCoordinator creates a Coordinator with one Miner for each provided stage name.
 func NewCoordinator(cfg Config, stages []string) (*Coordinator, error) {
+	coordinatorLog.Printf("Creating coordinator: stages=%v", stages)
 	miners := make(map[string]*Miner, len(stages))
 	for _, stage := range stages {
 		m, err := NewMiner(cfg)
@@ -96,12 +101,14 @@ func (c *Coordinator) SaveSnapshots() (map[string][]byte, error) {
 // LoadSnapshots restores each stage miner from the provided JSON bytes map.
 // Stages that are not present in snapshots retain their current state.
 func (c *Coordinator) LoadSnapshots(snapshots map[string][]byte) error {
+	coordinatorLog.Printf("Loading snapshots: stages=%d", len(snapshots))
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for stage, data := range snapshots {
 		m, ok := c.miners[stage]
 		if !ok {
 			// Create a new miner for previously unknown stages.
+			coordinatorLog.Printf("Creating new miner for unknown stage: %s", stage)
 			var err error
 			m, err = NewMiner(c.cfg)
 			if err != nil {
@@ -113,6 +120,7 @@ func (c *Coordinator) LoadSnapshots(snapshots map[string][]byte) error {
 			return fmt.Errorf("agentdrain: LoadSnapshots: stage %q: %w", stage, err)
 		}
 	}
+	coordinatorLog.Printf("Loaded snapshots successfully: totalStages=%d", len(c.miners))
 	return nil
 }
 
