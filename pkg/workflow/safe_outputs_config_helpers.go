@@ -56,10 +56,11 @@ func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token stri
 		return getEffectiveSafeOutputGitHubToken(perConfigToken), true
 	}
 
-	// GitHub App token takes precedence over the safe-outputs level PAT
+	// GitHub App token takes precedence over the safe-outputs level PAT.
+	// The token is minted in the activation job and consumed via needs.activation.outputs.
 	if safeOutputs.GitHubApp != nil {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		return "${{ steps.safe-outputs-app-token.outputs.token }}", true
+		return "${{ needs.activation.outputs.safe_outputs_app_token }}", true
 	}
 
 	// safe-outputs level PAT as final custom option

@@ -46,19 +46,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 	}
 
-	// Add GitHub App token minting step if app is configured
-	if data.SafeOutputs.GitHubApp != nil {
-		// Compute permissions based on configured safe outputs (principle of least privilege)
-		permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-		// For workflow_call relay workflows, scope the token to the platform repo name only
-		// (not the full slug) because actions/create-github-app-token expects repo names
-		// without the owner prefix when `owner` is also set.
-		var appTokenFallbackRepo string
-		if hasWorkflowCallTrigger(data.On) {
-			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
-		}
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.GitHubApp, permissions, appTokenFallbackRepo)...)
-	}
+	// Token minting for safe-outputs.github-app has been moved to the activation job
+	// so that app-id / private-key never reach the conclusion job.
+	// The token is consumed via needs.activation.outputs.safe_outputs_app_token.
 
 	// Add artifact download steps once (shared by noop and conclusion steps).
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
@@ -207,13 +197,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Pass GitHub App token minting failure status so the handler can surface auth errors.
-	// The safe_outputs job tracks whether its token step failed as a job output.
-	// The conclusion job tracks its own app token step outcome directly via steps context.
+	// Token minting was moved to the activation job; both safe_outputs and conclusion jobs
+	// consume the token from needs.activation.outputs.safe_outputs_app_token.
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_SAFE_OUTPUTS_APP_TOKEN_MINTING_FAILED: ${{ needs.safe_outputs.outputs.app_token_minting_failed }}\n")
-		// Also check the conclusion job's own app token step outcome; this is important because
-		// the Handle Agent Failure step must use if: always() to run even when this step fails.
-		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_CONCLUSION_APP_TOKEN_MINTING_FAILED: ${{ steps.safe-outputs-app-token.outcome == 'failure' }}\n")
+		// The conclusion job no longer mints its own token; both safe_outputs and conclusion
+		// share the same token from activation, so the same failure status applies.
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CONCLUSION_APP_TOKEN_MINTING_FAILED: ${{ needs.%s.outputs.safe_outputs_app_token_minting_failed }}\n", string(constants.ActivationJobName)))
 	}
 
 	// Pass activation job GitHub App token minting failure status if configured.
@@ -348,10 +338,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// that always runs, even if this conclusion job doesn't run.
 	// See buildUnlockJob() in compiler_unlock_job.go
 
-	// Add GitHub App token invalidation step if app is configured
+	// Add GitHub App token invalidation step if app is configured.
+	// The token was minted in the activation job and is referenced via needs.activation.outputs.
 	if data.SafeOutputs.GitHubApp != nil {
 		notifyCommentLog.Print("Adding GitHub App token invalidation step to conclusion job")
-		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
+		steps = append(steps, c.buildGitHubAppTokenInvalidationStep(fmt.Sprintf("needs.%s.outputs.safe_outputs_app_token", constants.ActivationJobName))...)
 	}
 
 	// Build the condition for this job:

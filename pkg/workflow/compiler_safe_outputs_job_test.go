@@ -423,11 +423,16 @@ func TestJobWithGitHubApp(t *testing.T) {
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Should include app token minting step
-	assert.Contains(t, stepsContent, "Generate GitHub App token")
+	// Token minting has moved to the activation job; the safe_outputs job should NOT
+	// contain "Generate GitHub App token" anymore.
+	assert.NotContains(t, stepsContent, "Generate GitHub App token", "Token minting step should be in activation job, not safe_outputs job")
 
-	// Should include app token invalidation step
-	assert.Contains(t, stepsContent, "Invalidate GitHub App token")
+	// The safe_outputs job should reference the activation output token
+	assert.Contains(t, stepsContent, "needs.activation.outputs.safe_outputs_app_token",
+		"Safe_outputs job should reference the token minted in the activation job")
+
+	// Should include app token invalidation step (using the activation output)
+	assert.Contains(t, stepsContent, "Invalidate GitHub App token", "Token invalidation step should still be present in safe_outputs job")
 }
 
 // TestAssignToAgentWithGitHubAppUsesAgentToken tests that when github-app: is configured,
@@ -457,8 +462,9 @@ func TestAssignToAgentWithGitHubAppUsesAgentToken(t *testing.T) {
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// App token minting step should be present (github-app: is configured)
-	assert.Contains(t, stepsContent, "Generate GitHub App token", "App token minting step should be present")
+	// Token minting has moved to the activation job; the safe_outputs job should NOT
+	// contain "Generate GitHub App token" anymore.
+	assert.NotContains(t, stepsContent, "Generate GitHub App token", "Token minting step should be in activation job, not safe_outputs job")
 
 	// Find the assign_to_agent step section
 	assignToAgentStart := strings.Index(stepsContent, "id: assign_to_agent")
@@ -649,27 +655,23 @@ func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Should include app token minting step exactly once
+	// Token minting has moved to the activation job; safe_outputs job should NOT contain it.
 	tokenMintCount := strings.Count(stepsContent, "Generate GitHub App token")
-	assert.Equal(t, 1, tokenMintCount, "App token minting step should appear exactly once, found %d times", tokenMintCount)
+	assert.Equal(t, 0, tokenMintCount, "App token minting step should be in activation job, not safe_outputs job (found %d times)", tokenMintCount)
 
-	// Should include app token invalidation step exactly once
+	// Should include app token invalidation step exactly once (invalidation stays in agent job)
 	tokenInvalidateCount := strings.Count(stepsContent, "Invalidate GitHub App token")
 	assert.Equal(t, 1, tokenInvalidateCount, "App token invalidation step should appear exactly once, found %d times", tokenInvalidateCount)
 
-	// Token step should come before checkout step (checkout references the token)
-	tokenIndex := strings.Index(stepsContent, "Generate GitHub App token")
-	checkoutIndex := strings.Index(stepsContent, "Checkout repository")
-	assert.Less(t, tokenIndex, checkoutIndex, "Token minting step should come before checkout step")
-
-	// Verify step ID is set correctly
-	assert.Contains(t, stepsContent, "id: safe-outputs-app-token")
+	// Invalidation step should reference the token from activation outputs
+	assert.Contains(t, stepsContent, "needs.activation.outputs.safe_outputs_app_token",
+		"Invalidation step should reference the activation job's safe_outputs_app_token output")
 }
 
 // TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback is a regression test verifying that
-// a safe-output job compiled for a workflow_call trigger uses
-// needs.activation.outputs.target_repo_name (repo name only, no owner prefix) as the repositories
-// fallback for the GitHub App token mint step, instead of the full target_repo slug.
+// the activation job (which now mints the safe-outputs app token) uses
+// steps.resolve-host-repo.outputs.target_repo_name (repo name only, no owner prefix) as the
+// repositories fallback for the GitHub App token mint step, instead of the full target_repo slug.
 // This prevents actions/create-github-app-token from receiving an invalid owner/repo slug
 // in the repositories field when owner is also set.
 func TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *testing.T) {
@@ -691,24 +693,25 @@ func TestJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *testing.T) {
 		},
 	}
 
-	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+	// Token minting has moved to the activation job.
+	activationJob, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
 
-	require.NoError(t, err, "Should successfully build job")
-	require.NotNil(t, job, "Job should not be nil")
+	require.NoError(t, err, "Should successfully build activation job")
+	require.NotNil(t, activationJob, "Activation job should not be nil")
 
-	stepsContent := strings.Join(job.Steps, "")
+	activationStepsContent := strings.Join(activationJob.Steps, "")
 
-	// Must use the repo-name-only output, NOT the full slug
-	assert.Contains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name }}",
-		"GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
-	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
-		"GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
+	// The activation job must use the step-level output (it runs the resolve-host-repo step itself),
+	// NOT the full slug from target_repo.
+	assert.Contains(t, activationStepsContent, "repositories: ${{ steps.resolve-host-repo.outputs.target_repo_name }}",
+		"Activation job GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
+	assert.NotContains(t, activationStepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name }}",
+		"Activation job GitHub App token step must not use needs.activation (it IS the activation job)")
 }
 
 // TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback is a regression test
-// verifying that the conclusion job compiled for a workflow_call trigger uses
-// needs.activation.outputs.target_repo_name (repo name only) as the repositories fallback
-// for the GitHub App token mint step.
+// verifying that the conclusion job no longer mints a token itself (token minting moved to
+// the activation job), and that the conclusion job references the activation output token.
 func TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
@@ -734,11 +737,12 @@ func TestConclusionJobWithGitHubAppWorkflowCallUsesTargetRepoNameFallback(t *tes
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Must use the repo-name-only output, NOT the full slug
-	assert.Contains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo_name }}",
-		"Conclusion job GitHub App token step must use target_repo_name (repo name only) for workflow_call workflows")
-	assert.NotContains(t, stepsContent, "repositories: ${{ needs.activation.outputs.target_repo }}",
-		"Conclusion job GitHub App token step must not use target_repo (full slug) for workflow_call workflows")
+	// Token minting moved to activation; conclusion job must NOT mint a token.
+	assert.NotContains(t, stepsContent, "actions/create-github-app-token",
+		"Conclusion job must not mint a GitHub App token (minting moved to activation job)")
+	// Conclusion job should still invalidate the token via the activation output.
+	assert.Contains(t, stepsContent, "needs.activation.outputs.safe_outputs_app_token",
+		"Conclusion job should reference the safe_outputs_app_token from the activation job")
 }
 
 // TestCallWorkflowOnly_UsesHandlerManagerStep asserts that a workflow configured with only

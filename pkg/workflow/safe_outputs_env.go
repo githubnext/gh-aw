@@ -216,9 +216,9 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
 
-	// If app is configured, use app token
+	// If app is configured, use app token minted in the activation job
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+		*steps = append(*steps, "          github-token: ${{ needs.activation.outputs.safe_outputs_app_token }}\n")
 		return
 	}
 
@@ -241,9 +241,9 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
 
-	// If app is configured, use app token
+	// If app is configured, use app token minted in the activation job
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		*steps = append(*steps, "          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+		*steps = append(*steps, "          github-token: ${{ needs.activation.outputs.safe_outputs_app_token }}\n")
 		return
 	}
 

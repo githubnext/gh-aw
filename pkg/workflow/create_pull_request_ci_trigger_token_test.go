@@ -17,7 +17,7 @@ import (
 // TestCreatePullRequestCITriggerToken verifies the GH_AW_CI_TRIGGER_TOKEN env var
 // is correctly generated in the safe_outputs job for different configurations:
 // - unset/empty: uses secrets.GH_AW_CI_TRIGGER_TOKEN
-// - "app": uses steps.safe-outputs-app-token.outputs.token
+// - "app": uses needs.activation.outputs.safe_outputs_app_token
 // - explicit token: uses the specified token value
 func TestCreatePullRequestCITriggerToken(t *testing.T) {
 	tests := []struct {
@@ -35,7 +35,7 @@ func TestCreatePullRequestCITriggerToken(t *testing.T) {
 		{
 			name:             "app config uses app token step output",
 			tokenConfig:      "app",
-			expectedContains: "${{ steps.safe-outputs-app-token.outputs.token || '' }}",
+			expectedContains: "${{ needs.activation.outputs.safe_outputs_app_token || '' }}",
 			notExpected:      "secrets.GH_AW_CI_TRIGGER_TOKEN",
 		},
 		{
@@ -135,7 +135,7 @@ func TestPushToPullRequestBranchCITriggerToken(t *testing.T) {
 		{
 			name:             "app config uses app token step output",
 			tokenConfig:      "app",
-			expectedContains: "${{ steps.safe-outputs-app-token.outputs.token || '' }}",
+			expectedContains: "${{ needs.activation.outputs.safe_outputs_app_token || '' }}",
 		},
 		{
 			name:             "explicit token uses provided value",

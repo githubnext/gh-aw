@@ -377,15 +377,16 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 }
 
 // buildGitHubAppTokenInvalidationStep generates the step to invalidate the GitHub App token
-// This step always runs (even on failure) to ensure tokens are properly cleaned up
-// Only runs if a token was successfully minted
-func (c *Compiler) buildGitHubAppTokenInvalidationStep() []string {
+// using the provided tokenExpr (a GitHub Actions expression or step-output reference).
+// This step always runs (even on failure) to ensure tokens are properly cleaned up,
+// and only executes if the token was successfully minted (i.e., the expression is non-empty).
+func (c *Compiler) buildGitHubAppTokenInvalidationStep(tokenExpr string) []string {
 	var steps []string
 
 	steps = append(steps, "      - name: Invalidate GitHub App token\n")
-	steps = append(steps, "        if: always() && steps.safe-outputs-app-token.outputs.token != ''\n")
+	steps = append(steps, fmt.Sprintf("        if: always() && %s != ''\n", tokenExpr))
 	steps = append(steps, "        env:\n")
-	steps = append(steps, "          TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+	steps = append(steps, fmt.Sprintf("          TOKEN: ${{ %s }}\n", tokenExpr))
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Revoking GitHub App installation token...\"\n")
 	steps = append(steps, "          # GitHub CLI will auth with the token being revoked.\n")

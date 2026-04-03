@@ -276,7 +276,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 
 		switch ciTriggerToken {
 		case "app":
-			steps = append(steps, "          GH_AW_CI_TRIGGER_TOKEN: ${{ steps.safe-outputs-app-token.outputs.token || '' }}\n")
+			steps = append(steps, "          GH_AW_CI_TRIGGER_TOKEN: ${{ needs.activation.outputs.safe_outputs_app_token || '' }}\n")
 			consolidatedSafeOutputsStepsLog.Print("Extra empty commit using GitHub App token")
 		default:
 			// Use the magic GH_AW_CI_TRIGGER_TOKEN secret (default behavior when not explicitly configured)

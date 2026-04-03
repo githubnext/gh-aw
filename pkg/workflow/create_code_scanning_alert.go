@@ -95,9 +95,9 @@ func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, conf
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
 
-	// If app is configured, use app token
+	// If app is configured, use app token minted in the activation job
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		*steps = append(*steps, "          token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
+		*steps = append(*steps, "          token: ${{ needs.activation.outputs.safe_outputs_app_token }}\n")
 		return
 	}
 
