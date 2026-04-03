@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"46171278f3dc67f1437018cfe94fdfc9f8a0b9f2fcc2483c1942df6deee7630b","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"f421662fd7913377179bd64aea41e05f2d2765cef7b22e69444578e387a93601","strict":true,"agent_id":"copilot"}
 
 name: "Copilot Token Usage Analyzer"
 "on":
@@ -132,14 +132,14 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_d08cedfdee49253a_EOF'
+          cat << 'GH_AW_PROMPT_dbcef2ee4ad58e02_EOF'
           <system>
-          GH_AW_PROMPT_d08cedfdee49253a_EOF
+          GH_AW_PROMPT_dbcef2ee4ad58e02_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_d08cedfdee49253a_EOF'
+          cat << 'GH_AW_PROMPT_dbcef2ee4ad58e02_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
@@ -171,13 +171,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_d08cedfdee49253a_EOF
+          GH_AW_PROMPT_dbcef2ee4ad58e02_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_d08cedfdee49253a_EOF'
+          cat << 'GH_AW_PROMPT_dbcef2ee4ad58e02_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/copilot-token-usage-analyzer.md}}
-          GH_AW_PROMPT_d08cedfdee49253a_EOF
+          GH_AW_PROMPT_dbcef2ee4ad58e02_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -299,8 +299,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install gh-aw CLI
+        run: |
+          if gh extension list | grep -q "github/gh-aw"; then
+            gh extension upgrade gh-aw || true
+          else
+            gh extension install github/gh-aw
+          fi
+          gh aw --version
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download Copilot workflow runs (last 24h)
-        run: "set -euo pipefail\nmkdir -p /tmp/token-analyzer\n\necho \"📥 Downloading Copilot workflow runs from last 24 hours...\"\n./gh-aw logs \\\n  --engine copilot \\\n  --start-date -1d \\\n  --json \\\n  -c 300 \\\n  > /tmp/token-analyzer/copilot-runs.json 2>/dev/null || echo \"[]\" > /tmp/token-analyzer/copilot-runs.json\n\nRUN_COUNT=$(jq '. | length' /tmp/token-analyzer/copilot-runs.json 2>/dev/null || echo 0)\necho \"✅ Found ${RUN_COUNT} Copilot workflow runs\"\n\n# Download token-usage.jsonl artifacts for per-model breakdown\n# We look for the firewall-audit-logs artifact which contains token-usage.jsonl\nARTIFACT_DIR=\"/tmp/token-analyzer/artifacts\"\nmkdir -p \"$ARTIFACT_DIR\"\n\necho \"📥 Downloading token-usage.jsonl artifacts...\"\njq -r '.[].databaseId' /tmp/token-analyzer/copilot-runs.json 2>/dev/null | head -50 | while read -r run_id; do\n  run_dir=\"$ARTIFACT_DIR/$run_id\"\n  mkdir -p \"$run_dir\"\n  gh run download \"$run_id\" \\\n    --repo \"$GITHUB_REPOSITORY\" \\\n    --name \"firewall-audit-logs\" \\\n    --dir \"$run_dir\" \\\n    2>/dev/null || true\ndone\n\n# Count how many token-usage.jsonl files we got\nJSONL_COUNT=$(find \"$ARTIFACT_DIR\" -name \"token-usage.jsonl\" 2>/dev/null | wc -l)\necho \"✅ Downloaded ${JSONL_COUNT} token-usage.jsonl artifacts\"\n\n# Merge all token-usage.jsonl files into a single aggregate file annotated with run_id\nMERGED_FILE=\"/tmp/token-analyzer/token-usage-merged.jsonl\"\n> \"$MERGED_FILE\"\nfind \"$ARTIFACT_DIR\" -name \"token-usage.jsonl\" | while read -r f; do\n  run_id=$(echo \"$f\" | grep -oP '(?<=/artifacts/)\\d+(?=/)' || true)\n  while IFS= read -r line; do\n    if [ -n \"$line\" ]; then\n      echo \"${line}\" | jq --arg run_id \"$run_id\" '. + {run_id: $run_id}' >> \"$MERGED_FILE\" 2>/dev/null || true\n    fi\n  done < \"$f\"\ndone\n\nRECORD_COUNT=$(wc -l < \"$MERGED_FILE\" 2>/dev/null || echo 0)\necho \"✅ Merged ${RECORD_COUNT} token usage records\"\n"
+        run: "set -euo pipefail\nmkdir -p /tmp/token-analyzer\n\necho \"📥 Downloading Copilot workflow runs from last 24 hours...\"\ngh aw logs \\\n  --engine copilot \\\n  --start-date -1d \\\n  --json \\\n  -c 300 \\\n  > /tmp/token-analyzer/copilot-runs.json 2>/dev/null || echo \"[]\" > /tmp/token-analyzer/copilot-runs.json\n\nRUN_COUNT=$(jq '. | length' /tmp/token-analyzer/copilot-runs.json 2>/dev/null || echo 0)\necho \"✅ Found ${RUN_COUNT} Copilot workflow runs\"\n\n# Download token-usage.jsonl artifacts for per-model breakdown\n# We look for the firewall-audit-logs artifact which contains token-usage.jsonl\nARTIFACT_DIR=\"/tmp/token-analyzer/artifacts\"\nmkdir -p \"$ARTIFACT_DIR\"\n\necho \"📥 Downloading token-usage.jsonl artifacts...\"\njq -r '.[].databaseId' /tmp/token-analyzer/copilot-runs.json 2>/dev/null | head -50 | while read -r run_id; do\n  run_dir=\"$ARTIFACT_DIR/$run_id\"\n  mkdir -p \"$run_dir\"\n  gh run download \"$run_id\" \\\n    --repo \"$GITHUB_REPOSITORY\" \\\n    --name \"firewall-audit-logs\" \\\n    --dir \"$run_dir\" \\\n    2>/dev/null || true\ndone\n\n# Count how many token-usage.jsonl files we got\nJSONL_COUNT=$(find \"$ARTIFACT_DIR\" -name \"token-usage.jsonl\" 2>/dev/null | wc -l)\necho \"✅ Downloaded ${JSONL_COUNT} token-usage.jsonl artifacts\"\n\n# Merge all token-usage.jsonl files into a single aggregate file annotated with run_id\nMERGED_FILE=\"/tmp/token-analyzer/token-usage-merged.jsonl\"\n> \"$MERGED_FILE\"\nfind \"$ARTIFACT_DIR\" -name \"token-usage.jsonl\" | while read -r f; do\n  run_id=$(echo \"$f\" | grep -oP '(?<=/artifacts/)\\d+(?=/)' || true)\n  while IFS= read -r line; do\n    if [ -n \"$line\" ]; then\n      echo \"${line}\" | jq --arg run_id \"$run_id\" '. + {run_id: $run_id}' >> \"$MERGED_FILE\" 2>/dev/null || true\n    fi\n  done < \"$f\"\ndone\n\nRECORD_COUNT=$(wc -l < \"$MERGED_FILE\" 2>/dev/null || echo 0)\necho \"✅ Merged ${RECORD_COUNT} token usage records\"\n"
 
       - name: Configure Git credentials
         env:
@@ -351,12 +361,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_293a235c2f9a5fa9_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_a06ad8de6b425354_EOF'
           {"create_issue":{"close_older_issues":true,"expires":48,"labels":["automated-analysis","token-usage","copilot"],"max":1,"title_prefix":"📊 Copilot Token Usage Report: "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_293a235c2f9a5fa9_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_a06ad8de6b425354_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_d3dffd4e21f58665_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_d7d241b36709f602_EOF'
           {
             "description_suffixes": {
               "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"📊 Copilot Token Usage Report: \". Labels [\"automated-analysis\" \"token-usage\" \"copilot\"] will be automatically added."
@@ -364,8 +374,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_d3dffd4e21f58665_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_6b22248bd524230b_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_d7d241b36709f602_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_0ef0226af1b9fefa_EOF'
           {
             "create_issue": {
               "defaultMax": 1,
@@ -458,7 +468,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_6b22248bd524230b_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_0ef0226af1b9fefa_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -528,7 +538,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.12'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_e4a79d5a48d4eb0e_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_bfbf4afe334a19cb_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -569,7 +579,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_e4a79d5a48d4eb0e_EOF
+          GH_AW_MCP_CONFIG_bfbf4afe334a19cb_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

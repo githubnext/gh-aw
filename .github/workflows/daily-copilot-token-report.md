@@ -15,12 +15,22 @@ tools:
   bash:
     - "*"
 steps:
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
   - name: Pre-download workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Download logs for copilot workflows from last 30 days with JSON output
-      ./gh-aw logs --engine copilot --start-date -30d --json -c 500 > /tmp/gh-aw/copilot-logs.json
+      gh aw logs --engine copilot --start-date -30d --json -c 500 > /tmp/gh-aw/copilot-logs.json
       
       # Verify the download
       if [ -f /tmp/gh-aw/copilot-logs.json ]; then

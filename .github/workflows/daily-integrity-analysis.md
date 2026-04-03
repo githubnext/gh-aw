@@ -16,13 +16,23 @@ tracker-id: daily-integrity-analysis
 engine: copilot
 
 steps:
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
   - name: Download integrity-filtered logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/gh-aw/integrity
       # Download logs filtered to only runs with DIFC integrity-filtered events
-      ./gh-aw logs --filtered-integrity --start-date -7d --json -c 200 \
+      gh aw logs --filtered-integrity --start-date -7d --json -c 200 \
         > /tmp/gh-aw/integrity/filtered-logs.json
 
       if [ -f /tmp/gh-aw/integrity/filtered-logs.json ]; then

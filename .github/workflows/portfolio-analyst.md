@@ -18,12 +18,22 @@ tools:
     toolsets: [default]
   bash: ["*"]
 steps:
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
   - name: Download logs from last 30 days
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/portfolio-logs
-      ./gh-aw logs --start-date -30d -c 5000 -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
+      gh aw logs --start-date -30d -c 5000 -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
 safe-outputs:
   upload-asset:
 timeout-minutes: 20
