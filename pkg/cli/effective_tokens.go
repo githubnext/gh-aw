@@ -23,7 +23,6 @@ package cli
 // Key responsibilities:
 //   - Embedding model_multipliers.json at compile time
 //   - Applying token class weights before the model multiplier
-//   - Providing model multiplier lookup with prefix matching for model variants
 //   - Computing effective tokens from raw per-model token usage data
 //   - Populating effective token counts on TokenUsageSummary after parsing
 
@@ -122,83 +121,6 @@ func defaultTokenClassWeights() tokenClassWeights {
 		Reasoning:   4.0,
 		CacheWrite:  1.0,
 	}
-}
-
-// effectiveTokenMultiplier returns the per-model cost multiplier for the given model name.
-// Lookup order:
-//  1. Exact case-insensitive match
-//  2. Longest prefix match (e.g. "claude-sonnet-4.6-preview" → "claude-sonnet-4.6")
-//  3. Default: 1.0 (unknown model treated as reference baseline)
-func effectiveTokenMultiplier(model string) float64 {
-	initMultipliers()
-
-	key := strings.ToLower(strings.TrimSpace(model))
-	if key == "" {
-		return 1.0
-	}
-
-	// Exact match
-	if mult, ok := loadedMultipliers[key]; ok {
-		return mult
-	}
-
-	// Longest prefix match
-	best := ""
-	bestMult := 1.0
-	for name, mult := range loadedMultipliers {
-		if strings.HasPrefix(key, name) && len(name) > len(best) {
-			best = name
-			bestMult = mult
-		}
-	}
-
-	if best != "" {
-		effectiveTokensLog.Printf("Model %q matched via prefix %q (multiplier=%.2f)", model, best, bestMult)
-		return bestMult
-	}
-
-	effectiveTokensLog.Printf("Unknown model %q, using default multiplier 1.0", model)
-	return 1.0
-}
-
-// computeBaseWeightedTokens computes the base weighted token count for a single invocation
-// by applying per-token-class weights to the raw token counts.
-//
-// Formula (from the ET specification):
-//
-//	base = (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R) + (w_cache_write × W)
-//
-// where R (reasoning tokens) is currently not tracked separately and defaults to 0.
-func computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int) float64 {
-	initMultipliers()
-	w := loadedTokenWeights
-	return w.Input*float64(inputTokens) +
-		w.CachedInput*float64(cacheReadTokens) +
-		w.Output*float64(outputTokens) +
-		w.CacheWrite*float64(cacheWriteTokens)
-}
-
-// computeModelEffectiveTokens returns the effective token count for a single model invocation.
-//
-// Formula (from the ET specification):
-//
-//	effective_tokens = m × base_weighted_tokens
-//
-// The result is rounded to the nearest integer.
-func computeModelEffectiveTokens(model string, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens int) int {
-	base := computeBaseWeightedTokens(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens)
-	if base == 0 {
-		return 0
-	}
-	mult := effectiveTokenMultiplier(model)
-	return int(math.Round(base * mult))
-}
-
-// populateEffectiveTokens fills in the EffectiveTokens field on each ModelTokenUsage
-// entry and computes the TotalEffectiveTokens aggregate on the summary.
-// It is a no-op when summary is nil.
-func populateEffectiveTokens(summary *TokenUsageSummary) {
-	populateEffectiveTokensWithCustomWeights(summary, nil)
 }
 
 // populateEffectiveTokensWithCustomWeights is like populateEffectiveTokens but
