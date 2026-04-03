@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -567,10 +568,21 @@ await main();`
 }
 
 // buildCustomThreatDetectionSteps builds YAML steps from user-configured threat detection steps.
+// It injects the detection guard condition into each step unless an explicit if: condition is
+// already set, ensuring custom steps only run when the detection_guard determines that detection
+// should proceed and preventing unexpected side effects in runs with no agent outputs to analyze.
 func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 	var result []string
 	for _, step := range steps {
 		if stepMap, ok := step.(map[string]any); ok {
+			// Inject the detection guard condition unless the user already provided an if: condition.
+			if _, hasIf := stepMap["if"]; !hasIf {
+				// Clone the map to avoid mutating the original config.
+				injected := make(map[string]any, len(stepMap)+1)
+				maps.Copy(injected, stepMap)
+				injected["if"] = detectionStepCondition
+				stepMap = injected
+			}
 			if stepYAML, err := ConvertStepToYAML(stepMap); err == nil {
 				result = append(result, stepYAML)
 			}
