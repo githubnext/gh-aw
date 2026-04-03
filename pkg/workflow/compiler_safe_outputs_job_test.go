@@ -846,21 +846,29 @@ func TestCreateCodeScanningAlertIncludesSARIFUploadStep(t *testing.T) {
 					"Upload step should include ref input to associate SARIF with triggering commit")
 				assert.Contains(t, stepsContent, "sha: ${{ github.sha }}",
 					"Upload step should include sha input to associate SARIF with triggering commit")
-				// Verify the git checkout step is present before the upload step
-				assert.Contains(t, stepsContent, "Reset git HEAD to triggering commit for SARIF upload",
-					"A git checkout step must reset HEAD to github.sha before SARIF upload")
-				assert.Contains(t, stepsContent, "git checkout ${{ github.sha }}",
-					"The git checkout step must run git checkout with the triggering SHA")
-				// The reset step must also be conditional on sarif_file being set
-				resetStepStart := strings.Index(stepsContent, "Reset git HEAD to triggering commit for SARIF upload")
-				require.Greater(t, resetStepStart, -1, "Reset git HEAD step must exist")
-				resetStepSection := stepsContent[resetStepStart:]
-				nextStepIdx := strings.Index(resetStepSection[len("      - name:"):], "      - name:")
+				// Verify the restore checkout step is present before the upload step.
+				// It uses actions/checkout (not a raw git command) with the checkout manager's
+				// token information to properly restore the workspace to the triggering commit.
+				assert.Contains(t, stepsContent, "Restore checkout to triggering commit for SARIF upload",
+					"A restore checkout step must reset workspace to github.sha before SARIF upload")
+				assert.Contains(t, stepsContent, "ref: ${{ github.sha }}",
+					"The restore checkout step must check out the triggering SHA")
+				assert.NotContains(t, stepsContent, "git checkout ${{ github.sha }}",
+					"Must use actions/checkout (not raw git command) to restore the checkout")
+				// The restore step must also be conditional on sarif_file being set
+				restoreStepStart := strings.Index(stepsContent, "Restore checkout to triggering commit for SARIF upload")
+				require.Greater(t, restoreStepStart, -1, "Restore checkout step must exist")
+				restoreStepSection := stepsContent[restoreStepStart:]
+				nextStepIdx := strings.Index(restoreStepSection[len("      - name:"):], "      - name:")
 				if nextStepIdx > -1 {
-					resetStepSection = resetStepSection[:nextStepIdx+len("      - name:")]
+					restoreStepSection = restoreStepSection[:nextStepIdx+len("      - name:")]
 				}
-				assert.Contains(t, resetStepSection, "steps.process_safe_outputs.outputs.sarif_file != ''",
-					"Reset git HEAD step should only run when sarif_file output is set")
+				assert.Contains(t, restoreStepSection, "steps.process_safe_outputs.outputs.sarif_file != ''",
+					"Restore checkout step should only run when sarif_file output is set")
+				assert.Contains(t, restoreStepSection, "actions/checkout",
+					"Restore checkout step must use actions/checkout")
+				assert.Contains(t, restoreStepSection, "persist-credentials: false",
+					"Restore checkout step must disable credential persistence")
 				// github/codeql-action/upload-sarif uses 'token' not 'github-token'
 				// Extract the upload-sarif step section to check it specifically
 				uploadStepStart := strings.Index(stepsContent, "- name: Upload SARIF to GitHub Code Scanning")
@@ -876,13 +884,13 @@ func TestCreateCodeScanningAlertIncludesSARIFUploadStep(t *testing.T) {
 				assert.NotContains(t, uploadStepSection, "github-token:",
 					"Upload step must not use 'github-token' - upload-sarif only accepts 'token'")
 
-				// Verify the reset step appears before the upload step
-				resetStepPos := strings.Index(stepsContent, "Reset git HEAD to triggering commit for SARIF upload")
+				// Verify the restore step appears before the upload step
+				restoreStepPos := strings.Index(stepsContent, "Restore checkout to triggering commit for SARIF upload")
 				uploadSARIFPos := strings.Index(stepsContent, "id: upload_code_scanning_sarif")
-				require.Greater(t, resetStepPos, -1, "Reset git HEAD step must exist")
+				require.Greater(t, restoreStepPos, -1, "Restore checkout step must exist")
 				require.Greater(t, uploadSARIFPos, -1, "upload_code_scanning_sarif step must exist")
-				assert.Less(t, resetStepPos, uploadSARIFPos,
-					"Reset git HEAD step must appear before upload_code_scanning_sarif step")
+				assert.Less(t, restoreStepPos, uploadSARIFPos,
+					"Restore checkout step must appear before upload_code_scanning_sarif step")
 
 				// Verify the upload step appears after the process_safe_outputs step
 				processSafeOutputsPos := strings.Index(stepsContent, "id: process_safe_outputs")

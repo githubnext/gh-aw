@@ -69,21 +69,41 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 // process_safe_outputs and upload the SARIF file only when findings were generated
 // (i.e., when the sarif_file output is non-empty).
 //
-// A git checkout step is included before the upload to reset the local HEAD to the
-// triggering commit. This is necessary because the agent job may have checked out a
-// different branch (e.g., when creating a PR), and github/codeql-action/upload-sarif
-// requires the local HEAD to match the commit being scanned. Without this reset,
-// the upload fails with "commit not found".
+// A restore checkout step is included before the upload to reset the workspace to the
+// triggering commit (github.sha). This is necessary because the safe_outputs job may
+// have checked out a different branch for PR operations (e.g., the base branch), and
+// github/codeql-action/upload-sarif requires the HEAD to match the commit being scanned.
+// Without this restore, the upload fails with "commit not found".
+//
+// The restore step uses actions/checkout with the same token and repository settings
+// from the checkout manager (user-configured checkout frontmatter), falling back to
+// the PR checkout token when no override is present.
 func (c *Compiler) buildUploadCodeScanningSARIFStep(data *WorkflowData) []string {
 	createCodeScanningAlertLog.Print("Building SARIF upload step for code scanning alerts")
 	var steps []string
 
-	// Reset git HEAD to the triggering commit so github/codeql-action/upload-sarif can
-	// resolve the commit reference. The agent may have checked out a different branch
-	// during its work, causing "commit not found" errors during SARIF upload.
-	steps = append(steps, "      - name: Reset git HEAD to triggering commit for SARIF upload\n")
+	// Restore the workspace to the triggering commit using actions/checkout.
+	// The checkout manager provides the correct token and repository settings from the
+	// user's checkout frontmatter configuration. The safe_outputs job may have checked
+	// out a different branch (e.g., when creating a PR), causing "commit not found" errors.
+	//
+	// Token precedence (via checkout manager then PR checkout fallback):
+	//   1. User-configured checkout.github-token (from frontmatter checkout: config)
+	//   2. GitHub App token (safe-outputs-app-token, if a GitHub App is configured)
+	//   3. PR checkout token (create-pull-request/push-to-pull-request-branch token, or safe-outputs token)
+	//   4. Default fallback: GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	restoreToken := c.resolveRestoreCheckoutToken(checkoutMgr, data)
+	createCodeScanningAlertLog.Printf("Using restore checkout token for SARIF upload (derived from checkout manager)")
+
+	steps = append(steps, "      - name: Restore checkout to triggering commit for SARIF upload\n")
 	steps = append(steps, "        if: steps.process_safe_outputs.outputs.sarif_file != ''\n")
-	steps = append(steps, "        run: git checkout ${{ github.sha }}\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          ref: ${{ github.sha }}\n")
+	steps = append(steps, fmt.Sprintf("          token: %s\n", restoreToken))
+	steps = append(steps, "          persist-credentials: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
 
 	steps = append(steps, "      - name: Upload SARIF to GitHub Code Scanning\n")
 	steps = append(steps, "        id: upload_code_scanning_sarif\n")
@@ -134,4 +154,32 @@ func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, conf
 	}
 	createCodeScanningAlertLog.Printf("Using token for SARIF upload from source: %s (upload-sarif uses 'token' not 'github-token')", tokenSource)
 	*steps = append(*steps, fmt.Sprintf("          token: %s\n", effectiveToken))
+}
+
+// resolveRestoreCheckoutToken returns the GitHub token to use for the pre-SARIF
+// restore checkout step. It consults the checkout manager first (user-configured
+// checkout frontmatter), then falls back to the PR checkout token chain.
+//
+// Token precedence:
+//  1. GitHub App token minted for safe-outputs (if safe-outputs app is configured)
+//  2. User-configured checkout.github-token from the default workspace checkout
+//  3. PR checkout token (create-pull-request / push-to-pull-request-branch / safe-outputs token)
+//  4. Default: GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+func (c *Compiler) resolveRestoreCheckoutToken(checkoutMgr *CheckoutManager, data *WorkflowData) string {
+	// GitHub App for safe-outputs takes highest precedence
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
+		return "${{ steps.safe-outputs-app-token.outputs.token }}"
+	}
+
+	// User-configured checkout token from frontmatter (checkout: github-token: ...)
+	override := checkoutMgr.GetDefaultCheckoutOverride()
+	if override != nil && override.token != "" {
+		createCodeScanningAlertLog.Printf("Using checkout manager override token for SARIF restore checkout")
+		return getEffectiveSafeOutputGitHubToken(override.token)
+	}
+
+	// Fall back to PR checkout token (which itself falls back to safe-outputs token or GITHUB_TOKEN)
+	prToken, _ := computeEffectivePRCheckoutToken(data.SafeOutputs)
+	return prToken
 }
