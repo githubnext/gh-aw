@@ -70,7 +70,8 @@ steps:
       mkdir -p "$ARTIFACT_DIR"
 
       echo "📥 Downloading token-usage.jsonl artifacts..."
-      jq -r '.[].databaseId' /tmp/token-analyzer/copilot-runs.json 2>/dev/null | head -50 | while read -r run_id; do
+      jq -r '.[0:50][]?.databaseId' /tmp/token-analyzer/copilot-runs.json 2>/dev/null > /tmp/token-analyzer/run-ids.txt || true
+      while read -r run_id; do
         run_dir="$ARTIFACT_DIR/$run_id"
         mkdir -p "$run_dir"
         gh run download "$run_id" \
@@ -78,7 +79,7 @@ steps:
           --name "firewall-audit-logs" \
           --dir "$run_dir" \
           2>/dev/null || true
-      done
+      done < /tmp/token-analyzer/run-ids.txt
 
       # Count how many token-usage.jsonl files we got
       JSONL_COUNT=$(find "$ARTIFACT_DIR" -name "token-usage.jsonl" 2>/dev/null | wc -l)
@@ -87,14 +88,15 @@ steps:
       # Merge all token-usage.jsonl files into a single aggregate file annotated with run_id
       MERGED_FILE="/tmp/token-analyzer/token-usage-merged.jsonl"
       > "$MERGED_FILE"
-      find "$ARTIFACT_DIR" -name "token-usage.jsonl" | while read -r f; do
+      find "$ARTIFACT_DIR" -name "token-usage.jsonl" > /tmp/token-analyzer/jsonl-files.txt 2>/dev/null || true
+      while read -r f; do
         run_id=$(echo "$f" | grep -oP '(?<=/artifacts/)\d+(?=/)' || true)
         while IFS= read -r line; do
           if [ -n "$line" ]; then
             echo "${line}" | jq --arg run_id "$run_id" '. + {run_id: $run_id}' >> "$MERGED_FILE" 2>/dev/null || true
           fi
         done < "$f"
-      done
+      done < /tmp/token-analyzer/jsonl-files.txt
 
       RECORD_COUNT=$(wc -l < "$MERGED_FILE" 2>/dev/null || echo 0)
       echo "✅ Merged ${RECORD_COUNT} token usage records"

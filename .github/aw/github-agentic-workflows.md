@@ -66,9 +66,22 @@ gh aw compile --poutine     # Supply chain security analyzer
 
 # Strict mode with all scanners
 gh aw compile --actionlint --zizmor --poutine
+
+# Output validation results as JSON (includes labels referenced in safe-outputs)
+gh aw compile --json --no-emit
 ```
 
 **Best Practice**: Always run `gh aw compile` after every workflow change to ensure the GitHub Actions YAML is up to date.
+
+**Agentic Maintenance Workflow Operations:**
+
+The generated `agentics-maintenance.yml` workflow supports these `workflow_dispatch` operations:
+
+- `disable` / `enable` — Disable or re-enable all agentic workflows
+- `update` — Update workflow metadata (opens a PR for changed files)
+- `upgrade` — Upgrade gh-aw version and dependencies (opens a PR)
+- `safe_outputs` — Replay safe outputs from a previous run (provide `run_url`)
+- `create_labels` — Compile all workflows and create any labels referenced in `safe-outputs` that are missing from the repository
 
 ## Complete Frontmatter Schema
 

@@ -137,10 +137,11 @@ steps:
         cp "$WORKFLOW_MD" /tmp/token-optimizer/workflow-source.md
       else
         echo "Workflow source not found at $WORKFLOW_MD, searching..."
-        find .github/workflows -name "*.md" -exec grep -l "^name: $WORKFLOW_NAME" {} \; 2>/dev/null | head -1 | while read -r f; do
-          echo "Found: $f"
-          cp "$f" /tmp/token-optimizer/workflow-source.md
-        done
+        FOUND_MD=$(find .github/workflows -name "*.md" -exec grep -l "^name: $WORKFLOW_NAME" {} \; 2>/dev/null | head -1 || true)
+        if [ -n "$FOUND_MD" ]; then
+          echo "Found: $FOUND_MD"
+          cp "$FOUND_MD" /tmp/token-optimizer/workflow-source.md
+        fi
       fi
 
       # Extract declared tools from workflow source (if available)

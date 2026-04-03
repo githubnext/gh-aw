@@ -281,11 +281,12 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
-	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs'`
+	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels'`
 	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs'`
+	createLabelsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels'`
 
 	const jobSectionSearchRange = 300
-	const runOpSectionSearchRange = 200
+	const runOpSectionSearchRange = 400
 
 	// Jobs that should be disabled when operation is set
 	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "zizmor-scan:", "secret-validation:"}
@@ -327,6 +328,22 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(applySection, applySafeOutputsCondition) {
 			t.Errorf("Job apply_safe_outputs should have the activation condition %q in:\n%s", applySafeOutputsCondition, applySection)
 		}
+	}
+
+	// create_labels job should be triggered when operation == 'create_labels'
+	createLabelsIdx := strings.Index(yaml, "\n  create_labels:")
+	if createLabelsIdx == -1 {
+		t.Errorf("Job create_labels not found in generated workflow")
+	} else {
+		createLabelsSection := yaml[createLabelsIdx : createLabelsIdx+runOpSectionSearchRange]
+		if !strings.Contains(createLabelsSection, createLabelsCondition) {
+			t.Errorf("Job create_labels should have the activation condition %q in:\n%s", createLabelsCondition, createLabelsSection)
+		}
+	}
+
+	// Verify create_labels is an option in the operation choices
+	if !strings.Contains(yaml, "- 'create_labels'") {
+		t.Error("workflow_dispatch operation choices should include 'create_labels'")
 	}
 
 	// Verify safe_outputs is an option in the operation choices
@@ -572,12 +589,12 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
 		yaml := string(content)
-		// Both run_operation and compile_workflows should use the same setup-go version
-		// (both use GetActionPin, not hardcoded pins). Exactly 2 occurrences expected.
+		// run_operation, create_labels, and compile_workflows should use the same setup-go version
+		// (all use GetActionPin, not hardcoded pins). Exactly 3 occurrences expected.
 		setupGoPin := GetActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
-		if occurrences != 2 {
-			t.Errorf("Expected exactly 2 occurrences of pinned setup-go ref %q (run_operation + compile_workflows), got %d in:\n%s",
+		if occurrences != 3 {
+			t.Errorf("Expected exactly 3 occurrences of pinned setup-go ref %q (run_operation + create_labels + compile_workflows), got %d in:\n%s",
 				setupGoPin, occurrences, yaml)
 		}
 	})
