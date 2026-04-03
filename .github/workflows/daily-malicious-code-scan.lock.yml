@@ -756,6 +756,7 @@ jobs:
       - activation
       - agent
       - safe_outputs
+      - upload_code_scanning_sarif
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
@@ -928,8 +929,24 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Restore checkout to triggering commit for SARIF upload
-        if: steps.process_safe_outputs.outputs.sarif_file != ''
+      - name: Upload Safe Output Items
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: safe-output-items
+          path: /tmp/gh-aw/safe-output-items.jsonl
+          if-no-files-found: ignore
+
+  upload_code_scanning_sarif:
+    needs: safe_outputs
+    if: needs.safe_outputs.outputs.sarif_file != ''
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      security-events: write
+    timeout-minutes: 10
+    steps:
+      - name: Restore checkout to triggering commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.sha }}
@@ -938,19 +955,11 @@ jobs:
           fetch-depth: 1
       - name: Upload SARIF to GitHub Code Scanning
         id: upload_code_scanning_sarif
-        if: steps.process_safe_outputs.outputs.sarif_file != ''
         uses: github/codeql-action/upload-sarif@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
         with:
           token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          sarif_file: ${{ steps.process_safe_outputs.outputs.sarif_file }}
+          sarif_file: ${{ needs.safe_outputs.outputs.sarif_file }}
           ref: ${{ github.ref }}
           sha: ${{ github.sha }}
           wait-for-processing: true
-      - name: Upload Safe Output Items
-        if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: safe-output-items
-          path: /tmp/gh-aw/safe-output-items.jsonl
-          if-no-files-found: ignore
 

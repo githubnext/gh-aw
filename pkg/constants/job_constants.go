@@ -63,6 +63,7 @@ const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
 const SafeOutputsJobName JobName = "safe_outputs"
 const UploadAssetsJobName JobName = "upload_assets"
+const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const ConclusionJobName JobName = "conclusion"
 const UnlockJobName JobName = "unlock"
 

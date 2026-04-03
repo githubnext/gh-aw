@@ -89,6 +89,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Printf("Added separate upload_assets job")
 	}
 
+	// Build upload_code_scanning_sarif job as a separate job if create-code-scanning-alert is configured.
+	// This job runs after safe_outputs and only when the safe_outputs job exported a SARIF file.
+	// It is separate to avoid the checkout step (needed to restore HEAD to github.sha) from
+	// interfering with other safe-output operations in the consolidated safe_outputs job.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCodeScanningAlerts != nil &&
+		!isHandlerStaged(false || data.SafeOutputs.Staged, data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
+		compilerSafeOutputJobsLog.Print("Building separate upload_code_scanning_sarif job")
+		codeScanningJob, err := c.buildCodeScanningUploadJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build upload_code_scanning_sarif job: %w", err)
+		}
+		if err := c.jobManager.AddJob(codeScanningJob); err != nil {
+			return fmt.Errorf("failed to add upload_code_scanning_sarif job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, codeScanningJob.Name)
+		compilerSafeOutputJobsLog.Printf("Added separate upload_code_scanning_sarif job")
+	}
+
 	// Build conditional call-workflow fan-out jobs if configured.
 	// Each allowed worker gets its own `uses:` job with an `if:` condition that
 	// checks whether safe_outputs selected it. Only one runs per execution.

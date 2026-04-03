@@ -770,43 +770,43 @@ func TestCallWorkflowOnly_UsesHandlerManagerStep(t *testing.T) {
 	assert.Contains(t, stepsContent, "call_workflow", "Handler config should reference call_workflow")
 }
 
-// TestCreateCodeScanningAlertIncludesSARIFUploadStep verifies that when create-code-scanning-alert
-// is configured, the compiled safe_outputs job includes a step to upload the generated SARIF file
-// to GitHub Code Scanning using github/codeql-action/upload-sarif.
-func TestCreateCodeScanningAlertIncludesSARIFUploadStep(t *testing.T) {
+// TestCreateCodeScanningAlertUploadJob verifies that when create-code-scanning-alert is configured,
+// a dedicated upload_code_scanning_sarif job is created (separate from safe_outputs) and that
+// the safe_outputs job exports sarif_file so the upload job can check whether to run.
+func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 	tests := []struct {
 		name               string
 		config             *CreateCodeScanningAlertsConfig
-		expectUploadStep   bool
+		expectUploadJob    bool
 		expectCustomToken  string
 		expectDefaultToken bool
 	}{
 		{
-			name: "default config includes upload step with default token",
+			name: "default config creates separate upload job with default token",
 			config: &CreateCodeScanningAlertsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{},
 			},
-			expectUploadStep:   true,
+			expectUploadJob:    true,
 			expectDefaultToken: true,
 		},
 		{
-			name: "custom github-token is used in upload step",
+			name: "custom github-token is used in upload job",
 			config: &CreateCodeScanningAlertsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					GitHubToken: "${{ secrets.GHAS_TOKEN }}",
 				},
 			},
-			expectUploadStep:  true,
+			expectUploadJob:   true,
 			expectCustomToken: "${{ secrets.GHAS_TOKEN }}",
 		},
 		{
-			name: "staged mode does not include upload step",
+			name: "staged mode does not create upload job",
 			config: &CreateCodeScanningAlertsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					Staged: true,
 				},
 			},
-			expectUploadStep: false,
+			expectUploadJob: false,
 		},
 	}
 
@@ -822,105 +822,96 @@ func TestCreateCodeScanningAlertIncludesSARIFUploadStep(t *testing.T) {
 				},
 			}
 
-			job, stepNames, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
-			require.NoError(t, err, "Should compile without error")
-			require.NotNil(t, job, "safe_outputs job should be generated")
+			// 1. Verify safe_outputs job exports sarif_file (needed by the upload job's if: condition)
+			safeOutputsJob, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
+			require.NoError(t, err, "safe_outputs job should build without error")
+			require.NotNil(t, safeOutputsJob, "safe_outputs job should be generated")
 
-			stepsContent := strings.Join(job.Steps, "")
+			safeOutputsSteps := strings.Join(safeOutputsJob.Steps, "")
 
-			if tt.expectUploadStep {
-				assert.Contains(t, stepsContent, "Upload SARIF to GitHub Code Scanning",
-					"Compiled job should include SARIF upload step")
-				assert.Contains(t, stepsContent, "id: upload_code_scanning_sarif",
-					"Upload step should have correct ID")
-				assert.Contains(t, stepsContent, "upload-sarif",
-					"Upload step should use github/codeql-action/upload-sarif")
-				assert.Contains(t, stepsContent, "steps.process_safe_outputs.outputs.sarif_file != ''",
-					"Upload step should only run when sarif_file output is set")
-				assert.Contains(t, stepsContent, "sarif_file: ${{ steps.process_safe_outputs.outputs.sarif_file }}",
-					"Upload step should reference sarif_file output")
-				assert.Contains(t, stepsContent, "wait-for-processing: true",
-					"Upload step should wait for processing")
-				// Verify ref and sha inputs are present to associate SARIF with triggering commit
-				assert.Contains(t, stepsContent, "ref: ${{ github.ref }}",
-					"Upload step should include ref input to associate SARIF with triggering commit")
-				assert.Contains(t, stepsContent, "sha: ${{ github.sha }}",
-					"Upload step should include sha input to associate SARIF with triggering commit")
-				// Verify the restore checkout step is present before the upload step.
-				// It uses actions/checkout (not a raw git command) with the checkout manager's
-				// token information to properly restore the workspace to the triggering commit.
-				assert.Contains(t, stepsContent, "Restore checkout to triggering commit for SARIF upload",
-					"A restore checkout step must reset workspace to github.sha before SARIF upload")
-				assert.Contains(t, stepsContent, "ref: ${{ github.sha }}",
-					"The restore checkout step must check out the triggering SHA")
-				assert.NotContains(t, stepsContent, "git checkout ${{ github.sha }}",
-					"Must use actions/checkout (not raw git command) to restore the checkout")
-				// The restore step must also be conditional on sarif_file being set
-				restoreStepStart := strings.Index(stepsContent, "Restore checkout to triggering commit for SARIF upload")
-				require.Greater(t, restoreStepStart, -1, "Restore checkout step must exist")
-				restoreStepSection := stepsContent[restoreStepStart:]
-				nextStepIdx := strings.Index(restoreStepSection[len("      - name:"):], "      - name:")
-				if nextStepIdx > -1 {
-					restoreStepSection = restoreStepSection[:nextStepIdx+len("      - name:")]
-				}
-				assert.Contains(t, restoreStepSection, "steps.process_safe_outputs.outputs.sarif_file != ''",
-					"Restore checkout step should only run when sarif_file output is set")
-				assert.Contains(t, restoreStepSection, "actions/checkout",
-					"Restore checkout step must use actions/checkout")
-				assert.Contains(t, restoreStepSection, "persist-credentials: false",
-					"Restore checkout step must disable credential persistence")
-				// github/codeql-action/upload-sarif uses 'token' not 'github-token'
-				// Extract the upload-sarif step section to check it specifically
-				uploadStepStart := strings.Index(stepsContent, "- name: Upload SARIF to GitHub Code Scanning")
-				require.Greater(t, uploadStepStart, -1, "Upload SARIF step must exist in steps content")
-				uploadStepSection := stepsContent[uploadStepStart:]
-				// Find the end of this step (next step starts with "      - name:")
-				nextUploadStepIdx := strings.Index(uploadStepSection[len("      - name:"):], "      - name:")
-				if nextUploadStepIdx > -1 {
-					uploadStepSection = uploadStepSection[:nextUploadStepIdx+len("      - name:")]
-				}
-				assert.Contains(t, uploadStepSection, "token:",
-					"Upload step should use 'token' input (not 'github-token')")
-				assert.NotContains(t, uploadStepSection, "github-token:",
+			if tt.expectUploadJob {
+				// safe_outputs must export sarif_file so the upload job can check if there is work to do
+				assert.Contains(t, safeOutputsJob.Outputs, "sarif_file",
+					"safe_outputs job must export sarif_file output")
+				assert.Contains(t, safeOutputsJob.Outputs["sarif_file"], "steps.process_safe_outputs.outputs.sarif_file",
+					"sarif_file output must reference process_safe_outputs step")
+
+				// The upload and restore steps must NOT be in safe_outputs itself
+				assert.NotContains(t, safeOutputsSteps, "upload-sarif",
+					"SARIF upload must NOT be a step in safe_outputs job")
+				assert.NotContains(t, safeOutputsSteps, "Upload SARIF to GitHub Code Scanning",
+					"SARIF upload step must NOT appear in safe_outputs job")
+
+				// 2. Verify the dedicated upload job is built correctly
+				uploadJob, buildErr := compiler.buildCodeScanningUploadJob(workflowData)
+				require.NoError(t, buildErr, "upload_code_scanning_sarif job should build without error")
+				require.NotNil(t, uploadJob, "upload_code_scanning_sarif job should be created")
+
+				assert.Equal(t, string(constants.UploadCodeScanningJobName), uploadJob.Name,
+					"Upload job must be named upload_code_scanning_sarif")
+				assert.Contains(t, uploadJob.Needs, string(constants.SafeOutputsJobName),
+					"Upload job must depend on safe_outputs")
+				assert.Contains(t, uploadJob.If, "sarif_file != ''",
+					"Upload job must only run when sarif_file is non-empty")
+				assert.Contains(t, uploadJob.If, string(constants.SafeOutputsJobName),
+					"Upload job if-condition must reference safe_outputs outputs")
+
+				uploadSteps := strings.Join(uploadJob.Steps, "")
+
+				// Restore checkout step must be present in the upload job
+				assert.Contains(t, uploadSteps, "Restore checkout to triggering commit",
+					"Upload job must restore workspace to triggering commit")
+				assert.Contains(t, uploadSteps, "ref: ${{ github.sha }}",
+					"Restore checkout must check out github.sha")
+				assert.Contains(t, uploadSteps, "persist-credentials: false",
+					"Restore checkout must disable credential persistence")
+				assert.NotContains(t, uploadSteps, "git checkout ${{ github.sha }}",
+					"Must use actions/checkout, not a raw git command")
+
+				// Upload SARIF step must be present
+				assert.Contains(t, uploadSteps, "Upload SARIF to GitHub Code Scanning",
+					"Upload job must have SARIF upload step")
+				assert.Contains(t, uploadSteps, "upload-sarif",
+					"Upload job must use github/codeql-action/upload-sarif")
+				assert.Contains(t, uploadSteps, "wait-for-processing: true",
+					"Upload step must wait for processing")
+				// ref and sha pin the upload to the triggering commit
+				assert.Contains(t, uploadSteps, "ref: ${{ github.ref }}",
+					"Upload step must include ref input")
+				assert.Contains(t, uploadSteps, "sha: ${{ github.sha }}",
+					"Upload step must include sha input")
+				// sarif_file must come from safe_outputs job outputs
+				assert.Contains(t, uploadSteps, "needs.safe_outputs.outputs.sarif_file",
+					"Upload step must reference sarif_file from safe_outputs job outputs")
+				// Upload-sarif uses 'token' not 'github-token'
+				assert.Contains(t, uploadSteps, "token:",
+					"Upload step must use 'token' input (not 'github-token')")
+				assert.NotContains(t, uploadSteps, "github-token:",
 					"Upload step must not use 'github-token' - upload-sarif only accepts 'token'")
 
-				// Verify the restore step appears before the upload step
-				restoreStepPos := strings.Index(stepsContent, "Restore checkout to triggering commit for SARIF upload")
-				uploadSARIFPos := strings.Index(stepsContent, "id: upload_code_scanning_sarif")
-				require.Greater(t, restoreStepPos, -1, "Restore checkout step must exist")
-				require.Greater(t, uploadSARIFPos, -1, "upload_code_scanning_sarif step must exist")
-				assert.Less(t, restoreStepPos, uploadSARIFPos,
-					"Restore checkout step must appear before upload_code_scanning_sarif step")
-
-				// Verify the upload step appears after the process_safe_outputs step
-				processSafeOutputsPos := strings.Index(stepsContent, "id: process_safe_outputs")
-				require.Greater(t, processSafeOutputsPos, -1, "process_safe_outputs step must exist")
-				assert.Greater(t, uploadSARIFPos, processSafeOutputsPos,
-					"upload_code_scanning_sarif must appear after process_safe_outputs in compiled steps")
-
-				// Verify the upload step is registered as a step name
-				assert.Contains(t, stepNames, "upload_code_scanning_sarif",
-					"upload_code_scanning_sarif should be in step names")
-
-				// Verify sarif_file is exported as a job output
-				assert.Contains(t, job.Outputs, "sarif_file",
-					"Job should export sarif_file output")
-				assert.Contains(t, job.Outputs["sarif_file"], "steps.process_safe_outputs.outputs.sarif_file",
-					"sarif_file job output should reference process_safe_outputs step output")
+				// Restore step must appear before upload step
+				restorePos := strings.Index(uploadSteps, "Restore checkout to triggering commit")
+				uploadPos := strings.Index(uploadSteps, "Upload SARIF to GitHub Code Scanning")
+				require.Greater(t, restorePos, -1, "Restore checkout step must exist")
+				require.Greater(t, uploadPos, -1, "Upload SARIF step must exist")
+				assert.Less(t, restorePos, uploadPos,
+					"Restore checkout must appear before SARIF upload in the job steps")
 
 				if tt.expectCustomToken != "" {
-					assert.Contains(t, stepsContent, tt.expectCustomToken,
-						"Upload step should use custom token")
+					assert.Contains(t, uploadSteps, tt.expectCustomToken,
+						"Upload job should use custom token")
 				}
 				if tt.expectDefaultToken {
-					assert.Contains(t, stepsContent, "GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN",
-						"Upload step should use default token fallback")
+					assert.Contains(t, uploadSteps, "GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN",
+						"Upload job should use default token fallback")
 				}
 			} else {
-				assert.NotContains(t, stepsContent, "Upload SARIF to GitHub Code Scanning",
-					"Staged mode should not include SARIF upload step")
-				assert.NotContains(t, stepNames, "upload_code_scanning_sarif",
-					"upload_code_scanning_sarif should not be in step names for staged mode")
+				// staged: safe_outputs should NOT export sarif_file
+				assert.NotContains(t, safeOutputsJob.Outputs, "sarif_file",
+					"staged mode: safe_outputs must not export sarif_file")
+
+				// buildCodeScanningUploadJob should still produce a job structurally
+				// (staging is enforced by the caller in buildSafeOutputsJobs, not the builder itself)
 			}
 		})
 	}
