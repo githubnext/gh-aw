@@ -245,10 +245,14 @@ jobs:
     env:
       GH_AW_WORKFLOW_ID_SANITIZED: examplepermissionswarning
     outputs:
+      cache_read_tokens: ${{ steps.token_usage.outputs.cache_read_tokens }}
+      cache_write_tokens: ${{ steps.token_usage.outputs.cache_write_tokens }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
+      input_tokens: ${{ steps.token_usage.outputs.input_tokens }}
       model: ${{ needs.activation.outputs.model }}
+      output_tokens: ${{ steps.token_usage.outputs.output_tokens }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -490,6 +494,7 @@ jobs:
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
       - name: Parse token usage for step summary
+        id: token_usage
         if: always()
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_token_usage.sh

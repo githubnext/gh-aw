@@ -187,6 +187,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
+	// Add token usage outputs when the firewall is enabled (token-usage.jsonl is only
+	// produced by the AWF firewall proxy). These let downstream jobs read aggregated
+	// token counts without needing to download and parse the raw JSONL file.
+	if isFirewallEnabled(data) {
+		outputs["input_tokens"] = fmt.Sprintf("${{ steps.%s.outputs.input_tokens }}", constants.ParseTokenUsageStepID)
+		outputs["output_tokens"] = fmt.Sprintf("${{ steps.%s.outputs.output_tokens }}", constants.ParseTokenUsageStepID)
+		outputs["cache_read_tokens"] = fmt.Sprintf("${{ steps.%s.outputs.cache_read_tokens }}", constants.ParseTokenUsageStepID)
+		outputs["cache_write_tokens"] = fmt.Sprintf("${{ steps.%s.outputs.cache_write_tokens }}", constants.ParseTokenUsageStepID)
+		compilerMainJobLog.Print("Added token usage outputs to agent job (firewall enabled)")
+	}
+
 	// Build job-level environment variables for safe outputs
 	var env map[string]string
 	if data.SafeOutputs != nil {
