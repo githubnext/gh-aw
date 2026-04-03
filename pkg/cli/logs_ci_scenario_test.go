@@ -52,6 +52,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		"summary.json",               // summaryFile
 		"",                           // safeOutputType
 		false,                        // filteredIntegrity
+		false,                        // train
 	)
 
 	// Restore stdout and read output

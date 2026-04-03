@@ -1,6 +1,7 @@
 package agentdrain
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -124,6 +125,35 @@ func (c *Coordinator) minerFor(stage string) (*Miner, error) {
 		return nil, fmt.Errorf("agentdrain: no miner registered for stage %q", stage)
 	}
 	return m, nil
+}
+
+// SaveWeightsJSON serializes all stage snapshots into a single combined JSON blob.
+// The result can be written to pkg/agentdrain/data/default_weights.json and
+// committed to embed it as the default starting weights for future runs.
+func (c *Coordinator) SaveWeightsJSON() ([]byte, error) {
+	snapshots, err := c.SaveSnapshots()
+	if err != nil {
+		return nil, err
+	}
+	combined := make(map[string]json.RawMessage, len(snapshots))
+	for stage, data := range snapshots {
+		combined[stage] = json.RawMessage(data)
+	}
+	return json.Marshal(combined)
+}
+
+// LoadWeightsJSON restores all stage miners from a combined JSON blob produced
+// by SaveWeightsJSON.
+func (c *Coordinator) LoadWeightsJSON(data []byte) error {
+	var combined map[string]json.RawMessage
+	if err := json.Unmarshal(data, &combined); err != nil {
+		return fmt.Errorf("agentdrain: LoadWeightsJSON: %w", err)
+	}
+	snapshots := make(map[string][]byte, len(combined))
+	for stage, raw := range combined {
+		snapshots[stage] = []byte(raw)
+	}
+	return c.LoadSnapshots(snapshots)
 }
 
 // StageSequence converts a slice of AgentEvents into a space-separated string

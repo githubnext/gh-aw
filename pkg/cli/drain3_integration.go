@@ -29,6 +29,9 @@ func buildDrain3Insights(processedRun ProcessedRun, metrics MetricsData, toolUsa
 		drain3Log.Printf("Failed to create drain3 coordinator: %v", err)
 		return nil
 	}
+	if err := coordinator.LoadDefaultWeights(); err != nil {
+		drain3Log.Printf("Failed to load default drain3 weights: %v", err)
+	}
 
 	events := buildAgentEventsFromProcessedRun(processedRun, metrics, toolUsage)
 	if len(events) == 0 {
@@ -74,6 +77,9 @@ func buildDrain3InsightsMultiRun(processedRuns []ProcessedRun) []ObservabilityIn
 	if err != nil {
 		drain3Log.Printf("Failed to create drain3 coordinator: %v", err)
 		return nil
+	}
+	if err := coordinator.LoadDefaultWeights(); err != nil {
+		drain3Log.Printf("Failed to load default drain3 weights: %v", err)
 	}
 
 	totalEvents := 0
