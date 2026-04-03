@@ -79,12 +79,15 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) {
 	createCodeScanningAlertLog.Print("Building upload_code_scanning_sarif job")
 
-	// The checkout token is passed from the safe_outputs job via its checkout_token output.
-	// This avoids needing GitHub App credentials in this job — the app token (if any) was
-	// already minted and revoked in safe_outputs, so we use the static token that safe_outputs
-	// exported. Falls back to the default GH_AW_GITHUB_TOKEN || GITHUB_TOKEN when no
-	// user-configured PAT is present.
-	restoreToken := fmt.Sprintf("${{ needs.%s.outputs.checkout_token }}", constants.SafeOutputsJobName)
+	// Compute the restore token directly in this job rather than reading it from the
+	// safe_outputs job's outputs. GitHub Actions masks job outputs that contain secret
+	// references (e.g. "${{ secrets.GITHUB_TOKEN }}"), so passing the token through
+	// safe_outputs.outputs.checkout_token would result in an empty string here.
+	// Since computeStaticCheckoutToken returns a plain static secret-reference expression
+	// (e.g. "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") it is safe to
+	// evaluate directly in any job, including this one.
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	restoreToken := computeStaticCheckoutToken(data.SafeOutputs, checkoutMgr)
 
 	// Artifact prefix for workflow_call context (so the download name matches the upload name).
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
@@ -155,8 +158,8 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 // addUploadSARIFToken adds the 'token' input for github/codeql-action/upload-sarif.
 // This action uses 'token' as the input name (not 'github-token' like other GitHub Actions).
 // This runs inside the upload_code_scanning_sarif job (a separate job from safe_outputs), so
-// the token is read from the safe_outputs job's checkout_token output rather than any step output.
-// Uses precedence: config token > safe-outputs global github-token > safe_outputs.outputs.checkout_token
+// the token must be computed directly in this job from static secret references.
+// Uses precedence: config token > safe-outputs global github-token > default fallback
 func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, configToken string) {
 	var safeOutputsToken string
 	if data.SafeOutputs != nil {
@@ -182,9 +185,12 @@ func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, conf
 		return
 	}
 
-	// No per-config or safe-outputs token — use the checkout_token exported from the safe_outputs job.
-	// This is the static token (secret reference) computed by computeStaticCheckoutToken in safe_outputs,
-	// which falls back to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN when no user-configured PAT is present.
-	createCodeScanningAlertLog.Printf("Using safe_outputs.outputs.checkout_token for SARIF upload token")
-	*steps = append(*steps, fmt.Sprintf("          token: ${{ needs.%s.outputs.checkout_token }}\n", constants.SafeOutputsJobName))
+	// No per-config or safe-outputs token — compute the static checkout token directly.
+	// This is the same logic as computeStaticCheckoutToken, which returns a plain static
+	// secret-reference expression. We cannot pass it through job outputs because GitHub Actions
+	// masks output values that contain secret references.
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	defaultToken := computeStaticCheckoutToken(data.SafeOutputs, checkoutMgr)
+	createCodeScanningAlertLog.Printf("Using computed static checkout token for SARIF upload token")
+	*steps = append(*steps, fmt.Sprintf("          token: %s\n", defaultToken))
 }

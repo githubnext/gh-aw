@@ -210,18 +210,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// 2. SARIF output — expose sarif_file from the handler so the dedicated
 	// upload_code_scanning_sarif job (built in buildCodeScanningUploadJob) can access it
 	// via needs.safe_outputs.outputs.sarif_file and decide whether to run.
-	// Also expose checkout_token so the upload job can checkout the repo without needing
-	// access to any GitHub App credentials (which are only minted in safe_outputs).
 	// Additionally, upload the SARIF file as a GitHub Actions artifact so the upload job
 	// can retrieve the actual file (job outputs only carry the path string; the file itself
 	// only exists in the safe_outputs job workspace).
+	// NOTE: We do NOT export checkout_token as a job output. GitHub Actions masks output
+	// values that contain secret references, so the downstream job would receive an empty
+	// string. The upload job computes the token directly from static secret references.
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(c.trialMode || data.SafeOutputs.Staged, data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
-		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file and checkout_token outputs for upload_code_scanning_sarif job")
+		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file output for upload_code_scanning_sarif job")
 		outputs["sarif_file"] = "${{ steps.process_safe_outputs.outputs.sarif_file }}"
-		// Export a static checkout token (no step-output references) so the upload job can
-		// authenticate without needing the GitHub App credentials or a step from this job.
-		checkoutMgrForOutput := NewCheckoutManager(data.CheckoutConfigs)
-		outputs["checkout_token"] = computeStaticCheckoutToken(data.SafeOutputs, checkoutMgrForOutput)
 
 		// Upload the SARIF file as an artifact so the upload_code_scanning_sarif job
 		// (which runs in a separate, fresh workspace) can download and process it.

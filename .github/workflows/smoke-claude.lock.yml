@@ -2739,7 +2739,6 @@ jobs:
       GH_AW_WORKFLOW_NAME: "Smoke Claude"
     outputs:
       add_reviewer_reviewers_added: ${{ steps.process_safe_outputs.outputs.reviewers_added }}
-      checkout_token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       comment_id: ${{ steps.process_safe_outputs.outputs.comment_id }}
@@ -2904,7 +2903,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.sha }}
-          token: ${{ needs.safe_outputs.outputs.checkout_token }}
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 1
       - name: Download SARIF artifact
@@ -2917,7 +2916,7 @@ jobs:
         id: upload_code_scanning_sarif
         uses: github/codeql-action/upload-sarif@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
         with:
-          token: ${{ needs.safe_outputs.outputs.checkout_token }}
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           sarif_file: /tmp/gh-aw/sarif/code-scanning-alert.sarif
           ref: ${{ github.ref }}
           sha: ${{ github.sha }}
