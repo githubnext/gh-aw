@@ -105,7 +105,7 @@ func getLogsDataSchema() LogsDataSchema {
 			},
 			"runs": {
 				Type:        "array",
-				Description: "Array of workflow run data (database_id, workflow_name, agent, status, conclusion, duration, token_usage, estimated_cost, turns, error_count, warning_count, missing_tool_count, created_at, url, logs_path, event, branch)",
+				Description: "Array of workflow run data (database_id, workflow_name, agent, status, conclusion, classification, duration, token_usage, estimated_cost, turns, error_count, warning_count, missing_tool_count, created_at, url, logs_path, event, branch). classification is one of: risky, normal, baseline, unclassified.",
 			},
 			"tool_usage": {
 				Type:        "array",
