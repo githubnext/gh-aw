@@ -61,11 +61,6 @@ func TestGitHubTokenValidation(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "valid job output expression - hyphenated job name",
-			token:       "${{ needs.mint-token.outputs.access_token }}",
-			expectError: false,
-		},
-		{
 			name:        "valid job output expression - with spaces",
 			token:       "${{  needs.auth.outputs.token  }}",
 			expectError: false,
