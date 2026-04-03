@@ -69,7 +69,7 @@ steps:
       mkdir -p "$ARTIFACT_DIR"
 
       echo "📥 Downloading token-usage.jsonl artifacts..."
-      jq -r '.[0:50] | .[].databaseId' /tmp/token-analyzer-claude/claude-runs.json > /tmp/token-analyzer-claude/run-ids.txt
+      jq -r '.[0:50][]?.databaseId' /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null > /tmp/token-analyzer-claude/run-ids.txt || true
       while read -r run_id; do
         run_dir="$ARTIFACT_DIR/$run_id"
         mkdir -p "$run_dir"
