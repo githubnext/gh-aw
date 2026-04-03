@@ -143,11 +143,6 @@ const PreActivationAppTokenStepID StepID = "pre-activation-app-token"
 // can pass the value as GH_AW_EFFECTIVE_TOKENS to the footer template renderer.
 const ParseMCPGatewayStepID StepID = "parse-mcp-gateway"
 
-// ParseTokenUsageStepID is the step ID for the token usage summary step in the agent job.
-// It writes aggregated token counts (input, output, cache_read, cache_write) to $GITHUB_OUTPUT
-// so downstream jobs can access them as job outputs.
-const ParseTokenUsageStepID StepID = "token_usage"
-
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"

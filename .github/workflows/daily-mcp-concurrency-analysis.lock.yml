@@ -303,16 +303,12 @@ jobs:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: dailymcpconcurrencyanalysis
     outputs:
-      cache_read_tokens: ${{ steps.token_usage.outputs.cache_read_tokens }}
-      cache_write_tokens: ${{ steps.token_usage.outputs.cache_write_tokens }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
-      input_tokens: ${{ steps.token_usage.outputs.input_tokens }}
       model: ${{ needs.activation.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
-      output_tokens: ${{ steps.token_usage.outputs.output_tokens }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout actions folder
@@ -840,7 +836,6 @@ jobs:
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
       - name: Parse token usage for step summary
-        id: token_usage
         if: always()
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_token_usage.sh

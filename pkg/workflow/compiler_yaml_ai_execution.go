@@ -193,13 +193,12 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 
 // generateTokenUsageSummary generates a step that parses the firewall proxy's
 // token-usage.jsonl and appends a markdown table to $GITHUB_STEP_SUMMARY.
-// The step also writes aggregated token totals to $GITHUB_OUTPUT so they are
-// accessible as job outputs to downstream jobs.
+// The step also writes aggregated token totals to /tmp/gh-aw/agent_usage.json
+// so they are bundled in the agent artifact for third-party tools.
 func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder) {
 	compilerYamlLog.Print("Generating token usage summary step")
 
 	yaml.WriteString("      - name: Parse token usage for step summary\n")
-	fmt.Fprintf(yaml, "        id: %s\n", constants.ParseTokenUsageStepID)
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_token_usage.sh\n")
