@@ -24,6 +24,9 @@
  *
  * @param {object | null | undefined} payload - GitHub Actions context.payload
  * @returns {{ item_type: string, item_number: string, comment_id: string, comment_node_id: string }}
+ *   comment_node_id is only populated for discussion/discussion_comment events where
+ *   payload.comment.node_id is present (GraphQL node ID needed for reply threading).
+ *   It is intentionally empty for all other event types (issues, PRs, checks).
  */
 function resolveItemContext(payload) {
   if (payload?.issue != null) {
