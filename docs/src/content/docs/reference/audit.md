@@ -98,7 +98,7 @@ This feature is built into the `gh aw logs` command via the `--format` flag.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `[workflow]` | all | Filter by workflow name or filename (positional argument) |
+| `[workflow]` | all workflows | Filter by workflow name or filename (positional argument) |
 | `-c, --count <n>` | 10 | Number of recent runs to analyze |
 | `--last <n>` | — | Alias for `--count` |
 | `--format <fmt>` | — | Output format: `markdown` or `pretty` (generates cross-run audit report) |
