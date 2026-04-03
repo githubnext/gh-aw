@@ -56,6 +56,8 @@ type EpisodeData struct {
 	EscalationEligible             bool     `json:"escalation_eligible"`
 	EscalationReason               string   `json:"escalation_reason,omitempty"`
 	SuggestedRoute                 string   `json:"suggested_route,omitempty"`
+	Repository                     string   `json:"repository,omitempty"`
+	Organization                   string   `json:"organization,omitempty"`
 }
 
 type episodeAccumulator struct {
@@ -181,6 +183,12 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 		}
 		if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
 			acc.metadata.PrimaryWorkflow = run.WorkflowName
+		}
+		if acc.metadata.Repository == "" && run.Repository != "" {
+			acc.metadata.Repository = run.Repository
+			if parts := strings.SplitN(run.Repository, "/", 2); len(parts) == 2 {
+				acc.metadata.Organization = parts[0]
+			}
 		}
 		if run.StartedAt.IsZero() && run.UpdatedAt.IsZero() {
 			acc.duration += run.CreatedAt.Sub(run.CreatedAt)
