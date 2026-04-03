@@ -54,7 +54,6 @@ async function main() {
 
   let reactionEndpoint;
   let commentUpdateEndpoint;
-  let shouldCreateComment = false;
   const eventName = context.eventName;
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -69,7 +68,6 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-        shouldCreateComment = true;
         break;
       }
 
@@ -87,7 +85,6 @@ async function main() {
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
         // Create new comment on the issue itself, not on the comment
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
-        shouldCreateComment = true;
         break;
       }
 
@@ -100,7 +97,6 @@ async function main() {
         // PRs are "issues" for the reactions endpoint
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-        shouldCreateComment = true;
         break;
       }
 
@@ -118,7 +114,6 @@ async function main() {
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
         // Create new comment on the PR itself (using issues endpoint since PRs are issues)
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
-        shouldCreateComment = true;
         break;
       }
 
@@ -132,7 +127,6 @@ async function main() {
         const discussion = await getDiscussionId(owner, repo, discussionNumber);
         reactionEndpoint = discussion.id; // Store node ID for GraphQL
         commentUpdateEndpoint = `discussion:${discussionNumber}`; // Special format to indicate discussion
-        shouldCreateComment = true;
         break;
       }
 
@@ -150,7 +144,6 @@ async function main() {
         }
         reactionEndpoint = commentNodeId; // Store node ID for GraphQL
         commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; // Special format
-        shouldCreateComment = true;
         break;
       }
 
@@ -162,18 +155,15 @@ async function main() {
     core.info(`Reaction API endpoint: ${reactionEndpoint}`);
 
     // For discussions, reactionEndpoint is a node ID (GraphQL), otherwise it's a REST API path
-    const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
-    if (isDiscussionEvent) {
+    if (eventName === "discussion" || eventName === "discussion_comment") {
       await addDiscussionReaction(reactionEndpoint, reaction);
     } else {
       await addReaction(reactionEndpoint, reaction);
     }
 
-    if (shouldCreateComment && commentUpdateEndpoint) {
+    if (commentUpdateEndpoint) {
       core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
       await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
-    } else {
-      core.info(`Skipping comment for event type: ${eventName}`);
     }
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -309,29 +299,19 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       eventType: eventTypeDescription,
     });
 
-    // Sanitize before adding workflow markers to preserve them
-    let commentBody = sanitizeContent(workflowLinkText);
-
-    // Add lock notice if lock-for-agent is enabled for issues or issue_comment
     const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-    if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
-      commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
-    }
-
     const workflowId = process.env.GITHUB_WORKFLOW || "";
     const trackerId = process.env.GH_AW_TRACKER_ID || "";
 
-    if (workflowId) {
-      commentBody += `\n\n${generateWorkflowIdMarker(workflowId)}`;
-    }
-
-    // Add tracker-id marker if available (for backwards compatibility)
-    if (trackerId) {
-      commentBody += `\n\n<!-- gh-aw-tracker-id: ${trackerId} -->`;
-    }
-
-    // Add comment type marker to identify this as a reaction comment
-    commentBody += `\n\n<!-- gh-aw-comment-type: reaction -->`;
+    // Build comment body from parts, sanitizing first to preserve workflow markers
+    const commentParts = [
+      sanitizeContent(workflowLinkText),
+      ...(lockForAgent && (eventName === "issues" || eventName === "issue_comment") ? ["🔒 This issue has been locked while the workflow is running to prevent concurrent modifications."] : []),
+      ...(workflowId ? [generateWorkflowIdMarker(workflowId)] : []),
+      ...(trackerId ? [`<!-- gh-aw-tracker-id: ${trackerId} -->`] : []),
+      "<!-- gh-aw-comment-type: reaction -->",
+    ];
+    const commentBody = commentParts.join("\n\n");
 
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"

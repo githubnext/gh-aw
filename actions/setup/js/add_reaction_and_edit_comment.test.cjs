@@ -85,6 +85,18 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "456");
     });
 
+    it("should default to 'eyes' reaction when GH_AW_REACTION is not set", async () => {
+      // GH_AW_REACTION is deleted in beforeEach
+      global.context.eventName = "issues";
+      global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } };
+      mockGithub.request.mockResolvedValueOnce({ data: { id: 456 } });
+
+      const { main } = await loadModule();
+      await main();
+
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/123/reactions", expect.objectContaining({ content: "eyes" }));
+    });
+
     it("should reject invalid reaction type", async () => {
       process.env.GH_AW_REACTION = "invalid";
       global.context.eventName = "issues";
