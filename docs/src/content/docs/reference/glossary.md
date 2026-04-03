@@ -361,9 +361,9 @@ An interactive web-based editor for authoring, compiling, and previewing agentic
 
 A `gh aw audit` subcommand that compares firewall behavior across two workflow runs. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Outputs results in pretty, markdown, or JSON format. Useful for spotting regressions and behavioral drift between runs. See [CLI Reference](/gh-aw/setup/cli/#audit-diff).
 
-### Audit Report (`gh aw audit report`)
+### Cross-Run Audit Report (`gh aw logs --format`)
 
-A `gh aw audit` subcommand that aggregates firewall data across multiple workflow runs to produce a cross-run security report. The report includes an executive summary, domain inventory, and per-run breakdown. Designed for security reviews, compliance checks, and feeding debugging or optimization agents. Outputs markdown by default (suitable for `$GITHUB_STEP_SUMMARY`), or pretty/JSON format. See [CLI Reference](/gh-aw/setup/cli/#audit-report).
+A feature of `gh aw logs` that aggregates firewall data across multiple workflow runs to produce a cross-run security report. The report includes an executive summary, domain inventory, and per-run breakdown. Designed for security reviews, compliance checks, and feeding debugging or optimization agents. Outputs markdown by default (suitable for `$GITHUB_STEP_SUMMARY`), or pretty/JSON format. See [CLI Reference](/gh-aw/setup/cli/#logs).
 
 ### Frontmatter Hash
 

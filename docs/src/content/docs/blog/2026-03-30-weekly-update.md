@@ -34,14 +34,14 @@ Security fixes:
 
 ### [v0.64.2](https://github.com/github/gh-aw/releases/tag/v0.64.2) — March 26
 
-The `gh aw audit` command got a powerful new subcommand:
+The `gh aw logs` command gained cross-run report generation via the new `--format` flag:
 
-**`gh aw audit report`** aggregates firewall behavior across multiple workflow runs and produces an executive summary, domain inventory, and per-run breakdown:
+**`gh aw logs --format`** aggregates firewall behavior across multiple workflow runs and produces an executive summary, domain inventory, and per-run breakdown:
 
 ```bash
-gh aw audit report --workflow "agent-task" --last 10       # Markdown
-gh aw audit report --last 5 --json                         # JSON for dashboards
-gh aw audit report --format pretty                         # Console output
+gh aw logs agent-task --format markdown --count 10    # Markdown
+gh aw logs --format markdown --json                   # JSON for dashboards
+gh aw logs --format pretty                            # Console output
 ```
 
 This release also includes a **YAML env injection security fix** ([#23055](https://github.com/github/gh-aw/pull/23055)): all `env:` emission sites in the compiler now use `%q`-escaped YAML scalars, preventing newlines or quote characters in frontmatter values from injecting sibling env variables into `.lock.yml` files.

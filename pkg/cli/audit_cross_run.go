@@ -9,10 +9,6 @@ import (
 
 var auditCrossRunLog = logger.New("cli:audit_cross_run")
 
-// maxAuditReportRuns is the upper bound on runs to analyze in a single report
-// to bound download time and memory usage.
-const maxAuditReportRuns = 50
-
 // mcpErrorRateThreshold is the error-rate above which an MCP server is flagged as unreliable.
 const mcpErrorRateThreshold = 0.10
 

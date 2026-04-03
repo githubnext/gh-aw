@@ -53,6 +53,7 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		"",                           // safeOutputType
 		false,                        // filteredIntegrity
 		false,                        // train
+		"",                           // format
 	)
 
 	// Restore stdout and read output
