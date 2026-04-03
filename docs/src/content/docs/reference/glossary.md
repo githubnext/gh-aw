@@ -263,7 +263,13 @@ Natural language schedule syntax that automatically distributes workflow executi
 
 ### Imports
 
-Reusable workflow components shared across multiple workflows. Specified in the `imports:` field, can include tool configurations, common instructions, or security guidelines.
+Reusable workflow components shared across multiple workflows. Specified in the `imports:` field, can include tool configurations, common instructions, or security guidelines. Shared files without an `on:` field are validated but not compiled into GitHub Actions — they are only importable by other workflows.
+
+Imports support a parameterized form using `uses`/`with` syntax when the shared file declares an `import-schema`. The compiler validates the passed values, substitutes them into the shared file, and errors on conflicting imports of the same file. See [Imports Reference](/gh-aw/reference/imports/).
+
+### Import Schema (`import-schema`)
+
+A typed parameter contract declared in a shared workflow file that enables callers to pass values via `uses`/`with` syntax. The compiler validates each caller's `with` values against the schema and substitutes them into the shared file's frontmatter and body before processing. Supports typed fields with optional defaults; required fields without defaults cause a compile-time error if omitted. See [Imports Reference](/gh-aw/reference/imports/#import-schema-import-schema).
 
 ### Label Trigger Shorthand
 
