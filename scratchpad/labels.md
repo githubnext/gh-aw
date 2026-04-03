@@ -39,6 +39,10 @@ Labels help organize and triage issues for better project management. Use labels
 - **ai-inspected** - Issue reviewed by AI workflow
 - **smoke-copilot** - Smoke test results
 
+### Domain Labels (used by scheduled workflows)
+- **constraint-solving** - Constraint solving problems and algorithms (used by Constraint Solving POTD workflow)
+- **problem-of-the-day** - Problem of the day (used by Constraint Solving POTD workflow)
+
 ### Status Labels
 - **good first issue** - Suitable for new contributors
 - **dependencies** - Dependency updates
@@ -108,6 +112,7 @@ Type: bug, enhancement, documentation, question, testing
 Priority: priority-high, priority-medium, priority-low
 Component: cli, workflow, mcp, actions, engine, automation
 Workflow: ai-generated, plan, ai-inspected, smoke-copilot
+Domain: constraint-solving, problem-of-the-day
 Status: good first issue, dependencies
 ```
 
