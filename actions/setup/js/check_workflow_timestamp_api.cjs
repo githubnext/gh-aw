@@ -2,10 +2,12 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Check workflow lock file integrity using frontmatter hash validation.
+ * Check for a stale workflow lock file using frontmatter hash comparison.
  * This script verifies that the stored frontmatter hash in the lock file
- * matches the recomputed hash from the source .md file, regardless of
- * commit timestamps.
+ * matches the recomputed hash from the source .md file, detecting cases where
+ * the workflow was edited without recompiling the lock file. It does not
+ * provide tamper protection — use code review to guard against intentional
+ * modifications.
  *
  * Supports both same-repo and cross-repo reusable workflow scenarios:
  * - Primary: GitHub API (uses GITHUB_WORKFLOW_REF to identify source repo)
@@ -33,7 +35,7 @@ async function main() {
   const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
   const lockFilePath = `.github/workflows/${workflowFile}`;
 
-  core.info(`Checking workflow lock file integrity using frontmatter hash:`);
+  core.info(`Checking for stale lock file using frontmatter hash:`);
   core.info(`  Source: ${workflowMdPath}`);
   core.info(`  Lock file: ${lockFilePath}`);
 
@@ -193,11 +195,11 @@ async function main() {
   if (!hashComparison) {
     // Could not compute hash - be conservative and fail
     core.warning("Could not compare frontmatter hashes - assuming lock file is outdated");
-    const warningMessage = `Lock file '${lockFilePath}' integrity check failed! Could not verify frontmatter hash for '${workflowMdPath}'. Run 'gh aw compile' to regenerate the lock file.`;
+    const warningMessage = `Lock file '${lockFilePath}' is outdated or unverifiable! Could not verify frontmatter hash for '${workflowMdPath}'. Run 'gh aw compile' to regenerate the lock file.`;
 
     let summary = core.summary
       .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
-      .addRaw("**WARNING**: Lock file integrity check failed. Could not verify frontmatter hash.\n\n")
+      .addRaw("**WARNING**: Could not verify whether lock file is up to date. Frontmatter hash check failed.\n\n")
       .addRaw("**Files:**\n")
       .addRaw(`- Source: \`${workflowMdPath}\`\n`)
       .addRaw(`- Lock: \`${lockFilePath}\`\n\n`)
