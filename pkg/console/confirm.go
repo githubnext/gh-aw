@@ -3,7 +3,7 @@
 package console
 
 import (
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/styles"
 )
 
