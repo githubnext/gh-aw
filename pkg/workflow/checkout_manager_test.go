@@ -890,7 +890,7 @@ func TestDefaultCheckoutWithAppAuth(t *testing.T) {
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "steps.checkout-app-token-0.outputs.token", "checkout should reference app token step")
+		assert.Contains(t, combined, "needs.activation.outputs.checkout_app_token_0", "checkout should reference app token step")
 	})
 }
 
@@ -908,7 +908,7 @@ func TestAdditionalCheckoutWithAppAuth(t *testing.T) {
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "steps.checkout-app-token-1.outputs.token", "additional checkout should reference app token at index 1")
+		assert.Contains(t, combined, "needs.activation.outputs.checkout_app_token_1", "additional checkout should reference app token at index 1")
 		assert.Contains(t, combined, "other/repo", "should reference the additional repo")
 	})
 }
