@@ -437,7 +437,7 @@ The output isolation layer enforces separation between AI agent operations (read
 3. Workflow-level token
 4. Default token
 
-**OI-10**: Tokens MUST be GitHub Actions secret expressions (e.g., `${{ secrets.TOKEN_NAME }}`). Plaintext tokens MUST cause compilation failure.
+**OI-10**: Tokens MUST be GitHub Actions expressions referencing secrets or job outputs (e.g., `${{ secrets.TOKEN_NAME }}` or `${{ needs.auth.outputs.token }}`). Plaintext tokens MUST cause compilation failure.
 
 ### 5.6 Output Isolation Guarantees
 
@@ -621,13 +621,14 @@ roles: all                         # Least restrictive
 
 ### 7.7 Token Validation
 
-**PM-13**: The implementation MUST validate that `github-token` fields contain GitHub Actions secret expressions.
+**PM-13**: The implementation MUST validate that `github-token` fields contain GitHub Actions expressions referencing secrets or job outputs.
 
 **PM-14**: Plaintext tokens or environment variables MUST cause compilation failure.
 
 **PM-15**: Valid token formats:
 - `${{ secrets.TOKEN_NAME }}`
 - `${{ secrets.ORG_TOKEN || secrets.FALLBACK_TOKEN }}`
+- `${{ needs.auth.outputs.token }}`
 
 ---
 
