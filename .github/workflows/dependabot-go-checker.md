@@ -15,7 +15,12 @@ permissions:
   pull-requests: read
   security-events: read
 
-network: defaults
+network:
+  allowed:
+    - defaults
+    - proxy.golang.org
+    - sum.golang.org
+    - pkg.go.dev
 
 safe-outputs:
   close-issue:

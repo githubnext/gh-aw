@@ -44,6 +44,16 @@ network: defaults
 timeout-minutes: 30
 
 steps:
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
   - name: Find and download artifacts from the most expensive Claude workflow
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,7 +62,7 @@ steps:
       mkdir -p /tmp/token-optimizer-claude
 
       echo "📥 Loading Claude workflow runs from last 24 hours..."
-      ./gh-aw logs \
+      gh aw logs \
         --engine claude \
         --start-date -1d \
         --json \

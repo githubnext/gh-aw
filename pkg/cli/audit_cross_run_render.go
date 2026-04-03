@@ -139,6 +139,29 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 		fmt.Println()
 	}
 
+	// Drain3 insights
+	if len(report.Drain3Insights) > 0 {
+		fmt.Println("## Agent Event Pattern Analysis")
+		fmt.Println()
+		for _, insight := range report.Drain3Insights {
+			severityIcon := "ℹ"
+			switch insight.Severity {
+			case "high":
+				severityIcon = "🔴"
+			case "medium":
+				severityIcon = "🟠"
+			case "low":
+				severityIcon = "🟡"
+			}
+			fmt.Printf("### %s %s\n\n", severityIcon, insight.Title)
+			fmt.Printf("**Category:** %s | **Severity:** %s\n\n", insight.Category, insight.Severity)
+			fmt.Printf("%s\n\n", insight.Summary)
+			if insight.Evidence != "" {
+				fmt.Printf("_Evidence:_ `%s`\n\n", insight.Evidence)
+			}
+		}
+	}
+
 	// Per-run breakdown
 	if len(report.PerRunBreakdown) > 0 {
 		fmt.Println("## Per-Run Breakdown")
@@ -270,6 +293,28 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 			fmt.Fprintf(os.Stderr, "  %s %-45s  %s  seen=%d/%d  allowed=%d  blocked=%d\n",
 				icon, entry.Domain, entry.OverallStatus, entry.SeenInRuns, report.RunsAnalyzed,
 				entry.TotalAllowed, entry.TotalBlocked)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	// Drain3 insights
+	if len(report.Drain3Insights) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Agent Event Pattern Analysis (%d insights)", len(report.Drain3Insights))))
+		for _, insight := range report.Drain3Insights {
+			severityIcon := "ℹ"
+			switch insight.Severity {
+			case "high":
+				severityIcon = "🔴"
+			case "medium":
+				severityIcon = "🟠"
+			case "low":
+				severityIcon = "🟡"
+			}
+			fmt.Fprintf(os.Stderr, "  %s [%s/%s] %s\n", severityIcon, insight.Category, insight.Severity, insight.Title)
+			fmt.Fprintf(os.Stderr, "     %s\n", insight.Summary)
+			if insight.Evidence != "" {
+				fmt.Fprintf(os.Stderr, "     evidence: %s\n", insight.Evidence)
+			}
 		}
 		fmt.Fprintln(os.Stderr)
 	}

@@ -36,6 +36,7 @@ type CrossRunAuditReport struct {
 	ErrorTrend      ErrorTrendData            `json:"error_trend"`
 	DomainInventory []DomainInventoryEntry    `json:"domain_inventory"`
 	PerRunBreakdown []PerRunFirewallBreakdown `json:"per_run_breakdown"`
+	Drain3Insights  []ObservabilityInsight    `json:"drain3_insights,omitempty"`
 }
 
 // CrossRunSummary provides top-level statistics across all analyzed runs.
@@ -366,6 +367,9 @@ func buildCrossRunAuditReport(inputs []crossRunInput) *CrossRunAuditReport {
 	auditCrossRunLog.Printf("Cross-run audit report built: runs=%d, with_data=%d, unique_domains=%d, mcp_servers=%d",
 		report.RunsAnalyzed, report.RunsWithData, report.Summary.UniqueDomains, len(report.MCPHealth))
 
+	// --- Phase 7: drain3 multi-run pattern analysis ---
+	report.Drain3Insights = buildDrain3InsightsFromCrossRunInputs(inputs)
+
 	return report
 }
 
@@ -465,4 +469,31 @@ func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
 		trend.AvgCost, trend.AvgTokens, trend.AvgTurns, len(trend.CostSpikes), len(trend.TokenSpikes))
 
 	return trend
+}
+
+// buildDrain3InsightsFromCrossRunInputs converts cross-run inputs to ProcessedRuns and
+// delegates to the shared multi-run drain3 analysis function.
+// Returns nil if inputs is empty or if no events could be extracted.
+func buildDrain3InsightsFromCrossRunInputs(inputs []crossRunInput) []ObservabilityInsight {
+	if len(inputs) == 0 {
+		return nil
+	}
+	runs := make([]ProcessedRun, 0, len(inputs))
+	for _, in := range inputs {
+		pr := ProcessedRun{
+			Run: WorkflowRun{
+				DatabaseID:    in.RunID,
+				WorkflowName:  in.WorkflowName,
+				Conclusion:    in.Conclusion,
+				Duration:      in.Duration,
+				Turns:         in.Metrics.Turns,
+				TokenUsage:    in.Metrics.TokenUsage,
+				EstimatedCost: in.Metrics.EstimatedCost,
+				ErrorCount:    in.ErrorCount,
+			},
+			MCPFailures: in.MCPFailures,
+		}
+		runs = append(runs, pr)
+	}
+	return buildDrain3InsightsMultiRun(runs)
 }

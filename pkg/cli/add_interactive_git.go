@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/styles"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -97,7 +97,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 						Options(options...).
 						Value(&chosen),
 				),
-			).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+			).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 			if selectErr := selectForm.Run(); selectErr != nil {
 				return fmt.Errorf("failed to get user input: %w", selectErr)
@@ -130,7 +130,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 							Description("Add a prefix if required, for example: feat: or fix:").
 							Value(&newTitle),
 					),
-				).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+				).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 				if titleErr := titleForm.Run(); titleErr != nil {
 					return fmt.Errorf("failed to get user input: %w", titleErr)
 				}

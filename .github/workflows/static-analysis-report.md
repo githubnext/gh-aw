@@ -28,6 +28,16 @@ strict: true
 imports:
   - shared/reporting.md
 steps:
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
   - name: Pull static analysis Docker images
     run: |
       set -e
@@ -63,7 +73,7 @@ steps:
       
       # Run compile with all security scanner flags to download Docker images
       # Store the output in a file for inspection
-      ./gh-aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt
+      gh aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"

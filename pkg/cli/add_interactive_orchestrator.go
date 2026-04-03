@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -231,7 +231,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 				Negative("No, cancel").
 				Value(&confirmed),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("confirmation failed: %w", err)

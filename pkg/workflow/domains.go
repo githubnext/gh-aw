@@ -267,7 +267,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
 //   - "dart": Dart/Flutter ecosystem
-//   - "deno": Deno runtime (deno.land, *.jsr.io, googleapis.deno.dev, fresh.deno.dev)
+//   - "deno": Deno runtime (deno.land, jsr.io, googleapis.deno.dev, fresh.deno.dev)
 //   - "dotnet": .NET and NuGet ecosystem
 //   - "elixir": Elixir/Hex
 //   - "github": GitHub domains (*.githubusercontent.com, github.githubassets.com, etc.)

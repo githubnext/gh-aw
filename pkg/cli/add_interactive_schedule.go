@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -228,7 +228,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 					Options(options...).
 					Value(&selected),
 			),
-		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 		if err := form.RunWithContext(c.Ctx); err != nil {
 			return fmt.Errorf("failed to select schedule frequency: %w", err)

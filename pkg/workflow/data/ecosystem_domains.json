@@ -41,7 +41,7 @@
     "packages.microsoft.com",
     "www.googleapis.com"
   ],
-  "deno": ["deno.land", "jsr.io", "*.jsr.io", "googleapis.deno.dev", "fresh.deno.dev"],
+  "deno": ["deno.land", "jsr.io", "googleapis.deno.dev", "fresh.deno.dev"],
   "dev-tools": [
     "app.renovatebot.com",
     "appveyor.com",
@@ -200,7 +200,6 @@
     "bun.sh",
     "deno.land",
     "jsr.io",
-    "*.jsr.io",
     "registry.bower.io",
     "esm.sh",
     "googleapis.deno.dev",

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -124,7 +124,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 				Options(engineOptions...).
 				Value(&selectedEngine),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)

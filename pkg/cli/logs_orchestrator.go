@@ -42,8 +42,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train)
 
 	// Ensure .github/aw/logs/.gitignore exists on every invocation
 	if err := ensureLogsGitignore(); err != nil {
@@ -517,6 +517,13 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		summaryPath := filepath.Join(outputDir, summaryFile)
 		if err := writeSummaryFile(summaryPath, logsData, verbose); err != nil {
 			return fmt.Errorf("failed to write summary file: %w", err)
+		}
+	}
+
+	// Train drain3 weights if requested.
+	if train {
+		if err := TrainDrain3Weights(processedRuns, outputDir, verbose); err != nil {
+			return fmt.Errorf("log pattern training: %w", err)
 		}
 	}
 

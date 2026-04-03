@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -101,7 +101,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 				Value(&b.WorkflowName).
 				Validate(ValidateWorkflowName),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	return form.RunWithContext(b.ctx)
 }
@@ -224,7 +224,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(b.ctx); err != nil {
 		return err
@@ -269,7 +269,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 					Negative("No, cancel").
 					Value(&overwrite),
 			),
-		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 		if err := confirmForm.Run(); err != nil {
 			return fmt.Errorf("confirmation failed: %w", err)

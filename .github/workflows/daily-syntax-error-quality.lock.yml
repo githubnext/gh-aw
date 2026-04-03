@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d46ca0b67a726081853ef7d2b9e15038063a2772aca1472e1284609871a6b705","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"474cbbcb1215a205651a5382f361c8c135e886ef171fdac0a000ddfa405f51c9","strict":true,"agent_id":"copilot"}
 
 name: "Daily Syntax Error Quality Check"
 "on":
@@ -132,14 +132,14 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_0dcc6139e05b0737_EOF'
+          cat << 'GH_AW_PROMPT_d2c6ca204f616938_EOF'
           <system>
-          GH_AW_PROMPT_0dcc6139e05b0737_EOF
+          GH_AW_PROMPT_d2c6ca204f616938_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0dcc6139e05b0737_EOF'
+          cat << 'GH_AW_PROMPT_d2c6ca204f616938_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
@@ -171,13 +171,13 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_0dcc6139e05b0737_EOF
+          GH_AW_PROMPT_d2c6ca204f616938_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0dcc6139e05b0737_EOF'
+          cat << 'GH_AW_PROMPT_d2c6ca204f616938_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/daily-syntax-error-quality.md}}
-          GH_AW_PROMPT_0dcc6139e05b0737_EOF
+          GH_AW_PROMPT_d2c6ca204f616938_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -297,18 +297,16 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Build gh-aw
-        run: |
-          make build
-      - name: Verify gh-aw installation
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install gh-aw CLI
         run: |-
-          ./gh-aw --version
-          echo "gh-aw binary is ready at ./gh-aw"
+          if gh extension list | grep -q "github/gh-aw"; then
+            gh extension upgrade gh-aw || true
+          else
+            gh extension install github/gh-aw
+          fi
+          gh aw --version
 
       - name: Configure Git credentials
         env:
@@ -359,12 +357,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_5f03b6d985da1113_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_c8a7fecb4eb398bb_EOF'
           {"create_issue":{"close_older_issues":true,"expires":72,"labels":["dx","error-messages","automated-analysis"],"max":1,"title_prefix":"[syntax-error-quality] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_5f03b6d985da1113_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_c8a7fecb4eb398bb_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_c7996a926c12dfe4_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_6ac716c7b9859829_EOF'
           {
             "description_suffixes": {
               "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[syntax-error-quality] \". Labels [\"dx\" \"error-messages\" \"automated-analysis\"] will be automatically added."
@@ -372,8 +370,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_c7996a926c12dfe4_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_05a882d6dae3547d_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_6ac716c7b9859829_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_fecfe109563c4de0_EOF'
           {
             "create_issue": {
               "defaultMax": 1,
@@ -466,7 +464,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_05a882d6dae3547d_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_fecfe109563c4de0_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -536,7 +534,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.12'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_96209b8e9e2ddb9a_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_427d7ff0f3021689_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -577,7 +575,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_96209b8e9e2ddb9a_EOF
+          GH_AW_MCP_CONFIG_427d7ff0f3021689_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -591,7 +589,6 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        # --allow-tool shell(./gh-aw compile)
         # --allow-tool shell(cat .github/workflows/*.md)
         # --allow-tool shell(cat /tmp/*.md)
         # --allow-tool shell(cat)
@@ -599,6 +596,7 @@ jobs:
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
         # --allow-tool shell(find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md')
+        # --allow-tool shell(gh aw compile *)
         # --allow-tool shell(grep)
         # --allow-tool shell(head -n * .github/workflows/*.md)
         # --allow-tool shell(head)
@@ -616,7 +614,7 @@ jobs:
           touch /tmp/gh-aw/agent-step-summary.md
           # shellcheck disable=SC1003
           sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --env-all --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --image-tag 0.25.13 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(./gh-aw compile)'\'' --allow-tool '\''shell(cat .github/workflows/*.md)'\'' --allow-tool '\''shell(cat /tmp/*.md)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(cp .github/workflows/*.md /tmp/*.md)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find .github/workflows -name '\''\'\'''\''*.md'\''\'\'''\'' -type f ! -name '\''\'\'''\''daily-*.md'\''\'\'''\'' ! -name '\''\'\'''\''*-test.md'\''\'\'''\'')'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head -n * .github/workflows/*.md)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(cat .github/workflows/*.md)'\'' --allow-tool '\''shell(cat /tmp/*.md)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(cp .github/workflows/*.md /tmp/*.md)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find .github/workflows -name '\''\'\'''\''*.md'\''\'\'''\'' -type f ! -name '\''\'\'''\''daily-*.md'\''\'\'''\'' ! -name '\''\'\'''\''*-test.md'\''\'\'''\'')'\'' --allow-tool '\''shell(gh aw compile *)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head -n * .github/workflows/*.md)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool write --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ github.token }}

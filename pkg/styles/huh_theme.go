@@ -3,29 +3,27 @@
 package styles
 
 import (
-	"github.com/charmbracelet/huh"
-	// huh v0.8.0 depends on charmbracelet/lipgloss v1, not charm.land/lipgloss/v2.
-	// This file intentionally uses the v1 import to match huh's type expectations.
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 )
 
-// HuhTheme returns a custom huh.Theme that maps the pkg/styles Dracula-inspired
+// HuhTheme is a huh.ThemeFunc that maps the pkg/styles Dracula-inspired
 // color palette to huh form fields, giving interactive forms the same visual
 // identity as the rest of the CLI output.
-func HuhTheme() *huh.Theme {
-	t := huh.ThemeBase()
+var HuhTheme huh.ThemeFunc = func(isDark bool) *huh.Styles {
+	t := huh.ThemeBase(isDark)
+	lightDark := lipgloss.LightDark(isDark)
 
-	// Map the pkg/styles palette to lipgloss.AdaptiveColor for huh compatibility.
-	// huh uses github.com/charmbracelet/lipgloss, so we use that type here.
+	// Map the pkg/styles palette using lipgloss v2's LightDark helper.
 	var (
-		primary    = lipgloss.AdaptiveColor{Light: hexColorPurpleLight, Dark: hexColorPurpleDark}
-		success    = lipgloss.AdaptiveColor{Light: hexColorSuccessLight, Dark: hexColorSuccessDark}
-		errorColor = lipgloss.AdaptiveColor{Light: hexColorErrorLight, Dark: hexColorErrorDark}
-		warning    = lipgloss.AdaptiveColor{Light: hexColorWarningLight, Dark: hexColorWarningDark}
-		comment    = lipgloss.AdaptiveColor{Light: hexColorCommentLight, Dark: hexColorCommentDark}
-		fg         = lipgloss.AdaptiveColor{Light: hexColorForegroundLight, Dark: hexColorForegroundDark}
-		bg         = lipgloss.AdaptiveColor{Light: hexColorBackgroundLight, Dark: hexColorBackgroundDark}
-		border     = lipgloss.AdaptiveColor{Light: hexColorBorderLight, Dark: hexColorBorderDark}
+		primary    = lightDark(lipgloss.Color(hexColorPurpleLight), lipgloss.Color(hexColorPurpleDark))
+		success    = lightDark(lipgloss.Color(hexColorSuccessLight), lipgloss.Color(hexColorSuccessDark))
+		errorColor = lightDark(lipgloss.Color(hexColorErrorLight), lipgloss.Color(hexColorErrorDark))
+		warning    = lightDark(lipgloss.Color(hexColorWarningLight), lipgloss.Color(hexColorWarningDark))
+		comment    = lightDark(lipgloss.Color(hexColorCommentLight), lipgloss.Color(hexColorCommentDark))
+		fg         = lightDark(lipgloss.Color(hexColorForegroundLight), lipgloss.Color(hexColorForegroundDark))
+		bg         = lightDark(lipgloss.Color(hexColorBackgroundLight), lipgloss.Color(hexColorBackgroundDark))
+		border     = lightDark(lipgloss.Color(hexColorBorderLight), lipgloss.Color(hexColorBorderDark))
 	)
 
 	// Focused field styles

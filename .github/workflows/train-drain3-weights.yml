@@ -1,0 +1,92 @@
+name: Train Log Pattern Weights
+
+on:
+  schedule:
+    - cron: "0 4 * * *"  # Daily at 04:00 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  train:
+    name: Download logs and train drain3 weights
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Download run logs and train weights
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/drain3-logs
+          ./gh-aw logs --train --output /tmp/drain3-logs --count 50
+
+      - name: Copy trained weights to source tree
+        run: |
+          if [ -f /tmp/drain3-logs/drain3_weights.json ]; then
+            cp /tmp/drain3-logs/drain3_weights.json pkg/agentdrain/data/default_weights.json
+            echo "✅ Weights file updated successfully"
+          else
+            echo "⚠️ No drain3_weights.json produced – skipping PR creation"
+            exit 0
+          fi
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet pkg/agentdrain/data/default_weights.json; then
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes to default_weights.json – weights are already up to date"
+          else
+            echo "changes=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected in default_weights.json"
+          fi
+
+      - name: Configure Git
+        if: steps.check-changes.outputs.changes == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create pull request with updated weights
+        if: steps.check-changes.outputs.changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="ci/train-drain3-weights-$(date +%Y%m%d)"
+
+          git checkout -b "$BRANCH_NAME"
+          git add pkg/agentdrain/data/default_weights.json
+          git commit -m "chore: update drain3 default weights from daily training run"
+
+          git push origin "$BRANCH_NAME"
+
+          gh pr create \
+            --title "chore: update drain3 default log pattern weights" \
+            --body "This pull request updates the default Drain3 log pattern weights (\`pkg/agentdrain/data/default_weights.json\`) by training on the most recent workflow run logs.
+
+          ## What changed
+          - Re-trained log template clusters from the latest run logs using \`gh aw logs --train\`
+          - Copied resulting \`drain3_weights.json\` to the embedded defaults path
+
+          ## How to verify
+          1. Build the binary with \`make build\`
+          2. Run \`gh aw audit\` or \`gh aw logs --train\` and confirm the anomaly analysis reflects the updated patterns
+
+          This PR was created automatically by the [train-drain3-weights](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) workflow." \
+            --head "$BRANCH_NAME" \
+            --base main

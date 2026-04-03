@@ -59,6 +59,7 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 		"summary.json",                    // summaryFile
 		"",                                // safeOutputType
 		false,                             // filteredIntegrity
+		false,                             // train
 	)
 
 	// Close writers first
@@ -180,6 +181,7 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 		"summary.json",
 		"",    // safeOutputType
 		false, // filteredIntegrity
+		false, // train
 	)
 
 	// Close the writer

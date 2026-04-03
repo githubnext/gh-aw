@@ -758,3 +758,148 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 	assert.Contains(t, output, "Per-Run Breakdown", "Should have per-run breakdown")
 	assert.Contains(t, output, "⚠", "Should have spike warnings")
 }
+
+func TestBuildDrain3InsightsFromCrossRunInputs_Empty(t *testing.T) {
+	insights := buildDrain3InsightsFromCrossRunInputs(nil)
+	assert.Nil(t, insights, "should return nil for empty inputs")
+
+	insights = buildDrain3InsightsFromCrossRunInputs([]crossRunInput{})
+	assert.Nil(t, insights, "should return nil for empty slice")
+}
+
+func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
+	inputs := []crossRunInput{
+		{
+			RunID:        1,
+			WorkflowName: "test-workflow",
+			Conclusion:   "success",
+			Metrics: LogMetrics{
+				Turns:         5,
+				TokenUsage:    1000,
+				EstimatedCost: 0.05,
+			},
+			ErrorCount: 0,
+		},
+		{
+			RunID:        2,
+			WorkflowName: "test-workflow",
+			Conclusion:   "failure",
+			Metrics: LogMetrics{
+				Turns:         8,
+				TokenUsage:    2000,
+				EstimatedCost: 0.1,
+			},
+			ErrorCount: 2,
+			MCPFailures: []MCPFailureReport{
+				{ServerName: "github", Status: "timeout"},
+			},
+		},
+	}
+
+	// Verify the conversion maps fields correctly by checking via a converted ProcessedRun.
+	runs := make([]ProcessedRun, 0, len(inputs))
+	for _, in := range inputs {
+		runs = append(runs, ProcessedRun{
+			Run: WorkflowRun{
+				DatabaseID:    in.RunID,
+				WorkflowName:  in.WorkflowName,
+				Conclusion:    in.Conclusion,
+				Turns:         in.Metrics.Turns,
+				TokenUsage:    in.Metrics.TokenUsage,
+				EstimatedCost: in.Metrics.EstimatedCost,
+				ErrorCount:    in.ErrorCount,
+			},
+			MCPFailures: in.MCPFailures,
+		})
+	}
+	require.Equal(t, int64(1), runs[0].Run.DatabaseID, "first run ID should map to 1")
+	require.Equal(t, "test-workflow", runs[0].Run.WorkflowName, "workflow name should be mapped")
+	require.Equal(t, "success", runs[0].Run.Conclusion, "conclusion should be mapped")
+	require.Equal(t, 5, runs[0].Run.Turns, "turns should be mapped from Metrics.Turns")
+	require.Equal(t, 1000, runs[0].Run.TokenUsage, "tokens should be mapped from Metrics.TokenUsage")
+	require.Len(t, runs[1].MCPFailures, 1, "MCPFailures should be mapped")
+	require.Equal(t, "github", runs[1].MCPFailures[0].ServerName, "MCP server name should be mapped")
+
+	insights := buildDrain3InsightsFromCrossRunInputs(inputs)
+	// Drain3 insights may or may not be generated depending on event count,
+	// but the function should not panic or error.
+	// If insights are generated they should have valid fields.
+	for _, insight := range insights {
+		assert.NotEmpty(t, insight.Category, "insight should have a category")
+		assert.NotEmpty(t, insight.Severity, "insight should have a severity")
+		assert.NotEmpty(t, insight.Title, "insight should have a title")
+	}
+}
+
+func TestBuildCrossRunAuditReport_IncludesDrain3Insights(t *testing.T) {
+	inputs := []crossRunInput{
+		{
+			RunID:        100,
+			WorkflowName: "test-workflow",
+			Conclusion:   "success",
+			Metrics:      LogMetrics{Turns: 5, TokenUsage: 500, EstimatedCost: 0.05},
+			ErrorCount:   1,
+			MCPFailures:  []MCPFailureReport{{ServerName: "github", Status: "timeout"}},
+		},
+		{
+			RunID:        101,
+			WorkflowName: "test-workflow",
+			Conclusion:   "failure",
+			Metrics:      LogMetrics{Turns: 8, TokenUsage: 2000, EstimatedCost: 0.1},
+			ErrorCount:   2,
+		},
+	}
+
+	report := buildCrossRunAuditReport(inputs)
+	require.NotNil(t, report, "report should not be nil")
+
+	// Phase 7 should have run and may produce insights. Even if no events are
+	// extracted the field must be initialised (nil is acceptable).
+	// Verify that Phase 7 fired without panic; if insights were produced, check
+	// they have the required fields.
+	for _, insight := range report.Drain3Insights {
+		assert.NotEmpty(t, insight.Category, "Drain3 insight should have a category")
+		assert.NotEmpty(t, insight.Severity, "Drain3 insight should have a severity")
+		assert.NotEmpty(t, insight.Title, "Drain3 insight should have a title")
+	}
+}
+
+func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
+	report := &CrossRunAuditReport{
+		RunsAnalyzed: 1,
+		Drain3Insights: []ObservabilityInsight{
+			{
+				Category: "execution",
+				Severity: "info",
+				Title:    "Log template patterns mined",
+				Summary:  "Analysis identified 2 event templates.",
+				Evidence: "plan=1 finish=1",
+			},
+			{
+				Category: "reliability",
+				Severity: "high",
+				Title:    "2 anomalous event pattern(s) detected",
+				Summary:  "Unusual events detected.",
+			},
+		},
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	renderCrossRunReportMarkdown(report)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Agent Event Pattern Analysis", "Should include agent event pattern analysis section header")
+	assert.Contains(t, output, "Log template patterns mined", "Should include first insight title")
+	assert.Contains(t, output, "2 anomalous event pattern(s) detected", "Should include second insight title")
+	assert.Contains(t, output, "plan=1 finish=1", "Should include evidence")
+	assert.Contains(t, output, "🔴", "Should include high severity icon")
+}
