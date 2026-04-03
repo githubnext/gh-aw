@@ -124,7 +124,9 @@ function generateTokenUsageSummary(summary) {
   if (!summary || summary.totalRequests === 0) return "";
 
   const lines = [];
-  lines.push("### 📊 Token Usage\n");
+  lines.push("<details>");
+  lines.push("<summary><b>📊 Token Usage</b></summary>\n");
+  lines.push("");
   lines.push("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
   lines.push("|-------|------:|-------:|-----------:|------------:|---:|---------:|---------:|");
 
@@ -161,6 +163,9 @@ function generateTokenUsageSummary(summary) {
     const w = getTokenClassWeights();
     lines.push(`<sub>ET weights: input=${w.input} · cached_input=${w.cached_input} · output=${w.output} · reasoning=${w.reasoning} · cache_write=${w.cache_write}</sub>`);
   }
+
+  lines.push("");
+  lines.push("</details>\n");
 
   return lines.join("\n") + "\n";
 }
