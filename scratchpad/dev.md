@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.0
-**Last Updated**: 2026-04-02
+**Version**: 5.1
+**Last Updated**: 2026-04-03
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2661,6 +2661,9 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [mdflow Deep Research](./mdflow.md) - Technical comparison of mdflow and gh-aw: custom engine opportunities, template variable patterns, and import mechanism differences
 - [mdflow Syntax Comparison](./mdflow-comparison.md) - Detailed comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, and execution patterns
 - [oh-my-opencode Comparison](./oh-my-code.md) - Deep research comparison of oh-my-opencode and gh-aw: architecture, use cases, tool ecosystems, security models, and implementation patterns
+- [Agent Sessions Terminology Migration](./agent-sessions.md) - Migration plan for renaming "agent task" to "agent session": schema updates, codemod in `fix_codemods.go`, Go/JavaScript code changes, documentation updates, and backward compatibility strategy
+- [Safe Output Handler Factory Pattern](./safe-output-handlers-refactoring.md) - Refactoring status for all 11 safe output handlers to the handler factory pattern (`main(config)` returns a message handler function): per-handler status, testing strategy, and handler manager compatibility
+- [Serena Tools Statistical Analysis](./serena-tools-analysis.md) - Deep statistical analysis of Serena MCP tool usage in workflow run 21560089409: tool adoption rates (26% of registered tools used), call distributions, and unused tool identification
 
 ### External References
 
@@ -2672,6 +2675,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.1 (2026-04-03): Maintenance tone scan — 0 tone issues found across 3 previously uncovered spec files. Added 3 new Related Documentation links: `agent-sessions.md` (terminology migration plan), `safe-output-handlers-refactoring.md` (handler factory pattern status), `serena-tools-analysis.md` (Serena tool usage statistics). Coverage: 72 spec files (3 new).
 - v5.0 (2026-04-02): Maintenance tone scan — fixed 3 tone issues across 2 previously uncovered spec files: `capitalization.md` (2 fixes: "maintains professional consistency"→removed, "simplifies both user comprehension"→"reduces ambiguity for contributors"), `mdflow.md` ("significantly exceeds"→"supports capabilities not currently available in"). Added 7 new Related Documentation links for 7 previously uncovered spec files (capitalization.md, labels.md, gastown.md, mdflow.md, mdflow-comparison.md, oh-my-code.md). Coverage: 69 spec files (7 new).
 - v4.9 (2026-04-01): Maintenance tone scan — fixed 5 tone issues across 4 spec files: `engine-architecture-review.md` (removed "well-implemented", replaced 5-star ratings with factual assessment), `engine-review-summary.md` (removed "production-ready", replaced rating section with factual conclusion), `mcp_logs_guardrails.md` (2 fixes: "helpful guidance"→"jq filter suggestions and schema", "Keeps output manageable"→"Limits response size"), `visual-regression-testing.md` (removed "negatively impact the user experience"). Added 21 new Related Documentation links for previously uncovered spec files. Coverage: 62 spec files.
 - v4.8 (2026-03-31): Added CLI Breaking Changes subsection to Release Management (from `breaking-cli-rules.md`: breaking vs. non-breaking categories, decision tree, changeset format, review checklist, JSON output standards). Added Workflow Size and Refactoring subsection to Workflow Patterns (from `workflow-refactoring-patterns.md`: size guidelines, module extraction via `imports:`, refactoring checklist, anti-patterns). Added 2 new Related Documentation links. Coverage: 68 spec files (2 new).
