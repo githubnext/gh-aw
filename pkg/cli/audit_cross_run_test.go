@@ -872,7 +872,7 @@ func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
 				Category: "execution",
 				Severity: "info",
 				Title:    "Log template patterns mined",
-				Summary:  "Drain3 identified 2 event templates.",
+				Summary:  "Analysis identified 2 event templates.",
 				Evidence: "plan=1 finish=1",
 			},
 			{
@@ -897,7 +897,7 @@ func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
 	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
-	assert.Contains(t, output, "Agent Event Pattern Analysis (Drain3)", "Should include drain3 section header")
+	assert.Contains(t, output, "Agent Event Pattern Analysis", "Should include agent event pattern analysis section header")
 	assert.Contains(t, output, "Log template patterns mined", "Should include first insight title")
 	assert.Contains(t, output, "2 anomalous event pattern(s) detected", "Should include second insight title")
 	assert.Contains(t, output, "plan=1 finish=1", "Should include evidence")

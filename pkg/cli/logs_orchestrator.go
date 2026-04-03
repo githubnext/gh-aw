@@ -523,7 +523,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	// Train drain3 weights if requested.
 	if train {
 		if err := TrainDrain3Weights(processedRuns, outputDir, verbose); err != nil {
-			return fmt.Errorf("drain3 training: %w", err)
+			return fmt.Errorf("log pattern training: %w", err)
 		}
 	}
 

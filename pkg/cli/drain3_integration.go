@@ -239,7 +239,7 @@ func buildInsightsFromDrain3Analysis(
 			Severity: "info",
 			Title:    "Log template patterns mined",
 			Summary: fmt.Sprintf(
-				"Drain3 analysis identified %d distinct event templates across %d pipeline stages from %d events.",
+				"Analysis identified %d distinct event templates across %d pipeline stages from %d events.",
 				totalClusters, len(allClusters), len(events),
 			),
 			Evidence: stageBreakdown,
@@ -260,7 +260,7 @@ func buildInsightsFromDrain3Analysis(
 			Severity: severity,
 			Title:    fmt.Sprintf("%d anomalous event pattern(s) detected", len(anomalies)),
 			Summary: fmt.Sprintf(
-				"Drain3 anomaly detection flagged %d event(s) as unusual based on template similarity and cluster rarity.",
+				"Anomaly detection flagged %d event(s) as unusual based on template similarity and cluster rarity.",
 				len(anomalies),
 			),
 			Evidence: reasons,
@@ -307,7 +307,7 @@ func buildMultiRunInsightsFromDrain3(
 			Severity: "info",
 			Title:    "Cross-run log template patterns",
 			Summary: fmt.Sprintf(
-				"Drain3 mined %d distinct event templates across %d pipeline stages from %d events in %d runs.",
+				"Mined %d distinct event templates across %d pipeline stages from %d events in %d runs.",
 				totalClusters, len(allClusters), totalEvents, runCount,
 			),
 			Evidence: stageBreakdown,
@@ -325,7 +325,7 @@ func buildMultiRunInsightsFromDrain3(
 			Severity: severity,
 			Title:    fmt.Sprintf("%d high-anomaly events across %d runs", len(highAnomalies), runCount),
 			Summary: fmt.Sprintf(
-				"Drain3 cross-run analysis flagged %d events with anomaly score > 0.6, indicating unusual patterns relative to the learned templates.",
+				"Cross-run analysis flagged %d events with anomaly score > 0.6, indicating unusual patterns relative to the learned templates.",
 				len(highAnomalies),
 			),
 			Evidence: reasons,

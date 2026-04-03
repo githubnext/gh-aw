@@ -141,7 +141,7 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 
 	// Drain3 insights
 	if len(report.Drain3Insights) > 0 {
-		fmt.Println("## Agent Event Pattern Analysis (Drain3)")
+		fmt.Println("## Agent Event Pattern Analysis")
 		fmt.Println()
 		for _, insight := range report.Drain3Insights {
 			severityIcon := "ℹ"
@@ -299,7 +299,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 
 	// Drain3 insights
 	if len(report.Drain3Insights) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Agent Event Pattern Analysis — Drain3 (%d insights)", len(report.Drain3Insights))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Agent Event Pattern Analysis (%d insights)", len(report.Drain3Insights))))
 		for _, insight := range report.Drain3Insights {
 			severityIcon := "ℹ"
 			switch insight.Severity {

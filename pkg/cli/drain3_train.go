@@ -23,16 +23,16 @@ const drain3WeightsFilename = "drain3_weights.json"
 // This function is invoked when the user passes --train to the logs command.
 func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose bool) error {
 	if len(processedRuns) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No processed runs available for drain3 training"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No processed runs available for log pattern training"))
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Training drain3 weights from %d run(s)...", len(processedRuns))))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Training log pattern weights from %d run(s)...", len(processedRuns))))
 
 	cfg := agentdrain.DefaultConfig()
 	coordinator, err := agentdrain.NewCoordinator(cfg, defaultAgentDrainStages)
 	if err != nil {
-		return fmt.Errorf("drain3 training: create coordinator: %w", err)
+		return fmt.Errorf("log pattern training: create coordinator: %w", err)
 	}
 
 	totalEvents := 0
@@ -66,7 +66,7 @@ func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose 
 
 	weightsData, err := coordinator.SaveWeightsJSON()
 	if err != nil {
-		return fmt.Errorf("drain3 training: serialize weights: %w", err)
+		return fmt.Errorf("log pattern training: serialize weights: %w", err)
 	}
 
 	// Pretty-print the weights for readability.
@@ -81,10 +81,10 @@ func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose 
 
 	outputPath := filepath.Join(outputDir, drain3WeightsFilename)
 	if err := os.WriteFile(outputPath, weightsData, 0o644); err != nil {
-		return fmt.Errorf("drain3 training: write weights file: %w", err)
+		return fmt.Errorf("log pattern training: write weights file: %w", err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Drain3 weights written to: "+outputPath))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Log pattern weights written to: "+outputPath))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		"To embed these weights as default, copy the file and rebuild:\n"+
 			"  cp "+outputPath+" pkg/agentdrain/data/default_weights.json\n"+
