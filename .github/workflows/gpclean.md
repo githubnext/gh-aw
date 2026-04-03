@@ -19,6 +19,7 @@ network:
     - "go.googlesource.com"
     - "api.github.com"
     - "github.com"
+    - "storage.googleapis.com"
 
 safe-outputs:
   create-issue:

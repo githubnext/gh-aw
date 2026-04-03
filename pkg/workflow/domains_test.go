@@ -123,8 +123,8 @@ func TestGetDomainEcosystem(t *testing.T) {
 			expected: "deno",
 		},
 		{
-			name:     "deno ecosystem - jsr.io subdomain",
-			domain:   "api.jsr.io",
+			name:     "deno ecosystem - jsr.io exact",
+			domain:   "jsr.io",
 			expected: "deno",
 		},
 
@@ -567,7 +567,7 @@ func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
 		{
 			name:           "deno ecosystem",
 			allowed:        []string{"deno"},
-			expectContains: []string{"deno.land", "jsr.io", "*.jsr.io", "googleapis.deno.dev", "fresh.deno.dev"},
+			expectContains: []string{"deno.land", "jsr.io", "googleapis.deno.dev", "fresh.deno.dev"},
 		},
 		{
 			name:           "node-cdns ecosystem",

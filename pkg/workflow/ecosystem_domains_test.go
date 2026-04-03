@@ -184,7 +184,6 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"bun.sh",
 			"deno.land",
 			"jsr.io",
-			"*.jsr.io",
 			"esm.sh",
 			"googleapis.deno.dev",
 			"googlechromelabs.github.io",
