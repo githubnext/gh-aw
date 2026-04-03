@@ -473,6 +473,7 @@ func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
 
 // buildDrain3InsightsFromCrossRunInputs converts cross-run inputs to ProcessedRuns and
 // delegates to the shared multi-run drain3 analysis function.
+// Returns nil if inputs is empty or if no events could be extracted.
 func buildDrain3InsightsFromCrossRunInputs(inputs []crossRunInput) []ObservabilityInsight {
 	if len(inputs) == 0 {
 		return nil
