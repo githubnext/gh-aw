@@ -32,7 +32,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -111,7 +113,7 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	}
 
 	// Set up repository context
-	setupRepositoryContext(compiler)
+	setupRepositoryContext(compiler, config)
 
 	return compiler
 }
@@ -195,8 +197,24 @@ func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag s
 }
 
 // setupRepositoryContext sets the repository slug for schedule scattering
-func setupRepositoryContext(compiler *workflow.Compiler) {
+func setupRepositoryContext(compiler *workflow.Compiler, config CompileConfig) {
 	compileCompilerSetupLog.Print("Setting up repository context")
+
+	// If a schedule seed is explicitly provided, use it directly
+	if config.ScheduleSeed != "" {
+		// Validate owner/repo format: must contain exactly one '/' with non-empty parts
+		parts := strings.SplitN(config.ScheduleSeed, "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			compileCompilerSetupLog.Printf("Invalid --schedule-seed value %q: expected 'owner/repo' format", config.ScheduleSeed)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("--schedule-seed %q is not in 'owner/repo' format; ignoring and falling back to git remote detection", config.ScheduleSeed),
+			))
+		} else {
+			compiler.SetRepositorySlug(config.ScheduleSeed)
+			compileCompilerSetupLog.Printf("Repository slug overridden via --schedule-seed: %s", config.ScheduleSeed)
+			return
+		}
+	}
 
 	// Set repository slug for schedule scattering
 	repoSlug := getRepositorySlugFromRemote()
