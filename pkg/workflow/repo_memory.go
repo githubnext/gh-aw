@@ -734,16 +734,21 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 	}
 
-	// Set job condition based on threat detection
-	// If threat detection is enabled, only run if detection passed
-	// Otherwise, always run (even if agent job failed)
-	jobCondition := "always()"
-	jobNeeds := []string{"agent"}
+	// Job condition: only run if the agent job succeeded (do not push repo memory when agent
+	// failed or was skipped). Using always() so the job still runs even when upstream jobs
+	// are skipped (e.g. detection is skipped when agent produces no outputs).
+	agentSucceeded := BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		BuildStringLiteral("success"),
+	)
+	jobNeeds := []string{string(constants.AgentJobName)}
+	var jobCondition string
 	if threatDetectionEnabled {
-		// When threat detection is enabled, run only if detection succeeded (no threats found)
-		// or was skipped (agent produced no outputs or patch — nothing to detect against).
-		jobCondition = RenderCondition(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()))
+		// When threat detection is enabled, also require detection passed (succeeded or skipped).
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()), agentSucceeded))
 		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
+	} else {
+		jobCondition = RenderCondition(BuildAnd(BuildFunctionCall("always"), agentSucceeded))
 	}
 
 	// Build outputs map for validation failures from all memory steps
