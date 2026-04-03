@@ -239,6 +239,7 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 			CompiledFile: result.CompiledFile,
 			Errors:       sliceutil.Map(result.Errors, sanitizeError),
 			Warnings:     sliceutil.Map(result.Warnings, sanitizeError),
+			Labels:       result.Labels,
 		}
 	})
 }

@@ -142,6 +142,67 @@ func compileWorkflowFile(
 	if !noEmit {
 		result.validationResult.CompiledFile = lockFile
 	}
+
+	// Collect labels from safe-outputs for JSON output (used by create-labels maintenance operation)
+	result.validationResult.Labels = extractSafeOutputLabels(workflowData)
+
 	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
 	return result
+}
+
+// extractSafeOutputLabels collects all unique labels referenced in safe-outputs configurations.
+// These are labels that should exist in the repository for the workflow to function correctly.
+// Scans: create-issue.labels/allowed-labels, create-discussion.labels/allowed-labels,
+// create-pull-request.labels/allowed-labels, and add-labels.allowed.
+func extractSafeOutputLabels(data *workflow.WorkflowData) []string {
+	if data == nil || data.SafeOutputs == nil {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var labels []string
+
+	addLabel := func(label string) {
+		if label != "" && !seen[label] {
+			seen[label] = true
+			labels = append(labels, label)
+		}
+	}
+
+	so := data.SafeOutputs
+
+	if so.CreateIssues != nil {
+		for _, l := range so.CreateIssues.Labels {
+			addLabel(l)
+		}
+		for _, l := range so.CreateIssues.AllowedLabels {
+			addLabel(l)
+		}
+	}
+
+	if so.CreateDiscussions != nil {
+		for _, l := range so.CreateDiscussions.Labels {
+			addLabel(l)
+		}
+		for _, l := range so.CreateDiscussions.AllowedLabels {
+			addLabel(l)
+		}
+	}
+
+	if so.CreatePullRequests != nil {
+		for _, l := range so.CreatePullRequests.Labels {
+			addLabel(l)
+		}
+		for _, l := range so.CreatePullRequests.AllowedLabels {
+			addLabel(l)
+		}
+	}
+
+	if so.AddLabels != nil {
+		for _, l := range so.AddLabels.Allowed {
+			addLabel(l)
+		}
+	}
+
+	return labels
 }
