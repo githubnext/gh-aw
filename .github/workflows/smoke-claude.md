@@ -88,7 +88,7 @@ safe-outputs:
       target: "*"
       if-no-changes: "warn"
       allowed-files:
-        - ".github/smoke-claude-push-test.md"
+        - "smoke-test-files/smoke-claude-push-test.md"
     add-reviewer:
       max: 2
       target: "*"
@@ -187,8 +187,7 @@ timeout-minutes: 10
     - Note: May fail if reviewer is already assigned or doesn't have access
 
 18. **Push to PR Branch Testing**: 
-    - Create a test file at `/tmp/test-pr-push-${{ github.run_id }}.txt` with content "Test file for PR push"
-    - Use git commands to check if we're on the PR branch
+    - Create a test file at `smoke-test-files/smoke-claude-push-test.md` in the repository workspace with content "Smoke test push — Run ${{ github.run_id }}"
     - Use the `push_to_pull_request_branch` tool to push this change
     - Use `pr_number: <pr_number>` and `commit_message: "test: Add smoke test file"`
     - Verify the push succeeds
