@@ -106,21 +106,13 @@ describe("checkout_pr_branch.cjs", () => {
         return {
           detectForkPR: pullRequest => {
             // Replicate the actual logic for testing
-            let isFork = false;
-            let reason = "same repository";
-
             if (!pullRequest.head?.repo) {
-              isFork = true;
-              reason = "head repository deleted (was likely a fork)";
-            } else if (pullRequest.head.repo.fork === true) {
-              isFork = true;
-              reason = "head.repo.fork flag is true";
-            } else if (pullRequest.head.repo.full_name !== pullRequest.base?.repo?.full_name) {
-              isFork = true;
-              reason = "different repository names";
+              return { isFork: true, reason: "head repository deleted (was likely a fork)" };
             }
-
-            return { isFork, reason };
+            if (pullRequest.head.repo.full_name !== pullRequest.base?.repo?.full_name) {
+              return { isFork: true, reason: "different repository names" };
+            }
+            return { isFork: false, reason: "same repository" };
           },
         };
       }
@@ -255,21 +247,20 @@ If the pull request is still open, verify that:
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should use gh pr checkout for fork PR with fork flag set", async () => {
-      // Set up fork PR via the fork flag
+    it("should use git fetch for same-repo PR even when repo has fork flag", async () => {
+      // A repo that is itself a fork has fork=true, but same-repo PRs
+      // should still use fast git fetch, not gh pr checkout (#24208)
       mockContext.payload.pull_request.head.repo.fork = true;
 
       await runScript();
 
-      // Verify fork is detected via fork flag
-      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head.repo.fork flag is true)");
+      // Verify NOT detected as fork (same full_name)
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
 
-      // Verify correct strategy reason for fork PR
-      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; head branch exists only in fork, not in origin");
-
-      // Verify gh pr checkout is used
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", expect.anything()]);
+      // Verify git fetch + checkout is used (fast path)
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -511,17 +502,20 @@ If the pull request is still open, verify that:
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
     });
 
-    it("should detect fork using GitHub's fork flag", async () => {
+    it("should NOT detect fork when repo has fork flag but same full_name", async () => {
       mockContext.eventName = "pull_request_target";
-      // Set fork flag explicitly
+      // A repo that is itself a fork has fork=true, but same full_name
+      // means it's NOT a cross-repo fork PR (#24208)
       mockContext.payload.pull_request.head.repo.fork = true;
-      mockContext.payload.pull_request.head.repo.full_name = "test-owner/test-repo"; // Same name but forked
+      mockContext.payload.pull_request.head.repo.full_name = "test-owner/test-repo";
 
       await runScript();
 
-      // Verify fork detection using fork flag
-      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head.repo.fork flag is true)");
-      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
+      // Same full_name = not a fork PR
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fork PR detected"));
+      // Still uses gh pr checkout because pull_request_target always does
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
     });
 
     it("should detect non-fork PRs in pull_request_target events", async () => {

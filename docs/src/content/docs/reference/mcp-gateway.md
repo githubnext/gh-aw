@@ -250,6 +250,7 @@ The `gateway` section is required and configures gateway-specific behavior:
 | `payloadPathPrefix` | string | No | Path prefix to remap payload paths for agent containers (e.g., /workspace/payloads) |
 | `payloadSizeThreshold` | integer | No | Size threshold in bytes for storing payloads to disk (default: 524288 = 512KB) |
 | `trustedBots` | array[string] | No | Additional GitHub bot identity strings (e.g., `github-actions[bot]`) passed to the gateway and merged with its built-in trusted identity list. This field is additive — it extends the internal list but cannot remove built-in entries. |
+| `keepaliveInterval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. Prevents session expiry during long-running tasks. Use `-1` to disable, `0` or unset for gateway default (1500s = 25 min), or a positive integer for a custom interval. |
 
 #### 4.1.3.1 Payload Directory Path Validation
 
@@ -408,6 +409,44 @@ sandbox:
 - `trustedBots` MUST NOT be used to remove or override entries in the gateway's internal built-in trusted identity list
 
 **Compliance Test**: T-AUTH-006 - Trusted Bot Identity Configuration
+
+#### 4.1.3.5 Keepalive Interval Configuration
+
+The optional `keepaliveInterval` field in the gateway configuration controls how often the gateway sends periodic keepalive pings to HTTP MCP backends. This prevents idle session expiry during long-running agent tasks.
+
+| Value | Behavior |
+|-------|----------|
+| Unset / `0` | Gateway default: 1500 seconds (25 minutes) |
+| `> 0` | Custom keepalive interval in seconds |
+| `-1` | Disable keepalive pings entirely |
+
+**Configuration example (JSON)**:
+
+```json
+{
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "${MCP_GATEWAY_API_KEY}",
+    "keepaliveInterval": 300
+  }
+}
+```
+
+**Workflow frontmatter** (via `sandbox.mcp.keepalive-interval`):
+
+```yaml
+sandbox:
+  mcp:
+    keepalive-interval: 300   # 5-minute keepalive for backends with short idle timeouts
+```
+
+**Compliance rules**:
+
+- `keepaliveInterval` MUST be an integer when present
+- A value of `0` is treated as unset by the gateway (silently defaults to 1500 seconds)
+- A value of `-1` disables keepalive pings entirely
+- Any positive integer sets the keepalive interval in seconds
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -1628,6 +1667,15 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.10.0 (Draft)
+
+- **Added**: `keepaliveInterval` field to gateway configuration (Section 4.1.3, 4.1.3.5)
+  - Optional integer (seconds) for controlling keepalive ping frequency to HTTP MCP backends
+  - Prevents session expiry during long-running agent tasks
+  - Workflow authors configure via `sandbox.mcp.keepalive-interval` in frontmatter; the compiler translates it into the gateway config
+- **Added**: Section 4.1.3.5 — Keepalive Interval Configuration
+- **Updated**: JSON Schema with `keepaliveInterval` property in `gatewayConfig` definition
 
 ### Version 1.9.0 (Draft)
 

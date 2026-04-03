@@ -273,6 +273,11 @@
             "minLength": 1
           },
           "minItems": 1
+        },
+        "keepaliveInterval": {
+          "type": "integer",
+          "description": "Keepalive ping interval in seconds for HTTP MCP backends. Sends periodic pings to prevent session expiry during long-running agent tasks. Set to -1 to disable keepalive pings. Unset or 0 uses the gateway default (1500 seconds = 25 minutes).",
+          "minimum": -1
         }
       },
       "required": ["port", "domain", "apiKey"],

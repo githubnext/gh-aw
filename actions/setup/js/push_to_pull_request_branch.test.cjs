@@ -435,7 +435,9 @@ index 0000000..abc1234
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
-    it("should detect fork PR via fork flag and fail early", async () => {
+    it("should NOT treat same-repo PR as fork even when repo has fork flag", async () => {
+      // A repository that is itself a fork of another repo has fork=true,
+      // but a same-repo PR within it is NOT a cross-repo fork PR (#24208)
       mockContext.payload.pull_request.head.repo.fork = true;
 
       mockGithub.rest.pulls.get.mockResolvedValue({
@@ -452,7 +454,7 @@ index 0000000..abc1234
               full_name: "test-owner/test-repo",
             },
           },
-          title: "Fork PR",
+          title: "Same-repo PR in forked repo",
           labels: [],
         },
       });
@@ -463,10 +465,8 @@ index 0000000..abc1234
       const handler = await module.main({ target: "triggering" });
       const result = await handler({ patch_path: patchPath }, {});
 
-      // Fork PRs should fail early with a clear error
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("fork");
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Cannot push to fork PR"));
+      // Same full_name means same repo — push should proceed, not fail
+      expect(result.success).toBe(true);
     });
 
     it("should handle deleted head repo (likely a fork) and fail early", async () => {

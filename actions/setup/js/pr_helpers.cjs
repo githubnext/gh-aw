@@ -3,33 +3,33 @@
 /**
  * Detect if a pull request is from a fork repository.
  *
- * Uses multiple signals for robust detection:
- * 1. Check if head.repo.fork is explicitly true (GitHub's fork flag)
- * 2. Compare repository full names if both repos exist
- * 3. Handle deleted fork case (head.repo is null)
+ * A "fork PR" means the head and base are in *different* repositories
+ * (cross-repo PR). Detection uses two signals:
+ * 1. Handle deleted fork case (head.repo is null)
+ * 2. Compare repository full names — different names mean cross-repo
+ *
+ * NOTE: We intentionally do NOT check head.repo.fork. That flag indicates
+ * whether the repository *itself* is a fork of another repo, not whether
+ * the PR is cross-repo. A same-repo PR in a forked repository (common in
+ * OSS) would have fork=true but is NOT a cross-repo fork PR. Using that
+ * flag caused false positives that forced `gh pr checkout` instead of fast
+ * `git fetch`, which then failed due to stale GH_HOST values. See #24208.
  *
  * @param {object} pullRequest - The pull request object from GitHub context
  * @returns {{isFork: boolean, reason: string}} Fork detection result with reason
  */
 function detectForkPR(pullRequest) {
-  let isFork = false;
-  let reason = "same repository";
-
   if (!pullRequest.head?.repo) {
     // Head repo is null - likely a deleted fork
-    isFork = true;
-    reason = "head repository deleted (was likely a fork)";
-  } else if (pullRequest.head.repo.fork === true) {
-    // GitHub's explicit fork flag
-    isFork = true;
-    reason = "head.repo.fork flag is true";
-  } else if (pullRequest.head.repo.full_name !== pullRequest.base?.repo?.full_name) {
-    // Different repository names
-    isFork = true;
-    reason = "different repository names";
+    return { isFork: true, reason: "head repository deleted (was likely a fork)" };
   }
 
-  return { isFork, reason };
+  if (pullRequest.head.repo.full_name !== pullRequest.base?.repo?.full_name) {
+    // Different repository names — this is a cross-repo (fork) PR
+    return { isFork: true, reason: "different repository names" };
+  }
+
+  return { isFork: false, reason: "same repository" };
 }
 
 /**

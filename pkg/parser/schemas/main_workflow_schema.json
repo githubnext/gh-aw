@@ -3230,6 +3230,12 @@
                   "type": "string",
                   "enum": ["localhost", "host.docker.internal"],
                   "description": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)"
+                },
+                "keepalive-interval": {
+                  "type": "integer",
+                  "description": "Keepalive ping interval in seconds for HTTP MCP backends. Sends periodic pings to prevent session expiry during long-running agent tasks. Set to -1 to disable keepalive pings. Unset or 0 uses the gateway default (1500 seconds = 25 minutes).",
+                  "minimum": -1,
+                  "examples": [-1, 300, 600, 1500]
                 }
               },
               "additionalProperties": false
