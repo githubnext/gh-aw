@@ -171,7 +171,7 @@ For each nitpick found, decide on the appropriate output type:
 **Format:**
 ```json
 {
-  "body": "## Overall Observations\n\nI noticed a few patterns across the PR:\n\n1. **Naming consistency**: Consider standardizing variable naming...\n2. **Good practices**: Excellent use of early returns!\n\nSee inline review comments for specific suggestions."
+  "body": "### Overall Observations\n\nI noticed a few patterns across the PR:\n\n1. **Naming consistency**: Consider standardizing variable naming...\n2. **Good practices**: Excellent use of early returns!\n\nSee inline review comments for specific suggestions."
 }
 ```
 
@@ -192,14 +192,14 @@ Create a comprehensive markdown report using the imported `reporting.md` format:
 **Report Structure:**
 
 ```markdown
-# PR Nitpick Review Summary - [DATE]
+### PR Nitpick Review Summary - [DATE]
 
 Brief overview of the review findings and key patterns observed.
 
 <details>
 <summary><b>Full Review Report</b></summary>
 
-## Pull Request Overview
+#### Pull Request Overview
 
 - **PR #**: ${{ github.event.pull_request.number }}
 - **Title**: ${{ github.event.pull_request.title }}
@@ -207,27 +207,27 @@ Brief overview of the review findings and key patterns observed.
 - **Files Changed**: [count]
 - **Lines Added/Removed**: +[additions] -[deletions]
 
-## Nitpick Categories
+#### Nitpick Categories
 
-### 1. Naming and Conventions ([count] issues)
+##### 1. Naming and Conventions ([count] issues)
 [List of specific issues with file references]
 
-### 2. Code Structure ([count] issues)
+##### 2. Code Structure ([count] issues)
 [List of specific issues]
 
-### 3. Comments and Documentation ([count] issues)
+##### 3. Comments and Documentation ([count] issues)
 [List of specific issues]
 
-### 4. Best Practices ([count] issues)
+##### 4. Best Practices ([count] issues)
 [List of specific issues]
 
-## Pattern Analysis
+#### Pattern Analysis
 
-### Recurring Themes
+##### Recurring Themes
 - **Theme 1**: [Description and frequency]
 - **Theme 2**: [Description and frequency]
 
-### Historical Context
+##### Historical Context
 [If cache memory available, compare to previous reviews]
 
 | Review Date | PR # | Nitpick Count | Common Themes |
@@ -235,23 +235,23 @@ Brief overview of the review findings and key patterns observed.
 | [today] | [#] | [count] | [themes] |
 | [previous] | [#] | [count] | [themes] |
 
-## Positive Highlights
+#### Positive Highlights
 
 Things done well in this PR:
 - ✅ [Specific good practice observed]
 - ✅ [Another good practice]
 
-## Recommendations
+#### Recommendations
 
-### For This PR
+##### For This PR
 1. [Specific actionable item]
 2. [Another actionable item]
 
-### For Future PRs
+##### For Future PRs
 1. [General guidance for team]
 2. [Pattern to watch for]
 
-## Learning Resources
+#### Learning Resources
 
 [If applicable, links to style guides, best practices, etc.]
 
