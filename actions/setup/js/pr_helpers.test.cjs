@@ -12,7 +12,9 @@ describe("pr_helpers.cjs", () => {
   });
 
   describe("detectForkPR", () => {
-    it("should detect fork using GitHub's fork flag", () => {
+    it("should NOT treat same-repo PR as fork even when repo has fork flag", () => {
+      // A repository that is itself a fork of another repo has fork=true,
+      // but a same-repo PR within it is NOT a cross-repo fork PR (#24208)
       const pullRequest = {
         head: {
           repo: {
@@ -29,8 +31,8 @@ describe("pr_helpers.cjs", () => {
 
       const result = detectForkPR(pullRequest);
 
-      expect(result.isFork).toBe(true);
-      expect(result.reason).toBe("head.repo.fork flag is true");
+      expect(result.isFork).toBe(false);
+      expect(result.reason).toBe("same repository");
     });
 
     it("should detect fork using different repository names", () => {
@@ -114,19 +116,18 @@ describe("pr_helpers.cjs", () => {
       expect(result.reason).toBe("same repository");
     });
 
-    it("should prioritize fork flag over repository name comparison", () => {
-      // Edge case: fork flag is true even though names match
-      // This could happen if a user forks and keeps the same name
+    it("should detect cross-repo fork PR by different full_name", () => {
+      // A real fork PR: head is in a different repo than base
       const pullRequest = {
         head: {
           repo: {
             fork: true,
-            full_name: "test-owner/test-repo",
+            full_name: "contributor/test-repo",
           },
         },
         base: {
           repo: {
-            full_name: "test-owner/test-repo",
+            full_name: "upstream/test-repo",
           },
         },
       };
@@ -134,7 +135,7 @@ describe("pr_helpers.cjs", () => {
       const result = detectForkPR(pullRequest);
 
       expect(result.isFork).toBe(true);
-      expect(result.reason).toBe("head.repo.fork flag is true");
+      expect(result.reason).toBe("different repository names");
     });
 
     it("should handle null base repo gracefully", () => {
