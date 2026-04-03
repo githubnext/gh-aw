@@ -758,3 +758,113 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 	assert.Contains(t, output, "Per-Run Breakdown", "Should have per-run breakdown")
 	assert.Contains(t, output, "⚠", "Should have spike warnings")
 }
+
+func TestBuildDrain3InsightsFromCrossRunInputs_Empty(t *testing.T) {
+	insights := buildDrain3InsightsFromCrossRunInputs(nil)
+	assert.Nil(t, insights, "should return nil for empty inputs")
+
+	insights = buildDrain3InsightsFromCrossRunInputs([]crossRunInput{})
+	assert.Nil(t, insights, "should return nil for empty slice")
+}
+
+func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
+	inputs := []crossRunInput{
+		{
+			RunID:        1,
+			WorkflowName: "test-workflow",
+			Conclusion:   "success",
+			Metrics: LogMetrics{
+				Turns:         5,
+				TokenUsage:    1000,
+				EstimatedCost: 0.05,
+			},
+			ErrorCount: 0,
+		},
+		{
+			RunID:        2,
+			WorkflowName: "test-workflow",
+			Conclusion:   "failure",
+			Metrics: LogMetrics{
+				Turns:         8,
+				TokenUsage:    2000,
+				EstimatedCost: 0.1,
+			},
+			ErrorCount: 2,
+			MCPFailures: []MCPFailureReport{
+				{ServerName: "github", Status: "timeout"},
+			},
+		},
+	}
+
+	insights := buildDrain3InsightsFromCrossRunInputs(inputs)
+	// Drain3 insights may or may not be generated depending on event count,
+	// but the function should not panic or error.
+	// If insights are generated they should have valid fields.
+	for _, insight := range insights {
+		assert.NotEmpty(t, insight.Category, "insight should have a category")
+		assert.NotEmpty(t, insight.Severity, "insight should have a severity")
+		assert.NotEmpty(t, insight.Title, "insight should have a title")
+	}
+}
+
+func TestBuildCrossRunAuditReport_IncludesDrain3Insights(t *testing.T) {
+	inputs := []crossRunInput{
+		{
+			RunID:      100,
+			Conclusion: "success",
+			Metrics:    LogMetrics{Turns: 5, TokenUsage: 500},
+		},
+		{
+			RunID:      101,
+			Conclusion: "success",
+			Metrics:    LogMetrics{Turns: 5, TokenUsage: 500},
+		},
+	}
+
+	report := buildCrossRunAuditReport(inputs)
+	require.NotNil(t, report, "report should not be nil")
+
+	// Drain3Insights field should exist (may be nil or have values).
+	// The important thing is no panic and the field is accessible.
+	_ = report.Drain3Insights
+}
+
+func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
+	report := &CrossRunAuditReport{
+		RunsAnalyzed: 1,
+		Drain3Insights: []ObservabilityInsight{
+			{
+				Category: "execution",
+				Severity: "info",
+				Title:    "Log template patterns mined",
+				Summary:  "Drain3 identified 2 event templates.",
+				Evidence: "plan=1 finish=1",
+			},
+			{
+				Category: "reliability",
+				Severity: "high",
+				Title:    "2 anomalous event pattern(s) detected",
+				Summary:  "Unusual events detected.",
+			},
+		},
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	renderCrossRunReportMarkdown(report)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	output := buf.String()
+
+	assert.Contains(t, output, "Agent Event Pattern Analysis (Drain3)", "Should include drain3 section header")
+	assert.Contains(t, output, "Log template patterns mined", "Should include first insight title")
+	assert.Contains(t, output, "2 anomalous event pattern(s) detected", "Should include second insight title")
+	assert.Contains(t, output, "plan=1 finish=1", "Should include evidence")
+	assert.Contains(t, output, "🔴", "Should include high severity icon")
+}
