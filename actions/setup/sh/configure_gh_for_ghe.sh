@@ -62,9 +62,27 @@ main() {
   local github_host
   github_host=$(detect_github_host)
 
-  # If the host is github.com, no configuration is needed
+  # If the host is github.com, no GHE configuration is needed.
+  # However, we must clear any stale GH_HOST value to prevent gh CLI
+  # from targeting the wrong host (e.g., a leftover localhost:18443
+  # from a prior DIFC proxy run). See #24208.
   if [ "$github_host" = "github.com" ]; then
+    if [ -n "${GH_HOST:-}" ] && [ "${GH_HOST}" != "github.com" ]; then
+      echo "Clearing stale GH_HOST=${GH_HOST} (expected github.com)"
+      unset GH_HOST
+      if [ -n "${GITHUB_ENV:-}" ]; then
+        echo "GH_HOST=github.com" >> "${GITHUB_ENV}"
+      fi
+    fi
     echo "Using public GitHub (github.com) - no additional gh configuration needed"
+    # Clear any stale GH_HOST to prevent gh CLI mismatches
+    if [ -n "${GH_HOST:-}" ] && [ "${GH_HOST}" != "github.com" ]; then
+      echo "Clearing stale GH_HOST" >&2
+      unset GH_HOST
+      if [ -n "${GITHUB_ENV:-}" ]; then
+        echo "GH_HOST=" >> "${GITHUB_ENV}"
+      fi
+    fi
     return 0
   fi
 
