@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"path"
 	"strings"
 	"testing"
 
@@ -772,8 +773,10 @@ func TestCallWorkflowOnly_UsesHandlerManagerStep(t *testing.T) {
 
 // TestCreateCodeScanningAlertUploadJob verifies that when create-code-scanning-alert is configured,
 // a dedicated upload_code_scanning_sarif job is created (separate from safe_outputs) and that
-// the safe_outputs job exports sarif_file and checkout_token so the upload job can check whether
-// to run and authenticate without needing GitHub App credentials.
+// the safe_outputs job:
+//   - exports sarif_file and checkout_token outputs for the upload job
+//   - uploads the SARIF file as a GitHub Actions artifact so the upload job
+//     (which runs in a fresh workspace) can download it
 func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 	tests := []struct {
 		name                   string
@@ -836,7 +839,7 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 				},
 			}
 
-			// 1. Verify safe_outputs job exports sarif_file and checkout_token
+			// 1. Verify safe_outputs job exports sarif_file and checkout_token, and uploads artifact
 			safeOutputsJob, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
 			require.NoError(t, err, "safe_outputs job should build without error")
 			require.NotNil(t, safeOutputsJob, "safe_outputs job should be generated")
@@ -854,9 +857,18 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 				assert.Contains(t, safeOutputsJob.Outputs, "checkout_token",
 					"safe_outputs job must export checkout_token output for the upload job")
 
-				// The upload and restore steps must NOT be in safe_outputs itself
+				// safe_outputs must upload the SARIF file as an artifact so the upload job
+				// (running in a fresh workspace) can download it
+				assert.Contains(t, safeOutputsSteps, constants.SarifArtifactName,
+					"safe_outputs job must upload the SARIF file as a GitHub Actions artifact")
+				assert.Contains(t, safeOutputsSteps, "Upload SARIF artifact",
+					"safe_outputs job must have a SARIF artifact upload step")
+				assert.Contains(t, safeOutputsSteps, "steps.process_safe_outputs.outputs.sarif_file != ''",
+					"SARIF artifact upload must be conditional on sarif_file being non-empty")
+
+				// The SARIF upload-sarif steps must NOT be in safe_outputs itself
 				assert.NotContains(t, safeOutputsSteps, "upload-sarif",
-					"SARIF upload must NOT be a step in safe_outputs job")
+					"SARIF codeql upload must NOT be a step in safe_outputs job")
 				assert.NotContains(t, safeOutputsSteps, "Upload SARIF to GitHub Code Scanning",
 					"SARIF upload step must NOT appear in safe_outputs job")
 
@@ -890,6 +902,14 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 				assert.Contains(t, uploadSteps, "needs.safe_outputs.outputs.checkout_token",
 					"Restore checkout step must use checkout_token from safe_outputs outputs")
 
+				// Download SARIF artifact step must be present in the upload job
+				assert.Contains(t, uploadSteps, "Download SARIF artifact",
+					"Upload job must download the SARIF artifact before uploading to Code Scanning")
+				assert.Contains(t, uploadSteps, constants.SarifArtifactName,
+					"Upload job must download the code-scanning-sarif artifact")
+				assert.Contains(t, uploadSteps, constants.SarifArtifactDownloadPath,
+					"Upload job must download artifact to the expected path")
+
 				// Upload SARIF step must be present
 				assert.Contains(t, uploadSteps, "Upload SARIF to GitHub Code Scanning",
 					"Upload job must have SARIF upload step")
@@ -902,22 +922,29 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 					"Upload step must include ref input")
 				assert.Contains(t, uploadSteps, "sha: ${{ github.sha }}",
 					"Upload step must include sha input")
-				// sarif_file must come from safe_outputs job outputs
-				assert.Contains(t, uploadSteps, "needs.safe_outputs.outputs.sarif_file",
-					"Upload step must reference sarif_file from safe_outputs job outputs")
+				// sarif_file must be the local path from the downloaded artifact (not a job output reference)
+				localSarifPath := path.Join(constants.SarifArtifactDownloadPath, constants.SarifFileName)
+				assert.Contains(t, uploadSteps, localSarifPath,
+					"Upload step must use the locally downloaded SARIF file path")
+				assert.NotContains(t, uploadSteps, "needs.safe_outputs.outputs.sarif_file",
+					"Upload step must NOT reference sarif_file from job outputs (use local artifact path instead)")
 				// Upload-sarif uses 'token' not 'github-token'
 				assert.Contains(t, uploadSteps, "token:",
 					"Upload step must use 'token' input (not 'github-token')")
 				assert.NotContains(t, uploadSteps, "github-token:",
 					"Upload step must not use 'github-token' - upload-sarif only accepts 'token'")
 
-				// Restore step must appear before upload step
+				// Step ordering: restore → download → upload
 				restorePos := strings.Index(uploadSteps, "Restore checkout to triggering commit")
+				downloadPos := strings.Index(uploadSteps, "Download SARIF artifact")
 				uploadPos := strings.Index(uploadSteps, "Upload SARIF to GitHub Code Scanning")
 				require.Greater(t, restorePos, -1, "Restore checkout step must exist")
+				require.Greater(t, downloadPos, -1, "Download SARIF artifact step must exist")
 				require.Greater(t, uploadPos, -1, "Upload SARIF step must exist")
-				assert.Less(t, restorePos, uploadPos,
-					"Restore checkout must appear before SARIF upload in the job steps")
+				assert.Less(t, restorePos, downloadPos,
+					"Restore checkout must appear before SARIF download in the job steps")
+				assert.Less(t, downloadPos, uploadPos,
+					"SARIF download must appear before SARIF upload in the job steps")
 
 				if tt.expectCustomToken != "" {
 					assert.Contains(t, uploadSteps, tt.expectCustomToken,

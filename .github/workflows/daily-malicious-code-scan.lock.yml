@@ -933,6 +933,14 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
+      - name: Upload SARIF artifact
+        if: steps.process_safe_outputs.outputs.sarif_file != ''
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: code-scanning-sarif
+          path: ${{ steps.process_safe_outputs.outputs.sarif_file }}
+          if-no-files-found: error
+          retention-days: 1
       - name: Upload Safe Output Items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -957,12 +965,18 @@ jobs:
           token: ${{ needs.safe_outputs.outputs.checkout_token }}
           persist-credentials: false
           fetch-depth: 1
+      - name: Download SARIF artifact
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: code-scanning-sarif
+          path: /tmp/gh-aw/sarif/
       - name: Upload SARIF to GitHub Code Scanning
         id: upload_code_scanning_sarif
         uses: github/codeql-action/upload-sarif@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
         with:
           token: ${{ needs.safe_outputs.outputs.checkout_token }}
-          sarif_file: ${{ needs.safe_outputs.outputs.sarif_file }}
+          sarif_file: /tmp/gh-aw/sarif/code-scanning-alert.sarif
           ref: ${{ github.ref }}
           sha: ${{ github.sha }}
           wait-for-processing: true

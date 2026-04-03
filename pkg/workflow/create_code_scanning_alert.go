@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -85,6 +86,9 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	// user-configured PAT is present.
 	restoreToken := fmt.Sprintf("${{ needs.%s.outputs.checkout_token }}", constants.SafeOutputsJobName)
 
+	// Artifact prefix for workflow_call context (so the download name matches the upload name).
+	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
+
 	var steps []string
 
 	// Step 1: Restore workspace to the triggering commit.
@@ -99,16 +103,29 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	steps = append(steps, "          persist-credentials: false\n")
 	steps = append(steps, "          fetch-depth: 1\n")
 
-	// Step 2: Upload SARIF file to GitHub Code Scanning.
-	// The sarif_file path is passed from the safe_outputs job via job outputs.
+	// Step 2: Download the SARIF artifact produced by safe_outputs.
+	// The SARIF file was written to the safe_outputs job workspace and uploaded as an artifact.
+	// This job runs in a fresh workspace so we must download the artifact before uploading
+	// to GitHub Code Scanning.
+	sarifDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: agentArtifactPrefix + constants.SarifArtifactName,
+		DownloadPath: constants.SarifArtifactDownloadPath,
+		StepName:     "Download SARIF artifact",
+	})
+	steps = append(steps, sarifDownloadSteps...)
+
+	// The local SARIF file path after the artifact download completes.
+	localSarifPath := path.Join(constants.SarifArtifactDownloadPath, constants.SarifFileName)
+
+	// Step 3: Upload SARIF file to GitHub Code Scanning.
 	steps = append(steps, "      - name: Upload SARIF to GitHub Code Scanning\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.UploadCodeScanningJobName))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif")))
 	steps = append(steps, "        with:\n")
 	// NOTE: github/codeql-action/upload-sarif uses 'token' as the input name, not 'github-token'
 	c.addUploadSARIFToken(&steps, data, data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken)
-	// sarif_file is passed from safe_outputs job output (set by create_code_scanning_alert.cjs handler)
-	steps = append(steps, fmt.Sprintf("          sarif_file: ${{ needs.%s.outputs.sarif_file }}\n", constants.SafeOutputsJobName))
+	// sarif_file now references the locally-downloaded artifact, not the path from safe_outputs
+	steps = append(steps, fmt.Sprintf("          sarif_file: %s\n", localSarifPath))
 	// ref and sha pin the upload to the exact triggering commit regardless of local git state
 	steps = append(steps, "          ref: ${{ github.ref }}\n")
 	steps = append(steps, "          sha: ${{ github.sha }}\n")
