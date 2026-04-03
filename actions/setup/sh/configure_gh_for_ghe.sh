@@ -65,6 +65,14 @@ main() {
   # If the host is github.com, no configuration is needed
   if [ "$github_host" = "github.com" ]; then
     echo "Using public GitHub (github.com) - no additional gh configuration needed"
+    # Clear any stale GH_HOST to prevent gh CLI mismatches
+    if [ -n "${GH_HOST:-}" ] && [ "${GH_HOST}" != "github.com" ]; then
+      echo "Clearing stale GH_HOST=${GH_HOST}"
+      unset GH_HOST
+      if [ -n "${GITHUB_ENV:-}" ]; then
+        echo "GH_HOST=github.com" >> "${GITHUB_ENV}"
+      fi
+    fi
     return 0
   fi
 
