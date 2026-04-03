@@ -190,6 +190,9 @@ func RenderJSONMCPConfig(
 			}
 			configBuilder.WriteString("]")
 		}
+		if options.GatewayConfig.KeepaliveInterval != 0 {
+			fmt.Fprintf(&configBuilder, ",\n              \"keepaliveInterval\": %d", options.GatewayConfig.KeepaliveInterval)
+		}
 		configBuilder.WriteString("\n")
 		configBuilder.WriteString("            }\n")
 	} else {

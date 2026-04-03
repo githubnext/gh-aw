@@ -495,6 +495,27 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
+	// Extract keepaliveInterval / keepalive-interval (keepalive ping interval in seconds for HTTP MCP backends)
+	// 0 = unset (gateway default: 1500s), -1 = disable keepalive, >0 = custom interval in seconds
+	for _, key := range []string{"keepaliveInterval", "keepalive-interval"} {
+		if keepaliveVal, hasKeepalive := mcpObj[key]; hasKeepalive {
+			switch v := keepaliveVal.(type) {
+			case int:
+				mcpConfig.KeepaliveInterval = v
+			case int64:
+				mcpConfig.KeepaliveInterval = int(v)
+			case uint:
+				mcpConfig.KeepaliveInterval = int(v)
+			case uint64:
+				mcpConfig.KeepaliveInterval = int(v)
+			case float64:
+				mcpConfig.KeepaliveInterval = int(v)
+			}
+			// Break when the key exists (even if value is 0, to avoid picking up a second key variant)
+			break
+		}
+	}
+
 	return mcpConfig
 }
 
