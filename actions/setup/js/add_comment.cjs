@@ -590,7 +590,18 @@ async function main(config = {}) {
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
         // itself a reply, we resolve the top-level parent's node ID to use as replyToId.
         const hasExplicitItemNumber = message.item_number !== undefined && message.item_number !== null;
-        const replyToId = context.eventName === "discussion_comment" && !hasExplicitItemNumber ? await resolveTopLevelDiscussionCommentId(githubClient, context.payload?.comment?.node_id) : null;
+        let replyToId;
+        if (context.eventName === "discussion_comment" && !hasExplicitItemNumber) {
+          // When triggered by a discussion_comment event, thread the reply under the triggering comment.
+          replyToId = await resolveTopLevelDiscussionCommentId(githubClient, context.payload?.comment?.node_id);
+        } else if (message.reply_to_id) {
+          // Allow the agent to explicitly specify a reply_to_id (e.g. for workflow_dispatch-triggered
+          // workflows that know the target comment node ID). Apply resolveTopLevelDiscussionCommentId
+          // to handle cases where the caller passes a reply node ID instead of a top-level one.
+          replyToId = await resolveTopLevelDiscussionCommentId(githubClient, message.reply_to_id);
+        } else {
+          replyToId = null;
+        }
         if (replyToId) {
           core.info(`Replying as threaded comment to discussion comment node ID: ${replyToId}`);
         }
@@ -621,7 +632,13 @@ async function main(config = {}) {
 
         try {
           core.info(`Trying #${itemNumber} as discussion...`);
-          const comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
+          // When retrying as discussion, honour an explicit reply_to_id from the message.
+          // Apply resolveTopLevelDiscussionCommentId to handle nested reply node IDs.
+          const fallbackReplyToId = message.reply_to_id ? await resolveTopLevelDiscussionCommentId(githubClient, message.reply_to_id) : null;
+          if (fallbackReplyToId) {
+            core.info(`Replying as threaded comment to discussion comment node ID: ${fallbackReplyToId}`);
+          }
+          const comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, fallbackReplyToId);
 
           core.info(`Created comment on discussion: ${comment.html_url}`);
           return recordComment(comment, true);

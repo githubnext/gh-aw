@@ -594,6 +594,187 @@ describe("add_comment", () => {
       // Should NOT be threaded since item_number was explicitly provided
       expect(capturedReplyToId).toBeUndefined();
     });
+
+    it("should use reply_to_id from message when not triggered by discussion_comment event", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // workflow_dispatch trigger (not discussion_comment); item_number refers to a discussion
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {};
+
+      // Make REST API return 404 so the code falls back to the discussion path
+      mockGithub.rest.issues.createComment = async () => {
+        const err = new Error("Not Found");
+        // @ts-expect-error - Simulating GitHub REST API error
+        err.status = 404;
+        throw err;
+      };
+
+      let capturedReplyToId = undefined;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          capturedReplyToId = variables?.replyToId;
+          return {
+            addDiscussionComment: {
+              comment: {
+                id: "DC_kwDOTest456",
+                body: variables?.body,
+                createdAt: "2024-01-01",
+                url: "https://github.com/owner/repo/discussions/10#discussioncomment-456",
+              },
+            },
+          };
+        }
+        // Mock replyTo resolution: the provided reply_to_id is already top-level (no parent)
+        if (query.includes("replyTo")) {
+          return { node: { replyTo: null } };
+        }
+        return {
+          repository: {
+            discussion: {
+              id: "D_kwDOTest123",
+              url: "https://github.com/owner/repo/discussions/10",
+            },
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 10,
+        body: "🔄 Updated finding...",
+        reply_to_id: "DC_kwDOParentComment456",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.isDiscussion).toBe(true);
+      // Should use the reply_to_id from the message
+      expect(capturedReplyToId).toBe("DC_kwDOParentComment456");
+    });
+
+    it("should resolve top-level parent when reply_to_id points to a nested reply", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // workflow_dispatch trigger (not discussion_comment); item_number refers to a discussion
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {};
+
+      // Make REST API return 404 so the code falls back to the discussion path
+      mockGithub.rest.issues.createComment = async () => {
+        const err = new Error("Not Found");
+        // @ts-expect-error - Simulating GitHub REST API error
+        err.status = 404;
+        throw err;
+      };
+
+      let capturedReplyToId = undefined;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          capturedReplyToId = variables?.replyToId;
+          return {
+            addDiscussionComment: {
+              comment: {
+                id: "DC_kwDOTest456",
+                body: variables?.body,
+                createdAt: "2024-01-01",
+                url: "https://github.com/owner/repo/discussions/10#discussioncomment-456",
+              },
+            },
+          };
+        }
+        // Mock replyTo resolution: the provided reply_to_id is itself a reply, return its parent
+        if (query.includes("replyTo")) {
+          return { node: { replyTo: { id: "DC_kwDOTopLevelComment123" } } };
+        }
+        return {
+          repository: {
+            discussion: {
+              id: "D_kwDOTest123",
+              url: "https://github.com/owner/repo/discussions/10",
+            },
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 10,
+        body: "🔄 Updated finding...",
+        reply_to_id: "DC_kwDONestedReply789",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.isDiscussion).toBe(true);
+      // Should resolve to the top-level parent, not the nested reply
+      expect(capturedReplyToId).toBe("DC_kwDOTopLevelComment123");
+    });
+
+    it("should ignore reply_to_id when triggered by discussion_comment event without explicit item_number", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // discussion_comment trigger takes precedence over reply_to_id
+      mockContext.eventName = "discussion_comment";
+      mockContext.payload = {
+        discussion: {
+          number: 10,
+        },
+        comment: {
+          node_id: "DC_kwDOTriggeringComment123",
+        },
+      };
+
+      let capturedReplyToId = undefined;
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("addDiscussionComment")) {
+          capturedReplyToId = variables?.replyToId;
+          return {
+            addDiscussionComment: {
+              comment: {
+                id: "DC_kwDOTest456",
+                body: variables?.body,
+                createdAt: "2024-01-01",
+                url: "https://github.com/owner/repo/discussions/10#discussioncomment-456",
+              },
+            },
+          };
+        }
+        // Mock replyTo resolution: triggering comment is top-level (no parent)
+        if (query.includes("replyTo")) {
+          return { node: { replyTo: null } };
+        }
+        return {
+          repository: {
+            discussion: {
+              id: "D_kwDOTest123",
+              url: "https://github.com/owner/repo/discussions/10",
+            },
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Reply that provides reply_to_id but should use triggering comment instead",
+        reply_to_id: "DC_kwDOShouldBeIgnored999",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.isDiscussion).toBe(true);
+      // Should use the triggering comment node_id, not the reply_to_id from the message
+      expect(capturedReplyToId).toBe("DC_kwDOTriggeringComment123");
+    });
   });
 
   describe("regression test for wrong PR bug", () => {
