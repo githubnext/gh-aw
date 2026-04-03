@@ -112,6 +112,13 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			break
 		}
 
+		// Add cooldown between iterations to avoid GitHub API rate limiting.
+		// The first iteration (iteration == 0) runs immediately; subsequent iterations
+		// pause briefly to give the API rate limit window time to recover.
+		if iteration > 0 {
+			time.Sleep(APICallCooldown)
+		}
+
 		iteration++
 
 		if verbose && iteration > 1 {
@@ -571,9 +578,10 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
 	}
 
-	// Create progress bar for tracking run processing (only in non-verbose mode)
+	// Create progress bar for tracking run processing (only in non-verbose, non-CI mode)
+	// In CI environments \r is treated as a newline, producing excessive output for each update.
 	var progressBar *console.ProgressBar
-	if !verbose {
+	if !verbose && !IsRunningInCI() {
 		progressBar = console.NewProgressBar(int64(totalRuns))
 		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(0))
 	}
