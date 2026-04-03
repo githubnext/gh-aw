@@ -1,1 +1,692 @@
-{}
+{
+  "error": {
+    "clusters": [
+      {
+        "id": 2,
+        "size": 1,
+        "stage": "error",
+        "template": [
+          "stage=error",
+          "data_type=GitHub",
+          "PR",
+          "metadata",
+          "and",
+          "diff",
+          "for",
+          "#24354",
+          "reason=Moderation",
+          "requires",
+          "unsanitized",
+          "PR",
+          "content",
+          "and",
+          "diff",
+          "from",
+          "GitHub",
+          "MCP",
+          "pull_request_read",
+          "endpoints",
+          "type=missing_data"
+        ]
+      },
+      {
+        "id": 3,
+        "size": 1,
+        "stage": "error",
+        "template": [
+          "stage=error",
+          "reason=The",
+          "Serena",
+          "MCP",
+          "tools",
+          "(activate_project,",
+          "find_symbol)",
+          "are",
+          "not",
+          "available",
+          "in",
+          "this",
+          "environment.",
+          "My",
+          "toolset",
+          "includes",
+          "bash,",
+          "grep,",
+          "glob,",
+          "view,",
+          "edit,",
+          "GitHub",
+          "tools,",
+          "and",
+          "agentic",
+          "workflow",
+          "tools,",
+          "but",
+          "no",
+          "Serena",
+          "code",
+          "intelligence",
+          "tools.",
+          "tool=activate_project",
+          "/",
+          "find_symbol",
+          "(Serena",
+          "MCP",
+          "tools)",
+          "type=missing_tool"
+        ]
+      },
+      {
+        "id": 1,
+        "size": 1,
+        "stage": "error",
+        "template": [
+          "stage=error",
+          "reason=close_discussion",
+          "safe-output",
+          "tool",
+          "is",
+          "not",
+          "available",
+          "in",
+          "this",
+          "environment.",
+          "Cannot",
+          "supersede",
+          "previous",
+          "regulatory",
+          "report",
+          "#24173",
+          "by",
+          "closing",
+          "it.",
+          "tool=close_discussion",
+          "type=missing_tool"
+        ]
+      }
+    ],
+    "config": {
+      "Depth": 4,
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
+      "MaskRules": [
+        {
+          "Name": "uuid",
+          "Pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+          "Replacement": "\u003cUUID\u003e"
+        },
+        {
+          "Name": "session_id",
+          "Pattern": "session=[a-z0-9]+",
+          "Replacement": "session=\u003c*\u003e"
+        },
+        {
+          "Name": "number_value",
+          "Pattern": "=\\d+",
+          "Replacement": "=\u003cNUM\u003e"
+        },
+        {
+          "Name": "url",
+          "Pattern": "https?://[^\\s]+",
+          "Replacement": "\u003cURL\u003e"
+        },
+        {
+          "Name": "quoted_string",
+          "Pattern": "\"[^\"]*\"",
+          "Replacement": "\"\u003c*\u003e\""
+        },
+        {
+          "Name": "timestamp",
+          "Pattern": "\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?",
+          "Replacement": "\u003cTIMESTAMP\u003e"
+        }
+      ],
+      "MaxChildren": 100,
+      "ParamToken": "\u003c*\u003e",
+      "RareClusterThreshold": 2,
+      "SimThreshold": 0.4
+    },
+    "next_id": 4
+  },
+  "finish": {
+    "clusters": [
+      {
+        "id": 1,
+        "size": 50,
+        "stage": "finish",
+        "template": [
+          "stage=finish",
+          "\u003c*\u003e",
+          "tokens=\u003cNUM\u003e"
+        ]
+      }
+    ],
+    "config": {
+      "Depth": 4,
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
+      "MaskRules": [
+        {
+          "Name": "uuid",
+          "Pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+          "Replacement": "\u003cUUID\u003e"
+        },
+        {
+          "Name": "session_id",
+          "Pattern": "session=[a-z0-9]+",
+          "Replacement": "session=\u003c*\u003e"
+        },
+        {
+          "Name": "number_value",
+          "Pattern": "=\\d+",
+          "Replacement": "=\u003cNUM\u003e"
+        },
+        {
+          "Name": "url",
+          "Pattern": "https?://[^\\s]+",
+          "Replacement": "\u003cURL\u003e"
+        },
+        {
+          "Name": "quoted_string",
+          "Pattern": "\"[^\"]*\"",
+          "Replacement": "\"\u003c*\u003e\""
+        },
+        {
+          "Name": "timestamp",
+          "Pattern": "\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?",
+          "Replacement": "\u003cTIMESTAMP\u003e"
+        }
+      ],
+      "MaxChildren": 100,
+      "ParamToken": "\u003c*\u003e",
+      "RareClusterThreshold": 2,
+      "SimThreshold": 0.4
+    },
+    "next_id": 2
+  },
+  "plan": {
+    "clusters": [
+      {
+        "id": 1,
+        "size": 22,
+        "stage": "plan",
+        "template": [
+          "stage=plan",
+          "errors=\u003cNUM\u003e",
+          "turns=\u003cNUM\u003e"
+        ]
+      }
+    ],
+    "config": {
+      "Depth": 4,
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
+      "MaskRules": [
+        {
+          "Name": "uuid",
+          "Pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+          "Replacement": "\u003cUUID\u003e"
+        },
+        {
+          "Name": "session_id",
+          "Pattern": "session=[a-z0-9]+",
+          "Replacement": "session=\u003c*\u003e"
+        },
+        {
+          "Name": "number_value",
+          "Pattern": "=\\d+",
+          "Replacement": "=\u003cNUM\u003e"
+        },
+        {
+          "Name": "url",
+          "Pattern": "https?://[^\\s]+",
+          "Replacement": "\u003cURL\u003e"
+        },
+        {
+          "Name": "quoted_string",
+          "Pattern": "\"[^\"]*\"",
+          "Replacement": "\"\u003c*\u003e\""
+        },
+        {
+          "Name": "timestamp",
+          "Pattern": "\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?",
+          "Replacement": "\u003cTIMESTAMP\u003e"
+        }
+      ],
+      "MaxChildren": 100,
+      "ParamToken": "\u003c*\u003e",
+      "RareClusterThreshold": 2,
+      "SimThreshold": 0.4
+    },
+    "next_id": 2
+  },
+  "retry": {
+    "clusters": null,
+    "config": {
+      "Depth": 4,
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
+      "MaskRules": [
+        {
+          "Name": "uuid",
+          "Pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+          "Replacement": "\u003cUUID\u003e"
+        },
+        {
+          "Name": "session_id",
+          "Pattern": "session=[a-z0-9]+",
+          "Replacement": "session=\u003c*\u003e"
+        },
+        {
+          "Name": "number_value",
+          "Pattern": "=\\d+",
+          "Replacement": "=\u003cNUM\u003e"
+        },
+        {
+          "Name": "url",
+          "Pattern": "https?://[^\\s]+",
+          "Replacement": "\u003cURL\u003e"
+        },
+        {
+          "Name": "quoted_string",
+          "Pattern": "\"[^\"]*\"",
+          "Replacement": "\"\u003c*\u003e\""
+        },
+        {
+          "Name": "timestamp",
+          "Pattern": "\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?",
+          "Replacement": "\u003cTIMESTAMP\u003e"
+        }
+      ],
+      "MaxChildren": 100,
+      "ParamToken": "\u003c*\u003e",
+      "RareClusterThreshold": 2,
+      "SimThreshold": 0.4
+    },
+    "next_id": 1
+  },
+  "tool_call": {
+    "clusters": null,
+    "config": {
+      "Depth": 4,
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
+      "MaskRules": [
+        {
+          "Name": "uuid",
+          "Pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+          "Replacement": "\u003cUUID\u003e"
+        },
+        {
+          "Name": "session_id",
+          "Pattern": "session=[a-z0-9]+",
+          "Replacement": "session=\u003c*\u003e"
+        },
+        {
+          "Name": "number_value",
+          "Pattern": "=\\d+",
+          "Replacement": "=\u003cNUM\u003e"
+        },
+        {
+          "Name": "url",
+          "Pattern": "https?://[^\\s]+",
+          "Replacement": "\u003cURL\u003e"
+        },
+        {
+          "Name": "quoted_string",
+          "Pattern": "\"[^\"]*\"",
+          "Replacement": "\"\u003c*\u003e\""
+        },
+        {
+          "Name": "timestamp",
+          "Pattern": "\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?",
+          "Replacement": "\u003cTIMESTAMP\u003e"
+        }
+      ],
+      "MaxChildren": 100,
+      "ParamToken": "\u003c*\u003e",
+      "RareClusterThreshold": 2,
+      "SimThreshold": 0.4
+    },
+    "next_id": 1
+  },
+  "tool_result": {
+    "clusters": [
+      {
+        "id": 2,
+        "size": 1,
+        "stage": "tool_result",
+        "template": [
+          "stage=tool_result",
+          "message=No",
+          "action",
+          "needed:",
+          "No",
+          "Copilot",
+          "workflow",
+          "runs",
+          "were",
+          "found",
+          "in",
+          "the",
+          "past",
+          "24",
+          "hours.",
+          "The",
+          "copilot-runs.json",
+          "file",
+          "contains",
+          "an",
+          "empty",
+          "array,",
+          "and",
+          "no",
+          "top-workflow.json",
+          "was",
+          "generated.",
+          "There",
+          "is",
+          "no",
+          "token",
+          "usage",
+          "data",
+          "to",
+          "analyze",
+          "or",
+          "optimize.",
+          "status=noop"
+        ]
+      },
+      {
+        "id": 3,
+        "size": 1,
+        "stage": "tool_result",
+        "template": [
+          "stage=tool_result",
+          "message=Assigned",
+          "#24324",
+          "(Daily",
+          "Issues",
+          "Report",
+          "Generator",
+          "fix)",
+          "to",
+          "Copilot.",
+          "Skipped",
+          "#24292",
+          "—",
+          "it",
+          "is",
+          "a",
+          "Workflow",
+          "Health",
+          "Dashboard",
+          "status",
+          "report",
+          "with",
+          "no",
+          "specific",
+          "actionable",
+          "code",
+          "fix.",
+          "status=noop"
+        ]
+      },
+      {
+        "id": 4,
+        "size": 1,
+        "stage": "tool_result",
+        "template": [
+          "stage=tool_result",
+          "message=No",
+          "action",
+          "taken:",
+          "The",
+          "pre-agent",
+          "step",
+          "did",
+          "not",
+          "produce",
+          "the",
+          "expected",
+          "`pr-filter-results.json`",
+          "file",
+          "at",
+          "the",
+          "workspace",
+          "root,",
+          "and",
+          "the",
+          "GitHub",
+          "API",
+          "is",
+          "currently",
+          "rate-limited",
+          "(resets",
+          "in",
+          "~23",
+          "minutes),",
+          "preventing",
+          "direct",
+          "PR",
+          "fetching.",
+          "Unable",
+          "to",
+          "dispatch",
+          "PRs",
+          "to",
+          "the",
+          "contribution-checker",
+          "subagent",
+          "or",
+          "compile",
+          "a",
+          "report",
+          "without",
+          "the",
+          "PR",
+          "list.",
+          "Please",
+          "re-run",
+          "the",
+          "workflow",
+          "once",
+          "the",
+          "rate",
+          "limit",
+          "resets.",
+          "status=noop"
+        ]
+      },
+      {
+        "id": 5,
+        "size": 1,
+        "stage": "tool_result",
+        "template": [
+          "stage=tool_result",
+          "message=No",
+          "action",
+          "needed:",
+          "copilot-runs.json",
+          "contains",
+          "an",
+          "empty",
+          "array",
+          "—",
+          "no",
+          "Copilot",
+          "workflow",
+          "runs",
+          "occurred",
+          "in",
+          "the",
+          "past",
+          "24",
+          "hours,",
+          "so",
+          "there",
+          "is",
+          "no",
+          "token-expensive",
+          "workflow",
+          "to",
+          "analyze",
+          "or",
+          "optimize.",
+          "status=noop"
+        ]
+      },
+      {
+        "id": 1,
+        "size": 1,
+        "stage": "tool_result",
+        "template": [
+          "stage=tool_result",
+          "message=No",
+          "action",
+          "needed:",
+          "All",
+          "181",
+          "lock",
+          "files",
+          "were",
+          "reviewed",
+          "yesterday",
+          "(2026-04-02),",
+          "within",
+          "the",
+          "3-day",
+          "skip",
+          "threshold.",
+          "The",
+          "only",
+          "new",
+          "commit",
+          "(1cbec99)",
+          "fixed",
+          "piped",
+          "while",
+          "loops",
+          "in",
+          "token",
+          "optimizer",
+          "workflows",
+          "without",
+          "changing",
+          "step",
+          "names.",
+          "The",
+          "two",
+          "new",
+          "token",
+          "optimizer",
+          "workflows",
+          "use",
+          "standard",
+          "framework",
+          "step",
+          "names",
+          "plus",
+          "one",
+          "descriptive",
+          "custom",
+          "step",
+          "(\"\u003c*\u003e\")",
+          "which,",
+          "while",
+          "verbose,",
+          "is",
+          "accurate",
+          "and",
+          "not",
+          "inconsistent",
+          "with",
+          "established",
+          "patterns.",
+          "The",
+          "two",
+          "existing",
+          "open",
+          "issues",
+          "(#23941",
+          "and",
+          "checkout-code)",
+          "continue",
+          "to",
+          "track",
+          "the",
+          "active",
+          "naming",
+          "concerns.",
+          "status=noop"
+        ]
+      }
+    ],
+    "config": {
+      "Depth": 4,
+      "ExcludeFields": [
+        "session_id",
+        "trace_id",
+        "span_id",
+        "timestamp"
+      ],
+      "MaskRules": [
+        {
+          "Name": "uuid",
+          "Pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+          "Replacement": "\u003cUUID\u003e"
+        },
+        {
+          "Name": "session_id",
+          "Pattern": "session=[a-z0-9]+",
+          "Replacement": "session=\u003c*\u003e"
+        },
+        {
+          "Name": "number_value",
+          "Pattern": "=\\d+",
+          "Replacement": "=\u003cNUM\u003e"
+        },
+        {
+          "Name": "url",
+          "Pattern": "https?://[^\\s]+",
+          "Replacement": "\u003cURL\u003e"
+        },
+        {
+          "Name": "quoted_string",
+          "Pattern": "\"[^\"]*\"",
+          "Replacement": "\"\u003c*\u003e\""
+        },
+        {
+          "Name": "timestamp",
+          "Pattern": "\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?",
+          "Replacement": "\u003cTIMESTAMP\u003e"
+        }
+      ],
+      "MaxChildren": 100,
+      "ParamToken": "\u003c*\u003e",
+      "RareClusterThreshold": 2,
+      "SimThreshold": 0.4
+    },
+    "next_id": 6
+  }
+}
