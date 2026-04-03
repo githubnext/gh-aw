@@ -186,6 +186,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
+		// Inject the GitHub Actions context workflow_ref expression so that check_workflow_timestamp_api.cjs
+		// can identify the source repo correctly for cross-repo workflow_call invocations.
+		// Unlike the GITHUB_WORKFLOW_REF env var (which always reflects the top-level caller in workflow_call),
+		// ${{ github.workflow_ref }} correctly refers to the current reusable workflow being executed.
+		steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_REF: \"${{ github.workflow_ref }}\"\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
