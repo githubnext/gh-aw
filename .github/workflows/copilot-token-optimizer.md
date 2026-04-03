@@ -67,9 +67,12 @@ steps:
         --start-date -1d \
         --json \
         -c 300 \
-        > /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo "[]" > /tmp/token-optimizer/copilot-runs.json
+        > /tmp/token-optimizer/copilot-runs-raw.json 2>/dev/null || echo '{"runs":[]}' > /tmp/token-optimizer/copilot-runs-raw.json
 
-      RUN_COUNT=$(jq '. | length' /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo 0)
+      # Extract runs array from the JSON output
+      jq '.runs // []' /tmp/token-optimizer/copilot-runs-raw.json > /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo "[]" > /tmp/token-optimizer/copilot-runs.json
+
+      RUN_COUNT=$(jq 'length' /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo 0)
       echo "Found ${RUN_COUNT} Copilot runs"
 
       if [ "$RUN_COUNT" -eq 0 ]; then
@@ -80,16 +83,16 @@ steps:
       # Find the most expensive workflow (by total tokens across all its runs)
       echo "🔍 Identifying most expensive workflow..."
       jq -r '
-        group_by(.workflowName) |
+        group_by(.workflow_name) |
         map({
-          workflow: .[0].workflowName,
-          total_tokens: (map(.tokenUsage) | add),
-          total_cost: (map(.estimatedCost) | add),
+          workflow: .[0].workflow_name,
+          total_tokens: (map(.token_usage) | add),
+          total_cost: 0,
           run_count: length,
-          avg_tokens: ((map(.tokenUsage) | add) / length),
-          run_ids: map(.databaseId),
-          latest_run_id: (sort_by(.createdAt) | last | .databaseId),
-          latest_run_url: (sort_by(.createdAt) | last | .url)
+          avg_tokens: ((map(.token_usage) | add) / length),
+          run_ids: map(.database_id),
+          latest_run_id: (sort_by(.created_at) | last | .database_id),
+          latest_run_url: (sort_by(.created_at) | last | .url)
         }) |
         sort_by(.total_tokens) | reverse | .[0]
       ' /tmp/token-optimizer/copilot-runs.json > /tmp/token-optimizer/top-workflow.json
