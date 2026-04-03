@@ -228,7 +228,7 @@ func (c *AddInteractiveConfig) selectScheduleFrequency() error {
 					Options(options...).
 					Value(&selected),
 			),
-		).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+		).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 		if err := form.RunWithContext(c.Ctx); err != nil {
 			return fmt.Errorf("failed to select schedule frequency: %w", err)

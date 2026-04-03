@@ -20,7 +20,7 @@ func ConfirmAction(title, affirmative, negative string) (bool, error) {
 				Negative(negative).
 				Value(&confirmed),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
 
 	if err := confirmForm.Run(); err != nil {
 		return false, err

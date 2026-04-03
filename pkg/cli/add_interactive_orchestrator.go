@@ -231,7 +231,7 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 				Negative("No, cancel").
 				Value(&confirmed),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("confirmation failed: %w", err)

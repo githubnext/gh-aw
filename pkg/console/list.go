@@ -51,7 +51,7 @@ func ShowInteractiveList(title string, items []ListItem) (string, error) {
 				Options(opts...).
 				Value(&selected),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		listLog.Printf("Error running list form: %v", err)

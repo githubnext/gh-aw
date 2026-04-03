@@ -124,7 +124,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 				Options(engineOptions...).
 				Value(&selectedEngine),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
 		return fmt.Errorf("failed to select coding agent: %w", err)

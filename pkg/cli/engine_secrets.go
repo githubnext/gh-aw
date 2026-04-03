@@ -319,7 +319,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 					return stringutil.ValidateCopilotPAT(s)
 				}),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get Copilot token: %w", err)
@@ -367,7 +367,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 					return nil
 				}),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get %s token: %w", req.Name, err)
@@ -420,7 +420,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 					return nil
 				}),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(config.ctx()); err != nil {
 		return fmt.Errorf("failed to get %s API key: %w", label, err)

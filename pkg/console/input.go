@@ -35,7 +35,7 @@ func PromptSecretInput(title, description string) (string, error) {
 				}).
 				Value(&value),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(IsAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return "", err

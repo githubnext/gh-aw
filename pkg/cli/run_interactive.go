@@ -190,7 +190,7 @@ func selectWorkflow(ctx context.Context, workflows []WorkflowOption) (*WorkflowO
 				Height(15).
 				Value(&selected),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("workflow selection cancelled or failed: %w", err)
@@ -314,7 +314,7 @@ func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.Input
 	}
 
 	// Show the form
-	form := huh.NewForm(formGroups...).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	form := huh.NewForm(formGroups...).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 	if err := form.RunWithContext(ctx); err != nil {
 		return nil, fmt.Errorf("input collection cancelled: %w", err)
 	}
@@ -351,7 +351,7 @@ func confirmExecution(ctx context.Context, wf *WorkflowOption, inputs []string) 
 				Negative("No, cancel").
 				Value(&confirm),
 		),
-	).WithTheme(styles.HuhTheme()).WithAccessible(console.IsAccessibleMode())
+	).WithTheme(styles.HuhTheme).WithAccessible(console.IsAccessibleMode())
 
 	if err := form.RunWithContext(ctx); err != nil {
 		runInteractiveLog.Printf("Confirmation failed: %v", err)
