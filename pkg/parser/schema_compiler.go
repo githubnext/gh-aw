@@ -354,7 +354,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 				// Format and return the error
 				formattedErr := console.FormatError(compilerErr)
-				return errors.New(formattedErr)
+				return &FormattedParserError{formatted: formattedErr}
 			}
 		}
 
@@ -382,7 +382,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 		// Format and return the error
 		formattedErr := console.FormatError(compilerErr)
-		return errors.New(formattedErr)
+		return &FormattedParserError{formatted: formattedErr}
 	}
 
 	// Fallback to the original error if we can't format it nicely
