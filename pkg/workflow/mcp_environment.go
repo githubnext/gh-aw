@@ -69,10 +69,12 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		// Check if GitHub App is configured for token minting
 		appConfigured := hasGitHubApp(githubTool)
 
-		// If GitHub App is configured, use the app token (overrides other tokens)
+		// If GitHub App is configured, use the app token minted in the activation job.
+		// The token is passed via needs.activation.outputs to keep app-id/private-key
+		// secrets out of the agent job.
 		if appConfigured {
-			mcpEnvironmentLog.Print("Using GitHub App token for GitHub MCP server (overrides custom and default tokens)")
-			envVars["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+			mcpEnvironmentLog.Print("Using GitHub App token from activation job for GitHub MCP server (overrides custom and default tokens)")
+			envVars["GITHUB_MCP_SERVER_TOKEN"] = "${{ needs.activation.outputs.github_mcp_app_token }}"
 		} else {
 			// Otherwise, use custom token or default fallback
 			customGitHubToken := getGitHubToken(githubTool)

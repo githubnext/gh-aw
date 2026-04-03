@@ -26,10 +26,10 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			shouldContain: []string{
 				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh 0.0.369",
 				"name: Install GitHub Copilot CLI",
+				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash", // Should not pipe directly to bash
-				"GH_HOST: github.com",               // Should not hardcode GH_HOST (breaks GHEC)
 			},
 		},
 		{
@@ -39,10 +39,10 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			expectedVersion: "v0.0.370",
 			shouldContain: []string{
 				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh v0.0.370",
+				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
-				"GH_HOST: github.com", // Should not hardcode GH_HOST (breaks GHEC)
 			},
 		},
 		{
@@ -53,10 +53,10 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			shouldContain: []string{
 				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh 1.2.3",
 				"name: Custom Install Step",
+				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
-				"GH_HOST: github.com", // Should not hardcode GH_HOST (breaks GHEC)
 			},
 		},
 		{
@@ -66,10 +66,10 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			expectedVersion: string(constants.DefaultCopilotVersion), // Should use DefaultCopilotVersion
 			shouldContain: []string{
 				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + string(constants.DefaultCopilotVersion),
+				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
-				"GH_HOST: github.com", // Should not hardcode GH_HOST (breaks GHEC)
 			},
 		},
 	}
@@ -142,12 +142,12 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 		t.Errorf("Expected custom version %s in install step, got:\n%s", customVersion, installStep)
 	}
 
-	// Should NOT hardcode GH_HOST: github.com — hardcoding it breaks GHEC.
-	// The install script uses curl with hardcoded URLs and does not use gh CLI,
-	// so GH_HOST is irrelevant to the download. The correct host is already set
-	// in GITHUB_ENV by configure_gh_for_ghe.sh (or by the Derive GH_HOST step).
-	if strings.Contains(installStep, "GH_HOST: github.com") {
-		t.Errorf("Install step should NOT hardcode GH_HOST: github.com (breaks GHEC), got:\n%s", installStep)
+	// Must pin GH_HOST: github.com to prevent workflow-level GHES overrides from
+	// leaking into the Copilot CLI install step. Without this pin, a workflow with
+	// env.GH_HOST set to a GHES host would cause the install/auth path to target
+	// the wrong host.
+	if !strings.Contains(installStep, "GH_HOST: github.com") {
+		t.Errorf("Install step should pin GH_HOST: github.com to prevent GHES workflow-level overrides, got:\n%s", installStep)
 	}
 }
 

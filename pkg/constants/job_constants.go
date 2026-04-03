@@ -87,6 +87,11 @@ const AgentOutputFilename = "agent_output.json"
 // SafeOutputsFilename is the filename of the raw safe outputs NDJSON file copied to /tmp/gh-aw/
 const SafeOutputsFilename = "safeoutputs.jsonl"
 
+// TokenUsageFilename is the filename of the aggregated token usage JSON file written to /tmp/gh-aw/
+// by parse_token_usage.sh. It is included in the agent artifact so third-party tools can
+// consume structured token data without parsing the step summary or GITHUB_OUTPUT.
+const TokenUsageFilename = "agent_usage.json"
+
 // ArtifactPrefixOutputName is the job output name that exposes the artifact name prefix.
 // In workflow_call context, the prefix is a stable hash derived from the workflow inputs,
 // ensuring artifact names are unique when the same workflow is called multiple times in

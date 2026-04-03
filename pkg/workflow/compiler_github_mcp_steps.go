@@ -81,14 +81,18 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }
 
-// generateGitHubMCPAppTokenMintingStep generates a step to mint a GitHub App token for GitHub MCP server
-// This step is added when:
-// - GitHub tool is enabled with app configuration
-// The step mints an installation access token with permissions matching the agent job permissions
-func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, data *WorkflowData) {
+// generateGitHubMCPAppTokenMintingSteps returns the YAML steps to mint a GitHub App token
+// for the GitHub MCP server. The steps are generated with id: github-mcp-app-token and
+// permissions derived from the agent job's declared permissions plus any extra permissions
+// configured under tools.github.github-app.permissions.
+//
+// The returned steps are intended to be added to the activation job so that the
+// app-id / private-key secrets never reach the agent job. The minted token is then
+// consumed in the agent job via needs.activation.outputs.github_mcp_app_token.
+func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []string {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
-		return
+		return nil
 	}
 
 	app := data.ParsedTools.GitHub.GitHubApp
@@ -125,18 +129,20 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 	}
 
 	// Generate the token minting step using the existing helper from safe_outputs_app.go
-	steps := c.buildGitHubAppTokenMintStep(app, permissions, "")
+	rawSteps := c.buildGitHubAppTokenMintStep(app, permissions, "")
 
-	// Modify the step ID to differentiate from safe-outputs app token
-	// Replace "safe-outputs-app-token" with "github-mcp-app-token"
-	for _, step := range steps {
-		modifiedStep := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: github-mcp-app-token")
-		yaml.WriteString(modifiedStep)
+	// Replace the default step ID with github-mcp-app-token to differentiate it from
+	// the safe-outputs app token.
+	var steps []string
+	for _, step := range rawSteps {
+		steps = append(steps, strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: github-mcp-app-token"))
 	}
+	return steps
 }
 
 // generateGitHubMCPAppTokenInvalidationStep generates a step to invalidate the GitHub App token for GitHub MCP server
-// This step always runs (even on failure) to ensure tokens are properly cleaned up
+// This step always runs (even on failure) to ensure tokens are properly cleaned up.
+// The token was minted in the activation job and is referenced via needs.activation.outputs.github_mcp_app_token.
 func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
@@ -145,14 +151,22 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 
 	githubConfigLog.Print("Generating GitHub App token invalidation step for GitHub MCP server")
 
-	// Generate the token invalidation step using the existing helper from safe_outputs_app.go
-	steps := c.buildGitHubAppTokenInvalidationStep()
+	// The token was minted in the activation job; reference it via needs.activation.outputs.
+	const tokenExpr = "needs.activation.outputs.github_mcp_app_token"
 
-	// Modify the step references to use github-mcp-app-token instead of safe-outputs-app-token
-	for _, step := range steps {
-		modifiedStep := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps.github-mcp-app-token.outputs.token")
-		yaml.WriteString(modifiedStep)
-	}
+	yaml.WriteString("      - name: Invalidate GitHub App token\n")
+	fmt.Fprintf(yaml, "        if: always() && %s != ''\n", tokenExpr)
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          TOKEN: ${{ %s }}\n", tokenExpr)
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"Revoking GitHub App installation token...\"\n")
+	yaml.WriteString("          # GitHub CLI will auth with the token being revoked.\n")
+	yaml.WriteString("          gh api \\\n")
+	yaml.WriteString("            --method DELETE \\\n")
+	yaml.WriteString("            -H \"Authorization: token $TOKEN\" \\\n")
+	yaml.WriteString("            /installation/token || echo \"Token revoke may already be expired.\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          echo \"Token invalidation step complete.\"\n")
 }
 
 // generateParseGuardVarsStep generates a step that parses the blocked-users, trusted-users, and

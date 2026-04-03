@@ -21,6 +21,7 @@ network:
   allowed:
     - defaults
     - github
+    - nodejs.org
 
 imports:
   - ../skills/documentation/SKILL.md

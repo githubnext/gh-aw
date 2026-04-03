@@ -16,7 +16,7 @@ tools:
       - default
   bash:
     - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
-    - "./gh-aw compile"
+    - "gh aw compile *"
     - "cat .github/workflows/*.md"
     - "head -n * .github/workflows/*.md"
     - "cp .github/workflows/*.md /tmp/*.md"
@@ -31,20 +31,16 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 steps:
-  - name: Setup Go
-    uses: actions/setup-go@v6.4.0
-    with:
-      go-version-file: go.mod
-      cache: true
-      
-  - name: Build gh-aw
+  - name: Install gh-aw CLI
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      make build
-      
-  - name: Verify gh-aw installation
-    run: |
-      ./gh-aw --version
-      echo "gh-aw binary is ready at ./gh-aw"
+      if gh extension list | grep -q "github/gh-aw"; then
+        gh extension upgrade gh-aw || true
+      else
+        gh extension install github/gh-aw
+      fi
+      gh aw --version
 imports:
   - shared/reporting.md
 features:
@@ -70,7 +66,7 @@ Test the quality of compiler error messages by:
 
 - **Repository**: ${{ github.repository }}
 - **Workspace**: ${{ github.workspace }}
-- **Compiler**: ./gh-aw
+- **Compiler**: gh aw
 
 ## Phase 1: Select Test Workflows
 
@@ -182,7 +178,7 @@ For each test case:
 1. **Attempt to compile** the modified workflow:
    ```bash
    cd /tmp/syntax-error-tests
-   ./gh-aw compile test-1.md 2>&1 | tee test-1-output.txt
+   gh aw compile test-1.md 2>&1 | tee test-1-output.txt
    ```
 
 2. **Capture the full output** including:
