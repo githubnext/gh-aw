@@ -1,5 +1,3 @@
-//go:build !integration
-
 package agentdrain
 
 // treeNode is an internal node in the Drain parse tree.

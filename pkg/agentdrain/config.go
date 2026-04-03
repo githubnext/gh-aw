@@ -1,5 +1,3 @@
-//go:build !integration
-
 package agentdrain
 
 // DefaultConfig returns a Config pre-loaded with sensible production defaults.

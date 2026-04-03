@@ -1,5 +1,3 @@
-//go:build !integration
-
 package agentdrain
 
 // Config holds tuning parameters for the Drain log template miner.

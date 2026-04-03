@@ -1,5 +1,3 @@
-//go:build !integration
-
 package agentdrain
 
 // clusterStore manages the set of known log template clusters.
