@@ -1,45 +1,41 @@
 # Architecture Diagram
 
-> Last updated: 2026-03-31 · Source: [Run §23789178746](https://github.com/github/gh-aw/actions/runs/23789178746)
+> Last updated: 2026-04-03 · Source: [Issue #aw_arch01](https://github.com/github/gh-aw/issues)
 
 ## Overview
 
 This diagram shows the package structure and dependencies of the `gh-aw` codebase.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                      ENTRY POINTS                                               │
-│  ┌──────────────────────────────────────────┐   ┌─────────────────────────────────────────┐   │
-│  │              cmd/gh-aw                   │   │           cmd/gh-aw-wasm                │   │
-│  │        GitHub CLI extension binary       │   │          WebAssembly target             │   │
-│  └──────┬──────────────────────┬────────────┘   └──────────────────┬──────────────────────┘   │
-│         │                      │                                    │                           │
-├─────────┼──────────────────────┼────────────────────────────────────┼────────────────────────────┤
-│         │    CORE PACKAGES     │                                    │                           │
-│         ▼                      ▼                                    ▼                           │
-│  ┌──────────────┐    ┌──────────────────────┐    ┌──────────────────────┐   ┌────────────────┐ │
-│  │   pkg/cli    │──▶ │    pkg/workflow       │──▶ │      pkg/parser      │   │  pkg/console   │ │
-│  │  Command     │    │  Workflow compilation │    │  Markdown/YAML       │ ◀─│  Terminal UI   │ │
-│  │  impls       │    │  engine               │    │  parsing             │   │  rendering     │ │
-│  └──────────────┘    └──────────────────────┘    └──────────────────────┘   └────────────────┘ │
-│                                                                                                  │
-│                 ↕ all core packages also use constants, types, and utilities ↕                  │
-│                                                                                                  │
-│                ┌────────────────────────────────────────────────────────────────────────────┐   │
-│                │           pkg/constants · pkg/types  (shared primitives, no dependencies)  │   │
-│                └────────────────────────────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                        UTILITIES                                                 │
-│  ┌──────────┐ ┌─────────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
-│  │pkg/logger│ │pkg/stringutil│ │pkg/fileutil│ │pkg/gitutil│ │pkg/styles│ │ pkg/tty  │          │
-│  └──────────┘ └─────────────┘ └────────────┘ └──────────┘ └──────────┘ └──────────┘          │
-│  ┌──────────┐ ┌─────────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
-│  │pkg/envutil│ │pkg/repoutil │ │pkg/sliceutil│ │pkg/semver│ │pkg/timeutil│ │pkg/mathutil│       │
-│  └──────────┘ └─────────────┘ └────────────┘ └──────────┘ └──────────┘ └──────────┘          │
-│  ┌─────────────┐                                                                                │
-│  │ pkg/testutil│  (test support only)                                                          │
-│  └─────────────┘                                                                                │
-└─────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                         ENTRY POINTS                                               │
+│  ┌────────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────────────┐ │
+│  │        cmd/gh-aw           │   │    cmd/gh-aw-wasm      │   │     internal/tools/ (×2)       │ │
+│  │  GitHub CLI extension bin  │   │   WebAssembly target   │   │  actions-build, gen-metadata   │ │
+│  └────────────┬───────────────┘   └────────────┬───────────┘   └──────────────┬─────────────────┘ │
+│               │                                 │                              │                   │
+├───────────────┼─────────────────────────────────┼──────────────────────────────┼───────────────────┤
+│               ▼          CORE PACKAGES           ▼                              ▼                  │
+│  ┌──────────────────┐   ┌──────────────────────┐   ┌────────────────────┐   ┌───────────────────┐ │
+│  │    pkg/cli       │──▶│    pkg/workflow       │──▶│    pkg/parser      │   │   pkg/console     │ │
+│  │  Command impls   │   │  Workflow compilation │   │  MD/YAML parsing   │◀──│  Terminal UI      │ │
+│  └──────────────────┘   └──────────────────────┘   └────────────────────┘   └───────────────────┘ │
+│                                                                                                     │
+│                 ┌──────────────────────────────────────────────────────────────────────────────┐   │
+│                 │           pkg/constants · pkg/types   (shared primitives, no deps)           │   │
+│                 └──────────────────────────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                           UTILITIES                                                 │
+│  ┌──────────┐ ┌──────────────┐ ┌────────────┐ ┌───────────┐ ┌──────────┐ ┌──────────┐            │
+│  │pkg/logger│ │pkg/stringutil│ │pkg/fileutil│ │pkg/gitutil│ │pkg/styles│ │  pkg/tty │            │
+│  └──────────┘ └──────────────┘ └────────────┘ └───────────┘ └──────────┘ └──────────┘            │
+│  ┌───────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────────┐ ┌────────────┐ ┌────────────┐   │
+│  │pkg/envutil│ │pkg/repoutil │ │pkg/sliceutil│ │pkg/semverutil│ │pkg/timeutil│ │pkg/mathutil│   │
+│  └───────────┘ └─────────────┘ └─────────────┘ └──────────────┘ └────────────┘ └────────────┘   │
+│  ┌──────────────┐                                                                                  │
+│  │ pkg/testutil │  (test support only)                                                            │
+│  └──────────────┘                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Package Reference
@@ -48,6 +44,8 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 |---------|-------|-------------|
 | `cmd/gh-aw` | Entry | GitHub CLI extension binary |
 | `cmd/gh-aw-wasm` | Entry | WebAssembly target |
+| `internal/tools/actions-build` | Internal | Build/validate custom GitHub Actions |
+| `internal/tools/generate-action-metadata` | Internal | Generate action.yml and README.md for JS modules |
 | `pkg/cli` | Core | Command implementations (cobra commands) |
 | `pkg/workflow` | Core | Workflow compilation engine (MD → GitHub Actions YAML) |
 | `pkg/parser` | Core | Markdown frontmatter and YAML parsing |
