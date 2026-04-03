@@ -39,13 +39,19 @@ async function main() {
   core.info(`  Source: ${workflowMdPath}`);
   core.info(`  Lock file: ${lockFilePath}`);
 
-  // Determine workflow source repository from GITHUB_WORKFLOW_REF for cross-repo support.
-  // GITHUB_WORKFLOW_REF format: owner/repo/.github/workflows/file.yml@ref
-  // This env var always reflects the repo where the workflow file is defined,
-  // not the repo where the triggering event occurred (context.repo).
-  // When running cross-repo via org rulesets, context.repo points to the target
-  // repository, not the repository that defines the workflow files.
-  const workflowEnvRef = process.env.GITHUB_WORKFLOW_REF || "";
+  // Determine workflow source repository from the workflow ref for cross-repo support.
+  //
+  // For cross-repo workflow_call invocations (reusable workflows called from another repo),
+  // the GITHUB_WORKFLOW_REF env var always points to the TOP-LEVEL CALLER's workflow, not
+  // the reusable workflow being executed. This causes the script to look for lock files in
+  // the wrong repository.
+  //
+  // The GitHub Actions expression ${{ github.workflow_ref }} is injected as GH_AW_CONTEXT_WORKFLOW_REF
+  // by the compiler and correctly identifies the CURRENT reusable workflow's ref even in
+  // cross-repo workflow_call scenarios. We prefer it over GITHUB_WORKFLOW_REF when available.
+  //
+  // Ref: https://github.com/github/gh-aw/issues/23935
+  const workflowEnvRef = process.env.GH_AW_CONTEXT_WORKFLOW_REF || process.env.GITHUB_WORKFLOW_REF || "";
   const currentRepo = process.env.GITHUB_REPOSITORY || `${context.repo.owner}/${context.repo.repo}`;
 
   // Parse owner, repo, and optional ref from GITHUB_WORKFLOW_REF as a single unit so that
@@ -72,7 +78,11 @@ async function main() {
     ref = undefined;
   }
 
-  core.info(`GITHUB_WORKFLOW_REF: ${workflowEnvRef || "(not set)"}`);
+  const contextWorkflowRef = process.env.GH_AW_CONTEXT_WORKFLOW_REF;
+  core.info(`GITHUB_WORKFLOW_REF: ${process.env.GITHUB_WORKFLOW_REF || "(not set)"}`);
+  if (contextWorkflowRef) {
+    core.info(`GH_AW_CONTEXT_WORKFLOW_REF: ${contextWorkflowRef} (used for source repo resolution)`);
+  }
   core.info(`GITHUB_REPOSITORY: ${currentRepo}`);
   core.info(`Resolved source repo: ${owner}/${repo} @ ${ref || "(default branch)"}`);
 

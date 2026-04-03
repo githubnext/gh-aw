@@ -1356,7 +1356,7 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
 		// Create multiple step logs - last one should be selected
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "1_Set up job.txt"), []byte("Setup complete"), 0600))
-		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "4_Check workflow file timestamps.txt"), []byte("Timestamp check complete"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "4_Check workflow lock file.txt"), []byte("Timestamp check complete"), 0600))
 		lockdownErr := "Lockdown mode is enabled (lockdown: true) but no custom GitHub token is configured.\n\nPlease configure one of the following as a repository secret:\n  - GH_AW_GITHUB_TOKEN (recommended)"
 		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "5_Generate agentic run info.txt"), []byte(lockdownErr), 0600))
 

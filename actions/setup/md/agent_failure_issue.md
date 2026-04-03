@@ -35,8 +35,13 @@ Debug this workflow failure using your favorite Agent CLI and the `agentic-workf
 </details>
 
 > [!TIP]
+> <details>
+> <summary><b>Stop reporting this workflow as a failure</b></summary>
+>
 > To stop a workflow from creating failure issues, set `report-failure-as-issue: false` in its frontmatter:
 > ```yaml
 > safe-outputs:
 >   report-failure-as-issue: false
 > ```
+>
+> </details>

@@ -50,6 +50,7 @@ describe("check_workflow_timestamp_api.cjs", () => {
     vi.clearAllMocks();
     delete process.env.GH_AW_WORKFLOW_FILE;
     delete process.env.GITHUB_WORKFLOW_REF;
+    delete process.env.GH_AW_CONTEXT_WORKFLOW_REF;
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GITHUB_WORKSPACE;
 
@@ -785,6 +786,133 @@ engine: copilot
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("escapes workspace"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
+    });
+  });
+
+  describe("cross-repo invocation via workflow_call (GH_AW_CONTEXT_WORKFLOW_REF fix)", () => {
+    // Regression test for https://github.com/github/gh-aw/issues/23935
+    // When a reusable workflow is invoked cross-repo via workflow_call:
+    // - GITHUB_WORKFLOW_REF (env var) = top-level CALLER's workflow (e.g., repo-b/caller.yml@main)
+    // - GH_AW_CONTEXT_WORKFLOW_REF (injected from ${{ github.workflow_ref }}) = the CALLEE's reusable workflow
+    // Without this fix, the script would look for lock files in the caller's repo (404).
+
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+      // Simulate workflow_call cross-repo: reusable workflow defined in platform-repo,
+      // called from caller-repo. GITHUB_WORKFLOW_REF wrongly points to the caller's workflow.
+      process.env.GITHUB_WORKFLOW_REF = "caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-owner/caller-repo";
+      // GH_AW_CONTEXT_WORKFLOW_REF is injected by the compiler from ${{ github.workflow_ref }}
+      // which correctly identifies the reusable workflow being executed.
+      process.env.GH_AW_CONTEXT_WORKFLOW_REF = "platform-owner/platform-repo/.github/workflows/test.lock.yml@refs/heads/main";
+    });
+
+    it("should use GH_AW_CONTEXT_WORKFLOW_REF to identify source repo, not GITHUB_WORKFLOW_REF", async () => {
+      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${validHash}\nname: Test\n`;
+      const mdFileContent = "---\nengine: copilot\n---\n# Test";
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      // Must use the platform repo (from GH_AW_CONTEXT_WORKFLOW_REF), not the caller repo
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "platform-owner", repo: "platform-repo" }));
+      expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date"));
+    });
+
+    it("should log GH_AW_CONTEXT_WORKFLOW_REF when it is set", async () => {
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GH_AW_CONTEXT_WORKFLOW_REF: platform-owner/platform-repo/.github/workflows/test.lock.yml@refs/heads/main"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKFLOW_REF: caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main"));
+    });
+
+    it("should detect cross-repo invocation using GH_AW_CONTEXT_WORKFLOW_REF source vs GITHUB_REPOSITORY", async () => {
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      // platform-repo != caller-repo so it should be detected as cross-repo
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo invocation detected"));
+    });
+
+    it("should fall back to GITHUB_WORKFLOW_REF when GH_AW_CONTEXT_WORKFLOW_REF is not set", async () => {
+      delete process.env.GH_AW_CONTEXT_WORKFLOW_REF;
+      // Without GH_AW_CONTEXT_WORKFLOW_REF, falls back to GITHUB_WORKFLOW_REF (the broken behavior)
+      // This test documents the fallback; GITHUB_WORKFLOW_REF points to the caller
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      // Falls back to caller repo from GITHUB_WORKFLOW_REF
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
+    });
+  });
+
+  describe("same-repo invocation via workflow_call (GH_AW_CONTEXT_WORKFLOW_REF same-repo)", () => {
+    // When the reusable workflow is defined in the same repo that triggers it,
+    // GH_AW_CONTEXT_WORKFLOW_REF still points to the same repo as GITHUB_REPOSITORY.
+    // Ensures that the same-repo code path is not broken when GH_AW_CONTEXT_WORKFLOW_REF is injected.
+
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+      // Same-repo: both the workflow file and the repository are in my-org/my-repo
+      process.env.GITHUB_REPOSITORY = "my-org/my-repo";
+      process.env.GH_AW_CONTEXT_WORKFLOW_REF = "my-org/my-repo/.github/workflows/test.lock.yml@refs/heads/main";
+      // GITHUB_WORKFLOW_REF also matches (normal same-repo case)
+      process.env.GITHUB_WORKFLOW_REF = "my-org/my-repo/.github/workflows/test.lock.yml@refs/heads/main";
+    });
+
+    it("should detect same-repo invocation when GH_AW_CONTEXT_WORKFLOW_REF points to GITHUB_REPOSITORY", async () => {
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Same-repo invocation"));
+      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Cross-repo invocation detected"));
+    });
+
+    it("should pass hashes when same-repo and GH_AW_CONTEXT_WORKFLOW_REF is set", async () => {
+      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${validHash}\nname: Test\n`;
+      const mdFileContent = "---\nengine: copilot\n---\n# Test";
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      // Must use the same repo (from GH_AW_CONTEXT_WORKFLOW_REF)
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "my-org", repo: "my-repo" }));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date"));
+    });
+
+    it("should use ref from GH_AW_CONTEXT_WORKFLOW_REF for same-repo API calls", async () => {
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      // Should use the ref from GH_AW_CONTEXT_WORKFLOW_REF (refs/heads/main), not context.sha
+      // because the ref is parseable from the env var
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ ref: "refs/heads/main" }));
+      expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ ref: "abc123" }));
     });
   });
 });

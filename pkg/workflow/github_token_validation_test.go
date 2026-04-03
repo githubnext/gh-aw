@@ -54,6 +54,17 @@ func TestGitHubTokenValidation(t *testing.T) {
 			token:       "${{ secrets.TOKEN1 || secrets.TOKEN2 }}",
 			expectError: false,
 		},
+		// Valid cases - job output expressions
+		{
+			name:        "valid job output expression - needs.auth.outputs.token",
+			token:       "${{ needs.auth.outputs.token }}",
+			expectError: false,
+		},
+		{
+			name:        "valid job output expression - with spaces",
+			token:       "${{  needs.auth.outputs.token  }}",
+			expectError: false,
+		},
 		// Invalid cases - plaintext secrets
 		{
 			name:        "invalid - plaintext GitHub PAT",
@@ -159,6 +170,11 @@ func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "valid job output token in safe-outputs",
+			token:       "${{ needs.auth.outputs.token }}",
+			expectError: false,
+		},
+		{
 			name:        "invalid token in safe-outputs",
 			token:       "ghp_plaintext_token",
 			expectError: true,
@@ -216,6 +232,11 @@ func TestGitHubTokenValidationInIndividualSafeOutput(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "valid job output token in individual safe-output",
+			token:       "${{ needs.auth.outputs.token }}",
+			expectError: false,
+		},
+		{
 			name:        "invalid token in individual safe-output",
 			token:       "github_pat_plaintext",
 			expectError: true,
@@ -270,6 +291,11 @@ func TestGitHubTokenValidationInGitHubTool(t *testing.T) {
 		{
 			name:        "valid token in github tool",
 			token:       "${{ secrets.GITHUB_TOOL_PAT }}",
+			expectError: false,
+		},
+		{
+			name:        "valid job output token in github tool",
+			token:       "${{ needs.auth.outputs.token }}",
 			expectError: false,
 		},
 		{

@@ -653,8 +653,8 @@ func TestBuildActivationJob(t *testing.T) {
 
 	// Check for timestamp check step
 	stepsContent := strings.Join(job.Steps, "")
-	if !strings.Contains(stepsContent, "Check workflow file timestamps") {
-		t.Error("Expected 'Check workflow file timestamps' step")
+	if !strings.Contains(stepsContent, "Check workflow lock file") {
+		t.Error("Expected 'Check workflow lock file' step")
 	}
 }
 

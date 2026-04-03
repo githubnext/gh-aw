@@ -107,10 +107,11 @@ jobs:
             actions/setup
           sparse-checkout-cone-mode: true
           fetch-depth: 1
-      - name: Check workflow file timestamps
+      - name: Check workflow lock file
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_FILE: "instructions-janitor.lock.yml"
+          GH_AW_CONTEXT_WORKFLOW_REF: "${{ github.workflow_ref }}"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

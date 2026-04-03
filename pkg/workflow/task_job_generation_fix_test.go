@@ -72,7 +72,7 @@ Do some simple work.`
 		}
 
 		// Verify activation job contains timestamp check
-		if !strings.Contains(lockContentStr, "Check workflow file timestamps") {
+		if !strings.Contains(lockContentStr, "Check workflow lock file") {
 			t.Error("Activation job should contain timestamp check step")
 		}
 	})
