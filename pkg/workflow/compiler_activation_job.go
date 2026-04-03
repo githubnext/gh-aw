@@ -178,11 +178,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	steps = append(steps, checkoutSteps...)
 
-	// Add timestamp check for lock file vs source file using GitHub API
-	// No checkout step needed - uses GitHub API to check commit times
+	// Add frontmatter hash check to detect stale lock files using GitHub API.
+	// Compares the hash embedded in the lock file against the source .md file to detect stale lock files.
+	// No checkout step needed - uses GitHub API to fetch file contents.
 	// Skipped when on.stale-check: false is set in the frontmatter.
 	if !data.StaleCheckDisabled {
-		steps = append(steps, "      - name: Check workflow file timestamps\n")
+		steps = append(steps, "      - name: Check workflow lock file\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))

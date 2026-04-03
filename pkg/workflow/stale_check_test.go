@@ -81,13 +81,13 @@ Test workflow for stale check step explicitly enabled.
 			require.NoError(t, err, "Lock file should be readable")
 			lockStr := string(lockContent)
 
-			hasStep := strings.Contains(lockStr, "Check workflow file timestamps")
+			hasStep := strings.Contains(lockStr, "Check workflow lock file")
 			if tt.wantStep {
 				assert.True(t, hasStep,
-					"Expected 'Check workflow file timestamps' step in activation job but not found")
+					"Expected 'Check workflow lock file' step in activation job but not found")
 			} else {
 				assert.False(t, hasStep,
-					"Expected no 'Check workflow file timestamps' step in activation job but it was found")
+					"Expected no 'Check workflow lock file' step in activation job but it was found")
 			}
 		})
 	}

@@ -139,7 +139,7 @@ strict: false
 			}
 
 			// Verify timestamp check step is present
-			if !strings.Contains(activationJobSection, "Check workflow file timestamps") {
+			if !strings.Contains(activationJobSection, "Check workflow lock file") {
 				t.Errorf("%s: Should contain timestamp check step", tt.description)
 			}
 

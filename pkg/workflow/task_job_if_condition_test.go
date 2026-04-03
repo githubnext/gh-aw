@@ -85,7 +85,7 @@ Check the failed workflow and provide analysis.`
 	}
 
 	// Test 4: Verify the timestamp check step is present (replaces placeholder step)
-	if !strings.Contains(lockContentStr, "Check workflow file timestamps") {
+	if !strings.Contains(lockContentStr, "Check workflow lock file") {
 		t.Error("Activation job should contain the timestamp check step")
 	}
 
