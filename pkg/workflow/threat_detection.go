@@ -14,7 +14,8 @@ var threatLog = logger.New("workflow:threat_detection")
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
 	Prompt         string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
-	Steps          []any         `yaml:"steps,omitempty"`         // Array of extra job steps
+	Steps          []any         `yaml:"steps,omitempty"`         // Array of extra job steps to run before engine execution
+	PostSteps      []any         `yaml:"post-steps,omitempty"`    // Array of extra job steps to run after engine execution
 	EngineConfig   *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
 	EngineDisabled bool          `yaml:"-"`                       // Internal flag: true when engine is explicitly set to false
 	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
@@ -24,7 +25,7 @@ type ThreatDetectionConfig struct {
 // that actually executes. Returns false when the engine is disabled and no
 // custom steps are configured, since the job would have nothing to run.
 func (td *ThreatDetectionConfig) HasRunnableDetection() bool {
-	return !td.EngineDisabled || len(td.Steps) > 0
+	return !td.EngineDisabled || len(td.Steps) > 0 || len(td.PostSteps) > 0
 }
 
 // IsDetectionJobEnabled reports whether a detection job should be created for
@@ -108,10 +109,17 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				}
 			}
 
-			// Parse steps field
+			// Parse steps field (pre-execution steps, run before engine execution)
 			if steps, exists := configMap["steps"]; exists {
 				if stepsArray, ok := steps.([]any); ok {
 					threatConfig.Steps = stepsArray
+				}
+			}
+
+			// Parse post-steps field (post-execution steps, run after engine execution)
+			if postSteps, exists := configMap["post-steps"]; exists {
+				if postStepsArray, ok := postSteps.([]any); ok {
+					threatConfig.PostSteps = postStepsArray
 				}
 			}
 
@@ -144,7 +152,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				}
 			}
 
-			threatLog.Printf("Threat detection configured with custom prompt: %v, custom steps: %v", threatConfig.Prompt != "", len(threatConfig.Steps) > 0)
+			threatLog.Printf("Threat detection configured with custom prompt: %v, custom pre-steps: %v, custom post-steps: %v", threatConfig.Prompt != "", len(threatConfig.Steps) > 0, len(threatConfig.PostSteps) > 0)
 			return threatConfig
 		}
 	}
@@ -186,21 +194,26 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	// Step 3: Prepare files - copies agent output files to expected paths
 	steps = append(steps, c.buildPrepareDetectionFilesStep()...)
 
-	// Step 4: Setup threat detection (github-script)
-	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
-
-	// Step 5: Engine execution (AWF, no network)
-	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
-
-	// Step 6: Custom steps if configured
+	// Step 4: Custom pre-steps if configured (run before engine execution)
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 7: Upload detection-artifact
+	// Step 5: Setup threat detection (github-script)
+	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
+
+	// Step 6: Engine execution (AWF, no network)
+	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
+
+	// Step 7: Custom post-steps if configured (run after engine execution)
+	if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
+		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
+	}
+
+	// Step 8: Upload detection-artifact
 	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
-	// Step 8: Parse results, log extensively, and set job conclusion (single JS step)
+	// Step 9: Parse results, log extensively, and set job conclusion (single JS step)
 	steps = append(steps, c.buildDetectionConclusionStep()...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))

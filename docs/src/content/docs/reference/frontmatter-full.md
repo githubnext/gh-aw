@@ -5620,9 +5620,13 @@ safe-outputs:
 
     # Option 2: undefined
 
-    # Array of extra job steps to run after detection
+    # Array of extra job steps to run before engine execution
     # (optional)
     steps: []
+
+    # Array of extra job steps to run after engine execution
+    # (optional)
+    post-steps: []
 
     # Runner specification for the detection job. Overrides agent.runs-on for the
     # detection job only. Defaults to agent.runs-on.
