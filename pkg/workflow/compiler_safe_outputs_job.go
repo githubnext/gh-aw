@@ -210,9 +210,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// 2. SARIF output — expose sarif_file from the handler so the dedicated
 	// upload_code_scanning_sarif job (built in buildCodeScanningUploadJob) can access it
 	// via needs.safe_outputs.outputs.sarif_file and decide whether to run.
+	// Also expose checkout_token so the upload job can checkout the repo without needing
+	// access to any GitHub App credentials (which are only minted in safe_outputs).
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(c.trialMode || data.SafeOutputs.Staged, data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
-		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file output for upload_code_scanning_sarif job")
+		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file and checkout_token outputs for upload_code_scanning_sarif job")
 		outputs["sarif_file"] = "${{ steps.process_safe_outputs.outputs.sarif_file }}"
+		// Export a static checkout token (no step-output references) so the upload job can
+		// authenticate without needing the GitHub App credentials or a step from this job.
+		checkoutMgrForOutput := NewCheckoutManager(data.CheckoutConfigs)
+		outputs["checkout_token"] = computeStaticCheckoutToken(data.SafeOutputs, checkoutMgrForOutput)
 	}
 
 	// 3. Assign To Agent step (runs after handler managers)

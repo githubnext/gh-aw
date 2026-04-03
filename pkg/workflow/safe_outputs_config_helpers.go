@@ -71,6 +71,58 @@ func computeEffectivePRCheckoutToken(safeOutputs *SafeOutputsConfig) (token stri
 	return getEffectiveSafeOutputGitHubToken(""), false
 }
 
+// computeStaticCheckoutToken returns the effective checkout token as a **static** GitHub
+// Actions expression (secret reference or default).  Unlike computeEffectivePRCheckoutToken,
+// this function never returns a step-output expression (e.g.
+// "${{ steps.safe-outputs-app-token.outputs.token }}") because step outputs are not
+// accessible outside the job they were created in.
+//
+// This is the correct function to use when the token value needs to be exported as a
+// job output for consumption by downstream jobs (e.g. upload_code_scanning_sarif).
+//
+// Token precedence:
+//  1. Per-config PAT: create-pull-request.github-token
+//  2. Per-config PAT: push-to-pull-request-branch.github-token
+//  3. safe-outputs level PAT: safe-outputs.github-token
+//  4. Default fallback (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
+//
+// Note: GitHub App tokens are intentionally excluded because:
+//   - Minted app tokens are short-lived and revoked at the end of the safe_outputs job.
+//   - A downstream job that reads a revoked token from a job output would fail to authenticate.
+//   - When only a GitHub App is configured (no static PAT), the downstream job should use
+//     the default GITHUB_TOKEN, which has `contents: read` and is sufficient for checkout.
+func computeStaticCheckoutToken(safeOutputs *SafeOutputsConfig, checkoutMgr *CheckoutManager) string {
+	// Priority 0: user-configured workspace checkout token (checkout: github-token:)
+	if checkoutMgr != nil {
+		override := checkoutMgr.GetDefaultCheckoutOverride()
+		if override != nil && override.token != "" {
+			return getEffectiveSafeOutputGitHubToken(override.token)
+		}
+	}
+
+	if safeOutputs == nil {
+		return getEffectiveSafeOutputGitHubToken("")
+	}
+
+	// Priority 1: per-config PAT for create-pull-request
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.CreatePullRequests.GitHubToken)
+	}
+
+	// Priority 2: per-config PAT for push-to-pull-request-branch
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.PushToPullRequestBranch.GitHubToken)
+	}
+
+	// Priority 3: safe-outputs level PAT (skip GitHub App — see function doc)
+	if safeOutputs.GitHubToken != "" {
+		return getEffectiveSafeOutputGitHubToken(safeOutputs.GitHubToken)
+	}
+
+	// Priority 4: default
+	return getEffectiveSafeOutputGitHubToken("")
+}
+
 // computeEffectiveProjectToken computes the effective project token using the precedence:
 //  1. Per-config token (e.g., from update-project, create-project-status-update)
 //  2. Safe-outputs level token

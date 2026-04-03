@@ -772,32 +772,45 @@ func TestCallWorkflowOnly_UsesHandlerManagerStep(t *testing.T) {
 
 // TestCreateCodeScanningAlertUploadJob verifies that when create-code-scanning-alert is configured,
 // a dedicated upload_code_scanning_sarif job is created (separate from safe_outputs) and that
-// the safe_outputs job exports sarif_file so the upload job can check whether to run.
+// the safe_outputs job exports sarif_file and checkout_token so the upload job can check whether
+// to run and authenticate without needing GitHub App credentials.
 func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 	tests := []struct {
-		name               string
-		config             *CreateCodeScanningAlertsConfig
-		expectUploadJob    bool
-		expectCustomToken  string
-		expectDefaultToken bool
+		name                   string
+		config                 *CreateCodeScanningAlertsConfig
+		expectUploadJob        bool
+		expectCustomToken      string
+		expectTokenFromOutputs bool // expect needs.safe_outputs.outputs.checkout_token
+		safeOutputsGitHubToken string
 	}{
 		{
-			name: "default config creates separate upload job with default token",
+			name: "default config creates separate upload job using checkout_token from outputs",
 			config: &CreateCodeScanningAlertsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{},
 			},
-			expectUploadJob:    true,
-			expectDefaultToken: true,
+			expectUploadJob:        true,
+			expectTokenFromOutputs: true,
 		},
 		{
-			name: "custom github-token is used in upload job",
+			name: "custom per-config github-token is used in upload step token",
 			config: &CreateCodeScanningAlertsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					GitHubToken: "${{ secrets.GHAS_TOKEN }}",
 				},
 			},
-			expectUploadJob:   true,
-			expectCustomToken: "${{ secrets.GHAS_TOKEN }}",
+			expectUploadJob:        true,
+			expectCustomToken:      "${{ secrets.GHAS_TOKEN }}",
+			expectTokenFromOutputs: true,
+		},
+		{
+			name: "safe-outputs-level github-token is used in upload step token",
+			config: &CreateCodeScanningAlertsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{},
+			},
+			expectUploadJob:        true,
+			expectCustomToken:      "${{ secrets.SO_TOKEN }}",
+			expectTokenFromOutputs: true,
+			safeOutputsGitHubToken: "${{ secrets.SO_TOKEN }}",
 		},
 		{
 			name: "staged mode does not create upload job",
@@ -819,10 +832,11 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
 					CreateCodeScanningAlerts: tt.config,
+					GitHubToken:              tt.safeOutputsGitHubToken,
 				},
 			}
 
-			// 1. Verify safe_outputs job exports sarif_file (needed by the upload job's if: condition)
+			// 1. Verify safe_outputs job exports sarif_file and checkout_token
 			safeOutputsJob, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
 			require.NoError(t, err, "safe_outputs job should build without error")
 			require.NotNil(t, safeOutputsJob, "safe_outputs job should be generated")
@@ -835,6 +849,10 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 					"safe_outputs job must export sarif_file output")
 				assert.Contains(t, safeOutputsJob.Outputs["sarif_file"], "steps.process_safe_outputs.outputs.sarif_file",
 					"sarif_file output must reference process_safe_outputs step")
+
+				// safe_outputs must export checkout_token for the upload job to use
+				assert.Contains(t, safeOutputsJob.Outputs, "checkout_token",
+					"safe_outputs job must export checkout_token output for the upload job")
 
 				// The upload and restore steps must NOT be in safe_outputs itself
 				assert.NotContains(t, safeOutputsSteps, "upload-sarif",
@@ -868,6 +886,10 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 				assert.NotContains(t, uploadSteps, "git checkout ${{ github.sha }}",
 					"Must use actions/checkout, not a raw git command")
 
+				// The restore checkout step must always use the checkout_token from safe_outputs outputs
+				assert.Contains(t, uploadSteps, "needs.safe_outputs.outputs.checkout_token",
+					"Restore checkout step must use checkout_token from safe_outputs outputs")
+
 				// Upload SARIF step must be present
 				assert.Contains(t, uploadSteps, "Upload SARIF to GitHub Code Scanning",
 					"Upload job must have SARIF upload step")
@@ -899,19 +921,18 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 
 				if tt.expectCustomToken != "" {
 					assert.Contains(t, uploadSteps, tt.expectCustomToken,
-						"Upload job should use custom token")
+						"Upload SARIF token must use the per-config or safe-outputs github-token")
 				}
-				if tt.expectDefaultToken {
-					assert.Contains(t, uploadSteps, "GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN",
-						"Upload job should use default token fallback")
+				if tt.expectTokenFromOutputs {
+					assert.Contains(t, uploadSteps, "needs.safe_outputs.outputs.checkout_token",
+						"Upload job should use checkout_token from safe_outputs outputs")
 				}
 			} else {
-				// staged: safe_outputs should NOT export sarif_file
+				// staged: safe_outputs should NOT export sarif_file or checkout_token
 				assert.NotContains(t, safeOutputsJob.Outputs, "sarif_file",
 					"staged mode: safe_outputs must not export sarif_file")
-
-				// buildCodeScanningUploadJob should still produce a job structurally
-				// (staging is enforced by the caller in buildSafeOutputsJobs, not the builder itself)
+				assert.NotContains(t, safeOutputsJob.Outputs, "checkout_token",
+					"staged mode: safe_outputs must not export checkout_token")
 			}
 		})
 	}

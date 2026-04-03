@@ -78,10 +78,12 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) {
 	createCodeScanningAlertLog.Print("Building upload_code_scanning_sarif job")
 
-	// Resolve the checkout token: consult the checkout manager for user-configured credentials,
-	// then fall back to the PR checkout token chain (safe-outputs token or GITHUB_TOKEN).
-	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
-	restoreToken := c.resolveRestoreCheckoutToken(checkoutMgr, data)
+	// The checkout token is passed from the safe_outputs job via its checkout_token output.
+	// This avoids needing GitHub App credentials in this job — the app token (if any) was
+	// already minted and revoked in safe_outputs, so we use the static token that safe_outputs
+	// exported. Falls back to the default GH_AW_GITHUB_TOKEN || GITHUB_TOKEN when no
+	// user-configured PAT is present.
+	restoreToken := fmt.Sprintf("${{ needs.%s.outputs.checkout_token }}", constants.SafeOutputsJobName)
 
 	var steps []string
 
@@ -135,54 +137,37 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 
 // addUploadSARIFToken adds the 'token' input for github/codeql-action/upload-sarif.
 // This action uses 'token' as the input name (not 'github-token' like other GitHub Actions).
-// Uses precedence: config token > safe-outputs global github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// This runs inside the upload_code_scanning_sarif job (a separate job from safe_outputs), so
+// the token is read from the safe_outputs job's checkout_token output rather than any step output.
+// Uses precedence: config token > safe-outputs global github-token > safe_outputs.outputs.checkout_token
 func (c *Compiler) addUploadSARIFToken(steps *[]string, data *WorkflowData, configToken string) {
 	var safeOutputsToken string
 	if data.SafeOutputs != nil {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
 
-	// If app is configured, use app token
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubApp != nil {
-		*steps = append(*steps, "          token: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
-		return
-	}
-
-	// Choose the first non-empty custom token for precedence
+	// Choose the first non-empty per-config or safe-outputs-level static PAT.
+	// GitHub App tokens are NOT used here because they are minted and revoked in safe_outputs;
+	// they are unavailable in this separate downstream job.
 	effectiveCustomToken := configToken
 	if effectiveCustomToken == "" {
 		effectiveCustomToken = safeOutputsToken
 	}
 
-	effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
-	// Log which token source is being used for debugging
-	tokenSource := "default (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)"
-	if configToken != "" {
-		tokenSource = "per-config github-token"
-	} else if safeOutputsToken != "" {
-		tokenSource = "safe-outputs github-token"
-	}
-	createCodeScanningAlertLog.Printf("Using token for SARIF upload from source: %s (upload-sarif uses 'token' not 'github-token')", tokenSource)
-	*steps = append(*steps, fmt.Sprintf("          token: %s\n", effectiveToken))
-}
-
-// resolveRestoreCheckoutToken returns the GitHub token to use for the pre-SARIF
-// restore checkout step. It consults the checkout manager first (user-configured
-// checkout frontmatter), then falls back to the PR checkout token chain.
-//
-// Token precedence:
-//  1. User-configured checkout.github-token from the default workspace checkout
-//  2. PR checkout token (create-pull-request / push-to-pull-request-branch / safe-outputs token)
-//  3. Default: GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-func (c *Compiler) resolveRestoreCheckoutToken(checkoutMgr *CheckoutManager, data *WorkflowData) string {
-	// User-configured checkout token from frontmatter (checkout: github-token: ...)
-	override := checkoutMgr.GetDefaultCheckoutOverride()
-	if override != nil && override.token != "" {
-		createCodeScanningAlertLog.Printf("Using checkout manager override token for SARIF restore checkout")
-		return getEffectiveSafeOutputGitHubToken(override.token)
+	if effectiveCustomToken != "" {
+		effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+		tokenSource := "per-config github-token"
+		if configToken == "" {
+			tokenSource = "safe-outputs github-token"
+		}
+		createCodeScanningAlertLog.Printf("Using token for SARIF upload from source: %s (upload-sarif uses 'token' not 'github-token')", tokenSource)
+		*steps = append(*steps, fmt.Sprintf("          token: %s\n", effectiveToken))
+		return
 	}
 
-	// Fall back to PR checkout token (which itself falls back to safe-outputs token or GITHUB_TOKEN)
-	prToken, _ := computeEffectivePRCheckoutToken(data.SafeOutputs)
-	return prToken
+	// No per-config or safe-outputs token — use the checkout_token exported from the safe_outputs job.
+	// This is the static token (secret reference) computed by computeStaticCheckoutToken in safe_outputs,
+	// which falls back to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN when no user-configured PAT is present.
+	createCodeScanningAlertLog.Printf("Using safe_outputs.outputs.checkout_token for SARIF upload token")
+	*steps = append(*steps, fmt.Sprintf("          token: ${{ needs.%s.outputs.checkout_token }}\n", constants.SafeOutputsJobName))
 }
