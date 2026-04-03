@@ -96,7 +96,7 @@ Test workflow with GitHub MCP app token minting.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// Verify token minting step is present
+	// Verify token minting step is present in the activation job
 	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
 	assert.Contains(t, lockContent, "actions/create-github-app-token", "Should use create-github-app-token action")
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "Should use github-mcp-app-token as step ID")
@@ -107,13 +107,16 @@ Test workflow with GitHub MCP app token minting.
 	assert.Contains(t, lockContent, "permission-contents: read", "Should include contents read permission")
 	assert.Contains(t, lockContent, "permission-issues: read", "Should include issues read permission")
 
-	// Verify token invalidation step is present
+	// Verify token is exposed as an activation job output
+	assert.Contains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job should expose github_mcp_app_token output")
+
+	// Verify token invalidation step is present in the agent job and references activation output
 	assert.Contains(t, lockContent, "Invalidate GitHub App token", "Token invalidation step should be present")
 	assert.Contains(t, lockContent, "if: always()", "Invalidation step should always run")
-	assert.Contains(t, lockContent, "steps.github-mcp-app-token.outputs.token", "Should reference github-mcp-app-token output")
+	assert.Contains(t, lockContent, "needs.activation.outputs.github_mcp_app_token", "Invalidation step should reference activation output")
 
-	// Verify the app token is used for GitHub MCP Server
-	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP Server")
+	// Verify the app token is consumed from activation outputs in the agent job
+	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ needs.activation.outputs.github_mcp_app_token }}", "Should use activation output token for GitHub MCP Server")
 }
 
 // TestGitHubMCPAppTokenAndGitHubTokenMutuallyExclusive tests that setting both app and github-token is rejected
@@ -188,18 +191,21 @@ Test app token with remote GitHub MCP Server.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// Verify token minting step is present
+	// Verify token minting step is present in the activation job
 	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "Should use github-mcp-app-token as step ID")
 
-	// Verify the app token is used in the authorization header for remote mode
-	// The token should be in the HTTP config's Authorization header
-	if strings.Contains(lockContent, `"Authorization": "Bearer ${{ steps.github-mcp-app-token.outputs.token }}"`) {
-		// Success - app token is used
-		t.Log("App token correctly used in remote mode Authorization header")
+	// Verify the activation job exposes the token as an output
+	assert.Contains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job should expose github_mcp_app_token output")
+
+	// Verify the app token from activation outputs is used in the agent job
+	// The token should be referenced via needs.activation.outputs.github_mcp_app_token
+	if strings.Contains(lockContent, `"Authorization": "Bearer ${{ needs.activation.outputs.github_mcp_app_token }}"`) {
+		// Success - app token from activation is used in Authorization header
+		t.Log("App token from activation correctly used in remote mode Authorization header")
 	} else {
 		// Also check for the env var reference pattern used by Claude engine
-		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP Server in remote mode")
+		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ needs.activation.outputs.github_mcp_app_token }}", "Should use activation output token for GitHub MCP Server in remote mode")
 	}
 }
 
@@ -306,9 +312,9 @@ Test that determine-automatic-lockdown is generated even when app is configured.
 	assert.Contains(t, lockContent, "GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}", "Guard min-integrity env var should reference lockdown step output")
 	assert.Contains(t, lockContent, "GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}", "Guard repos env var should reference lockdown step output")
 
-	// App token should still be minted and used
+	// App token should still be minted (in activation job) and consumed via activation outputs
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should still be generated")
-	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "App token should be used for MCP server")
+	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ needs.activation.outputs.github_mcp_app_token }}", "App token from activation should be used for MCP server")
 }
 
 // TestGitHubMCPAppTokenWithDependabotToolset tests that permission-vulnerability-alerts is included

@@ -120,6 +120,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["activation_app_token_minting_failed"] = "${{ steps.activation-app-token.outcome == 'failure' }}"
 	}
 
+	// Mint the GitHub MCP app token in the activation job so that the agent job never
+	// receives the app-id / private-key secrets. The minted token is exposed as a job
+	// output and consumed by the agent job via needs.activation.outputs.github_mcp_app_token.
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil && data.ParsedTools.GitHub.GitHubApp != nil {
+		steps = append(steps, c.generateGitHubMCPAppTokenMintingSteps(data)...)
+		outputs["github_mcp_app_token"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+	}
+
 	// Add reaction step right after generate_aw_info so it is shown to the user as fast as
 	// possible. generate_aw_info runs first so its data is captured even if the reaction fails.
 	// This runs in the activation job so it can use any configured github-token or github-app.
