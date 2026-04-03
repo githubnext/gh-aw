@@ -166,6 +166,59 @@ func TestIsNonZipArtifactError(t *testing.T) {
 	}
 }
 
+func TestIsDockerBuildArtifact(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "typical dockerbuild artifact",
+			input:    "github~gh-aw~39RTHX.dockerbuild",
+			expected: true,
+		},
+		{
+			name:     "plain dockerbuild suffix",
+			input:    "something.dockerbuild",
+			expected: true,
+		},
+		{
+			name:     "regular artifact name",
+			input:    "agent",
+			expected: false,
+		},
+		{
+			name:     "activation artifact",
+			input:    "activation",
+			expected: false,
+		},
+		{
+			name:     "dockerbuild as substring only",
+			input:    "some.dockerbuild.txt",
+			expected: false,
+		},
+		{
+			name:     "empty name",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "firewall audit logs",
+			input:    "firewall-audit-logs",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isDockerBuildArtifact(tt.input)
+			if result != tt.expected {
+				t.Errorf("isDockerBuildArtifact(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestCriticalArtifactNames(t *testing.T) {
 	// Verify the list of critical artifacts includes the expected names
 	expected := map[string]bool{
