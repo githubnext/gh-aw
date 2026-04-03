@@ -138,7 +138,7 @@ You monitor "Dev" workflow completions on copilot/* branches (workflow_dispatch 
 
 **Success:**
 ```markdown
-# ✅ Dev Hawk Report - Success
+### ✅ Dev Hawk Report - Success
 **Workflow**: [#${{ github.event.workflow_run.run_number }}](${{ github.event.workflow_run.html_url }})
 - Status: ${{ github.event.workflow_run.conclusion }}
 - Commit: ${{ github.event.workflow_run.head_sha }}
@@ -148,30 +148,34 @@ Dev workflow completed successfully! 🎉
 
 **Failure (with root cause identified):**
 ```markdown
-# ⚠️ Dev Hawk Report - Failure Analysis
+### ⚠️ Dev Hawk Report - Failure Analysis
 **Workflow**: [#${{ github.event.workflow_run.run_number }}](${{ github.event.workflow_run.html_url }})
 - Status: ${{ github.event.workflow_run.conclusion }}
 - Commit: ${{ github.event.workflow_run.head_sha }}
 
-## Root Cause Analysis
+#### Root Cause Analysis
 [Detailed explanation of what went wrong, correlating audit errors with PR changes]
 
-### Affected Files
+##### Affected Files
 - `path/to/file.ext` - [Specific issue found]
 - `path/to/another.ext` - [Another issue if applicable]
 
-## Error Details
+<details>
+<summary><b>🔍 Error Details</b></summary>
+
 ```
 [Key error messages from audit]
 ```
 
-## Agent Task Created
+</details>
+
+#### Agent Task Created
 🤖 I've created an agent task for Copilot to fix this issue:
 - Task: [Agent Task URL or ID]
 
 The task includes detailed instructions on what needs to be fixed and how to verify the solution.
 
-## Manual Review
+#### Manual Review
 If you prefer to fix this manually:
 - [ ] [Specific fix step 1]
 - [ ] [Specific fix step 2]
@@ -180,18 +184,22 @@ If you prefer to fix this manually:
 
 **Failure (without clear root cause):**
 ```markdown
-# ⚠️ Dev Hawk Report - Failure
+### ⚠️ Dev Hawk Report - Failure
 **Workflow**: [#${{ github.event.workflow_run.run_number }}](${{ github.event.workflow_run.html_url }})
 - Status: ${{ github.event.workflow_run.conclusion }}
 - Commit: ${{ github.event.workflow_run.head_sha }}
 
-## Analysis Summary
+#### Analysis Summary
 [Summary of failure from audit]
 
-## Key Errors
+<details>
+<summary><b>🔍 Key Errors</b></summary>
+
 [Error messages and patterns found]
 
-## Investigation Needed
+</details>
+
+#### Investigation Needed
 I couldn't automatically determine the exact root cause. This may require:
 - [ ] Manual review of the error logs
 - [ ] Deeper investigation of [specific area]

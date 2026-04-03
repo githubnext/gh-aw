@@ -10,9 +10,9 @@ This document specifies the algorithm for computing a deterministic hash of agen
 ## Purpose
 
 The frontmatter hash provides:
-1. **Change detection**: Verify that workflow configuration has not changed between compilation and execution
+1. **Stale lock detection**: Identify when the compiled lock file is out of sync with the source workflow (e.g. after editing the `.md` file without recompiling)
 2. **Reproducibility**: Ensure identical configurations produce identical hashes across languages (Go and JavaScript)
-3. **Security**: Detect unauthorized modifications to workflow frontmatter
+3. **Change detection**: Verify that workflow configuration has not changed between compilation and execution
 
 ## Hash Algorithm
 
@@ -196,8 +196,8 @@ Both Go and JavaScript implementations MUST:
 ## Security Considerations
 
 - The hash is **not cryptographically secure** for authentication (no HMAC/signing)
-- The hash **detects accidental or malicious changes** to frontmatter after compilation
-- The hash **does not protect** against modifications before compilation
+- The hash is designed to **detect stale lock files** — it catches cases where the frontmatter has changed since the lock file was last compiled
+- The hash **does not guarantee tamper protection**: anyone with write access to the repository can modify both the `.md` source and the `.lock.yml` file together, bypassing detection
 - Always validate workflow sources through proper code review processes
 
 ## Versioning

@@ -252,3 +252,47 @@ func TestExtractMCPGatewayConfigTrustedBots(t *testing.T) {
 		assert.Nil(t, config.TrustedBots, "TrustedBots should be nil when not specified")
 	})
 }
+
+// TestExtractMCPGatewayConfigKeepaliveInterval tests extraction of keepalive-interval from MCP gateway frontmatter
+func TestExtractMCPGatewayConfigKeepaliveInterval(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts keepaliveInterval using camelCase key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":         "ghcr.io/github/gh-aw-mcpg",
+			"keepaliveInterval": 300,
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, 300, config.KeepaliveInterval, "Should extract keepaliveInterval")
+	})
+
+	t.Run("extracts keepalive-interval using kebab-case key", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":          "ghcr.io/github/gh-aw-mcpg",
+			"keepalive-interval": 600,
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, 600, config.KeepaliveInterval, "Should extract keepalive-interval")
+	})
+
+	t.Run("extracts -1 to disable keepalive", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container":         "ghcr.io/github/gh-aw-mcpg",
+			"keepaliveInterval": -1,
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, -1, config.KeepaliveInterval, "Should extract -1 as keepalive disabled sentinel")
+	})
+
+	t.Run("leaves keepaliveInterval as 0 when not specified", func(t *testing.T) {
+		mcpObj := map[string]any{
+			"container": "ghcr.io/github/gh-aw-mcpg",
+		}
+		config := compiler.extractMCPGatewayConfig(mcpObj)
+		require.NotNil(t, config, "Should extract MCP gateway config")
+		assert.Equal(t, 0, config.KeepaliveInterval, "KeepaliveInterval should be 0 when not specified")
+	})
+}

@@ -235,7 +235,7 @@ jobs:
       await main();
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated or unverifiable"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
@@ -246,7 +246,7 @@ jobs:
       await main();
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated or unverifiable"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
@@ -348,7 +348,7 @@ engine: claude
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Unable to fetch lock file content"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated or unverifiable"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
     });
   });
 
@@ -700,7 +700,7 @@ engine: copilot
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Unable to fetch lock file content for hash comparison via API"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKSPACE not available"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated or unverifiable"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
     });
 
     it("should fail when API fails and local lock file is missing", async () => {
@@ -712,7 +712,7 @@ engine: copilot
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Local lock file not found"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated or unverifiable"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
     });
 
     it("should use API if available even in cross-repo scenario (API preferred over local files)", async () => {
@@ -785,7 +785,7 @@ engine: copilot
       // The path traversal is rejected before any file read
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("escapes workspace"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outdated or unverifiable"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
     });
   });
 

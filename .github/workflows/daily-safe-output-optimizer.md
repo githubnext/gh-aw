@@ -219,7 +219,7 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
 **Issue Structure:**
 
 ```markdown
-# Improve [Tool Name] Description to Prevent Agent Errors
+### Improve [Tool Name] Description to Prevent Agent Errors
 
 ### Summary
 

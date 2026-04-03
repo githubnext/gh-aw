@@ -138,6 +138,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		PayloadPathPrefix:    workflowData.SandboxConfig.MCP.PayloadPathPrefix, // Optional path prefix for agent containers
 		PayloadSizeThreshold: payloadSizeThreshold,                             // Size threshold in bytes
 		TrustedBots:          workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
+		KeepaliveInterval:    workflowData.SandboxConfig.MCP.KeepaliveInterval, // Keepalive interval from frontmatter (0=default, -1=disabled, >0=custom)
 	}
 }
 
