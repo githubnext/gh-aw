@@ -70,7 +70,7 @@ steps:
       mkdir -p "$ARTIFACT_DIR"
 
       echo "📥 Downloading token-usage.jsonl artifacts..."
-      jq -r '.[].databaseId' /tmp/token-analyzer/copilot-runs.json 2>/dev/null | head -50 > /tmp/token-analyzer/run-ids.txt || true
+      jq -r '.[0:50][]?.databaseId' /tmp/token-analyzer/copilot-runs.json 2>/dev/null > /tmp/token-analyzer/run-ids.txt || true
       while read -r run_id; do
         run_dir="$ARTIFACT_DIR/$run_id"
         mkdir -p "$run_dir"
