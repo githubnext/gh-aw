@@ -173,12 +173,15 @@ func compileDispatchWorkflowDependencies(workflowFile string, verbose, quiet boo
 // This function preserves the existing frontmatter formatting while adding the source field.
 func addSourceToWorkflow(content, source string) (string, error) {
 	// Use shared frontmatter logic that preserves formatting
-	return addFieldToFrontmatter(content, "source", source)
+	return addFieldToFrontmatter(content, "source", source, false)
 }
 
 // addEngineToWorkflow adds or updates the engine field in the workflow's frontmatter.
 // This function preserves the existing frontmatter formatting while setting the engine field.
+// A trailing blank line is added after the engine declaration to visually separate it from
+// the source field that follows, preventing adjacent-line merge conflicts during updates.
 func addEngineToWorkflow(content, engine string) (string, error) {
-	// Use shared frontmatter logic that preserves formatting
-	return addFieldToFrontmatter(content, "engine", engine)
+	// Use shared frontmatter logic that preserves formatting; trailing blank line separates
+	// the engine declaration from the source field added immediately after.
+	return addFieldToFrontmatter(content, "engine", engine, true)
 }

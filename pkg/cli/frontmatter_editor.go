@@ -141,7 +141,9 @@ func updateFieldInFrontmatterFallback(result *parser.FrontmatterResult, fieldNam
 
 // addFieldToFrontmatter adds a new field to the frontmatter while preserving formatting.
 // This is used when we know the field doesn't exist yet.
-func addFieldToFrontmatter(content, fieldName, fieldValue string) (string, error) {
+// When trailingBlankLine is true, a blank line is appended after the new field to provide
+// visual separation from fields added subsequently (e.g., separating engine from source).
+func addFieldToFrontmatter(content, fieldName, fieldValue string, trailingBlankLine bool) (string, error) {
 	// Parse frontmatter using parser package
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
@@ -164,6 +166,9 @@ func addFieldToFrontmatter(content, fieldName, fieldValue string) (string, error
 		// Add field at the end of the frontmatter, preserving original formatting
 		newField := fmt.Sprintf("%s: %s", fieldName, fieldValue)
 		frontmatterLines = append(frontmatterLines, newField)
+		if trailingBlankLine {
+			frontmatterLines = append(frontmatterLines, "")
+		}
 
 		// Reconstruct the file with preserved formatting
 		var lines []string
