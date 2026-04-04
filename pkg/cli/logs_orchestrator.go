@@ -112,11 +112,14 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			break
 		}
 
-		// Add cooldown between iterations to avoid GitHub API rate limiting.
-		// The first iteration (iteration == 0) runs immediately; subsequent iterations
-		// pause briefly to give the API rate limit window time to recover.
+		// Query the GitHub API rate limit before each iteration (except the first)
+		// and wait as needed.  This replaces the static cooldown sleep: the helper
+		// always sleeps at least APICallCooldown but will also block until the
+		// reset window when the remaining budget is nearly exhausted.
 		if iteration > 0 {
-			time.Sleep(APICallCooldown)
+			if rlErr := checkAndWaitForRateLimit(verbose); rlErr != nil {
+				logsOrchestratorLog.Printf("Rate limit check failed (using static cooldown): %v", rlErr)
+			}
 		}
 
 		iteration++

@@ -32,9 +32,18 @@ const (
 	BatchSizeForAllWorkflows = 250
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
-	// APICallCooldown is the pause between successive batch-fetch iterations to avoid
-	// hitting the GitHub API rate limit when processing many runs in a single invocation.
+	// APICallCooldown is the minimum pause between successive batch-fetch iterations to
+	// avoid hitting the GitHub API rate limit when processing many runs in a single
+	// invocation.  checkAndWaitForRateLimit always sleeps at least this long.
 	APICallCooldown = 500 * time.Millisecond
+	// RateLimitThreshold is the minimum number of GitHub API core requests that must
+	// remain before the rate-limit helper considers the budget healthy.  When the
+	// remaining count falls at or below this value the helper sleeps until the reset
+	// window so subsequent iterations are not rejected with a 403/429.
+	RateLimitThreshold = 10
+	// rateLimitResetBuffer is the extra duration added on top of the computed wait time
+	// after a rate-limit reset to avoid resuming right on the boundary.
+	rateLimitResetBuffer = 2 * time.Second
 )
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics
