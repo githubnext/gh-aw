@@ -144,16 +144,14 @@ compile without duplicate 'Generate GitHub App token' step errors in the activat
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Compile workflow — must succeed without a duplicate step error
+	// Compile workflow — must succeed so the generated lock file can be validated.
 	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdFile)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate step") {
 			t.Fatalf("Regression: duplicate step error when combining multiple checkouts + top-level github-app: %v", err)
 		}
-		// Other errors are acceptable for this regression test
-		t.Logf("Compilation failed with non-duplicate-step error (acceptable): %v", err)
-		return
+		t.Fatalf("Compilation failed unexpectedly before lock-file assertions could run: %v", err)
 	}
 
 	// Read the generated lock file and verify the activation job has unique step names
