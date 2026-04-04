@@ -744,9 +744,11 @@ func TestComputeTokenUsageDiff_WithData(t *testing.T) {
 
 	assert.Equal(t, 10, diff.Run1TotalRequests, "Run1 requests should be 10")
 	assert.Equal(t, 14, diff.Run2TotalRequests, "Run2 requests should be 14")
+	assert.Equal(t, "+4", diff.RequestsDelta, "Requests delta should be +4")
 
 	assert.InDelta(t, 0.333, diff.Run1CacheEfficiency, 0.001, "Run1 cache efficiency should match")
 	assert.InDelta(t, 0.318, diff.Run2CacheEfficiency, 0.001, "Run2 cache efficiency should match")
+	assert.Equal(t, "-1.5pp", diff.CacheEfficiencyChange, "Cache efficiency change should be -1.5pp")
 }
 
 func TestComputeTokenUsageDiff_Run1Nil(t *testing.T) {

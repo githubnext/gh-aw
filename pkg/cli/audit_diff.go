@@ -280,9 +280,10 @@ type TokenUsageDiff struct {
 	EffectiveTokensChange  string  `json:"effective_tokens_change,omitempty"`
 	Run1TotalRequests      int     `json:"run1_total_requests"`
 	Run2TotalRequests      int     `json:"run2_total_requests"`
-	RequestsChange         string  `json:"requests_change,omitempty"`
+	RequestsDelta          string  `json:"requests_delta,omitempty"` // Absolute request-count delta, e.g. "+4"
 	Run1CacheEfficiency    float64 `json:"run1_cache_efficiency"`
 	Run2CacheEfficiency    float64 `json:"run2_cache_efficiency"`
+	CacheEfficiencyChange  string  `json:"cache_efficiency_change,omitempty"` // Percentage-point delta, e.g. "+1.5pp"
 }
 
 // RunMetricsDiff represents the diff of run-level metrics (token usage, duration, turns) between two runs
@@ -578,10 +579,23 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 		diff.EffectiveTokensChange = formatVolumeChange(run1Effective, run2Effective)
 	}
 	if run1Requests > 0 || run2Requests > 0 {
-		diff.RequestsChange = formatCountChange(run1Requests, run2Requests)
+		diff.RequestsDelta = formatCountChange(run1Requests, run2Requests)
+	}
+	if run1CacheEff > 0 || run2CacheEff > 0 {
+		diff.CacheEfficiencyChange = formatPercentagePointChange(run1CacheEff, run2CacheEff)
 	}
 
 	return diff
+}
+
+// formatPercentagePointChange formats the change between two ratio values (0.0-1.0) as a
+// percentage-point delta (e.g. "+1.5pp", "-2.3pp")
+func formatPercentagePointChange(ratio1, ratio2 float64) string {
+	delta := (ratio2 - ratio1) * 100
+	if delta >= 0 {
+		return fmt.Sprintf("+%.1fpp", delta)
+	}
+	return fmt.Sprintf("%.1fpp", delta)
 }
 
 // formatCountChange formats the absolute change in a count value (e.g. "+3", "-1")

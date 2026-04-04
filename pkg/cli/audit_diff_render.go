@@ -293,10 +293,10 @@ func renderTokenUsageDiffMarkdownSection(run1ID, run2ID int64, diff *TokenUsageD
 		fmt.Printf("| Effective | %d | %d | %s |\n", diff.Run1EffectiveTokens, diff.Run2EffectiveTokens, diff.EffectiveTokensChange)
 	}
 	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
-		fmt.Printf("| API requests | %d | %d | %s |\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsChange)
+		fmt.Printf("| API requests | %d | %d | %s |\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsDelta)
 	}
 	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
-		fmt.Printf("| Cache efficiency | %.1f%% | %.1f%% | |\n", diff.Run1CacheEfficiency*100, diff.Run2CacheEfficiency*100)
+		fmt.Printf("| Cache efficiency | %.1f%% | %.1f%% | %s |\n", diff.Run1CacheEfficiency*100, diff.Run2CacheEfficiency*100, diff.CacheEfficiencyChange)
 	}
 	fmt.Println()
 }
@@ -566,7 +566,7 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 			"API requests",
 			strconv.Itoa(diff.Run1TotalRequests),
 			strconv.Itoa(diff.Run2TotalRequests),
-			diff.RequestsChange,
+			diff.RequestsDelta,
 		})
 	}
 	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
@@ -574,7 +574,7 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 			"Cache efficiency",
 			fmt.Sprintf("%.1f%%", diff.Run1CacheEfficiency*100),
 			fmt.Sprintf("%.1f%%", diff.Run2CacheEfficiency*100),
-			"",
+			diff.CacheEfficiencyChange,
 		})
 	}
 
