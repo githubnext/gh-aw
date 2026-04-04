@@ -39,12 +39,12 @@ if (result.status !== 0) {
 (async () => {
   try {
     const { appendFileSync } = require("fs");
-    const { sendJobSetupSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));
+    const { isValidTraceId, sendJobSetupSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));
     const traceId = await sendJobSetupSpan({ startMs: setupStartMs });
     // Always expose the trace ID as an action output so downstream jobs can
     // reference it via `steps.<id>.outputs.trace-id` and pass it to their own
     // setup steps to correlate all job spans under a single trace.
-    if (/^[0-9a-f]{32}$/.test(traceId) && process.env.GITHUB_OUTPUT) {
+    if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
       appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
     }
   } catch {

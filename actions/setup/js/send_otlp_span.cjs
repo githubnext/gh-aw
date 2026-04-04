@@ -197,11 +197,17 @@ async function sendJobSetupSpan(options = {}) {
   // Resolve the trace ID before the early-return so it is always available as
   // an action output regardless of whether OTLP is configured.
   // Priority: options.traceId > INPUT_TRACE_ID env var > newly generated ID.
-  // Invalid (non-hex, wrong-length) values are silently discarded in favour of a new ID.
+  // Invalid (wrong length, non-hex) values are silently discarded.
+
+  // Validate options.traceId if supplied; callers may pass raw user input.
+  const optionsTraceId = options.traceId && isValidTraceId(options.traceId) ? options.traceId : "";
+
+  // Normalise INPUT_TRACE_ID to lowercase before validating: OTLP requires lowercase
+  // hex, but trace IDs pasted from external tools may use uppercase characters.
   const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
   const inputTraceId = isValidTraceId(rawInputTraceId) ? rawInputTraceId : "";
-  const candidateTraceId = options.traceId || inputTraceId;
-  const traceId = candidateTraceId && isValidTraceId(candidateTraceId) ? candidateTraceId : generateTraceId();
+
+  const traceId = optionsTraceId || inputTraceId || generateTraceId();
 
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   if (!endpoint) {

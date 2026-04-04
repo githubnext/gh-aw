@@ -261,6 +261,19 @@ describe("sendJobSetupSpan", () => {
     expect(traceId).not.toBe("not-a-valid-trace-id");
   });
 
+  it("normalises uppercase INPUT_TRACE_ID to lowercase and accepts it", async () => {
+    // Trace IDs pasted from external tools may be uppercase; we normalise them.
+    process.env.INPUT_TRACE_ID = "A".repeat(32);
+    const traceId = await sendJobSetupSpan();
+    expect(traceId).toBe("a".repeat(32));
+  });
+
+  it("rejects an invalid options.traceId and generates a new trace ID", async () => {
+    const returned = await sendJobSetupSpan({ traceId: "too-short" });
+    expect(returned).toMatch(/^[0-9a-f]{32}$/);
+    expect(returned).not.toBe("too-short");
+  });
+
   it("sends a span when endpoint is configured and returns the trace ID", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
