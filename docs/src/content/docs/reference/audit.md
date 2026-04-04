@@ -51,16 +51,19 @@ gh aw audit 1234567890 --repo owner/repo
 
 **Report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items.
 
-## `gh aw audit diff <run-id-1> <run-id-2>`
+## `gh aw audit diff <base-run-id> <comparison-run-id> [<comparison-run-id>...]`
 
-Compare behavior between two workflow runs. Detects policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
+Compare behavior between workflow runs. Detects policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
 
 **Arguments:**
 
 | Argument | Description |
 |----------|-------------|
-| `<run-id-1>` | Numeric run ID for the baseline run |
-| `<run-id-2>` | Numeric run ID for the comparison run |
+| `<base-run-id>` | Numeric run ID for the baseline run |
+| `<comparison-run-id>` | Numeric run ID for the comparison run |
+| `[<comparison-run-id>...]` | Additional run IDs to compare against the same base |
+
+The base run is downloaded once and reused when multiple comparison runs are provided. Self-comparisons and duplicate run IDs are rejected.
 
 **Flags:**
 
@@ -79,11 +82,17 @@ The diff output includes:
 - Anomaly flags (new denied domains, previously-denied domains now allowed)
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns)
+- Token usage breakdown: input tokens, output tokens, cache read/write tokens, effective tokens, total API requests, and cache efficiency per run
+
+**Output behavior with multiple comparisons:**
+- `--json` outputs a single object for one comparison, or an array for multiple
+- `--format pretty` and `--format markdown` separate multiple diffs with dividers
 
 **Examples:**
 
 ```bash
 gh aw audit diff 12345 12346
+gh aw audit diff 12345 12346 12347 12348
 gh aw audit diff 12345 12346 --format markdown
 gh aw audit diff 12345 12346 --json
 gh aw audit diff 12345 12346 --repo owner/repo
