@@ -39,7 +39,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 
 	// Pre-activation job doesn't need project support (no safe outputs processed here)
-	// Pre-activation runs before activation so no trace ID is available yet
+	// Pre-activation generates the root trace ID; activation will reuse it via setup-trace-id output
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, "")...)
 
 	// Determine permissions for pre-activation job
@@ -378,7 +378,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
 
 	outputs := map[string]string{
-		"activated": activatedExpression,
+		"activated":      activatedExpression,
+		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
 	}
 
 	// Always declare matched_command output so actionlint can resolve the type.

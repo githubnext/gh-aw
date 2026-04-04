@@ -106,6 +106,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+          trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -971,6 +972,7 @@ jobs:
     outputs:
       activated: ${{ steps.check_skip_roles.outputs.skip_roles_ok == 'true' && steps.check_skip_bots.outputs.skip_bots_ok == 'true' && steps.check_rate_limit.outputs.rate_limit_ok == 'true' }}
       matched_command: ''
+      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
