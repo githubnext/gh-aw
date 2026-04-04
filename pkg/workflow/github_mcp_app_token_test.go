@@ -96,7 +96,7 @@ Test workflow with GitHub MCP app token minting.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// Verify token minting step is present in the activation job
+	// Verify token minting step is present in the agent job
 	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
 	assert.Contains(t, lockContent, "actions/create-github-app-token", "Should use create-github-app-token action")
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "Should use github-mcp-app-token as step ID")
@@ -107,16 +107,17 @@ Test workflow with GitHub MCP app token minting.
 	assert.Contains(t, lockContent, "permission-contents: read", "Should include contents read permission")
 	assert.Contains(t, lockContent, "permission-issues: read", "Should include issues read permission")
 
-	// Verify token is exposed as an activation job output
-	assert.Contains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job should expose github_mcp_app_token output")
+	// Verify the activation job does NOT expose github_mcp_app_token as a job output
+	// (masked values are silently dropped by the runner when used as job outputs)
+	assert.NotContains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job must not expose github_mcp_app_token output")
 
-	// Verify token invalidation step is present in the agent job and references activation output
+	// Verify token invalidation step is present in the agent job and references the step output
 	assert.Contains(t, lockContent, "Invalidate GitHub App token", "Token invalidation step should be present")
 	assert.Contains(t, lockContent, "if: always()", "Invalidation step should always run")
-	assert.Contains(t, lockContent, "needs.activation.outputs.github_mcp_app_token", "Invalidation step should reference activation output")
+	assert.Contains(t, lockContent, "steps.github-mcp-app-token.outputs.token", "Invalidation step should reference agent job step output")
 
-	// Verify the app token is consumed from activation outputs in the agent job
-	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ needs.activation.outputs.github_mcp_app_token }}", "Should use activation output token for GitHub MCP Server")
+	// Verify the app token is consumed from the step output within the agent job
+	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use agent job step token for GitHub MCP Server")
 }
 
 // TestGitHubMCPAppTokenAndGitHubTokenMutuallyExclusive tests that setting both app and github-token is rejected
@@ -191,21 +192,21 @@ Test app token with remote GitHub MCP Server.
 	require.NoError(t, err, "Failed to read lock file")
 	lockContent := string(content)
 
-	// Verify token minting step is present in the activation job
+	// Verify token minting step is present in the agent job
 	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "Should use github-mcp-app-token as step ID")
 
-	// Verify the activation job exposes the token as an output
-	assert.Contains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job should expose github_mcp_app_token output")
+	// Verify the activation job does NOT expose the token as a job output
+	assert.NotContains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}", "Activation job must not expose github_mcp_app_token output")
 
-	// Verify the app token from activation outputs is used in the agent job
-	// The token should be referenced via needs.activation.outputs.github_mcp_app_token
-	if strings.Contains(lockContent, `"Authorization": "Bearer ${{ needs.activation.outputs.github_mcp_app_token }}"`) {
-		// Success - app token from activation is used in Authorization header
-		t.Log("App token from activation correctly used in remote mode Authorization header")
+	// Verify the app token from the agent job step is used
+	// The token should be referenced via steps.github-mcp-app-token.outputs.token
+	if strings.Contains(lockContent, `"Authorization": "Bearer ${{ steps.github-mcp-app-token.outputs.token }}"`) {
+		// Success - app token from step is used in Authorization header
+		t.Log("App token from agent job step correctly used in remote mode Authorization header")
 	} else {
 		// Also check for the env var reference pattern used by Claude engine
-		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ needs.activation.outputs.github_mcp_app_token }}", "Should use activation output token for GitHub MCP Server in remote mode")
+		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use agent job step token for GitHub MCP Server in remote mode")
 	}
 }
 
@@ -312,9 +313,9 @@ Test that determine-automatic-lockdown is generated even when app is configured.
 	assert.Contains(t, lockContent, "GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}", "Guard min-integrity env var should reference lockdown step output")
 	assert.Contains(t, lockContent, "GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}", "Guard repos env var should reference lockdown step output")
 
-	// App token should still be minted (in activation job) and consumed via activation outputs
+	// App token should still be minted (now in agent job) and consumed via step output
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "GitHub App token step should still be generated")
-	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ needs.activation.outputs.github_mcp_app_token }}", "App token from activation should be used for MCP server")
+	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "App token from agent job step should be used for MCP server")
 }
 
 // TestGitHubMCPAppTokenWithDependabotToolset tests that permission-vulnerability-alerts is included
@@ -536,34 +537,18 @@ Test that write is rejected in tools.github.github-app.permissions.
 	assert.Contains(t, err.Error(), "members", "Error should mention the offending scope")
 }
 
-// TestAgentJobDoesNotMintGitHubAppTokens verifies the compiler invariant that no
-// GitHub App token minting step (create-github-app-token) appears in the agent job.
-// All minting must happen in the activation job so that app-id / private-key secrets
+// TestCheckoutAppTokensNotMintedInAgentJob verifies that checkout-related GitHub App token
+// minting steps (create-github-app-token) do NOT appear in the agent job.
+// Checkout app tokens are minted in the activation job so that app-id / private-key secrets
 // never reach the agent's environment.
-func TestAgentJobDoesNotMintGitHubAppTokens(t *testing.T) {
+// Note: the GitHub MCP App token (tools.github.github-app) IS minted in the agent job —
+// this is intentional because masked values are silently dropped by the runner when passed
+// as job outputs (runner v2.308+).
+func TestCheckoutAppTokensNotMintedInAgentJob(t *testing.T) {
 	tests := []struct {
 		name     string
 		markdown string
 	}{
-		{
-			name: "tools.github.github-app token not minted in agent job",
-			markdown: `---
-on: issues
-permissions:
-  contents: read
-  issues: read
-strict: false
-tools:
-  github:
-    mode: local
-    github-app:
-      app-id: ${{ vars.APP_ID }}
-      private-key: ${{ secrets.APP_PRIVATE_KEY }}
----
-
-Test workflow - MCP app token must not be minted in agent job.
-`,
-		},
 		{
 			name: "checkout.github-app token not minted in agent job",
 			markdown: `---
@@ -632,7 +617,63 @@ Test workflow - top-level github-app checkout token must not be minted in agent 
 			}
 
 			assert.NotContains(t, agentJobContent, "create-github-app-token",
-				"Agent job must not mint GitHub App tokens; minting must be in activation job")
+				"Agent job must not mint checkout GitHub App tokens; checkout token minting must be in activation job")
 		})
 	}
+}
+
+// TestGitHubMCPAppTokenMintedInAgentJob verifies that the GitHub MCP App token
+// (tools.github.github-app) IS minted directly in the agent job.
+// This is required because actions/create-github-app-token calls ::add-mask:: on the
+// produced token, and the GitHub Actions runner silently drops masked values when used
+// as job outputs (runner v2.308+). By minting within the agent job the token is
+// available as steps.github-mcp-app-token.outputs.token.
+func TestGitHubMCPAppTokenMintedInAgentJob(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+strict: false
+tools:
+  github:
+    mode: local
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+Test workflow - MCP app token must be minted in agent job.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Workflow should compile successfully")
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	// The minting step must be present somewhere in the compiled workflow
+	assert.Contains(t, lockContent, "create-github-app-token",
+		"GitHub MCP App token minting step must be present in the compiled workflow")
+	assert.Contains(t, lockContent, "id: github-mcp-app-token",
+		"GitHub MCP App token step must use github-mcp-app-token step ID")
+
+	// The activation job must NOT expose github_mcp_app_token as a job output.
+	// Masked values are silently dropped by the runner when passed as job outputs (runner v2.308+).
+	assert.NotContains(t, lockContent, "github_mcp_app_token: ${{ steps.github-mcp-app-token.outputs.token }}",
+		"Activation job must not expose github_mcp_app_token as a job output")
+
+	// The token must be referenced via the step output, not via activation job outputs.
+	assert.NotContains(t, lockContent, "needs.activation.outputs.github_mcp_app_token",
+		"Token must not be referenced via activation job outputs (masked values are dropped by runner)")
+	assert.Contains(t, lockContent, "steps.github-mcp-app-token.outputs.token",
+		"Token must be referenced via step output within the same job")
 }

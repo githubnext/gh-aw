@@ -86,9 +86,11 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 // permissions derived from the agent job's declared permissions plus any extra permissions
 // configured under tools.github.github-app.permissions.
 //
-// The returned steps are intended to be added to the activation job so that the
-// app-id / private-key secrets never reach the agent job. The minted token is then
-// consumed in the agent job via needs.activation.outputs.github_mcp_app_token.
+// The returned steps are added directly to the agent job so that the minted token is
+// available as steps.github-mcp-app-token.outputs.token within that job.
+// Minting happens inside the agent job (not the activation job) because
+// actions/create-github-app-token calls ::add-mask:: on the produced token, and the
+// GitHub Actions runner silently drops masked values when used as job outputs (runner v2.308+).
 func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []string {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
@@ -142,7 +144,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 
 // generateGitHubMCPAppTokenInvalidationStep generates a step to invalidate the GitHub App token for GitHub MCP server
 // This step always runs (even on failure) to ensure tokens are properly cleaned up.
-// The token was minted in the activation job and is referenced via needs.activation.outputs.github_mcp_app_token.
+// The token was minted in the agent job and is referenced via steps.github-mcp-app-token.outputs.token.
 func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if GitHub tool has app configuration
 	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.GitHubApp == nil {
@@ -151,8 +153,8 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 
 	githubConfigLog.Print("Generating GitHub App token invalidation step for GitHub MCP server")
 
-	// The token was minted in the activation job; reference it via needs.activation.outputs.
-	const tokenExpr = "needs.activation.outputs.github_mcp_app_token"
+	// The token was minted in the agent job; reference it via steps output.
+	const tokenExpr = "steps.github-mcp-app-token.outputs.token"
 
 	yaml.WriteString("      - name: Invalidate GitHub App token\n")
 	fmt.Fprintf(yaml, "        if: always() && %s != ''\n", tokenExpr)

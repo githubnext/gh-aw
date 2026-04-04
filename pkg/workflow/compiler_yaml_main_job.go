@@ -260,6 +260,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
+	// Mint the GitHub MCP App token directly in the agent job.
+	// The token cannot be passed via job outputs from the activation job because
+	// actions/create-github-app-token calls ::add-mask:: on the token, and the
+	// GitHub Actions runner silently drops masked values in job outputs (runner v2.308+).
+	// By minting the token here, the app-id / private-key secrets are accessed only
+	// within this job and the minted token is available as steps.github-mcp-app-token.outputs.token.
+	for _, step := range c.generateGitHubMCPAppTokenMintingSteps(data) {
+		yaml.WriteString(step)
+	}
+
 	// Add GitHub MCP lockdown detection step if needed
 	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
 
