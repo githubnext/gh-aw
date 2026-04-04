@@ -462,6 +462,6 @@ If these secrets are not configured and no custom `github-token` is provided, th
 - [Authentication (Projects)](/gh-aw/reference/auth-projects/) — Projects-specific token configuration
 - [GitHub Tools](/gh-aw/reference/github-tools/) — MCP server modes and toolset authentication
 - [Permissions](/gh-aw/reference/permissions/) — Permission model and scopes
-- [Environment Variables](/gh-aw/reference/environment-variables/) — Environment variable scopes and precedence
+- [Environment Variables](/gh-aw/reference/environment-variables/) — CLI configuration, model overrides, guard policy fallbacks, and runtime variable scopes
 - [Triggering CI](/gh-aw/reference/triggering-ci/) — CI trigger token usage
 - [Lockdown Mode](/gh-aw/reference/lockdown-mode/) — Elevated authentication requirements

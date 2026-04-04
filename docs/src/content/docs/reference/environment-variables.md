@@ -1,6 +1,6 @@
 ---
 title: Environment Variables
-description: Complete guide to environment variable precedence and merge behavior across all workflow scopes
+description: Reference for all environment variables in GitHub Agentic Workflows — CLI configuration, model overrides, guard policy fallbacks, and workflow-level scope precedence
 sidebar:
   order: 650
 ---
@@ -121,6 +121,95 @@ env:
 > [!NOTE]
 > These variables are injected by the compiler and cannot be overridden by user-defined `env:` blocks in the workflow frontmatter.
 
+## CLI Configuration Variables
+
+These variables configure the `gh aw` CLI tool. Set them in your local shell environment or as repository/organization variables in GitHub Actions.
+
+| Variable | Default | Description |
+|---|---|---|
+| `DEBUG` | disabled | npm-style namespace debug logging. `DEBUG=*` enables all output; `DEBUG=cli:*,workflow:*` selects specific namespaces. Exclusions are supported: `DEBUG=*,-workflow:test`. Also activated when `ACTIONS_RUNNER_DEBUG=true`. |
+| `DEBUG_COLORS` | `1` (enabled) | Set to `0` to disable ANSI colors in debug output. Colors are automatically disabled when output is not a TTY. |
+| `ACCESSIBLE` | empty | Any non-empty value enables accessibility mode, which disables spinners and animations. Also enabled when `TERM=dumb` or `NO_COLOR` is set. |
+| `NO_COLOR` | empty | Any non-empty value disables colored output and enables accessibility mode. Follows the [no-color.org](https://no-color.org/) standard. |
+| `GH_AW_ACTION_MODE` | auto-detected | Overrides how JavaScript is embedded in compiled workflows. Valid values: `dev`, `release`, `script`, `action`. When unset, the CLI auto-detects the appropriate mode. |
+| `GH_AW_FEATURES` | empty | Comma-separated list of experimental feature flags to enable globally. Values in workflow `features:` frontmatter take precedence over this variable. |
+| `GH_AW_MAX_CONCURRENT_DOWNLOADS` | `10` | Maximum number of parallel log and artifact downloads for `gh aw logs`. Valid range: `1`–`100`. |
+| `GH_AW_MCP_SERVER` | unset | When set, disables the automatic update check. Set automatically when `gh aw` runs as an MCP server subprocess — no manual configuration needed. |
+
+**Enabling debug logging:**
+
+```bash
+# All namespaces
+DEBUG=* gh aw compile
+
+# Specific namespaces
+DEBUG=cli:*,workflow:* gh aw compile
+
+# Without colors
+DEBUG_COLORS=0 DEBUG=* gh aw compile
+```
+
+---
+
+## Model Override Variables
+
+These variables override the default AI model used for agent runs and threat detection. Set them as GitHub Actions repository or organization variables to apply org-wide defaults without modifying workflow frontmatter.
+
+> [!NOTE]
+> The `engine.model:` field in workflow frontmatter takes precedence over these variables.
+
+### Agent runs
+
+| Variable | Engine |
+|---|---|
+| `GH_AW_MODEL_AGENT_COPILOT` | GitHub Copilot |
+| `GH_AW_MODEL_AGENT_CLAUDE` | Anthropic Claude |
+| `GH_AW_MODEL_AGENT_CODEX` | OpenAI Codex |
+| `GH_AW_MODEL_AGENT_GEMINI` | Google Gemini |
+| `GH_AW_MODEL_AGENT_CUSTOM` | Custom engine |
+
+### Detection runs
+
+| Variable | Engine |
+|---|---|
+| `GH_AW_MODEL_DETECTION_COPILOT` | GitHub Copilot |
+| `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
+| `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
+| `GH_AW_MODEL_DETECTION_GEMINI` | Google Gemini |
+
+Set a model override as an organization variable:
+
+```bash
+gh variable set GH_AW_MODEL_AGENT_COPILOT --org my-org --body "gpt-5"
+```
+
+See [Engines](/gh-aw/reference/engines/) for available engine identifiers and model configuration options.
+
+---
+
+## Guard Policy Fallback Variables
+
+These variables provide fallback values for guard policy fields when the corresponding `tools.github.*` configuration is absent from workflow frontmatter. Set them as GitHub Actions organization or repository variables to enforce a consistent policy across all workflows.
+
+> [!NOTE]
+> Explicit `tools.github.*` values in workflow frontmatter always take precedence over these variables.
+
+| Variable | Frontmatter field | Format | Description |
+|---|---|---|---|
+| `GH_AW_GITHUB_BLOCKED_USERS` | `tools.github.blocked-users` | Comma- or newline-separated usernames | GitHub usernames blocked from triggering agent runs |
+| `GH_AW_GITHUB_APPROVAL_LABELS` | `tools.github.approval-labels` | Comma- or newline-separated label names | Labels that promote content to "approved" integrity for guard checks |
+| `GH_AW_GITHUB_TRUSTED_USERS` | `tools.github.trusted-users` | Comma- or newline-separated usernames | GitHub usernames elevated to "approved" integrity, bypassing guard checks |
+
+Set an org-wide blocked user list:
+
+```bash
+gh variable set GH_AW_GITHUB_BLOCKED_USERS --org my-org --body "bot-account1,bot-account2"
+```
+
+See [Tools Reference](/gh-aw/reference/tools/) for complete guard policy documentation.
+
+---
+
 ## Precedence Rules
 
 Environment variables follow a **most-specific-wins** model, consistent with GitHub Actions. Variables at more specific scopes completely override variables with the same name at less specific scopes.
@@ -167,6 +256,8 @@ jobs:
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
 - [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
-- [Tools](/gh-aw/reference/tools/) - MCP tool configuration
+- [Tools](/gh-aw/reference/tools/) - MCP tool configuration and guard policies
 - [MCP Scripts](/gh-aw/reference/mcp-scripts/) - MCP script tool configuration
+- [Engines](/gh-aw/reference/engines/) - AI engine configuration and model selection
+- [Tokens](/gh-aw/reference/tokens/) - Engine secrets and GitHub token reference
 - [GitHub Actions Environment Variables](https://docs.github.com/en/actions/learn-github-actions/variables) - GitHub Actions documentation
