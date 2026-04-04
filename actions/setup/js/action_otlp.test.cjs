@@ -30,6 +30,7 @@ describe("action_setup_otlp run()", () => {
     delete process.env.GITHUB_OUTPUT;
     delete process.env.GITHUB_ENV;
     delete process.env.SETUP_START_MS;
+    delete process.env.INPUT_TRACE_ID;
   });
 
   afterEach(() => {
@@ -38,6 +39,46 @@ describe("action_setup_otlp run()", () => {
 
   it("resolves without throwing when OTLP endpoint is not configured", async () => {
     await expect(runSetup()).resolves.toBeUndefined();
+  });
+
+  it("writes trace-id to GITHUB_OUTPUT even when endpoint is not configured", async () => {
+    const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_no_endpoint_${Date.now()}.txt`);
+    try {
+      // No OTEL endpoint — span must NOT be sent but trace-id must still be written.
+      process.env.GITHUB_OUTPUT = tmpOut;
+      process.env.GITHUB_ENV = tmpOut;
+
+      await runSetup();
+
+      const contents = fs.readFileSync(tmpOut, "utf8");
+      expect(contents).toMatch(/^trace-id=[0-9a-f]{32}$/m);
+      expect(contents).toMatch(/^GITHUB_AW_OTEL_TRACE_ID=[0-9a-f]{32}$/m);
+    } finally {
+      fs.rmSync(tmpOut, { force: true });
+    }
+  });
+
+  it("uses INPUT_TRACE_ID as trace ID when provided", async () => {
+    const inputTraceId = "a".repeat(32);
+    const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_input_tid_${Date.now()}.txt`);
+    try {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env.INPUT_TRACE_ID = inputTraceId;
+      process.env.GITHUB_OUTPUT = tmpOut;
+      process.env.GITHUB_ENV = tmpOut;
+
+      const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+
+      await runSetup();
+
+      const contents = fs.readFileSync(tmpOut, "utf8");
+      expect(contents).toContain(`trace-id=${inputTraceId}`);
+      expect(contents).toContain(`GITHUB_AW_OTEL_TRACE_ID=${inputTraceId}`);
+
+      fetchSpy.mockRestore();
+    } finally {
+      fs.rmSync(tmpOut, { force: true });
+    }
   });
 
   it("writes trace-id to GITHUB_OUTPUT when endpoint is configured", async () => {

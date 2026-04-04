@@ -25,29 +25,49 @@ const { appendFileSync } = require("fs");
 /**
  * Send the OTLP job-setup span and propagate trace context via GITHUB_OUTPUT /
  * GITHUB_ENV.  Non-fatal: all errors are silently swallowed.
+ *
+ * The trace-id is ALWAYS resolved and written to GITHUB_OUTPUT / GITHUB_ENV so
+ * that cross-job span correlation works even when OTEL_EXPORTER_OTLP_ENDPOINT
+ * is not configured.  The span itself is only sent when the endpoint is set.
  * @returns {Promise<void>}
  */
 async function run() {
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-  if (!endpoint) {
-    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping setup span");
-    return;
-  }
-  console.log(`[otlp] sending setup span to ${endpoint}`);
 
   const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
   const startMs = parseInt(process.env.SETUP_START_MS || "0", 10);
-  const { traceId, spanId } = await sendJobSetupSpan({ startMs });
-  console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
 
-  // Expose trace ID as a step output for cross-job correlation.
-  if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
-    console.log(`[otlp] trace-id written to GITHUB_OUTPUT`);
+  // Explicitly read INPUT_TRACE_ID and pass it as options.traceId so the
+  // activation job's trace ID is used even when process.env propagation
+  // through GitHub Actions expression evaluation is unreliable.
+  const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
+  if (rawInputTraceId) {
+    console.log(`[otlp] using input trace-id: ${rawInputTraceId}`);
   }
 
-  // Propagate trace/span context to subsequent steps in this job.
+  if (!endpoint) {
+    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping setup span");
+  } else {
+    console.log(`[otlp] sending setup span to ${endpoint}`);
+  }
+
+  const { traceId, spanId } = await sendJobSetupSpan({ startMs, traceId: rawInputTraceId || undefined });
+
+  if (endpoint) {
+    console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
+  }
+
+  // Always expose trace ID as a step output for cross-job correlation, even
+  // when OTLP is not configured.  This ensures needs.*.outputs.setup-trace-id
+  // is populated for downstream jobs regardless of observability configuration.
+  if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
+    console.log(`[otlp] trace-id=${traceId} written to GITHUB_OUTPUT`);
+  }
+
+  // Always propagate trace/span context to subsequent steps in this job so
+  // that the conclusion span can find the same trace ID.
   if (process.env.GITHUB_ENV) {
     if (isValidTraceId(traceId)) {
       appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_TRACE_ID=${traceId}\n`);
