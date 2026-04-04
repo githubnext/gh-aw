@@ -28,6 +28,7 @@ imports:
     with:
       branch-name: "memory/token-audit"
       description: "Historical daily Copilot token usage snapshots (shared with copilot-token-audit)"
+      max-patch-size: 51200
   - copilot-setup-steps.yml
   - uses: shared/mcp/gh-aw.md
   - shared/reporting.md

@@ -22,6 +22,10 @@ import-schema:
     type: integer
     default: 102400
     description: "Max file size in bytes (default: 100KB)"
+  max-patch-size:
+    type: integer
+    default: 10240
+    description: "Max total patch size in bytes per push (default: 10KB, max: 100KB)"
 
 tools:
   repo-memory:
@@ -33,4 +37,5 @@ tools:
       - "${{ github.aw.import-inputs.branch-name }}/*.csv"
       - "${{ github.aw.import-inputs.branch-name }}/*.md"
     max-file-size: ${{ github.aw.import-inputs.max-file-size }}
+    max-patch-size: ${{ github.aw.import-inputs.max-patch-size }}
 ---
