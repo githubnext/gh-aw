@@ -703,7 +703,9 @@ jobs:
             await main();
 
   push_repo_memory:
-    needs: agent
+    needs:
+      - activation
+      - agent
     if: always() && needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
@@ -729,7 +731,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          trace-id: ${{ needs.agent.outputs.setup-trace-id }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

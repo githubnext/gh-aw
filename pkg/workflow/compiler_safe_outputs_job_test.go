@@ -571,8 +571,8 @@ func TestJobDependencies(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expectedNeeds:    []string{string(constants.AgentJobName)},
-			notExpectedNeeds: []string{string(constants.DetectionJobName), string(constants.ActivationJobName)},
+			expectedNeeds:    []string{string(constants.AgentJobName), string(constants.ActivationJobName)},
+			notExpectedNeeds: []string{string(constants.DetectionJobName)},
 		},
 		{
 			name: "with threat detection",

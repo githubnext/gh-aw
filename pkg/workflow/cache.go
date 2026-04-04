@@ -925,7 +925,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Cache restore job doesn't need project support
 		// Cache job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
-		cacheTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		cacheTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		setupSteps = append(setupSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, cacheTraceID)...)
 	}
 
@@ -964,7 +964,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		If:          jobCondition,
 		Permissions: permissions,
-		Needs:       []string{string(constants.AgentJobName), string(constants.DetectionJobName)},
+		Needs:       []string{string(constants.AgentJobName), string(constants.DetectionJobName), string(constants.ActivationJobName)},
 		Env:         jobEnv,
 		Steps:       steps,
 	}

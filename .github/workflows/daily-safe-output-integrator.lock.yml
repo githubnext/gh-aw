@@ -925,7 +925,9 @@ jobs:
             await main();
 
   detection:
-    needs: agent
+    needs:
+      - activation
+      - agent
     if: >
       always() && needs.agent.result != 'skipped' && (needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true')
     runs-on: ubuntu-latest
@@ -949,7 +951,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          trace-id: ${{ needs.agent.outputs.setup-trace-id }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1124,7 +1126,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          trace-id: ${{ needs.agent.outputs.setup-trace-id }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

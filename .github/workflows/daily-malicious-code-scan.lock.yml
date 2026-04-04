@@ -885,7 +885,9 @@ jobs:
             await main();
 
   safe_outputs:
-    needs: agent
+    needs:
+      - activation
+      - agent
     if: (!cancelled()) && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim
     permissions:
@@ -922,7 +924,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          trace-id: ${{ needs.agent.outputs.setup-trace-id }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

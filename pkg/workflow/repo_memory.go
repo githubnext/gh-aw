@@ -604,7 +604,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 		// Repo memory job doesn't need project support
 		// Repo memory job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
-		repoMemoryTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		repoMemoryTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, repoMemoryTraceID)...)
 	}
 
@@ -743,7 +743,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("success"),
 	)
-	jobNeeds := []string{string(constants.AgentJobName)}
+	jobNeeds := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	var jobCondition string
 	if threatDetectionEnabled {
 		// When threat detection is enabled, also require detection passed (succeeded or skipped).

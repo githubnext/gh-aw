@@ -105,7 +105,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 
 		// Publish assets job doesn't need project support
 		// Publish assets job depends on the agent job; reuse its trace ID so all jobs share one OTLP trace
-		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, publishTraceID)...)
 	}
 
@@ -150,8 +150,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("upload_asset")
 
-	// Build job dependencies — detection is now inline in the agent job
-	needs := []string{mainJobName}
+	// Build job dependencies — always include activation job for OTLP trace ID correlation
+	needs := []string{mainJobName, string(constants.ActivationJobName)}
 
 	// In dev mode the setup action is referenced via a local path (./actions/setup), so its
 	// files live in the workspace. The upload_assets step does a git checkout to the assets

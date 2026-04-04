@@ -52,7 +52,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// Enable custom-tokens flag if any safe output uses a per-handler github-token
 		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
 		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
-		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, safeOutputsTraceID)...)
 	}
 
@@ -339,7 +339,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if setupActionRef != "" {
 			insertIndex += len(c.generateCheckoutActionsFolder(data))
 			// Use the same traceID as the real call so the line count matches exactly
-			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), countTraceID))
 		}
 
@@ -427,13 +427,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		needs = append(needs, string(constants.DetectionJobName))
 		consolidatedSafeOutputsJobLog.Print("Added detection job dependency to safe_outputs job")
 	}
-	// Add activation job dependency when:
+	// Always add activation job dependency to get the trace-id for OTLP correlation,
+	// and also when needed for other reasons:
 	// - create_pull_request or push_to_pull_request_branch (need the activation artifact)
 	// - lock-for-agent (need the activation lock)
 	// - workflow_call trigger (need needs.activation.outputs.target_repo for cross-repo token/dispatch)
-	if usesPatchesAndCheckouts(data.SafeOutputs) || data.LockForAgent || hasWorkflowCallTrigger(data.On) {
-		needs = append(needs, string(constants.ActivationJobName))
-	}
+	needs = append(needs, string(constants.ActivationJobName))
 	// Add unlock job dependency if lock-for-agent is enabled
 	// This ensures the issue is unlocked before safe outputs run
 	if data.LockForAgent {
