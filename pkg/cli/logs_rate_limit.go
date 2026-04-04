@@ -50,7 +50,7 @@ type rateLimitResource struct {
 func fetchRateLimit() (rateLimitResource, error) {
 	logsRateLimitLog.Print("Querying GitHub API rate limit")
 
-	output, err := workflow.RunGHCombined("Checking rate limit...", "api", "rate_limit")
+	output, err := workflow.RunGHCombined("Verifying API quota...", "api", "rate_limit")
 	if err != nil {
 		return rateLimitResource{}, fmt.Errorf("failed to query rate limit: %w", err)
 	}
@@ -102,7 +102,7 @@ func checkAndWaitForRateLimit(verbose bool) error {
 		waitDur += rateLimitResetBuffer
 
 		msg := fmt.Sprintf(
-			"GitHub API rate limit nearly exhausted (%d/%d remaining). Waiting %.0f seconds until reset at %s",
+			"GitHub API rate limit nearly exhausted (%d of %d requests remaining). Waiting %.0f seconds until reset at %s",
 			rl.Remaining, rl.Limit, waitDur.Seconds(), resetAt.UTC().Format(time.RFC3339),
 		)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
