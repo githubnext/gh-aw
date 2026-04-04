@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -230,7 +231,7 @@ func TestFormatDurationMs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
-			assert.Equal(t, tt.expected, FormatDurationMs(tt.ms), "FormatDurationMs(%d)", tt.ms)
+			assert.Equal(t, tt.expected, timeutil.FormatDurationMs(tt.ms), "FormatDurationMs(%d)", tt.ms)
 		})
 	}
 }

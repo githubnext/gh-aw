@@ -4,10 +4,10 @@ package cli
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
-	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -140,7 +140,7 @@ func TestGenerateSchema(t *testing.T) {
 		// Check that items is an array type
 		// In v0.4.0+, nullable slices use Types []string with ["null", "array"]
 		// instead of Type string with "array"
-		isArray := itemsProp.Type == "array" || sliceutil.Contains(itemsProp.Types, "array")
+		isArray := itemsProp.Type == "array" || slices.Contains(itemsProp.Types, "array")
 		if !isArray {
 			t.Errorf("Expected items to be an array type, got Type='%s', Types=%v", itemsProp.Type, itemsProp.Types)
 		}

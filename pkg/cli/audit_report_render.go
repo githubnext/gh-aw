@@ -14,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/timeutil"
 )
 
 // renderJSON outputs the audit data as JSON
@@ -1062,7 +1063,7 @@ func renderTokenUsage(summary *TokenUsageSummary) {
 		console.FormatNumber(summary.TotalOutputTokens),
 		console.FormatNumber(cacheTokens))
 	fmt.Fprintf(os.Stderr, "  Requests:   %d (avg %s)\n",
-		summary.TotalRequests, FormatDurationMs(summary.AvgDurationMs()))
+		summary.TotalRequests, timeutil.FormatDurationMs(summary.AvgDurationMs()))
 	if summary.CacheEfficiency > 0 {
 		fmt.Fprintf(os.Stderr, "  Cache hit:  %.1f%%\n", summary.CacheEfficiency*100)
 	}

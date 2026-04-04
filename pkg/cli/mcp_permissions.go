@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 )
@@ -89,7 +89,7 @@ func validateMCPWorkflowName(workflowName string) error {
 
 	// Check if it's a valid GitHub Actions workflow name
 	agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
-	if nameErr == nil && sliceutil.Contains(agenticWorkflowNames, workflowName) {
+	if nameErr == nil && slices.Contains(agenticWorkflowNames, workflowName) {
 		mcpLog.Printf("Workflow name is valid GitHub Actions workflow name: %s", workflowName)
 		return nil
 	}

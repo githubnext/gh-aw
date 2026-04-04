@@ -81,9 +81,9 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 			fmt.Printf("| Avg | Min | Max |\n")
 			fmt.Printf("|-----|-----|-----|\n")
 			fmt.Printf("| %s | %s | %s |\n",
-				formatDurationNs(mt.AvgDurationNs),
-				formatDurationNs(mt.MinDurationNs),
-				formatDurationNs(mt.MaxDurationNs))
+				timeutil.FormatDurationNs(mt.AvgDurationNs),
+				timeutil.FormatDurationNs(mt.MinDurationNs),
+				timeutil.FormatDurationNs(mt.MaxDurationNs))
 			fmt.Println()
 		}
 	}
@@ -193,7 +193,7 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 			}
 			durStr := "—"
 			if run.Duration > 0 {
-				durStr = formatDurationNs(int64(run.Duration))
+				durStr = timeutil.FormatDurationNs(int64(run.Duration))
 			}
 			fmt.Printf("| %d | %s | %s | %s | %s | %s | %s | %s | %d | %d |\n",
 				run.RunID, run.WorkflowName, run.Conclusion, durStr,
@@ -249,9 +249,9 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 		}
 		if mt.AvgDurationNs > 0 {
 			fmt.Fprintf(os.Stderr, "  Duration: avg=%s  min=%s  max=%s\n",
-				formatDurationNs(mt.AvgDurationNs),
-				formatDurationNs(mt.MinDurationNs),
-				formatDurationNs(mt.MaxDurationNs))
+				timeutil.FormatDurationNs(mt.AvgDurationNs),
+				timeutil.FormatDurationNs(mt.MinDurationNs),
+				timeutil.FormatDurationNs(mt.MaxDurationNs))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -339,7 +339,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 			}
 			durStr := ""
 			if run.Duration > 0 {
-				durStr = "  dur=" + formatDurationNs(int64(run.Duration))
+				durStr = "  dur=" + timeutil.FormatDurationNs(int64(run.Duration))
 			}
 			if !run.HasData {
 				fmt.Fprintf(os.Stderr, "  Run #%-12d  %-30s  %-10s  (no firewall data)%s%s%s  mcp_errors=%d  errors=%d\n",
@@ -385,11 +385,6 @@ func formatRunIDs(ids []int64) string {
 		parts[i] = fmt.Sprintf("#%d", id)
 	}
 	return strings.Join(parts, ", ")
-}
-
-// formatDurationNs formats a nanosecond duration as a human-readable string.
-func formatDurationNs(ns int64) string {
-	return timeutil.FormatDurationNs(ns)
 }
 
 // safePercent returns percentage of part/total, returning 0 when total is 0.

@@ -5,6 +5,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -292,7 +293,7 @@ func TestDeduplicateStringSlice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := deduplicateStringSlice(tt.input)
+			result := sliceutil.Deduplicate(tt.input)
 			assert.Equal(t, tt.expected, result, "unexpected deduplication result")
 		})
 	}

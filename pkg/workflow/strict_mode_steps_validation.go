@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 // validateStepsSecrets checks both the "steps" and "post-steps" frontmatter sections
@@ -65,7 +66,7 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 	strictModeValidationLog.Printf("Found %d secret expression(s) in %s section: %v", len(secretRefs), sectionName, secretRefs)
 
 	// Deduplicate for cleaner messages.
-	secretRefs = deduplicateStringSlice(secretRefs)
+	secretRefs = sliceutil.Deduplicate(secretRefs)
 
 	if c.strictMode {
 		return fmt.Errorf(
@@ -106,20 +107,6 @@ func extractSecretsFromStepValue(value any) []string {
 		}
 	}
 	return refs
-}
-
-// deduplicateStringSlice returns a slice with duplicate entries removed,
-// preserving the order of first occurrence.
-func deduplicateStringSlice(in []string) []string {
-	seen := make(map[string]bool, len(in))
-	out := make([]string, 0, len(in))
-	for _, s := range in {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 // filterBuiltinTokens removes secret expressions that reference GitHub's built-in

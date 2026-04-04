@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -108,10 +108,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			appPerms.Set(PermissionDiscussions, PermissionWrite)
 		}
 		if shouldRemoveLabel {
-			if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
+			if slices.Contains(filteredLabelEvents, "issues") || slices.Contains(filteredLabelEvents, "pull_request") {
 				appPerms.Set(PermissionIssues, PermissionWrite)
 			}
-			if sliceutil.Contains(filteredLabelEvents, "discussion") {
+			if slices.Contains(filteredLabelEvents, "discussion") {
 				appPerms.Set(PermissionDiscussions, PermissionWrite)
 			}
 		}
@@ -435,7 +435,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// run yet, causing actionlint errors and incorrect prompt substitutions.
 	promptReferencedJobs := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
 	for _, jobName := range promptReferencedJobs {
-		if !sliceutil.Contains(customJobsBeforeActivation, jobName) {
+		if !slices.Contains(customJobsBeforeActivation, jobName) {
 			customJobsBeforeActivation = append(customJobsBeforeActivation, jobName)
 			compilerActivationJobLog.Printf("Added '%s' to activation dependencies: referenced in markdown body and has no explicit needs", jobName)
 		}
@@ -551,10 +551,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// for the label removal step (it uses the app token instead), so we skip them.
 	// When remove_label is false, no label removal occurs so these permissions are not needed.
 	if shouldRemoveLabel && data.ActivationGitHubApp == nil {
-		if sliceutil.Contains(filteredLabelEvents, "issues") || sliceutil.Contains(filteredLabelEvents, "pull_request") {
+		if slices.Contains(filteredLabelEvents, "issues") || slices.Contains(filteredLabelEvents, "pull_request") {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
-		if sliceutil.Contains(filteredLabelEvents, "discussion") {
+		if slices.Contains(filteredLabelEvents, "discussion") {
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}

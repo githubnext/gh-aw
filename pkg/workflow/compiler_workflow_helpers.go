@@ -7,7 +7,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
+var compilerWorkflowHelpersLog = logger.New("workflow:compiler_workflow_helpers")
 
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
@@ -25,7 +25,7 @@ func ContainsCheckout(customSteps string) bool {
 	lowerSteps := strings.ToLower(customSteps)
 	for _, pattern := range checkoutPatterns {
 		if strings.Contains(lowerSteps, strings.ToLower(pattern)) {
-			compilerYamlHelpersLog.Print("Detected actions/checkout in custom steps")
+			compilerWorkflowHelpersLog.Print("Detected actions/checkout in custom steps")
 			return true
 		}
 	}
@@ -39,7 +39,3 @@ func ContainsCheckout(customSteps string) bool {
 func GetWorkflowIDFromPath(markdownPath string) string {
 	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 }
-
-// generateGitHubScriptWithRequire is implemented in compiler_github_actions_steps.go
-
-// generateInlineGitHubScriptStep is implemented in compiler_github_actions_steps.go
