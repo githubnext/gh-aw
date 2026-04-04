@@ -1,3 +1,4 @@
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"21c6c078f3b5b342ef074303f8c5cdd0b250607a1ca75c6205fc02087dd76f23","strict":true,"agent_id":"copilot"}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -27,7 +28,21 @@
 #     - shared/qmd.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"21c6c078f3b5b342ef074303f8c5cdd0b250607a1ca75c6205fc02087dd76f23","strict":true,"agent_id":"copilot"}
+# Secrets used:
+#   - GH_AW_CI_TRIGGER_TOKEN
+#   - GH_AW_GITHUB_MCP_SERVER_TOKEN
+#   - GH_AW_GITHUB_TOKEN
+#   - GITHUB_TOKEN
+#
+# Custom actions used:
+#   - actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+#   - actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+#   - actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+#   - actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+#   - actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+#   - actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+#   - actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
 
 name: "Dictation Prompt Generator"
 "on":

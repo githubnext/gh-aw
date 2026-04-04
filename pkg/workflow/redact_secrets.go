@@ -14,6 +14,11 @@ var secretMaskingLog = logger.New("workflow:secret_masking")
 // secretReferencePattern matches ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
 var secretReferencePattern = regexp.MustCompile(`secrets\.([A-Z][A-Z0-9_]*)`)
 
+// actionReferencePattern matches "uses: <action-ref>" lines in YAML, including
+// both key-value format ("uses: ref") and list-item format ("- uses: ref").
+// Captures the action reference (group 1) and optional inline comment tag (group 2).
+var actionReferencePattern = regexp.MustCompile(`(?m)^\s+(?:-\s+)?uses:\s+(\S+)(?:\s+#\s*(.+?))?$`)
+
 // escapeSingleQuote escapes single quotes and backslashes in a string to prevent injection
 // when embedding data in single-quoted YAML strings
 func escapeSingleQuote(s string) string {
@@ -52,7 +57,38 @@ func CollectSecretReferences(yamlContent string) []string {
 	return secrets
 }
 
-// generateSecretRedactionStep generates a workflow step that redacts secrets from files in /tmp
+// CollectActionReferences extracts all external GitHub Action references from the workflow YAML.
+// It returns a sorted, deduplicated list of "uses:" values, excluding local references
+// that start with "./" (e.g., "./actions/setup" or "./.github/workflows/...").
+// Each entry includes the inline tag comment when present (e.g., "actions/checkout@sha # v4").
+func CollectActionReferences(yamlContent string) []string {
+	secretMaskingLog.Printf("Scanning workflow YAML (%d bytes) for action references", len(yamlContent))
+	actionsMap := make(map[string]bool)
+
+	matches := actionReferencePattern.FindAllStringSubmatch(yamlContent, -1)
+	for _, match := range matches {
+		ref := match[1]
+		// Skip local actions and reusable workflow calls (e.g. "./actions/setup")
+		if strings.HasPrefix(ref, "./") {
+			continue
+		}
+		entry := ref
+		if len(match) > 2 && strings.TrimSpace(match[2]) != "" {
+			entry = ref + " # " + strings.TrimSpace(match[2])
+		}
+		actionsMap[entry] = true
+	}
+
+	actions := make([]string, 0, len(actionsMap))
+	for action := range actionsMap {
+		actions = append(actions, action)
+	}
+	sort.Strings(actions)
+
+	secretMaskingLog.Printf("Found %d unique external action reference(s) in workflow", len(actions))
+	return actions
+}
+
 func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlContent string, data *WorkflowData) {
 	// Extract secret references from the generated YAML
 	secretReferences := CollectSecretReferences(yamlContent)
