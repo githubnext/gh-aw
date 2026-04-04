@@ -833,6 +833,14 @@ add --allow-domains anthropic.com to your command`,
 			wantBlockedReqs: 2,
 		},
 		{
+			name:            "quoted comma-separated domains strips surrounding double quotes",
+			logContent:      `[WARN] To fix domain issues: --allow-domains "*.githubusercontent.com,api.openai.com,chatgpt.com"`,
+			wantNil:         false,
+			wantBlocked:     []string{"*.githubusercontent.com", "api.openai.com", "chatgpt.com"},
+			wantTotalReqs:   3,
+			wantBlockedReqs: 3,
+		},
+		{
 			name: "deduplicated repeated warnings for same domain",
 			logContent: `add --allow-domains chatgpt.com to your command
 add --allow-domains chatgpt.com to your command

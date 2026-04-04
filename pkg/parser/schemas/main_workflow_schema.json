@@ -9657,9 +9657,30 @@
             "type": "string"
           },
           "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
+        },
+        "auth": {
+          "$ref": "#/$defs/http_mcp_auth"
         }
       },
       "required": ["url"],
+      "additionalProperties": false
+    },
+    "http_mcp_auth": {
+      "type": "object",
+      "description": "Upstream authentication configuration for the HTTP MCP server. When configured, the gateway dynamically acquires tokens and injects them as Authorization headers on every outgoing request to this server. Currently only GitHub Actions OIDC is supported.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["github-oidc"],
+          "description": "Authentication type. Currently only 'github-oidc' is supported, which acquires short-lived JWTs from the GitHub Actions OIDC endpoint."
+        },
+        "audience": {
+          "type": "string",
+          "description": "The intended audience for the OIDC token (the 'aud' claim). If omitted, defaults to the server's url field.",
+          "format": "uri"
+        }
+      },
+      "required": ["type"],
       "additionalProperties": false
     },
     "github_token": {

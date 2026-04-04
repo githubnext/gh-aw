@@ -352,4 +352,28 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.context).toEqual(validContext);
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("aw_context"));
   });
+
+  it("should accept valid aw_context with comment_node_id for discussion_comment events", async () => {
+    const validContext = {
+      repo: "org/repo",
+      run_id: "12345",
+      workflow_id: "org/repo/.github/workflows/dispatcher.yml@refs/heads/main",
+      workflow_call_id: "12345-1",
+      time: new Date().toISOString(),
+      actor: "octocat",
+      event_type: "discussion_comment",
+      item_type: "discussion",
+      item_number: "240",
+      comment_id: "77889900",
+      comment_node_id: "DC_kwDOParentComment456",
+    };
+    const contextWithDiscussion = {
+      ...mockContext,
+      payload: { inputs: { aw_context: JSON.stringify(validContext) } },
+    };
+    await main(mockCore, contextWithDiscussion);
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.context).toEqual(validContext);
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("aw_context"));
+  });
 });

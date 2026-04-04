@@ -468,8 +468,10 @@ func extractFirewallFromAgentLog(logsPath string, verbose bool) *FirewallAnalysi
 	blockedDomainsSet := make(map[string]bool)
 	for line := range strings.SplitSeq(string(content), "\n") {
 		if matches := agentLogAllowDomainsPattern.FindStringSubmatch(line); len(matches) > 1 {
+			// Strip surrounding double quotes if present (e.g., --allow-domains "dom1,dom2")
+			allowDomains := strings.Trim(matches[1], "\"")
 			// Domains can be comma-separated in the suggestion
-			for domain := range strings.SplitSeq(matches[1], ",") {
+			for domain := range strings.SplitSeq(allowDomains, ",") {
 				if d := strings.TrimSpace(domain); d != "" {
 					blockedDomainsSet[d] = true
 				}

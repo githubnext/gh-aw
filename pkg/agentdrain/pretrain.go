@@ -1,6 +1,12 @@
 package agentdrain
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var pretrainLog = logger.New("agentdrain:pretrain")
 
 // PreTrainTemplate seeds the miner with a known template string and a
 // synthetic observation count. The template is tokenized but not masked,
@@ -10,6 +16,7 @@ func (m *Miner) PreTrainTemplate(template string, count int) {
 	if len(tokens) == 0 {
 		return
 	}
+	pretrainLog.Printf("PreTraining template: tokenCount=%d, seedCount=%d", len(tokens), count)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -36,6 +43,7 @@ func (m *Miner) PreTrainTemplate(template string, count int) {
 // PreTrainTemplates seeds the miner with a slice of template strings, each
 // with an initial count of 1.
 func (m *Miner) PreTrainTemplates(templates []string) {
+	pretrainLog.Printf("PreTraining with %d templates", len(templates))
 	for _, t := range templates {
 		m.PreTrainTemplate(t, 1)
 	}

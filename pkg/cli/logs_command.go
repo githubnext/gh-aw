@@ -86,6 +86,9 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse                   # Parse logs and generate Markdown reports
   ` + string(constants.CLIExtensionPrefix) + ` logs --json                    # Output metrics in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse --json            # Generate both Markdown and JSON
+  ` + string(constants.CLIExtensionPrefix) + ` logs --format markdown         # Generate cross-run security audit report in Markdown
+  ` + string(constants.CLIExtensionPrefix) + ` logs --format pretty           # Generate cross-run security audit report in console format
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --format markdown --last 10  # Cross-run report for last 10 runs
 
   # Cross-repository
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
@@ -121,6 +124,10 @@ Examples:
 			}
 
 			count, _ := cmd.Flags().GetInt("count")
+			// --last is an alias for --count (for compatibility with users of `audit report --last`)
+			if last, _ := cmd.Flags().GetInt("last"); last > 0 {
+				count = last
+			}
 			startDate, _ := cmd.Flags().GetString("start-date")
 			endDate, _ := cmd.Flags().GetString("end-date")
 			outputDir, _ := cmd.Flags().GetString("output")
@@ -141,6 +148,7 @@ Examples:
 			safeOutputType, _ := cmd.Flags().GetString("safe-output")
 			filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
 			train, _ := cmd.Flags().GetBool("train")
+			format, _ := cmd.Flags().GetString("format")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -175,7 +183,7 @@ Examples:
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v", workflowName, count, engine, train)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train)
+			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format)
 		},
 	}
 
@@ -200,6 +208,8 @@ Examples:
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.Flags().Bool("train", false, "Train drain3 log template weights from downloaded runs and write drain3_weights.json to the output directory")
+	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: markdown, pretty (generates security audit report instead of default metrics table)")
+	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to analyze when generating a cross-run report")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

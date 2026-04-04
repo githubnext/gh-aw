@@ -42,8 +42,8 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format)
 
 	// Ensure .github/aw/logs/.gitignore exists on every invocation
 	if err := ensureLogsGitignore(); err != nil {
@@ -110,6 +110,16 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		// Stop if we've collected enough processed runs
 		if len(processedRuns) >= count {
 			break
+		}
+
+		// Query the GitHub API rate limit before each iteration (except the first)
+		// and wait as needed.  This replaces the static cooldown sleep: the helper
+		// always sleeps at least APICallCooldown but will also block until the
+		// reset window when the remaining budget is nearly exhausted.
+		if iteration > 0 {
+			if rlErr := checkAndWaitForRateLimit(verbose); rlErr != nil {
+				logsOrchestratorLog.Printf("Rate limit check failed (using static cooldown): %v", rlErr)
+			}
 		}
 
 		iteration++
@@ -527,7 +537,40 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 		}
 	}
 
-	// Render output based on format preference
+	// Render output based on format preference.
+	// When --format markdown or --format pretty is specified, generate a cross-run audit report
+	// instead of the default metrics table.
+	if format == "markdown" || format == "pretty" {
+		inputs := make([]crossRunInput, 0, len(processedRuns))
+		for _, pr := range processedRuns {
+			inputs = append(inputs, crossRunInput{
+				RunID:            pr.Run.DatabaseID,
+				WorkflowName:     pr.Run.WorkflowName,
+				Conclusion:       pr.Run.Conclusion,
+				Duration:         pr.Run.Duration,
+				FirewallAnalysis: pr.FirewallAnalysis,
+				Metrics: LogMetrics{
+					TokenUsage:    pr.Run.TokenUsage,
+					EstimatedCost: pr.Run.EstimatedCost,
+					Turns:         pr.Run.Turns,
+				},
+				MCPToolUsage: pr.MCPToolUsage,
+				MCPFailures:  pr.MCPFailures,
+				ErrorCount:   pr.Run.ErrorCount,
+			})
+		}
+		report := buildCrossRunAuditReport(inputs)
+		if jsonOutput {
+			return renderCrossRunReportJSON(report)
+		}
+		if format == "pretty" {
+			renderCrossRunReportPretty(report)
+			return nil
+		}
+		renderCrossRunReportMarkdown(report)
+		return nil
+	}
+
 	if jsonOutput {
 		if err := renderLogsJSON(logsData); err != nil {
 			return fmt.Errorf("failed to render JSON output: %w", err)
@@ -571,9 +614,10 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", totalRuns)))
 	}
 
-	// Create progress bar for tracking run processing (only in non-verbose mode)
+	// Create progress bar for tracking run processing (only in non-verbose, non-CI mode)
+	// In CI environments \r is treated as a newline, producing excessive output for each update.
 	var progressBar *console.ProgressBar
-	if !verbose {
+	if !verbose && !IsRunningInCI() {
 		progressBar = console.NewProgressBar(int64(totalRuns))
 		fmt.Fprintf(os.Stderr, "Processing runs: %s\r", progressBar.Update(0))
 	}

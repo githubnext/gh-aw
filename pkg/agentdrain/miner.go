@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var minerLog = logger.New("agentdrain:miner")
 
 // Miner is a concurrent Drain-style log template miner.
 // Use NewMiner to create an instance.
@@ -19,6 +23,7 @@ type Miner struct {
 
 // NewMiner creates a Miner from the given Config.
 func NewMiner(cfg Config) (*Miner, error) {
+	minerLog.Printf("Creating new miner: depth=%d, simThreshold=%.2f, maxChildren=%d", cfg.Depth, cfg.SimThreshold, cfg.MaxChildren)
 	masker, err := NewMasker(cfg.MaskRules)
 	if err != nil {
 		return nil, fmt.Errorf("agentdrain: NewMiner: %w", err)
@@ -51,12 +56,14 @@ func (m *Miner) Train(line string) (*MatchResult, error) {
 		c.Size++
 		result.Template = strings.Join(c.Template, " ")
 		result.Params = extractParams(tokens, c.Template, m.cfg.ParamToken)
+		minerLog.Printf("Train: matched existing cluster: id=%d, size=%d, similarity=%.2f", c.ID, c.Size, result.Similarity)
 		return result, nil
 	}
 
 	// Create new cluster.
 	c := m.store.add(tokens, "")
 	m.tree.addCluster(tokens, c.ID, m.cfg.Depth, m.cfg.MaxChildren, m.cfg.ParamToken)
+	minerLog.Printf("Train: created new cluster: id=%d, totalClusters=%d", c.ID, len(m.store.clusters))
 	return &MatchResult{
 		ClusterID:  c.ID,
 		Template:   strings.Join(c.Template, " "),
@@ -135,6 +142,7 @@ func (m *Miner) TrainEvent(evt AgentEvent) (*MatchResult, error) {
 // AnalyzeEvent performs inference on the event, builds an AnomalyReport, and
 // then calls TrainEvent to update the miner. Returns the match result and report.
 func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error) {
+	minerLog.Printf("AnalyzeEvent: stage=%s", evt.Stage)
 	line := FlattenEvent(evt, m.cfg.ExcludeFields)
 	masked := m.masker.Mask(line)
 	tokens := Tokenize(masked)

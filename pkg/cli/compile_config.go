@@ -27,6 +27,7 @@ type CompileConfig struct {
 	ActionsRepo            string   // Override the external actions repository (default: github/gh-aw-actions)
 	Stats                  bool     // Display statistics table sorted by file size
 	FailFast               bool     // Stop at first error instead of collecting all errors
+	ScheduleSeed           string   // Override repository slug used for fuzzy schedule scattering (e.g. owner/repo)
 }
 
 // WorkflowFailure represents a failed workflow with its error count

@@ -89,18 +89,20 @@ gh aw audit diff 12345 12346 --json
 gh aw audit diff 12345 12346 --repo owner/repo
 ```
 
-## `gh aw audit report`
+## `gh aw logs --format <fmt>`
 
 Generate a cross-run security and performance audit report across multiple recent workflow runs.
+This feature is built into the `gh aw logs` command via the `--format` flag.
 
 **Flags:**
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-w, --workflow <name>` | all | Filter by workflow name or filename |
-| `--last <n>` | 20 | Number of recent runs to analyze (max 50) |
-| `--format <fmt>` | `markdown` | Output format: `markdown` or `pretty` |
-| `--json` | off | Output report as JSON |
+| `[workflow]` | all workflows | Filter by workflow name or filename (positional argument) |
+| `-c, --count <n>` | 10 | Number of recent runs to analyze |
+| `--last <n>` | — | Alias for `--count` |
+| `--format <fmt>` | — | Output format: `markdown` or `pretty` (generates cross-run audit report) |
+| `--json` | off | Output cross-run report as JSON (when combined with `--format`) |
 | `--repo <owner/repo>` | auto | Specify repository |
 | `-o, --output <dir>` | `./logs` | Directory for downloaded artifacts |
 | `--verbose` | off | Print detailed progress |
@@ -110,11 +112,11 @@ The report output includes an executive summary, domain inventory, metrics trend
 **Examples:**
 
 ```bash
-gh aw audit report
-gh aw audit report --workflow "daily-repo-status" --last 10
-gh aw audit report --workflow "agent-task" --last 5 --json
-gh aw audit report --format pretty
-gh aw audit report --repo owner/repo --last 10
+gh aw logs --format markdown
+gh aw logs daily-repo-status --format markdown --count 10
+gh aw logs agent-task --format markdown --last 5 --json
+gh aw logs --format pretty
+gh aw logs --format markdown --repo owner/repo --count 10
 ```
 
 ## Related Documentation

@@ -1,6 +1,12 @@
 package agentdrain
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var anomalyLog = logger.New("agentdrain:anomaly")
 
 // AnomalyDetector evaluates match results and produces AnomalyReports.
 type AnomalyDetector struct {
@@ -53,6 +59,10 @@ func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Clus
 	report.AnomalyScore = score / maxScore
 
 	report.Reason = buildReason(report)
+	if anomalyLog.Enabled() {
+		anomalyLog.Printf("Anomaly analysis: score=%.2f, isNew=%t, lowSim=%t, rare=%t, reason=%s",
+			report.AnomalyScore, report.IsNewTemplate, report.LowSimilarity, report.RareCluster, report.Reason)
+	}
 	return report
 }
 

@@ -23,7 +23,10 @@
  * `pull_request` rather than `issue`.
  *
  * @param {object | null | undefined} payload - GitHub Actions context.payload
- * @returns {{ item_type: string, item_number: string, comment_id: string }}
+ * @returns {{ item_type: string, item_number: string, comment_id: string, comment_node_id: string }}
+ *   comment_node_id is only populated for discussion/discussion_comment events where
+ *   payload.comment.node_id is present (GraphQL node ID needed for reply threading).
+ *   It is intentionally empty for all other event types (issues, PRs, checks).
  */
 function resolveItemContext(payload) {
   if (payload?.issue != null) {
@@ -35,12 +38,14 @@ function resolveItemContext(payload) {
         item_type: "pull_request",
         item_number: payload.issue.number != null ? String(payload.issue.number) : "",
         comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+        comment_node_id: "",
       };
     }
     return {
       item_type: "issue",
       item_number: payload.issue.number != null ? String(payload.issue.number) : "",
       comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+      comment_node_id: "",
     };
   }
   if (payload?.pull_request != null) {
@@ -50,6 +55,7 @@ function resolveItemContext(payload) {
       // pull_request_review events carry a review object; pull_request_review_comment
       // events carry a comment object.  Both are reported as comment_id.
       comment_id: payload.comment?.id != null ? String(payload.comment.id) : payload.review?.id != null ? String(payload.review.id) : "",
+      comment_node_id: "",
     };
   }
   if (payload?.discussion != null) {
@@ -57,6 +63,10 @@ function resolveItemContext(payload) {
       item_type: "discussion",
       item_number: payload.discussion.number != null ? String(payload.discussion.number) : "",
       comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+      // comment_node_id is the GraphQL node ID of the triggering discussion comment.
+      // It can be used as reply_to_id in add_comment to thread responses under
+      // the triggering comment when dispatching specialist workflows.
+      comment_node_id: payload.comment?.node_id != null ? String(payload.comment.node_id) : "",
     };
   }
   if (payload?.check_run != null) {
@@ -64,6 +74,7 @@ function resolveItemContext(payload) {
       item_type: "check_run",
       item_number: payload.check_run.id != null ? String(payload.check_run.id) : "",
       comment_id: "",
+      comment_node_id: "",
     };
   }
   if (payload?.check_suite != null) {
@@ -71,9 +82,10 @@ function resolveItemContext(payload) {
       item_type: "check_suite",
       item_number: payload.check_suite.id != null ? String(payload.check_suite.id) : "",
       comment_id: "",
+      comment_node_id: "",
     };
   }
-  return { item_type: "", item_number: "", comment_id: "" };
+  return { item_type: "", item_number: "", comment_id: "", comment_node_id: "" };
 }
 
 /**
@@ -93,7 +105,8 @@ function resolveItemContext(payload) {
  *   event_type: string,
  *   item_type: string,
  *   item_number: string,
- *   comment_id: string
+ *   comment_id: string,
+ *   comment_node_id: string
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -103,9 +116,13 @@ function resolveItemContext(payload) {
  *     id (check_run/check_suite). Empty string when item_type is empty.
  *   - comment_id: ID of the triggering comment or review. Empty string when the
  *     event is not a comment/review event.
+ *   - comment_node_id: GraphQL node ID of the triggering discussion comment.
+ *     Only populated for discussion/discussion_comment events. Can be passed
+ *     as reply_to_id in add_comment to thread responses under the triggering
+ *     comment when a dispatched specialist workflow replies to a discussion.
  */
 function buildAwContext() {
-  const { item_type, item_number, comment_id } = resolveItemContext(context.payload);
+  const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
 
   return {
     repo: `${context.repo.owner}/${context.repo.repo}`,
@@ -122,6 +139,7 @@ function buildAwContext() {
     item_type,
     item_number,
     comment_id,
+    comment_node_id,
   };
 }
 

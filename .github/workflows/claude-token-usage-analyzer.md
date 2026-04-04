@@ -53,15 +53,10 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/token-analyzer-claude
 
-      echo "📥 Downloading Claude workflow runs from last 24 hours..."
-      gh aw logs \
-        --engine claude \
-        --start-date -1d \
-        --json \
-        -c 300 \
-        > /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null || echo "[]" > /tmp/token-analyzer-claude/claude-runs.json
+      # Use pre-fetched logs from the shared token-logs-24h pre-step
+      cp /tmp/gh-aw/token-logs/claude-runs.json /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null || echo "[]" > /tmp/token-analyzer-claude/claude-runs.json
 
-      RUN_COUNT=$(jq '. | length' /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null || echo 0)
+      RUN_COUNT=$(jq 'length' /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null || echo 0)
       echo "✅ Found ${RUN_COUNT} Claude workflow runs"
 
       # Download token-usage.jsonl artifacts for per-model breakdown
@@ -69,7 +64,7 @@ steps:
       mkdir -p "$ARTIFACT_DIR"
 
       echo "📥 Downloading token-usage.jsonl artifacts..."
-      jq -r '.[0:50][]?.databaseId' /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null > /tmp/token-analyzer-claude/run-ids.txt || true
+      jq -r '.[0:50][]?.database_id' /tmp/token-analyzer-claude/claude-runs.json 2>/dev/null > /tmp/token-analyzer-claude/run-ids.txt || true
       while read -r run_id; do
         run_dir="$ARTIFACT_DIR/$run_id"
         mkdir -p "$run_dir"
@@ -101,6 +96,7 @@ steps:
       echo "✅ Merged ${RECORD_COUNT} token usage records"
 
 imports:
+  - shared/token-logs-24h.md
   - shared/reporting.md
 ---
 
@@ -119,7 +115,7 @@ You are the Claude Token Usage Analyzer. Your job is to analyze Claude/Anthropic
 
 Pre-downloaded data is available in `/tmp/token-analyzer-claude/`:
 
-- **`/tmp/token-analyzer-claude/claude-runs.json`** — All Claude workflow runs from the last 24 hours (array of run objects with `workflowName`, `databaseId`, `tokenUsage`, `estimatedCost`, `turns`, `url`, `conclusion`, etc.)
+- **`/tmp/token-analyzer-claude/claude-runs.json`** — All Claude workflow runs from the last 24 hours (array of run objects with `workflow_name`, `database_id`, `token_usage`, `turns`, `url`, `conclusion`, etc.)
 - **`/tmp/token-analyzer-claude/token-usage-merged.jsonl`** — Merged per-request token records from `firewall-audit-logs` artifacts, with fields: `model`, `provider`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `duration_ms`, `run_id`
 
 ## Analysis Process
@@ -129,7 +125,7 @@ Pre-downloaded data is available in `/tmp/token-analyzer-claude/`:
 Process `/tmp/token-analyzer-claude/claude-runs.json` to compute per-workflow statistics:
 
 ```bash
-jq -r '.[] | [.workflowName, .tokenUsage, .estimatedCost, .turns, .conclusion, .url, .databaseId] | @tsv' \
+jq -r '.[] | [.workflow_name, .token_usage, .turns, .conclusion, .url, .database_id] | @tsv' \
   /tmp/token-analyzer-claude/claude-runs.json
 ```
 

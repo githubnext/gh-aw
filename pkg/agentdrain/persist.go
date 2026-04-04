@@ -3,7 +3,11 @@ package agentdrain
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var persistLog = logger.New("agentdrain:persist")
 
 // Snapshot is the serializable representation of a Miner's state.
 type Snapshot struct {
@@ -25,6 +29,7 @@ func (m *Miner) SaveJSON() ([]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	persistLog.Printf("Saving miner state: clusters=%d", len(m.store.clusters))
 	snap := Snapshot{
 		Config: m.cfg,
 		NextID: m.store.nextID,
@@ -45,6 +50,7 @@ func (m *Miner) SaveJSON() ([]byte, error) {
 // LoadJSON restores miner state from JSON bytes produced by SaveJSON.
 // The existing state is replaced; the parse tree is rebuilt from the snapshot.
 func (m *Miner) LoadJSON(data []byte) error {
+	persistLog.Printf("Loading miner state: bytes=%d", len(data))
 	var snap Snapshot
 	if err := json.Unmarshal(data, &snap); err != nil {
 		return fmt.Errorf("agentdrain: LoadJSON: %w", err)
@@ -76,6 +82,7 @@ func (m *Miner) LoadJSON(data []byte) error {
 		m.store.clusters[c.ID] = c
 		m.tree.addCluster(c.Template, c.ID, m.cfg.Depth, m.cfg.MaxChildren, m.cfg.ParamToken)
 	}
+	persistLog.Printf("Loaded miner state: clusters=%d", len(snap.Clusters))
 	return nil
 }
 

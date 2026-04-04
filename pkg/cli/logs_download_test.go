@@ -21,7 +21,7 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	// Test the DownloadWorkflowLogs function
 	// This should either fail with auth error (if not authenticated)
 	// or succeed with no results (if authenticated but no workflows match)
-	err := DownloadWorkflowLogs(context.Background(), "", 1, "", "", "./test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 0, "summary.json", "", false, false)
+	err := DownloadWorkflowLogs(context.Background(), "", 1, "", "", "./test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 0, "summary.json", "", false, false, "")
 
 	// If GitHub CLI is authenticated, the function may succeed but find no results
 	// If not authenticated, it should return an auth error
@@ -161,6 +161,59 @@ func TestIsNonZipArtifactError(t *testing.T) {
 			result := isNonZipArtifactError([]byte(tt.output))
 			if result != tt.expected {
 				t.Errorf("isNonZipArtifactError(%q) = %v, want %v", tt.output, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsDockerBuildArtifact(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "typical dockerbuild artifact",
+			input:    "github~gh-aw~39RTHX.dockerbuild",
+			expected: true,
+		},
+		{
+			name:     "plain dockerbuild suffix",
+			input:    "something.dockerbuild",
+			expected: true,
+		},
+		{
+			name:     "regular artifact name",
+			input:    "agent",
+			expected: false,
+		},
+		{
+			name:     "activation artifact",
+			input:    "activation",
+			expected: false,
+		},
+		{
+			name:     "dockerbuild as substring only",
+			input:    "some.dockerbuild.txt",
+			expected: false,
+		},
+		{
+			name:     "empty name",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "firewall audit logs",
+			input:    "firewall-audit-logs",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isDockerBuildArtifact(tt.input)
+			if result != tt.expected {
+				t.Errorf("isDockerBuildArtifact(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -308,7 +361,7 @@ func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
 			if !tt.expectError {
 				// For valid engines, test that the function can be called without panic
 				// It may still fail with auth errors, which is expected
-				err := DownloadWorkflowLogs(context.Background(), "", 1, "", "", "./test-logs", tt.engine, "", 0, 0, "", false, false, false, false, false, false, false, 0, "summary.json", "", false, false)
+				err := DownloadWorkflowLogs(context.Background(), "", 1, "", "", "./test-logs", tt.engine, "", 0, 0, "", false, false, false, false, false, false, false, 0, "summary.json", "", false, false, "")
 
 				// Clean up any created directories
 				os.RemoveAll("./test-logs")

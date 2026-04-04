@@ -579,4 +579,187 @@ func TestGetHostFromOriginRemote(t *testing.T) {
 			t.Errorf("getHostFromOriginRemote() = %q, want %q", got, "ghes.example.com")
 		}
 	})
+
+	t.Run("non-origin single remote falls back to that remote", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/owner/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() }()
+
+		got := getHostFromOriginRemote()
+		if got != "github.com" {
+			t.Errorf("getHostFromOriginRemote() with non-origin remote = %q, want %q", got, "github.com")
+		}
+	})
+
+	t.Run("multiple remotes without origin defaults to github.com", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add first remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "myorg").Run() }()
+		if err := exec.Command("git", "remote", "add", "other", "https://github.com/other/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add second remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "other").Run() }()
+
+		got := getHostFromOriginRemote()
+		if got != "github.com" {
+			t.Errorf("getHostFromOriginRemote() with multiple non-origin remotes = %q, want %q", got, "github.com")
+		}
+	})
+}
+
+func TestResolveRemoteURL(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-resolve-remote-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize a git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	t.Run("no remotes returns error", func(t *testing.T) {
+		_, _, err := resolveRemoteURL("")
+		if err == nil {
+			t.Error("resolveRemoteURL() should return error when no remotes are configured")
+		}
+	})
+
+	t.Run("origin remote is used when present", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+
+		url, name, err := resolveRemoteURL("")
+		if err != nil {
+			t.Fatalf("resolveRemoteURL() failed: %v", err)
+		}
+		if name != "origin" {
+			t.Errorf("resolveRemoteURL() remote name = %q, want %q", name, "origin")
+		}
+		if url != "https://github.com/owner/repo.git" {
+			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/owner/repo.git")
+		}
+	})
+
+	t.Run("single non-origin remote is used as fallback", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "myorg").Run() }()
+
+		url, name, err := resolveRemoteURL("")
+		if err != nil {
+			t.Fatalf("resolveRemoteURL() failed: %v", err)
+		}
+		if name != "myorg" {
+			t.Errorf("resolveRemoteURL() remote name = %q, want %q", name, "myorg")
+		}
+		if url != "https://github.com/myorg/repo.git" {
+			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/myorg/repo.git")
+		}
+	})
+
+	t.Run("multiple non-origin remotes returns error", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "remote1", "https://github.com/org1/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add first remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "remote1").Run() }()
+		if err := exec.Command("git", "remote", "add", "remote2", "https://github.com/org2/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add second remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "remote2").Run() }()
+
+		_, _, err := resolveRemoteURL("")
+		if err == nil {
+			t.Error("resolveRemoteURL() should return error when multiple non-origin remotes are configured")
+		}
+	})
+
+	t.Run("origin takes precedence when multiple remotes exist", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "origin", "https://github.com/owner/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add origin remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "origin").Run() }()
+		if err := exec.Command("git", "remote", "add", "upstream", "https://github.com/upstream/repo.git").Run(); err != nil {
+			t.Fatalf("Failed to add upstream remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "upstream").Run() }()
+
+		url, name, err := resolveRemoteURL("")
+		if err != nil {
+			t.Fatalf("resolveRemoteURL() failed: %v", err)
+		}
+		if name != "origin" {
+			t.Errorf("resolveRemoteURL() remote name = %q, want %q", name, "origin")
+		}
+		if url != "https://github.com/owner/repo.git" {
+			t.Errorf("resolveRemoteURL() URL = %q, want %q", url, "https://github.com/owner/repo.git")
+		}
+	})
+}
+
+func TestGetRepositorySlugFromRemoteFallback(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-slug-fallback-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Warning: failed to restore directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize a git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	t.Run("single non-origin remote provides repo slug", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "myorg", "https://github.com/myorg/myrepo.git").Run(); err != nil {
+			t.Fatalf("Failed to add remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "myorg").Run() }()
+
+		slug := getRepositorySlugFromRemote()
+		if slug != "myorg/myrepo" {
+			t.Errorf("getRepositorySlugFromRemote() = %q, want %q", slug, "myorg/myrepo")
+		}
+	})
+
+	t.Run("multiple non-origin remotes returns empty slug", func(t *testing.T) {
+		if err := exec.Command("git", "remote", "add", "remote1", "https://github.com/org1/repo1.git").Run(); err != nil {
+			t.Fatalf("Failed to add first remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "remote1").Run() }()
+		if err := exec.Command("git", "remote", "add", "remote2", "https://github.com/org2/repo2.git").Run(); err != nil {
+			t.Fatalf("Failed to add second remote: %v", err)
+		}
+		defer func() { _ = exec.Command("git", "remote", "remove", "remote2").Run() }()
+
+		slug := getRepositorySlugFromRemote()
+		if slug != "" {
+			t.Errorf("getRepositorySlugFromRemote() with multiple non-origin remotes = %q, want %q", slug, "")
+		}
+	})
 }

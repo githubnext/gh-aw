@@ -80,6 +80,7 @@ type RunData struct {
 	Agent               string               `json:"agent,omitempty" console:"header:Agent,omitempty"`
 	Status              string               `json:"status" console:"header:Status"`
 	Conclusion          string               `json:"conclusion,omitempty" console:"-"`
+	Classification      string               `json:"classification" console:"-"`
 	Duration            string               `json:"duration,omitempty" console:"header:Duration,omitempty"`
 	ActionMinutes       float64              `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	TokenUsage          int                  `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
@@ -101,6 +102,7 @@ type RunData struct {
 	HeadSHA             string               `json:"head_sha,omitempty" console:"-"`
 	DisplayTitle        string               `json:"display_title,omitempty" console:"-"`
 	Repository          string               `json:"repository,omitempty" console:"-"`
+	Organization        string               `json:"organization,omitempty" console:"-"`
 	Ref                 string               `json:"ref,omitempty" console:"-"`
 	SHA                 string               `json:"sha,omitempty" console:"-"`
 	Actor               string               `json:"actor,omitempty" console:"-"`
@@ -218,6 +220,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Agent:               agentID,
 			Status:              run.Status,
 			Conclusion:          run.Conclusion,
+			Classification:      deriveRunClassification(comparison),
 			TokenUsage:          run.TokenUsage,
 			EffectiveTokens:     run.EffectiveTokens,
 			EstimatedCost:       run.EstimatedCost,
@@ -246,6 +249,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 		if awInfo != nil {
 			runData.Repository = awInfo.Repository
+			if awInfo.Repository != "" {
+				if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
+					runData.Organization = parts[0]
+				}
+			}
 			runData.Ref = awInfo.Ref
 			runData.SHA = awInfo.SHA
 			runData.Actor = awInfo.Actor
@@ -332,6 +340,30 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		Continuation:      continuation,
 		LogsLocation:      absOutputDir,
 	}
+}
+
+// deriveRunClassification maps a run's AuditComparisonData to one of four
+// human-readable classification labels:
+//
+//   - "risky"       – comparison detected a risk signal (e.g. posture change, new MCP failure).
+//   - "normal"      – comparison found no risk signals (stable or minor changes).
+//   - "baseline"    – no prior successful run was available to compare against;
+//     this run acts as its own baseline.
+//   - "unclassified" – comparison data is absent or incomplete.
+func deriveRunClassification(comparison *AuditComparisonData) string {
+	if comparison == nil {
+		return "unclassified"
+	}
+	if !comparison.BaselineFound {
+		return "baseline"
+	}
+	if comparison.Classification == nil {
+		return "unclassified"
+	}
+	if comparison.Classification.Label == "risky" {
+		return "risky"
+	}
+	return "normal"
 }
 
 // isValidToolName checks if a tool name appears to be valid

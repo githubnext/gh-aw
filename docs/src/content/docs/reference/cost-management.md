@@ -218,7 +218,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 | On-demand via slash command | User-controlled | Varies | Varies |
 
 > [!TIP]
-> Use `gh aw audit <run-id>` to deep-dive into token usage and cost for a single run. Use `gh aw audit report --workflow <name>` to analyze cost trends across multiple runs. Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
+> Use `gh aw audit <run-id>` to deep-dive into token usage and cost for a single run. Use `gh aw logs --format markdown [workflow]` to analyze cost trends across multiple runs. Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
 
 ## Related Documentation
 

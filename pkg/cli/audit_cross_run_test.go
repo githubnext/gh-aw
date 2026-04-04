@@ -311,149 +311,94 @@ func TestRenderCrossRunReportMarkdown(t *testing.T) {
 	assert.Contains(t, output, "api.github.com:443", "Should contain the domain")
 }
 
-func TestNewAuditReportSubcommand(t *testing.T) {
-	cmd := NewAuditReportSubcommand()
+func TestNewLogsCommand_HasFormatFlag(t *testing.T) {
+	cmd := NewLogsCommand()
 
-	assert.Equal(t, "report", cmd.Use, "Command Use should be 'report'")
-	assert.NotEmpty(t, cmd.Short, "Short description should not be empty")
-	assert.NotEmpty(t, cmd.Long, "Long description should not be empty")
-
-	// Check flags exist
-	workflowFlag := cmd.Flags().Lookup("workflow")
-	require.NotNil(t, workflowFlag, "Should have --workflow flag")
-	assert.Equal(t, "w", workflowFlag.Shorthand, "Workflow flag shorthand should be 'w'")
-
-	lastFlag := cmd.Flags().Lookup("last")
-	require.NotNil(t, lastFlag, "Should have --last flag")
-	assert.Equal(t, "20", lastFlag.DefValue, "Default value for --last should be 20")
-
-	jsonFlag := cmd.Flags().Lookup("json")
-	require.NotNil(t, jsonFlag, "Should have --json flag")
-
-	repoFlag := cmd.Flags().Lookup("repo")
-	require.NotNil(t, repoFlag, "Should have --repo flag")
-
-	outputFlag := cmd.Flags().Lookup("output")
-	require.NotNil(t, outputFlag, "Should have --output flag")
-
+	// Check that the --format flag exists
 	formatFlag := cmd.Flags().Lookup("format")
 	require.NotNil(t, formatFlag, "Should have --format flag")
-	assert.Equal(t, "markdown", formatFlag.DefValue, "Default value for --format should be markdown")
+	assert.Empty(t, formatFlag.DefValue, "Default value for --format should be empty (console output)")
+
+	// Check that the --last flag exists as an alias for --count
+	lastFlag := cmd.Flags().Lookup("last")
+	require.NotNil(t, lastFlag, "Should have --last flag")
+	assert.Equal(t, "0", lastFlag.DefValue, "Default value for --last should be 0 (uses --count default)")
+
+	// Other expected flags still present
+	require.NotNil(t, cmd.Flags().Lookup("json"), "Should have --json flag")
+	require.NotNil(t, cmd.Flags().Lookup("repo"), "Should have --repo flag")
+	require.NotNil(t, cmd.Flags().Lookup("output"), "Should have --output flag")
+	require.NotNil(t, cmd.Flags().Lookup("count"), "Should have --count flag")
 }
 
-func TestNewAuditReportSubcommand_RejectsExtraArgs(t *testing.T) {
-	cmd := NewAuditReportSubcommand()
-	cmd.SetArgs([]string{"extra-arg"})
-	err := cmd.Execute()
-	require.Error(t, err, "Should reject extra positional arguments")
-	assert.Contains(t, err.Error(), "unknown command", "Error should indicate unknown command")
-}
-
-func TestRunAuditReportConfig_LastClampBounds(t *testing.T) {
-	tests := []struct {
-		name     string
-		inputCfg RunAuditReportConfig
-		wantLast int
-	}{
-		{
-			name:     "negative last defaults to 20",
-			inputCfg: RunAuditReportConfig{Last: -5},
-			wantLast: 20,
-		},
-		{
-			name:     "zero last defaults to 20",
-			inputCfg: RunAuditReportConfig{Last: 0},
-			wantLast: 20,
-		},
-		{
-			name:     "over max clamped to max",
-			inputCfg: RunAuditReportConfig{Last: 100},
-			wantLast: maxAuditReportRuns,
-		},
-		{
-			name:     "within bounds unchanged",
-			inputCfg: RunAuditReportConfig{Last: 10},
-			wantLast: 10,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := tt.inputCfg
-			// Apply the same clamping logic as RunAuditReport
-			if cfg.Last <= 0 {
-				cfg.Last = 20
-			}
-			if cfg.Last > maxAuditReportRuns {
-				cfg.Last = maxAuditReportRuns
-			}
-			assert.Equal(t, tt.wantLast, cfg.Last, "Last should be clamped correctly")
-		})
-	}
-}
-
-func TestRunAuditReportConfig_FormatPrecedence(t *testing.T) {
+func TestLogsCommand_FormatPrecedence(t *testing.T) {
 	tests := []struct {
 		name       string
 		jsonOutput bool
 		format     string
-		wantFormat string // "json", "markdown", or "pretty"
+		wantMode   string // "crossrun-json", "crossrun-markdown", "crossrun-pretty", "default-json", "default-console"
 	}{
 		{
-			name:       "json flag takes precedence over format",
-			jsonOutput: true,
-			format:     "markdown",
-			wantFormat: "json",
-		},
-		{
-			name:       "json flag with format=pretty still uses json",
-			jsonOutput: true,
-			format:     "pretty",
-			wantFormat: "json",
-		},
-		{
-			name:       "format=json without json flag",
-			jsonOutput: false,
-			format:     "json",
-			wantFormat: "json",
-		},
-		{
-			name:       "format=pretty selects pretty",
-			jsonOutput: false,
-			format:     "pretty",
-			wantFormat: "pretty",
-		},
-		{
-			name:       "format=markdown selects markdown",
-			jsonOutput: false,
-			format:     "markdown",
-			wantFormat: "markdown",
-		},
-		{
-			name:       "default format is markdown",
+			name:       "no format uses default console",
 			jsonOutput: false,
 			format:     "",
-			wantFormat: "markdown",
+			wantMode:   "default-console",
+		},
+		{
+			name:       "json flag without format uses default json",
+			jsonOutput: true,
+			format:     "",
+			wantMode:   "default-json",
+		},
+		{
+			name:       "format=markdown triggers cross-run markdown report",
+			jsonOutput: false,
+			format:     "markdown",
+			wantMode:   "crossrun-markdown",
+		},
+		{
+			name:       "format=pretty triggers cross-run pretty report",
+			jsonOutput: false,
+			format:     "pretty",
+			wantMode:   "crossrun-pretty",
+		},
+		{
+			name:       "format=markdown with json flag triggers cross-run json report",
+			jsonOutput: true,
+			format:     "markdown",
+			wantMode:   "crossrun-json",
+		},
+		{
+			name:       "format=pretty with json flag triggers cross-run json report",
+			jsonOutput: true,
+			format:     "pretty",
+			wantMode:   "crossrun-json",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Apply the same format selection logic as RunAuditReport
+			// Apply the same format selection logic as DownloadWorkflowLogs
 			var selected string
-			if tt.jsonOutput || tt.format == "json" {
-				selected = "json"
-			} else if tt.format == "pretty" {
-				selected = "pretty"
+			if tt.format == "markdown" || tt.format == "pretty" {
+				if tt.jsonOutput {
+					selected = "crossrun-json"
+				} else if tt.format == "pretty" {
+					selected = "crossrun-pretty"
+				} else {
+					selected = "crossrun-markdown"
+				}
+			} else if tt.jsonOutput {
+				selected = "default-json"
 			} else {
-				selected = "markdown"
+				selected = "default-console"
 			}
-			assert.Equal(t, tt.wantFormat, selected, "Format should be selected correctly")
+			assert.Equal(t, tt.wantMode, selected, "Output mode should be selected correctly for format=%q jsonOutput=%v", tt.format, tt.jsonOutput)
 		})
 	}
 }
 
-func TestNewAuditReportSubcommand_RepoParsingWithHost(t *testing.T) {
+func TestLogsCommand_RepoParsingWithHost(t *testing.T) {
 	tests := []struct {
 		name      string
 		repoFlag  string
@@ -492,7 +437,7 @@ func TestNewAuditReportSubcommand_RepoParsingWithHost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Apply the same repo parsing logic
+			// Apply the same repo parsing logic used in audit commands
 			parts := strings.Split(tt.repoFlag, "/")
 			if len(parts) < 2 {
 				assert.True(t, tt.wantErr, "Should expect error for: %s", tt.repoFlag)

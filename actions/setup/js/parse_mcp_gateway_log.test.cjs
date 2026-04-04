@@ -288,6 +288,7 @@ Some content here.`;
           setFailed: vi.fn(),
           summary: {
             addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
             write: vi.fn(),
           },
         };
@@ -1004,7 +1005,6 @@ not-json
     test("renders header and table columns", () => {
       const summary = parseTokenUsageJsonl(JSON.stringify({ model: "claude-sonnet-4-6", provider: "anthropic", input_tokens: 100, output_tokens: 200, cache_read_tokens: 5000, cache_write_tokens: 3000, duration_ms: 2500 }));
       const md = generateTokenUsageSummary(summary);
-      expect(md).toContain("### 📊 Token Usage");
       expect(md).toContain("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
       expect(md).toContain("claude-sonnet-4-6");
     });

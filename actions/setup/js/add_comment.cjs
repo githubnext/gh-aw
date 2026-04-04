@@ -573,6 +573,13 @@ async function main(config = {}) {
       return { success: true, commentId: comment.id, url: comment.html_url, itemNumber, repo: itemRepo, isDiscussion: isDiscussionFlag };
     };
 
+    // Normalize reply_to_id once so both the main discussion path and the
+    // 404 discussion fallback path use the same validated value.
+    const normalizedExplicitReplyToId = message.reply_to_id === undefined || message.reply_to_id === null ? null : String(message.reply_to_id).trim();
+    if (message.reply_to_id !== undefined && message.reply_to_id !== null && !normalizedExplicitReplyToId) {
+      core.warning("Ignoring empty discussion reply_to_id after normalization");
+    }
+
     try {
       // Hide older comments if enabled AND append-only-comments is not enabled
       // When append-only-comments is true, we want to keep all comments visible
@@ -590,7 +597,18 @@ async function main(config = {}) {
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
         // itself a reply, we resolve the top-level parent's node ID to use as replyToId.
         const hasExplicitItemNumber = message.item_number !== undefined && message.item_number !== null;
-        const replyToId = context.eventName === "discussion_comment" && !hasExplicitItemNumber ? await resolveTopLevelDiscussionCommentId(githubClient, context.payload?.comment?.node_id) : null;
+        let replyToId;
+        if (context.eventName === "discussion_comment" && !hasExplicitItemNumber) {
+          // When triggered by a discussion_comment event, thread the reply under the triggering comment.
+          replyToId = await resolveTopLevelDiscussionCommentId(githubClient, context.payload?.comment?.node_id);
+        } else if (normalizedExplicitReplyToId) {
+          // Allow the agent to explicitly specify a reply_to_id (e.g. for workflow_dispatch-triggered
+          // workflows that know the target comment node ID). Apply resolveTopLevelDiscussionCommentId
+          // to handle cases where the caller passes a reply node ID instead of a top-level one.
+          replyToId = await resolveTopLevelDiscussionCommentId(githubClient, normalizedExplicitReplyToId);
+        } else {
+          replyToId = null;
+        }
         if (replyToId) {
           core.info(`Replying as threaded comment to discussion comment node ID: ${replyToId}`);
         }
@@ -621,7 +639,13 @@ async function main(config = {}) {
 
         try {
           core.info(`Trying #${itemNumber} as discussion...`);
-          const comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, null);
+          // When retrying as discussion, honour the normalized reply_to_id from the message.
+          // Apply resolveTopLevelDiscussionCommentId to handle nested reply node IDs.
+          const fallbackReplyToId = normalizedExplicitReplyToId ? await resolveTopLevelDiscussionCommentId(githubClient, normalizedExplicitReplyToId) : null;
+          if (fallbackReplyToId) {
+            core.info(`Replying as threaded comment to discussion comment node ID: ${fallbackReplyToId}`);
+          }
+          const comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, fallbackReplyToId);
 
           core.info(`Created comment on discussion: ${comment.html_url}`);
           return recordComment(comment, true);

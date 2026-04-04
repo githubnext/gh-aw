@@ -5,6 +5,8 @@ sidebar:
   order: 2
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 ## Adding Workflows
 
 You can add any existing workflow you have access to from external repositories.
@@ -52,6 +54,67 @@ When installing a workflow, `gh aw add` also automatically fetches:
 
 > [!NOTE]
 > Workflows marked with `private: true` in their frontmatter cannot be added to other repositories. Attempting to do so will fail with an error. See [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private) for details.
+
+## Using an Agent to Import and Adapt a Workflow
+
+You can use a coding agent to import a workflow from another repository and adapt it for your own. The agent reads the source workflow, customizes repository-specific configuration (labels, assignees, branch names, permissions), and sets up the repository — including initialization if needed.
+
+> [!TIP]
+> Use this approach when you want to significantly customize a workflow before using it. For straightforward imports without modification, use [`gh aw add`](#adding-workflows) or [`gh aw add-wizard`](#adding-workflows) instead.
+
+### GitHub Web Interface
+
+**If you have access to GitHub Copilot**, use one of these prompts in your repository to import and adapt a workflow from another repo. Each prompt also initializes the repository for GitHub Agentic Workflows if it has not been set up yet.
+
+<Tabs>
+  <TabItem label="Daily Status Report">
+    ```markdown wrap
+    Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+
+    Then import and adapt the daily-repo-status workflow from githubnext/agentics. The source is at https://github.com/githubnext/agentics/blob/main/workflows/daily-repo-status.md. Adapt any labels, team references, and output format to suit this repository.
+    ```
+  </TabItem>
+  <TabItem label="Issue Triage">
+    ```markdown wrap
+    Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+
+    Then import and adapt an issue triage workflow from github/gh-aw. Find a suitable issue triage workflow in that repository and adapt it: update the labels, assignee logic, and any repository-specific rules to match this project's conventions.
+    ```
+  </TabItem>
+  <TabItem label="CI Doctor">
+    ```markdown wrap
+    Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+
+    Then import and adapt the CI Doctor workflow from githubnext/agentics. The source is at https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md. Adapt the workflow to match this repository's CI setup, branch naming, and issue labeling conventions.
+    ```
+  </TabItem>
+</Tabs>
+
+> [!TIP]
+> On the first run in a new repository, the workflow may fail because secrets are not yet configured.
+> The agentic workflow should detect missing tokens and open an issue with setup instructions.
+
+### Coding Agent
+
+Follow these steps to import and adapt a workflow using VSCode, Claude, Codex, or Copilot in your terminal.
+
+1. **Start your coding agent** in the context of your repository.
+
+2. **Enter the following prompt**, replacing `SOURCE_WORKFLOW`, `OWNER`, and `REPO` with the workflow you want to import:
+
+   ```text wrap
+   Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
+
+   Then import and adapt the SOURCE_WORKFLOW workflow from OWNER/REPO. The source is at https://github.com/OWNER/REPO/blob/main/workflows/SOURCE_WORKFLOW.md.
+
+   Adapt the workflow for this repository: update any labels, assignees, branch names, and permissions to match this project's structure. Keep the overall purpose and logic of the workflow intact.
+   ```
+
+   You can add as much extra context, constraints, or customization goals after the last line as you need.
+
+3. **Set up required secrets** if you haven't done so already. See [Engines](/gh-aw/reference/engines/) for the secrets your chosen engine requires.
+
+After the agent finishes, review the adapted workflow, merge the pull request, and trigger a run from the Actions tab or with `gh aw run`.
 
 ## Updating Workflows
 

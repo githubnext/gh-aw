@@ -124,7 +124,6 @@ function generateTokenUsageSummary(summary) {
   if (!summary || summary.totalRequests === 0) return "";
 
   const lines = [];
-  lines.push("### 📊 Token Usage\n");
   lines.push("| Model | Input | Output | Cache Read | Cache Write | ET | Requests | Duration |");
   lines.push("|-------|------:|-------:|-----------:|------------:|---:|---------:|---------:|");
 
@@ -162,6 +161,8 @@ function generateTokenUsageSummary(summary) {
     lines.push(`<sub>ET weights: input=${w.input} · cached_input=${w.cached_input} · output=${w.output} · reasoning=${w.reasoning} · cache_write=${w.cache_write}</sub>`);
   }
 
+  lines.push("");
+
   return lines.join("\n") + "\n";
 }
 
@@ -183,7 +184,7 @@ function writeStepSummaryWithTokenUsage(coreObj) {
       const parsedSummary = parseTokenUsageJsonl(content);
       const markdown = generateTokenUsageSummary(parsedSummary);
       if (markdown.length > 0) {
-        coreObj.summary.addRaw(markdown);
+        coreObj.summary.addDetails("Token Usage", "\n\n" + markdown);
       }
       // Export total effective tokens as a GitHub Actions env var for use in
       // generated footers (GH_AW_EFFECTIVE_TOKENS is read by messages_footer.cjs)
