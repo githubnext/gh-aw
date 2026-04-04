@@ -158,10 +158,17 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 			// .github/-prefixed path: resolve from repo root, security scope stays .github/
 			resolveBase = repoRoot
 		} else if stripped, ok := strings.CutPrefix(filePath, "/"); ok {
-			// Repo-root-absolute path: strip leading slash, resolve from repo root
+			// Repo-root-absolute path: only .github/ and .agents/ subdirectories are accessible.
+			if !strings.HasPrefix(stripped, ".github/") && !strings.HasPrefix(stripped, ".agents/") {
+				remoteLog.Printf("Security: Path not within .github or .agents: %s", filePath)
+				return "", fmt.Errorf("security: path %s must be within .github or .agents folder", filePath)
+			}
 			filePath = stripped
 			resolveBase = repoRoot
-			securityBase = repoRoot
+			if strings.HasPrefix(stripped, ".agents/") {
+				securityBase = filepath.Join(repoRoot, ".agents")
+			}
+			// For .github/-prefixed: securityBase remains githubFolder (already set above).
 		}
 	}
 

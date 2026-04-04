@@ -126,17 +126,17 @@ func TestResolveIncludePath(t *testing.T) {
 	err = os.WriteFile(regularFile, []byte("test"), 0644)
 	require.NoError(t, err, "should write regular file")
 
-	// Create a repo-like structure: <repoRoot>/.github/workflows/ and .github/agents/
+	// Create a repo-like structure: <repoRoot>/.github/workflows/, .github/agents/ and .agents/
 	repoRoot := filepath.Join(tempDir, "repo")
 	workflowsDir := filepath.Join(repoRoot, ".github", "workflows")
 	agentsDir := filepath.Join(repoRoot, ".github", "agents")
-	rootAgentsDir := filepath.Join(repoRoot, "agents")
+	dotAgentsDir := filepath.Join(repoRoot, ".agents")
 	err = os.MkdirAll(workflowsDir, 0755)
 	require.NoError(t, err, "should create workflows dir")
 	err = os.MkdirAll(agentsDir, 0755)
 	require.NoError(t, err, "should create agents dir")
-	err = os.MkdirAll(rootAgentsDir, 0755)
-	require.NoError(t, err, "should create root agents dir")
+	err = os.MkdirAll(dotAgentsDir, 0755)
+	require.NoError(t, err, "should create .agents dir")
 
 	workflowFile := filepath.Join(workflowsDir, "workflow.md")
 	err = os.WriteFile(workflowFile, []byte("test"), 0644)
@@ -146,9 +146,9 @@ func TestResolveIncludePath(t *testing.T) {
 	err = os.WriteFile(agentFile, []byte("test"), 0644)
 	require.NoError(t, err, "should write agent file")
 
-	rootAgentFile := filepath.Join(rootAgentsDir, "agent.md")
-	err = os.WriteFile(rootAgentFile, []byte("test"), 0644)
-	require.NoError(t, err, "should write root agent file")
+	dotAgentFile := filepath.Join(dotAgentsDir, "agent.md")
+	err = os.WriteFile(dotAgentFile, []byte("test"), 0644)
+	require.NoError(t, err, "should write .agents file")
 
 	tests := []struct {
 		name     string
@@ -182,10 +182,22 @@ func TestResolveIncludePath(t *testing.T) {
 			expected: agentFile,
 		},
 		{
-			name:     "slash-prefixed path resolves from repo root",
+			name:     "slash-dotgithub-prefixed path resolves from repo root",
+			filePath: "/.github/agents/planner.md",
+			baseDir:  workflowsDir,
+			expected: agentFile,
+		},
+		{
+			name:     "slash-dotagents-prefixed path resolves from repo root",
+			filePath: "/.agents/agent.md",
+			baseDir:  workflowsDir,
+			expected: dotAgentFile,
+		},
+		{
+			name:     "slash-prefixed path outside .github or .agents is rejected",
 			filePath: "/agents/agent.md",
 			baseDir:  workflowsDir,
-			expected: rootAgentFile,
+			wantErr:  true,
 		},
 		{
 			name:     "relative path in workflows dir still works unchanged",
@@ -237,19 +249,19 @@ func TestResolveIncludePath_DotGithubRepo(t *testing.T) {
 	dotGithubRepoRoot := filepath.Join(tempDir, ".github")
 	workflowsDir := filepath.Join(dotGithubRepoRoot, ".github", "workflows")
 	agentsDir := filepath.Join(dotGithubRepoRoot, ".github", "agents")
-	rootAgentsDir := filepath.Join(dotGithubRepoRoot, "agents")
+	dotAgentsDir := filepath.Join(dotGithubRepoRoot, ".agents")
 
-	for _, dir := range []string{workflowsDir, agentsDir, rootAgentsDir} {
+	for _, dir := range []string{workflowsDir, agentsDir, dotAgentsDir} {
 		require.NoError(t, os.MkdirAll(dir, 0755), "should create dir %s", dir)
 	}
 
 	workflowFile := filepath.Join(workflowsDir, "workflow.md")
 	agentFile := filepath.Join(agentsDir, "planner.md")
-	rootAgentFile := filepath.Join(rootAgentsDir, "agent.md")
+	dotAgentFile := filepath.Join(dotAgentsDir, "agent.md")
 
 	require.NoError(t, os.WriteFile(workflowFile, []byte("workflow"), 0644), "should write workflow file")
 	require.NoError(t, os.WriteFile(agentFile, []byte("planner"), 0644), "should write agent file")
-	require.NoError(t, os.WriteFile(rootAgentFile, []byte("root-agent"), 0644), "should write root agent file")
+	require.NoError(t, os.WriteFile(dotAgentFile, []byte("dot-agents"), 0644), "should write .agents file")
 
 	tests := []struct {
 		name     string
@@ -271,10 +283,22 @@ func TestResolveIncludePath_DotGithubRepo(t *testing.T) {
 			expected: agentFile,
 		},
 		{
-			name:     "slash-prefixed path resolves from repo root inside .github repo",
+			name:     "slash-dotgithub-prefixed path resolves from repo root inside .github repo",
+			filePath: "/.github/agents/planner.md",
+			baseDir:  workflowsDir,
+			expected: agentFile,
+		},
+		{
+			name:     "slash-dotagents-prefixed path resolves from repo root inside .github repo",
+			filePath: "/.agents/agent.md",
+			baseDir:  workflowsDir,
+			expected: dotAgentFile,
+		},
+		{
+			name:     "slash-prefixed path outside .github or .agents is rejected inside .github repo",
 			filePath: "/agents/agent.md",
 			baseDir:  workflowsDir,
-			expected: rootAgentFile,
+			wantErr:  true,
 		},
 		{
 			name:     "dotgithub-prefixed traversal is rejected inside .github repo",
