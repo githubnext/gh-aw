@@ -61,45 +61,8 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/token-optimizer
 
-      # Try to use pre-fetched logs from the Token Logs Fetch workflow to avoid redundant API calls
-      TODAY=$(date -u +%Y-%m-%d)
-      FETCH_RUN_ID=$(gh run list \
-        --workflow "token-logs-fetch.lock.yml" \
-        --status success \
-        --limit 1 \
-        --json databaseId \
-        --jq '.[0].databaseId' 2>/dev/null || echo "")
-      USED_CACHE=false
-      if [ -n "$FETCH_RUN_ID" ]; then
-        CACHE_TMP="/tmp/token-logs-cache-optimizer"
-        mkdir -p "$CACHE_TMP"
-        gh run download "$FETCH_RUN_ID" \
-          --repo "$GITHUB_REPOSITORY" \
-          --name "cache-memory" \
-          --dir "$CACHE_TMP" \
-          2>/dev/null || true
-        CACHE_DATE=$(cat "$CACHE_TMP/token-logs/fetch-date.txt" 2>/dev/null || echo "")
-        if [ "$CACHE_DATE" = "$TODAY" ] && [ -s "$CACHE_TMP/token-logs/copilot-runs.json" ]; then
-          echo "✅ Using pre-fetched logs from Token Logs Fetch run $FETCH_RUN_ID (date: $CACHE_DATE)"
-          cp "$CACHE_TMP/token-logs/copilot-runs.json" /tmp/token-optimizer/copilot-runs.json
-          USED_CACHE=true
-        else
-          echo "ℹ️ No valid cached logs found (cache date: ${CACHE_DATE:-none}, today: $TODAY)"
-        fi
-      fi
-
-      if [ "$USED_CACHE" != "true" ]; then
-        echo "📥 Loading Copilot workflow runs from last 24 hours..."
-        gh aw logs \
-          --engine copilot \
-          --start-date -1d \
-          --json \
-          -c 300 \
-          > /tmp/token-optimizer/copilot-runs-raw.json 2>/dev/null || echo '{"runs":[]}' > /tmp/token-optimizer/copilot-runs-raw.json
-
-        # Extract runs array from the JSON output
-        jq '.runs // []' /tmp/token-optimizer/copilot-runs-raw.json > /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo "[]" > /tmp/token-optimizer/copilot-runs.json
-      fi
+      # Use pre-fetched logs from the shared token-logs-24h pre-step
+      cp /tmp/gh-aw/token-logs/copilot-runs.json /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo "[]" > /tmp/token-optimizer/copilot-runs.json
 
       RUN_COUNT=$(jq 'length' /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo 0)
       echo "Found ${RUN_COUNT} Copilot runs"
@@ -190,6 +153,7 @@ steps:
       fi
 
 imports:
+  - shared/token-logs-24h.md
   - shared/reporting.md
 ---
 

@@ -25,8 +25,9 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
+#     - shared/token-logs-24h.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"cf29a921a12e201dc7a4b01cc2501dc89c83bbb630f62fba54244c2383fba665","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"bc01976ea054f024daf4349524f6d822528849946e652f50121bd709cfb1c8af","strict":true,"agent_id":"copilot"}
 
 name: "Copilot Token Optimizer"
 "on":
@@ -144,14 +145,14 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_bccc4116b26a58e2_EOF'
+          cat << 'GH_AW_PROMPT_8266933d40461ccb_EOF'
           <system>
-          GH_AW_PROMPT_bccc4116b26a58e2_EOF
+          GH_AW_PROMPT_8266933d40461ccb_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_bccc4116b26a58e2_EOF'
+          cat << 'GH_AW_PROMPT_8266933d40461ccb_EOF'
           <safe-output-tools>
           Tools: create_issue, missing_tool, missing_data, noop
           </safe-output-tools>
@@ -183,13 +184,14 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_bccc4116b26a58e2_EOF
+          GH_AW_PROMPT_8266933d40461ccb_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_bccc4116b26a58e2_EOF'
+          cat << 'GH_AW_PROMPT_8266933d40461ccb_EOF'
           </system>
+          {{#runtime-import .github/workflows/shared/token-logs-24h.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/copilot-token-optimizer.md}}
-          GH_AW_PROMPT_bccc4116b26a58e2_EOF
+          GH_AW_PROMPT_8266933d40461ccb_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -316,6 +318,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Restore 24h token logs from cache
+        run: "set -euo pipefail\nTOKEN_LOGS_DIR=\"/tmp/gh-aw/token-logs\"\nmkdir -p \"$TOKEN_LOGS_DIR\"\nTODAY=$(date -u +%Y-%m-%d)\n\n# Look for today's pre-fetched data from the Token Logs Fetch workflow\nFETCH_RUN_ID=$(gh run list \\\n  --workflow \"token-logs-fetch.lock.yml\" \\\n  --status success \\\n  --limit 1 \\\n  --json databaseId \\\n  --jq '.[0].databaseId' 2>/dev/null || echo \"\")\n\nUSED_CACHE=false\nif [ -n \"$FETCH_RUN_ID\" ]; then\n  CACHE_TMP=\"/tmp/gh-aw/token-logs-fetch-cache\"\n  mkdir -p \"$CACHE_TMP\"\n  gh run download \"$FETCH_RUN_ID\" \\\n    --repo \"$GITHUB_REPOSITORY\" \\\n    --name \"cache-memory\" \\\n    --dir \"$CACHE_TMP\" \\\n    2>/dev/null || true\n  CACHE_DATE=$(cat \"$CACHE_TMP/token-logs/fetch-date.txt\" 2>/dev/null || echo \"\")\n  if [ \"$CACHE_DATE\" = \"$TODAY\" ] && \\\n     [ -s \"$CACHE_TMP/token-logs/copilot-runs.json\" ] && \\\n     [ -s \"$CACHE_TMP/token-logs/claude-runs.json\" ]; then\n    echo \"✅ Using pre-fetched logs from Token Logs Fetch run $FETCH_RUN_ID (date: $CACHE_DATE)\"\n    cp \"$CACHE_TMP/token-logs/copilot-runs.json\" \"$TOKEN_LOGS_DIR/copilot-runs.json\"\n    cp \"$CACHE_TMP/token-logs/claude-runs.json\" \"$TOKEN_LOGS_DIR/claude-runs.json\"\n    USED_CACHE=true\n  else\n    echo \"ℹ️ No valid cached logs found (cache date: ${CACHE_DATE:-none}, today: $TODAY)\"\n  fi\nfi\n\nif [ \"$USED_CACHE\" != \"true\" ]; then\n  echo \"📥 Downloading Copilot and Claude workflow runs from last 24 hours...\"\n\n  gh aw logs \\\n    --engine copilot \\\n    --start-date -1d \\\n    --json \\\n    -c 300 \\\n    > /tmp/token-logs-copilot-raw.json 2>/dev/null || echo '{\"runs\":[]}' > /tmp/token-logs-copilot-raw.json\n  jq '.runs // []' /tmp/token-logs-copilot-raw.json > \"$TOKEN_LOGS_DIR/copilot-runs.json\" 2>/dev/null || echo \"[]\" > \"$TOKEN_LOGS_DIR/copilot-runs.json\"\n\n  gh aw logs \\\n    --engine claude \\\n    --start-date -1d \\\n    --json \\\n    -c 300 \\\n    > /tmp/token-logs-claude-raw.json 2>/dev/null || echo '{\"runs\":[]}' > /tmp/token-logs-claude-raw.json\n  jq '.runs // []' /tmp/token-logs-claude-raw.json > \"$TOKEN_LOGS_DIR/claude-runs.json\" 2>/dev/null || echo \"[]\" > \"$TOKEN_LOGS_DIR/claude-runs.json\"\nfi\n\necho \"✅ Copilot runs: $(jq 'length' \"$TOKEN_LOGS_DIR/copilot-runs.json\")\"\necho \"✅ Claude runs: $(jq 'length' \"$TOKEN_LOGS_DIR/claude-runs.json\")\""
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Install gh-aw CLI
         run: |
           if gh extension list | grep -q "github/gh-aw"; then
@@ -327,7 +333,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Find and download artifacts from the most expensive Copilot workflow
-        run: "set -euo pipefail\nmkdir -p /tmp/token-optimizer\n\n# Try to use pre-fetched logs from the Token Logs Fetch workflow to avoid redundant API calls\nTODAY=$(date -u +%Y-%m-%d)\nFETCH_RUN_ID=$(gh run list \\\n  --workflow \"token-logs-fetch.lock.yml\" \\\n  --status success \\\n  --limit 1 \\\n  --json databaseId \\\n  --jq '.[0].databaseId' 2>/dev/null || echo \"\")\nUSED_CACHE=false\nif [ -n \"$FETCH_RUN_ID\" ]; then\n  CACHE_TMP=\"/tmp/token-logs-cache-optimizer\"\n  mkdir -p \"$CACHE_TMP\"\n  gh run download \"$FETCH_RUN_ID\" \\\n    --repo \"$GITHUB_REPOSITORY\" \\\n    --name \"cache-memory\" \\\n    --dir \"$CACHE_TMP\" \\\n    2>/dev/null || true\n  CACHE_DATE=$(cat \"$CACHE_TMP/token-logs/fetch-date.txt\" 2>/dev/null || echo \"\")\n  if [ \"$CACHE_DATE\" = \"$TODAY\" ] && [ -s \"$CACHE_TMP/token-logs/copilot-runs.json\" ]; then\n    echo \"✅ Using pre-fetched logs from Token Logs Fetch run $FETCH_RUN_ID (date: $CACHE_DATE)\"\n    cp \"$CACHE_TMP/token-logs/copilot-runs.json\" /tmp/token-optimizer/copilot-runs.json\n    USED_CACHE=true\n  else\n    echo \"ℹ️ No valid cached logs found (cache date: ${CACHE_DATE:-none}, today: $TODAY)\"\n  fi\nfi\n\nif [ \"$USED_CACHE\" != \"true\" ]; then\n  echo \"📥 Loading Copilot workflow runs from last 24 hours...\"\n  gh aw logs \\\n    --engine copilot \\\n    --start-date -1d \\\n    --json \\\n    -c 300 \\\n    > /tmp/token-optimizer/copilot-runs-raw.json 2>/dev/null || echo '{\"runs\":[]}' > /tmp/token-optimizer/copilot-runs-raw.json\n\n  # Extract runs array from the JSON output\n  jq '.runs // []' /tmp/token-optimizer/copilot-runs-raw.json > /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo \"[]\" > /tmp/token-optimizer/copilot-runs.json\nfi\n\nRUN_COUNT=$(jq 'length' /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo 0)\necho \"Found ${RUN_COUNT} Copilot runs\"\n\nif [ \"$RUN_COUNT\" -eq 0 ]; then\n  echo \"No Copilot runs found, nothing to optimize\"\n  exit 0\nfi\n\n# Find the most expensive workflow (by total tokens across all its runs)\n# Schema: gh aw logs --json → LogsData.runs[] (RunData from pkg/cli/logs_report.go)\n#   .workflow_name (string), .token_usage (int, omitempty → null when 0),\n#   .estimated_cost (float, omitempty), .database_id (int64), .created_at (time), .url (string)\necho \"🔍 Identifying most expensive workflow...\"\njq -r '\n  sort_by(.workflow_name) |\n  group_by(.workflow_name) |\n  map({\n    workflow: .[0].workflow_name,\n    total_tokens: (map(.token_usage // 0) | add),\n    total_cost: (map(.estimated_cost // 0) | add),\n    run_count: length,\n    avg_tokens: ((map(.token_usage // 0) | add) / length),\n    run_ids: map(.database_id),\n    latest_run_id: (sort_by(.created_at) | last | .database_id),\n    latest_run_url: (sort_by(.created_at) | last | .url)\n  }) |\n  sort_by(.total_tokens) | reverse | .[0]\n' /tmp/token-optimizer/copilot-runs.json > /tmp/token-optimizer/top-workflow.json\n\nWORKFLOW_NAME=$(jq -r '.workflow' /tmp/token-optimizer/top-workflow.json)\nLATEST_RUN_ID=$(jq -r '.latest_run_id' /tmp/token-optimizer/top-workflow.json)\necho \"Most expensive workflow: $WORKFLOW_NAME (run: $LATEST_RUN_ID)\"\necho \"WORKFLOW_NAME=$WORKFLOW_NAME\" >> \"$GITHUB_ENV\"\n\n# Download the firewall-audit-logs artifact from the latest run of that workflow\nARTIFACT_DIR=\"/tmp/token-optimizer/artifacts\"\nmkdir -p \"$ARTIFACT_DIR\"\n\necho \"📥 Downloading firewall-audit-logs from run $LATEST_RUN_ID...\"\ngh run download \"$LATEST_RUN_ID\" \\\n  --repo \"$GITHUB_REPOSITORY\" \\\n  --name \"firewall-audit-logs\" \\\n  --dir \"$ARTIFACT_DIR\" \\\n  2>/dev/null || true\n\n# Also download agent artifacts (contains prompt and tool usage logs)\necho \"📥 Downloading agent artifacts from run $LATEST_RUN_ID...\"\ngh run download \"$LATEST_RUN_ID\" \\\n  --repo \"$GITHUB_REPOSITORY\" \\\n  --name \"agent\" \\\n  --dir \"$ARTIFACT_DIR/agent\" \\\n  2>/dev/null || true\n\n# Find token-usage.jsonl\nUSAGE_FILE=$(find \"$ARTIFACT_DIR\" -name \"token-usage.jsonl\" 2>/dev/null | head -1)\nif [ -n \"$USAGE_FILE\" ]; then\n  echo \"Found token-usage.jsonl: $USAGE_FILE\"\n  cp \"$USAGE_FILE\" /tmp/token-optimizer/token-usage.jsonl\n  wc -l < /tmp/token-optimizer/token-usage.jsonl\nelse\n  echo \"No token-usage.jsonl found in artifacts\"\n  touch /tmp/token-optimizer/token-usage.jsonl\nfi\n\n# Find the workflow markdown source\nWORKFLOW_MD_NAME=$(echo \"$WORKFLOW_NAME\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\nWORKFLOW_MD=\".github/workflows/${WORKFLOW_MD_NAME}.md\"\nif [ -f \"$WORKFLOW_MD\" ]; then\n  echo \"Found workflow source: $WORKFLOW_MD\"\n  cp \"$WORKFLOW_MD\" /tmp/token-optimizer/workflow-source.md\nelse\n  echo \"Workflow source not found at $WORKFLOW_MD, searching...\"\n  FOUND_MD=$(find .github/workflows -name \"*.md\" -exec grep -l \"^name: $WORKFLOW_NAME\" {} \\; 2>/dev/null | head -1 || true)\n  if [ -n \"$FOUND_MD\" ]; then\n    echo \"Found: $FOUND_MD\"\n    cp \"$FOUND_MD\" /tmp/token-optimizer/workflow-source.md\n  fi\nfi\n\n# Extract declared tools from workflow source (if available)\nif [ -f /tmp/token-optimizer/workflow-source.md ]; then\n  echo \"📋 Extracting declared tools from workflow source...\"\n  # Extract tools section from frontmatter\n  sed -n '/^---$/,/^---$/p' /tmp/token-optimizer/workflow-source.md | \\\n    grep -A20 \"^tools:\" | head -30 > /tmp/token-optimizer/declared-tools.txt || true\n  cat /tmp/token-optimizer/declared-tools.txt\nfi\n"
+        run: "set -euo pipefail\nmkdir -p /tmp/token-optimizer\n\n# Use pre-fetched logs from the shared token-logs-24h pre-step\ncp /tmp/gh-aw/token-logs/copilot-runs.json /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo \"[]\" > /tmp/token-optimizer/copilot-runs.json\n\nRUN_COUNT=$(jq 'length' /tmp/token-optimizer/copilot-runs.json 2>/dev/null || echo 0)\necho \"Found ${RUN_COUNT} Copilot runs\"\n\nif [ \"$RUN_COUNT\" -eq 0 ]; then\n  echo \"No Copilot runs found, nothing to optimize\"\n  exit 0\nfi\n\n# Find the most expensive workflow (by total tokens across all its runs)\n# Schema: gh aw logs --json → LogsData.runs[] (RunData from pkg/cli/logs_report.go)\n#   .workflow_name (string), .token_usage (int, omitempty → null when 0),\n#   .estimated_cost (float, omitempty), .database_id (int64), .created_at (time), .url (string)\necho \"🔍 Identifying most expensive workflow...\"\njq -r '\n  sort_by(.workflow_name) |\n  group_by(.workflow_name) |\n  map({\n    workflow: .[0].workflow_name,\n    total_tokens: (map(.token_usage // 0) | add),\n    total_cost: (map(.estimated_cost // 0) | add),\n    run_count: length,\n    avg_tokens: ((map(.token_usage // 0) | add) / length),\n    run_ids: map(.database_id),\n    latest_run_id: (sort_by(.created_at) | last | .database_id),\n    latest_run_url: (sort_by(.created_at) | last | .url)\n  }) |\n  sort_by(.total_tokens) | reverse | .[0]\n' /tmp/token-optimizer/copilot-runs.json > /tmp/token-optimizer/top-workflow.json\n\nWORKFLOW_NAME=$(jq -r '.workflow' /tmp/token-optimizer/top-workflow.json)\nLATEST_RUN_ID=$(jq -r '.latest_run_id' /tmp/token-optimizer/top-workflow.json)\necho \"Most expensive workflow: $WORKFLOW_NAME (run: $LATEST_RUN_ID)\"\necho \"WORKFLOW_NAME=$WORKFLOW_NAME\" >> \"$GITHUB_ENV\"\n\n# Download the firewall-audit-logs artifact from the latest run of that workflow\nARTIFACT_DIR=\"/tmp/token-optimizer/artifacts\"\nmkdir -p \"$ARTIFACT_DIR\"\n\necho \"📥 Downloading firewall-audit-logs from run $LATEST_RUN_ID...\"\ngh run download \"$LATEST_RUN_ID\" \\\n  --repo \"$GITHUB_REPOSITORY\" \\\n  --name \"firewall-audit-logs\" \\\n  --dir \"$ARTIFACT_DIR\" \\\n  2>/dev/null || true\n\n# Also download agent artifacts (contains prompt and tool usage logs)\necho \"📥 Downloading agent artifacts from run $LATEST_RUN_ID...\"\ngh run download \"$LATEST_RUN_ID\" \\\n  --repo \"$GITHUB_REPOSITORY\" \\\n  --name \"agent\" \\\n  --dir \"$ARTIFACT_DIR/agent\" \\\n  2>/dev/null || true\n\n# Find token-usage.jsonl\nUSAGE_FILE=$(find \"$ARTIFACT_DIR\" -name \"token-usage.jsonl\" 2>/dev/null | head -1)\nif [ -n \"$USAGE_FILE\" ]; then\n  echo \"Found token-usage.jsonl: $USAGE_FILE\"\n  cp \"$USAGE_FILE\" /tmp/token-optimizer/token-usage.jsonl\n  wc -l < /tmp/token-optimizer/token-usage.jsonl\nelse\n  echo \"No token-usage.jsonl found in artifacts\"\n  touch /tmp/token-optimizer/token-usage.jsonl\nfi\n\n# Find the workflow markdown source\nWORKFLOW_MD_NAME=$(echo \"$WORKFLOW_NAME\" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\nWORKFLOW_MD=\".github/workflows/${WORKFLOW_MD_NAME}.md\"\nif [ -f \"$WORKFLOW_MD\" ]; then\n  echo \"Found workflow source: $WORKFLOW_MD\"\n  cp \"$WORKFLOW_MD\" /tmp/token-optimizer/workflow-source.md\nelse\n  echo \"Workflow source not found at $WORKFLOW_MD, searching...\"\n  FOUND_MD=$(find .github/workflows -name \"*.md\" -exec grep -l \"^name: $WORKFLOW_NAME\" {} \\; 2>/dev/null | head -1 || true)\n  if [ -n \"$FOUND_MD\" ]; then\n    echo \"Found: $FOUND_MD\"\n    cp \"$FOUND_MD\" /tmp/token-optimizer/workflow-source.md\n  fi\nfi\n\n# Extract declared tools from workflow source (if available)\nif [ -f /tmp/token-optimizer/workflow-source.md ]; then\n  echo \"📋 Extracting declared tools from workflow source...\"\n  # Extract tools section from frontmatter\n  sed -n '/^---$/,/^---$/p' /tmp/token-optimizer/workflow-source.md | \\\n    grep -A20 \"^tools:\" | head -30 > /tmp/token-optimizer/declared-tools.txt || true\n  cat /tmp/token-optimizer/declared-tools.txt\nfi\n"
 
       - name: Configure Git credentials
         env:
@@ -378,12 +384,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_9b9a172a6869b596_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_e856f5ceb5837736_EOF'
           {"create_issue":{"close_older_issues":true,"expires":168,"labels":["automated-analysis","token-optimization","copilot","cost-reduction"],"max":1,"title_prefix":"⚡ Copilot Token Optimization: "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_9b9a172a6869b596_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_e856f5ceb5837736_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_3700905b94f54529_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_dad1e5cf5de0976e_EOF'
           {
             "description_suffixes": {
               "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"⚡ Copilot Token Optimization: \". Labels [\"automated-analysis\" \"token-optimization\" \"copilot\" \"cost-reduction\"] will be automatically added."
@@ -391,8 +397,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_3700905b94f54529_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_8187f794fe362003_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_dad1e5cf5de0976e_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_d9890737c1114701_EOF'
           {
             "create_issue": {
               "defaultMax": 1,
@@ -485,7 +491,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_8187f794fe362003_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_d9890737c1114701_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -555,7 +561,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.12'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_766fb6333e2be087_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_343378b042518646_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -596,7 +602,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_766fb6333e2be087_EOF
+          GH_AW_MCP_CONFIG_343378b042518646_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
