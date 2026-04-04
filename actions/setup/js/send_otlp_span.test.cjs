@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "fs";
 
 // ---------------------------------------------------------------------------
 // Module import
 // ---------------------------------------------------------------------------
 
-const { isValidTraceId, isValidSpanId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan } = await import("./send_otlp_span.cjs");
+const { isValidTraceId, isValidSpanId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan, OTEL_JSONL_PATH, appendToOTLPJSONL } =
+  await import("./send_otlp_span.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -231,12 +233,18 @@ describe("buildOTLPPayload", () => {
 // ---------------------------------------------------------------------------
 
 describe("sendOTLPSpan", () => {
+  let mkdirSpy, appendSpy;
+
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
   });
 
   it("POSTs JSON payload to endpoint/v1/traces", async () => {
@@ -309,6 +317,91 @@ describe("sendOTLPSpan", () => {
 });
 
 // ---------------------------------------------------------------------------
+// appendToOTLPJSONL
+// ---------------------------------------------------------------------------
+
+describe("appendToOTLPJSONL", () => {
+  let mkdirSpy, appendSpy;
+
+  beforeEach(() => {
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
+  });
+
+  it("writes payload as a JSON line to OTEL_JSONL_PATH", () => {
+    const payload = { resourceSpans: [{ spans: [] }] };
+    appendToOTLPJSONL(payload);
+
+    expect(appendSpy).toHaveBeenCalledOnce();
+    const [filePath, content] = appendSpy.mock.calls[0];
+    expect(filePath).toBe(OTEL_JSONL_PATH);
+    expect(content).toBe(JSON.stringify(payload) + "\n");
+  });
+
+  it("ensures /tmp/gh-aw directory exists before writing", () => {
+    appendToOTLPJSONL({});
+
+    expect(mkdirSpy).toHaveBeenCalledWith("/tmp/gh-aw", { recursive: true });
+  });
+
+  it("does not throw when appendFileSync fails", () => {
+    appendSpy.mockImplementation(() => {
+      throw new Error("disk full");
+    });
+
+    expect(() => appendToOTLPJSONL({ spans: [] })).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendOTLPSpan – JSONL mirror
+// ---------------------------------------------------------------------------
+
+describe("sendOTLPSpan JSONL mirror", () => {
+  let mkdirSpy, appendSpy;
+
+  beforeEach(() => {
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" }));
+  });
+
+  afterEach(() => {
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("mirrors the payload to otel.jsonl even when fetch succeeds", async () => {
+    const payload = { resourceSpans: [] };
+    await sendOTLPSpan("https://traces.example.com", payload);
+
+    expect(appendSpy).toHaveBeenCalledOnce();
+    const [filePath, content] = appendSpy.mock.calls[0];
+    expect(filePath).toBe(OTEL_JSONL_PATH);
+    expect(content).toBe(JSON.stringify(payload) + "\n");
+  });
+
+  it("mirrors the payload to otel.jsonl even when fetch fails all retries", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503, statusText: "Unavailable" }));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const payload = { resourceSpans: [{ note: "retry-test" }] };
+    await sendOTLPSpan("https://traces.example.com", payload, { maxRetries: 1, baseDelayMs: 1 });
+
+    expect(appendSpy).toHaveBeenCalledOnce();
+    expect(appendSpy.mock.calls[0][1]).toBe(JSON.stringify(payload) + "\n");
+
+    warnSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseOTLPHeaders
 // ---------------------------------------------------------------------------
 
@@ -359,14 +452,19 @@ describe("parseOTLPHeaders", () => {
 
 describe("sendOTLPSpan with OTEL_EXPORTER_OTLP_HEADERS", () => {
   const savedHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS;
+  let mkdirSpy, appendSpy;
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
     delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
     if (savedHeaders !== undefined) {
       process.env.OTEL_EXPORTER_OTLP_HEADERS = savedHeaders;
     } else {
@@ -406,6 +504,7 @@ describe("sendJobSetupSpan", () => {
   /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
   const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "INPUT_JOB_NAME", "INPUT_TRACE_ID", "GH_AW_INFO_WORKFLOW_NAME", "GH_AW_INFO_ENGINE_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+  let mkdirSpy, appendSpy;
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -413,6 +512,8 @@ describe("sendJobSetupSpan", () => {
       savedEnv[k] = process.env[k];
       delete process.env[k];
     }
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -424,6 +525,8 @@ describe("sendJobSetupSpan", () => {
         delete process.env[k];
       }
     }
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
   });
 
   /**
@@ -603,6 +706,7 @@ describe("sendJobConclusionSpan", () => {
   /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
   const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+  let mkdirSpy, appendSpy;
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -610,6 +714,8 @@ describe("sendJobConclusionSpan", () => {
       savedEnv[k] = process.env[k];
       delete process.env[k];
     }
+    mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+    appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -621,6 +727,8 @@ describe("sendJobConclusionSpan", () => {
         delete process.env[k];
       }
     }
+    mkdirSpy.mockRestore();
+    appendSpy.mockRestore();
   });
 
   it("is a no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {

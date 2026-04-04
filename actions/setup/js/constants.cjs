@@ -81,6 +81,13 @@ const RPC_MESSAGES_PATH = `${TMP_GH_AW_PATH}/mcp-logs/rpc-messages.jsonl`;
 const MANIFEST_FILE_PATH = `${TMP_GH_AW_PATH}/safe-output-items.jsonl`;
 
 /**
+ * Path to the OTLP telemetry mirror file.
+ * Every OTLP span payload is appended here as a JSON line for artifact inspection.
+ * @type {string}
+ */
+const OTEL_JSONL_PATH = `${TMP_GH_AW_PATH}/otel.jsonl`;
+
+/**
  * Filename of the threat detection log written by the detection engine via tee.
  * The detection copilot's stdout (containing THREAT_DETECTION_RESULT) is piped
  * through `tee -a` to this file inside the threat-detection directory.
@@ -98,5 +105,6 @@ module.exports = {
   GATEWAY_JSONL_PATH,
   RPC_MESSAGES_PATH,
   MANIFEST_FILE_PATH,
+  OTEL_JSONL_PATH,
   DETECTION_LOG_FILENAME,
 };

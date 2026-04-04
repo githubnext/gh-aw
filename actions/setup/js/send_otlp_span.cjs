@@ -122,6 +122,35 @@ function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, en
 }
 
 // ---------------------------------------------------------------------------
+// Local JSONL mirror
+// ---------------------------------------------------------------------------
+
+/**
+ * Path to the OTLP telemetry mirror file.
+ * Every OTLP span payload is also appended here as a JSON line so that it can
+ * be inspected via GitHub Actions artifacts without needing a live collector.
+ * @type {string}
+ */
+const OTEL_JSONL_PATH = "/tmp/gh-aw/otel.jsonl";
+
+/**
+ * Append an OTLP payload as a single JSON line to the local telemetry mirror
+ * file.  Creates the `/tmp/gh-aw` directory if it does not already exist.
+ * Errors are silently swallowed — mirror failures must never break the workflow.
+ *
+ * @param {object} payload - OTLP traces payload
+ * @returns {void}
+ */
+function appendToOTLPJSONL(payload) {
+  try {
+    fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+    fs.appendFileSync(OTEL_JSONL_PATH, JSON.stringify(payload) + "\n");
+  } catch {
+    // Mirror failures are non-fatal; do not propagate.
+  }
+}
+
+// ---------------------------------------------------------------------------
 // HTTP transport
 // ---------------------------------------------------------------------------
 
@@ -169,6 +198,9 @@ function parseOTLPHeaders(raw) {
  * @returns {Promise<void>}
  */
 async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100 } = {}) {
+  // Mirror payload locally so it survives even when the collector is unreachable.
+  appendToOTLPJSONL(payload);
+
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
   const extraHeaders = parseOTLPHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS || "");
   const headers = { "Content-Type": "application/json", ...extraHeaders };
@@ -457,4 +489,6 @@ module.exports = {
   readJSONIfExists,
   sendJobSetupSpan,
   sendJobConclusionSpan,
+  OTEL_JSONL_PATH,
+  appendToOTLPJSONL,
 };
