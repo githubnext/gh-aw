@@ -22,6 +22,10 @@ const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader 
 const { getFileContent } = require("./github_api_helpers.cjs");
 const { ERR_CONFIG } = require("./error_codes.cjs");
 
+// Matches GitHub workflow ref paths of the form "owner/repo/...[@ref]"
+// and captures: [1] owner, [2] repo, [3] optional ref
+const GITHUB_REPO_PATH_RE = /^([^/]+)\/([^/]+)\/.+?(?:@(.+))?$/;
+
 async function main() {
   const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
 
@@ -57,7 +61,7 @@ async function main() {
   // Parse owner, repo, and optional ref from GITHUB_WORKFLOW_REF as a single unit so that
   // repo and ref are always consistent with each other.  The @ref segment may be absent (e.g.
   // when the env var was set without a ref suffix), so treat it as optional.
-  const workflowRefMatch = workflowEnvRef.match(/^([^/]+)\/([^/]+)\/.+?(?:@(.+))?$/);
+  const workflowRefMatch = workflowEnvRef.match(GITHUB_REPO_PATH_RE);
 
   // Use the workflow source repo if parseable, otherwise fall back to context.repo
   let owner = workflowRefMatch ? workflowRefMatch[1] : context.repo.owner;
@@ -123,7 +127,7 @@ async function main() {
         });
 
         if (matchingEntry) {
-          const pathMatch = matchingEntry.path.match(/^([^/]+)\/([^/]+)\/.+?(?:@(.+))?$/);
+          const pathMatch = matchingEntry.path.match(GITHUB_REPO_PATH_RE);
           if (pathMatch) {
             owner = pathMatch[1];
             repo = pathMatch[2];
