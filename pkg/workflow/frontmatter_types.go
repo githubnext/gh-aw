@@ -144,7 +144,7 @@ type FrontmatterConfig struct {
 	// Core workflow fields
 	Name           string            `json:"name,omitempty"`
 	Description    string            `json:"description,omitempty"`
-	Engine         string            `json:"engine,omitempty"`
+	Engine         any               `json:"engine,omitempty"`
 	Source         string            `json:"source,omitempty"`
 	TrackerID      string            `json:"tracker-id,omitempty"`
 	Version        string            `json:"version,omitempty"`
@@ -272,7 +272,7 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		}
 	}
 
-	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%s", config.Name, config.Engine)
+	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
 }
 
@@ -541,7 +541,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Description != "" {
 		result["description"] = fc.Description
 	}
-	if fc.Engine != "" {
+	if fc.Engine != nil {
 		result["engine"] = fc.Engine
 	}
 	if fc.Source != "" {

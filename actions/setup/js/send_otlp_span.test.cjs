@@ -435,6 +435,21 @@ describe("parseOTLPHeaders", () => {
     expect(parseOTLPHeaders("Authorization=Bearer base64==")).toEqual({ Authorization: "Bearer base64==" });
   });
 
+  it("parses Sentry OTLP header format (value contains space and embedded = sign)", () => {
+    // Sentry's OTLP auth header: x-sentry-auth: Sentry sentry_key=<key>
+    // The value "Sentry sentry_key=abc123" contains both a space and an embedded =.
+    expect(parseOTLPHeaders("x-sentry-auth=Sentry sentry_key=abc123def456")).toEqual({
+      "x-sentry-auth": "Sentry sentry_key=abc123def456",
+    });
+  });
+
+  it("parses Sentry header combined with another header", () => {
+    expect(parseOTLPHeaders("x-sentry-auth=Sentry sentry_key=mykey,x-custom=value")).toEqual({
+      "x-sentry-auth": "Sentry sentry_key=mykey",
+      "x-custom": "value",
+    });
+  });
+
   it("skips malformed pairs with no =", () => {
     const result = parseOTLPHeaders("Valid=value,malformedNoEquals");
     expect(result).toEqual({ Valid: "value" });

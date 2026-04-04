@@ -48,6 +48,37 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return config.Observability.OTLP.Endpoint
 }
 
+// extractOTLPConfigFromRaw reads OTLP endpoint and headers directly from the raw
+// frontmatter map[string]any.  This avoids dependence on ParseFrontmatterConfig
+// succeeding — that function may fail for workflows with complex tool configurations
+// (e.g. engine objects, array-style bash configs), which would leave ParsedFrontmatter
+// nil and prevent OTLP injection.
+func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string) {
+	obs, ok := frontmatter["observability"]
+	if !ok {
+		return
+	}
+	obsMap, ok := obs.(map[string]any)
+	if !ok {
+		return
+	}
+	otlp, ok := obsMap["otlp"]
+	if !ok {
+		return
+	}
+	otlpMap, ok := otlp.(map[string]any)
+	if !ok {
+		return
+	}
+	if ep, ok := otlpMap["endpoint"].(string); ok {
+		endpoint = ep
+	}
+	if h, ok := otlpMap["headers"].(string); ok {
+		headers = h
+	}
+	return
+}
+
 // generateOTLPConclusionSpanStep generates a GitHub Actions step that sends an OTLP
 // conclusion span from a downstream job (safe_outputs or conclusion).
 //
@@ -82,7 +113,15 @@ func generateOTLPConclusionSpanStep(spanName string) string {
 //
 // When no OTLP endpoint is configured the function is a no-op.
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
-	endpoint := getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter)
+	// Read OTLP config from the raw frontmatter map so that injection works even
+	// when ParseFrontmatterConfig failed (e.g. due to complex tool configs).
+	endpoint, headers := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
+
+	// Fall back to ParsedFrontmatter when the raw map didn't yield an endpoint.
+	if endpoint == "" {
+		endpoint = getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter)
+	}
+
 	if endpoint == "" {
 		return
 	}
@@ -102,7 +141,13 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: gh-aw", endpoint)
 
 	// 3. Inject OTEL_EXPORTER_OTLP_HEADERS when configured.
-	if headers := workflowData.ParsedFrontmatter.Observability.OTLP.Headers; headers != "" {
+	// Prefer raw frontmatter value (already read above); fall back to ParsedFrontmatter.
+	if headers == "" && workflowData.ParsedFrontmatter != nil &&
+		workflowData.ParsedFrontmatter.Observability != nil &&
+		workflowData.ParsedFrontmatter.Observability.OTLP != nil {
+		headers = workflowData.ParsedFrontmatter.Observability.OTLP.Headers
+	}
+	if headers != "" {
 		otlpEnvLines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + headers
 		otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
 	}

@@ -424,3 +424,123 @@ func TestGenerateOTLPConclusionSpanStep(t *testing.T) {
 		assert.Contains(t, step, "gh-aw.job.conclusion", "script should use the given span name")
 	})
 }
+
+// TestExtractOTLPConfigFromRaw verifies direct raw-frontmatter OTLP extraction.
+func TestExtractOTLPConfigFromRaw(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		wantEndpoint string
+		wantHeaders  string
+	}{
+		{
+			name:        "nil frontmatter",
+			frontmatter: nil,
+		},
+		{
+			name:        "empty frontmatter",
+			frontmatter: map[string]any{},
+		},
+		{
+			name:        "no observability key",
+			frontmatter: map[string]any{"name": "test"},
+		},
+		{
+			name: "observability without otlp",
+			frontmatter: map[string]any{
+				"observability": map[string]any{"job-summary": "on"},
+			},
+		},
+		{
+			name: "observability.otlp with endpoint",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{"endpoint": "https://traces.example.com:4317"},
+				},
+			},
+			wantEndpoint: "https://traces.example.com:4317",
+		},
+		{
+			name: "observability.otlp with secret expression endpoint",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{"endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}"},
+				},
+			},
+			wantEndpoint: "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
+		},
+		{
+			name: "observability.otlp with endpoint and headers",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers":  "${{ secrets.GH_AW_OTEL_HEADERS }}",
+					},
+				},
+			},
+			wantEndpoint: "https://traces.example.com",
+			wantHeaders:  "${{ secrets.GH_AW_OTEL_HEADERS }}",
+		},
+		{
+			name: "Sentry-style header with space in value",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://sentry.io/api/123/envelope/",
+						"headers":  "x-sentry-auth=Sentry sentry_key=abc123",
+					},
+				},
+			},
+			wantEndpoint: "https://sentry.io/api/123/envelope/",
+			wantHeaders:  "x-sentry-auth=Sentry sentry_key=abc123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotEndpoint, gotHeaders := extractOTLPConfigFromRaw(tt.frontmatter)
+			assert.Equal(t, tt.wantEndpoint, gotEndpoint, "endpoint")
+			assert.Equal(t, tt.wantHeaders, gotHeaders, "headers")
+		})
+	}
+}
+
+// TestInjectOTLPConfig_RawFrontmatterFallback verifies that injectOTLPConfig works
+// when ParsedFrontmatter is nil (e.g. complex engine objects cause ParseFrontmatterConfig
+// to fail) but the raw frontmatter contains valid OTLP configuration.
+func TestInjectOTLPConfig_RawFrontmatterFallback(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("injects OTLP from raw frontmatter when ParsedFrontmatter is nil", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedFrontmatter: nil, // simulates ParseFrontmatterConfig failure
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
+						"headers":  "${{ secrets.GH_AW_OTEL_HEADERS }}",
+					},
+				},
+				// Simulate complex engine object that would cause ParseFrontmatterConfig to fail.
+				"engine": map[string]any{"id": "copilot", "max-continuations": 2},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		require.NotEmpty(t, wd.Env, "Env should be set even without ParsedFrontmatter")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}", "endpoint should be injected from raw")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "service name should be set")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_OTEL_HEADERS }}", "headers should be injected from raw")
+	})
+
+	t.Run("no-op when neither raw nor parsed frontmatter has OTLP", func(t *testing.T) {
+		wd := &WorkflowData{
+			ParsedFrontmatter: nil,
+			RawFrontmatter:    map[string]any{"name": "my-workflow"},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Empty(t, wd.Env, "Env should remain empty")
+		assert.Nil(t, wd.NetworkPermissions, "NetworkPermissions should remain nil")
+	})
+}
