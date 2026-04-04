@@ -21,6 +21,7 @@ safe-outputs:
   create-issue:
     expires: 7d
     title-prefix: "[copilot-token-optimizer] "
+    close-older-issues: true
     max: 1
 timeout-minutes: 30
 imports:
