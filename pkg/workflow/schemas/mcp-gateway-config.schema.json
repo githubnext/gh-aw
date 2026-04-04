@@ -247,9 +247,65 @@
           "type": "integer",
           "description": "Keepalive ping interval in seconds for HTTP MCP backends. Sends periodic pings to prevent session expiry during long-running agent tasks. Set to -1 to disable keepalive pings. Unset or 0 uses the gateway default (1500 seconds = 25 minutes).",
           "minimum": -1
+        },
+        "opentelemetry": {
+          "$ref": "#/definitions/opentelemetryConfig",
+          "description": "Optional OpenTelemetry configuration for emitting distributed tracing spans for MCP calls. When configured, the gateway exports OTLP/HTTP traces to the specified collector endpoint."
         }
       },
       "required": ["port", "domain", "apiKey"],
+      "additionalProperties": false
+    },
+    "opentelemetryConfig": {
+      "type": "object",
+      "description": "OpenTelemetry configuration for the MCP Gateway. When present, the gateway emits distributed tracing spans for each MCP tool invocation and exports them via OTLP/HTTP to the configured collector endpoint. Per MCP Gateway Specification section 4.1.3.6.",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "description": "OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., 'https://collector.example.com:4318/v1/traces'). MUST be an HTTPS URL. Supports variable expressions using '${VARIABLE_NAME}' syntax.",
+          "pattern": "^(https://.+|\\$\\{[A-Z_][A-Z0-9_]*\\})$",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "description": "Additional HTTP headers sent with every OTLP export request (e.g., for authentication). Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "traceId": {
+          "type": "string",
+          "description": "Parent trace ID for W3C trace context propagation. When set, all gateway spans are attached as children of this trace. MUST be a 32-character lowercase hexadecimal string (128-bit W3C trace ID). Supports variable expressions.",
+          "oneOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            {
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ]
+        },
+        "spanId": {
+          "type": "string",
+          "description": "Parent span ID for W3C trace context propagation. When set together with traceId, this span becomes the direct parent of the gateway root span. MUST be a 16-character lowercase hexadecimal string (64-bit W3C span ID). Ignored when traceId is not set. Supports variable expressions.",
+          "oneOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$"
+            },
+            {
+              "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+            }
+          ]
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "Logical service name reported in the 'service.name' resource attribute of all emitted spans. Identifies the gateway in the tracing backend. Defaults to 'mcp-gateway' when not specified.",
+          "minLength": 1,
+          "default": "mcp-gateway"
+        }
+      },
+      "required": ["endpoint"],
       "additionalProperties": false
     }
   },
