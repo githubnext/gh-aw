@@ -126,6 +126,30 @@ func TestResolveIncludePath(t *testing.T) {
 	err = os.WriteFile(regularFile, []byte("test"), 0644)
 	require.NoError(t, err, "should write regular file")
 
+	// Create a repo-like structure: <repoRoot>/.github/workflows/ and .github/agents/
+	repoRoot := filepath.Join(tempDir, "repo")
+	workflowsDir := filepath.Join(repoRoot, ".github", "workflows")
+	agentsDir := filepath.Join(repoRoot, ".github", "agents")
+	rootAgentsDir := filepath.Join(repoRoot, "agents")
+	err = os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "should create workflows dir")
+	err = os.MkdirAll(agentsDir, 0755)
+	require.NoError(t, err, "should create agents dir")
+	err = os.MkdirAll(rootAgentsDir, 0755)
+	require.NoError(t, err, "should create root agents dir")
+
+	workflowFile := filepath.Join(workflowsDir, "workflow.md")
+	err = os.WriteFile(workflowFile, []byte("test"), 0644)
+	require.NoError(t, err, "should write workflow file")
+
+	agentFile := filepath.Join(agentsDir, "planner.md")
+	err = os.WriteFile(agentFile, []byte("test"), 0644)
+	require.NoError(t, err, "should write agent file")
+
+	rootAgentFile := filepath.Join(rootAgentsDir, "agent.md")
+	err = os.WriteFile(rootAgentFile, []byte("test"), 0644)
+	require.NoError(t, err, "should write root agent file")
+
 	tests := []struct {
 		name     string
 		filePath string
@@ -149,6 +173,36 @@ func TestResolveIncludePath(t *testing.T) {
 			name:     "absolute path outside base dir is rejected for security",
 			filePath: "/etc/passwd",
 			baseDir:  tempDir,
+			wantErr:  true,
+		},
+		{
+			name:     "dotgithub-prefixed path resolves from repo root",
+			filePath: ".github/agents/planner.md",
+			baseDir:  workflowsDir,
+			expected: agentFile,
+		},
+		{
+			name:     "slash-prefixed path resolves from repo root",
+			filePath: "/agents/agent.md",
+			baseDir:  workflowsDir,
+			expected: rootAgentFile,
+		},
+		{
+			name:     "relative path in workflows dir still works unchanged",
+			filePath: "workflow.md",
+			baseDir:  workflowsDir,
+			expected: workflowFile,
+		},
+		{
+			name:     "dotgithub-prefixed path that escapes repo root is rejected",
+			filePath: ".github/../../../etc/passwd",
+			baseDir:  workflowsDir,
+			wantErr:  true,
+		},
+		{
+			name:     "slash-prefixed path that escapes repo root is rejected",
+			filePath: "/../../../etc/passwd",
+			baseDir:  workflowsDir,
 			wantErr:  true,
 		},
 	}

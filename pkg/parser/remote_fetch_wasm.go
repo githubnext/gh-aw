@@ -68,8 +68,6 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 		return "", fmt.Errorf("remote imports not available in Wasm: %s", filePath)
 	}
 
-	fullPath := filepath.Join(baseDir, filePath)
-
 	githubFolder := baseDir
 	for !strings.HasSuffix(githubFolder, ".github") && githubFolder != "." && githubFolder != "/" {
 		githubFolder = filepath.Dir(githubFolder)
@@ -79,10 +77,25 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 		}
 	}
 
-	normalizedGithubFolder := filepath.Clean(githubFolder)
+	resolveBase := baseDir
+	securityBase := githubFolder
+	if strings.HasSuffix(githubFolder, ".github") {
+		repoRoot := filepath.Dir(githubFolder)
+		if strings.HasPrefix(filePath, ".github/") {
+			resolveBase = repoRoot
+		} else if stripped, ok := strings.CutPrefix(filePath, "/"); ok {
+			filePath = stripped
+			resolveBase = repoRoot
+			securityBase = repoRoot
+		}
+	}
+
+	fullPath := filepath.Join(resolveBase, filePath)
+
+	normalizedSecurityBase := filepath.Clean(securityBase)
 	normalizedFullPath := filepath.Clean(fullPath)
 
-	relativePath, err := filepath.Rel(normalizedGithubFolder, normalizedFullPath)
+	relativePath, err := filepath.Rel(normalizedSecurityBase, normalizedFullPath)
 	if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
 		return "", fmt.Errorf("security: path %s must be within .github folder (resolves to: %s)", filePath, relativePath)
 	}
