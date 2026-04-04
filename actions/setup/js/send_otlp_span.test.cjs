@@ -276,6 +276,11 @@ describe("parseOTLPHeaders", () => {
     expect(parseOTLPHeaders("Authorization=Bearer%20tok%3Dvalue")).toEqual({ Authorization: "Bearer tok=value" });
   });
 
+  it("decodes before trimming so encoded whitespace at edges is preserved", () => {
+    // %20 at start/end of value should survive: decode first, then trim removes nothing
+    expect(parseOTLPHeaders("X-Token=abc%20def")).toEqual({ "X-Token": "abc def" });
+  });
+
   it("handles values containing = signs (only first = is delimiter)", () => {
     expect(parseOTLPHeaders("Authorization=Bearer base64==")).toEqual({ Authorization: "Bearer base64==" });
   });
