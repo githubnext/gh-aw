@@ -124,6 +124,15 @@ async function main(core) {
   const markdown = buildObservabilitySummary(data);
   await core.summary.addRaw(markdown).write();
   core.info("Generated observability summary in step summary");
+
+  // Send an OTLP conclusion span to the configured endpoint, if any.
+  // Non-fatal: errors are handled inside sendJobConclusionSpan via console.warn.
+  try {
+    const { sendJobConclusionSpan } = require("./send_otlp_span.cjs");
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+  } catch {
+    // Silently ignore unexpected require/call failures.
+  }
 }
 
 module.exports = {

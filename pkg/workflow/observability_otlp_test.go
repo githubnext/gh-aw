@@ -330,3 +330,22 @@ func TestObservabilityConfigParsing(t *testing.T) {
 		})
 	}
 }
+
+// TestGenerateOTLPConclusionSpanStep verifies the YAML produced for OTLP conclusion span steps.
+func TestGenerateOTLPConclusionSpanStep(t *testing.T) {
+	t.Run("safe-outputs span name", func(t *testing.T) {
+		step := generateOTLPConclusionSpanStep("gh-aw.job.safe-outputs")
+		assert.Contains(t, step, "name: Send OTLP job span", "step should have correct name")
+		assert.Contains(t, step, "if: always()", "step should always run")
+		assert.Contains(t, step, "continue-on-error: true", "step should be non-fatal")
+		assert.Contains(t, step, "actions/github-script", "step should use github-script action")
+		assert.Contains(t, step, "sendJobConclusionSpan", "script should call sendJobConclusionSpan")
+		assert.Contains(t, step, "gh-aw.job.safe-outputs", "script should use the given span name")
+		assert.Contains(t, step, "send_otlp_span.cjs", "script should require send_otlp_span.cjs")
+	})
+
+	t.Run("conclusion span name", func(t *testing.T) {
+		step := generateOTLPConclusionSpanStep("gh-aw.job.conclusion")
+		assert.Contains(t, step, "gh-aw.job.conclusion", "script should use the given span name")
+	})
+}

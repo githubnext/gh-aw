@@ -48,8 +48,28 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return config.Observability.OTLP.Endpoint
 }
 
-// injectOTLPConfig modifies workflowData to incorporate any OTLP configuration:
+// generateOTLPConclusionSpanStep generates a GitHub Actions step that sends an OTLP
+// conclusion span from a downstream job (safe_outputs or conclusion).
 //
+// The step is a no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set, so it is safe to
+// emit unconditionally.  It runs with if: always() and continue-on-error: true so OTLP
+// failures can never block the job.
+//
+// Parameters:
+//   - spanName: the OTLP span name, e.g. "gh-aw.job.safe-outputs"
+func generateOTLPConclusionSpanStep(spanName string) string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Send OTLP job span\n")
+	sb.WriteString("        if: always()\n")
+	sb.WriteString("        continue-on-error: true\n")
+	fmt.Fprintf(&sb, "        uses: %s\n", GetActionPin("actions/github-script"))
+	sb.WriteString("        with:\n")
+	sb.WriteString("          script: |\n")
+	fmt.Fprintf(&sb, "            const { sendJobConclusionSpan } = require('%s/send_otlp_span.cjs');\n", SetupActionDestination)
+	fmt.Fprintf(&sb, "            await sendJobConclusionSpan(%q);\n", spanName)
+	return sb.String()
+}
+
 //  1. When the endpoint is a static URL, its hostname is appended to
 //     NetworkPermissions.Allowed so the AWF firewall allows outbound traffic to it.
 //

@@ -379,6 +379,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix)...)
 	}
 
+	// Append OTLP conclusion span step (no-op when endpoint is not configured).
+	steps = append(steps, generateOTLPConclusionSpanStep("gh-aw.job.safe-outputs"))
+
 	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
 	// live in the workspace. When the safe_outputs job contains a checkout step for
 	// create_pull_request or push_to_pull_request_branch, the workspace is replaced with the

@@ -354,6 +354,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
+	// Append OTLP conclusion span step (no-op when endpoint is not configured).
+	steps = append(steps, generateOTLPConclusionSpanStep("gh-aw.job.conclusion"))
+
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails
 	// 2. agent was activated (not skipped) OR lockdown check failed in activation job

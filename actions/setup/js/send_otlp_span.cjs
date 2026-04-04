@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { randomBytes } = require("crypto");
+const fs = require("fs");
 
 /**
  * send_otlp_span.cjs
@@ -73,12 +74,13 @@ function buildAttr(key, value) {
 
 /**
  * @typedef {Object} OTLPSpanOptions
- * @property {string} traceId       - 32-char hex trace ID
- * @property {string} spanId        - 16-char hex span ID
- * @property {string} spanName      - Human-readable span name
- * @property {number} startMs       - Span start time (ms since epoch)
- * @property {number} endMs         - Span end time (ms since epoch)
- * @property {string} serviceName   - Value for the service.name resource attribute
+ * @property {string} traceId        - 32-char hex trace ID
+ * @property {string} spanId         - 16-char hex span ID
+ * @property {string} spanName       - Human-readable span name
+ * @property {number} startMs        - Span start time (ms since epoch)
+ * @property {number} endMs          - Span end time (ms since epoch)
+ * @property {string} serviceName    - Value for the service.name resource attribute
+ * @property {string} [scopeVersion] - gh-aw version string (e.g. from GH_AW_INFO_VERSION)
  * @property {Array<{key: string, value: object}>} attributes - Span attributes
  */
 
@@ -88,7 +90,7 @@ function buildAttr(key, value) {
  * @param {OTLPSpanOptions} opts
  * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
-function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceName, attributes }) {
+function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes }) {
   return {
     resourceSpans: [
       {
@@ -97,7 +99,7 @@ function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceNa
         },
         scopeSpans: [
           {
-            scope: { name: "gh-aw.setup", version: "1.0.0" },
+            scope: { name: "gh-aw", version: scopeVersion || "unknown" },
             spans: [
               {
                 traceId,
@@ -122,22 +124,47 @@ function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceNa
 // ---------------------------------------------------------------------------
 
 /**
- * POST an OTLP traces payload to `{endpoint}/v1/traces`.
+ * POST an OTLP traces payload to `{endpoint}/v1/traces` with automatic retries.
  *
- * @param {string} endpoint - OTLP base URL (e.g. https://traces.example.com:4317)
- * @param {object} payload  - Serialisable OTLP JSON object
+ * Failures are surfaced as `console.warn` messages and never thrown; OTLP
+ * export failures must not break the workflow.  Uses exponential back-off
+ * between attempts (100 ms, 200 ms) so the three total attempts finish in
+ * well under a second in the typical success case.
+ *
+ * @param {string} endpoint  - OTLP base URL (e.g. https://traces.example.com:4317)
+ * @param {object} payload   - Serialisable OTLP JSON object
+ * @param {{ maxRetries?: number, baseDelayMs?: number }} [opts]
  * @returns {Promise<void>}
- * @throws {Error} when the server returns a non-2xx status
  */
-async function sendOTLPSpan(endpoint, payload) {
+async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100 } = {}) {
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error(`OTLP export failed: HTTP ${response.status} ${response.statusText}`);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, baseDelayMs * 2 ** (attempt - 1)));
+    }
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        return;
+      }
+      const msg = `HTTP ${response.status} ${response.statusText}`;
+      if (attempt < maxRetries) {
+        console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} failed: ${msg}, retrying…`);
+      } else {
+        console.warn(`OTLP export failed after ${maxRetries + 1} attempts: ${msg}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt < maxRetries) {
+        console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} error: ${msg}, retrying…`);
+      } else {
+        console.warn(`OTLP export error after ${maxRetries + 1} attempts: ${msg}`);
+      }
+    }
   }
 }
 
@@ -238,11 +265,111 @@ async function sendJobSetupSpan(options = {}) {
     startMs,
     endMs,
     serviceName,
+    scopeVersion: process.env.GH_AW_INFO_VERSION || "unknown",
     attributes,
   });
 
   await sendOTLPSpan(endpoint, payload);
   return traceId;
+}
+
+// ---------------------------------------------------------------------------
+// Utilities for conclusion span
+// ---------------------------------------------------------------------------
+
+/**
+ * Safely read and parse a JSON file.  Returns `null` on any error (missing
+ * file, invalid JSON, permission denied, etc.).
+ *
+ * @param {string} filePath - Absolute path to the JSON file
+ * @returns {object | null}
+ */
+function readJSONIfExists(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// High-level: job conclusion span
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a conclusion span for a safe_outputs or conclusion job to the configured
+ * OTLP endpoint.  The span carries workflow metadata read from `aw_info.json`
+ * and the effective token count from `GH_AW_EFFECTIVE_TOKENS`.
+ *
+ * This is a no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.  All errors
+ * are surfaced as `console.warn` messages and never re-thrown.
+ *
+ * Environment variables consumed:
+ * - `OTEL_EXPORTER_OTLP_ENDPOINT`  – collector endpoint
+ * - `OTEL_SERVICE_NAME`             – service name (defaults to "gh-aw")
+ * - `GH_AW_EFFECTIVE_TOKENS`        – total effective token count for the run
+ * - `GITHUB_RUN_ID`                 – GitHub Actions run ID
+ * - `GITHUB_ACTOR`                  – GitHub Actions actor
+ * - `GITHUB_REPOSITORY`             – `owner/repo` string
+ *
+ * Runtime files read:
+ * - `/tmp/gh-aw/aw_info.json` – workflow/engine metadata written by the agent job
+ *
+ * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.safe-outputs"`)
+ * @param {{ startMs?: number }} [options]
+ * @returns {Promise<void>}
+ */
+async function sendJobConclusionSpan(spanName, options = {}) {
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  if (!endpoint) {
+    return;
+  }
+
+  const startMs = options.startMs ?? Date.now();
+
+  // Read workflow metadata from aw_info.json (written by the agent job setup step).
+  const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+
+  // Effective token count is surfaced by the agent job and passed to downstream jobs
+  // via the GH_AW_EFFECTIVE_TOKENS environment variable.
+  const rawET = process.env.GH_AW_EFFECTIVE_TOKENS || "";
+  const effectiveTokens = rawET ? parseInt(rawET, 10) : NaN;
+
+  const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
+  const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
+
+  // Use the workflow_call_id from aw_info as the trace ID when available so that
+  // conclusion spans can be correlated with the activation span.
+  const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
+  const traceId = awTraceId && isValidTraceId(awTraceId) ? awTraceId : generateTraceId();
+
+  const workflowName = awInfo.workflow_name || "";
+  const engineId = awInfo.engine_id || "";
+  const model = awInfo.model || "";
+  const runId = process.env.GITHUB_RUN_ID || "";
+  const actor = process.env.GITHUB_ACTOR || "";
+  const repository = process.env.GITHUB_REPOSITORY || "";
+
+  const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+
+  if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
+  if (model) attributes.push(buildAttr("gh-aw.model", model));
+  if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
+    attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
+  }
+
+  const payload = buildOTLPPayload({
+    traceId,
+    spanId: generateSpanId(),
+    spanName,
+    startMs,
+    endMs: Date.now(),
+    serviceName,
+    scopeVersion: version,
+    attributes,
+  });
+
+  await sendOTLPSpan(endpoint, payload);
 }
 
 module.exports = {
@@ -253,5 +380,7 @@ module.exports = {
   buildAttr,
   buildOTLPPayload,
   sendOTLPSpan,
+  readJSONIfExists,
   sendJobSetupSpan,
+  sendJobConclusionSpan,
 };

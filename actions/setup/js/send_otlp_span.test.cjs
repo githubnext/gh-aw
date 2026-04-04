@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Module import
 // ---------------------------------------------------------------------------
 
-const { isValidTraceId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, sendOTLPSpan, sendJobSetupSpan } = await import("./send_otlp_span.cjs");
+const { isValidTraceId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan } = await import("./send_otlp_span.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -128,6 +128,7 @@ describe("buildOTLPPayload", () => {
       startMs: 1000,
       endMs: 2000,
       serviceName: "gh-aw",
+      scopeVersion: "v1.2.3",
       attributes: [buildAttr("foo", "bar")],
     });
 
@@ -137,9 +138,10 @@ describe("buildOTLPPayload", () => {
     // Resource
     expect(rs.resource.attributes).toContainEqual({ key: "service.name", value: { stringValue: "gh-aw" } });
 
-    // Scope
+    // Scope — name is always "gh-aw"; version comes from scopeVersion
     expect(rs.scopeSpans).toHaveLength(1);
-    expect(rs.scopeSpans[0].scope.name).toBe("gh-aw.setup");
+    expect(rs.scopeSpans[0].scope.name).toBe("gh-aw");
+    expect(rs.scopeSpans[0].scope.version).toBe("v1.2.3");
 
     // Span
     const span = rs.scopeSpans[0].spans[0];
@@ -151,6 +153,19 @@ describe("buildOTLPPayload", () => {
     expect(span.endTimeUnixNano).toBe(toNanoString(2000));
     expect(span.status.code).toBe(1);
     expect(span.attributes).toContainEqual({ key: "foo", value: { stringValue: "bar" } });
+  });
+
+  it("uses 'unknown' as scope version when scopeVersion is omitted", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+    expect(payload.resourceSpans[0].scopeSpans[0].scope.version).toBe("unknown");
   });
 });
 
@@ -191,11 +206,48 @@ describe("sendOTLPSpan", () => {
     expect(url).toBe("https://traces.example.com/v1/traces");
   });
 
-  it("throws when server returns non-2xx status", async () => {
+  it("warns (does not throw) when server returns non-2xx status on all retries", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 400, statusText: "Bad Request" });
     vi.stubGlobal("fetch", mockFetch);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(sendOTLPSpan("https://traces.example.com", {})).rejects.toThrow("OTLP export failed: HTTP 400 Bad Request");
+    // Should not throw
+    await expect(sendOTLPSpan("https://traces.example.com", {}, { maxRetries: 1, baseDelayMs: 1 })).resolves.toBeUndefined();
+
+    // Two attempts (1 initial + 1 retry)
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+    expect(warnSpy.mock.calls[0][0]).toContain("attempt 1/2 failed");
+    expect(warnSpy.mock.calls[1][0]).toContain("failed after 2 attempts");
+
+    warnSpy.mockRestore();
+  });
+
+  it("retries on failure and succeeds on second attempt", async () => {
+    const mockFetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 503, statusText: "Service Unavailable" }).mockResolvedValueOnce({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await sendOTLPSpan("https://traces.example.com", {}, { maxRetries: 2, baseDelayMs: 1 });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain("attempt 1/3 failed");
+
+    warnSpy.mockRestore();
+  });
+
+  it("warns (does not throw) when fetch rejects on all retries", async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error("network error"));
+    vi.stubGlobal("fetch", mockFetch);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://traces.example.com", {}, { maxRetries: 1, baseDelayMs: 1 })).resolves.toBeUndefined();
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(warnSpy.mock.calls[1][0]).toContain("error after 2 attempts");
+
+    warnSpy.mockRestore();
   });
 });
 
@@ -391,5 +443,101 @@ describe("sendJobSetupSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gh-aw.engine.id");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendJobConclusionSpan
+// ---------------------------------------------------------------------------
+
+describe("sendJobConclusionSpan", () => {
+  /** @type {Record<string, string | undefined>} */
+  const savedEnv = {};
+  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    for (const k of envKeys) {
+      savedEnv[k] = process.env[k];
+      delete process.env[k];
+    }
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    for (const k of envKeys) {
+      if (savedEnv[k] !== undefined) {
+        process.env[k] = savedEnv[k];
+      } else {
+        delete process.env[k];
+      }
+    }
+  });
+
+  it("is a no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends a span with the given span name", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_RUN_ID = "111";
+    process.env.GITHUB_ACTOR = "octocat";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+
+    await sendJobConclusionSpan("gh-aw.job.safe-outputs");
+
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.name).toBe("gh-aw.job.safe-outputs");
+    expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("includes effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_EFFECTIVE_TOKENS = "5000";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const etAttr = span.attributes.find(a => a.key === "gh-aw.effective_tokens");
+    expect(etAttr).toBeDefined();
+    expect(etAttr.value.intValue).toBe(5000);
+  });
+
+  it("omits effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.effective_tokens");
+  });
+
+  it("uses GH_AW_INFO_VERSION as scope version when aw_info.json is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_INFO_VERSION = "v2.0.0";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.0.0");
   });
 });
