@@ -69,7 +69,7 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 
 	if c.strictMode {
 		return fmt.Errorf(
-			"strict mode: secrets expressions detected in '%s' section will be leaked to the agent job. Found: %s. "+
+			"strict mode: secrets expressions detected in '%s' section may be leaked to the agent job. Found: %s. "+
 				"Operations requiring secrets must be moved to a separate job outside the agent job",
 			sectionName, strings.Join(secretRefs, ", "),
 		)
@@ -77,7 +77,7 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 
 	// Non-strict mode: emit a warning.
 	warningMsg := fmt.Sprintf(
-		"Warning: secrets expressions detected in '%s' section will be leaked to the agent job. Found: %s. "+
+		"Warning: secrets expressions detected in '%s' section may be leaked to the agent job. Found: %s. "+
 			"Consider moving operations requiring secrets to a separate job outside the agent job.",
 		sectionName, strings.Join(secretRefs, ", "),
 	)
