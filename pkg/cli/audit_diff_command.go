@@ -15,7 +15,7 @@ import (
 // NewAuditDiffSubcommand creates the audit diff subcommand
 func NewAuditDiffSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "diff <base-run-id> <compare-run-id> [<compare-run-id-2>...]",
+		Use:   "diff <base-run-id> <compare-run-id>...",
 		Short: "Compare behavior across workflow runs",
 		Long: `Compare workflow run behavior between a base run and one or more comparison runs
 to detect policy regressions, new unauthorized domains, behavioral drift, and changes in
