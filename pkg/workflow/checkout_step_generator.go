@@ -25,6 +25,10 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 		stepID := fmt.Sprintf("checkout-app-token-%d", i)
 		for _, step := range appSteps {
 			modified := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: "+stepID)
+			// Rename the step to make it unique when multiple checkouts use app auth.
+			// This prevents duplicate step name errors when more than one checkout entry
+			// falls back to the top-level github-app (or has its own github-app configured).
+			modified = strings.ReplaceAll(modified, "name: Generate GitHub App token", fmt.Sprintf("name: Generate GitHub App token for checkout (%d)", i))
 			steps = append(steps, modified)
 		}
 	}
