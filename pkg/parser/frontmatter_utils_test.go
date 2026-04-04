@@ -247,13 +247,9 @@ func TestResolveIncludePath_DotGithubRepo(t *testing.T) {
 	agentFile := filepath.Join(agentsDir, "planner.md")
 	rootAgentFile := filepath.Join(rootAgentsDir, "agent.md")
 
-	for path, content := range map[string]string{
-		workflowFile:  "workflow",
-		agentFile:     "planner",
-		rootAgentFile: "root-agent",
-	} {
-		require.NoError(t, os.WriteFile(path, []byte(content), 0644), "should write %s", path)
-	}
+	require.NoError(t, os.WriteFile(workflowFile, []byte("workflow"), 0644), "should write workflow file")
+	require.NoError(t, os.WriteFile(agentFile, []byte("planner"), 0644), "should write agent file")
+	require.NoError(t, os.WriteFile(rootAgentFile, []byte("root-agent"), 0644), "should write root agent file")
 
 	tests := []struct {
 		name     string
