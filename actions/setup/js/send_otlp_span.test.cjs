@@ -602,7 +602,7 @@ describe("sendJobSetupSpan", () => {
 describe("sendJobConclusionSpan", () => {
   /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
-  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GH_AW_TRACE_ID", "GH_AW_PARENT_SPAN_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -690,12 +690,12 @@ describe("sendJobConclusionSpan", () => {
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.0.0");
   });
 
-  it("uses GH_AW_TRACE_ID from env as trace ID (1 trace per run)", async () => {
+  it("uses GITHUB_AW_OTEL_TRACE_ID from env as trace ID (1 trace per run)", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
-    process.env.GH_AW_TRACE_ID = "f".repeat(32);
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 
@@ -704,13 +704,13 @@ describe("sendJobConclusionSpan", () => {
     expect(span.traceId).toBe("f".repeat(32));
   });
 
-  it("uses GH_AW_PARENT_SPAN_ID as parentSpanId (1 parent span per job)", async () => {
+  it("uses GITHUB_AW_OTEL_PARENT_SPAN_ID as parentSpanId (1 parent span per job)", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
     const parentSpanId = "abcdef1234567890";
-    process.env.GH_AW_PARENT_SPAN_ID = parentSpanId;
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = parentSpanId;
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 
@@ -719,7 +719,7 @@ describe("sendJobConclusionSpan", () => {
     expect(span.parentSpanId).toBe(parentSpanId);
   });
 
-  it("omits parentSpanId when GH_AW_PARENT_SPAN_ID is absent", async () => {
+  it("omits parentSpanId when GITHUB_AW_OTEL_PARENT_SPAN_ID is absent", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -732,12 +732,12 @@ describe("sendJobConclusionSpan", () => {
     expect(span.parentSpanId).toBeUndefined();
   });
 
-  it("normalizes uppercase GH_AW_TRACE_ID to lowercase", async () => {
+  it("normalizes uppercase GITHUB_AW_OTEL_TRACE_ID to lowercase", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
-    process.env.GH_AW_TRACE_ID = "F".repeat(32); // uppercase — should be normalised
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "F".repeat(32); // uppercase — should be normalised
 
     await sendJobConclusionSpan("gh-aw.job.conclusion");
 

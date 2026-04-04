@@ -287,7 +287,7 @@ async function sendJobSetupSpan(options = {}) {
   const traceId = optionsTraceId || inputTraceId || generateTraceId();
 
   // Always generate a span ID so it can be written to GITHUB_ENV as
-  // GH_AW_PARENT_SPAN_ID even when OTLP is not configured, allowing downstream
+  // GITHUB_AW_OTEL_PARENT_SPAN_ID even when OTLP is not configured, allowing downstream
   // scripts to establish the correct parent span context.
   const spanId = generateSpanId();
 
@@ -363,9 +363,9 @@ function readJSONIfExists(filePath) {
  * - `OTEL_EXPORTER_OTLP_ENDPOINT`  – collector endpoint
  * - `OTEL_SERVICE_NAME`             – service name (defaults to "gh-aw")
  * - `GH_AW_EFFECTIVE_TOKENS`        – total effective token count for the run
- * - `GH_AW_TRACE_ID`                – trace ID written to GITHUB_ENV by the setup step;
+ * - `GITHUB_AW_OTEL_TRACE_ID`                – trace ID written to GITHUB_ENV by the setup step;
  *                                     enables 1-trace-per-run when present
- * - `GH_AW_PARENT_SPAN_ID`          – setup span ID written to GITHUB_ENV by the setup step;
+ * - `GITHUB_AW_OTEL_PARENT_SPAN_ID`          – setup span ID written to GITHUB_ENV by the setup step;
  *                                     links this span as a child of the job setup span
  * - `GITHUB_RUN_ID`                 – GitHub Actions run ID
  * - `GITHUB_ACTOR`                  – GitHub Actions actor
@@ -397,10 +397,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
 
-  // Prefer GH_AW_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
+  // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
   // all spans in the same job share one trace.  Fall back to the workflow_call_id
   // from aw_info for cross-job correlation, then generate a fresh ID.
-  const envTraceId = (process.env.GH_AW_TRACE_ID || "").trim().toLowerCase();
+  const envTraceId = (process.env.GITHUB_AW_OTEL_TRACE_ID || "").trim().toLowerCase();
   const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
   let traceId = generateTraceId();
   if (isValidTraceId(envTraceId)) {
@@ -409,9 +409,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     traceId = awTraceId;
   }
 
-  // Use GH_AW_PARENT_SPAN_ID (written to GITHUB_ENV by this job's setup step) so
+  // Use GITHUB_AW_OTEL_PARENT_SPAN_ID (written to GITHUB_ENV by this job's setup step) so
   // conclusion spans are linked as children of the setup span (1 parent span per job).
-  const rawParentSpanId = (process.env.GH_AW_PARENT_SPAN_ID || "").trim().toLowerCase();
+  const rawParentSpanId = (process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID || "").trim().toLowerCase();
   const parentSpanId = isValidSpanId(rawParentSpanId) ? rawParentSpanId : "";
 
   const workflowName = awInfo.workflow_name || "";
