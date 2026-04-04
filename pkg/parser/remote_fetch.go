@@ -167,8 +167,10 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 			resolveBase = repoRoot
 			if strings.HasPrefix(stripped, ".agents/") {
 				securityBase = filepath.Join(repoRoot, ".agents")
+			} else {
+				// .github/-prefixed: security scope is the .github folder.
+				securityBase = githubFolder
 			}
-			// For .github/-prefixed: securityBase remains githubFolder (already set above).
 		}
 	}
 
