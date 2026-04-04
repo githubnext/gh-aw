@@ -30,7 +30,7 @@
 #     - shared/trends.md
 #     - shared/charts-with-trending.md
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"49c13aa69c6b78320d9388fb9ec80f1f6c77223d646fbc3eedeb337792f8e425","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ec24173efbde44f513eddb2473dda09e0952eac09cbefd2d0d5c293ab21069c9","strict":true,"agent_id":"copilot"}
 
 name: "Copilot Token Usage Analyzer"
 "on":
@@ -136,15 +136,15 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_e49e167afc9c643d_EOF'
+          cat << 'GH_AW_PROMPT_413b258b2f495f5e_EOF'
           <system>
-          GH_AW_PROMPT_e49e167afc9c643d_EOF
+          GH_AW_PROMPT_413b258b2f495f5e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_e49e167afc9c643d_EOF'
+          cat << 'GH_AW_PROMPT_413b258b2f495f5e_EOF'
           <safe-output-tools>
           Tools: create_issue, upload_asset, missing_tool, missing_data, noop
           
@@ -178,9 +178,9 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_e49e167afc9c643d_EOF
+          GH_AW_PROMPT_413b258b2f495f5e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_e49e167afc9c643d_EOF'
+          cat << 'GH_AW_PROMPT_413b258b2f495f5e_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/token-logs-24h.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
@@ -188,7 +188,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/workflows/shared/trends.md}}
           {{#runtime-import .github/workflows/copilot-token-usage-analyzer.md}}
-          GH_AW_PROMPT_e49e167afc9c643d_EOF
+          GH_AW_PROMPT_413b258b2f495f5e_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -321,7 +321,7 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Restore 24h token logs from cache
-        run: "set -euo pipefail\nTOKEN_LOGS_DIR=\"/tmp/gh-aw/token-logs\"\nmkdir -p \"$TOKEN_LOGS_DIR\"\nTODAY=$(date -u +%Y-%m-%d)\n\n# Look for today's pre-fetched data from the Token Logs Fetch workflow\nFETCH_RUN_ID=$(gh run list \\\n  --workflow \"token-logs-fetch.lock.yml\" \\\n  --status success \\\n  --limit 1 \\\n  --json databaseId \\\n  --jq '.[0].databaseId' 2>/dev/null || echo \"\")\n\nUSED_CACHE=false\nif [ -n \"$FETCH_RUN_ID\" ]; then\n  CACHE_TMP=\"/tmp/gh-aw/token-logs-fetch-cache\"\n  mkdir -p \"$CACHE_TMP\"\n  gh run download \"$FETCH_RUN_ID\" \\\n    --repo \"$GITHUB_REPOSITORY\" \\\n    --name \"cache-memory\" \\\n    --dir \"$CACHE_TMP\" \\\n    2>/dev/null || true\n  CACHE_DATE=$(cat \"$CACHE_TMP/token-logs/fetch-date.txt\" 2>/dev/null || echo \"\")\n  if [ \"$CACHE_DATE\" = \"$TODAY\" ] && \\\n     [ -s \"$CACHE_TMP/token-logs/copilot-runs.json\" ] && \\\n     [ -s \"$CACHE_TMP/token-logs/claude-runs.json\" ]; then\n    echo \"✅ Using pre-fetched logs from Token Logs Fetch run $FETCH_RUN_ID (date: $CACHE_DATE)\"\n    cp \"$CACHE_TMP/token-logs/copilot-runs.json\" \"$TOKEN_LOGS_DIR/copilot-runs.json\"\n    cp \"$CACHE_TMP/token-logs/claude-runs.json\" \"$TOKEN_LOGS_DIR/claude-runs.json\"\n    USED_CACHE=true\n  else\n    echo \"ℹ️ No valid cached logs found (cache date: ${CACHE_DATE:-none}, today: $TODAY)\"\n  fi\nfi\n\nif [ \"$USED_CACHE\" != \"true\" ]; then\n  echo \"📥 Downloading Copilot and Claude workflow runs from last 24 hours...\"\n\n  # Ensure gh-aw CLI is installed — this shared step runs before user-defined steps.\n  # Install failure is non-fatal to match the fallback-safe behavior of gh aw logs below.\n  GH_AW_AVAILABLE=false\n  if gh extension list 2>/dev/null | grep -q \"github/gh-aw\"; then\n    GH_AW_AVAILABLE=true\n  else\n    echo \"📦 Installing gh-aw CLI extension...\"\n    if gh extension install github/gh-aw 2>/dev/null; then\n      GH_AW_AVAILABLE=true\n    else\n      echo \"⚠️ Failed to install gh-aw CLI extension; continuing with empty token logs.\"\n    fi\n  fi\n\n  if [ \"$GH_AW_AVAILABLE\" = \"true\" ]; then\n    gh aw logs \\\n      --engine copilot \\\n      --start-date -1d \\\n      --json \\\n      -c 300 \\\n      > /tmp/token-logs-copilot-raw.json 2>/dev/null || echo '{\"runs\":[]}' > /tmp/token-logs-copilot-raw.json\n  else\n    echo '{\"runs\":[]}' > /tmp/token-logs-copilot-raw.json\n  fi\n  jq '.runs // []' /tmp/token-logs-copilot-raw.json > \"$TOKEN_LOGS_DIR/copilot-runs.json\" 2>/dev/null || echo \"[]\" > \"$TOKEN_LOGS_DIR/copilot-runs.json\"\n\n  if [ \"$GH_AW_AVAILABLE\" = \"true\" ]; then\n    gh aw logs \\\n      --engine claude \\\n      --start-date -1d \\\n      --json \\\n      -c 300 \\\n      > /tmp/token-logs-claude-raw.json 2>/dev/null || echo '{\"runs\":[]}' > /tmp/token-logs-claude-raw.json\n  else\n    echo '{\"runs\":[]}' > /tmp/token-logs-claude-raw.json\n  fi\n  jq '.runs // []' /tmp/token-logs-claude-raw.json > \"$TOKEN_LOGS_DIR/claude-runs.json\" 2>/dev/null || echo \"[]\" > \"$TOKEN_LOGS_DIR/claude-runs.json\"\nfi\n\necho \"✅ Copilot runs: $(jq 'length' \"$TOKEN_LOGS_DIR/copilot-runs.json\")\"\necho \"✅ Claude runs: $(jq 'length' \"$TOKEN_LOGS_DIR/claude-runs.json\")\""
+        run: "set -euo pipefail\nTOKEN_LOGS_DIR=\"/tmp/gh-aw/token-logs\"\nmkdir -p \"$TOKEN_LOGS_DIR\"\nTODAY=$(date -u +%Y-%m-%d)\n\n# Look for today's pre-fetched data from the Token Logs Fetch workflow\nFETCH_RUN_ID=$(gh run list \\\n  --workflow \"token-logs-fetch.lock.yml\" \\\n  --status success \\\n  --limit 1 \\\n  --json databaseId \\\n  --jq '.[0].databaseId' 2>/dev/null || echo \"\")\n\nUSED_CACHE=false\nif [ -n \"$FETCH_RUN_ID\" ]; then\n  CACHE_TMP=\"/tmp/gh-aw/token-logs-fetch-cache\"\n  mkdir -p \"$CACHE_TMP\"\n  gh run download \"$FETCH_RUN_ID\" \\\n    --repo \"$GITHUB_REPOSITORY\" \\\n    --name \"cache-memory\" \\\n    --dir \"$CACHE_TMP\" \\\n    2>/dev/null || true\n  CACHE_DATE=$(cat \"$CACHE_TMP/token-logs/fetch-date.txt\" 2>/dev/null || echo \"\")\n  if [ \"$CACHE_DATE\" = \"$TODAY\" ] && \\\n     [ -s \"$CACHE_TMP/token-logs/copilot-runs.json\" ] && \\\n     [ -s \"$CACHE_TMP/token-logs/claude-runs.json\" ]; then\n    echo \"✅ Using pre-fetched logs from Token Logs Fetch run $FETCH_RUN_ID (date: $CACHE_DATE)\"\n    cp \"$CACHE_TMP/token-logs/copilot-runs.json\" \"$TOKEN_LOGS_DIR/copilot-runs.json\"\n    cp \"$CACHE_TMP/token-logs/claude-runs.json\" \"$TOKEN_LOGS_DIR/claude-runs.json\"\n    USED_CACHE=true\n  else\n    echo \"ℹ️ No valid cached logs found (cache date: ${CACHE_DATE:-none}, today: $TODAY)\"\n  fi\nfi\n\nif [ \"$USED_CACHE\" != \"true\" ]; then\n  echo \"📥 Downloading Copilot and Claude workflow runs from last 24 hours...\"\n\n  # Ensure gh-aw CLI is installed — this shared step runs before user-defined steps.\n  # Install failure is non-fatal to match the fallback-safe behavior of gh aw logs below.\n  GH_AW_AVAILABLE=false\n  if gh extension list 2>/dev/null | grep -q \"github/gh-aw\"; then\n    GH_AW_AVAILABLE=true\n  else\n    echo \"📦 Installing gh-aw CLI extension...\"\n    if gh extension install github/gh-aw 2>/dev/null; then\n      GH_AW_AVAILABLE=true\n    else\n      echo \"⚠️ Failed to install gh-aw CLI extension; continuing with empty token logs.\"\n    fi\n  fi\n\n  # Check GitHub API rate limit before downloading logs\n  RATE_INFO=$(gh api rate_limit --jq '.rate | \"\\(.remaining)/\\(.limit) (resets \\(.reset | todate))\"' 2>/dev/null || echo \"unknown\")\n  echo \"📊 GitHub API rate limit before download: $RATE_INFO\"\n\n  if [ \"$GH_AW_AVAILABLE\" = \"true\" ]; then\n    LOGS_STDERR=\"/tmp/token-logs-copilot-stderr.log\"\n    gh aw logs \\\n      --engine copilot \\\n      --start-date -1d \\\n      --json \\\n      -c 300 \\\n      > /tmp/token-logs-copilot-raw.json 2>\"$LOGS_STDERR\"\n    COPILOT_EXIT=$?\n    if [ \"$COPILOT_EXIT\" -ne 0 ]; then\n      echo \"⚠️ gh aw logs --engine copilot exited with code $COPILOT_EXIT\"\n      cat \"$LOGS_STDERR\" | tail -5\n      echo '{\"runs\":[]}' > /tmp/token-logs-copilot-raw.json\n    fi\n  else\n    echo '{\"runs\":[]}' > /tmp/token-logs-copilot-raw.json\n  fi\n  jq '.runs // []' /tmp/token-logs-copilot-raw.json > \"$TOKEN_LOGS_DIR/copilot-runs.json\" 2>/dev/null || echo \"[]\" > \"$TOKEN_LOGS_DIR/copilot-runs.json\"\n\n  if [ \"$GH_AW_AVAILABLE\" = \"true\" ]; then\n    LOGS_STDERR=\"/tmp/token-logs-claude-stderr.log\"\n    gh aw logs \\\n      --engine claude \\\n      --start-date -1d \\\n      --json \\\n      -c 300 \\\n      > /tmp/token-logs-claude-raw.json 2>\"$LOGS_STDERR\"\n    CLAUDE_EXIT=$?\n    if [ \"$CLAUDE_EXIT\" -ne 0 ]; then\n      echo \"⚠️ gh aw logs --engine claude exited with code $CLAUDE_EXIT\"\n      cat \"$LOGS_STDERR\" | tail -5\n      echo '{\"runs\":[]}' > /tmp/token-logs-claude-raw.json\n    fi\n  else\n    echo '{\"runs\":[]}' > /tmp/token-logs-claude-raw.json\n  fi\n  jq '.runs // []' /tmp/token-logs-claude-raw.json > \"$TOKEN_LOGS_DIR/claude-runs.json\" 2>/dev/null || echo \"[]\" > \"$TOKEN_LOGS_DIR/claude-runs.json\"\n\n  # Check rate limit after downloads to see consumption\n  RATE_INFO=$(gh api rate_limit --jq '.rate | \"\\(.remaining)/\\(.limit) (resets \\(.reset | todate))\"' 2>/dev/null || echo \"unknown\")\n  echo \"📊 GitHub API rate limit after download: $RATE_INFO\"\nfi\n\necho \"✅ Copilot runs: $(jq 'length' \"$TOKEN_LOGS_DIR/copilot-runs.json\")\"\necho \"✅ Claude runs: $(jq 'length' \"$TOKEN_LOGS_DIR/claude-runs.json\")\""
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
@@ -423,12 +423,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_143eec2040ddc01d_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_73e86c03c0e9b7fc_EOF'
           {"create_issue":{"close_older_issues":true,"expires":48,"labels":["automated-analysis","token-usage","copilot"],"max":1,"title_prefix":"📊 Copilot Token Usage Report: "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg"],"branch":"assets/${{ github.workflow }}","max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_143eec2040ddc01d_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_73e86c03c0e9b7fc_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_5f624a3878ddf334_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_257eeceb021791c5_EOF'
           {
             "description_suffixes": {
               "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"📊 Copilot Token Usage Report: \". Labels [\"automated-analysis\" \"token-usage\" \"copilot\"] will be automatically added.",
@@ -437,8 +437,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_5f624a3878ddf334_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_39b21abdc3e44190_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_257eeceb021791c5_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_e43cfe60c6227119_EOF'
           {
             "create_issue": {
               "defaultMax": 1,
@@ -540,7 +540,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_39b21abdc3e44190_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_e43cfe60c6227119_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -613,7 +613,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.12'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_a4d199634435b1e5_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_2ec21b6ef0e2110c_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -654,7 +654,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_a4d199634435b1e5_EOF
+          GH_AW_MCP_CONFIG_2ec21b6ef0e2110c_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

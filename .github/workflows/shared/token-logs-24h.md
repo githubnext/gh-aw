@@ -66,29 +66,51 @@ steps:
           fi
         fi
 
+        # Check GitHub API rate limit before downloading logs
+        RATE_INFO=$(gh api rate_limit --jq '.rate | "\(.remaining)/\(.limit) (resets \(.reset | todate))"' 2>/dev/null || echo "unknown")
+        echo "📊 GitHub API rate limit before download: $RATE_INFO"
+
         if [ "$GH_AW_AVAILABLE" = "true" ]; then
+          LOGS_STDERR="/tmp/token-logs-copilot-stderr.log"
           gh aw logs \
             --engine copilot \
             --start-date -1d \
             --json \
             -c 300 \
-            > /tmp/token-logs-copilot-raw.json 2>/dev/null || echo '{"runs":[]}' > /tmp/token-logs-copilot-raw.json
+            > /tmp/token-logs-copilot-raw.json 2>"$LOGS_STDERR"
+          COPILOT_EXIT=$?
+          if [ "$COPILOT_EXIT" -ne 0 ]; then
+            echo "⚠️ gh aw logs --engine copilot exited with code $COPILOT_EXIT"
+            cat "$LOGS_STDERR" | tail -5
+            echo '{"runs":[]}' > /tmp/token-logs-copilot-raw.json
+          fi
         else
           echo '{"runs":[]}' > /tmp/token-logs-copilot-raw.json
         fi
         jq '.runs // []' /tmp/token-logs-copilot-raw.json > "$TOKEN_LOGS_DIR/copilot-runs.json" 2>/dev/null || echo "[]" > "$TOKEN_LOGS_DIR/copilot-runs.json"
 
         if [ "$GH_AW_AVAILABLE" = "true" ]; then
+          LOGS_STDERR="/tmp/token-logs-claude-stderr.log"
           gh aw logs \
             --engine claude \
             --start-date -1d \
             --json \
             -c 300 \
-            > /tmp/token-logs-claude-raw.json 2>/dev/null || echo '{"runs":[]}' > /tmp/token-logs-claude-raw.json
+            > /tmp/token-logs-claude-raw.json 2>"$LOGS_STDERR"
+          CLAUDE_EXIT=$?
+          if [ "$CLAUDE_EXIT" -ne 0 ]; then
+            echo "⚠️ gh aw logs --engine claude exited with code $CLAUDE_EXIT"
+            cat "$LOGS_STDERR" | tail -5
+            echo '{"runs":[]}' > /tmp/token-logs-claude-raw.json
+          fi
         else
           echo '{"runs":[]}' > /tmp/token-logs-claude-raw.json
         fi
         jq '.runs // []' /tmp/token-logs-claude-raw.json > "$TOKEN_LOGS_DIR/claude-runs.json" 2>/dev/null || echo "[]" > "$TOKEN_LOGS_DIR/claude-runs.json"
+
+        # Check rate limit after downloads to see consumption
+        RATE_INFO=$(gh api rate_limit --jq '.rate | "\(.remaining)/\(.limit) (resets \(.reset | todate))"' 2>/dev/null || echo "unknown")
+        echo "📊 GitHub API rate limit after download: $RATE_INFO"
       fi
 
       echo "✅ Copilot runs: $(jq 'length' "$TOKEN_LOGS_DIR/copilot-runs.json")"
