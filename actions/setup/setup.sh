@@ -390,7 +390,8 @@ fi
 # Send OTLP job setup span when configured (non-fatal).
 # Delegates to action_setup_otlp.cjs (same file used by actions/setup/index.js)
 # to keep dev/release and script mode behavior in sync.
-if command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
+# Skipped when GH_AW_SKIP_SETUP_OTLP=1 because index.js will send the span itself.
+if [ -z "${GH_AW_SKIP_SETUP_OTLP}" ] && command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
   echo "Sending OTLP setup span..."
   SETUP_START_MS="${SETUP_START_MS}" node "${DESTINATION}/action_setup_otlp.cjs" || true
   echo "OTLP setup span step complete"

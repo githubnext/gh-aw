@@ -19,6 +19,9 @@ const result = spawnSync(path.join(__dirname, "setup.sh"), [], {
   stdio: "inherit",
   env: Object.assign({}, process.env, {
     INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: safeOutputCustomTokens,
+    // Tell setup.sh to skip the OTLP span: in action mode index.js sends it
+    // after setup.sh returns so that the startMs captured here is used.
+    GH_AW_SKIP_SETUP_OTLP: "1",
   }),
 });
 
