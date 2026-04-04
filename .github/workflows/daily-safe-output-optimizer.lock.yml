@@ -910,7 +910,13 @@ jobs:
       - name: Parse token usage for step summary
         if: always()
         continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_token_usage.sh
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_token_usage.cjs');
+            await main();
       - name: Write agent output placeholder if missing
         if: always()
         run: |
