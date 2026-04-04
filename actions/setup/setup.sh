@@ -393,7 +393,7 @@ fi
 # Skipped when GH_AW_SKIP_SETUP_OTLP=1 because index.js will send the span itself.
 if [ -z "${GH_AW_SKIP_SETUP_OTLP}" ] && command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
   echo "Sending OTLP setup span..."
-  SETUP_START_MS="${SETUP_START_MS}" node "${DESTINATION}/action_setup_otlp.cjs" || true
+  SETUP_START_MS="${SETUP_START_MS}" INPUT_TRACE_ID="${INPUT_TRACE_ID:-}" node "${DESTINATION}/action_setup_otlp.cjs" || true
   echo "OTLP setup span step complete"
 fi
 
