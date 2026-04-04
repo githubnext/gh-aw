@@ -17,12 +17,13 @@ tools:
     toolsets: [default]
   bash:
     - "*"
+safe-outputs:
+  create-issue:
+    expires: 7d
+    title-prefix: "[copilot-token-optimizer] "
+    max: 1
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
-    with:
-      title-prefix: "[copilot-token-optimizer] "
-      expires: "7d"
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/token-audit"
@@ -45,7 +46,7 @@ You are the Copilot Token Optimizer — an analyst that picks one high-token-usa
 2. Pick the **single workflow** with the highest total token usage that has **not been optimized recently**.
 3. Use the `agentic-workflows` MCP tools (`logs`, `audit`) to deeply inspect 5–10 recent runs of that workflow.
 4. Analyze firewall proxy token logs, tool usage patterns, MCP server calls, and error/warning counts.
-5. Produce a conservative, evidence-based optimization discussion with specific recommendations.
+5. Produce a conservative, evidence-based optimization issue with specific recommendations.
 
 ## Guiding Principles
 
@@ -203,9 +204,9 @@ Generate specific, actionable recommendations with estimated token savings:
    - Use shared components to reduce duplication
    - Pre-compute data in bash steps to reduce agent work
 
-## Phase 5 — Publish Discussion
+## Phase 5 — Publish Issue
 
-Create a discussion with the analysis. Use this structure:
+Create an issue with the analysis. Use this structure:
 
 ```
 ### 🔍 Optimization Target: [Workflow Name]
