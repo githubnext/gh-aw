@@ -109,7 +109,26 @@ See the full reference: [/reference/safe-outputs/#no-op-logging-noop](/gh-aw/ref
 
 ## Operational monitoring
 
-- Use `gh aw status` to see which workflows are enabled and their latest run state.
-- Use `gh aw logs` and `gh aw audit` to inspect tool usage, errors, MCP failures, and network patterns.
+Use `gh aw status` to see which workflows are enabled and their latest run state.
 
-See: [/setup/cli/](/gh-aw/setup/cli/)
+For deeper investigation, the audit commands are the primary monitoring tool for agentic workflows:
+
+- `gh aw audit <run-id>` — single-run report with tool usage, MCP failures, firewall activity, and cost metrics
+- `gh aw audit diff <run-id-1> <run-id-2>` — compare two runs to detect behavioral regressions or new network accesses
+- `gh aw logs --format markdown [workflow]` — cross-run security and performance report for trend monitoring
+
+```bash
+# Audit the most recent run
+gh aw audit 12345678
+
+# Compare two runs for regressions
+gh aw audit diff 12345678 12345679
+
+# Trend report across the last 10 runs of a workflow
+gh aw logs my-workflow --format markdown --count 10
+```
+
+> [!TIP]
+> Use `gh aw logs --format markdown` inside a scheduled workflow agent to automate trend monitoring and surface cost or security regressions without manual intervention.
+
+See [Audit Commands](/gh-aw/reference/audit/) for full flag documentation, and [CLI Reference](/gh-aw/setup/cli/) for all available commands.

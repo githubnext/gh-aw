@@ -264,6 +264,7 @@ export default defineConfig({
 						{ label: 'Self-Hosted Runners', link: '/guides/self-hosted-runners/' },
 						{ label: 'Ephemerals', link: '/guides/ephemerals/' },
 						{ label: 'Web Search', link: '/guides/web-search/' },
+						{ label: 'Audit Reports with Agents', link: '/guides/audit-with-agents/' },
 					],
 				},
 				{

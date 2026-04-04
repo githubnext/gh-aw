@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.1
-**Last Updated**: 2026-04-03
+**Version**: 5.2
+**Last Updated**: 2026-04-04
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -440,6 +440,46 @@ func ValidatePermissions(perms map[string]string) error {
     }
     return nil
 }
+```
+
+### Secrets in Custom Steps Validation
+
+The compiler validates that `secrets.*` expressions are not used in `steps` and `post-steps` frontmatter sections (introduced in PR #24450).
+
+**Purpose**: Minimize secrets exposed to the agent job. The only secrets that should appear in the agent job are those required to configure the agentic engine itself. Steps or post-steps that need secrets should be moved to a separate GitHub Actions job outside the agent job.
+
+**Behavior**:
+- **Strict mode** (`--strict`): compilation fails with an error listing the found expressions
+- **Non-strict mode**: a warning is emitted and the warning counter is incremented
+- `${{ secrets.GITHUB_TOKEN }}` is exempt — it is the built-in runner token, automatically available in every runner environment, and not a user-defined secret
+
+**Implementation**: `pkg/workflow/strict_mode_steps_validation.go` — `Compiler.validateStepsSecrets()`; called from `pkg/workflow/compiler_orchestrator_engine.go`.
+
+**Error message** (strict mode):
+```
+strict mode: secrets expressions detected in 'steps' section may be leaked to the agent job.
+Found: ${{ secrets.MY_SECRET }}.
+Operations requiring secrets must be moved to a separate job outside the agent job
+```
+
+**Migration**:
+```yaml
+# ❌ Avoid: secret in custom step leaks into agent job
+steps:
+  - name: Deploy
+    env:
+      API_KEY: ${{ secrets.DEPLOY_KEY }}
+    run: ./deploy.sh
+
+# ✅ Correct: secrets in a separate job outside the agent job
+jobs:
+  deploy:
+    needs: agent
+    steps:
+      - name: Deploy
+        env:
+          API_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: ./deploy.sh
 ```
 
 ### Runtime Validation
@@ -2675,6 +2715,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.2 (2026-04-04): Added Secrets in Custom Steps Validation subsection to Compiler Validation (from PR #24450: `pkg/workflow/strict_mode_steps_validation.go`). Documents `validateStepsSecrets()` behavior in strict vs. non-strict mode, `secrets.GITHUB_TOKEN` exemption, and migration guidance. Coverage: 72 spec files (no new spec files; new Go implementation only).
 - v5.1 (2026-04-03): Maintenance tone scan — 0 tone issues found across 3 previously uncovered spec files. Added 3 new Related Documentation links: `agent-sessions.md` (terminology migration plan), `safe-output-handlers-refactoring.md` (handler factory pattern status), `serena-tools-analysis.md` (Serena tool usage statistics). Coverage: 72 spec files (3 new).
 - v5.0 (2026-04-02): Maintenance tone scan — fixed 3 tone issues across 2 previously uncovered spec files: `capitalization.md` (2 fixes: "maintains professional consistency"→removed, "simplifies both user comprehension"→"reduces ambiguity for contributors"), `mdflow.md` ("significantly exceeds"→"supports capabilities not currently available in"). Added 7 new Related Documentation links for 7 previously uncovered spec files (capitalization.md, labels.md, gastown.md, mdflow.md, mdflow-comparison.md, oh-my-code.md). Coverage: 69 spec files (7 new).
 - v4.9 (2026-04-01): Maintenance tone scan — fixed 5 tone issues across 4 spec files: `engine-architecture-review.md` (removed "well-implemented", replaced 5-star ratings with factual assessment), `engine-review-summary.md` (removed "production-ready", replaced rating section with factual conclusion), `mcp_logs_guardrails.md` (2 fixes: "helpful guidance"→"jq filter suggestions and schema", "Keeps output manageable"→"Limits response size"), `visual-regression-testing.md` (removed "negatively impact the user experience"). Added 21 new Related Documentation links for previously uncovered spec files. Coverage: 62 spec files.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getErrorMessage, isLockedError } from "./error_helpers.cjs";
+import { getErrorMessage, isLockedError, isRateLimitError } from "./error_helpers.cjs";
 
 describe("error_helpers", () => {
   describe("getErrorMessage", () => {
@@ -87,6 +87,37 @@ describe("error_helpers", () => {
       const error = { status: 403, message: "This issue has been unlocked" };
       // Contains "unlocked" which includes "locked" substring
       expect(isLockedError(error)).toBe(true);
+    });
+  });
+
+  describe("isRateLimitError", () => {
+    it("should return true for 'API rate limit exceeded' message", () => {
+      expect(isRateLimitError(new Error("API rate limit exceeded for installation"))).toBe(true);
+    });
+
+    it("should return true for 'rate limit exceeded' message", () => {
+      expect(isRateLimitError(new Error("rate limit exceeded: please retry after 60 seconds"))).toBe(true);
+    });
+
+    it("should return true for mixed-case 'API Rate Limit' message", () => {
+      expect(isRateLimitError(new Error("API Rate Limit exceeded"))).toBe(true);
+    });
+
+    it("should return false for unrelated API errors", () => {
+      expect(isRateLimitError(new Error("Network connection error"))).toBe(false);
+    });
+
+    it("should return false for null error", () => {
+      expect(isRateLimitError(null)).toBe(false);
+    });
+
+    it("should return false for undefined error", () => {
+      expect(isRateLimitError(undefined)).toBe(false);
+    });
+
+    it("should return false for non-rate-limit 403 errors", () => {
+      const error = new Error("Forbidden: insufficient permissions");
+      expect(isRateLimitError(error)).toBe(false);
     });
   });
 });

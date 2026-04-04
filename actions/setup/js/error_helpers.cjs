@@ -40,4 +40,18 @@ function isLockedError(error) {
   return hasLockedMessage;
 }
 
-module.exports = { getErrorMessage, isLockedError };
+/**
+ * Check if an error is due to a GitHub API rate limit being exceeded.
+ * This includes both installation-level and user-level rate limits.
+ * Used to determine if a check should fail-open (allow workflow to proceed)
+ * rather than hard-failing when the error is transient.
+ *
+ * @param {unknown} error - The error value to check
+ * @returns {boolean} True if error is due to API rate limiting, false otherwise
+ */
+function isRateLimitError(error) {
+  const errorMessage = getErrorMessage(error);
+  return /\bapi rate limit\b|\brate limit exceeded\b/i.test(errorMessage);
+}
+
+module.exports = { getErrorMessage, isLockedError, isRateLimitError };
