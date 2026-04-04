@@ -566,7 +566,7 @@ imports:
 Use HTML details/summary for collapsible sections:
 
 <details>
-<summary><b>📊 Full Report Details</b></summary>
+<summary>📊 Full Report Details</summary>
 
 [Report content here]
 

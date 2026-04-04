@@ -307,7 +307,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 [Trend analysis and significant changes]
 
 <details>
-<summary><b>📈 Detailed Metrics</b></summary>
+<summary>📈 Detailed Metrics</summary>
 
 ### Size Metrics
 

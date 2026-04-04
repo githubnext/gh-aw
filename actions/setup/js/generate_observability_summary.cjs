@@ -80,7 +80,7 @@ function buildObservabilitySummary(data) {
   const lines = [];
 
   lines.push("<details>");
-  lines.push("<summary><b>Observability</b></summary>");
+  lines.push("<summary>Observability</summary>");
   lines.push("");
 
   if (data.workflowName) {

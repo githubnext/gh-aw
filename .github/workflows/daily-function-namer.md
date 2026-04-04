@@ -276,7 +276,7 @@ that an agent will find the right function instead of reimplementing existing lo
 ---
 
 <details>
-<summary><b>🤖 Agentic Implementation Plan</b></summary>
+<summary>🤖 Agentic Implementation Plan</summary>
 
 ### Agentic Implementation Plan
 

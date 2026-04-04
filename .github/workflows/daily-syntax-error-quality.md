@@ -386,7 +386,7 @@ Create a detailed evaluation for each test case:
 ### Test Case Results
 
 <details>
-<summary><b>Test Case 1: Invalid YAML Syntax</b> - Score: 82/100 ✅</summary>
+<summary>Test Case 1: Invalid YAML Syntax - Score: 82/100 ✅</summary>
 
 #### Test Configuration
 
@@ -442,14 +442,14 @@ Create a detailed evaluation for each test case:
 </details>
 
 <details>
-<summary><b>Test Case 2: Invalid Engine Name</b> - Score: 68/100 ⚠️</summary>
+<summary>Test Case 2: Invalid Engine Name - Score: 68/100 ⚠️</summary>
 
 [Similar detailed analysis...]
 
 </details>
 
 <details>
-<summary><b>Test Case 3: Conflicting Configuration</b> - Score: 74/100 ✅</summary>
+<summary>Test Case 3: Conflicting Configuration - Score: 74/100 ✅</summary>
 
 [Similar detailed analysis...]
 

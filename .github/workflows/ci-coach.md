@@ -181,7 +181,7 @@ If no improvements are found or changes are too risky:
 **Rationale**: Current integration tests wait unnecessarily for unit tests to complete. Integration tests don't use unit test outputs, so they can run in parallel. Splitting unit tests by package and rebalancing integration matrix reduces the critical path by 52%.
 
 <details>
-<summary><b>View Detailed Test Structure Comparison</b></summary>
+<summary>View Detailed Test Structure Comparison</summary>
 
 **Current Test Structure:**
 ```yaml

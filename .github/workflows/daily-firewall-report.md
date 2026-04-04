@@ -433,7 +433,7 @@ Provide a brief analysis:
 
 ```markdown
 <details>
-<summary><b>View Detailed Request Patterns by Workflow</b></summary>
+<summary>View Detailed Request Patterns by Workflow</summary>
 
 For each workflow that had blocked domains, provide a detailed breakdown:
 
@@ -458,7 +458,7 @@ For each workflow that had blocked domains, provide a detailed breakdown:
 
 ```markdown
 <details>
-<summary><b>View Complete Blocked Domains List</b></summary>
+<summary>View Complete Blocked Domains List</summary>
 
 An alphabetically sorted list of all unique blocked domains:
 

@@ -306,7 +306,7 @@ Test a representative subset of 6-8 scenarios to reduce token consumption...
 ```markdown
 ### Key Findings (3-5 bullet points max)
 <details>
-<summary><b>View Detailed Scenario Analysis</b></summary>
+<summary>View Detailed Scenario Analysis</summary>
 [Detailed content hidden by default]
 </details>
 ```
@@ -334,7 +334,7 @@ Use HTML `<details>` tags to reduce initial output verbosity:
 
 ```markdown
 <details>
-<summary><b>View Detailed Examples</b></summary>
+<summary>View Detailed Examples</summary>
 
 [Verbose content that AI generates once but doesn't repeatedly reference]
 

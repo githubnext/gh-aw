@@ -411,7 +411,7 @@ Create a new discussion with the comprehensive performance report.
 [Brief 2-3 sentence analysis of activity distribution across PRs, issues, and discussions]
 
 <details>
-<summary><b>📊 Detailed Benchmark Results</b></summary>
+<summary>📊 Detailed Benchmark Results</summary>
 
 #### 🎯 Resolution Metrics
 

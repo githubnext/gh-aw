@@ -164,7 +164,7 @@ Create a concise report with the following structure:
 - Any PRs with exceptional metrics (very large, many test files, etc.)
 
 <details>
-<summary><b>Merged Pull Requests</b></summary>
+<summary>Merged Pull Requests</summary>
 
 | PR # | Title | Lines Added | Lines Deleted | Test Files | Merged At |
 |------|-------|-------------|---------------|------------|-----------|
@@ -173,7 +173,7 @@ Create a concise report with the following structure:
 </details>
 
 <details>
-<summary><b>Code Generation Metrics</b></summary>
+<summary>Code Generation Metrics</summary>
 
 - **Production Code**: [lines added - test lines added] lines
 - **Test Code**: [test lines added] lines

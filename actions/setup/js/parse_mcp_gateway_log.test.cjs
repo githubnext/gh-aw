@@ -170,12 +170,12 @@ Some content here.`;
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
       // Check gateway.log section
-      expect(summary).toContain("<summary><b>MCP Gateway Log (gateway.log)</b></summary>");
+      expect(summary).toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
       expect(summary).toContain("Gateway started");
       expect(summary).toContain("Server listening on port 8080");
 
       // Check stderr.log section
-      expect(summary).toContain("<summary><b>MCP Gateway Log (stderr.log)</b></summary>");
+      expect(summary).toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
       expect(summary).toContain("Debug: connection accepted");
       expect(summary).toContain("Debug: request processed");
 
@@ -191,9 +191,9 @@ Some content here.`;
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      expect(summary).toContain("<summary><b>MCP Gateway Log (gateway.log)</b></summary>");
+      expect(summary).toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
       expect(summary).toContain("Gateway started");
-      expect(summary).not.toContain("<summary><b>MCP Gateway Log (stderr.log)</b></summary>");
+      expect(summary).not.toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
     });
 
     test("generates summary with only stderr.log content", () => {
@@ -202,8 +202,8 @@ Some content here.`;
 
       const summary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
 
-      expect(summary).not.toContain("<summary><b>MCP Gateway Log (gateway.log)</b></summary>");
-      expect(summary).toContain("<summary><b>MCP Gateway Log (stderr.log)</b></summary>");
+      expect(summary).not.toContain("<summary>MCP Gateway Log (gateway.log)</summary>");
+      expect(summary).toContain("<summary>MCP Gateway Log (stderr.log)</summary>");
       expect(summary).toContain("Error: connection failed");
     });
 

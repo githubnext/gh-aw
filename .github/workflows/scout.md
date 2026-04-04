@@ -135,7 +135,7 @@ Create a comprehensive research summary that includes:
 
 **IMPORTANT**: You must ALWAYS post a comment with your findings, even if you did not find any relevant information. If you didn't find anything useful, explain what you searched for and why no relevant results were found.
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Your research summary should be formatted as a comment with:
 
@@ -148,7 +148,7 @@ Your research summary should be formatted as a comment with:
 [Brief overview of key findings - or state that no relevant findings were discovered]
 
 <details>
-<summary><b>Click to expand detailed findings</b></summary>
+<summary>Click to expand detailed findings</summary>
 
 ### Research Findings
 

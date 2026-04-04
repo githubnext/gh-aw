@@ -117,7 +117,7 @@ Example: `SEC-001: Agent job in workflow X has write permissions`
 - **Handlers**: [List handler files if applicable]
 
 <details>
-<summary><b>🔍 Current vs Expected Behavior</b></summary>
+<summary>🔍 Current vs Expected Behavior</summary>
 
 ### Current Behavior
 
@@ -185,7 +185,7 @@ After processing all issues, provide a summary in the workflow output:
 **Script Exit Code**: [exit_code]
 
 <details>
-<summary><b>📊 Detailed Results & Actions</b></summary>
+<summary>📊 Detailed Results & Actions</summary>
 
 ### Results
 

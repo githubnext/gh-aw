@@ -161,7 +161,7 @@ Dev workflow completed successfully! 🎉
 - `path/to/another.ext` - [Another issue if applicable]
 
 <details>
-<summary><b>🔍 Error Details</b></summary>
+<summary>🔍 Error Details</summary>
 
 ```
 [Key error messages from audit]
@@ -193,7 +193,7 @@ If you prefer to fix this manually:
 [Summary of failure from audit]
 
 <details>
-<summary><b>🔍 Key Errors</b></summary>
+<summary>🔍 Key Errors</summary>
 
 [Error messages and patterns found]
 

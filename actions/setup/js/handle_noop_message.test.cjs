@@ -27,7 +27,7 @@ describe("handle_noop_message", () => {
         return `This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
 
 <details>
-<summary><b>📘 What is a No-Op?</b></summary>
+<summary>📘 What is a No-Op?</summary>
 
 A no-op (no operation) occurs when an agentic workflow runs successfully but determines that no action is required. For example:
 - A security scanner that finds no issues
@@ -39,7 +39,7 @@ These are successful outcomes, not failures, and help provide transparency into 
 </details>
 
 <details>
-<summary><b>🎯 How This Helps</b></summary>
+<summary>🎯 How This Helps</summary>
 
 This issue helps you:
 - Track workflows that ran but determined no action was needed
@@ -49,7 +49,7 @@ This issue helps you:
 </details>
 
 <details>
-<summary><b>📚 Resources</b></summary>
+<summary>📚 Resources</summary>
 
 - [GitHub Agentic Workflows Documentation](https://github.com/github/gh-aw)
 

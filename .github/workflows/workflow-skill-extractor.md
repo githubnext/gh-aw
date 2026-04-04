@@ -345,7 +345,7 @@ Create a comprehensive report as a GitHub Discussion with the following structur
 ### Recommendation 1: [Skill Name]
 
 <details>
-<summary><b>Full Details</b></summary>
+<summary>Full Details</summary>
 
 **Current State:**
 [Code snippets showing current usage]

@@ -258,7 +258,7 @@ Check run data was fetched before this session:
 <!-- one row per failing check -->
 
 <details>
-<summary><b>Detailed Analysis</b></summary>
+<summary>Detailed Analysis</summary>
 
 <!-- Per-check deep-dive with log excerpts and root cause explanation -->
 
@@ -271,7 +271,7 @@ Check run data was fetched before this session:
 <!-- How to avoid similar failures in future PRs -->
 
 <details>
-<summary><b>Analysis Steps</b></summary>
+<summary>Analysis Steps</summary>
 
 <!-- Summary of the steps taken to analyze the failing checks (tools called, logs read, patterns found) -->
 
@@ -280,7 +280,7 @@ Check run data was fetched before this session:
 
 **IMPORTANT**: You **MUST** always end by calling `add_comment` (to post your diagnosis on the PR) or `noop` (if all checks are passing). Never finish without calling one of these.
 
-**IMPORTANT**: Your comment **MUST** always include an **Analysis Steps** section (using `<details><summary><b>Analysis Steps</b></summary>`) that summarizes what you did to reach your conclusions — which tools you called, which logs you read, and what patterns you found. This gives readers progressive disclosure: a quick summary up front, with the full investigation trail available on demand.
+**IMPORTANT**: Your comment **MUST** always include an **Analysis Steps** section (using `<details><summary>Analysis Steps</summary>`) that summarizes what you did to reach your conclusions — which tools you called, which logs you read, and what patterns you found. This gives readers progressive disclosure: a quick summary up front, with the full investigation trail available on demand.
 
 {{/if}}
 {{#if github.event.workflow_run.id}}
@@ -406,7 +406,7 @@ Logs and artifacts have been pre-downloaded before this session started:
    - **Prevention Strategies**: How to avoid similar failures
    - **AI Team Self-Improvement**: Give a short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future
    - **Historical Context**: Similar past failures and their resolutions
-   - **Analysis Steps**: A summary of every step you took to reach your conclusions (phases completed, tools called, files read, patterns matched) — wrapped in a `<details><summary><b>Analysis Steps</b></summary>` block for progressive disclosure
+   - **Analysis Steps**: A summary of every step you took to reach your conclusions (phases completed, tools called, files read, patterns matched) — wrapped in a `<details><summary>Analysis Steps</summary>` block for progressive disclosure
 
 2. **Actionable Deliverables**:
    - Create an issue with investigation results (if warranted)
@@ -418,7 +418,7 @@ Logs and artifacts have been pre-downloaded before this session started:
 
 ### Investigation Issue Template
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 When creating an investigation issue, use this structure:
 
@@ -440,7 +440,7 @@ When creating an investigation issue, use this structure:
 [List of failed jobs with key error messages]
 
 <details>
-<summary><b>Investigation Findings</b></summary>
+<summary>Investigation Findings</summary>
 
 [Deep analysis results]
 
@@ -456,14 +456,14 @@ When creating an investigation issue, use this structure:
 [Short set of additional prompting instructions to copy-and-paste into instructions.md for a AI coding agents to help prevent this type of failure in future]
 
 <details>
-<summary><b>Historical Context</b></summary>
+<summary>Historical Context</summary>
 
 [Similar past failures and patterns]
 
 </details>
 
 <details>
-<summary><b>Analysis Steps</b></summary>
+<summary>Analysis Steps</summary>
 
 [Summary of the steps taken to investigate this failure: phases completed, tools called, files read, patterns matched]
 
@@ -479,7 +479,7 @@ When creating an investigation issue, use this structure:
 - **Pattern Building**: Contribute to the knowledge base for future investigations
 - **Resource Efficient**: Use caching to avoid re-downloading large logs
 - **Security Conscious**: Never execute untrusted code from logs or external sources
-- **Always Show Your Work**: Every report **must** include a collapsible `<details><summary><b>Analysis Steps</b></summary>` section summarising the steps taken to reach your conclusions. This delights readers with progressive disclosure — a quick overview first, full investigation trail on demand.
+- **Always Show Your Work**: Every report **must** include a collapsible `<details><summary>Analysis Steps</summary>` section summarising the steps taken to reach your conclusions. This delights readers with progressive disclosure — a quick overview first, full investigation trail on demand.
 
 ## ⚠️ Mandatory Output Requirement
 

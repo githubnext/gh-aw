@@ -74,7 +74,7 @@ Compare **at least two** ways to model this problem. For each approach:
 - Note trade-offs (expressiveness, propagation strength, scalability)
 
 <details>
-<summary><b>Example Model (Pseudo-code)</b></summary>
+<summary>Example Model (Pseudo-code)</summary>
 
 Provide a short, readable pseudo-code or MiniZinc/OPL/OR-Tools snippet showing one model. Keep it under 30 lines.
 

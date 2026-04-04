@@ -187,14 +187,14 @@ Create a GitHub issue titled "🔍 Multi-Device Docs Testing Report - [Date]" wi
 [List critical issues that block functionality or major accessibility problems - keep visible]
 
 <details>
-<summary><b>View All Warnings</b></summary>
+<summary>View All Warnings</summary>
 
 [Minor issues and potential problems with device names and details]
 
 </details>
 
 <details>
-<summary><b>View Detailed Test Results by Device</b></summary>
+<summary>View Detailed Test Results by Device</summary>
 
 #### Mobile Devices
 [Test results, screenshots, findings]

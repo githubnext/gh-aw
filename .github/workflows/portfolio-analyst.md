@@ -367,7 +367,7 @@ Top 3 workflows account for [X]% of total cost:
 **Total Potential Savings: $[X]/month ([Y]% reduction)**
 
 <details>
-<summary><b>Strategy 1: Fix High-Failure Workflows - $[X]/month</b></summary>
+<summary>Strategy 1: Fix High-Failure Workflows - $[X]/month</summary>
 
 List workflows with >30% failure rate, showing:
 - Workflow name and file
@@ -378,7 +378,7 @@ List workflows with >30% failure rate, showing:
 </details>
 
 <details>
-<summary><b>Strategy 2: Reduce Over-Scheduling - $[Y]/month</b></summary>
+<summary>Strategy 2: Reduce Over-Scheduling - $[Y]/month</summary>
 
 List over-scheduled workflows with:
 - Current frequency (runs/month)
@@ -388,14 +388,14 @@ List over-scheduled workflows with:
 </details>
 
 <details>
-<summary><b>Strategy 3: Disable Failed Workflows - $[Z]/month</b></summary>
+<summary>Strategy 3: Disable Failed Workflows - $[Z]/month</summary>
 
 List workflows with 100% failure rate or no successful runs.
 
 </details>
 
 <details>
-<summary><b>Strategy 4: Remove Unused Workflows - $[W]/month</b></summary>
+<summary>Strategy 4: Remove Unused Workflows - $[W]/month</summary>
 
 List workflows with no runs in 60+ days.
 

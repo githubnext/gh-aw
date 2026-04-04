@@ -266,7 +266,7 @@ Brief 2-3 paragraph executive summary highlighting:
 - Key findings and any critical issues
 
 <details>
-<summary><b>📋 Full Regulatory Report</b></summary>
+<summary>📋 Full Regulatory Report</summary>
 
 ### 📊 Reports Reviewed
 

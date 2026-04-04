@@ -117,7 +117,7 @@ Always create a GitHub Discussion with your findings using this structure:
 - 💡 **Innovation**: [New technologies, approaches, or experiments being explored]
 
 <details>
-<summary><b>📊 Detailed Activity Snapshot</b></summary>
+<summary>📊 Detailed Activity Snapshot</summary>
 
 ### Development Activity
 
@@ -147,7 +147,7 @@ Always create a GitHub Discussion with your findings using this structure:
 </details>
 
 <details>
-<summary><b>👥 Team Dynamics Deep Dive</b></summary>
+<summary>👥 Team Dynamics Deep Dive</summary>
 
 ### Active Contributors
 
@@ -205,7 +205,7 @@ Always create a GitHub Discussion with your findings using this structure:
 [Based on current patterns, what might we expect to see developing? What opportunities are emerging? What should the team keep in mind?]
 
 <details>
-<summary><b>📚 Complete Resource Links</b></summary>
+<summary>📚 Complete Resource Links</summary>
 
 ### Pull Requests
 [Links to all relevant PRs with brief descriptions]
@@ -234,7 +234,7 @@ Always create a GitHub Discussion with your findings using this structure:
 
 ```markdown
 <details>
-<summary><b>Section Title</b></summary>
+<summary>Section Title</summary>
 
 [Content goes here]
 

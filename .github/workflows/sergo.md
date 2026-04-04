@@ -465,7 +465,7 @@ EOF
 [List medium priority findings]
 
 <details>
-<summary><b>Low Priority Issues</b></summary>
+<summary>Low Priority Issues</summary>
 
 [List low priority findings in collapsed section]
 

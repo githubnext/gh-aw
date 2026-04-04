@@ -277,7 +277,7 @@ Follow the formatting guidelines above. Use the following structure:
 [Always visible. Summary table showing high-level coverage metrics.]
 
 <details>
-<summary><b>📋 Detailed Run Analysis</b></summary>
+<summary>📋 Detailed Run Analysis</summary>
 
 #### Firewall-Enabled Runs
 
@@ -306,7 +306,7 @@ Follow the formatting guidelines above. Use the following structure:
 </details>
 
 <details>
-<summary><b>🔍 Telemetry Quality Analysis</b></summary>
+<summary>🔍 Telemetry Quality Analysis</summary>
 
 #### Firewall Log Quality
 
@@ -339,7 +339,7 @@ Follow the formatting guidelines above. Use the following structure:
 [Always visible. Actionable recommendations based on the analysis.]
 
 <details>
-<summary><b>📊 Historical Trends</b></summary>
+<summary>📊 Historical Trends</summary>
 
 [If historical data is available, show trends in observability coverage over time]
 

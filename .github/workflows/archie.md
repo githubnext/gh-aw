@@ -151,7 +151,7 @@ Create a well-formatted comment containing your diagrams:
 
 **Comment Formatting**: Use h3 (`###`) or lower for all headers in your comment to maintain proper document hierarchy. The comment has no implicit title, so start section headers at h3.
 
-If generating multiple diagrams, wrap diagrams 2 and 3 in `<details><summary><b>View Additional Diagrams</b></summary>` tags to reduce scrolling.
+If generating multiple diagrams, wrap diagrams 2 and 3 in `<details><summary>View Additional Diagrams</summary>` tags to reduce scrolling.
 
 ### Comment Structure
 
@@ -169,7 +169,7 @@ If generating multiple diagrams, wrap diagrams 2 and 3 in `<details><summary><b>
 \```
 
 <details>
-<summary><b>View Additional Diagrams</b></summary>
+<summary>View Additional Diagrams</summary>
 
 #### [Diagram 2 Title] (if applicable)
 

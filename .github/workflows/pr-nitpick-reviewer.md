@@ -197,7 +197,7 @@ Create a comprehensive markdown report using the imported `reporting.md` format:
 Brief overview of the review findings and key patterns observed.
 
 <details>
-<summary><b>Full Review Report</b></summary>
+<summary>Full Review Report</summary>
 
 #### Pull Request Overview
 

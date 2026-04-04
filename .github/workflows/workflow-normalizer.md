@@ -54,7 +54,7 @@ Based on the agentic workflows guidelines and Airbnb's design principles of crea
 
 2. **Progressive Disclosure**: Use HTML `<details>` and `<summary>` tags to collapse long content
    - ❌ Bad: Long lists of items that force scrolling
-   - ✅ Good: `<details><summary><b>View Full Details</b></summary>` wrapping content
+   - ✅ Good: `<details><summary>View Full Details</summary>` wrapping content
    - Make summaries bold: `<b>Text</b>`
 
 3. **Checkboxes**: Use proper markdown checkbox syntax
@@ -131,12 +131,12 @@ For each workflow listed above, update the prompt to include these formatting gu
 Add instruction: "Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy."
 
 #### 2. Progressive Disclosure
-Add instruction: "Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling."
+Add instruction: "Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling."
 
 Example:
 \`\`\`markdown
 <details>
-<summary><b>Full Analysis Details</b></summary>
+<summary>Full Analysis Details</summary>
 
 [Long detailed content here...]
 
@@ -203,7 +203,7 @@ Create a summary comment or discussion showing:
 - ⚠️ **Needs Improvement**: [NUMBER] workflows need updates
 
 <details>
-<summary><b>View Detailed Findings</b></summary>
+<summary>View Detailed Findings</summary>
 
 ### Non-Compliant Workflows
 

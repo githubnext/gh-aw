@@ -13,7 +13,7 @@ When creating GitHub issues or discussions:
 - Never use `##` (h2) or `#` (h1) in reports - these are reserved for titles
 
 ### 2. Progressive Disclosure
-**Wrap detailed test results in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+**Wrap detailed test results in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.**
 
 Use collapsible sections for:
 - Verbose details (full test logs, raw data)
@@ -26,7 +26,7 @@ Always keep critical information visible (summary, critical issues, key metrics)
 
 1. **Overview**: 1-2 paragraphs summarizing key findings
 2. **Critical Information**: Show immediately (summary stats, critical issues)
-3. **Details**: Use `<details><summary><b>Section Name</b></summary>` for expanded content
+3. **Details**: Use `<details><summary>Section Name</summary>` for expanded content
 4. **Context**: Add helpful metadata (workflow run, date, trigger)
 
 ### Design Principles (Airbnb-Inspired)
@@ -49,14 +49,14 @@ Reports should:
 [Always visible - these are important]
 
 <details>
-<summary><b>View Detailed Results</b></summary>
+<summary>View Detailed Results</summary>
 
 [Comprehensive details, logs, traces]
 
 </details>
 
 <details>
-<summary><b>View All Warnings</b></summary>
+<summary>View All Warnings</summary>
 
 [Minor issues and potential problems]
 

@@ -235,7 +235,7 @@ This PR updates the documentation based on features merged in the last 24 hours.
 - Feature 2 (from #PR_NUMBER)
 
 <details>
-<summary><b>📝 Detailed Changes & References</b></summary>
+<summary>📝 Detailed Changes & References</summary>
 
 ### Changes Made
 

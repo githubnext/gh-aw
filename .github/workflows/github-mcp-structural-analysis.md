@@ -245,7 +245,7 @@ Brief overview with key findings (tools analyzed, best/worst usefulness ratings,
 
 ```markdown
 <details>
-<summary><b>Full Structural Analysis Report</b></summary>
+<summary>Full Structural Analysis Report</summary>
 
 ## Executive Summary
 

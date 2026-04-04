@@ -408,7 +408,7 @@ Create a detailed analysis report with actionable recommendations:
 ## 🏗️ Repository Overview
 
 <details>
-<summary><b>Project Details</b></summary>
+<summary>Project Details</summary>
 
 ### Project Information
 - **Name**: [Name]

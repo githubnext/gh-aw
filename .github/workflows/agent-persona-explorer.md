@@ -136,12 +136,12 @@ Follow these formatting guidelines when creating your persona analysis report:
 **Use h3 (###) or lower for all headers in persona analysis reports to maintain proper document hierarchy.**
 
 ### 2. Progressive Disclosure
-**Wrap detailed examples and data tables in `<details><summary><b>Section Name</b></summary>` tags to improve readability.**
+**Wrap detailed examples and data tables in `<details><summary>Section Name</summary>` tags to improve readability.**
 
 Example:
 ```markdown
 <details>
-<summary><b>View Communication Examples</b></summary>
+<summary>View Communication Examples</summary>
 
 [Detailed examples of agent outputs, writing style samples, tone analysis]
 
@@ -165,14 +165,14 @@ Example:
 3. [Security practices observed]
 
 <details>
-<summary><b>View High Quality Responses (Top 2-3)</b></summary>
+<summary>View High Quality Responses (Top 2-3)</summary>
 
 - [Scenario that worked well and why - keep brief]
 
 </details>
 
 <details>
-<summary><b>View Areas for Improvement (Top 2-3)</b></summary>
+<summary>View Areas for Improvement (Top 2-3)</summary>
 
 - [Specific issues found - be direct]
 - [Suggestions for enhancement - actionable]

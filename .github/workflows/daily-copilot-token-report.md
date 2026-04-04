@@ -80,7 +80,7 @@ The discussion title serves as h1, so all content headers should start at h3:
 - Never use `##` (h2) or `#` (h1) in the report body
 
 ### 2. Progressive Disclosure
-**Wrap detailed sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+**Wrap detailed sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.**
 
 Use collapsible sections for:
 - Per-workflow detailed statistics tables
@@ -91,7 +91,7 @@ Use collapsible sections for:
 Example:
 ```markdown
 <details>
-<summary><b>Per-Workflow Detailed Statistics</b></summary>
+<summary>Per-Workflow Detailed Statistics</summary>
 
 | Workflow | Runs | Total Tokens | Avg Tokens | Total Cost | Avg Cost |
 |----------|------|--------------|------------|------------|----------|
@@ -584,7 +584,7 @@ Daily cost trends show [analysis of cost patterns, efficiency, and notable chang
 | ...  | ...      | ...          | ...        | ...  | ...            | ...          |
 
 <details>
-<summary><b>Per-Workflow Detailed Statistics (All Workflows)</b></summary>
+<summary>Per-Workflow Detailed Statistics (All Workflows)</summary>
 
 | Workflow | Total Tokens | Total Cost | Runs | Avg Tokens | Avg Cost | Avg Turns | Avg Duration |
 |----------|--------------|------------|------|------------|----------|-----------|--------------|
@@ -608,7 +608,7 @@ The following workflows account for the majority of token consumption:
    - **Recommendation**: [Suggestion]
 
 <details>
-<summary><b>Optimization Opportunities</b></summary>
+<summary>Optimization Opportunities</summary>
 
 1. **[Opportunity 1]**: [Description]
    - **Affected Workflows**: [list]
@@ -623,7 +623,7 @@ The following workflows account for the majority of token consumption:
 </details>
 
 <details>
-<summary><b>Efficiency Trends</b></summary>
+<summary>Efficiency Trends</summary>
 
 - **Token efficiency**: [Analysis of avg tokens per turn or per workflow]
 - **Cost efficiency**: [Analysis of cost trends and efficiency improvements]
@@ -632,7 +632,7 @@ The following workflows account for the majority of token consumption:
 </details>
 
 <details>
-<summary><b>Historical Comparison</b></summary>
+<summary>Historical Comparison</summary>
 
 | Metric | Last 7 Days | Previous 7 Days | Change | Last 30 Days |
 |--------|-------------|-----------------|--------|--------------|
@@ -644,7 +644,7 @@ The following workflows account for the majority of token consumption:
 </details>
 
 <details>
-<summary><b>Methodology & Data Quality Notes</b></summary>
+<summary>Methodology & Data Quality Notes</summary>
 
 #### Methodology
 - **Data Source**: GitHub Actions workflow run artifacts from last 30 days

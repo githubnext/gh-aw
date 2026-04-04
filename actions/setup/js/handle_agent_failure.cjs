@@ -370,7 +370,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       yamlSnippet += `  ${yamlKey}:\n    protected-files: fallback-to-issue\n`;
     }
     yamlSnippet += "```\n";
-    context += "\n<details>\n<summary><b>⚙️ Configure <code>protected-files: fallback-to-issue</code></b></summary>\n\n";
+    context += "\n<details>\n<summary>⚙️ Configure <code>protected-files: fallback-to-issue</code></summary>\n\n";
     context += yamlSnippet;
     context += "</details>\n";
   }
@@ -421,7 +421,7 @@ function buildCodePushFailureContext(codePushFailureErrors, pullRequest = null, 
       }
     }
 
-    context += "\n<details>\n<summary><b>📋 Apply the patch manually</b></summary>\n\n";
+    context += "\n<details>\n<summary>📋 Apply the patch manually</summary>\n\n";
     if (runId) {
       context += `\`\`\`sh
 # Download the patch artifact from the workflow run

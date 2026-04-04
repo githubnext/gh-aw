@@ -38,7 +38,7 @@ Hi @{author}! I've categorized this issue as **{label_name}** based on the follo
 **Reasoning**: {brief_explanation_of_why_this_label}
 
 <details>
-<summary><b>View Triage Details</b></summary>
+<summary>View Triage Details</summary>
 
 #### Analysis
 - **Keywords detected**: {list_of_keywords_that_matched}

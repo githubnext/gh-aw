@@ -312,7 +312,7 @@ Use the following template:
 4. Result: [Data corruption / lost updates / incorrect behavior]
 
 <details>
-<summary><b>Detailed Analysis</b></summary>
+<summary>Detailed Analysis</summary>
 
 #### Root Cause
 
@@ -353,7 +353,7 @@ Use the following template:
 3. [Step 3]
 
 <details>
-<summary><b>Alternative Solutions</b></summary>
+<summary>Alternative Solutions</summary>
 
 **Option 1: [Alternative approach 1]**
 - Pros: [Benefits]

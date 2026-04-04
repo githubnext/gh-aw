@@ -306,7 +306,7 @@ Create a comprehensive report using the **reporting MCP** with the following str
 [2-3 paragraphs summarizing the analysis findings and key recommendations]
 
 <details>
-<summary><b>Full Analysis Report</b></summary>
+<summary>Full Analysis Report</summary>
 
 ### Focus Area: [AREA NAME]
 
@@ -398,7 +398,7 @@ The following code regions and tasks should be processed by the Copilot coding a
 ## 📊 Historical Context
 
 <details>
-<summary><b>Previous Focus Areas</b></summary>
+<summary>Previous Focus Areas</summary>
 
 | Date | Focus Area | Type | Custom | Key Outcomes |
 |------|------------|------|--------|--------------|

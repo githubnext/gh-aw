@@ -79,7 +79,7 @@ function generateMissingToolsSection(missingTools) {
   if (!missingTools || missingTools.length === 0) return "";
 
   const content = formatMissingTools(missingTools);
-  return `\n\n<details>\n<summary><b>Missing Tools</b></summary>\n\n${content}\n\n</details>`;
+  return `\n\n<details>\n<summary>Missing Tools</summary>\n\n${content}\n\n</details>`;
 }
 
 /**
@@ -91,7 +91,7 @@ function generateMissingDataSection(missingData) {
   if (!missingData || missingData.length === 0) return "";
 
   const content = formatMissingData(missingData);
-  return `\n\n<details>\n<summary><b>Missing Data</b></summary>\n\n${content}\n\n</details>`;
+  return `\n\n<details>\n<summary>Missing Data</summary>\n\n${content}\n\n</details>`;
 }
 
 /**
@@ -103,7 +103,7 @@ function generateNoopMessagesSection(noopMessages) {
   if (!noopMessages?.length) return "";
 
   const content = formatNoopMessages(noopMessages);
-  return `\n\n<details>\n<summary><b>No-Op Messages</b></summary>\n\n${content}\n\n</details>`;
+  return `\n\n<details>\n<summary>No-Op Messages</summary>\n\n${content}\n\n</details>`;
 }
 
 /**

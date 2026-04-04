@@ -176,7 +176,7 @@ This PR was automatically created by the Daily Documentation Healer workflow.
 [Explanation of why DDUw missed this]
 
 <details>
-<summary><b>💡 DDUw Improvement Suggestions</b></summary>
+<summary>💡 DDUw Improvement Suggestions</summary>
 
 ### DDUw Improvement Suggestions
 
