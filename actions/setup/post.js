@@ -17,12 +17,12 @@ const fs = require("fs");
 // the cleanup deletes /tmp/gh-aw/ (which contains aw_info.json and otel.jsonl).
 (async () => {
   // Send a gh-aw.job.conclusion span to the configured OTLP endpoint, if any.
-  // Must happen before cleanup so that /tmp/gh-aw/aw_info.json and otel.jsonl
-  // are still accessible when the span is written.  Non-fatal: errors are
+  // Delegates to action_conclusion_otlp.cjs so that script mode (clean.sh) and
+  // dev/release mode share the same implementation.  Non-fatal: errors are
   // handled inside sendJobConclusionSpan via console.warn.
   try {
-    const { sendJobConclusionSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));
-    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    const { run } = require(path.join(__dirname, "js", "action_conclusion_otlp.cjs"));
+    await run();
   } catch {
     // Non-fatal: silently ignore any OTLP export errors in the post step.
   }

@@ -32,32 +32,15 @@ if (result.status !== 0) {
 }
 
 // Send a gh-aw.job.setup span to the OTLP endpoint when configured.
-// The IIFE returns a Promise that keeps the Node.js event loop alive until
-// the fetch request completes, so the span is delivered before the process
-// exits naturally.  Errors are swallowed: trace export failures must never
-// break the workflow.
+// Delegates to action_setup_otlp.cjs so that script mode (setup.sh) and
+// dev/release mode share the same implementation.
+// The IIFE keeps the event loop alive until the fetch completes.
+// Errors are swallowed: trace export failures must never break the workflow.
 (async () => {
   try {
-    const { appendFileSync } = require("fs");
-    const { isValidTraceId, isValidSpanId, sendJobSetupSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));
-    const { traceId, spanId } = await sendJobSetupSpan({ startMs: setupStartMs });
-    // Expose the trace ID as an action output so downstream jobs can reference it
-    // via `steps.<id>.outputs.trace-id` for cross-job trace correlation.
-    if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
-      appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
-    }
-    // Write both the trace ID and setup span ID to GITHUB_ENV so all subsequent
-    // steps in this job automatically inherit the parent trace context:
-    //   GITHUB_AW_OTEL_TRACE_ID       – shared trace ID (1 trace per run)
-    //   GITHUB_AW_OTEL_PARENT_SPAN_ID – setup span ID used as parent (1 parent span per job)
-    if (process.env.GITHUB_ENV) {
-      if (isValidTraceId(traceId)) {
-        appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_TRACE_ID=${traceId}\n`);
-      }
-      if (isValidSpanId(spanId)) {
-        appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_PARENT_SPAN_ID=${spanId}\n`);
-      }
-    }
+    process.env.SETUP_START_MS = String(setupStartMs);
+    const { run } = require(path.join(__dirname, "js", "action_setup_otlp.cjs"));
+    await run();
   } catch {
     // Non-fatal: silently ignore any OTLP export or output-write errors.
   }

@@ -18,15 +18,11 @@ set -e
 
 DESTINATION="${INPUT_DESTINATION:-${RUNNER_TEMP}/gh-aw/actions}"
 
-# Send OTLP job conclusion span (non-fatal, mirrors actions/setup/post.js).
-if command -v node &>/dev/null && [ -f "${DESTINATION}/send_otlp_span.cjs" ]; then
-  DESTINATION="${DESTINATION}" node - 2>/dev/null <<'OTLP_CLEAN_EOF' || true
-;(async () => {
-  const { sendJobConclusionSpan } = require(process.env.DESTINATION + '/send_otlp_span.cjs');
-  const spanName = process.env.INPUT_JOB_NAME ? 'gh-aw.job.' + process.env.INPUT_JOB_NAME : 'gh-aw.job.conclusion';
-  await sendJobConclusionSpan(spanName);
-})().catch(() => {});
-OTLP_CLEAN_EOF
+# Send OTLP job conclusion span (non-fatal).
+# Delegates to action_conclusion_otlp.cjs (same file used by actions/setup/post.js)
+# to keep dev/release and script mode behavior in sync.
+if command -v node &>/dev/null && [ -f "${DESTINATION}/action_conclusion_otlp.cjs" ]; then
+  node "${DESTINATION}/action_conclusion_otlp.cjs" 2>/dev/null || true
 fi
 
 # Remove /tmp/gh-aw/ (mirrors post.js cleanup).

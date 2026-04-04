@@ -388,24 +388,10 @@ else
 fi
 
 # Send OTLP job setup span when configured (non-fatal).
-# Mirrors actions/setup/index.js: sends gh-aw.job.setup span and writes
-# GITHUB_AW_OTEL_TRACE_ID / GITHUB_AW_OTEL_PARENT_SPAN_ID to GITHUB_ENV.
-if command -v node &>/dev/null && [ -f "${DESTINATION}/send_otlp_span.cjs" ]; then
-  DESTINATION="${DESTINATION}" SETUP_START_MS="${SETUP_START_MS}" node - 2>/dev/null <<'OTLP_SETUP_EOF' || true
-;(async () => {
-  const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require(process.env.DESTINATION + '/send_otlp_span.cjs');
-  const { appendFileSync } = require('fs');
-  const { traceId, spanId } = await sendJobSetupSpan({ startMs: parseInt(process.env.SETUP_START_MS || '0', 10) });
-  if (process.env.GITHUB_OUTPUT && isValidTraceId(traceId))
-    appendFileSync(process.env.GITHUB_OUTPUT, 'trace-id=' + traceId + '\n');
-  if (process.env.GITHUB_ENV) {
-    if (isValidTraceId(traceId))
-      appendFileSync(process.env.GITHUB_ENV, 'GITHUB_AW_OTEL_TRACE_ID=' + traceId + '\n');
-    if (isValidSpanId(spanId))
-      appendFileSync(process.env.GITHUB_ENV, 'GITHUB_AW_OTEL_PARENT_SPAN_ID=' + spanId + '\n');
-  }
-})().catch(() => {});
-OTLP_SETUP_EOF
+# Delegates to action_setup_otlp.cjs (same file used by actions/setup/index.js)
+# to keep dev/release and script mode behavior in sync.
+if command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
+  SETUP_START_MS="${SETUP_START_MS}" node "${DESTINATION}/action_setup_otlp.cjs" 2>/dev/null || true
 fi
 
 # Set output
