@@ -763,8 +763,7 @@ function buildEngineFailureContext() {
         core.info("Detected cyber_policy_violation error — using dedicated context message");
         const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/cyber_policy_violation.md`;
         try {
-          const template = fs.readFileSync(templatePath, "utf8");
-          return "\n" + template;
+          return "\n" + renderTemplateFromFile(templatePath, {});
         } catch {
           // Template not available — fall through to generic engine failure message
           core.info(`cyber_policy_violation template not found at ${templatePath}, using generic message`);
