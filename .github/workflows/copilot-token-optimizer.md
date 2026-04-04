@@ -17,15 +17,6 @@ tools:
     toolsets: [default]
   bash:
     - "*"
-steps:
-  - name: Install gh-aw CLI
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      if ! gh aw --version >/dev/null 2>&1; then
-        gh extension install github/gh-aw
-      fi
-      gh aw --version
 timeout-minutes: 30
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -37,6 +28,7 @@ imports:
       branch-name: "memory/token-audit"
       description: "Historical daily Copilot token usage snapshots (shared with copilot-token-audit)"
   - copilot-setup-steps.yml
+  - uses: shared/mcp/gh-aw.md
   - shared/reporting.md
 features:
   copilot-requests: true
