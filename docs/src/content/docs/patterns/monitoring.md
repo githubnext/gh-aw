@@ -129,6 +129,6 @@ gh aw logs my-workflow --format markdown --count 10
 ```
 
 > [!TIP]
-> Use `gh aw audit report` inside a scheduled workflow agent to automate trend monitoring and surface cost or security regressions without manual intervention.
+> Use `gh aw logs --format markdown` inside a scheduled workflow agent to automate trend monitoring and surface cost or security regressions without manual intervention.
 
 See [Audit Commands](/gh-aw/reference/audit/) for full flag documentation, and [CLI Reference](/gh-aw/setup/cli/) for all available commands.
