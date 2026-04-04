@@ -43,7 +43,9 @@ async function run() {
   // through GitHub Actions expression evaluation is unreliable.
   const inputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
   if (inputTraceId) {
-    console.log(`[otlp] using input trace-id: ${inputTraceId}`);
+    console.log(`[otlp] INPUT_TRACE_ID=${inputTraceId} (will reuse activation trace)`);
+  } else {
+    console.log("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
   }
 
   if (!endpoint) {
@@ -53,6 +55,8 @@ async function run() {
   }
 
   const { traceId, spanId } = await sendJobSetupSpan({ startMs, traceId: inputTraceId || undefined });
+
+  console.log(`[otlp] resolved trace-id=${traceId}`);
 
   if (endpoint) {
     console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
