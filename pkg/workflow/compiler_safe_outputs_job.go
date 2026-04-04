@@ -51,7 +51,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Enable custom-tokens flag if any safe output uses a per-handler github-token
 		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens)...)
+		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
+		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, safeOutputsTraceID)...)
 	}
 
 	// Add artifact download steps after setup.
@@ -336,7 +338,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
 			insertIndex += len(c.generateCheckoutActionsFolder(data))
-			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs)))
+			// Use the same traceID as the real call so the line count matches exactly
+			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), countTraceID))
 		}
 
 		// Add artifact download steps count

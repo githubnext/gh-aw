@@ -70,6 +70,7 @@ jobs:
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -79,9 +80,11 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -288,6 +291,7 @@ jobs:
       model: ${{ needs.activation.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
+      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -297,9 +301,12 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
@@ -806,9 +813,12 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -901,9 +911,12 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.agent.outputs.setup-trace-id }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1068,9 +1081,12 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.agent.outputs.setup-trace-id }}
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true

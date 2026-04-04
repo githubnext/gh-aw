@@ -37,7 +37,9 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 	// Unlock job doesn't need project support
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+	// Unlock job depends on activation, reuse its trace ID
+	unlockTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, unlockTraceID)...)
 
 	// Add unlock step
 	// Build condition: only unlock if issue was locked by activation job

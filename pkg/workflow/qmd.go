@@ -573,7 +573,9 @@ func (c *Compiler) buildQmdIndexingJob(data *WorkflowData) (*Job, error) {
 
 	// Run the setup action to copy qmd_index.cjs and setup_globals.cjs to SetupActionDestination.
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+	// QMD indexing job depends on activation; reuse its trace ID so all jobs share one OTLP trace
+	qmdTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, qmdTraceID)...)
 
 	// Check out the repository workspace if any checkout-based collection uses the default repo
 	// (i.e., no per-collection checkout config, meaning it relies on ${GITHUB_WORKSPACE}).

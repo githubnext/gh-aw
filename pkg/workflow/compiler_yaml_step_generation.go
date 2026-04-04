@@ -110,18 +110,23 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 //   - setupActionRef: The action reference for setup action (e.g., "./actions/setup" or "github/gh-aw/actions/setup@sha")
 //   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
 //   - enableCustomTokens: Whether to enable custom-token support (installs @actions/github so handler_auth.cjs can create per-handler Octokit clients)
+//   - traceID: Optional OTLP trace ID expression for cross-job span correlation (e.g., "${{ needs.activation.outputs.setup-trace-id }}"). Empty string means a new trace ID is generated.
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
-func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableCustomTokens bool) []string {
+func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableCustomTokens bool, traceID string) []string {
 	// Script mode: run the setup.sh script directly
 	if c.actionMode.IsScript() {
 		lines := []string{
 			"      - name: Setup Scripts\n",
+			"        id: setup\n",
 			"        run: |\n",
 			"          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh\n",
 			"        env:\n",
 			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
 			"          INPUT_JOB_NAME: ${{ github.job }}\n",
+		}
+		if traceID != "" {
+			lines = append(lines, fmt.Sprintf("          INPUT_TRACE_ID: %s\n", traceID))
 		}
 		if enableCustomTokens {
 			lines = append(lines, "          INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: 'true'\n")
@@ -132,9 +137,14 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 	// Dev/Release mode: use the setup action
 	lines := []string{
 		"      - name: Setup Scripts\n",
+		"        id: setup\n",
 		fmt.Sprintf("        uses: %s\n", setupActionRef),
 		"        with:\n",
 		fmt.Sprintf("          destination: %s\n", destination),
+		"          job-name: ${{ github.job }}\n",
+	}
+	if traceID != "" {
+		lines = append(lines, fmt.Sprintf("          trace-id: %s\n", traceID))
 	}
 	if enableCustomTokens {
 		lines = append(lines, "          safe-output-custom-tokens: 'true'\n")

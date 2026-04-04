@@ -65,6 +65,7 @@ jobs:
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
+      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -74,9 +75,11 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
       - name: Generate agentic run info
         id: generate_aw_info
         env:
@@ -262,6 +265,7 @@ jobs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       model: ${{ needs.activation.outputs.model }}
+      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -271,9 +275,12 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
+        id: setup
         uses: ./actions/setup
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -103,7 +104,9 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
 
 		// Publish assets job doesn't need project support
-		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+		// Publish assets job depends on the agent job; reuse its trace ID so all jobs share one OTLP trace
+		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, publishTraceID)...)
 	}
 
 	// Step 1: Checkout repository

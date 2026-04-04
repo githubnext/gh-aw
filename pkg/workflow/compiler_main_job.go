@@ -27,7 +27,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 		// Main job doesn't need project support (no safe outputs processed here)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+		// Pass activation's trace ID so all agent spans share the same OTLP trace
+		agentTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, agentTraceID)...)
 	}
 
 	// Set runtime paths that depend on RUNNER_TEMP via $GITHUB_ENV.
@@ -154,6 +156,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// It is exposed here so that the safe_outputs job can set GH_AW_EFFECTIVE_TOKENS and render
 		// the {effective_tokens_suffix} template expression in footer templates.
 		"effective_tokens": fmt.Sprintf("${{ steps.%s.outputs.effective_tokens }}", constants.ParseMCPGatewayStepID),
+		// setup-trace-id propagates the shared OTLP trace ID to downstream jobs (detection, safe_outputs, cache, etc.)
+		"setup-trace-id": "${{ steps.setup.outputs.trace-id }}",
 	}
 
 	// Note: secret_verification_result is now an output of the activation job (not the agent job).

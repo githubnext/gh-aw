@@ -39,7 +39,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	needsContentsRead := (c.actionMode.IsDev() || c.actionMode.IsScript()) && len(c.generateCheckoutActionsFolder(data)) > 0
 
 	// Pre-activation job doesn't need project support (no safe outputs processed here)
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+	// Pre-activation runs before activation so no trace ID is available yet
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, "")...)
 
 	// Determine permissions for pre-activation job
 	var perms *Permissions

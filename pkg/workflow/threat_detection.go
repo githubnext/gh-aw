@@ -657,7 +657,9 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
+		// Detection job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
+		detectionTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.AgentJobName)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, detectionTraceID)...)
 	}
 
 	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).
