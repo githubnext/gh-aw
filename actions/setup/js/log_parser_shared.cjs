@@ -1009,20 +1009,46 @@ function formatToolCallAsDetails(options) {
  */
 function formatResultPreview(resultText, maxLineLength = 80) {
   if (!resultText) return "";
-  const resultLines = resultText.split("\n").filter(l => l.trim());
-  if (resultLines.length === 0) return "";
 
-  const line1 = resultLines[0].substring(0, maxLineLength);
-  if (resultLines.length === 1) {
-    return `   └ ${line1}`;
+  // Scan line-by-line to avoid building a full array for large outputs.
+  // Normalize CRLF by stripping trailing \r from each line.
+  let firstLine = "";
+  let secondLine = "";
+  let nonEmptyLineCount = 0;
+  let start = 0;
+
+  while (start <= resultText.length) {
+    const newlineIndex = resultText.indexOf("\n", start);
+    const end = newlineIndex === -1 ? resultText.length : newlineIndex;
+    // Strip trailing \r to handle Windows CRLF line endings
+    const rawLine = resultText.substring(start, end).replace(/\r$/, "");
+
+    if (rawLine.trim()) {
+      nonEmptyLineCount += 1;
+      if (nonEmptyLineCount === 1) {
+        const truncated = rawLine.substring(0, maxLineLength);
+        firstLine = rawLine.length > maxLineLength ? truncated + "..." : truncated;
+      } else if (nonEmptyLineCount === 2) {
+        const truncated = rawLine.substring(0, maxLineLength);
+        secondLine = rawLine.length > maxLineLength ? truncated + "..." : truncated;
+      }
+    }
+
+    if (newlineIndex === -1) {
+      break;
+    }
+    start = newlineIndex + 1;
   }
 
-  const line2 = resultLines[1].substring(0, maxLineLength);
-  if (resultLines.length === 2) {
-    return `   ├ ${line1}\n   └ ${line2}`;
+  if (nonEmptyLineCount === 0) return "";
+  if (nonEmptyLineCount === 1) {
+    return `   └ ${firstLine}`;
+  }
+  if (nonEmptyLineCount === 2) {
+    return `   ├ ${firstLine}\n   └ ${secondLine}`;
   }
 
-  return `   ├ ${line1}\n   └ ${line2} (+ ${resultLines.length - 2} more)`;
+  return `   ├ ${firstLine}\n   └ ${secondLine} (+ ${nonEmptyLineCount - 2} more)`;
 }
 
 /**

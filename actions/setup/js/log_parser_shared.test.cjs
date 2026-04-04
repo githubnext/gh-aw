@@ -1971,6 +1971,68 @@ describe("log_parser_shared.cjs", () => {
     });
   });
 
+  describe("formatResultPreview", () => {
+    it("should return empty string for empty or falsy input", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatResultPreview("")).toBe("");
+      expect(formatResultPreview(null)).toBe("");
+      expect(formatResultPreview(undefined)).toBe("");
+      expect(formatResultPreview("   \n   \n   ")).toBe("");
+    });
+
+    it("should format single non-empty line with └", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatResultPreview("hello")).toBe("   └ hello");
+      expect(formatResultPreview("\nhello\n")).toBe("   └ hello");
+    });
+
+    it("should format exactly two non-empty lines with ├ and └", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatResultPreview("line1\nline2")).toBe("   ├ line1\n   └ line2");
+    });
+
+    it("should show (+ N more) for three or more non-empty lines", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatResultPreview("line1\nline2\nline3")).toBe("   ├ line1\n   └ line2 (+ 1 more)");
+      expect(formatResultPreview("line1\nline2\nline3\nline4\nline5")).toBe("   ├ line1\n   └ line2 (+ 3 more)");
+    });
+
+    it("should truncate lines exceeding maxLineLength and append ellipsis", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      const longLine = "a".repeat(100);
+      const result = formatResultPreview(longLine, 80);
+      expect(result).toBe(`   └ ${"a".repeat(80)}...`);
+    });
+
+    it("should not add ellipsis when line exactly fits maxLineLength", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      const exactLine = "a".repeat(80);
+      const result = formatResultPreview(exactLine, 80);
+      expect(result).toBe(`   └ ${"a".repeat(80)}`);
+      expect(result).not.toContain("...");
+    });
+
+    it("should handle Windows CRLF line endings without trailing \\r", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatResultPreview("line1\r\nline2\r\n")).toBe("   ├ line1\n   └ line2");
+      expect(formatResultPreview("only\r\n")).toBe("   └ only");
+    });
+
+    it("should skip blank lines when counting", async () => {
+      const { formatResultPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatResultPreview("\n\nfirst\n\nsecond\n\n")).toBe("   ├ first\n   └ second");
+      expect(formatResultPreview("\n\nonly\n\n")).toBe("   └ only");
+    });
+  });
+
   describe("formatSafeOutputsPreview", () => {
     it("should return empty string for empty content", async () => {
       const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
