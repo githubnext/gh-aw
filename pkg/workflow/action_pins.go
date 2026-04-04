@@ -144,25 +144,6 @@ func getActionPinsByRepo(repo string) []ActionPin {
 	return cachedActionPinsByRepo[repo]
 }
 
-// sortPinsByVersion sorts action pins by version in descending order (highest first).
-// This function returns a new sorted slice without modifying the input.
-// This is an immutable operation for better safety and clarity.
-func sortPinsByVersion(pins []ActionPin) []ActionPin {
-	// Create a copy to avoid mutating the input
-	result := make([]ActionPin, len(pins))
-	copy(result, pins)
-
-	sort.Slice(result, func(i, j int) bool {
-		// Strip 'v' prefix for comparison
-		v1 := strings.TrimPrefix(result[i].Version, "v")
-		v2 := strings.TrimPrefix(result[j].Version, "v")
-		// Return true if v1 > v2 to get descending order
-		return compareVersions(v1, v2) > 0
-	})
-
-	return result
-}
-
 // GetActionPin returns the pinned action reference for a given action repository
 // When multiple versions exist for the same repo, it returns the latest version by semver
 // If no pin is found, it returns an empty string
