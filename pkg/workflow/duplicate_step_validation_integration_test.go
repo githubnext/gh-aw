@@ -94,7 +94,6 @@ This workflow tests that duplicate checkout steps are properly deduplicated.
 // a top-level github-app with multiple cross-repo checkouts and tools.github does not
 // produce duplicate 'Generate GitHub App token' steps in the activation job.
 //
-// Regression test for: https://github.com/github/gh-aw/issues/<issue>
 // When multiple checkout entries all fall back to the top-level github-app,
 // each minting step previously received the same name, triggering the duplicate
 // step validation error ("compiler bug: duplicate step 'Generate GitHub App token'").
@@ -109,8 +108,7 @@ func TestDuplicateStepValidation_CheckoutPlusGitHubApp_Integration(t *testing.T)
 on:
   issues:
     types: [opened]
-engine:
-  id: claude
+engine: claude
 strict: false
 permissions:
   contents: read
