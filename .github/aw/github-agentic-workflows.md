@@ -199,8 +199,8 @@ The YAML frontmatter supports these fields:
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)
 - **`name:`** - Workflow name (string)
-- **`steps:`** - Custom workflow steps before AI execution (object). **Security Notice**: Custom steps run OUTSIDE the firewall sandbox with standard GitHub Actions security but NO network egress controls. Use only for deterministic data preparation, not agentic compute.
-- **`post-steps:`** - Custom workflow steps after AI execution (object). **Security Notice**: Post-execution steps run OUTSIDE the firewall sandbox. Use only for deterministic cleanup, artifact uploads, or notifications—not agentic compute or untrusted AI execution.
+- **`steps:`** - Custom workflow steps before AI execution (object). **Security Notice**: Custom steps run OUTSIDE the firewall sandbox with standard GitHub Actions security but NO network egress controls. Use only for deterministic data preparation, not agentic compute. **Secrets restriction**: Using `${{ secrets.* }}` expressions (other than `secrets.GITHUB_TOKEN`) in custom steps is an error in strict mode and a warning otherwise — move secret-dependent operations to a separate job outside the agent job.
+- **`post-steps:`** - Custom workflow steps after AI execution (object). **Security Notice**: Post-execution steps run OUTSIDE the firewall sandbox. Use only for deterministic cleanup, artifact uploads, or notifications—not agentic compute or untrusted AI execution. Same secrets restriction applies as for `steps:`.
 - **`environment:`** - Environment that the job references for protection rules (string or object)
 - **`container:`** - Container to run job steps in (string or object)
 - **`services:`** - Service containers that run alongside the job (object)
@@ -584,6 +584,12 @@ The YAML frontmatter supports these fields:
     ```
 
     **Hide Older Comments**: Set `hide-older-comments: true` to minimize previous comments from the same workflow before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`.
+
+    **Discussion Thread Replies**: Agents can include `reply_to_id` in their output to post a threaded reply within a GitHub Discussion (requires `discussions: true`):
+
+    ```json
+    {"type": "add_comment", "body": "Thread reply text", "reply_to_id": 12345}
+    ```
 
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
   - `create-pull-request:` - Safe pull request creation with git patches
