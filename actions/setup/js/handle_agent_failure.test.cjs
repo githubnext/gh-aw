@@ -465,17 +465,24 @@ describe("handle_agent_failure", () => {
     /** @type {string} */
     let stdioLogPath;
 
+    /** @type {string} */
+    let promptsDir;
+
     beforeEach(() => {
       vi.resetModules();
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-"));
       stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
     });
 
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.RUNNER_TEMP;
       // Clean up temp dir
       if (fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -605,6 +612,33 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(stdioLogPath, "ERROR: connection reset\n");
       const result = buildEngineFailureContext();
       expect(result).toContain("The AI engine");
+    });
+
+    it("returns dedicated cyber_policy_violation message when template exists", () => {
+      const templateContent = "**OpenAI Cyber Policy Violation**: The Codex engine was blocked by OpenAI's safety policy.";
+      fs.writeFileSync(path.join(promptsDir, "cyber_policy_violation.md"), templateContent);
+      fs.writeFileSync(stdioLogPath, "ERROR: cyber_policy_violation\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Cyber Policy Violation");
+      expect(result).not.toContain("Engine Failure");
+      expect(result).not.toContain("cyber_policy_violation");
+    });
+
+    it("falls back to generic message when cyber_policy_violation template is missing", () => {
+      // No template file written — promptsDir exists but template is absent
+      fs.writeFileSync(stdioLogPath, "ERROR: cyber_policy_violation\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("cyber_policy_violation");
+    });
+
+    it("returns dedicated message when cyber_policy_violation appears among multiple errors", () => {
+      const templateContent = "**OpenAI Cyber Policy Violation**: The Codex engine was blocked by OpenAI's safety policy.";
+      fs.writeFileSync(path.join(promptsDir, "cyber_policy_violation.md"), templateContent);
+      fs.writeFileSync(stdioLogPath, "ERROR: connection reset\nERROR: cyber_policy_violation\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Cyber Policy Violation");
+      expect(result).not.toContain("Engine Failure");
     });
   });
 });

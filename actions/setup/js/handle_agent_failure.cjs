@@ -757,6 +757,20 @@ function buildEngineFailureContext() {
     if (errorMessages.size > 0) {
       core.info(`Found ${errorMessages.size} engine error message(s) in agent-stdio.log`);
 
+      // Check for cyber_policy_violation specifically and return a dedicated message
+      const hasCyberPolicyViolation = Array.from(errorMessages).some(msg => msg.includes("cyber_policy_violation"));
+      if (hasCyberPolicyViolation) {
+        core.info("Detected cyber_policy_violation error — using dedicated context message");
+        const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/cyber_policy_violation.md`;
+        try {
+          const template = fs.readFileSync(templatePath, "utf8");
+          return "\n" + template;
+        } catch {
+          // Template not available — fall through to generic engine failure message
+          core.info(`cyber_policy_violation template not found at ${templatePath}, using generic message`);
+        }
+      }
+
       let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated before producing output.\n\n**Error details:**\n`;
       for (const message of errorMessages) {
         context += `- ${message}\n`;
