@@ -246,16 +246,20 @@ engine: codex
 
 				// Check for blank line after engine declaration by verifying the frontmatter
 				// contains the engine line followed immediately by a blank line.
+				// Extract the frontmatter section (between --- markers)
+				parts := strings.SplitN(result, "---", 3)
+				if len(parts) < 3 {
+					t.Errorf("addEngineToWorkflow() result has unexpected structure. Result:\n%s", result)
+					return
+				}
+				frontmatter := parts[1]
 				if tt.expectBlankLine {
-					// Extract the frontmatter section (between --- markers)
-					parts := strings.SplitN(result, "---", 3)
-					if len(parts) < 3 {
-						t.Errorf("addEngineToWorkflow() result has unexpected structure. Result:\n%s", result)
-						return
-					}
-					frontmatter := parts[1]
 					if !strings.Contains(frontmatter, "engine: "+tt.engine+"\n\n") {
 						t.Errorf("addEngineToWorkflow() frontmatter does not have blank line after engine declaration. Frontmatter:\n%s", frontmatter)
+					}
+				} else {
+					if strings.Contains(frontmatter, "engine: "+tt.engine+"\n\n") {
+						t.Errorf("addEngineToWorkflow() frontmatter unexpectedly has blank line after engine declaration. Frontmatter:\n%s", frontmatter)
 					}
 				}
 			}
