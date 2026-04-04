@@ -147,7 +147,13 @@ func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinitio
 	}
 
 	// Parse input definitions
-	return workflow.ParseInputDefinitions(inputsMap), nil
+	parsed := workflow.ParseInputDefinitions(inputsMap)
+
+	// Remove aw_context from the returned inputs - it is an internal input managed by the
+	// agentic workflow system and should never be surfaced to users for prompting or display.
+	delete(parsed, workflow.AwContextInputName)
+
+	return parsed, nil
 }
 
 // validateWorkflowInputs validates that required inputs are provided and checks for typos.

@@ -8,6 +8,10 @@ import (
 
 var awContextLog = logger.New("workflow:compiler_aw_context")
 
+// AwContextInputName is the name of the internal aw_context workflow_dispatch input.
+// It is managed internally by the agentic workflow system and should not be surfaced to users.
+const AwContextInputName = "aw_context"
+
 // awContextInputDescription is the description for the aw_context workflow_dispatch input.
 // It signals to users that this input is managed internally by the agentic workflow system.
 const awContextInputDescription = "Agent caller context (used internally by Agentic Workflows)."
@@ -27,7 +31,7 @@ func injectAwContextIntoOnYAML(onSection string) string {
 		return onSection
 	}
 	// Idempotency: skip if already injected
-	if strings.Contains(onSection, "aw_context:") {
+	if strings.Contains(onSection, AwContextInputName+":") {
 		awContextLog.Print("aw_context already injected, skipping")
 		return onSection
 	}
@@ -107,7 +111,7 @@ func buildAwContextInputLines(wdIndent int) []string {
 	awIndent := strings.Repeat(" ", wdIndent+4)   // under inputs:
 	propIndent := strings.Repeat(" ", wdIndent+6) // properties of aw_context
 	return []string{
-		awIndent + "aw_context:",
+		awIndent + AwContextInputName + ":",
 		propIndent + "default: \"\"",
 		propIndent + "description: " + awContextInputDescription,
 		propIndent + "required: false",

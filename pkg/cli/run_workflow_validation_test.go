@@ -200,6 +200,59 @@ jobs:
 			expectError: false,
 		},
 		{
+			name:         "workflow with aw_context input is filtered out",
+			markdownFile: "compiled-workflow.md",
+			lockFileYAML: `name: "Compiled Workflow"
+on:
+  workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: Agent caller context (used internally by Agentic Workflows).
+        required: false
+        type: string
+      task:
+        description: 'Task description'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
+			expectedCount: 1, // aw_context should be filtered out, only 'task' remains
+			expectedReq: map[string]bool{
+				"task": true,
+			},
+			expectError: false,
+		},
+		{
+			name:         "workflow with only aw_context input returns empty",
+			markdownFile: "aw-context-only.md",
+			lockFileYAML: `name: "AW Context Only"
+on:
+  workflow_dispatch:
+    inputs:
+      aw_context:
+        default: ""
+        description: Agent caller context (used internally by Agentic Workflows).
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test"
+`,
+			expectedCount: 0, // aw_context is the only input and should be filtered out
+			expectError:   false,
+		},
+		{
 			name:         "workflow with no inputs",
 			markdownFile: "simple-workflow.md",
 			lockFileYAML: `name: "Simple Workflow"
