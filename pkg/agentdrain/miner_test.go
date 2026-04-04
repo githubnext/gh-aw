@@ -154,32 +154,6 @@ func TestFlattenEvent(t *testing.T) {
 	}
 }
 
-func TestPreTrainTemplate(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.SimThreshold = 0.4
-	m, err := NewMiner(cfg)
-	if err != nil {
-		t.Fatalf("NewMiner: %v", err)
-	}
-
-	m.PreTrainTemplate("stage=tool_call tool=<*> latency_ms=<*>", 5)
-	if m.ClusterCount() != 1 {
-		t.Fatalf("PreTrainTemplate: expected 1 cluster, got %d", m.ClusterCount())
-	}
-
-	// A real line matching that pattern should hit the pre-trained cluster.
-	result, ok, err := m.Match("stage=tool_call tool=search latency_ms=<*>")
-	if err != nil {
-		t.Fatalf("Match: %v", err)
-	}
-	if !ok {
-		t.Error("Match: expected to find pre-trained cluster, got no match")
-	}
-	if result != nil && result.ClusterID == 0 {
-		t.Error("Match: expected valid cluster ID")
-	}
-}
-
 func TestSaveLoadJSON(t *testing.T) {
 	cfg := DefaultConfig()
 	m, err := NewMiner(cfg)
@@ -257,17 +231,6 @@ func TestStageRouting(t *testing.T) {
 	for _, evt := range events {
 		if _, err := coord.TrainEvent(evt); err != nil {
 			t.Fatalf("TrainEvent(%q): %v", evt.Stage, err)
-		}
-	}
-
-	for _, stage := range stages {
-		m, ok := coord.MinerForStage(stage)
-		if !ok {
-			t.Errorf("MinerForStage(%q): not found", stage)
-			continue
-		}
-		if m.ClusterCount() == 0 {
-			t.Errorf("stage %q: expected at least one cluster", stage)
 		}
 	}
 

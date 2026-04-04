@@ -290,10 +290,23 @@ If you encounter network access blocked errors, verify that required domains or 
 
 Use `gh aw logs --run-id <run-id>` to view firewall activity and identify blocked domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-blocking) for detailed troubleshooting steps and common solutions.
 
+To understand domain allow/block behavior in detail, use `gh aw audit <run-id>` — the **Firewall Analysis** section of the report lists every domain request, its allowed or denied status, request volume, and policy attribution. To compare firewall behavior between two runs and spot new or removed domain accesses, use `gh aw audit diff`:
+
+```bash
+# Inspect firewall activity for a single run
+gh aw audit 12345678
+
+# Compare firewall behavior between two runs
+gh aw audit diff 12345678 12345679
+```
+
+See [Audit Commands](/gh-aw/reference/audit/) for full documentation.
+
 ## Related Documentation
 
 - [Network Configuration Guide](/gh-aw/guides/network-configuration/) - Practical examples and common patterns
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Tools](/gh-aw/reference/tools/) - Tool-specific network access configuration
 - [Playwright](/gh-aw/reference/playwright/) - Browser automation and network requirements
+- [Audit Commands](/gh-aw/reference/audit/) - Firewall analysis and cross-run diff for understanding domain allow/block behavior
 - [Security Guide](/gh-aw/introduction/architecture/) - Comprehensive security guidance

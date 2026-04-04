@@ -357,13 +357,25 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
 
+### Audit (`gh aw audit`)
+
+A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool usage and network behavior, and generates a structured Markdown or JSON report. The report covers failure analysis, tool usage, MCP server status, firewall activity, token/cost metrics, behavior fingerprint, and safe-output summary. Accepts a numeric run ID or any GitHub Actions run or job URL. See [Audit Commands](/gh-aw/reference/audit/).
+
 ### Audit Diff (`gh aw audit diff`)
 
-A `gh aw audit` subcommand that compares firewall behavior across two workflow runs. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Outputs results in pretty, markdown, or JSON format. Useful for spotting regressions and behavioral drift between runs. See [CLI Reference](/gh-aw/setup/cli/#audit-diff).
+A `gh aw audit` subcommand that compares behavior across two workflow runs across firewall, MCP tool usage, and run metrics dimensions. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-audit-diff-run-id-1-run-id-2).
+
+### Behavior Fingerprint
+
+A multi-dimensional characterization of a single workflow run produced by `gh aw audit`. Captures the task domain, network access patterns, tool usage profile, token consumption, and agentic assessments in a compact summary. Two runs with the same fingerprint exhibit identical observable behavior; diverging fingerprints signal regressions or unexpected changes. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Cross-Run Audit Report (`gh aw logs --format`)
 
-A feature of `gh aw logs` that aggregates firewall data across multiple workflow runs to produce a cross-run security report. The report includes an executive summary, domain inventory, and per-run breakdown. Designed for security reviews, compliance checks, and feeding debugging or optimization agents. Outputs markdown by default (suitable for `$GITHUB_STEP_SUMMARY`), or pretty/JSON format. See [CLI Reference](/gh-aw/setup/cli/#logs).
+A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across multiple workflow runs to produce a security and performance report. Includes an executive summary, domain inventory, and per-run breakdown with anomaly detection. Designed for security reviews, compliance checks, and feeding optimization agents. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-logs-format-fmt).
+
+### Firewall Analysis
+
+A section of the `gh aw audit` report that breaks down all network requests made during a workflow run — showing allowed domains, denied domains, request volumes, and policy attribution. Derived from AWF firewall logs. Use `gh aw audit diff` to compare firewall behavior across runs and identify new or removed domain accesses. See [Audit Commands](/gh-aw/reference/audit/) and [Network Permissions](/gh-aw/reference/network/).
 
 ### Frontmatter Hash
 

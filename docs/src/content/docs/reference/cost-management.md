@@ -35,6 +35,8 @@ The agent job invokes an AI engine (Copilot, Claude, Codex, or a custom engine) 
 
 The `gh aw logs` command downloads workflow run data and surfaces per-run metrics including elapsed duration, token usage, and estimated inference cost. Use it to see exactly what your workflows are consuming before deciding what to optimize.
 
+For a deep dive into a single run's token usage, tool calls, and inference spend, use `gh aw audit <run-id>`. The **Metrics** and **Performance Metrics** sections of the audit report show token counts, effective tokens, turn counts, and estimated cost in one place — useful for diagnosing why a specific run was expensive. For cost trends across multiple runs, use `gh aw logs --format markdown [workflow]` to generate a cross-run report with metrics trends and anomaly detection.
+
 ### View recent run durations
 
 ```bash
