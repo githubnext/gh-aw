@@ -74,13 +74,14 @@ function buildAttr(key, value) {
 
 /**
  * @typedef {Object} OTLPSpanOptions
- * @property {string} traceId        - 32-char hex trace ID
- * @property {string} spanId         - 16-char hex span ID
- * @property {string} spanName       - Human-readable span name
- * @property {number} startMs        - Span start time (ms since epoch)
- * @property {number} endMs          - Span end time (ms since epoch)
- * @property {string} serviceName    - Value for the service.name resource attribute
- * @property {string} [scopeVersion] - gh-aw version string (e.g. from GH_AW_INFO_VERSION)
+ * @property {string} traceId           - 32-char hex trace ID
+ * @property {string} spanId            - 16-char hex span ID
+ * @property {string} [parentSpanId]    - 16-char hex parent span ID; omitted for root spans
+ * @property {string} spanName          - Human-readable span name
+ * @property {number} startMs           - Span start time (ms since epoch)
+ * @property {number} endMs             - Span end time (ms since epoch)
+ * @property {string} serviceName       - Value for the service.name resource attribute
+ * @property {string} [scopeVersion]    - gh-aw version string (e.g. from GH_AW_INFO_VERSION)
  * @property {Array<{key: string, value: object}>} attributes - Span attributes
  */
 
@@ -90,7 +91,7 @@ function buildAttr(key, value) {
  * @param {OTLPSpanOptions} opts
  * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
-function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes }) {
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes }) {
   return {
     resourceSpans: [
       {
@@ -104,6 +105,7 @@ function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceNa
               {
                 traceId,
                 spanId,
+                ...(parentSpanId ? { parentSpanId } : {}),
                 name: spanName,
                 kind: 2, // SPAN_KIND_SERVER
                 startTimeUnixNano: toNanoString(startMs),
@@ -220,6 +222,21 @@ function isValidTraceId(id) {
 }
 
 /**
+ * Regular expression that matches a valid OTLP span ID: 16 lowercase hex characters.
+ * @type {RegExp}
+ */
+const SPAN_ID_RE = /^[0-9a-f]{16}$/;
+
+/**
+ * Validate that a string is a well-formed OTLP span ID (16 lowercase hex chars).
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isValidSpanId(id) {
+  return SPAN_ID_RE.test(id);
+}
+
+/**
  * @typedef {Object} SendJobSetupSpanOptions
  * @property {number} [startMs]  - Override for the span start time (ms).  Defaults to `Date.now()`.
  * @property {string} [traceId] - Existing trace ID to reuse for cross-job correlation.
@@ -233,9 +250,10 @@ function isValidTraceId(id) {
  * Send a `gh-aw.job.setup` span to the configured OTLP endpoint.
  *
  * This is designed to be called from `actions/setup/index.js` immediately after
- * the setup script completes.  It always returns the trace ID so callers can
- * expose it as an action output for cross-job correlation — even when
- * `OTEL_EXPORTER_OTLP_ENDPOINT` is not set (no span is sent in that case).
+ * the setup script completes.  It always returns `{ traceId, spanId }` so callers
+ * can expose the trace ID as an action output and write both values to `$GITHUB_ENV`
+ * for downstream step correlation — even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not
+ * set (no span is sent in that case).
  * Errors are swallowed so the workflow is never broken by tracing failures.
  *
  * Environment variables consumed:
@@ -250,7 +268,7 @@ function isValidTraceId(id) {
  * - `GITHUB_REPOSITORY`            – `owner/repo` string
  *
  * @param {SendJobSetupSpanOptions} [options]
- * @returns {Promise<string>} The trace ID used for the span (generated or passed in).
+ * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
  */
 async function sendJobSetupSpan(options = {}) {
   // Resolve the trace ID before the early-return so it is always available as
@@ -268,9 +286,14 @@ async function sendJobSetupSpan(options = {}) {
 
   const traceId = optionsTraceId || inputTraceId || generateTraceId();
 
+  // Always generate a span ID so it can be written to GITHUB_ENV as
+  // GH_AW_PARENT_SPAN_ID even when OTLP is not configured, allowing downstream
+  // scripts to establish the correct parent span context.
+  const spanId = generateSpanId();
+
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   if (!endpoint) {
-    return traceId;
+    return { traceId, spanId };
   }
 
   const startMs = options.startMs ?? Date.now();
@@ -292,7 +315,7 @@ async function sendJobSetupSpan(options = {}) {
 
   const payload = buildOTLPPayload({
     traceId,
-    spanId: generateSpanId(),
+    spanId,
     spanName: "gh-aw.job.setup",
     startMs,
     endMs,
@@ -302,7 +325,7 @@ async function sendJobSetupSpan(options = {}) {
   });
 
   await sendOTLPSpan(endpoint, payload);
-  return traceId;
+  return { traceId, spanId };
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +363,10 @@ function readJSONIfExists(filePath) {
  * - `OTEL_EXPORTER_OTLP_ENDPOINT`  – collector endpoint
  * - `OTEL_SERVICE_NAME`             – service name (defaults to "gh-aw")
  * - `GH_AW_EFFECTIVE_TOKENS`        – total effective token count for the run
+ * - `GH_AW_TRACE_ID`                – trace ID written to GITHUB_ENV by the setup step;
+ *                                     enables 1-trace-per-run when present
+ * - `GH_AW_PARENT_SPAN_ID`          – setup span ID written to GITHUB_ENV by the setup step;
+ *                                     links this span as a child of the job setup span
  * - `GITHUB_RUN_ID`                 – GitHub Actions run ID
  * - `GITHUB_ACTOR`                  – GitHub Actions actor
  * - `GITHUB_REPOSITORY`             – `owner/repo` string
@@ -370,10 +397,17 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const version = awInfo.agent_version || awInfo.version || process.env.GH_AW_INFO_VERSION || "unknown";
 
-  // Use the workflow_call_id from aw_info as the trace ID when available so that
-  // conclusion spans can be correlated with the activation span.
+  // Prefer GH_AW_TRACE_ID (written to GITHUB_ENV by this job's setup step) so
+  // all spans in the same job share one trace.  Fall back to the workflow_call_id
+  // from aw_info for cross-job correlation, then generate a fresh ID.
+  const envTraceId = (process.env.GH_AW_TRACE_ID || "").trim().toLowerCase();
   const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
-  const traceId = awTraceId && isValidTraceId(awTraceId) ? awTraceId : generateTraceId();
+  const traceId = (isValidTraceId(envTraceId) ? envTraceId : null) || (awTraceId && isValidTraceId(awTraceId) ? awTraceId : null) || generateTraceId();
+
+  // Use GH_AW_PARENT_SPAN_ID (written to GITHUB_ENV by this job's setup step) so
+  // conclusion spans are linked as children of the setup span (1 parent span per job).
+  const rawParentSpanId = (process.env.GH_AW_PARENT_SPAN_ID || "").trim().toLowerCase();
+  const parentSpanId = isValidSpanId(rawParentSpanId) ? rawParentSpanId : "";
 
   const workflowName = awInfo.workflow_name || "";
   const engineId = awInfo.engine_id || "";
@@ -393,6 +427,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const payload = buildOTLPPayload({
     traceId,
     spanId: generateSpanId(),
+    ...(parentSpanId ? { parentSpanId } : {}),
     spanName,
     startMs,
     endMs: Date.now(),
@@ -406,6 +441,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
 module.exports = {
   isValidTraceId,
+  isValidSpanId,
   generateTraceId,
   generateSpanId,
   toNanoString,

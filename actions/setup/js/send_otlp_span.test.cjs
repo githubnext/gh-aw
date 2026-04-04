@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Module import
 // ---------------------------------------------------------------------------
 
-const { isValidTraceId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan } = await import("./send_otlp_span.cjs");
+const { isValidTraceId, isValidSpanId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan } = await import("./send_otlp_span.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -31,6 +31,34 @@ describe("isValidTraceId", () => {
 
   it("rejects non-hex characters", () => {
     expect(isValidTraceId("z".repeat(32))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isValidSpanId
+// ---------------------------------------------------------------------------
+
+describe("isValidSpanId", () => {
+  it("accepts a valid 16-character lowercase hex span ID", () => {
+    expect(isValidSpanId("b".repeat(16))).toBe(true);
+    expect(isValidSpanId("0123456789abcdef")).toBe(true);
+  });
+
+  it("rejects uppercase hex characters", () => {
+    expect(isValidSpanId("B".repeat(16))).toBe(false);
+  });
+
+  it("rejects strings that are too short or too long", () => {
+    expect(isValidSpanId("b".repeat(15))).toBe(false);
+    expect(isValidSpanId("b".repeat(17))).toBe(false);
+  });
+
+  it("rejects empty string", () => {
+    expect(isValidSpanId("")).toBe(false);
+  });
+
+  it("rejects non-hex characters", () => {
+    expect(isValidSpanId("z".repeat(16))).toBe(false);
   });
 });
 
@@ -166,6 +194,35 @@ describe("buildOTLPPayload", () => {
       attributes: [],
     });
     expect(payload.resourceSpans[0].scopeSpans[0].scope.version).toBe("unknown");
+  });
+
+  it("includes parentSpanId in span when provided", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      parentSpanId: "c".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.parentSpanId).toBe("c".repeat(16));
+  });
+
+  it("omits parentSpanId from span when not provided", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.parentSpanId).toBeUndefined();
   });
 });
 
@@ -383,22 +440,23 @@ describe("sendJobSetupSpan", () => {
     return undefined;
   }
 
-  it("returns a trace ID even when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
-    const traceId = await sendJobSetupSpan();
+  it("returns a trace ID and span ID even when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
+    const { traceId, spanId } = await sendJobSetupSpan();
     expect(traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(spanId).toMatch(/^[0-9a-f]{16}$/);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("returns the same trace ID when called with INPUT_TRACE_ID and no endpoint", async () => {
     process.env.INPUT_TRACE_ID = "a".repeat(32);
-    const traceId = await sendJobSetupSpan();
+    const { traceId } = await sendJobSetupSpan();
     expect(traceId).toBe("a".repeat(32));
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("generates a new trace ID when INPUT_TRACE_ID is invalid", async () => {
     process.env.INPUT_TRACE_ID = "not-a-valid-trace-id";
-    const traceId = await sendJobSetupSpan();
+    const { traceId } = await sendJobSetupSpan();
     expect(traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(traceId).not.toBe("not-a-valid-trace-id");
   });
@@ -406,17 +464,17 @@ describe("sendJobSetupSpan", () => {
   it("normalises uppercase INPUT_TRACE_ID to lowercase and accepts it", async () => {
     // Trace IDs pasted from external tools may be uppercase; we normalise them.
     process.env.INPUT_TRACE_ID = "A".repeat(32);
-    const traceId = await sendJobSetupSpan();
+    const { traceId } = await sendJobSetupSpan();
     expect(traceId).toBe("a".repeat(32));
   });
 
   it("rejects an invalid options.traceId and generates a new trace ID", async () => {
-    const returned = await sendJobSetupSpan({ traceId: "too-short" });
-    expect(returned).toMatch(/^[0-9a-f]{32}$/);
-    expect(returned).not.toBe("too-short");
+    const { traceId } = await sendJobSetupSpan({ traceId: "too-short" });
+    expect(traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(traceId).not.toBe("too-short");
   });
 
-  it("sends a span when endpoint is configured and returns the trace ID", async () => {
+  it("sends a span when endpoint is configured and returns the trace ID and span ID", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -428,9 +486,10 @@ describe("sendJobSetupSpan", () => {
     process.env.GITHUB_ACTOR = "octocat";
     process.env.GITHUB_REPOSITORY = "owner/repo";
 
-    const traceId = await sendJobSetupSpan();
+    const { traceId, spanId } = await sendJobSetupSpan();
 
     expect(traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(spanId).toMatch(/^[0-9a-f]{16}$/);
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe("https://traces.example.com/v1/traces");
@@ -439,9 +498,9 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(init.body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.name).toBe("gh-aw.job.setup");
-    // Span traceId must match the returned value (cross-job correlation)
+    // Span traceId and spanId must match the returned values
     expect(span.traceId).toBe(traceId);
-    expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+    expect(span.spanId).toBe(spanId);
 
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
     expect(attrs["gh-aw.job.name"]).toBe("agent");
@@ -459,9 +518,9 @@ describe("sendJobSetupSpan", () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
     const correlationTraceId = "b".repeat(32);
 
-    const returned = await sendJobSetupSpan({ traceId: correlationTraceId });
+    const { traceId } = await sendJobSetupSpan({ traceId: correlationTraceId });
 
-    expect(returned).toBe(correlationTraceId);
+    expect(traceId).toBe(correlationTraceId);
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].spans[0].traceId).toBe(correlationTraceId);
   });
@@ -473,9 +532,9 @@ describe("sendJobSetupSpan", () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
     process.env.INPUT_TRACE_ID = "c".repeat(32);
 
-    const returned = await sendJobSetupSpan();
+    const { traceId } = await sendJobSetupSpan();
 
-    expect(returned).toBe("c".repeat(32));
+    expect(traceId).toBe("c".repeat(32));
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].spans[0].traceId).toBe("c".repeat(32));
   });
@@ -487,9 +546,9 @@ describe("sendJobSetupSpan", () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
     process.env.INPUT_TRACE_ID = "d".repeat(32);
 
-    const returned = await sendJobSetupSpan({ traceId: "e".repeat(32) });
+    const { traceId } = await sendJobSetupSpan({ traceId: "e".repeat(32) });
 
-    expect(returned).toBe("e".repeat(32));
+    expect(traceId).toBe("e".repeat(32));
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].spans[0].traceId).toBe("e".repeat(32));
   });
@@ -543,7 +602,7 @@ describe("sendJobSetupSpan", () => {
 describe("sendJobConclusionSpan", () => {
   /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
-  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GH_AW_TRACE_ID", "GH_AW_PARENT_SPAN_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -629,5 +688,61 @@ describe("sendJobConclusionSpan", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.resourceSpans[0].scopeSpans[0].scope.version).toBe("v2.0.0");
+  });
+
+  it("uses GH_AW_TRACE_ID from env as trace ID (1 trace per run)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_TRACE_ID = "f".repeat(32);
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.traceId).toBe("f".repeat(32));
+  });
+
+  it("uses GH_AW_PARENT_SPAN_ID as parentSpanId (1 parent span per job)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    const parentSpanId = "abcdef1234567890";
+    process.env.GH_AW_PARENT_SPAN_ID = parentSpanId;
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.parentSpanId).toBe(parentSpanId);
+  });
+
+  it("omits parentSpanId when GH_AW_PARENT_SPAN_ID is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.parentSpanId).toBeUndefined();
+  });
+
+  it("normalises uppercase GH_AW_TRACE_ID to lowercase", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_TRACE_ID = "F".repeat(32); // uppercase — should be normalised
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.traceId).toBe("f".repeat(32));
   });
 });

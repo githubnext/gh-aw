@@ -39,13 +39,24 @@ if (result.status !== 0) {
 (async () => {
   try {
     const { appendFileSync } = require("fs");
-    const { isValidTraceId, sendJobSetupSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));
-    const traceId = await sendJobSetupSpan({ startMs: setupStartMs });
-    // Always expose the trace ID as an action output so downstream jobs can
-    // reference it via `steps.<id>.outputs.trace-id` and pass it to their own
-    // setup steps to correlate all job spans under a single trace.
+    const { isValidTraceId, isValidSpanId, sendJobSetupSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));
+    const { traceId, spanId } = await sendJobSetupSpan({ startMs: setupStartMs });
+    // Expose the trace ID as an action output so downstream jobs can reference it
+    // via `steps.<id>.outputs.trace-id` for cross-job trace correlation.
     if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
       appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
+    }
+    // Write both the trace ID and setup span ID to GITHUB_ENV so all subsequent
+    // steps in this job automatically inherit the parent trace context:
+    //   GH_AW_TRACE_ID       – shared trace ID (1 trace per run)
+    //   GH_AW_PARENT_SPAN_ID – setup span ID used as parent (1 parent span per job)
+    if (process.env.GITHUB_ENV) {
+      if (isValidTraceId(traceId)) {
+        appendFileSync(process.env.GITHUB_ENV, `GH_AW_TRACE_ID=${traceId}\n`);
+      }
+      if (isValidSpanId(spanId)) {
+        appendFileSync(process.env.GITHUB_ENV, `GH_AW_PARENT_SPAN_ID=${spanId}\n`);
+      }
     }
   } catch {
     // Non-fatal: silently ignore any OTLP export or output-write errors.
