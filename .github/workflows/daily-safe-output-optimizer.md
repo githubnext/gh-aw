@@ -226,7 +226,7 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
 Analysis of the last 24 hours of workflow runs identified **[N] errors** where agents incorrectly used the `[tool_name]` safe output tool. The workflow prompts appear correct, indicating the tool description needs improvement.
 
 <details>
-<summary><b>🔍 Error Analysis Details</b></summary>
+<summary>🔍 Error Analysis Details</summary>
 
 ### Error Analysis
 
@@ -267,7 +267,7 @@ Analysis of the last 24 hours of workflow runs identified **[N] errors** where a
 ### Current Tool Description
 
 <details>
-<summary><b>Current description from safe_outputs_tools.json</b></summary>
+<summary>Current description from safe_outputs_tools.json</summary>
 
 ```json
 [Include relevant excerpt from pkg/workflow/js/safe_outputs_tools.json]

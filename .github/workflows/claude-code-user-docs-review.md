@@ -283,7 +283,7 @@ I reviewed this documentation as a developer who:
 ### 🚫 Critical Blockers (Score: X/10)
 
 <details>
-<summary><b>Blocker 1: [Title]</b></summary>
+<summary>Blocker 1: [Title]</summary>
 
 **Impact:** Cannot proceed with adoption
 
@@ -302,7 +302,7 @@ I reviewed this documentation as a developer who:
 ### ⚠️ Major Obstacles (Score: X/10)
 
 <details>
-<summary><b>Obstacle 1: [Title]</b></summary>
+<summary>Obstacle 1: [Title]</summary>
 
 **Impact:** Significant friction in getting started
 
@@ -469,7 +469,7 @@ Engine: custom - [X] workflows found
 ## Appendix: Files Reviewed
 
 <details>
-<summary><b>Complete List of Documentation Files Analyzed</b></summary>
+<summary>Complete List of Documentation Files Analyzed</summary>
 
 - `README.md`
 - `docs/src/content/docs/setup/quick-start.md`

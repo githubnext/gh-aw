@@ -418,7 +418,7 @@ Include the charts in your daily news discussion report with this structure:
 ### 📈 Trend Analysis
 
 <details>
-<summary><b>Issues & Pull Requests Activity</b></summary>
+<summary>Issues & Pull Requests Activity</summary>
 
 ![Issues and PR Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
 
@@ -427,7 +427,7 @@ Include the charts in your daily news discussion report with this structure:
 </details>
 
 <details>
-<summary><b>Commit Activity & Contributors</b></summary>
+<summary>Commit Activity & Contributors</summary>
 
 ![Commit Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
 

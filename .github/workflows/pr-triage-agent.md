@@ -277,7 +277,7 @@ For each triaged PR, add a comment with the triage results:
 
 Create a comprehensive triage report as a GitHub Issue:
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 **Report Structure:**
 
@@ -297,7 +297,7 @@ Create a comprehensive triage report as a GitHub Issue:
 ### Triage Statistics
 
 <details>
-<summary><b>By Category</b></summary>
+<summary>By Category</summary>
 
 - Bug: {bug_count}
 - Feature: {feature_count}
@@ -310,7 +310,7 @@ Create a comprehensive triage report as a GitHub Issue:
 </details>
 
 <details>
-<summary><b>By Risk Level</b></summary>
+<summary>By Risk Level</summary>
 
 - High Risk: {high_risk_count}
 - Medium Risk: {medium_risk_count}
@@ -319,7 +319,7 @@ Create a comprehensive triage report as a GitHub Issue:
 </details>
 
 <details>
-<summary><b>By Priority</b></summary>
+<summary>By Priority</summary>
 
 - High Priority (70-100): {high_priority_count}
 - Medium Priority (40-69): {medium_priority_count}

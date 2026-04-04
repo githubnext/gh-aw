@@ -5,11 +5,6 @@ import (
 	"slices"
 )
 
-// Contains checks if a string slice contains a specific string.
-func Contains(slice []string, item string) bool {
-	return slices.Contains(slice, item)
-}
-
 // Filter returns a new slice containing only elements that match the predicate.
 // This is a pure function that does not modify the input slice.
 func Filter[T any](slice []T, predicate func(T) bool) []T {

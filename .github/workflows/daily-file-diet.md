@@ -123,7 +123,7 @@ If refactoring is needed (file ≥ 800 lines), create an issue with this structu
 
 1. **Header Levels**: Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy. The issue title serves as h1, so start section headers at h3.
 
-2. **Progressive Disclosure**: Wrap detailed file analysis, code snippets, and lengthy explanations in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce overwhelm. This keeps the most important information immediately visible while allowing readers to expand sections as needed.
+2. **Progressive Disclosure**: Wrap detailed file analysis, code snippets, and lengthy explanations in `<details><summary>Section Name</summary>` tags to improve readability and reduce overwhelm. This keeps the most important information immediately visible while allowing readers to expand sections as needed.
 
 3. **Issue Structure**: Follow this pattern for optimal clarity:
    - **Brief summary** of the file size issue (always visible)
@@ -148,7 +148,7 @@ The file `[FILE_PATH]` has grown to [LINE_COUNT] lines, making it difficult to m
 - **Complexity**: [Brief assessment from Serena analysis]
 
 <details>
-<summary><b>Full File Analysis</b></summary>
+<summary>Full File Analysis</summary>
 
 #### Detailed Breakdown
 
@@ -193,7 +193,7 @@ Consider introducing interfaces to reduce coupling:
 - [Interface suggestions]
 
 <details>
-<summary><b>Test Coverage Plan</b></summary>
+<summary>Test Coverage Plan</summary>
 
 Add comprehensive tests for each new file:
 
@@ -232,7 +232,7 @@ Add comprehensive tests for each new file:
 - [ ] Build succeeds (`make build`)
 
 <details>
-<summary><b>Additional Context</b></summary>
+<summary>Additional Context</summary>
 
 - **Repository Guidelines**: Follow patterns in `.github/agents/developer.instructions.agent.md`
 - **Code Organization**: Prefer many small files grouped by functionality

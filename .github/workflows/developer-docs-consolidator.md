@@ -385,7 +385,7 @@ Create a comprehensive report of what was done:
 Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `scratchpad/dev.md`.
 
 <details>
-<summary><b>Full Consolidation Report</b></summary>
+<summary>Full Consolidation Report</summary>
 
 ## Files Analyzed
 

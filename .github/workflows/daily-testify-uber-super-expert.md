@@ -202,7 +202,7 @@ The test file `[FILE_PATH]` has been selected for quality improvement by the Tes
 [List 2-3 things the test file does well]
 
 <details>
-<summary><b>🎯 Areas for Improvement</b></summary>
+<summary>🎯 Areas for Improvement</summary>
 
 ### Areas for Improvement 🎯
 
@@ -339,7 +339,7 @@ require.NoError(t, err, "setup should succeed without errors")
 </details>
 
 <details>
-<summary><b>📋 Implementation Guidelines</b></summary>
+<summary>📋 Implementation Guidelines</summary>
 
 #### Priority Order
 1. **High**: Add missing tests for critical functions

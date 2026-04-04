@@ -224,7 +224,7 @@ Create a comprehensive discussion with your findings.
 - Overall impact and priority of recommendations]
 
 <details>
-<summary><b>Full Analysis Report</b></summary>
+<summary>Full Analysis Report</summary>
 
 ## Duplicated Type Definitions
 

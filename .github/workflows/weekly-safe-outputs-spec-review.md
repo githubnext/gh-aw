@@ -192,7 +192,7 @@ Updates the Safe Outputs conformance checker script to align with recent specifi
 [List git commits or specific changes reviewed]
 
 <details>
-<summary><b>📋 Script Updates & Testing Details</b></summary>
+<summary>📋 Script Updates & Testing Details</summary>
 
 ### Script Updates
 

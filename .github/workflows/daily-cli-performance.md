@@ -407,7 +407,7 @@ If regressions are detected, open issues with detailed information.
 **Change**: [change_percent]% slower
 
 <details>
-<summary><b>📈 Detailed Performance Metrics</b></summary>
+<summary>📈 Detailed Performance Metrics</summary>
 
 #### Performance Comparison
 
@@ -431,7 +431,7 @@ If regressions are detected, open issues with detailed information.
 4. Compare with previous benchmark results: `benchstat`
 
 <details>
-<summary><b>📋 Additional Context</b></summary>
+<summary>📋 Additional Context</summary>
 
 - **Run ID**: ${{ github.run_id }}
 - **Date**: [date]
@@ -558,7 +558,7 @@ def main():
         
         # Detailed benchmark results (in details tag)
         f.write("<details>\n")
-        f.write("<summary><b>📈 Detailed Benchmark Results</b></summary>\n\n")
+        f.write("<summary>📈 Detailed Benchmark Results</summary>\n\n")
         
         for name, result in sorted(analysis['benchmarks'].items()):
             metrics = current['benchmarks'][name]
@@ -585,7 +585,7 @@ def main():
         
         # Historical comparisons (in details tag)
         f.write("<details>\n")
-        f.write("<summary><b>📉 Historical Comparisons</b></summary>\n\n")
+        f.write("<summary>📉 Historical Comparisons</summary>\n\n")
         f.write("### Trend Analysis\n\n")
         
         # Group by status

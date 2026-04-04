@@ -94,7 +94,7 @@ function generateDifcFilteredSection(filteredEvents) {
 
   let section = "\n\n> [!NOTE]\n";
   section += `> <details>\n`;
-  section += `> <summary><b>🔒 Integrity filter blocked ${count} ${itemWord}</b></summary>\n`;
+  section += `> <summary>🔒 Integrity filter blocked ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
   section += `> The following ${itemWord} were blocked because they don't meet the GitHub integrity level.\n`;
   section += `>\n`;

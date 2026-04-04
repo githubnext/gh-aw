@@ -5,6 +5,9 @@ package cli
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAwInfoStepsFieldParsing(t *testing.T) {
@@ -12,7 +15,6 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 		name          string
 		jsonContent   string
 		expectedSteps AwInfoSteps
-		description   string
 	}{
 		{
 			name: "firewall enabled with squid",
@@ -31,7 +33,6 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 			expectedSteps: AwInfoSteps{
 				Firewall: "squid",
 			},
-			description: "Should parse steps.firewall as 'squid' when firewall is enabled",
 		},
 		{
 			name: "firewall disabled (empty string)",
@@ -50,7 +51,6 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 			expectedSteps: AwInfoSteps{
 				Firewall: "",
 			},
-			description: "Should parse steps.firewall as empty string when firewall is disabled",
 		},
 		{
 			name: "no steps field (backward compatibility)",
@@ -66,7 +66,6 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 			expectedSteps: AwInfoSteps{
 				Firewall: "",
 			},
-			description: "Should handle missing steps field (backward compatibility)",
 		},
 	}
 
@@ -74,22 +73,15 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var info AwInfo
 			err := json.Unmarshal([]byte(tt.jsonContent), &info)
-			if err != nil {
-				t.Fatalf("Failed to unmarshal JSON: %v", err)
-			}
+			require.NoError(t, err, "Failed to unmarshal JSON")
 
-			if info.Steps.Firewall != tt.expectedSteps.Firewall {
-				t.Errorf("%s\nExpected firewall: '%s', got: '%s'",
-					tt.description, tt.expectedSteps.Firewall, info.Steps.Firewall)
-			}
-
-			t.Logf("✓ %s", tt.description)
+			assert.Equal(t, tt.expectedSteps.Firewall, info.Steps.Firewall, tt.name)
 		})
 	}
 }
 
 func TestAwInfoStepsMarshaling(t *testing.T) {
-	info := AwInfo{
+	original := AwInfo{
 		EngineID:     "copilot",
 		EngineName:   "Copilot",
 		Model:        "gpt-4",
@@ -102,31 +94,47 @@ func TestAwInfoStepsMarshaling(t *testing.T) {
 		CreatedAt: "2025-01-27T15:00:00Z",
 	}
 
-	jsonData, err := json.Marshal(info)
-	if err != nil {
-		t.Fatalf("Failed to marshal AwInfo: %v", err)
+	jsonData, err := json.Marshal(original)
+	require.NoError(t, err, "Failed to marshal AwInfo")
+
+	var roundTripped AwInfo
+	err = json.Unmarshal(jsonData, &roundTripped)
+	require.NoError(t, err, "Failed to unmarshal marshaled JSON")
+
+	assert.Equal(t, original.Steps.Firewall, roundTripped.Steps.Firewall, "Steps.Firewall should survive JSON round-trip")
+}
+
+func TestGetFirewallVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     AwInfo
+		expected string
+	}{
+		{
+			name:     "prefer new awf_version field",
+			info:     AwInfo{AwfVersion: "1.2.3", FirewallVersion: "0.9.0"},
+			expected: "1.2.3",
+		},
+		{
+			name:     "fallback to firewall_version when awf_version is empty",
+			info:     AwInfo{AwfVersion: "", FirewallVersion: "0.9.0"},
+			expected: "0.9.0",
+		},
+		{
+			name:     "empty when both fields are empty",
+			info:     AwInfo{AwfVersion: "", FirewallVersion: ""},
+			expected: "",
+		},
+		{
+			name:     "only new awf_version field set",
+			info:     AwInfo{AwfVersion: "2.0.0"},
+			expected: "2.0.0",
+		},
 	}
 
-	// Verify that the JSON contains the steps field
-	var result map[string]any
-	err = json.Unmarshal(jsonData, &result)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal marshaled JSON: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.info.GetFirewallVersion(), tt.name)
+		})
 	}
-
-	steps, ok := result["steps"].(map[string]any)
-	if !ok {
-		t.Fatal("Expected 'steps' field in marshaled JSON")
-	}
-
-	firewall, ok := steps["firewall"].(string)
-	if !ok {
-		t.Fatal("Expected 'firewall' field in steps object")
-	}
-
-	if firewall != "squid" {
-		t.Errorf("Expected firewall to be 'squid', got: '%s'", firewall)
-	}
-
-	t.Log("✓ AwInfo marshals correctly with steps field")
 }

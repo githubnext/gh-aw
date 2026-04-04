@@ -67,10 +67,40 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 // generateWorkflowHeader generates the YAML header section including comments
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
-func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string) {
+// The gh-aw-metadata line is placed first for easy machine parsing.
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, secrets []string, actions []string) {
 	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
 		return
+	}
+
+	// Add lock metadata as the very first line for easy machine parsing.
+	// Single-line JSON format to minimize merge conflicts.
+	if frontmatterHash != "" {
+		agentInfo := AgentMetadataInfo{}
+		// Agent ID: prefer EngineConfig.ID, fall back to legacy AI field
+		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+			agentInfo.AgentID = data.EngineConfig.ID
+		} else if data.AI != "" {
+			agentInfo.AgentID = data.AI
+		}
+		// Agent model: only include if statically configured
+		if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+			agentInfo.AgentModel = data.EngineConfig.Model
+		}
+		// Detection agent info: only if threat detection has its own engine config
+		if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
+			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
+		}
+		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
+		metadataJSON, err := metadata.ToJSON()
+		if err != nil {
+			// Fallback to legacy format if JSON serialization fails
+			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+		} else {
+			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
+		}
 	}
 
 	// Add workflow header with logo and instructions
@@ -141,33 +171,21 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("# inlined-imports: true\n")
 	}
 
-	// Add lock metadata (schema version + frontmatter hash + stop time) as JSON
-	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
-	if frontmatterHash != "" {
+	// Add list of secrets referenced in the workflow
+	if len(secrets) > 0 {
 		yaml.WriteString("#\n")
-		agentInfo := AgentMetadataInfo{}
-		// Agent ID: prefer EngineConfig.ID, fall back to legacy AI field
-		if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-			agentInfo.AgentID = data.EngineConfig.ID
-		} else if data.AI != "" {
-			agentInfo.AgentID = data.AI
+		yaml.WriteString("# Secrets used:\n")
+		for _, s := range secrets {
+			fmt.Fprintf(yaml, "#   - %s\n", s)
 		}
-		// Agent model: only include if statically configured
-		if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-			agentInfo.AgentModel = data.EngineConfig.Model
-		}
-		// Detection agent info: only if threat detection has its own engine config
-		if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
-			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
-			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
-		}
-		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
-		metadataJSON, err := metadata.ToJSON()
-		if err != nil {
-			// Fallback to legacy format if JSON serialization fails
-			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
-		} else {
-			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
+	}
+
+	// Add list of external custom actions referenced in the workflow
+	if len(actions) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Custom actions used:\n")
+		for _, a := range actions {
+			fmt.Fprintf(yaml, "#   - %s\n", a)
 		}
 	}
 
@@ -263,11 +281,22 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	var yaml strings.Builder
 	yaml.Grow(256 * 1024)
 
-	// Generate workflow header comments (including hash)
-	c.generateWorkflowHeader(&yaml, data, frontmatterHash)
+	// Generate workflow body first so we can collect secrets and custom actions
+	// for inclusion in the header comment.
+	var body strings.Builder
+	body.Grow(256 * 1024)
+	c.generateWorkflowBody(&body, data)
+	bodyContent := body.String()
 
-	// Generate workflow body structure
-	c.generateWorkflowBody(&yaml, data)
+	// Collect secrets and external action references from the generated body.
+	secrets := CollectSecretReferences(bodyContent)
+	actions := CollectActionReferences(bodyContent)
+
+	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
+	c.generateWorkflowHeader(&yaml, data, frontmatterHash, secrets, actions)
+
+	// Append the workflow body
+	yaml.WriteString(bodyContent)
 
 	yamlContent := yaml.String()
 

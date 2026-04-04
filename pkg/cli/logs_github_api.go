@@ -15,12 +15,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -283,7 +283,7 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 		}
 
 		for _, run := range runs {
-			if sliceutil.Contains(agenticWorkflowNames, run.WorkflowName) {
+			if slices.Contains(agenticWorkflowNames, run.WorkflowName) {
 				agenticRuns = append(agenticRuns, run)
 			}
 		}

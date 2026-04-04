@@ -174,7 +174,7 @@ Create an issue with the following structure:
 | [sha] | [file path] | [category] | [description] | [user impact] |
 
 <details>
-<summary><b>Full Code Diff Analysis</b></summary>
+<summary>Full Code Diff Analysis</summary>
 
 #### Detailed Commit Analysis
 
@@ -187,7 +187,7 @@ Create an issue with the following structure:
 </details>
 
 <details>
-<summary><b>All Commits Analyzed</b></summary>
+<summary>All Commits Analyzed</summary>
 
 [Complete list of commits that were analyzed with their details]
 

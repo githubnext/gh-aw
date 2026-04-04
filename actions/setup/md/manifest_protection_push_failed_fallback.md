@@ -17,7 +17,7 @@
 > </details>
 
 <details>
-<summary><b>Create the pull request manually</b></summary>
+<summary>Create the pull request manually</summary>
 
 ```sh
 # Download the patch from the workflow run

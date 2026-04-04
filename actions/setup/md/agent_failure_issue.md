@@ -11,7 +11,7 @@
 **Assign this issue to Copilot** using the `agentic-workflows` sub-agent to automatically debug and fix the workflow failure.
 
 <details>
-<summary><b>Debug with any coding agent</b></summary>
+<summary>Debug with any coding agent</summary>
 
 Use this prompt with any coding agent (GitHub Copilot, Claude, Gemini, etc.):
 
@@ -24,7 +24,7 @@ The failed workflow run is at {run_url}
 </details>
 
 <details>
-<summary><b>Manually invoke the agent</b></summary>
+<summary>Manually invoke the agent</summary>
 
 Debug this workflow failure using your favorite Agent CLI and the `agentic-workflows` prompt.
 
@@ -36,7 +36,7 @@ Debug this workflow failure using your favorite Agent CLI and the `agentic-workf
 
 > [!TIP]
 > <details>
-> <summary><b>Stop reporting this workflow as a failure</b></summary>
+> <summary>Stop reporting this workflow as a failure</summary>
 >
 > To stop a workflow from creating failure issues, set `report-failure-as-issue: false` in its frontmatter:
 > ```yaml

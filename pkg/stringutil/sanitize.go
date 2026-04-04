@@ -80,6 +80,29 @@ func SanitizeErrorMessage(message string) string {
 	return sanitized
 }
 
+// sanitizeIdentifierName converts a name to a valid identifier by replacing
+// disallowed characters with underscores. The extraAllowed function determines
+// which additional runes (beyond a-z, A-Z, 0-9, _) are permitted.
+// If the resulting name starts with a digit, an underscore is prepended.
+func sanitizeIdentifierName(name string, extraAllowed func(rune) bool) string {
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		if extraAllowed != nil && extraAllowed(r) {
+			return r
+		}
+		return '_'
+	}, name)
+
+	// Ensure it doesn't start with a number
+	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
+		result = "_" + result
+	}
+
+	return result
+}
+
 // SanitizeParameterName converts a parameter name to a safe JavaScript identifier
 // by replacing non-alphanumeric characters with underscores.
 //
@@ -98,20 +121,7 @@ func SanitizeErrorMessage(message string) string {
 //	SanitizeParameterName("valid_name")      // returns "valid_name"
 //	SanitizeParameterName("$special")        // returns "$special"
 func SanitizeParameterName(name string) string {
-	// Replace dashes and other non-alphanumeric chars with underscores
-	result := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '$' {
-			return r
-		}
-		return '_'
-	}, name)
-
-	// Ensure it doesn't start with a number
-	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
-		result = "_" + result
-	}
-
-	return result
+	return sanitizeIdentifierName(name, func(r rune) bool { return r == '$' })
 }
 
 // SanitizePythonVariableName converts a parameter name to a valid Python identifier
@@ -132,20 +142,7 @@ func SanitizeParameterName(name string) string {
 //	SanitizePythonVariableName("123param")        // returns "_123param"
 //	SanitizePythonVariableName("valid_name")      // returns "valid_name"
 func SanitizePythonVariableName(name string) string {
-	// Replace dashes and other non-alphanumeric chars with underscores
-	result := strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
-			return r
-		}
-		return '_'
-	}, name)
-
-	// Ensure it doesn't start with a number
-	if len(result) > 0 && result[0] >= '0' && result[0] <= '9' {
-		result = "_" + result
-	}
-
-	return result
+	return sanitizeIdentifierName(name, nil)
 }
 
 // SanitizeToolID removes common MCP prefixes and suffixes from tool IDs.

@@ -248,7 +248,7 @@ Create a new discussion with the comprehensive report.
 Brief 2-3 paragraph summary of key findings: total issues analyzed, main clusters identified, notable trends, and any concerns that need attention.
 
 <details>
-<summary><b>📊 Full Report Details</b></summary>
+<summary>📊 Full Report Details</summary>
 
 ### 📈 Issue Activity Trends
 

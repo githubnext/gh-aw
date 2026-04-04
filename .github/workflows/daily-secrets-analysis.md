@@ -234,7 +234,7 @@ Use the following template for the discussion post:
 2. **Recommendation 2**: Action to take
 
 <details>
-<summary><b>🔑 Top 10 Secrets by Usage</b></summary>
+<summary>🔑 Top 10 Secrets by Usage</summary>
 
 | Rank | Secret Name | Occurrences | Type |
 |------|-------------|-------------|------|
@@ -245,7 +245,7 @@ Use the following template for the discussion post:
 </details>
 
 <details>
-<summary><b>📈 Trends</b></summary>
+<summary>📈 Trends</summary>
 
 [If historical data available, show changes from previous day]
 
@@ -256,7 +256,7 @@ Use the following template for the discussion post:
 </details>
 
 <details>
-<summary><b>📖 Reference Documentation</b></summary>
+<summary>📖 Reference Documentation</summary>
 
 For detailed information about secret usage patterns, see:
 - Specification: [`scratchpad/secrets-yml.md`](https://github.com/github/gh-aw/blob/main/scratchpad/secrets-yml.md)

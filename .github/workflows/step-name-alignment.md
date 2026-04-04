@@ -249,7 +249,7 @@ When you identify problems worth addressing, create issues using safe-outputs.
 [step-names] Align step names in <workflow-name> with glossary/consistency
 ```
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 **Issue Description Template:**
 ```markdown

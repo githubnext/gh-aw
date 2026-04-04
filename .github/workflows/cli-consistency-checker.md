@@ -160,7 +160,7 @@ When issues are found, create a **single consolidated issue** that includes:
     - Suggested fix if applicable
     - Priority level: `high` (breaks functionality), `medium` (confusing/misleading), `low` (minor inconsistency)
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>5 findings) in `<details><summary><b>Section Name</b></summary>` tags to improve readability. The issue title serves as h1, so start section headers at h3.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>5 findings) in `<details><summary>Section Name</summary>` tags to improve readability. The issue title serves as h1, so start section headers at h3.
 
 ### Issue Format
 
@@ -197,7 +197,7 @@ Automated CLI consistency inspection found **X inconsistencies** in command help
 - [List areas with issues]
 
 <details>
-<summary><b>Detailed Findings</b></summary>
+<summary>Detailed Findings</summary>
 
 #### 1. [Issue Title]
 

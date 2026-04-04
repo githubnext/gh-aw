@@ -961,7 +961,7 @@ Include in the PR description:
   - Use GitHub-flavored markdown (GFM) for all output
   - **Headers**: Start at h3 (###) to maintain proper document hierarchy
   - **Checkboxes**: Use `- [ ]` for unchecked and `- [x]` for checked task items
-  - **Progressive Disclosure**: Use `<details><summary><b>Bold Summary Text</b></summary>` to collapse long content
+  - **Progressive Disclosure**: Use `<details><summary>Bold Summary Text</summary>` to collapse long content
   - **Workflow Run Links**: Format as `[§12345](https://github.com/owner/repo/actions/runs/12345)`. Do NOT add footer attribution (system adds automatically)
 - **Produce a single workflow file**: Always output exactly **one** workflow `.md` file as the primary deliverable. Do not create separate architecture documents, runbooks, usage guides, or any other documentation files alongside the workflow.
   - If documentation is needed, add a brief inline `## Usage` section within the same `.md` file.

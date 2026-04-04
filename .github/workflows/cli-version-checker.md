@@ -206,7 +206,7 @@ Legacy template reference (adapt to use Report Structure Pattern above):
 - [New feature 2]
 
 <details>
-<summary><b>View Full Changelog</b></summary>
+<summary>View Full Changelog</summary>
 
 ### Release Highlights (from GitHub)
 [Include key highlights from GitHub release notes if available]
@@ -232,7 +232,7 @@ Legacy template reference (adapt to use Report Structure Pattern above):
 </details>
 
 <details>
-<summary><b>View Migration Guide</b></summary>
+<summary>View Migration Guide</summary>
 
 [Step-by-step update instructions, code changes needed if any]
 

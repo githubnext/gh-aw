@@ -264,12 +264,6 @@ func (s *TokenUsageSummary) AvgDurationMs() int {
 	return s.TotalDurationMs / s.TotalRequests
 }
 
-// FormatDurationMs formats milliseconds as a human-readable string.
-// Deprecated: Use timeutil.FormatDurationMs instead.
-func FormatDurationMs(ms int) string {
-	return timeutil.FormatDurationMs(ms)
-}
-
 // ModelRows returns the by-model data as sorted rows for console rendering
 func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 	rows := make([]ModelTokenUsageRow, 0, len(s.ByModel))
@@ -287,7 +281,7 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 			CacheWriteTokens: usage.CacheWriteTokens,
 			EffectiveTokens:  usage.EffectiveTokens,
 			Requests:         usage.Requests,
-			AvgDuration:      FormatDurationMs(avgDur),
+			AvgDuration:      timeutil.FormatDurationMs(avgDur),
 		})
 	}
 	// Sort by total tokens descending

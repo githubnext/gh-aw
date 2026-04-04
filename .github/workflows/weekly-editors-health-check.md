@@ -118,7 +118,7 @@ Example body (rows reflect whatever editors were discovered in Step 0):
 ### Editor Health Report – <date>
 
 <details>
-<summary><b>Editor Status & Screenshots</b></summary>
+<summary>Editor Status & Screenshots</summary>
 
 | Editor | URL | Status | Preview |
 |--------|-----|--------|---------|

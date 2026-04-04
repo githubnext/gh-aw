@@ -333,7 +333,7 @@ Daily Compiler Code Quality Report - YYYY-MM-DD
 ### Files Analyzed Today
 
 <details>
-<summary><b>📁 Detailed File Analysis</b></summary>
+<summary>📁 Detailed File Analysis</summary>
 
 #### 1. `compiler_orchestrator.go` - Score: 82/100 ✅
 
@@ -442,7 +442,7 @@ Estimated Complexity Score: 7.2/10
 ---
 
 <details>
-<summary><b>📈 Historical Trends</b></summary>
+<summary>📈 Historical Trends</summary>
 
 #### Progress Since Last Analysis
 
@@ -510,7 +510,7 @@ Based on historical analysis, these files consistently score below 70:
 ---
 
 <details>
-<summary><b>💾 Cache Memory Summary</b></summary>
+<summary>💾 Cache Memory Summary</summary>
 
 **Cache Location**: `/tmp/gh-aw/cache-memory/compiler-quality/`
 

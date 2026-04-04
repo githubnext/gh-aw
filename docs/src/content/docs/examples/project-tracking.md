@@ -52,9 +52,11 @@ safe-outputs:
         layout: table
 ```
 
+Supported operations: `add` (add items), `update` (update fields), `create_fields` (custom fields), `create_views` (project views).
+
 ### Project Status Update Configuration
 
-Configure `create-project-status-update` in the `safe-outputs` section:
+Configure `create-project-status-update` to post status updates — useful for progress reports, milestone summaries, and workflow health indicators:
 
 ```yaml
 safe-outputs:
@@ -157,42 +159,6 @@ When a pull request is opened or reviews are requested:
    - Has "enhancement" label → "Medium"
    - Default → "Low"
 ```
-
-## Safe Output Operations
-
-Configure project operations in the `safe-outputs` section:
-
-### update-project
-
-Manages project items (add, update fields, views):
-
-```yaml
-safe-outputs:
-  update-project:
-    project: https://github.com/orgs/myorg/projects/1
-    max: 100  # Maximum operations per run
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-```
-
-Operations:
-- `add` - Add items to project
-- `update` - Update project fields (status, priority, custom fields)
-- `create_fields` - Create custom fields
-- `create_views` - Create project views
-
-### create-project-status-update
-
-Posts status updates to project boards:
-
-```yaml
-safe-outputs:
-  create-project-status-update:
-    project: https://github.com/orgs/myorg/projects/1
-    max: 1  # Maximum status updates per run
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-```
-
-Use for progress reports, milestone summaries, or workflow health indicators.
 
 ## How this fits
 

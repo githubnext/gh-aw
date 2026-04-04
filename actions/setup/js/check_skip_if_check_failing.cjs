@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { getErrorMessage, isRateLimitError } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 
@@ -212,7 +212,18 @@ async function main() {
     core.info(`✓ No failing checks found on "${ref}", workflow can proceed`);
     core.setOutput("skip_if_check_failing_ok", "true");
   } catch (error) {
-    core.setFailed(`${ERR_API}: Failed to fetch check runs for ref "${ref}": ${getErrorMessage(error)}`);
+    const errorMsg = getErrorMessage(error);
+    // Gracefully handle API rate limit errors (fail-open) to avoid blocking the workflow
+    // due to transient GitHub API availability issues. When multiple workflows run
+    // simultaneously, they can exhaust the installation API rate limit, causing this
+    // check to fail. Failing open matches the behavior of other pre-activation checks.
+    if (isRateLimitError(error)) {
+      core.warning(`⚠️ API rate limit exceeded while checking CI status for ref "${ref}": ${errorMsg}`);
+      core.warning(`Allowing workflow to proceed (fail-open on rate limit)`);
+      core.setOutput("skip_if_check_failing_ok", "true");
+    } else {
+      core.setFailed(`${ERR_API}: Failed to fetch check runs for ref "${ref}": ${errorMsg}`);
+    }
   }
 }
 

@@ -157,7 +157,7 @@ For each PR classified as "Ready to Close":
 
 ### Step 6: Generate Summary Report
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Create a summary of actions taken:
 
@@ -179,14 +179,14 @@ Create a summary of actions taken:
 - **PRs Skipped (exempt)**: <count>
 
 <details>
-<summary><b>PRs Warned This Run</b></summary>
+<summary>PRs Warned This Run</summary>
 
 <list of PR numbers with titles>
 
 </details>
 
 <details>
-<summary><b>PRs Closed This Run</b></summary>
+<summary>PRs Closed This Run</summary>
 
 <list of PR numbers with titles and days inactive>
 

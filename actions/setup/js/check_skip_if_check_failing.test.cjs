@@ -268,14 +268,38 @@ describe("check_skip_if_check_failing.cjs", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
   });
 
-  it("should fail with error message when API call fails", async () => {
-    mockGithub.paginate.mockRejectedValue(new Error("Rate limit exceeded"));
+  it("should allow workflow when API call fails due to rate limiting (fail-open)", async () => {
+    mockGithub.paginate.mockRejectedValue(new Error("API rate limit exceeded for installation"));
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // Rate limit errors should fail-open: allow the workflow to proceed
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("rate limit"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+  });
+
+  it("should allow workflow when API call fails with 'rate limit exceeded' message (fail-open)", async () => {
+    mockGithub.paginate.mockRejectedValue(new Error("rate limit exceeded: please retry after 60 seconds"));
+
+    const { main } = await import("./check_skip_if_check_failing.cjs");
+    await main();
+
+    // 'rate limit exceeded' variant should also fail-open
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("rate limit"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("skip_if_check_failing_ok", "true");
+  });
+
+  it("should fail with error message when non-rate-limit API call fails", async () => {
+    mockGithub.paginate.mockRejectedValue(new Error("Network connection error"));
 
     const { main } = await import("./check_skip_if_check_failing.cjs");
     await main();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch check runs"));
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Rate limit exceeded"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Network connection error"));
     expect(mockCore.setOutput).not.toHaveBeenCalled();
   });
 

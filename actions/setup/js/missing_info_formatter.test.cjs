@@ -94,7 +94,7 @@ describe("missing_info_formatter.cjs", () => {
 
       const result = generateMissingToolsSection(tools);
       expect(result).toContain("<details>");
-      expect(result).toContain("<summary><b>Missing Tools</b></summary>");
+      expect(result).toContain("<summary>Missing Tools</summary>");
       expect(result).toContain("**docker**");
       expect(result).toContain("</details>");
     });
@@ -113,7 +113,7 @@ describe("missing_info_formatter.cjs", () => {
 
       const result = generateMissingDataSection(data);
       expect(result).toContain("<details>");
-      expect(result).toContain("<summary><b>Missing Data</b></summary>");
+      expect(result).toContain("<summary>Missing Data</summary>");
       expect(result).toContain("**api\\_key**");
       expect(result).toContain("</details>");
     });
@@ -170,7 +170,7 @@ describe("missing_info_formatter.cjs", () => {
 
       const result = generateNoopMessagesSection(messages);
       expect(result).toContain("<details>");
-      expect(result).toContain("<summary><b>No-Op Messages</b></summary>");
+      expect(result).toContain("<summary>No-Op Messages</summary>");
       expect(result).toContain("No action required");
       expect(result).toContain("</details>");
     });

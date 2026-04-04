@@ -491,7 +491,7 @@ Create a comprehensive discussion report with:
 **Overall Success Rate**: [percentage]%
 
 <details>
-<summary><b>Full Analysis Report</b></summary>
+<summary>Full Analysis Report</summary>
 
 ### General Insights
 

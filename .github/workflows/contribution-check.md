@@ -102,7 +102,7 @@ Follow the **report layout rules** below — they apply to every report this wor
 
 Apply these principles to make the report scannable, warm, and actionable:
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 1. **Lead with the takeaway.** Open with a single-sentence human-readable summary that tells the maintainer what happened and what needs attention. No jargon, no counts-only headers. Example: *"We looked at 10 new PRs — 6 look great, 3 need a closer look, and 1 doesn't fit the project guidelines."*
 
@@ -150,7 +150,7 @@ We looked at 4 new PRs — 1 looks great, 2 need a closer look, and 1 doesn't fi
 ### Off-guidelines 🔴
 
 <details>
-<summary><b>Per-PR Details</b></summary>
+<summary>Per-PR Details</summary>
 
 | PR | Title | Author | Lines | Quality |
 |----|-------|--------|------:|---------|

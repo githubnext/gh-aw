@@ -445,7 +445,7 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 [Analysis of integrity vs. secrecy filtering and top tags]
 
 <details>
-<summary><b>📋 Per-Workflow Breakdown</b></summary>
+<summary>📋 Per-Workflow Breakdown</summary>
 
 | Workflow | Filtered Events |
 |----------|----------------|
@@ -454,7 +454,7 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 </details>
 
 <details>
-<summary><b>📋 Per-Server Breakdown</b></summary>
+<summary>📋 Per-Server Breakdown</summary>
 
 | MCP Server | Filtered Events |
 |------------|----------------|
@@ -463,7 +463,7 @@ In the last 7 days, **[N]** DIFC integrity-filtered events were detected across 
 </details>
 
 <details>
-<summary><b>👤 Per-User Breakdown</b></summary>
+<summary>👤 Per-User Breakdown</summary>
 
 | Author Login | Filtered Events |
 |--------------|----------------|

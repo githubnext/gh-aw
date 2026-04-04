@@ -244,7 +244,7 @@ Create a GitHub discussion with your comprehensive findings:
 ## 1️⃣ Current State Analysis
 
 <details>
-<summary><b>View Copilot CLI Capabilities Inventory</b></summary>
+<summary>View Copilot CLI Capabilities Inventory</summary>
 
 ### Copilot CLI Capabilities Inventory
 - **Version Information**: [Current version used]
@@ -254,7 +254,7 @@ Create a GitHub discussion with your comprehensive findings:
 </details>
 
 <details>
-<summary><b>View Usage Statistics</b></summary>
+<summary>View Usage Statistics</summary>
 
 ### Usage Statistics
 - **Total Workflows**: [count]
@@ -281,7 +281,7 @@ Create a GitHub discussion with your comprehensive findings:
 ## 3️⃣ Missed Opportunities
 
 <details>
-<summary><b>View High Priority Opportunities</b></summary>
+<summary>View High Priority Opportunities</summary>
 
 ### 🔴 High Priority
 
@@ -300,7 +300,7 @@ Create a GitHub discussion with your comprehensive findings:
 </details>
 
 <details>
-<summary><b>View Medium Priority Opportunities</b></summary>
+<summary>View Medium Priority Opportunities</summary>
 
 ### 🟡 Medium Priority
 
@@ -309,7 +309,7 @@ Create a GitHub discussion with your comprehensive findings:
 </details>
 
 <details>
-<summary><b>View Low Priority Opportunities</b></summary>
+<summary>View Low Priority Opportunities</summary>
 
 ### 🟢 Low Priority
 
@@ -322,7 +322,7 @@ Create a GitHub discussion with your comprehensive findings:
 ## 4️⃣ Specific Workflow Recommendations
 
 <details>
-<summary><b>View Workflow-Specific Recommendations</b></summary>
+<summary>View Workflow-Specific Recommendations</summary>
 
 ### Workflow: `example-workflow.md`
 - **Current State**: [brief description]
@@ -338,7 +338,7 @@ Create a GitHub discussion with your comprehensive findings:
 ## 5️⃣ Trends & Insights
 
 <details>
-<summary><b>View Historical Trends</b></summary>
+<summary>View Historical Trends</summary>
 
 [If previous research exists in repo-memory]
 - **Changes Since Last Analysis**: [what's improved or changed]
@@ -379,7 +379,7 @@ Based on this research, here are recommended best practices:
 ---
 
 <details>
-<summary><b>View Supporting Evidence & Methodology</b></summary>
+<summary>View Supporting Evidence & Methodology</summary>
 
 ## 📚 References
 

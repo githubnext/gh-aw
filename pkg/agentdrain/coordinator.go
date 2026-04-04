@@ -52,25 +52,6 @@ func (c *Coordinator) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport
 	return m.AnalyzeEvent(evt)
 }
 
-// Stages returns the list of stage names managed by this Coordinator.
-func (c *Coordinator) Stages() []string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	stages := make([]string, 0, len(c.miners))
-	for s := range c.miners {
-		stages = append(stages, s)
-	}
-	return stages
-}
-
-// MinerForStage returns the Miner for the given stage, or false if not found.
-func (c *Coordinator) MinerForStage(stage string) (*Miner, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	m, ok := c.miners[stage]
-	return m, ok
-}
-
 // AllClusters returns a map from stage name to the list of clusters in that miner.
 func (c *Coordinator) AllClusters() map[string][]Cluster {
 	c.mu.RLock()

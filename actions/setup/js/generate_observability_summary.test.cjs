@@ -54,7 +54,7 @@ describe("generate_observability_summary.cjs", () => {
 
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const summary = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summary).toContain("<summary><b>Observability</b></summary>");
+    expect(summary).toContain("<summary>Observability</summary>");
     expect(summary).toContain("- **workflow**: triage-workflow");
     expect(summary).toContain("- **engine**: copilot");
     expect(summary).toContain("- **trace id**: trace-123");

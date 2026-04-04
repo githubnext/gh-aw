@@ -23,6 +23,9 @@ const mockGithub = {
     repos: {
       getContent: vi.fn(),
     },
+    actions: {
+      getWorkflowRun: vi.fn(),
+    },
   },
 };
 
@@ -53,6 +56,8 @@ describe("check_workflow_timestamp_api.cjs", () => {
     delete process.env.GH_AW_CONTEXT_WORKFLOW_REF;
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GITHUB_WORKSPACE;
+    delete process.env.GITHUB_EVENT_NAME;
+    delete process.env.GITHUB_RUN_ID;
 
     // Dynamically import the module to get fresh instance
     const module = await import("./check_workflow_timestamp_api.cjs");
@@ -913,6 +918,203 @@ engine: copilot
       // because the ref is parseable from the env var
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ ref: "refs/heads/main" }));
       expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ ref: "abc123" }));
+    });
+  });
+
+  describe("cross-repo reusable workflow via referenced_workflows API (issue #24422)", () => {
+    // Fix for https://github.com/github/gh-aw/issues/24422
+    // When a reusable workflow is triggered by workflow_call, github.workflow_ref
+    // can still point to the caller's workflow. This fix uses referenced_workflows
+    // from the GitHub Actions API run object to reliably identify the callee's repo.
+    //
+    // In the workflow_call context, GITHUB_RUN_ID and GITHUB_REPOSITORY are set to
+    // the caller's run and repo. The caller's run object includes referenced_workflows
+    // listing the callee's exact path, sha, and ref.
+
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "callee-workflow.lock.yml";
+      process.env.GITHUB_EVENT_NAME = "workflow_call";
+      process.env.GITHUB_RUN_ID = "12345";
+      // GITHUB_REPOSITORY is the caller's repo in a workflow_call context
+      process.env.GITHUB_REPOSITORY = "caller-owner/caller-repo";
+      // GH_AW_CONTEXT_WORKFLOW_REF (from ${{ github.workflow_ref }}) may still point to caller
+      process.env.GH_AW_CONTEXT_WORKFLOW_REF = "caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main";
+      process.env.GITHUB_WORKFLOW_REF = "caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main";
+    });
+
+    it("should use referenced_workflows to resolve callee owner/repo/ref", async () => {
+      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${validHash}\nname: Test\n`;
+      const mdFileContent = "---\nengine: copilot\n---\n# Test";
+
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "callee-owner/callee-repo/.github/workflows/callee-workflow.lock.yml@refs/heads/main",
+              sha: "deadbeef",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      // Must use the callee repo (from referenced_workflows), not the caller repo
+      // sha (deadbeef) is preferred over ref (refs/heads/main) for deterministic lookups
+      expect(mockGithub.rest.actions.getWorkflowRun).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo", run_id: 12345 }));
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "callee-owner", repo: "callee-repo", ref: "deadbeef" }));
+      expect(mockGithub.rest.repos.getContent).not.toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ Lock file is up to date"));
+    });
+
+    it("should log resolved callee repo info from referenced_workflows", async () => {
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "callee-owner/callee-repo/.github/workflows/callee-workflow.lock.yml@refs/heads/main",
+              sha: "deadbeef",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("workflow_call event detected"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved callee repo from referenced_workflows: callee-owner/callee-repo"));
+    });
+
+    it("should fall back to GH_AW_CONTEXT_WORKFLOW_REF when no matching entry in referenced_workflows", async () => {
+      // referenced_workflows exists but doesn't contain the current workflow file
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "callee-owner/callee-repo/.github/workflows/other-workflow.lock.yml@refs/heads/main",
+              sha: "deadbeef",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('No matching entry in referenced_workflows for "callee-workflow.lock.yml"'));
+      // Falls back to GH_AW_CONTEXT_WORKFLOW_REF (caller repo in this test)
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
+    });
+
+    it("should fall back to GH_AW_CONTEXT_WORKFLOW_REF when referenced_workflows is empty", async () => {
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: { referenced_workflows: [] },
+      });
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 0 referenced workflow(s)"));
+      // Falls back to caller repo from GH_AW_CONTEXT_WORKFLOW_REF
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
+    });
+
+    it("should fall back to GH_AW_CONTEXT_WORKFLOW_REF when API call fails", async () => {
+      mockGithub.rest.actions.getWorkflowRun.mockRejectedValueOnce(new Error("Resource not accessible by integration"));
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch referenced_workflows from API"));
+      // Falls back to caller repo from GH_AW_CONTEXT_WORKFLOW_REF
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
+    });
+
+    it("should not call referenced_workflows API for non-workflow_call events", async () => {
+      process.env.GITHUB_EVENT_NAME = "push";
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockGithub.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+    });
+
+    it("should prefer sha over ref from referenced_workflows entry", async () => {
+      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${validHash}\nname: Test\n`;
+      const mdFileContent = "---\nengine: copilot\n---\n# Test";
+
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "callee-owner/callee-repo/.github/workflows/callee-workflow.lock.yml@refs/tags/v1.0.0",
+              sha: "deadbeef",
+              ref: "refs/tags/v1.0.0",
+            },
+          ],
+        },
+      });
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      // sha (deadbeef) is preferred over ref (refs/tags/v1.0.0) to prevent drift
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "callee-owner", repo: "callee-repo", ref: "deadbeef" }));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fall back to ref when sha is absent in referenced_workflows entry", async () => {
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "callee-owner/callee-repo/.github/workflows/callee-workflow.lock.yml@refs/tags/v1.0.0",
+              // sha is absent — should fall back to ref
+              ref: "refs/tags/v1.0.0",
+            },
+          ],
+        },
+      });
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "callee-owner", repo: "callee-repo", ref: "refs/tags/v1.0.0" }));
+    });
+
+    it("should fall back to GH_AW_CONTEXT_WORKFLOW_REF when GITHUB_RUN_ID is invalid", async () => {
+      process.env.GITHUB_RUN_ID = "not-a-number";
+      mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
+
+      await main();
+
+      // API must not be called with a NaN run_id
+      expect(mockGithub.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("run ID is unavailable or invalid"));
+      // Falls back to caller repo from GH_AW_CONTEXT_WORKFLOW_REF
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
     });
   });
 });

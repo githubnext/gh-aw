@@ -255,7 +255,7 @@ For each selected item:
 
 ### Step 4: Create Improvement Report
 
-**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Create a focused analysis report:
 
