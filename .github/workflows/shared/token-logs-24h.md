@@ -72,13 +72,14 @@ steps:
 
         if [ "$GH_AW_AVAILABLE" = "true" ]; then
           LOGS_STDERR="/tmp/token-logs-copilot-stderr.log"
+          # Use || to prevent set -e from killing the script on non-zero exit
+          COPILOT_EXIT=0
           gh aw logs \
             --engine copilot \
             --start-date -1d \
             --json \
             -c 300 \
-            > /tmp/token-logs-copilot-raw.json 2>"$LOGS_STDERR"
-          COPILOT_EXIT=$?
+            > /tmp/token-logs-copilot-raw.json 2>"$LOGS_STDERR" || COPILOT_EXIT=$?
           if [ "$COPILOT_EXIT" -ne 0 ]; then
             echo "⚠️ gh aw logs --engine copilot exited with code $COPILOT_EXIT"
             cat "$LOGS_STDERR" | tail -5
@@ -91,13 +92,14 @@ steps:
 
         if [ "$GH_AW_AVAILABLE" = "true" ]; then
           LOGS_STDERR="/tmp/token-logs-claude-stderr.log"
+          # Use || to prevent set -e from killing the script on non-zero exit
+          CLAUDE_EXIT=0
           gh aw logs \
             --engine claude \
             --start-date -1d \
             --json \
             -c 300 \
-            > /tmp/token-logs-claude-raw.json 2>"$LOGS_STDERR"
-          CLAUDE_EXIT=$?
+            > /tmp/token-logs-claude-raw.json 2>"$LOGS_STDERR" || CLAUDE_EXIT=$?
           if [ "$CLAUDE_EXIT" -ne 0 ]; then
             echo "⚠️ gh aw logs --engine claude exited with code $CLAUDE_EXIT"
             cat "$LOGS_STDERR" | tail -5
