@@ -20,6 +20,10 @@ const (
 	CodexEngine EngineName = "codex"
 	// GeminiEngine is the Google Gemini engine identifier
 	GeminiEngine EngineName = "gemini"
+
+	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
+	// Currently defaults to CopilotEngine.
+	DefaultEngine EngineName = CopilotEngine
 )
 
 // AgenticEngines lists all supported agentic engine names.

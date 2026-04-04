@@ -23,7 +23,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 
 	// Determine default engine based on existing secrets, workflow preference, then environment
 	// Priority order: flag override > existing secrets > workflow frontmatter > environment > default
-	defaultEngine := string(constants.CopilotEngine)
+	defaultEngine := string(constants.DefaultEngine)
 	workflowSpecifiedEngine := ""
 
 	// Check if workflow specifies a preferred engine in frontmatter
@@ -52,12 +52,12 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		}
 
 		// Priority 2: If no existing secret found, use workflow frontmatter preference
-		if defaultEngine == string(constants.CopilotEngine) && workflowSpecifiedEngine != "" {
+		if defaultEngine == string(constants.DefaultEngine) && workflowSpecifiedEngine != "" {
 			defaultEngine = workflowSpecifiedEngine
 		}
 
 		// Priority 3: Check environment variables if no existing secret or workflow preference found
-		if defaultEngine == string(constants.CopilotEngine) && workflowSpecifiedEngine == "" {
+		if defaultEngine == string(constants.DefaultEngine) && workflowSpecifiedEngine == "" {
 			for _, opt := range constants.EngineOptions {
 				envVar := opt.SecretName
 				if opt.EnvVarName != "" {

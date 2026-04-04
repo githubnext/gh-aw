@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -457,7 +458,7 @@ func (r *EngineRegistry) IsValidEngine(id string) bool {
 
 // GetDefaultEngine returns the default engine (Copilot)
 func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
-	return r.engines["copilot"]
+	return r.engines[string(constants.DefaultEngine)]
 }
 
 // GetEngineByPrefix returns an engine that matches the given prefix

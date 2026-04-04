@@ -107,6 +107,9 @@ func TestAgenticEngines(t *testing.T) {
 	if string(GeminiEngine) != "gemini" {
 		t.Errorf("GeminiEngine constant = %q, want %q", GeminiEngine, "gemini")
 	}
+	if DefaultEngine != CopilotEngine {
+		t.Errorf("DefaultEngine = %q, want CopilotEngine (%q)", DefaultEngine, CopilotEngine)
+	}
 }
 
 func TestDefaultGitHubTools(t *testing.T) {
