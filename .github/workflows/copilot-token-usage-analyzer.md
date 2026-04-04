@@ -145,20 +145,20 @@ After computing per-workflow statistics, persist today's aggregated data for tre
 
 ```bash
 mkdir -p /tmp/gh-aw/cache-memory/trending/token-usage
+TODAY=$(date -u +%Y-%m-%d)  # Always use UTC date for consistency with the Python charts
 
 # Append daily aggregated totals (one JSON object per line)
-cat >> /tmp/gh-aw/cache-memory/trending/token-usage/history.jsonl << 'EOF'
-{"date":"YYYY-MM-DD","total_tokens":TOTAL_TOKENS,"total_runs":TOTAL_RUNS,"total_cost":TOTAL_COST,"total_turns":TOTAL_TURNS}
+cat >> /tmp/gh-aw/cache-memory/trending/token-usage/history.jsonl << EOF
+{"date":"${TODAY}","total_tokens":TOTAL_TOKENS,"total_runs":TOTAL_RUNS,"total_cost":TOTAL_COST,"total_turns":TOTAL_TURNS}
 EOF
 
-# Append per-workflow breakdown for heatmap (one entry per workflow)
-# Repeat for each workflow:
-cat >> /tmp/gh-aw/cache-memory/trending/token-usage/workflows.jsonl << 'EOF'
-{"date":"YYYY-MM-DD","workflow":"WORKFLOW_NAME","tokens":TOKENS,"runs":RUNS,"cost":COST}
+# Append per-workflow breakdown for heatmap (one entry per workflow — repeat for each workflow):
+cat >> /tmp/gh-aw/cache-memory/trending/token-usage/workflows.jsonl << EOF
+{"date":"${TODAY}","workflow":"WORKFLOW_NAME","tokens":TOKENS,"runs":RUNS,"cost":COST}
 EOF
 ```
 
-Replace the placeholder values with the actual computed numbers. If no runs were found today, still append a zero-entry so the trend line stays continuous.
+Replace the placeholder values (TOTAL_TOKENS, TOTAL_RUNS, etc.) with the actual computed numbers. **Only append entries for workflows that actually ran today** — do not append zero-entries for missing days, as the Python charts gracefully skip charts when data is insufficient.
 
 ### Phase 2: Parse Token-Level Data (if available)
 
@@ -327,10 +327,12 @@ Run the script:
 python3 /tmp/gh-aw/python/token_charts.py
 ```
 
-After the script succeeds, upload each generated chart using the `upload asset` safe-output tool:
-- Upload `/tmp/gh-aw/python/charts/top_consumers.png` → save URL as `TOP_CONSUMERS_URL`
-- If `daily_trend.png` exists: upload it → save URL as `DAILY_TREND_URL`
-- If `workflow_heatmap.png` exists: upload it → save URL as `HEATMAP_URL`
+After the script succeeds, upload each generated chart using the `upload asset` safe-output tool. **Check file existence before uploading**:
+- If `/tmp/gh-aw/python/charts/top_consumers.png` exists: upload it → save URL as `TOP_CONSUMERS_URL`
+- If `/tmp/gh-aw/python/charts/daily_trend.png` exists: upload it → save URL as `DAILY_TREND_URL`
+- If `/tmp/gh-aw/python/charts/workflow_heatmap.png` exists: upload it → save URL as `HEATMAP_URL`
+
+Skip the upload call entirely for any chart that was not generated.
 
 ### Phase 4: Create Report Issue
 
@@ -350,11 +352,11 @@ Total: **[TOTAL_TOKENS]** tokens (~**$[TOTAL_COST]**) across **[TOTAL_TURNS]** t
 ![Top Consumers](TOP_CONSUMERS_URL)
 
 #### 📈 Daily Trend
-_(Shown when ≥ 2 historical data points are available)_
+_(Include this section only when DAILY_TREND_URL is available — requires ≥ 2 historical data points)_
 ![Daily Token Trend](DAILY_TREND_URL)
 
 #### 🗓️ Workflow Heatmap
-_(Shown when ≥ 3 historical data points are available)_
+_(Include this section only when HEATMAP_URL is available — requires ≥ 3 historical data points)_
 ![Workflow Heatmap](HEATMAP_URL)
 
 ### Top Workflows by Cost
