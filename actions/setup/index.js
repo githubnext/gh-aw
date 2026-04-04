@@ -32,8 +32,10 @@ if (result.status !== 0) {
 }
 
 // Send a gh-aw.job.setup span to the OTLP endpoint when configured.
-// This is intentionally fire-and-forget with error suppression: trace export
-// failures must never break the workflow.
+// The IIFE returns a Promise that keeps the Node.js event loop alive until
+// the fetch request completes, so the span is delivered before the process
+// exits naturally.  Errors are swallowed: trace export failures must never
+// break the workflow.
 (async () => {
   try {
     const { sendJobSetupSpan } = require(path.join(__dirname, "js", "send_otlp_span.cjs"));

@@ -176,6 +176,7 @@ describe("sendOTLPSpan", () => {
 // ---------------------------------------------------------------------------
 
 describe("sendJobSetupSpan", () => {
+  /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
   const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "INPUT_JOB_NAME", "GH_AW_INFO_WORKFLOW_NAME", "GH_AW_INFO_ENGINE_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
 
@@ -197,6 +198,20 @@ describe("sendJobSetupSpan", () => {
       }
     }
   });
+
+  /**
+   * Extract the scalar value from an OTLP attribute's `value` union, covering all
+   * known OTLP value types (stringValue, intValue, boolValue).
+   *
+   * @param {{ key: string, value: { stringValue?: string, intValue?: number, boolValue?: boolean } }} attr
+   * @returns {string | number | boolean | undefined}
+   */
+  function attrValue(attr) {
+    if (attr.value.stringValue !== undefined) return attr.value.stringValue;
+    if (attr.value.intValue !== undefined) return attr.value.intValue;
+    if (attr.value.boolValue !== undefined) return attr.value.boolValue;
+    return undefined;
+  }
 
   it("is a no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
     await sendJobSetupSpan();
@@ -228,7 +243,7 @@ describe("sendJobSetupSpan", () => {
     expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
 
-    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue ?? a.value.intValue ?? a.value.boolValue]));
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
     expect(attrs["gh-aw.job.name"]).toBe("agent");
     expect(attrs["gh-aw.workflow.name"]).toBe("my-workflow");
     expect(attrs["gh-aw.engine.id"]).toBe("copilot");
