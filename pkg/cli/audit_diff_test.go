@@ -693,3 +693,240 @@ func TestIsEmptyAuditDiff(t *testing.T) {
 		RunMetricsDiff: &RunMetricsDiff{Run1TokenUsage: 100},
 	}), "AuditDiff with metrics diff should not be empty")
 }
+
+func TestComputeTokenUsageDiff_BothNil(t *testing.T) {
+	diff := computeTokenUsageDiff(nil, nil)
+	assert.Nil(t, diff, "Should return nil when both summaries are nil")
+}
+
+func TestComputeTokenUsageDiff_WithData(t *testing.T) {
+	tu1 := &TokenUsageSummary{
+		TotalInputTokens:      10000,
+		TotalOutputTokens:     2000,
+		TotalCacheReadTokens:  5000,
+		TotalCacheWriteTokens: 1000,
+		TotalEffectiveTokens:  8000,
+		TotalRequests:         10,
+		CacheEfficiency:       0.333,
+	}
+	tu2 := &TokenUsageSummary{
+		TotalInputTokens:      15000,
+		TotalOutputTokens:     3000,
+		TotalCacheReadTokens:  7000,
+		TotalCacheWriteTokens: 800,
+		TotalEffectiveTokens:  12000,
+		TotalRequests:         14,
+		CacheEfficiency:       0.318,
+	}
+
+	diff := computeTokenUsageDiff(tu1, tu2)
+
+	require.NotNil(t, diff, "Should produce token usage diff when data is available")
+	assert.Equal(t, 10000, diff.Run1InputTokens, "Run1 input tokens should be 10000")
+	assert.Equal(t, 15000, diff.Run2InputTokens, "Run2 input tokens should be 15000")
+	assert.Equal(t, "+50%", diff.InputTokensChange, "Input tokens should increase by 50%")
+
+	assert.Equal(t, 2000, diff.Run1OutputTokens, "Run1 output tokens should be 2000")
+	assert.Equal(t, 3000, diff.Run2OutputTokens, "Run2 output tokens should be 3000")
+	assert.Equal(t, "+50%", diff.OutputTokensChange, "Output tokens should increase by 50%")
+
+	assert.Equal(t, 5000, diff.Run1CacheReadTokens, "Run1 cache read tokens should be 5000")
+	assert.Equal(t, 7000, diff.Run2CacheReadTokens, "Run2 cache read tokens should be 7000")
+	assert.Equal(t, "+40%", diff.CacheReadTokensChange, "Cache read tokens should increase by 40%")
+
+	assert.Equal(t, 1000, diff.Run1CacheWriteTokens, "Run1 cache write tokens should be 1000")
+	assert.Equal(t, 800, diff.Run2CacheWriteTokens, "Run2 cache write tokens should be 800")
+	assert.Equal(t, "-20%", diff.CacheWriteTokensChange, "Cache write tokens should decrease by 20%")
+
+	assert.Equal(t, 8000, diff.Run1EffectiveTokens, "Run1 effective tokens should be 8000")
+	assert.Equal(t, 12000, diff.Run2EffectiveTokens, "Run2 effective tokens should be 12000")
+	assert.Equal(t, "+50%", diff.EffectiveTokensChange, "Effective tokens should increase by 50%")
+
+	assert.Equal(t, 10, diff.Run1TotalRequests, "Run1 requests should be 10")
+	assert.Equal(t, 14, diff.Run2TotalRequests, "Run2 requests should be 14")
+	assert.Equal(t, "+4", diff.RequestsDelta, "Requests delta should be +4")
+
+	assert.InDelta(t, 0.333, diff.Run1CacheEfficiency, 0.001, "Run1 cache efficiency should match")
+	assert.InDelta(t, 0.318, diff.Run2CacheEfficiency, 0.001, "Run2 cache efficiency should match")
+	assert.Equal(t, "-1.5pp", diff.CacheEfficiencyChange, "Cache efficiency change should be -1.5pp")
+}
+
+func TestComputeTokenUsageDiff_Run1Nil(t *testing.T) {
+	tu2 := &TokenUsageSummary{
+		TotalInputTokens:  5000,
+		TotalOutputTokens: 1000,
+		TotalRequests:     5,
+	}
+
+	diff := computeTokenUsageDiff(nil, tu2)
+
+	require.NotNil(t, diff, "Should produce diff when run2 has data")
+	assert.Equal(t, 0, diff.Run1InputTokens, "Run1 input tokens should be 0 when nil")
+	assert.Equal(t, 5000, diff.Run2InputTokens, "Run2 input tokens should be 5000")
+	assert.Equal(t, "+∞", diff.InputTokensChange, "Input change should be +∞ from zero")
+}
+
+func TestComputeTokenUsageDiff_Run2Nil(t *testing.T) {
+	tu1 := &TokenUsageSummary{
+		TotalInputTokens:  5000,
+		TotalOutputTokens: 1000,
+	}
+
+	diff := computeTokenUsageDiff(tu1, nil)
+
+	require.NotNil(t, diff, "Should produce diff when run1 has data")
+	assert.Equal(t, 5000, diff.Run1InputTokens, "Run1 input tokens should be 5000")
+	assert.Equal(t, 0, diff.Run2InputTokens, "Run2 input tokens should be 0 when nil")
+	assert.Equal(t, "-100%", diff.InputTokensChange, "Input change should be -100%")
+}
+
+func TestComputeRunMetricsDiff_WithTokenUsageDetails(t *testing.T) {
+	summary1 := &RunSummary{
+		RunID: 100,
+		Run:   WorkflowRun{Duration: 5 * time.Minute, Turns: 4},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:     8000,
+			TotalOutputTokens:    1500,
+			TotalEffectiveTokens: 6000,
+			TotalRequests:        8,
+			CacheEfficiency:      0.25,
+		},
+	}
+	summary2 := &RunSummary{
+		RunID: 200,
+		Run:   WorkflowRun{Duration: 7 * time.Minute, Turns: 6},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:     12000,
+			TotalOutputTokens:    2000,
+			TotalEffectiveTokens: 9000,
+			TotalRequests:        11,
+			CacheEfficiency:      0.30,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+
+	require.NotNil(t, diff, "Should produce metrics diff")
+	require.NotNil(t, diff.TokenUsageDetails, "Should populate TokenUsageDetails from RunSummary.TokenUsage")
+
+	assert.Equal(t, 8000, diff.TokenUsageDetails.Run1InputTokens, "Run1 input tokens should be 8000")
+	assert.Equal(t, 12000, diff.TokenUsageDetails.Run2InputTokens, "Run2 input tokens should be 12000")
+	assert.Equal(t, "+50%", diff.TokenUsageDetails.InputTokensChange, "Input tokens change should be +50%")
+
+	assert.Equal(t, 6000, diff.TokenUsageDetails.Run1EffectiveTokens, "Run1 effective tokens should be 6000")
+	assert.Equal(t, 9000, diff.TokenUsageDetails.Run2EffectiveTokens, "Run2 effective tokens should be 9000")
+	assert.Equal(t, "+50%", diff.TokenUsageDetails.EffectiveTokensChange, "Effective tokens change should be +50%")
+}
+
+func TestComputeRunMetricsDiff_TokenUsageDetailsAloneNotNil(t *testing.T) {
+	// Verify that detailed token usage data alone (without Run.TokenUsage set)
+	// still produces a non-nil RunMetricsDiff
+	summary1 := &RunSummary{
+		Run: WorkflowRun{},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens: 5000,
+			TotalRequests:    5,
+		},
+	}
+	summary2 := &RunSummary{
+		Run: WorkflowRun{},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens: 8000,
+			TotalRequests:    7,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+
+	require.NotNil(t, diff, "Should produce non-nil diff when only TokenUsage data is present")
+	require.NotNil(t, diff.TokenUsageDetails, "Should have TokenUsageDetails")
+	assert.Equal(t, 5000, diff.TokenUsageDetails.Run1InputTokens, "Run1 input tokens should be 5000")
+	assert.Equal(t, 8000, diff.TokenUsageDetails.Run2InputTokens, "Run2 input tokens should be 8000")
+}
+
+func TestComputeAuditDiff_MultipleRuns(t *testing.T) {
+	base := &RunSummary{
+		RunID: 100,
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443": {Allowed: 5, Blocked: 0},
+			},
+		},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{
+				{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+			},
+		},
+		Run: WorkflowRun{Turns: 5},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:  10000,
+			TotalOutputTokens: 2000,
+			TotalRequests:     10,
+		},
+	}
+
+	compare1 := &RunSummary{
+		RunID: 200,
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443":   {Allowed: 5, Blocked: 0},
+				"new1.example.com:443": {Allowed: 3, Blocked: 0},
+			},
+		},
+		MCPToolUsage: &MCPToolUsageData{
+			Summary: []MCPToolSummary{
+				{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+			},
+		},
+		Run: WorkflowRun{Turns: 7},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:  15000,
+			TotalOutputTokens: 3000,
+			TotalRequests:     12,
+		},
+	}
+
+	compare2 := &RunSummary{
+		RunID: 300,
+		FirewallAnalysis: &FirewallAnalysis{
+			RequestsByDomain: map[string]DomainRequestStats{
+				"api.github.com:443":   {Allowed: 5, Blocked: 0},
+				"new2.example.com:443": {Allowed: 1, Blocked: 2},
+			},
+		},
+		Run: WorkflowRun{Turns: 4},
+		TokenUsage: &TokenUsageSummary{
+			TotalInputTokens:  8000,
+			TotalOutputTokens: 1500,
+			TotalRequests:     8,
+		},
+	}
+
+	// Compute two diffs from the same base
+	diff1 := computeAuditDiff(base.RunID, compare1.RunID, base, compare1)
+	diff2 := computeAuditDiff(base.RunID, compare2.RunID, base, compare2)
+
+	// Diff 1: base vs compare1
+	assert.Equal(t, int64(100), diff1.Run1ID, "Diff1 Run1ID should be base")
+	assert.Equal(t, int64(200), diff1.Run2ID, "Diff1 Run2ID should be compare1")
+	require.NotNil(t, diff1.FirewallDiff, "Diff1 should have firewall diff")
+	assert.Len(t, diff1.FirewallDiff.NewDomains, 1, "Diff1 should have 1 new domain")
+	assert.Equal(t, "new1.example.com:443", diff1.FirewallDiff.NewDomains[0].Domain, "Diff1 new domain should be new1")
+	require.NotNil(t, diff1.RunMetricsDiff, "Diff1 should have run metrics diff")
+	require.NotNil(t, diff1.RunMetricsDiff.TokenUsageDetails, "Diff1 should have token usage details")
+	assert.Equal(t, "+50%", diff1.RunMetricsDiff.TokenUsageDetails.InputTokensChange, "Diff1 input tokens should increase by 50%")
+
+	// Diff 2: base vs compare2
+	assert.Equal(t, int64(100), diff2.Run1ID, "Diff2 Run1ID should be base")
+	assert.Equal(t, int64(300), diff2.Run2ID, "Diff2 Run2ID should be compare2")
+	require.NotNil(t, diff2.FirewallDiff, "Diff2 should have firewall diff")
+	assert.Len(t, diff2.FirewallDiff.NewDomains, 1, "Diff2 should have 1 new domain")
+	assert.Equal(t, "new2.example.com:443", diff2.FirewallDiff.NewDomains[0].Domain, "Diff2 new domain should be new2")
+	assert.True(t, diff2.FirewallDiff.NewDomains[0].IsAnomaly, "Diff2 new domain should be anomaly (blocked)")
+	require.NotNil(t, diff2.RunMetricsDiff, "Diff2 should have run metrics diff")
+	require.NotNil(t, diff2.RunMetricsDiff.TokenUsageDetails, "Diff2 should have token usage details")
+	assert.Equal(t, "-20%", diff2.RunMetricsDiff.TokenUsageDetails.InputTokensChange, "Diff2 input tokens should decrease by 20%")
+
+	// The two diffs should be independent (no shared state)
+	assert.NotEqual(t, diff1.Run2ID, diff2.Run2ID, "The two diffs should have different Run2IDs")
+}

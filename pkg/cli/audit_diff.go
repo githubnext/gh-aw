@@ -260,17 +260,44 @@ type MCPToolsDiffSummary struct {
 	AnomalyCount     int  `json:"anomaly_count"`
 }
 
+// TokenUsageDiff represents the detailed diff of token usage between two runs,
+// based on the firewall proxy token-usage.jsonl data from RunSummary.TokenUsage.
+type TokenUsageDiff struct {
+	Run1InputTokens        int     `json:"run1_input_tokens"`
+	Run2InputTokens        int     `json:"run2_input_tokens"`
+	InputTokensChange      string  `json:"input_tokens_change,omitempty"`
+	Run1OutputTokens       int     `json:"run1_output_tokens"`
+	Run2OutputTokens       int     `json:"run2_output_tokens"`
+	OutputTokensChange     string  `json:"output_tokens_change,omitempty"`
+	Run1CacheReadTokens    int     `json:"run1_cache_read_tokens"`
+	Run2CacheReadTokens    int     `json:"run2_cache_read_tokens"`
+	CacheReadTokensChange  string  `json:"cache_read_tokens_change,omitempty"`
+	Run1CacheWriteTokens   int     `json:"run1_cache_write_tokens"`
+	Run2CacheWriteTokens   int     `json:"run2_cache_write_tokens"`
+	CacheWriteTokensChange string  `json:"cache_write_tokens_change,omitempty"`
+	Run1EffectiveTokens    int     `json:"run1_effective_tokens"`
+	Run2EffectiveTokens    int     `json:"run2_effective_tokens"`
+	EffectiveTokensChange  string  `json:"effective_tokens_change,omitempty"`
+	Run1TotalRequests      int     `json:"run1_total_requests"`
+	Run2TotalRequests      int     `json:"run2_total_requests"`
+	RequestsDelta          string  `json:"requests_delta,omitempty"` // Absolute request-count delta, e.g. "+4"
+	Run1CacheEfficiency    float64 `json:"run1_cache_efficiency"`
+	Run2CacheEfficiency    float64 `json:"run2_cache_efficiency"`
+	CacheEfficiencyChange  string  `json:"cache_efficiency_change,omitempty"` // Percentage-point delta, e.g. "+1.5pp"
+}
+
 // RunMetricsDiff represents the diff of run-level metrics (token usage, duration, turns) between two runs
 type RunMetricsDiff struct {
-	Run1TokenUsage   int    `json:"run1_token_usage"`
-	Run2TokenUsage   int    `json:"run2_token_usage"`
-	TokenUsageChange string `json:"token_usage_change,omitempty"` // e.g. "+15%", "-5%"
-	Run1Duration     string `json:"run1_duration,omitempty"`
-	Run2Duration     string `json:"run2_duration,omitempty"`
-	DurationChange   string `json:"duration_change,omitempty"` // e.g. "+2m30s", "-1m"
-	Run1Turns        int    `json:"run1_turns,omitempty"`
-	Run2Turns        int    `json:"run2_turns,omitempty"`
-	TurnsChange      int    `json:"turns_change,omitempty"`
+	Run1TokenUsage    int             `json:"run1_token_usage"`
+	Run2TokenUsage    int             `json:"run2_token_usage"`
+	TokenUsageChange  string          `json:"token_usage_change,omitempty"` // e.g. "+15%", "-5%"
+	Run1Duration      string          `json:"run1_duration,omitempty"`
+	Run2Duration      string          `json:"run2_duration,omitempty"`
+	DurationChange    string          `json:"duration_change,omitempty"` // e.g. "+2m30s", "-1m"
+	Run1Turns         int             `json:"run1_turns,omitempty"`
+	Run2Turns         int             `json:"run2_turns,omitempty"`
+	TurnsChange       int             `json:"turns_change,omitempty"`
+	TokenUsageDetails *TokenUsageDiff `json:"token_usage_details,omitempty"` // Detailed breakdown from firewall proxy
 }
 
 // AuditDiff is the top-level diff combining firewall behavior, MCP tool invocations,
@@ -429,20 +456,24 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	var run1Tokens, run2Tokens int
 	var run1Duration, run2Duration time.Duration
 	var run1Turns, run2Turns int
+	var tu1, tu2 *TokenUsageSummary
 
 	if summary1 != nil {
 		run1Tokens = summary1.Run.TokenUsage
 		run1Duration = summary1.Run.Duration
 		run1Turns = summary1.Run.Turns
+		tu1 = summary1.TokenUsage
 	}
 	if summary2 != nil {
 		run2Tokens = summary2.Run.TokenUsage
 		run2Duration = summary2.Run.Duration
 		run2Turns = summary2.Run.Turns
+		tu2 = summary2.TokenUsage
 	}
 
 	// Skip if there is no meaningful data
-	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 {
+	hasTokenDetails := tu1 != nil || tu2 != nil
+	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 && !hasTokenDetails {
 		return nil
 	}
 
@@ -473,7 +504,98 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 		}
 	}
 
+	diff.TokenUsageDetails = computeTokenUsageDiff(tu1, tu2)
+
 	return diff
+}
+
+// computeTokenUsageDiff computes a detailed diff of token usage between two runs using
+// the firewall proxy token-usage.jsonl data (TokenUsageSummary). Returns nil when both
+// summaries are nil.
+func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
+	if tu1 == nil && tu2 == nil {
+		return nil
+	}
+
+	var (
+		run1Input, run2Input           int
+		run1Output, run2Output         int
+		run1CacheRead, run2CacheRead   int
+		run1CacheWrite, run2CacheWrite int
+		run1Effective, run2Effective   int
+		run1Requests, run2Requests     int
+		run1CacheEff, run2CacheEff     float64
+	)
+
+	if tu1 != nil {
+		run1Input = tu1.TotalInputTokens
+		run1Output = tu1.TotalOutputTokens
+		run1CacheRead = tu1.TotalCacheReadTokens
+		run1CacheWrite = tu1.TotalCacheWriteTokens
+		run1Effective = tu1.TotalEffectiveTokens
+		run1Requests = tu1.TotalRequests
+		run1CacheEff = tu1.CacheEfficiency
+	}
+	if tu2 != nil {
+		run2Input = tu2.TotalInputTokens
+		run2Output = tu2.TotalOutputTokens
+		run2CacheRead = tu2.TotalCacheReadTokens
+		run2CacheWrite = tu2.TotalCacheWriteTokens
+		run2Effective = tu2.TotalEffectiveTokens
+		run2Requests = tu2.TotalRequests
+		run2CacheEff = tu2.CacheEfficiency
+	}
+
+	diff := &TokenUsageDiff{
+		Run1InputTokens:      run1Input,
+		Run2InputTokens:      run2Input,
+		Run1OutputTokens:     run1Output,
+		Run2OutputTokens:     run2Output,
+		Run1CacheReadTokens:  run1CacheRead,
+		Run2CacheReadTokens:  run2CacheRead,
+		Run1CacheWriteTokens: run1CacheWrite,
+		Run2CacheWriteTokens: run2CacheWrite,
+		Run1EffectiveTokens:  run1Effective,
+		Run2EffectiveTokens:  run2Effective,
+		Run1TotalRequests:    run1Requests,
+		Run2TotalRequests:    run2Requests,
+		Run1CacheEfficiency:  run1CacheEff,
+		Run2CacheEfficiency:  run2CacheEff,
+	}
+
+	if run1Input > 0 || run2Input > 0 {
+		diff.InputTokensChange = formatVolumeChange(run1Input, run2Input)
+	}
+	if run1Output > 0 || run2Output > 0 {
+		diff.OutputTokensChange = formatVolumeChange(run1Output, run2Output)
+	}
+	if run1CacheRead > 0 || run2CacheRead > 0 {
+		diff.CacheReadTokensChange = formatVolumeChange(run1CacheRead, run2CacheRead)
+	}
+	if run1CacheWrite > 0 || run2CacheWrite > 0 {
+		diff.CacheWriteTokensChange = formatVolumeChange(run1CacheWrite, run2CacheWrite)
+	}
+	if run1Effective > 0 || run2Effective > 0 {
+		diff.EffectiveTokensChange = formatVolumeChange(run1Effective, run2Effective)
+	}
+	if run1Requests > 0 || run2Requests > 0 {
+		diff.RequestsDelta = formatCountChange(run1Requests, run2Requests)
+	}
+	if run1CacheEff > 0 || run2CacheEff > 0 {
+		diff.CacheEfficiencyChange = formatPercentagePointChange(run1CacheEff, run2CacheEff)
+	}
+
+	return diff
+}
+
+// formatPercentagePointChange formats the change between two ratio values (0.0-1.0) as a
+// percentage-point delta (e.g. "+1.5pp", "-2.3pp")
+func formatPercentagePointChange(ratio1, ratio2 float64) string {
+	delta := (ratio2 - ratio1) * 100
+	if delta >= 0 {
+		return fmt.Sprintf("+%.1fpp", delta)
+	}
+	return fmt.Sprintf("%.1fpp", delta)
 }
 
 // formatCountChange formats the absolute change in a count value (e.g. "+3", "-1")

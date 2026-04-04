@@ -15,35 +15,54 @@ import (
 // NewAuditDiffSubcommand creates the audit diff subcommand
 func NewAuditDiffSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "diff <run-id-1> <run-id-2>",
-		Short: "Compare behavior across two workflow runs",
-		Long: `Compare workflow run behavior between two workflow runs to detect policy regressions,
-new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
+		Use:   "diff <base-run-id> <compare-run-id>...",
+		Short: "Compare behavior across workflow runs",
+		Long: `Compare workflow run behavior between a base run and one or more comparison runs
+to detect policy regressions, new unauthorized domains, behavioral drift, and changes in
+MCP tool usage, token usage, or run metrics.
 
-This command downloads artifacts for both runs (using cached data when available),
+The first argument is the base (reference) run. All subsequent arguments are compared
+against that base. This enables tracking behavioral drift across multiple runs at once.
+
+This command downloads artifacts for all runs (using cached data when available),
 analyzes their data, and produces a diff showing:
-- New domains that appeared in the second run
-- Removed domains that were in the first run but not the second
+- New domains that appeared in the comparison run
+- Removed domains that were in the base run but not the comparison
 - Status changes (domains that flipped between allowed and denied)
 - Volume changes (significant request count changes, >100% threshold)
 - Anomaly flags (new denied domains, previously-denied now allowed)
 - MCP tool invocation changes (new/removed tools, call count and error count diffs)
 - Run metrics comparison (token usage, duration, turns) when cached data is available
+- Detailed token usage breakdown (input/output/cache/effective tokens) from firewall proxy
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346                     # Compare two runs
-  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 --format markdown    # Markdown output for PR comments
-  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 --json               # JSON for CI integration
-  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 --repo owner/repo    # Specify repository`,
-		Args: cobra.ExactArgs(2),
+  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346                               # Compare two runs
+  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 12347 12348                   # Compare base against 3 runs
+  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 --format markdown             # Markdown output for PR comments
+  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 --json                        # JSON for CI integration
+  ` + string(constants.CLIExtensionPrefix) + ` audit diff 12345 12346 --repo owner/repo             # Specify repository`,
+		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runID1, err := strconv.ParseInt(args[0], 10, 64)
+			baseRunID, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
-				return fmt.Errorf("invalid run ID %q: must be a numeric run ID", args[0])
+				return fmt.Errorf("invalid base run ID %q: must be a numeric run ID", args[0])
 			}
-			runID2, err := strconv.ParseInt(args[1], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid run ID %q: must be a numeric run ID", args[1])
+
+			compareRunIDs := make([]int64, 0, len(args)-1)
+			seen := make(map[int64]bool)
+			for _, arg := range args[1:] {
+				id, err := strconv.ParseInt(arg, 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid run ID %q: must be a numeric run ID", arg)
+				}
+				if id == baseRunID {
+					return fmt.Errorf("comparison run ID %d is the same as the base run ID: cannot diff a run against itself", id)
+				}
+				if seen[id] {
+					return fmt.Errorf("duplicate comparison run ID %d: each run ID must appear only once", id)
+				}
+				seen[id] = true
+				compareRunIDs = append(compareRunIDs, id)
 			}
 
 			outputDir, _ := cmd.Flags().GetString("output")
@@ -62,7 +81,7 @@ Examples:
 				repo = parts[1]
 			}
 
-			return RunAuditDiff(cmd.Context(), runID1, runID2, owner, repo, hostname, outputDir, verbose, jsonOutput, format)
+			return RunAuditDiff(cmd.Context(), baseRunID, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, format)
 		},
 	}
 
@@ -74,9 +93,10 @@ Examples:
 	return cmd
 }
 
-// RunAuditDiff compares behavior between two workflow runs
-func RunAuditDiff(ctx context.Context, runID1, runID2 int64, owner, repo, hostname, outputDir string, verbose, jsonOutput bool, format string) error {
-	auditDiffLog.Printf("Starting audit diff: run1=%d, run2=%d", runID1, runID2)
+// RunAuditDiff compares behavior between a base workflow run and one or more comparison runs.
+// The base run is the reference point; each comparison run is diffed against it independently.
+func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, owner, repo, hostname, outputDir string, verbose, jsonOutput bool, format string) error {
+	auditDiffLog.Printf("Starting audit diff: base=%d, compare=%v", baseRunID, compareRunIDs)
 
 	// Auto-detect GHES host from git remote if hostname is not provided
 	if hostname == "" {
@@ -94,57 +114,65 @@ func RunAuditDiff(ctx context.Context, runID1, runID2 int64, owner, repo, hostna
 	default:
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Comparing workflow runs: Run #%d → Run #%d", runID1, runID2)))
-
-	// Load run summaries for both runs
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", runID1)))
-	summary1, err := loadRunSummaryForDiff(runID1, outputDir, owner, repo, hostname, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to load data for run %d: %w", runID1, err)
-	}
-
-	// Check context cancellation between downloads
-	select {
-	case <-ctx.Done():
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-		return ctx.Err()
-	default:
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", runID2)))
-	summary2, err := loadRunSummaryForDiff(runID2, outputDir, owner, repo, hostname, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to load data for run %d: %w", runID2, err)
-	}
-
-	// Warn if no firewall data found
-	fw1 := summary1.FirewallAnalysis
-	fw2 := summary2.FirewallAnalysis
-	if fw1 == nil && fw2 == nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No firewall data found in either run. Both runs may predate firewall logging."))
+	if len(compareRunIDs) == 1 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Comparing workflow runs: Run #%d → Run #%d", baseRunID, compareRunIDs[0])))
 	} else {
-		if fw1 == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d (older run may lack firewall logs)", runID1)))
-		}
-		if fw2 == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d", runID2)))
-		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Comparing workflow runs: Run #%d (base) vs %d comparison runs", baseRunID, len(compareRunIDs))))
 	}
 
-	// Compute the full diff
-	diff := computeAuditDiff(runID1, runID2, summary1, summary2)
+	// Load base run summary once (shared across all comparisons)
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for base run %d...", baseRunID)))
+	baseSummary, err := loadRunSummaryForDiff(baseRunID, outputDir, owner, repo, hostname, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to load data for base run %d: %w", baseRunID, err)
+	}
+
+	diffs := make([]*AuditDiff, 0, len(compareRunIDs))
+
+	for _, compareRunID := range compareRunIDs {
+		// Check context cancellation between downloads
+		select {
+		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+			return ctx.Err()
+		default:
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", compareRunID)))
+		compareSummary, err := loadRunSummaryForDiff(compareRunID, outputDir, owner, repo, hostname, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to load data for run %d: %w", compareRunID, err)
+		}
+
+		// Warn if no firewall data found for this pair
+		fw1 := baseSummary.FirewallAnalysis
+		fw2 := compareSummary.FirewallAnalysis
+		if fw1 == nil && fw2 == nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run pair %d→%d. Both runs may predate firewall logging.", baseRunID, compareRunID)))
+		} else {
+			if fw1 == nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for base run %d (older run may lack firewall logs)", baseRunID)))
+			}
+			if fw2 == nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No firewall data found for run %d", compareRunID)))
+			}
+		}
+
+		diff := computeAuditDiff(baseRunID, compareRunID, baseSummary, compareSummary)
+		diffs = append(diffs, diff)
+	}
 
 	// Render output
 	if jsonOutput || format == "json" {
-		return renderAuditDiffJSON(diff)
+		return renderAuditDiffJSON(diffs)
 	}
 
 	if format == "markdown" {
-		renderAuditDiffMarkdown(diff)
+		renderAuditDiffMarkdown(diffs)
 		return nil
 	}
 
 	// Default: pretty console output
-	renderAuditDiffPretty(diff)
+	renderAuditDiffPretty(diffs)
 	return nil
 }
