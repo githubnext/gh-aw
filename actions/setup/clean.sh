@@ -22,7 +22,9 @@ DESTINATION="${INPUT_DESTINATION:-${RUNNER_TEMP}/gh-aw/actions}"
 # Delegates to action_conclusion_otlp.cjs (same file used by actions/setup/post.js)
 # to keep dev/release and script mode behavior in sync.
 if command -v node &>/dev/null && [ -f "${DESTINATION}/action_conclusion_otlp.cjs" ]; then
-  node "${DESTINATION}/action_conclusion_otlp.cjs" 2>/dev/null || true
+  echo "Sending OTLP conclusion span..."
+  node "${DESTINATION}/action_conclusion_otlp.cjs" || true
+  echo "OTLP conclusion span step complete"
 fi
 
 # Remove /tmp/gh-aw/ (mirrors post.js cleanup).

@@ -29,11 +29,18 @@ const path = require("path");
  * @returns {Promise<void>}
  */
 async function run() {
-  const { sendJobConclusionSpan } = require(path.join(__dirname, "send_otlp_span.cjs"));
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  if (!endpoint) {
+    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping conclusion span");
+    return;
+  }
 
   const spanName = process.env.INPUT_JOB_NAME ? `gh-aw.job.${process.env.INPUT_JOB_NAME}` : "gh-aw.job.conclusion";
+  console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
 
+  const { sendJobConclusionSpan } = require(path.join(__dirname, "send_otlp_span.cjs"));
   await sendJobConclusionSpan(spanName);
+  console.log(`[otlp] conclusion span sent`);
 }
 
 module.exports = { run };

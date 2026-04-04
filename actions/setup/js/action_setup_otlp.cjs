@@ -28,23 +28,34 @@ const { appendFileSync } = require("fs");
  * @returns {Promise<void>}
  */
 async function run() {
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  if (!endpoint) {
+    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping setup span");
+    return;
+  }
+  console.log(`[otlp] sending setup span to ${endpoint}`);
+
   const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require(path.join(__dirname, "send_otlp_span.cjs"));
 
   const startMs = parseInt(process.env.SETUP_START_MS || "0", 10);
   const { traceId, spanId } = await sendJobSetupSpan({ startMs });
+  console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
 
   // Expose trace ID as a step output for cross-job correlation.
   if (isValidTraceId(traceId) && process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
+    console.log(`[otlp] trace-id written to GITHUB_OUTPUT`);
   }
 
   // Propagate trace/span context to subsequent steps in this job.
   if (process.env.GITHUB_ENV) {
     if (isValidTraceId(traceId)) {
       appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_TRACE_ID=${traceId}\n`);
+      console.log(`[otlp] GITHUB_AW_OTEL_TRACE_ID written to GITHUB_ENV`);
     }
     if (isValidSpanId(spanId)) {
       appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_PARENT_SPAN_ID=${spanId}\n`);
+      console.log(`[otlp] GITHUB_AW_OTEL_PARENT_SPAN_ID written to GITHUB_ENV`);
     }
   }
 }

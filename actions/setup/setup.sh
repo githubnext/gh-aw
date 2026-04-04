@@ -391,7 +391,9 @@ fi
 # Delegates to action_setup_otlp.cjs (same file used by actions/setup/index.js)
 # to keep dev/release and script mode behavior in sync.
 if command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
-  SETUP_START_MS="${SETUP_START_MS}" node "${DESTINATION}/action_setup_otlp.cjs" 2>/dev/null || true
+  echo "Sending OTLP setup span..."
+  SETUP_START_MS="${SETUP_START_MS}" node "${DESTINATION}/action_setup_otlp.cjs" || true
+  echo "OTLP setup span step complete"
 fi
 
 # Set output
