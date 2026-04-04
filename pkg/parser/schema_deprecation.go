@@ -6,7 +6,11 @@ import (
 	"regexp"
 	"sort"
 	"sync"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var schemaDeprecationLog = logger.New("parser:schema_deprecation")
 
 // DeprecatedField represents a deprecated field with its replacement information
 type DeprecatedField struct {
@@ -31,7 +35,7 @@ var (
 // Callers must not modify the returned slice.
 func GetMainWorkflowDeprecatedFields() ([]DeprecatedField, error) {
 	deprecatedFieldsOnce.Do(func() {
-		log.Print("Getting deprecated fields from main workflow schema")
+		schemaDeprecationLog.Print("Getting deprecated fields from main workflow schema")
 		var schemaDoc map[string]any
 		if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
 			deprecatedFieldsErr = fmt.Errorf("failed to parse main workflow schema: %w", err)
@@ -43,7 +47,7 @@ func GetMainWorkflowDeprecatedFields() ([]DeprecatedField, error) {
 			return
 		}
 		deprecatedFieldsCache = fields
-		log.Printf("Found %d deprecated fields in main workflow schema", len(fields))
+		schemaDeprecationLog.Printf("Found %d deprecated fields in main workflow schema", len(fields))
 	})
 	return deprecatedFieldsCache, deprecatedFieldsErr
 }
@@ -118,16 +122,16 @@ func extractReplacementFromDescription(description string) string {
 // FindDeprecatedFieldsInFrontmatter checks frontmatter for deprecated fields
 // Returns a list of deprecated fields that were found
 func FindDeprecatedFieldsInFrontmatter(frontmatter map[string]any, deprecatedFields []DeprecatedField) []DeprecatedField {
-	log.Printf("Checking frontmatter for deprecated fields: %d fields to check", len(deprecatedFields))
+	schemaDeprecationLog.Printf("Checking frontmatter for deprecated fields: %d fields to check", len(deprecatedFields))
 	var found []DeprecatedField
 
 	for _, deprecatedField := range deprecatedFields {
 		if _, exists := frontmatter[deprecatedField.Name]; exists {
-			log.Printf("Found deprecated field: %s (replacement: %s)", deprecatedField.Name, deprecatedField.Replacement)
+			schemaDeprecationLog.Printf("Found deprecated field: %s (replacement: %s)", deprecatedField.Name, deprecatedField.Replacement)
 			found = append(found, deprecatedField)
 		}
 	}
 
-	log.Printf("Deprecated field check complete: found %d of %d fields in frontmatter", len(found), len(deprecatedFields))
+	schemaDeprecationLog.Printf("Deprecated field check complete: found %d of %d fields in frontmatter", len(found), len(deprecatedFields))
 	return found
 }

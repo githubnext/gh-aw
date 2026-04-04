@@ -6,20 +6,24 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var includeExpanderLog = logger.New("parser:include_expander")
 
 // ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
 
 // ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
 func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
-	log.Printf("Expanding includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
+	includeExpanderLog.Printf("Expanding includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
 	const maxDepth = 10
 	currentContent := content
 	visited := make(map[string]bool)
 
 	for depth := range maxDepth {
-		log.Printf("Include expansion depth: %d", depth)
+		includeExpanderLog.Printf("Include expansion depth: %d", depth)
 		// Process includes in current content
 		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
 		if err != nil {
@@ -60,7 +64,7 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 		}
 	}
 
-	log.Printf("Include expansion complete: visited_files=%d", len(includedFiles))
+	includeExpanderLog.Printf("Include expansion complete: visited_files=%d", len(includedFiles))
 	if extractTools {
 		// For tools mode, merge all extracted JSON objects
 		mergedTools, err := mergeToolsFromJSON(currentContent)
@@ -72,7 +76,7 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
-	log.Printf("Expanding includes for engines: baseDir=%s", baseDir)
+	includeExpanderLog.Printf("Expanding includes for engines: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
 		return extractFrontmatterField(c, "engine", "")
 	}, "")
@@ -80,7 +84,7 @@ func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 
 // ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
 func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
-	log.Printf("Expanding includes for safe-outputs: baseDir=%s", baseDir)
+	includeExpanderLog.Printf("Expanding includes for safe-outputs: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
 		return extractFrontmatterField(c, "safe-outputs", "{}")
 	}, "{}")
@@ -111,7 +115,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 		currentContent = processedContent
 	}
 
-	log.Printf("Field expansion complete: results=%d", len(results))
+	includeExpanderLog.Printf("Field expansion complete: results=%d", len(results))
 	return results, nil
 }
 

@@ -1,5 +1,9 @@
 package agentdrain
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var treeLog = logger.New("agentdrain:tree")
+
 // treeNode is an internal node in the Drain parse tree.
 type treeNode struct {
 	// children maps a token string to its subtree node.
@@ -38,6 +42,7 @@ func (t *parseTree) addCluster(tokens []string, clusterID int, depth int, maxChi
 		t.root[n][key] = leaf
 	}
 	leaf.clusterIDs = append(leaf.clusterIDs, clusterID)
+	treeLog.Printf("Added cluster %d to tree: token_count=%d, key=%s, leaf_size=%d", clusterID, n, key, len(leaf.clusterIDs))
 }
 
 // search returns candidate cluster IDs for the given tokens.
@@ -45,6 +50,7 @@ func (t *parseTree) search(tokens []string, depth int, paramToken string) []int 
 	n := len(tokens)
 	byCount, ok := t.root[n]
 	if !ok {
+		treeLog.Printf("Search: no clusters for token_count=%d", n)
 		return nil
 	}
 	key := t.firstKey(tokens, depth, paramToken)
@@ -53,11 +59,13 @@ func (t *parseTree) search(tokens []string, depth int, paramToken string) []int 
 		// Also try the wildcard bucket.
 		leaf, ok = byCount[paramToken]
 		if !ok {
+			treeLog.Printf("Search: no leaf found for token_count=%d, key=%s", n, key)
 			return nil
 		}
 	}
 	out := make([]int, len(leaf.clusterIDs))
 	copy(out, leaf.clusterIDs)
+	treeLog.Printf("Search found %d candidate clusters for token_count=%d, key=%s", len(out), n, key)
 	return out
 }
 

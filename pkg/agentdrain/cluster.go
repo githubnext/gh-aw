@@ -1,5 +1,9 @@
 package agentdrain
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var clusterLog = logger.New("agentdrain:cluster")
+
 // clusterStore manages the set of known log template clusters.
 type clusterStore struct {
 	clusters map[int]*Cluster
@@ -26,6 +30,7 @@ func (s *clusterStore) add(template []string, stage string) *Cluster {
 		Stage:    stage,
 	}
 	s.clusters[id] = c
+	clusterLog.Printf("Created new cluster: id=%d, stage=%s, template_length=%d", id, stage, len(tmpl))
 	return c
 }
 
@@ -49,6 +54,7 @@ func (s *clusterStore) all() []Cluster {
 // Returns 0 when the slices have different lengths.
 func computeSimilarity(a, b []string, paramToken string) float64 {
 	if len(a) != len(b) {
+		clusterLog.Printf("Similarity: length mismatch (%d vs %d), returning 0", len(a), len(b))
 		return 0
 	}
 	nonParam := 0
@@ -66,7 +72,11 @@ func computeSimilarity(a, b []string, paramToken string) float64 {
 		// All positions are wildcards – treat as a perfect structural match.
 		return 1.0
 	}
-	return float64(matches) / float64(nonParam)
+	sim := float64(matches) / float64(nonParam)
+	if clusterLog.Enabled() {
+		clusterLog.Printf("Similarity: matches=%d/%d non-param positions, score=%.3f", matches, nonParam, sim)
+	}
+	return sim
 }
 
 // mergeTemplate produces a new template by replacing positions where the two

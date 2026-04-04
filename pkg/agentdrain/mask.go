@@ -5,7 +5,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var maskLog = logger.New("agentdrain:mask")
 
 // Masker applies a sequence of regex substitution rules to normalize log lines.
 type Masker struct {
@@ -21,10 +25,12 @@ type compiledRule struct {
 // NewMasker compiles the given MaskRules into a Masker ready for use.
 // Returns an error if any pattern fails to compile.
 func NewMasker(rules []MaskRule) (*Masker, error) {
+	maskLog.Printf("Compiling %d mask rules", len(rules))
 	compiled := make([]compiledRule, 0, len(rules))
 	for _, r := range rules {
 		re, err := regexp.Compile(r.Pattern)
 		if err != nil {
+			maskLog.Printf("Failed to compile mask rule %q: %v", r.Name, err)
 			return nil, fmt.Errorf("agentdrain: mask rule %q: %w", r.Name, err)
 		}
 		compiled = append(compiled, compiledRule{
@@ -33,6 +39,7 @@ func NewMasker(rules []MaskRule) (*Masker, error) {
 			replacement: r.Replacement,
 		})
 	}
+	maskLog.Printf("Masker ready with %d compiled rules", len(compiled))
 	return &Masker{rules: compiled}, nil
 }
 
@@ -50,6 +57,7 @@ func (m *Masker) Mask(line string) string {
 //
 //	stage=tool_call key1=val1 key2=val2
 func FlattenEvent(evt AgentEvent, excludeFields []string) string {
+	maskLog.Printf("Flattening event: stage=%s, fields=%d, exclude=%d", evt.Stage, len(evt.Fields), len(excludeFields))
 	excluded := make(map[string]bool, len(excludeFields))
 	for _, f := range excludeFields {
 		excluded[f] = true
