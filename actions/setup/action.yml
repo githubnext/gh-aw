@@ -15,7 +15,7 @@ inputs:
     required: false
     default: ''
   trace-id:
-    description: 'OTLP trace ID to reuse for cross-job span correlation. Pass the trace-id output of the activation job setup step to correlate all job spans under the same trace. When omitted a new trace ID is generated.'
+    description: 'OTLP trace ID (32-character hexadecimal string) to reuse for cross-job span correlation. Pass the trace-id output of the activation job setup step to correlate all job spans under the same trace. When omitted a new trace ID is generated.'
     required: false
     default: ''
 

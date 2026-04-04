@@ -4,7 +4,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Module import
 // ---------------------------------------------------------------------------
 
-const { generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, sendOTLPSpan, sendJobSetupSpan } = await import("./send_otlp_span.cjs");
+const { isValidTraceId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, sendOTLPSpan, sendJobSetupSpan } = await import("./send_otlp_span.cjs");
+
+// ---------------------------------------------------------------------------
+// isValidTraceId
+// ---------------------------------------------------------------------------
+
+describe("isValidTraceId", () => {
+  it("accepts a valid 32-character lowercase hex trace ID", () => {
+    expect(isValidTraceId("a".repeat(32))).toBe(true);
+    expect(isValidTraceId("0123456789abcdef0123456789abcdef")).toBe(true);
+  });
+
+  it("rejects uppercase hex characters", () => {
+    expect(isValidTraceId("A".repeat(32))).toBe(false);
+  });
+
+  it("rejects strings that are too short or too long", () => {
+    expect(isValidTraceId("a".repeat(31))).toBe(false);
+    expect(isValidTraceId("a".repeat(33))).toBe(false);
+  });
+
+  it("rejects empty string", () => {
+    expect(isValidTraceId("")).toBe(false);
+  });
+
+  it("rejects non-hex characters", () => {
+    expect(isValidTraceId("z".repeat(32))).toBe(false);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // generateTraceId
@@ -224,6 +252,13 @@ describe("sendJobSetupSpan", () => {
     const traceId = await sendJobSetupSpan();
     expect(traceId).toBe("a".repeat(32));
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("generates a new trace ID when INPUT_TRACE_ID is invalid", async () => {
+    process.env.INPUT_TRACE_ID = "not-a-valid-trace-id";
+    const traceId = await sendJobSetupSpan();
+    expect(traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(traceId).not.toBe("not-a-valid-trace-id");
   });
 
   it("sends a span when endpoint is configured and returns the trace ID", async () => {

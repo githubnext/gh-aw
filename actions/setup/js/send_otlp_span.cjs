@@ -146,12 +146,27 @@ async function sendOTLPSpan(endpoint, payload) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Regular expression that matches a valid OTLP trace ID: 32 lowercase hex characters.
+ * @type {RegExp}
+ */
+const TRACE_ID_RE = /^[0-9a-f]{32}$/;
+
+/**
+ * Validate that a string is a well-formed OTLP trace ID (32 lowercase hex chars).
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isValidTraceId(id) {
+  return TRACE_ID_RE.test(id);
+}
+
+/**
  * @typedef {Object} SendJobSetupSpanOptions
  * @property {number} [startMs]  - Override for the span start time (ms).  Defaults to `Date.now()`.
  * @property {string} [traceId] - Existing trace ID to reuse for cross-job correlation.
  *   When omitted the value is taken from the `INPUT_TRACE_ID` environment variable (the
  *   `trace-id` action input); if that is also absent a new random trace ID is generated.
- *   Pass the `trace-id` output of the activation job's setup step to correlate all
+ *   Pass the `trace-id` output of the activation job setup step to correlate all
  *   subsequent job spans under the same trace.
  */
 
@@ -182,8 +197,11 @@ async function sendJobSetupSpan(options = {}) {
   // Resolve the trace ID before the early-return so it is always available as
   // an action output regardless of whether OTLP is configured.
   // Priority: options.traceId > INPUT_TRACE_ID env var > newly generated ID.
-  const inputTraceId = (process.env.INPUT_TRACE_ID || "").trim();
-  const traceId = options.traceId || inputTraceId || generateTraceId();
+  // Invalid (non-hex, wrong-length) values are silently discarded in favour of a new ID.
+  const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
+  const inputTraceId = isValidTraceId(rawInputTraceId) ? rawInputTraceId : "";
+  const candidateTraceId = options.traceId || inputTraceId;
+  const traceId = candidateTraceId && isValidTraceId(candidateTraceId) ? candidateTraceId : generateTraceId();
 
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   if (!endpoint) {
@@ -222,6 +240,7 @@ async function sendJobSetupSpan(options = {}) {
 }
 
 module.exports = {
+  isValidTraceId,
   generateTraceId,
   generateSpanId,
   toNanoString,

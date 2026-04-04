@@ -44,7 +44,7 @@ if (result.status !== 0) {
     // Always expose the trace ID as an action output so downstream jobs can
     // reference it via `steps.<id>.outputs.trace-id` and pass it to their own
     // setup steps to correlate all job spans under a single trace.
-    if (traceId && process.env.GITHUB_OUTPUT) {
+    if (/^[0-9a-f]{32}$/.test(traceId) && process.env.GITHUB_OUTPUT) {
       appendFileSync(process.env.GITHUB_OUTPUT, `trace-id=${traceId}\n`);
     }
   } catch {
