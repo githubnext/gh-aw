@@ -178,7 +178,7 @@ describe("sendOTLPSpan", () => {
 describe("sendJobSetupSpan", () => {
   /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
-  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "INPUT_JOB_NAME", "GH_AW_INFO_WORKFLOW_NAME", "GH_AW_INFO_ENGINE_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "INPUT_JOB_NAME", "INPUT_TRACE_ID", "GH_AW_INFO_WORKFLOW_NAME", "GH_AW_INFO_ENGINE_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -213,12 +213,20 @@ describe("sendJobSetupSpan", () => {
     return undefined;
   }
 
-  it("is a no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
-    await sendJobSetupSpan();
+  it("returns a trace ID even when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
+    const traceId = await sendJobSetupSpan();
+    expect(traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("sends a span when endpoint is configured", async () => {
+  it("returns the same trace ID when called with INPUT_TRACE_ID and no endpoint", async () => {
+    process.env.INPUT_TRACE_ID = "a".repeat(32);
+    const traceId = await sendJobSetupSpan();
+    expect(traceId).toBe("a".repeat(32));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends a span when endpoint is configured and returns the trace ID", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 
@@ -230,8 +238,9 @@ describe("sendJobSetupSpan", () => {
     process.env.GITHUB_ACTOR = "octocat";
     process.env.GITHUB_REPOSITORY = "owner/repo";
 
-    await sendJobSetupSpan();
+    const traceId = await sendJobSetupSpan();
 
+    expect(traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe("https://traces.example.com/v1/traces");
@@ -240,7 +249,8 @@ describe("sendJobSetupSpan", () => {
     const body = JSON.parse(init.body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.name).toBe("gh-aw.job.setup");
-    expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
+    // Span traceId must match the returned value (cross-job correlation)
+    expect(span.traceId).toBe(traceId);
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
 
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, attrValue(a)]));
@@ -250,6 +260,48 @@ describe("sendJobSetupSpan", () => {
     expect(attrs["gh-aw.run.id"]).toBe("123456789");
     expect(attrs["gh-aw.run.actor"]).toBe("octocat");
     expect(attrs["gh-aw.repository"]).toBe("owner/repo");
+  });
+
+  it("uses trace ID from options.traceId for cross-job correlation", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    const correlationTraceId = "b".repeat(32);
+
+    const returned = await sendJobSetupSpan({ traceId: correlationTraceId });
+
+    expect(returned).toBe(correlationTraceId);
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.resourceSpans[0].scopeSpans[0].spans[0].traceId).toBe(correlationTraceId);
+  });
+
+  it("uses trace ID from INPUT_TRACE_ID env var when options.traceId is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_TRACE_ID = "c".repeat(32);
+
+    const returned = await sendJobSetupSpan();
+
+    expect(returned).toBe("c".repeat(32));
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.resourceSpans[0].scopeSpans[0].spans[0].traceId).toBe("c".repeat(32));
+  });
+
+  it("options.traceId takes priority over INPUT_TRACE_ID", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_TRACE_ID = "d".repeat(32);
+
+    const returned = await sendJobSetupSpan({ traceId: "e".repeat(32) });
+
+    expect(returned).toBe("e".repeat(32));
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.resourceSpans[0].scopeSpans[0].spans[0].traceId).toBe("e".repeat(32));
   });
 
   it("uses the provided startMs for the span start time", async () => {

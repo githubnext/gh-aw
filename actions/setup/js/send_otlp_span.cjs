@@ -147,21 +147,28 @@ async function sendOTLPSpan(endpoint, payload) {
 
 /**
  * @typedef {Object} SendJobSetupSpanOptions
- * @property {number} [startMs] - Override for the span start time (ms).  Defaults to `Date.now()`.
+ * @property {number} [startMs]  - Override for the span start time (ms).  Defaults to `Date.now()`.
+ * @property {string} [traceId] - Existing trace ID to reuse for cross-job correlation.
+ *   When omitted the value is taken from the `INPUT_TRACE_ID` environment variable (the
+ *   `trace-id` action input); if that is also absent a new random trace ID is generated.
+ *   Pass the `trace-id` output of the activation job's setup step to correlate all
+ *   subsequent job spans under the same trace.
  */
 
 /**
  * Send a `gh-aw.job.setup` span to the configured OTLP endpoint.
  *
  * This is designed to be called from `actions/setup/index.js` immediately after
- * the setup script completes.  It is a no-op when `OTEL_EXPORTER_OTLP_ENDPOINT`
- * is not set, and errors are swallowed so the workflow is never broken by tracing
- * failures.
+ * the setup script completes.  It always returns the trace ID so callers can
+ * expose it as an action output for cross-job correlation — even when
+ * `OTEL_EXPORTER_OTLP_ENDPOINT` is not set (no span is sent in that case).
+ * Errors are swallowed so the workflow is never broken by tracing failures.
  *
  * Environment variables consumed:
  * - `OTEL_EXPORTER_OTLP_ENDPOINT` – collector endpoint (required to send anything)
  * - `OTEL_SERVICE_NAME`            – service name (defaults to "gh-aw")
  * - `INPUT_JOB_NAME`               – job name passed via the `job-name` action input
+ * - `INPUT_TRACE_ID`               – optional trace ID passed via the `trace-id` action input
  * - `GH_AW_INFO_WORKFLOW_NAME`     – workflow name injected by the gh-aw compiler
  * - `GH_AW_INFO_ENGINE_ID`         – engine ID injected by the gh-aw compiler
  * - `GITHUB_RUN_ID`                – GitHub Actions run ID
@@ -169,12 +176,18 @@ async function sendOTLPSpan(endpoint, payload) {
  * - `GITHUB_REPOSITORY`            – `owner/repo` string
  *
  * @param {SendJobSetupSpanOptions} [options]
- * @returns {Promise<void>}
+ * @returns {Promise<string>} The trace ID used for the span (generated or passed in).
  */
 async function sendJobSetupSpan(options = {}) {
+  // Resolve the trace ID before the early-return so it is always available as
+  // an action output regardless of whether OTLP is configured.
+  // Priority: options.traceId > INPUT_TRACE_ID env var > newly generated ID.
+  const inputTraceId = (process.env.INPUT_TRACE_ID || "").trim();
+  const traceId = options.traceId || inputTraceId || generateTraceId();
+
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   if (!endpoint) {
-    return;
+    return traceId;
   }
 
   const startMs = options.startMs ?? Date.now();
@@ -195,7 +208,7 @@ async function sendJobSetupSpan(options = {}) {
   }
 
   const payload = buildOTLPPayload({
-    traceId: generateTraceId(),
+    traceId,
     spanId: generateSpanId(),
     spanName: "gh-aw.job.setup",
     startMs,
@@ -205,6 +218,7 @@ async function sendJobSetupSpan(options = {}) {
   });
 
   await sendOTLPSpan(endpoint, payload);
+  return traceId;
 }
 
 module.exports = {
