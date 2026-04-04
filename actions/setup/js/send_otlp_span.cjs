@@ -319,7 +319,9 @@ async function sendJobSetupSpan(options = {}) {
 
   // Normalize INPUT_TRACE_ID to lowercase before validating: OTLP requires lowercase
   // hex, but trace IDs pasted from external tools may use uppercase characters.
-  const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
+  // Also handle INPUT_TRACE-ID (with hyphen) in case the runner preserves the original
+  // input name hyphen instead of converting it to an underscore.
+  const rawInputTraceId = (process.env.INPUT_TRACE_ID || process.env["INPUT_TRACE-ID"] || "").trim().toLowerCase();
   const inputTraceId = isValidTraceId(rawInputTraceId) ? rawInputTraceId : "";
 
   // When this job was dispatched by a parent workflow, the parent's trace ID is
