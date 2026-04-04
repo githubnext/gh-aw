@@ -461,7 +461,7 @@ describe("sendJobSetupSpan", () => {
     expect(traceId).not.toBe("not-a-valid-trace-id");
   });
 
-  it("normalises uppercase INPUT_TRACE_ID to lowercase and accepts it", async () => {
+  it("normalizes uppercase INPUT_TRACE_ID to lowercase and accepts it", async () => {
     // Trace IDs pasted from external tools may be uppercase; we normalise them.
     process.env.INPUT_TRACE_ID = "A".repeat(32);
     const { traceId } = await sendJobSetupSpan();
@@ -732,7 +732,7 @@ describe("sendJobConclusionSpan", () => {
     expect(span.parentSpanId).toBeUndefined();
   });
 
-  it("normalises uppercase GH_AW_TRACE_ID to lowercase", async () => {
+  it("normalizes uppercase GH_AW_TRACE_ID to lowercase", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
 

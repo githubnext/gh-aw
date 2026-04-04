@@ -279,7 +279,7 @@ async function sendJobSetupSpan(options = {}) {
   // Validate options.traceId if supplied; callers may pass raw user input.
   const optionsTraceId = options.traceId && isValidTraceId(options.traceId) ? options.traceId : "";
 
-  // Normalise INPUT_TRACE_ID to lowercase before validating: OTLP requires lowercase
+  // Normalize INPUT_TRACE_ID to lowercase before validating: OTLP requires lowercase
   // hex, but trace IDs pasted from external tools may use uppercase characters.
   const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
   const inputTraceId = isValidTraceId(rawInputTraceId) ? rawInputTraceId : "";
@@ -402,7 +402,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // from aw_info for cross-job correlation, then generate a fresh ID.
   const envTraceId = (process.env.GH_AW_TRACE_ID || "").trim().toLowerCase();
   const awTraceId = typeof awInfo.context?.workflow_call_id === "string" ? awInfo.context.workflow_call_id.replace(/-/g, "") : "";
-  const traceId = (isValidTraceId(envTraceId) ? envTraceId : null) || (awTraceId && isValidTraceId(awTraceId) ? awTraceId : null) || generateTraceId();
+  let traceId = generateTraceId();
+  if (isValidTraceId(envTraceId)) {
+    traceId = envTraceId;
+  } else if (awTraceId && isValidTraceId(awTraceId)) {
+    traceId = awTraceId;
+  }
 
   // Use GH_AW_PARENT_SPAN_ID (written to GITHUB_ENV by this job's setup step) so
   // conclusion spans are linked as children of the setup span (1 parent span per job).
