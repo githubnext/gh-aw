@@ -106,7 +106,8 @@ function resolveItemContext(payload) {
  *   item_type: string,
  *   item_number: string,
  *   comment_id: string,
- *   comment_node_id: string
+ *   comment_node_id: string,
+ *   otel_trace_id: string
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -120,6 +121,10 @@ function resolveItemContext(payload) {
  *     Only populated for discussion/discussion_comment events. Can be passed
  *     as reply_to_id in add_comment to thread responses under the triggering
  *     comment when a dispatched specialist workflow replies to a discussion.
+ *   - otel_trace_id: OTLP trace ID from the parent workflow's setup span.
+ *     Empty string when OTLP is not configured or the parent setup step has
+ *     not yet run.  Used by child workflow setup steps to continue the same
+ *     trace as the parent (composite-action trace propagation).
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
@@ -140,6 +145,10 @@ function buildAwContext() {
     item_number,
     comment_id,
     comment_node_id,
+    // Propagate the current OTLP trace ID to dispatched child workflows so that
+    // composite actions share the same trace as their parent.  Empty string when
+    // OTLP is not configured or the parent setup step has not run yet.
+    otel_trace_id: process.env.GITHUB_AW_OTEL_TRACE_ID || "",
   };
 }
 

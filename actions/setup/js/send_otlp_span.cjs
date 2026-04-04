@@ -273,7 +273,9 @@ function isValidSpanId(id) {
  * @property {number} [startMs]  - Override for the span start time (ms).  Defaults to `Date.now()`.
  * @property {string} [traceId] - Existing trace ID to reuse for cross-job correlation.
  *   When omitted the value is taken from the `INPUT_TRACE_ID` environment variable (the
- *   `trace-id` action input); if that is also absent a new random trace ID is generated.
+ *   `trace-id` action input); if that is also absent the `otel_trace_id` field from
+ *   `aw_info.context` is used (propagated from the parent workflow via `aw_context`);
+ *   and if none of those are set a new random trace ID is generated.
  *   Pass the `trace-id` output of the activation job setup step to correlate all
  *   subsequent job spans under the same trace.
  */
@@ -299,13 +301,17 @@ function isValidSpanId(id) {
  * - `GITHUB_ACTOR`                 – GitHub Actions actor (user / bot)
  * - `GITHUB_REPOSITORY`            – `owner/repo` string
  *
+ * Runtime files read (optional):
+ * - `/tmp/gh-aw/aw_info.json` – when present, `context.otel_trace_id` is used as a fallback
+ *   trace ID so that dispatched child workflows share the parent's OTLP trace
+ *
  * @param {SendJobSetupSpanOptions} [options]
  * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
  */
 async function sendJobSetupSpan(options = {}) {
   // Resolve the trace ID before the early-return so it is always available as
   // an action output regardless of whether OTLP is configured.
-  // Priority: options.traceId > INPUT_TRACE_ID env var > newly generated ID.
+  // Priority: options.traceId > INPUT_TRACE_ID > aw_info.context.otel_trace_id > newly generated ID.
   // Invalid (wrong length, non-hex) values are silently discarded.
 
   // Validate options.traceId if supplied; callers may pass raw user input.
@@ -316,7 +322,14 @@ async function sendJobSetupSpan(options = {}) {
   const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
   const inputTraceId = isValidTraceId(rawInputTraceId) ? rawInputTraceId : "";
 
-  const traceId = optionsTraceId || inputTraceId || generateTraceId();
+  // When this job was dispatched by a parent workflow, the parent's trace ID is
+  // propagated via aw_context.otel_trace_id → aw_info.context.otel_trace_id so that
+  // composite-action spans share a single trace with their caller.
+  const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
+  const rawContextTraceId = typeof awInfo.context?.otel_trace_id === "string" ? awInfo.context.otel_trace_id.trim().toLowerCase() : "";
+  const contextTraceId = isValidTraceId(rawContextTraceId) ? rawContextTraceId : "";
+
+  const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
 
   // Always generate a span ID so it can be written to GITHUB_ENV as
   // GITHUB_AW_OTEL_PARENT_SPAN_ID even when OTLP is not configured, allowing downstream
