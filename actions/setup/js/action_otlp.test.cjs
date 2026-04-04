@@ -106,6 +106,24 @@ describe("action_setup_otlp run()", () => {
     }
   });
 
+  it("generates a new trace-id when INPUT_TRACE_ID is absent", async () => {
+    const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_no_input_tid_${Date.now()}.txt`);
+    try {
+      // INPUT_TRACE_ID is not set — a fresh trace ID must be generated.
+      process.env.GITHUB_OUTPUT = tmpOut;
+      process.env.GITHUB_ENV = tmpOut;
+
+      await runSetup();
+
+      const contents = fs.readFileSync(tmpOut, "utf8");
+      // A generated 32-char hex trace-id must always be written.
+      expect(contents).toMatch(/^trace-id=[0-9a-f]{32}$/m);
+      expect(contents).toMatch(/^GITHUB_AW_OTEL_TRACE_ID=[0-9a-f]{32}$/m);
+    } finally {
+      fs.rmSync(tmpOut, { force: true });
+    }
+  });
+
   it("does not throw when GITHUB_OUTPUT is not set", async () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 200 }));

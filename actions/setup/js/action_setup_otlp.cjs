@@ -41,9 +41,9 @@ async function run() {
   // Explicitly read INPUT_TRACE_ID and pass it as options.traceId so the
   // activation job's trace ID is used even when process.env propagation
   // through GitHub Actions expression evaluation is unreliable.
-  const rawInputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
-  if (rawInputTraceId) {
-    console.log(`[otlp] using input trace-id: ${rawInputTraceId}`);
+  const inputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
+  if (inputTraceId) {
+    console.log(`[otlp] using input trace-id: ${inputTraceId}`);
   }
 
   if (!endpoint) {
@@ -52,7 +52,7 @@ async function run() {
     console.log(`[otlp] sending setup span to ${endpoint}`);
   }
 
-  const { traceId, spanId } = await sendJobSetupSpan({ startMs, traceId: rawInputTraceId || undefined });
+  const { traceId, spanId } = await sendJobSetupSpan({ startMs, traceId: inputTraceId || undefined });
 
   if (endpoint) {
     console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
