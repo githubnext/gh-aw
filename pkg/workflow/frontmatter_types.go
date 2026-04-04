@@ -142,8 +142,12 @@ type ObservabilityConfig struct {
 // This provides compile-time type safety and clearer error messages compared to map[string]any
 type FrontmatterConfig struct {
 	// Core workflow fields
-	Name           string            `json:"name,omitempty"`
-	Description    string            `json:"description,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	// Engine accepts both a plain string engine name (e.g. "copilot") and an object-style
+	// configuration (e.g. {id: copilot, max-continuations: 2}).  Using any prevents
+	// JSON unmarshal failures when the engine is an object, which would otherwise cause
+	// ParseFrontmatterConfig to return nil and break features that depend on it (e.g. OTLP).
 	Engine         any               `json:"engine,omitempty"`
 	Source         string            `json:"source,omitempty"`
 	TrackerID      string            `json:"tracker-id,omitempty"`

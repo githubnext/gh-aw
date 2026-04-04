@@ -50,7 +50,7 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 
 // extractOTLPConfigFromRaw reads OTLP endpoint and headers directly from the raw
 // frontmatter map[string]any.  This avoids dependence on ParseFrontmatterConfig
-// succeeding — that function may fail for workflows with complex tool configurations
+// succeeding -- that function may fail for workflows with complex tool configurations
 // (e.g. engine objects, array-style bash configs), which would leave ParsedFrontmatter
 // nil and prevent OTLP injection.
 func extractOTLPConfigFromRaw(frontmatter map[string]any) (endpoint, headers string) {
