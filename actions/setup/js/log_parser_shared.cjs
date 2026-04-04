@@ -1383,7 +1383,6 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
   }
 
   // Statistics
-
   const lastEntry = logEntries[logEntries.length - 1];
   lines.push("Statistics:");
   if (lastEntry?.num_turns) {
