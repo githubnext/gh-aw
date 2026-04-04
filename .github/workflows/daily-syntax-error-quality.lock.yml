@@ -901,14 +901,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_agent_failure.cjs');
             await main();
-      - name: Send OTLP job span
-        if: always()
-        continue-on-error: true
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { sendJobConclusionSpan } = require('${{ runner.temp }}/gh-aw/actions/send_otlp_span.cjs');
-            await sendJobConclusionSpan("gh-aw.job.conclusion");
 
   detection:
     needs: agent
@@ -1149,12 +1141,4 @@ jobs:
           name: safe-output-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
-      - name: Send OTLP job span
-        if: always()
-        continue-on-error: true
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { sendJobConclusionSpan } = require('${{ runner.temp }}/gh-aw/actions/send_otlp_span.cjs');
-            await sendJobConclusionSpan("gh-aw.job.safe-outputs");
 

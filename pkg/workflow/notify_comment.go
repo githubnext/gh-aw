@@ -355,7 +355,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Append OTLP conclusion span step (no-op when endpoint is not configured).
-	steps = append(steps, generateOTLPConclusionSpanStep("gh-aw.job.conclusion"))
+	// Note: this step is now handled by the action post step (post.js) so no
+	// injected step is needed here.
 
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails

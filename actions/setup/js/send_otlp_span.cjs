@@ -384,8 +384,9 @@ function readJSONIfExists(filePath) {
 // ---------------------------------------------------------------------------
 
 /**
- * Send a conclusion span for a safe_outputs or conclusion job to the configured
- * OTLP endpoint.  The span carries workflow metadata read from `aw_info.json`
+ * Send a conclusion span for a job to the configured OTLP endpoint.  Called
+ * from the action post step so it runs at the end of every job that uses the
+ * setup action.  The span carries workflow metadata read from `aw_info.json`
  * and the effective token count from `GH_AW_EFFECTIVE_TOKENS`.
  *
  * This is a no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.  All errors
@@ -395,9 +396,11 @@ function readJSONIfExists(filePath) {
  * - `OTEL_EXPORTER_OTLP_ENDPOINT`  – collector endpoint
  * - `OTEL_SERVICE_NAME`             – service name (defaults to "gh-aw")
  * - `GH_AW_EFFECTIVE_TOKENS`        – total effective token count for the run
- * - `GITHUB_AW_OTEL_TRACE_ID`                – trace ID written to GITHUB_ENV by the setup step;
+ * - `INPUT_JOB_NAME`               – job name; set automatically by GitHub Actions from the
+ *                                     `job-name` action input
+ * - `GITHUB_AW_OTEL_TRACE_ID`      – trace ID written to GITHUB_ENV by the setup step;
  *                                     enables 1-trace-per-run when present
- * - `GITHUB_AW_OTEL_PARENT_SPAN_ID`          – setup span ID written to GITHUB_ENV by the setup step;
+ * - `GITHUB_AW_OTEL_PARENT_SPAN_ID` – setup span ID written to GITHUB_ENV by the setup step;
  *                                     links this span as a child of the job setup span
  * - `GITHUB_RUN_ID`                 – GitHub Actions run ID
  * - `GITHUB_ACTOR`                  – GitHub Actions actor
@@ -406,7 +409,7 @@ function readJSONIfExists(filePath) {
  * Runtime files read:
  * - `/tmp/gh-aw/aw_info.json` – workflow/engine metadata written by the agent job
  *
- * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.safe-outputs"`)
+ * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
  * @param {{ startMs?: number }} [options]
  * @returns {Promise<void>}
  */
@@ -449,12 +452,14 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const workflowName = awInfo.workflow_name || "";
   const engineId = awInfo.engine_id || "";
   const model = awInfo.model || "";
+  const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
 
   const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
 
+  if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
   if (model) attributes.push(buildAttr("gh-aw.model", model));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {

@@ -720,7 +720,18 @@ describe("sendJobSetupSpan", () => {
 describe("sendJobConclusionSpan", () => {
   /** @type {Record<string, string | undefined>} */
   const savedEnv = {};
-  const envKeys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "GH_AW_EFFECTIVE_TOKENS", "GH_AW_INFO_VERSION", "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_RUN_ID", "GITHUB_ACTOR", "GITHUB_REPOSITORY"];
+  const envKeys = [
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_SERVICE_NAME",
+    "GH_AW_EFFECTIVE_TOKENS",
+    "GH_AW_INFO_VERSION",
+    "GITHUB_AW_OTEL_TRACE_ID",
+    "GITHUB_AW_OTEL_PARENT_SPAN_ID",
+    "GITHUB_RUN_ID",
+    "GITHUB_ACTOR",
+    "GITHUB_REPOSITORY",
+    "INPUT_JOB_NAME",
+  ];
   let mkdirSpy, appendSpy;
 
   beforeEach(() => {

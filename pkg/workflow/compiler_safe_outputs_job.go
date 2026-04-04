@@ -380,7 +380,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Append OTLP conclusion span step (no-op when endpoint is not configured).
-	steps = append(steps, generateOTLPConclusionSpanStep("gh-aw.job.safe-outputs"))
+	// Note: this step is now handled by the action post step (post.js) so no
+	// injected step is needed here.
 
 	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
 	// live in the workspace. When the safe_outputs job contains a checkout step for
