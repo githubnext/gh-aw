@@ -46,13 +46,23 @@ async function main() {
 
     // Write agent_usage.json so the aggregated totals are bundled in the agent
     // artifact and accessible to third-party tools without parsing the step summary.
+    const effectiveTokens = Math.round(summary.totalEffectiveTokens || 0);
     const agentUsage = {
       input_tokens: summary.totalInputTokens,
       output_tokens: summary.totalOutputTokens,
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
+      effective_tokens: effectiveTokens,
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
+
+    if (effectiveTokens > 0) {
+      // Export as env var so messages_footer.cjs can read GH_AW_EFFECTIVE_TOKENS,
+      // and as a step output so it can flow to downstream jobs.
+      core.exportVariable("GH_AW_EFFECTIVE_TOKENS", String(effectiveTokens));
+      core.setOutput("effective_tokens", String(effectiveTokens));
+      core.info(`Effective tokens: ${effectiveTokens}`);
+    }
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }

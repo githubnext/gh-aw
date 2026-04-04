@@ -120,7 +120,7 @@ describe("parse_token_usage", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
     });
 
-    test("writes agent_usage.json with aggregated token totals", async () => {
+    test("writes agent_usage.json with aggregated token totals including effective_tokens", async () => {
       const agentUsageFile = path.join(tmpDir, "agent_usage.json");
 
       fs.existsSync = vi.fn(p => (p === TOKEN_USAGE_PATH ? true : originalExistsSync(p)));
@@ -142,6 +142,27 @@ describe("parse_token_usage", () => {
       expect(agentUsage.output_tokens).toBe(200);
       expect(agentUsage.cache_read_tokens).toBe(5000);
       expect(agentUsage.cache_write_tokens).toBe(3000);
+      expect(typeof agentUsage.effective_tokens).toBe("number");
+    });
+
+    test("exports effective_tokens as step output and env var when non-zero", async () => {
+      const agentUsageFile = path.join(tmpDir, "agent_usage.json");
+
+      fs.existsSync = vi.fn(p => (p === TOKEN_USAGE_PATH ? true : originalExistsSync(p)));
+      fs.statSync = vi.fn(p => (p === TOKEN_USAGE_PATH ? { size: singleEntry.length } : originalStatSync(p)));
+      fs.readFileSync = vi.fn((p, enc) => (p === TOKEN_USAGE_PATH ? singleEntry : originalReadFileSync(p, enc)));
+      fs.writeFileSync = vi.fn((p, data) => {
+        if (p === AGENT_USAGE_PATH) originalWriteFileSync(agentUsageFile, data);
+        else originalWriteFileSync(p, data);
+      });
+
+      await main();
+
+      const agentUsage = JSON.parse(fs.readFileSync(agentUsageFile, "utf8"));
+      if (agentUsage.effective_tokens > 0) {
+        expect(mockCore.setOutput).toHaveBeenCalledWith("effective_tokens", String(agentUsage.effective_tokens));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", String(agentUsage.effective_tokens));
+      }
     });
 
     test("handles multiple model entries", async () => {
