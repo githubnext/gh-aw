@@ -9,14 +9,14 @@ const setupStartMs = Date.now();
 
 // GitHub Actions sets INPUT_* env vars for JavaScript actions by converting
 // input names to uppercase and replacing hyphens with underscores. Explicitly
-// normalise inputs with hyphens in their names because some runner versions
+// normalize inputs with hyphens in their names because some runner versions
 // preserve the original hyphen instead of converting it to an underscore.
 const safeOutputCustomTokens =
   process.env["INPUT_SAFE_OUTPUT_CUSTOM_TOKENS"] ||
   process.env["INPUT_SAFE-OUTPUT-CUSTOM-TOKENS"] ||
   "false";
 
-// Normalise trace-id input: handle both INPUT_TRACE_ID (underscore, standard)
+// Normalize trace-id input: handle both INPUT_TRACE_ID (underscore, standard)
 // and INPUT_TRACE-ID (hyphen, used by some runner versions).
 const inputTraceId =
   process.env["INPUT_TRACE_ID"] ||
@@ -46,7 +46,7 @@ if (result.status !== 0) {
 // Send a gh-aw.job.setup span to the OTLP endpoint when configured.
 // Delegates to action_setup_otlp.cjs so that script mode (setup.sh) and
 // dev/release mode share the same implementation.
-// Explicitly set INPUT_TRACE_ID (normalised above) so action_setup_otlp.cjs
+// Explicitly set INPUT_TRACE_ID (normalized above) so action_setup_otlp.cjs
 // always reads the underscore form regardless of runner version.
 // The IIFE keeps the event loop alive until the fetch completes.
 // Errors are swallowed: trace export failures must never break the workflow.
