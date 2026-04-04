@@ -24,14 +24,6 @@ echo "Parsing token usage from: $TOKEN_USAGE_FILE"
 # deterministic output (sorted by total tokens descending).
 # Regexes tolerate optional whitespace around ":" per standard JSON formatting.
 awk '
-BEGIN {
-  total_input = 0
-  total_output = 0
-  total_cache_read = 0
-  total_cache_write = 0
-  total_requests = 0
-  total_duration = 0
-}
 {
   # Extract fields from JSON using pattern matching.
   # Patterns tolerate optional whitespace after the colon and handle both
@@ -51,6 +43,7 @@ BEGIN {
   if (model == "") model = "unknown"
 
   # Aggregate by model
+  total_requests += 1
   models[model] = 1
   providers[model] = provider
   model_input[model] += input
@@ -59,22 +52,9 @@ BEGIN {
   model_cache_write[model] += cache_write
   model_requests[model] += 1
   model_duration[model] += duration
-
-  total_input += input
-  total_output += output
-  total_cache_read += cache_read
-  total_cache_write += cache_write
-  total_requests += 1
-  total_duration += duration
 }
 END {
   if (total_requests == 0) exit
-
-  total_dur_s = total_duration / 1000.0
-
-  printf "\n### 📊 Token Usage\n\n"
-  printf "| Model | Input | Output | Cache Read | Cache Write | Requests | Duration |\n"
-  printf "|-------|------:|-------:|-----------:|------------:|---------:|---------:|\n"
 
   # Emit model rows with a sort key (total tokens, tab-separated) so we can
   # pipe through sort for deterministic ordering (highest tokens first).
@@ -86,16 +66,12 @@ END {
       model_cache_read[model], model_cache_write[model], \
       model_requests[model], dur_s
   }
-
-  # Totals row (prefixed with 0 sort key so it always appears last after reverse sort,
-  # but we will append it separately below)
 }
 ' "$TOKEN_USAGE_FILE" | sort -t$'\t' -k1 -rn | cut -f2- > /tmp/gh-aw-token-rows.tmp
 
-# Build the final table
+# Build the final table wrapped in a details block
 {
-  # Header (already written by awk above — re-emit here since awk output was redirected)
-  printf "\n### 📊 Token Usage\n\n"
+  printf "<details>\n<summary>Token Usage</summary>\n\n"
   printf "| Model | Input | Output | Cache Read | Cache Write | Requests | Duration |\n"
   printf "|-------|------:|-------:|-----------:|------------:|---------:|---------:|\n"
 
@@ -125,6 +101,7 @@ END {
     }
   }
   ' "$TOKEN_USAGE_FILE"
+  printf "\n</details>\n"
 } >> "$GITHUB_STEP_SUMMARY"
 
 rm -f /tmp/gh-aw-token-rows.tmp
