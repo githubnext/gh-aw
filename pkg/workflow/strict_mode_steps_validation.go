@@ -53,6 +53,10 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 		secretRefs = append(secretRefs, refs...)
 	}
 
+	// Filter out the built-in GITHUB_TOKEN: it is already present in every runner
+	// environment and is not a user-defined secret that could be accidentally leaked.
+	secretRefs = filterBuiltinTokens(secretRefs)
+
 	if len(secretRefs) == 0 {
 		strictModeValidationLog.Printf("No secrets found in %s section", sectionName)
 		return nil
@@ -113,6 +117,20 @@ func deduplicateStringSlice(in []string) []string {
 		if !seen[s] {
 			seen[s] = true
 			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// filterBuiltinTokens removes secret expressions that reference GitHub's built-in
+// GITHUB_TOKEN from the list. GITHUB_TOKEN is automatically provided by the runner
+// environment and is not a user-defined secret; it therefore does not represent an
+// accidental leak into the agent job.
+func filterBuiltinTokens(refs []string) []string {
+	out := refs[:0:0]
+	for _, ref := range refs {
+		if !strings.Contains(ref, "secrets.GITHUB_TOKEN") {
+			out = append(out, ref)
 		}
 	}
 	return out

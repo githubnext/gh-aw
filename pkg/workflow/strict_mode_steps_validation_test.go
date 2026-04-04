@@ -39,6 +39,22 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "steps with GITHUB_TOKEN are allowed (built-in token is exempt)",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Use GH CLI",
+						"env": map[string]any{
+							"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+						},
+						"run": "gh issue list",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
 			name: "post-steps without secrets is allowed",
 			frontmatter: map[string]any{
 				"post-steps": []any{
@@ -89,7 +105,7 @@ func TestValidateStepsSecrets(t *testing.T) {
 					map[string]any{
 						"uses": "some/action@v1",
 						"with": map[string]any{
-							"token": "${{ secrets.GITHUB_TOKEN }}",
+							"token": "${{ secrets.MY_API_TOKEN }}",
 						},
 					},
 				},
