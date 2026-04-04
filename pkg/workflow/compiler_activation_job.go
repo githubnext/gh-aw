@@ -35,7 +35,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Activation job doesn't need project support (no safe outputs processed here)
 	// When a pre-activation job exists, reuse its trace ID so all three jobs (pre_activation,
-	// activation, agent) share a single OTLP trace. Otherwise generate a new root trace ID.
+	// activation, agent) share a single OTLP trace. When no pre-activation job exists, the
+	// empty string instructs the setup action to generate a new root trace ID.
 	activationSetupTraceID := ""
 	if preActivationJobCreated {
 		activationSetupTraceID = fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.PreActivationJobName)

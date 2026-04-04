@@ -20,9 +20,10 @@ set -e
 # Falls back to 0 when node is unavailable.
 SETUP_START_MS=$(node -e "process.stdout.write(String(Date.now()))" 2>/dev/null || echo "0")
 
-# Log a message only when GitHub Actions debug mode is active (RUNNER_DEBUG=1).
+# Log a message only when GitHub Actions debug mode is active.
+# Handles both RUNNER_DEBUG=1 and RUNNER_DEBUG=true (GitHub Actions sets 'true').
 debug_log() {
-  if [[ "${RUNNER_DEBUG:-0}" == "1" ]]; then
+  if [[ "${RUNNER_DEBUG:-0}" == "1" || "${RUNNER_DEBUG:-0}" == "true" ]]; then
     echo "$@"
   fi
 }
