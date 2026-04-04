@@ -31,16 +31,16 @@ steps:
       set -euo pipefail
       mkdir -p /tmp/gh-aw/token-audit
 
-      # Download last 30 days of Copilot logs as JSON
+      # Download last 24 hours of Copilot logs as JSON
       gh aw logs \
         --engine copilot \
-        --start-date -30d \
+        --start-date -1d \
         --json \
-        -c 500 \
+        -c 100 \
         > /tmp/gh-aw/token-audit/copilot-logs.json
 
       TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/copilot-logs.json)
-      echo "✅ Downloaded $TOTAL Copilot workflow runs (last 30 days)"
+      echo "✅ Downloaded $TOTAL Copilot workflow runs (last 24 hours)"
 timeout-minutes: 25
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -178,7 +178,7 @@ Create a discussion with these sections:
 ```
 ### 📊 Executive Summary
 
-- **Period**: last 30 days (YYYY-MM-DD to YYYY-MM-DD)
+- **Period**: last 24 hours (YYYY-MM-DD to YYYY-MM-DD)
 - **Total runs**: N
 - **Total tokens**: N (formatted with commas)
 - **Total cost**: $X.XX
