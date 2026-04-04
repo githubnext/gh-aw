@@ -222,6 +222,93 @@ func TestResolveIncludePath(t *testing.T) {
 	}
 }
 
+// TestResolveIncludePath_DotGithubRepo tests import path resolution when the repository
+// itself is named ".github" (e.g. an org's `org/.github` repository).  In that case the
+// on-disk layout is <parent>/.github/.github/workflows/ and the traversal logic must
+// correctly treat the inner ".github" directory as the special folder and
+// <parent>/.github/ as the repository root.
+func TestResolveIncludePath_DotGithubRepo(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "test_resolve_dotgithub_repo")
+	require.NoError(t, err, "should create temp dir")
+	defer os.RemoveAll(tempDir)
+
+	// Simulate a repo whose name is ".github": the repo root is <tempDir>/.github
+	// and the GitHub Actions folder lives at <tempDir>/.github/.github/workflows/.
+	dotGithubRepoRoot := filepath.Join(tempDir, ".github")
+	workflowsDir := filepath.Join(dotGithubRepoRoot, ".github", "workflows")
+	agentsDir := filepath.Join(dotGithubRepoRoot, ".github", "agents")
+	rootAgentsDir := filepath.Join(dotGithubRepoRoot, "agents")
+
+	for _, dir := range []string{workflowsDir, agentsDir, rootAgentsDir} {
+		require.NoError(t, os.MkdirAll(dir, 0755), "should create dir %s", dir)
+	}
+
+	workflowFile := filepath.Join(workflowsDir, "workflow.md")
+	agentFile := filepath.Join(agentsDir, "planner.md")
+	rootAgentFile := filepath.Join(rootAgentsDir, "agent.md")
+
+	for path, content := range map[string]string{
+		workflowFile:  "workflow",
+		agentFile:     "planner",
+		rootAgentFile: "root-agent",
+	} {
+		require.NoError(t, os.WriteFile(path, []byte(content), 0644), "should write %s", path)
+	}
+
+	tests := []struct {
+		name     string
+		filePath string
+		baseDir  string
+		expected string
+		wantErr  bool
+	}{
+		{
+			name:     "relative path still resolves within workflows dir",
+			filePath: "workflow.md",
+			baseDir:  workflowsDir,
+			expected: workflowFile,
+		},
+		{
+			name:     "dotgithub-prefixed path resolves from repo root inside .github repo",
+			filePath: ".github/agents/planner.md",
+			baseDir:  workflowsDir,
+			expected: agentFile,
+		},
+		{
+			name:     "slash-prefixed path resolves from repo root inside .github repo",
+			filePath: "/agents/agent.md",
+			baseDir:  workflowsDir,
+			expected: rootAgentFile,
+		},
+		{
+			name:     "dotgithub-prefixed traversal is rejected inside .github repo",
+			filePath: ".github/../../../etc/passwd",
+			baseDir:  workflowsDir,
+			wantErr:  true,
+		},
+		{
+			name:     "slash-prefixed traversal is rejected inside .github repo",
+			filePath: "/../../../etc/passwd",
+			baseDir:  workflowsDir,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ResolveIncludePath(tt.filePath, tt.baseDir, nil)
+
+			if tt.wantErr {
+				assert.Error(t, err, "ResolveIncludePath(%q, %q) should return error", tt.filePath, tt.baseDir)
+				return
+			}
+
+			require.NoError(t, err, "ResolveIncludePath(%q, %q) should not error", tt.filePath, tt.baseDir)
+			assert.Equal(t, tt.expected, result, "ResolveIncludePath(%q, %q) result", tt.filePath, tt.baseDir)
+		})
+	}
+}
+
 func TestIsWorkflowSpec(t *testing.T) {
 	tests := []struct {
 		name string
