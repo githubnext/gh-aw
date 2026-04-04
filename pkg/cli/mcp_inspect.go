@@ -257,7 +257,15 @@ func buildFrontmatterFromWorkflowData(workflowData *workflow.WorkflowData) map[s
 		return workflowData.ParsedFrontmatter.ToMap()
 	}
 
-	// Fallback to building manually (shouldn't happen in normal cases)
+	// Fallback to RawFrontmatter when ParsedFrontmatter is unavailable.
+	// ParseFrontmatterConfig can fail (e.g. when "on:" is a plain string like "issues"
+	// which cannot be unmarshalled into map[string]any), leaving ParsedFrontmatter nil.
+	// RawFrontmatter always contains the complete original frontmatter including mcp-servers.
+	if workflowData.RawFrontmatter != nil {
+		return workflowData.RawFrontmatter
+	}
+
+	// Last-resort fallback – build from tools only (legacy path, should not be reached)
 	frontmatter := make(map[string]any)
 
 	// Add tools section if present

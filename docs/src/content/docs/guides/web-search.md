@@ -9,7 +9,7 @@ This guide shows how to add web search to workflows using the Tavily Model Conte
 
 ## Tavily Search
 
-[Tavily](https://tavily.com/) provides AI-optimized search with structured JSON responses, news search capability, and fast response times through the [@tavily/mcp-server](https://github.com/tavily-ai/tavily-mcp-server) MCP server.
+[Tavily](https://tavily.com/) provides AI-optimized search with structured JSON responses, news search capability, and fast response times through the [@tavily/mcp](https://github.com/tavily-ai/tavily-mcp) MCP server.
 
 ```aw wrap
 ---
@@ -18,7 +18,7 @@ engine: copilot
 mcp-servers:
   tavily:
     command: npx
-    args: ["-y", "@tavily/mcp-server"]
+    args: ["-y", "@tavily/mcp"]
     env:
       TAVILY_API_KEY: "${{ secrets.TAVILY_API_KEY }}"
     allowed: ["search", "search_news"]
@@ -69,6 +69,6 @@ network:
 - [AI Engines](/gh-aw/reference/engines/) - Engine capabilities and limitations
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands including `mcp inspect`
 - [Model Context Protocol Specification](https://github.com/modelcontextprotocol/specification)
-- [Tavily MCP Server](https://github.com/tavily-ai/tavily-mcp-server)
+- [Tavily MCP Server](https://github.com/tavily-ai/tavily-mcp)
 - [Tavily Documentation](https://tavily.com/)
 
