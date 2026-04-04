@@ -3,21 +3,13 @@ title: Consuming Audit Reports with Agents
 description: How to feed structured audit output into agentic workflows for automated triage, trend analysis, and remediation.
 ---
 
-All three audit commands support `--json`, which writes structured output to stdout.
+All three audit commands accept `--json` to write structured output to stdout. Pipe through `jq` to extract the fields a model needs before passing to a workflow.
 
-```bash
-gh aw audit <run-id> --json                         # single run
-gh aw logs [workflow] --last 10 --json              # cross-run analysis
-gh aw audit diff <run-id-1> <run-id-2> --json       # before/after comparison
-```
-
-Key fields for agent consumption: `key_findings`, `recommendations`, `firewall_analysis`, `mcp_tool_usage`, `metrics`, `errors`. Use `jq` to extract only what the model needs:
-
-```bash
-gh aw audit <run-id> --json | jq '{findings: .key_findings, recommendations: .recommendations}'
-gh aw audit <run-id> --json | jq '.firewall_analysis.domains[] | select(.blocked > 0)'
-gh aw logs my-workflow --last 10 --json | jq '.per_run_breakdown[] | {run_id, cost, tokens, turns}'
-```
+| Command | Use case |
+|---------|----------|
+| `gh aw audit <run-id> --json` | Single run — `key_findings`, `recommendations`, `metrics` |
+| `gh aw logs [workflow] --last 10 --json` | Trend analysis — `per_run_breakdown`, `domain_inventory` |
+| `gh aw audit diff <id1> <id2> --json` | Before/after — `run_metrics_diff`, `firewall_diff` |
 
 ## Posting findings as a PR comment
 
@@ -129,8 +121,4 @@ permissions:
 
 ## Tips
 
-The top-level fields (`key_findings`, `recommendations`, `metrics`, `firewall_analysis`, `mcp_tool_usage`) are stable across releases; nested sub-fields may be extended but are not removed without deprecation.
-
-Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments` for richer behavioral context.
-
-Cross-run JSON from `gh aw logs --json` can be large — extract only the fields needed (e.g. `per_run_breakdown`, `domain_inventory`) before passing to a model.
+Top-level fields (`key_findings`, `recommendations`, `metrics`, `firewall_analysis`, `mcp_tool_usage`) are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`. Cross-run JSON can be large — extract only the slices your model needs.
