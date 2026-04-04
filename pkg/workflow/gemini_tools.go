@@ -168,7 +168,7 @@ else
 fi`
 
 	stepLines := []string{
-		"      - name: Write Gemini settings",
+		"      - name: Write Gemini Settings",
 	}
 	env := map[string]string{
 		"GH_AW_GEMINI_BASE_CONFIG": string(configJSON),

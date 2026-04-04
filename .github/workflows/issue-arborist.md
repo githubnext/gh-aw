@@ -27,7 +27,7 @@ tools:
     - "jq *"
     - "/tmp/gh-aw/jqschema.sh"
 steps:
-  - name: Fetch issues data
+  - name: Fetch issues
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

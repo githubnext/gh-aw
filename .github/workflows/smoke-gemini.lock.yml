@@ -829,7 +829,7 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
-      - name: Write Gemini settings
+      - name: Write Gemini Settings
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.gemini"
           SETTINGS="$GITHUB_WORKSPACE/.gemini/settings.json"
@@ -1261,7 +1261,7 @@ jobs:
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.13
       - name: Install Gemini CLI
         run: npm install -g @google/gemini-cli@latest
-      - name: Write Gemini settings
+      - name: Write Gemini Settings
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.gemini"

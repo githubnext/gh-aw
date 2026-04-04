@@ -16,7 +16,7 @@ steps:
     run: |
       bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
 
-  - name: Fetch discussions data
+  - name: Fetch discussions
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -17,7 +17,7 @@ steps:
     run: |
       bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
 
-  - name: Fetch issues data
+  - name: Fetch issues
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

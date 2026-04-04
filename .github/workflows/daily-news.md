@@ -93,7 +93,7 @@ steps:
         echo "Fetching data from $START_DATE to $END_DATE"
       fi
 
-  - name: Fetch issues data
+  - name: Fetch issues
     if: steps.check-cache.outputs.cache_valid != 'true'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -133,7 +133,7 @@ steps:
       " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
       echo "✅ Issues data fetched"
 
-  - name: Fetch pull requests data
+  - name: Fetch pull requests
     if: steps.check-cache.outputs.cache_valid != 'true'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -186,7 +186,7 @@ steps:
       " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
       echo "✅ Pull requests data fetched"
 
-  - name: Fetch commits data
+  - name: Fetch commits
     if: steps.check-cache.outputs.cache_valid != 'true'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -200,7 +200,7 @@ steps:
         > /tmp/gh-aw/daily-news-data/commits.json
       echo "✅ Commits data fetched"
 
-  - name: Fetch releases data
+  - name: Fetch releases
     if: steps.check-cache.outputs.cache_valid != 'true'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -213,7 +213,7 @@ steps:
         > /tmp/gh-aw/daily-news-data/releases.json
       echo "✅ Releases data fetched"
 
-  - name: Fetch discussions data
+  - name: Fetch discussions
     if: steps.check-cache.outputs.cache_valid != 'true'
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
