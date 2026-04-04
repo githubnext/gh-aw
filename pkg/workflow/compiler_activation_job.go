@@ -570,6 +570,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		environment = "environment: " + cleanManualApproval
 	}
 
+	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
+	if c.actionMode.IsScript() {
+		steps = append(steps, c.generateScriptModeCleanupStep())
+	}
+
 	job := &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,

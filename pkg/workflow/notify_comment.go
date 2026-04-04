@@ -445,6 +445,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		notifyCommentLog.Printf("Configuring conclusion job concurrency group: %s", group)
 	}
 
+	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
+	if c.actionMode.IsScript() {
+		steps = append(steps, c.generateScriptModeCleanupStep())
+	}
+
 	job := &Job{
 		Name:        "conclusion",
 		If:          RenderCondition(condition),

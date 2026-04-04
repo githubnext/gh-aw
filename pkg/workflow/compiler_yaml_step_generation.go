@@ -121,6 +121,7 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 			"          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh\n",
 			"        env:\n",
 			fmt.Sprintf("          INPUT_DESTINATION: %s\n", destination),
+			"          INPUT_JOB_NAME: ${{ github.job }}\n",
 		}
 		if enableCustomTokens {
 			lines = append(lines, "          INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: 'true'\n")
@@ -154,4 +155,24 @@ func (c *Compiler) generateSetRuntimePathsStep() []string {
 		"          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" >> \"$GITHUB_OUTPUT\"\n",
 		"          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json\" >> \"$GITHUB_OUTPUT\"\n",
 	}
+}
+
+// generateScriptModeCleanupStep generates a cleanup step for script mode that sends an OTLP
+// conclusion span and removes /tmp/gh-aw/. This mirrors the post.js post step that runs
+// automatically when using a `uses:` action in dev/release/action mode.
+//
+// The step is guarded by `if: always()` so it runs even if prior steps fail, ensuring
+// trace spans are exported and temporary files are cleaned up in all cases.
+//
+// Only call this in script mode (c.actionMode.IsScript()).
+func (c *Compiler) generateScriptModeCleanupStep() string {
+	var step strings.Builder
+	step.WriteString("      - name: Clean Scripts\n")
+	step.WriteString("        if: always()\n")
+	step.WriteString("        run: |\n")
+	step.WriteString("          bash /tmp/gh-aw/actions-source/actions/setup/clean.sh\n")
+	step.WriteString("        env:\n")
+	fmt.Fprintf(&step, "          INPUT_DESTINATION: %s\n", SetupActionDestination)
+	step.WriteString("          INPUT_JOB_NAME: ${{ github.job }}\n")
+	return step.String()
 }

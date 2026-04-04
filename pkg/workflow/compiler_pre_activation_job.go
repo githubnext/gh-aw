@@ -419,6 +419,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		jobIfCondition = data.If
 	}
 
+	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
+	if c.actionMode.IsScript() {
+		steps = append(steps, c.generateScriptModeCleanupStep())
+	}
+
 	job := &Job{
 		Name:        string(constants.PreActivationJobName),
 		If:          jobIfCondition,

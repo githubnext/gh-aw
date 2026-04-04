@@ -16,6 +16,10 @@
 
 set -e
 
+# Capture start time immediately so the OTLP setup span reflects actual setup duration.
+# Falls back to 0 when node is unavailable.
+SETUP_START_MS=$(node -e "process.stdout.write(String(Date.now()))" 2>/dev/null || echo "0")
+
 # Helper: create directories, using sudo on macOS where system directories are root-owned
 create_dir() {
   if [[ "$(uname -s)" == "Darwin" ]] && [[ "$1" == /opt/* ]]; then
@@ -381,6 +385,27 @@ if [ "${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}" = "true" ]; then
   cd - > /dev/null
 else
   echo "Custom tokens not enabled - skipping @actions/github installation"
+fi
+
+# Send OTLP job setup span when configured (non-fatal).
+# Mirrors actions/setup/index.js: sends gh-aw.job.setup span and writes
+# GITHUB_AW_OTEL_TRACE_ID / GITHUB_AW_OTEL_PARENT_SPAN_ID to GITHUB_ENV.
+if command -v node &>/dev/null && [ -f "${DESTINATION}/send_otlp_span.cjs" ]; then
+  DESTINATION="${DESTINATION}" SETUP_START_MS="${SETUP_START_MS}" node - 2>/dev/null <<'OTLP_SETUP_EOF' || true
+;(async () => {
+  const { sendJobSetupSpan, isValidTraceId, isValidSpanId } = require(process.env.DESTINATION + '/send_otlp_span.cjs');
+  const { appendFileSync } = require('fs');
+  const { traceId, spanId } = await sendJobSetupSpan({ startMs: parseInt(process.env.SETUP_START_MS || '0', 10) });
+  if (process.env.GITHUB_OUTPUT && isValidTraceId(traceId))
+    appendFileSync(process.env.GITHUB_OUTPUT, 'trace-id=' + traceId + '\n');
+  if (process.env.GITHUB_ENV) {
+    if (isValidTraceId(traceId))
+      appendFileSync(process.env.GITHUB_ENV, 'GITHUB_AW_OTEL_TRACE_ID=' + traceId + '\n');
+    if (isValidSpanId(spanId))
+      appendFileSync(process.env.GITHUB_ENV, 'GITHUB_AW_OTEL_PARENT_SPAN_ID=' + spanId + '\n');
+  }
+})().catch(() => {});
+OTLP_SETUP_EOF
 fi
 
 # Set output

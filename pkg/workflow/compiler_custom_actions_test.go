@@ -261,6 +261,21 @@ Test workflow with script mode.
 	if !strings.Contains(lockStr, "ref: 1.0.0") {
 		t.Error("Expected 'ref: 1.0.0' in checkout step for script mode when version is set")
 	}
+
+	// 8. Setup step should include INPUT_JOB_NAME for OTLP span job name attribute
+	if !strings.Contains(lockStr, "INPUT_JOB_NAME: ${{ github.job }}") {
+		t.Error("Expected INPUT_JOB_NAME env var in setup step for script mode")
+	}
+
+	// 9. Cleanup step should be generated for script mode (mirrors post.js)
+	if !strings.Contains(lockStr, "bash /tmp/gh-aw/actions-source/actions/setup/clean.sh") {
+		t.Error("Expected 'Clean Scripts' step with clean.sh in script mode")
+	}
+
+	// 10. Cleanup step should run with if: always()
+	if !strings.Contains(lockStr, "if: always()") {
+		t.Error("Expected 'if: always()' guard on cleanup step in script mode")
+	}
 }
 
 // TestVersionToGitRef tests the versionToGitRef helper function used to derive

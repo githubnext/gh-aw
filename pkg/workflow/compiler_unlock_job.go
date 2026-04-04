@@ -94,6 +94,11 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 
 	compilerUnlockJobLog.Printf("Job built successfully: dependencies=%v", needs)
 
+	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
+	if c.actionMode.IsScript() {
+		steps = append(steps, c.generateScriptModeCleanupStep())
+	}
+
 	job := &Job{
 		Name:           "unlock",
 		Needs:          needs,
