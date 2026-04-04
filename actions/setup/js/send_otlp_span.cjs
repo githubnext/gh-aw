@@ -124,12 +124,41 @@ function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceNa
 // ---------------------------------------------------------------------------
 
 /**
+ * Parse an `OTEL_EXPORTER_OTLP_HEADERS` value into a plain object suitable for
+ * merging into a `Headers` / `fetch` `headers` option.
+ *
+ * The value follows the OpenTelemetry specification:
+ *   key=value[,key=value...]
+ * where individual keys and values may be percent-encoded.
+ * Empty pairs (from leading/trailing/consecutive commas) are silently skipped.
+ *
+ * @param {string} raw - Raw header string (e.g. "Authorization=Bearer tok,X-Tenant=acme")
+ * @returns {Record<string, string>} Parsed headers object
+ */
+function parseOTLPHeaders(raw) {
+  if (!raw || !raw.trim()) return {};
+  /** @type {Record<string, string>} */
+  const result = {};
+  for (const pair of raw.split(",")) {
+    const eqIdx = pair.indexOf("=");
+    if (eqIdx <= 0) continue; // skip empty keys or malformed pairs
+    const key = decodeURIComponent(pair.slice(0, eqIdx).trim());
+    const value = decodeURIComponent(pair.slice(eqIdx + 1).trim());
+    if (key) result[key] = value;
+  }
+  return result;
+}
+
+/**
  * POST an OTLP traces payload to `{endpoint}/v1/traces` with automatic retries.
  *
  * Failures are surfaced as `console.warn` messages and never thrown; OTLP
  * export failures must not break the workflow.  Uses exponential back-off
  * between attempts (100 ms, 200 ms) so the three total attempts finish in
  * well under a second in the typical success case.
+ *
+ * Reads `OTEL_EXPORTER_OTLP_HEADERS` from the environment and merges any
+ * configured headers into every request.
  *
  * @param {string} endpoint  - OTLP base URL (e.g. https://traces.example.com:4317)
  * @param {object} payload   - Serialisable OTLP JSON object
@@ -138,6 +167,8 @@ function buildOTLPPayload({ traceId, spanId, spanName, startMs, endMs, serviceNa
  */
 async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100 } = {}) {
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
+  const extraHeaders = parseOTLPHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS || "");
+  const headers = { "Content-Type": "application/json", ...extraHeaders };
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       await new Promise(resolve => setTimeout(resolve, baseDelayMs * 2 ** (attempt - 1)));
@@ -145,7 +176,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
       if (response.ok) {
@@ -379,6 +410,7 @@ module.exports = {
   toNanoString,
   buildAttr,
   buildOTLPPayload,
+  parseOTLPHeaders,
   sendOTLPSpan,
   readJSONIfExists,
   sendJobSetupSpan,

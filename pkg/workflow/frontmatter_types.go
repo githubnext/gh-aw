@@ -124,6 +124,12 @@ type OTLPConfig struct {
 	// When a static URL is provided, its hostname is automatically added to the
 	// network firewall allowlist.
 	Endpoint string `json:"endpoint,omitempty"`
+
+	// Headers is a comma-separated list of key=value HTTP headers to include with
+	// every OTLP export request (e.g. "Authorization=Bearer <token>").
+	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_HEADERS }}.
+	// Injected as the standard OTEL_EXPORTER_OTLP_HEADERS environment variable.
+	Headers string `json:"headers,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

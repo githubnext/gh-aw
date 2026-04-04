@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Module import
 // ---------------------------------------------------------------------------
 
-const { isValidTraceId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan } = await import("./send_otlp_span.cjs");
+const { isValidTraceId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan } = await import("./send_otlp_span.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -248,6 +248,91 @@ describe("sendOTLPSpan", () => {
     expect(warnSpy.mock.calls[1][0]).toContain("error after 2 attempts");
 
     warnSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseOTLPHeaders
+// ---------------------------------------------------------------------------
+
+describe("parseOTLPHeaders", () => {
+  it("returns empty object for empty/null/whitespace input", () => {
+    expect(parseOTLPHeaders("")).toEqual({});
+    expect(parseOTLPHeaders("   ")).toEqual({});
+  });
+
+  it("parses a single key=value pair", () => {
+    expect(parseOTLPHeaders("Authorization=Bearer mytoken")).toEqual({ Authorization: "Bearer mytoken" });
+  });
+
+  it("parses multiple comma-separated key=value pairs", () => {
+    expect(parseOTLPHeaders("X-Tenant=acme,X-Region=us-east-1")).toEqual({
+      "X-Tenant": "acme",
+      "X-Region": "us-east-1",
+    });
+  });
+
+  it("handles percent-encoded values", () => {
+    expect(parseOTLPHeaders("Authorization=Bearer%20tok%3Dvalue")).toEqual({ Authorization: "Bearer tok=value" });
+  });
+
+  it("handles values containing = signs (only first = is delimiter)", () => {
+    expect(parseOTLPHeaders("Authorization=Bearer base64==")).toEqual({ Authorization: "Bearer base64==" });
+  });
+
+  it("skips malformed pairs with no =", () => {
+    const result = parseOTLPHeaders("Valid=value,malformedNoEquals");
+    expect(result).toEqual({ Valid: "value" });
+  });
+
+  it("skips pairs with empty key", () => {
+    const result = parseOTLPHeaders("=value,Good=ok");
+    expect(result).toEqual({ Good: "ok" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendOTLPSpan headers
+// ---------------------------------------------------------------------------
+
+describe("sendOTLPSpan with OTEL_EXPORTER_OTLP_HEADERS", () => {
+  const savedHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS;
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+    delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (savedHeaders !== undefined) {
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = savedHeaders;
+    } else {
+      delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+    }
+  });
+
+  it("includes custom headers when OTEL_EXPORTER_OTLP_HEADERS is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer mytoken,X-Tenant=acme";
+    await sendOTLPSpan("https://traces.example.com", {});
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers["Authorization"]).toBe("Bearer mytoken");
+    expect(init.headers["X-Tenant"]).toBe("acme");
+    expect(init.headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("does not add extra headers when OTEL_EXPORTER_OTLP_HEADERS is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await sendOTLPSpan("https://traces.example.com", {});
+
+    const [, init] = mockFetch.mock.calls[0];
+    expect(Object.keys(init.headers)).toEqual(["Content-Type"]);
   });
 });
 

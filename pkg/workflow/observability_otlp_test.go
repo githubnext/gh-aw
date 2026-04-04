@@ -247,6 +247,51 @@ func TestInjectOTLPConfig(t *testing.T) {
 		c.injectOTLPConfig(wd)
 		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "service name should always be gh-aw")
 	})
+
+	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS when headers are configured", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+						Headers:  "Authorization=Bearer tok,X-Tenant=acme",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer tok,X-Tenant=acme", "headers var should be injected")
+	})
+
+	t.Run("injects OTEL_EXPORTER_OTLP_HEADERS for secret expression", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+						Headers:  "${{ secrets.OTLP_HEADERS }}",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}", "headers var should support secret expressions")
+	})
+
+	t.Run("does not inject OTEL_EXPORTER_OTLP_HEADERS when headers not configured", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.NotContains(t, wd.Env, "OTEL_EXPORTER_OTLP_HEADERS", "headers var should not appear when unconfigured")
+	})
 }
 
 // TestObservabilityConfigParsing verifies that the OTLPConfig is correctly parsed
@@ -257,6 +302,7 @@ func TestObservabilityConfigParsing(t *testing.T) {
 		frontmatter      map[string]any
 		wantOTLPConfig   bool
 		expectedEndpoint string
+		expectedHeaders  string
 	}{
 		{
 			name:           "no observability section",
@@ -309,6 +355,34 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			wantOTLPConfig:   true,
 			expectedEndpoint: "https://traces.example.com",
 		},
+		{
+			name: "observability with otlp endpoint and headers",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers":  "Authorization=Bearer tok,X-Tenant=acme",
+					},
+				},
+			},
+			wantOTLPConfig:   true,
+			expectedEndpoint: "https://traces.example.com",
+			expectedHeaders:  "Authorization=Bearer tok,X-Tenant=acme",
+		},
+		{
+			name: "observability with otlp headers as secret expression",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+						"headers":  "${{ secrets.OTLP_HEADERS }}",
+					},
+				},
+			},
+			wantOTLPConfig:   true,
+			expectedEndpoint: "https://traces.example.com",
+			expectedHeaders:  "${{ secrets.OTLP_HEADERS }}",
+		},
 	}
 
 	for _, tt := range tests {
@@ -327,6 +401,7 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			require.NotNil(t, config.Observability, "Observability should not be nil")
 			require.NotNil(t, config.Observability.OTLP, "OTLP should not be nil")
 			assert.Equal(t, tt.expectedEndpoint, config.Observability.OTLP.Endpoint, "Endpoint should match")
+			assert.Equal(t, tt.expectedHeaders, config.Observability.OTLP.Headers, "Headers should match")
 		})
 	}
 }

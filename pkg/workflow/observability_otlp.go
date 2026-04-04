@@ -77,6 +77,9 @@ func generateOTLPConclusionSpanStep(spanName string) string {
 //     workflow-level env: YAML block (workflowData.Env) so they are available to
 //     every step in the generated GitHub Actions workflow.
 //
+//  3. When headers are configured, OTEL_EXPORTER_OTLP_HEADERS is also appended
+//     to the workflow-level env: block.
+//
 // When no OTLP endpoint is configured the function is a no-op.
 func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	endpoint := getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter)
@@ -97,6 +100,13 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 
 	// 2. Inject OTEL env vars into the workflow-level env: block.
 	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: gh-aw", endpoint)
+
+	// 3. Inject OTEL_EXPORTER_OTLP_HEADERS when configured.
+	if headers := workflowData.ParsedFrontmatter.Observability.OTLP.Headers; headers != "" {
+		otlpEnvLines += "\n  OTEL_EXPORTER_OTLP_HEADERS: " + headers
+		otlpLog.Printf("Injected OTEL_EXPORTER_OTLP_HEADERS env var")
+	}
+
 	if workflowData.Env == "" {
 		workflowData.Env = "env:\n" + otlpEnvLines
 	} else {
