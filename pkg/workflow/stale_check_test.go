@@ -89,6 +89,14 @@ Test workflow for stale check step explicitly enabled.
 				assert.False(t, hasStep,
 					"Expected no 'Check workflow lock file' step in activation job but it was found")
 			}
+
+			// Verify stale-check is commented out in the generated lock file when present
+			if strings.Contains(tt.workflowMD, "stale-check:") {
+				assert.NotContains(t, lockStr, "\n  stale-check:",
+					"stale-check should be commented out in the lock file, not left as an active YAML key")
+				assert.Contains(t, lockStr, "# stale-check:",
+					"stale-check should appear as a comment in the lock file")
+			}
 		})
 	}
 }
