@@ -76,7 +76,7 @@ The agent will install `gh aw`, analyze logs, identify the root cause, and sugge
 
 ### Auditing a Specific Run
 
-`gh aw audit` gives a comprehensive breakdown of a single run — overview, metrics, tool usage, MCP failures, firewall analysis, and artifacts:
+`gh aw audit` gives a comprehensive breakdown of a single run — overview, metrics, tool usage, MCP failures, firewall analysis, behavior fingerprint, and artifacts:
 
 ```bash
 # By run ID
@@ -98,22 +98,25 @@ gh aw audit 12345678 --parse
 Audit output includes:
 
 - **Failure analysis** with error summary and root cause
+- **Behavior fingerprint** — multi-dimensional characterization of the run's network, tool, and cost profile
 - **Tool usage** — which tools were called, which failed, and why
-- **MCP server status** — connection failures, timeout errors
-- **Firewall analysis** — blocked domains and allowed traffic
+- **MCP server status** — connection failures, timeout errors, and per-server health
+- **Firewall analysis** — blocked domains, allowed traffic, and policy attribution
+- **Token/cost metrics** — per-run inference spend and token usage
 - **Safe-outputs** — structured outputs the agent produced
 
-To compare behavior between two runs and detect regressions, use `audit diff`:
+To compare behavior between two runs and detect regressions across firewall, MCP, and metrics dimensions, use `audit diff`:
 
 ```bash
 gh aw audit diff 12345678 12345679
 gh aw audit diff 12345678 12345679 --format markdown
 ```
 
-For trends across multiple runs, use `audit report`:
+For security and performance trends across multiple runs, use `gh aw logs --format`:
 
 ```bash
-gh aw audit report --workflow "my-workflow" --last 10
+gh aw logs my-workflow --format markdown --count 10
+gh aw logs my-workflow --format markdown --last 5 --json
 ```
 
 See [Audit Commands](/gh-aw/reference/audit/) for complete flag documentation.
