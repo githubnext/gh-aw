@@ -117,9 +117,19 @@ type RateLimitConfig struct {
 	IgnoredRoles []string `json:"ignored-roles,omitempty"` // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
 }
 
+// OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.
+type OTLPConfig struct {
+	// Endpoint is the OTLP collector endpoint URL (e.g. "https://traces.example.com:4317").
+	// Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}.
+	// When a static URL is provided, its hostname is automatically added to the
+	// network firewall allowlist.
+	Endpoint string `json:"endpoint,omitempty"`
+}
+
 // ObservabilityConfig represents workflow observability options.
 type ObservabilityConfig struct {
-	JobSummary string `json:"job-summary,omitempty"`
+	JobSummary string      `json:"job-summary,omitempty"`
+	OTLP       *OTLPConfig `json:"otlp,omitempty"`
 }
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter

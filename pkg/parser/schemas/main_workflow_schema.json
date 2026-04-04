@@ -8328,6 +8328,17 @@
           "type": "string",
           "enum": ["on", "off"],
           "description": "If set to 'on', append a compact observability section to the GitHub Actions job summary. Defaults to off when omitted."
+        },
+        "otlp": {
+          "type": "object",
+          "description": "OTLP (OpenTelemetry Protocol) trace export configuration.",
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "description": "OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static URL is provided, its hostname is automatically added to the network firewall allowlist."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -9161,7 +9172,12 @@
                     "type": "number",
                     "minimum": 0
                   },
-                  "examples": [{ "my-custom-model": 2.5, "gpt-5": 3.0 }]
+                  "examples": [
+                    {
+                      "my-custom-model": 2.5,
+                      "gpt-5": 3.0
+                    }
+                  ]
                 },
                 "token-class-weights": {
                   "type": "object",

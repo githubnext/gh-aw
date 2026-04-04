@@ -109,6 +109,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML configuration sections from frontmatter
 	c.extractYAMLSections(result.Frontmatter, workflowData)
 
+	// Inject OTLP configuration: add endpoint domain to firewall allowlist and
+	// set OTEL env vars in the workflow env block (no-op when not configured).
+	c.injectOTLPConfig(workflowData)
+
 	// Merge features from imports
 	if len(engineSetup.importsResult.MergedFeatures) > 0 {
 		mergedFeatures, err := c.MergeFeatures(workflowData.Features, engineSetup.importsResult.MergedFeatures)

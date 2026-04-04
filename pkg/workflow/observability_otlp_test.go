@@ -1,0 +1,332 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestExtractOTLPEndpointDomain verifies hostname extraction from OTLP endpoint URLs.
+func TestExtractOTLPEndpointDomain(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+		expected string
+	}{
+		{
+			name:     "empty endpoint returns empty string",
+			endpoint: "",
+			expected: "",
+		},
+		{
+			name:     "GitHub Actions expression returns empty string",
+			endpoint: "${{ secrets.OTLP_ENDPOINT }}",
+			expected: "",
+		},
+		{
+			name:     "inline expression returns empty string",
+			endpoint: "https://${{ secrets.HOST }}:4317",
+			expected: "",
+		},
+		{
+			name:     "HTTPS URL without port",
+			endpoint: "https://traces.example.com",
+			expected: "traces.example.com",
+		},
+		{
+			name:     "HTTPS URL with port",
+			endpoint: "https://traces.example.com:4317",
+			expected: "traces.example.com",
+		},
+		{
+			name:     "HTTP URL with path",
+			endpoint: "http://otel-collector.internal:4318/v1/traces",
+			expected: "otel-collector.internal",
+		},
+		{
+			name:     "gRPC URL",
+			endpoint: "grpc://traces.example.com:4317",
+			expected: "traces.example.com",
+		},
+		{
+			name:     "subdomain",
+			endpoint: "https://otel.collector.corp.example.com:4317",
+			expected: "otel.collector.corp.example.com",
+		},
+		{
+			name:     "invalid URL (no scheme) returns empty string",
+			endpoint: "traces.example.com:4317",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractOTLPEndpointDomain(tt.endpoint)
+			assert.Equal(t, tt.expected, got, "extractOTLPEndpointDomain(%q)", tt.endpoint)
+		})
+	}
+}
+
+// TestGetOTLPEndpointEnvValue verifies endpoint value extraction from FrontmatterConfig.
+func TestGetOTLPEndpointEnvValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *FrontmatterConfig
+		expected string
+	}{
+		{
+			name:     "nil config returns empty string",
+			config:   nil,
+			expected: "",
+		},
+		{
+			name:     "nil observability returns empty string",
+			config:   &FrontmatterConfig{},
+			expected: "",
+		},
+		{
+			name: "nil OTLP returns empty string",
+			config: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{},
+			},
+			expected: "",
+		},
+		{
+			name: "empty endpoint returns empty string",
+			config: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: ""},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "static URL endpoint",
+			config: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+			expected: "https://traces.example.com:4317",
+		},
+		{
+			name: "secret expression endpoint",
+			config: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "${{ secrets.OTLP_ENDPOINT }}"},
+				},
+			},
+			expected: "${{ secrets.OTLP_ENDPOINT }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getOTLPEndpointEnvValue(tt.config)
+			assert.Equal(t, tt.expected, got, "getOTLPEndpointEnvValue")
+		})
+	}
+}
+
+// TestInjectOTLPConfig verifies that injectOTLPConfig correctly modifies WorkflowData.
+func TestInjectOTLPConfig(t *testing.T) {
+	newCompiler := func() *Compiler { return &Compiler{} }
+
+	t.Run("no-op when OTLP is not configured", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Nil(t, wd.NetworkPermissions, "NetworkPermissions should remain nil")
+		assert.Empty(t, wd.Env, "Env should remain empty")
+	})
+
+	t.Run("no-op when ParsedFrontmatter is nil", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{}
+		c.injectOTLPConfig(wd)
+		assert.Nil(t, wd.NetworkPermissions, "NetworkPermissions should remain nil")
+		assert.Empty(t, wd.Env, "Env should remain empty")
+	})
+
+	t.Run("injects env vars when endpoint is a secret expression", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "${{ secrets.OTLP_ENDPOINT }}"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		// NetworkPermissions.Allowed should NOT be populated (can't resolve expression)
+		if wd.NetworkPermissions != nil {
+			assert.Empty(t, wd.NetworkPermissions.Allowed, "Allowed should be empty for expression endpoints")
+		}
+
+		// Env should contain the OTEL vars
+		require.NotEmpty(t, wd.Env, "Env should be set")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}", "should contain endpoint var")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "should contain service name")
+	})
+
+	t.Run("adds domain to new NetworkPermissions and injects env vars for static URL", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		require.NotNil(t, wd.NetworkPermissions, "NetworkPermissions should be created")
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "traces.example.com", "should contain OTLP domain")
+
+		require.NotEmpty(t, wd.Env, "Env should be set")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com:4317")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw")
+		assert.True(t, strings.HasPrefix(wd.Env, "env:"), "Env should start with 'env:'")
+	})
+
+	t.Run("appends domain to existing NetworkPermissions.Allowed", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com:4317"},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"api.github.com", "pypi.org"},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "api.github.com", "existing domains should remain")
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "pypi.org", "existing domains should remain")
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "traces.example.com", "OTLP domain should be appended")
+	})
+
+	t.Run("appends OTEL vars to existing Env block", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com"},
+				},
+			},
+			Env: "env:\n  MY_VAR: hello",
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, "MY_VAR: hello", "existing env var should remain")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com")
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw")
+		// Should still be a single env: block
+		assert.Equal(t, 1, strings.Count(wd.Env, "env:"), "should have exactly one env: key")
+	})
+
+	t.Run("OTEL_SERVICE_NAME is always gh-aw", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://otel.corp.com"},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: gh-aw", "service name should always be gh-aw")
+	})
+}
+
+// TestObservabilityConfigParsing verifies that the OTLPConfig is correctly parsed
+// from raw frontmatter via ParseFrontmatterConfig.
+func TestObservabilityConfigParsing(t *testing.T) {
+	tests := []struct {
+		name             string
+		frontmatter      map[string]any
+		wantOTLPConfig   bool
+		expectedEndpoint string
+	}{
+		{
+			name:           "no observability section",
+			frontmatter:    map[string]any{},
+			wantOTLPConfig: false,
+		},
+		{
+			name: "observability without otlp",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"job-summary": "on",
+				},
+			},
+			wantOTLPConfig: false,
+		},
+		{
+			name: "observability with otlp endpoint",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com:4317",
+					},
+				},
+			},
+			wantOTLPConfig:   true,
+			expectedEndpoint: "https://traces.example.com:4317",
+		},
+		{
+			name: "observability with otlp secret expression",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "${{ secrets.OTLP_ENDPOINT }}",
+					},
+				},
+			},
+			wantOTLPConfig:   true,
+			expectedEndpoint: "${{ secrets.OTLP_ENDPOINT }}",
+		},
+		{
+			name: "observability with both job-summary and otlp",
+			frontmatter: map[string]any{
+				"observability": map[string]any{
+					"job-summary": "on",
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com",
+					},
+				},
+			},
+			wantOTLPConfig:   true,
+			expectedEndpoint: "https://traces.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := ParseFrontmatterConfig(tt.frontmatter)
+			require.NoError(t, err, "ParseFrontmatterConfig should not fail")
+			require.NotNil(t, config, "Config should not be nil")
+
+			if !tt.wantOTLPConfig {
+				if config.Observability != nil {
+					assert.Nil(t, config.Observability.OTLP, "OTLP should be nil")
+				}
+				return
+			}
+
+			require.NotNil(t, config.Observability, "Observability should not be nil")
+			require.NotNil(t, config.Observability.OTLP, "OTLP should not be nil")
+			assert.Equal(t, tt.expectedEndpoint, config.Observability.OTLP.Endpoint, "Endpoint should match")
+		})
+	}
+}
