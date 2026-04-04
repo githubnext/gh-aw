@@ -32,15 +32,27 @@ steps:
       mkdir -p /tmp/gh-aw/token-audit
 
       # Download last 24 hours of Copilot logs as JSON
+      # Allow partial results — gh aw logs streams incrementally, so even if
+      # it hits an API rate limit partway through, the JSON written so far is
+      # still valid and should be processed by the agent.
+      LOGS_EXIT=0
       gh aw logs \
         --engine copilot \
         --start-date -1d \
         --json \
         -c 100 \
-        > /tmp/gh-aw/token-audit/copilot-logs.json
+        > /tmp/gh-aw/token-audit/copilot-logs.json || LOGS_EXIT=$?
 
-      TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/copilot-logs.json)
-      echo "✅ Downloaded $TOTAL Copilot workflow runs (last 24 hours)"
+      if [ -s /tmp/gh-aw/token-audit/copilot-logs.json ]; then
+        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/copilot-logs.json)
+        echo "✅ Downloaded $TOTAL Copilot workflow runs (last 24 hours)"
+        if [ "$LOGS_EXIT" -ne 0 ]; then
+          echo "⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)"
+        fi
+      else
+        echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
+        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/copilot-logs.json
+      fi
 timeout-minutes: 25
 imports:
   - uses: shared/daily-audit-discussion.md
