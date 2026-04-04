@@ -22,9 +22,7 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      if gh extension list | grep -q "github/gh-aw"; then
-        gh extension upgrade gh-aw || true
-      else
+      if ! gh aw --version >/dev/null 2>&1; then
         gh extension install github/gh-aw
       fi
       gh aw --version

@@ -116,7 +116,11 @@ func NewSpinner(message string) *SpinnerWrapper {
 			message: message,
 			output:  os.Stderr,
 		}
-		s.program = tea.NewProgram(model, tea.WithOutput(os.Stderr), tea.WithoutRenderer())
+		// tea.WithInput(nil) disables stdin reading so the spinner does not consume key
+		// events that should be handled by subsequent interactive forms (e.g. huh.Select).
+		// Ctrl+C is still handled via OS signal delivery (SIGINT), which bubbletea
+		// processes independently of the input reader.
+		s.program = tea.NewProgram(model, tea.WithOutput(os.Stderr), tea.WithoutRenderer(), tea.WithInput(nil))
 	}
 	return s
 }

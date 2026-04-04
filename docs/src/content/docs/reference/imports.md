@@ -152,9 +152,90 @@ imports:
 
 The compiler validates `required` fields, `choice` options, array element types, and object `properties`. Unknown keys are compile-time errors.
 
-## Path Formats
+## Path Resolution
 
-Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}`. Paths are resolved relative to the importing file; nested and circular imports are supported.
+Import paths are resolved using one of three modes depending on their format.
+
+### Relative paths (default)
+
+Paths that do not start with `.github/`, `/`, or an `owner/repo/` prefix are resolved relative to the importing workflow's directory. When compiling with the default `--dir` value, that directory is `.github/workflows/`.
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  - shared/common-tools.md        # → .github/workflows/shared/common-tools.md
+  - ../agents/helper.md           # → .github/agents/helper.md (.. goes up from .github/workflows/)
+---
+```
+
+> [!NOTE]
+> This is the existing, backward-compatible behaviour. Workflows that already use relative paths continue to work without any changes.
+
+### Repo-root-relative paths
+
+Paths starting with `.github/` or `/` are resolved from the repository root. Absolute paths (`/`) must point inside `.github/` or `.agents/`; any other prefix is rejected at compile time for security.
+
+```aw wrap
+---
+on: pull_request
+engine: copilot
+imports:
+  - .github/agents/code-reviewer.md   # resolved from repo root
+  - .github/workflows/shared/app.md   # resolved from repo root
+---
+```
+
+This form is required when workflows in different directories need to import the same shared file using a stable path, and is the supported way to import files from the `.github/agents/` directory.
+
+### Cross-repo imports
+
+Paths matching the `owner/repo/path@ref` format are fetched from GitHub at compile time and cached locally. The `@ref` suffix pins the import to a tag, branch, or commit SHA.
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  - acme-org/shared-workflows/shared/reporting.md@v2.1.0   # pinned to a tag
+  - acme-org/shared-workflows/shared/tools.md@main         # track a branch
+  - acme-org/shared-workflows/shared/helpers.md@abc1234    # locked to a SHA
+---
+```
+
+Remote imports are cached in `.github/aw/imports/` by commit SHA, enabling offline compilation. See [Remote Repository Imports](#remote-repository-imports) for details.
+
+### Worked example — all three forms
+
+```aw wrap
+---
+on: issues
+engine: copilot
+imports:
+  # 1. Relative path – resolved relative to .github/workflows/
+  - shared/mcp/tavily.md
+  # 2. Repo-root-relative – resolved from the repository root
+  - .github/agents/my-expert-agent.md
+  # 3. Cross-repo – fetched from GitHub at compile time
+  - acme-org/shared-workflows/shared/reporting.md@v1.0.0
+---
+
+# My Workflow
+
+Use the imported tools, agent, and reporting configuration.
+```
+
+### Section references and optional imports
+
+Append `#SectionName` to any path to import a single section from a markdown file:
+
+```
+imports:
+  - shared/tools.md#WebSearch
+```
+
+Use the `{{#import? ...}}` syntax to mark an import as optional, which skips missing files silently instead of failing compilation.
 
 ## Remote Repository Imports
 

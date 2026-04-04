@@ -66,16 +66,16 @@
       ]
     },
     "imports": {
-      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages) subfields.",
+      "description": "Workflow specifications to import. Supports array form (list of paths) or object form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages) subfields. Path resolution: (1) relative paths (e.g., 'shared/file.md') are resolved relative to the workflow's directory; (2) paths starting with '.github/' or '/' are resolved from the repository root (repo-root-relative); (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time (cross-repo).",
       "oneOf": [
         {
           "type": "array",
-          "description": "Array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
+          "description": "Array of workflow specifications to import. Three path formats are supported: relative paths ('shared/file.md'), repo-root-relative paths ('.github/agents/my-agent.md'), and cross-repo paths ('owner/repo/path@ref'). Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
           "items": {
             "oneOf": [
               {
                 "type": "string",
-                "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+                "description": "Import path. Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports. Markdown files under .github/agents/ are treated as agent configuration files."
               },
               {
                 "type": "object",
@@ -85,7 +85,7 @@
                 "properties": {
                   "path": {
                     "type": "string",
-                    "description": "Workflow specification in format owner/repo/path@ref. Markdown files under .github/agents/ are treated as agent configuration files."
+                    "description": "Import path. Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports. Markdown files under .github/agents/ are treated as agent configuration files."
                   },
                   "inputs": {
                     "type": "object",
@@ -131,7 +131,7 @@
                 "properties": {
                   "uses": {
                     "type": "string",
-                    "description": "Workflow specification in format owner/repo/path@ref. Alias for 'path'."
+                    "description": "Import path (alias for 'path'). Use 'shared/file.md' for paths relative to the workflow directory, '.github/agents/my-agent.md' for repo-root-relative paths, or 'owner/repo/path@ref' for cross-repo imports."
                   },
                   "with": {
                     "type": "object",
