@@ -89,7 +89,7 @@ const AgentOutputFilename = "agent_output.json"
 const SafeOutputsFilename = "safeoutputs.jsonl"
 
 // TokenUsageFilename is the filename of the aggregated token usage JSON file written to /tmp/gh-aw/
-// by parse_token_usage.sh. It is included in the agent artifact so third-party tools can
+// by parse_token_usage.cjs. It is included in the agent artifact so third-party tools can
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename = "agent_usage.json"
 
