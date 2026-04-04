@@ -69,26 +69,28 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	}
 
 	githubFolder := baseDir
-	for !strings.HasSuffix(githubFolder, ".github") && githubFolder != "." && githubFolder != "/" {
-		githubFolder = filepath.Dir(githubFolder)
-		if githubFolder == "." || githubFolder == "/" {
+	for !strings.HasSuffix(githubFolder, ".github") {
+		parent := filepath.Dir(githubFolder)
+		if parent == githubFolder || parent == "." || parent == "/" {
 			githubFolder = baseDir
 			break
 		}
+		githubFolder = parent
 	}
 
 	resolveBase := baseDir
 	securityBase := githubFolder
 	if strings.HasSuffix(githubFolder, ".github") {
 		repoRoot := filepath.Dir(githubFolder)
-		if strings.HasPrefix(filePath, ".github/") {
+		filePathSlash := filepath.ToSlash(filePath)
+		if strings.HasPrefix(filePathSlash, ".github/") {
 			resolveBase = repoRoot
-		} else if stripped, ok := strings.CutPrefix(filePath, "/"); ok {
+		} else if stripped, ok := strings.CutPrefix(filePathSlash, "/"); ok {
 			// Repo-root-absolute path: only .github/ and .agents/ subdirectories are accessible.
 			if !strings.HasPrefix(stripped, ".github/") && !strings.HasPrefix(stripped, ".agents/") {
 				return "", fmt.Errorf("security: path %s must be within .github or .agents folder", filePath)
 			}
-			filePath = stripped
+			filePath = filepath.FromSlash(stripped)
 			resolveBase = repoRoot
 			if strings.HasPrefix(stripped, ".agents/") {
 				securityBase = filepath.Join(repoRoot, ".agents")
@@ -106,7 +108,8 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 
 	relativePath, err := filepath.Rel(normalizedSecurityBase, normalizedFullPath)
 	if err != nil || relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
-		return "", fmt.Errorf("security: path %s must be within .github folder (resolves to: %s)", filePath, relativePath)
+		allowedFolder := filepath.Base(normalizedSecurityBase)
+		return "", fmt.Errorf("security: path %s must be within %s folder (resolves to: %s)", filePath, allowedFolder, relativePath)
 	}
 
 	// In wasm builds, check the virtual filesystem first
