@@ -1742,9 +1742,9 @@ describe("log_parser_shared.cjs", () => {
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
       expect(result).toContain("Conversation:");
-      expect(result).toContain("Agent: I'll help you with that task.");
+      expect(result).toContain("◆ I'll help you with that task.");
       expect(result).toContain("✓ $ echo hello");
-      expect(result).toContain("Agent: The command executed successfully!");
+      expect(result).toContain("◆ The command executed successfully!");
     });
 
     it("should truncate long agent responses", async () => {
@@ -1764,7 +1764,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Agent: " + "a".repeat(2000) + "... [truncated: showing first 2000 of 2100 chars]");
+      expect(result).toContain("◆ " + "a".repeat(2000) + "... [truncated: showing first 2000 of 2100 chars]");
       expect(result).not.toContain("a".repeat(2001));
     });
 
@@ -1784,9 +1784,9 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Agent: Line 1");
-      expect(result).toContain("Agent: Line 2");
-      expect(result).toContain("Agent: Line 3");
+      expect(result).toContain("◆ Line 1");
+      expect(result).toContain("  Line 2");
+      expect(result).toContain("  Line 3");
     });
   });
 
@@ -1827,11 +1827,12 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Conversation:");
 
       // Check for Agent message
-      expect(result).toContain("Agent: I'll help you explore the repository structure first.");
+      expect(result).toContain("◆ I'll help you explore the repository structure first.");
 
-      // Check for tool execution with success icon
+      // Check for tool execution with success icon and first 2 lines of output
       expect(result).toContain("✓ $ ls -la");
-      expect(result).toContain("   └ 3 lines...");
+      expect(result).toContain("   ├ file1.txt");
+      expect(result).toContain("   └ file2.txt (+ 1 more)");
 
       // Check for Statistics section
       expect(result).toContain("Statistics:");
@@ -1884,7 +1885,7 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Agent: " + "a".repeat(2000) + "... [truncated: showing first 2000 of 2100 chars]");
+      expect(result).toContain("◆ " + "a".repeat(2000) + "... [truncated: showing first 2000 of 2100 chars]");
     });
 
     it("should skip internal file operation tools", async () => {
@@ -1940,9 +1941,9 @@ describe("log_parser_shared.cjs", () => {
 
       const result = generateCopilotCliStyleSummary(logEntries, { parserName: "Agent" });
 
-      expect(result).toContain("Agent: Line 1");
-      expect(result).toContain("Agent: Line 2");
-      expect(result).toContain("Agent: Line 3");
+      expect(result).toContain("◆ Line 1");
+      expect(result).toContain("  Line 2");
+      expect(result).toContain("  Line 3");
     });
 
     it("should truncate conversation when it exceeds max lines", async () => {

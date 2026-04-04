@@ -98,7 +98,7 @@ describe("log_parser_bootstrap.cjs", () => {
           (expect(summaryCall).toBeDefined(),
             expect(summaryCall[0]).toContain("```"),
             expect(summaryCall[0]).toContain("Conversation:"),
-            expect(summaryCall[0]).toContain("Agent: Hello"),
+            expect(summaryCall[0]).toContain("◆ Hello"),
             expect(summaryCall[0]).toContain("Statistics:"),
             expect(summaryCall[0]).toContain("  Turns: 2"),
             expect(summaryCall[0]).toContain("  Duration: 5s"),
