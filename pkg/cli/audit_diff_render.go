@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -12,16 +13,50 @@ import (
 
 var auditDiffRenderLog = logger.New("cli:audit_diff_render")
 
-// renderAuditDiffJSON outputs the full audit diff as JSON to stdout
-func renderAuditDiffJSON(diff *AuditDiff) error {
-	auditDiffRenderLog.Printf("Rendering audit diff as JSON: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
+// renderAuditDiffJSON outputs audit diffs as JSON to stdout.
+// When a single diff is provided, outputs a JSON object for backward compatibility.
+// When multiple diffs are provided, outputs a JSON array.
+func renderAuditDiffJSON(diffs []*AuditDiff) error {
+	auditDiffRenderLog.Printf("Rendering %d audit diff(s) as JSON", len(diffs))
+	if len(diffs) == 0 {
+		return errors.New("no diffs to render")
+	}
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(diff)
+	if len(diffs) == 1 {
+		return encoder.Encode(diffs[0])
+	}
+	return encoder.Encode(diffs)
 }
 
-// renderAuditDiffMarkdown outputs the full audit diff as markdown to stdout
-func renderAuditDiffMarkdown(diff *AuditDiff) {
+// renderAuditDiffMarkdown outputs audit diffs as markdown to stdout.
+// Multiple diffs are separated by a horizontal rule.
+func renderAuditDiffMarkdown(diffs []*AuditDiff) {
+	auditDiffRenderLog.Printf("Rendering %d audit diff(s) as markdown", len(diffs))
+	for i, diff := range diffs {
+		if i > 0 {
+			fmt.Println("---")
+			fmt.Println()
+		}
+		renderSingleAuditDiffMarkdown(diff)
+	}
+}
+
+// renderAuditDiffPretty outputs audit diffs as formatted console output to stderr.
+// Multiple diffs are separated by a visual divider.
+func renderAuditDiffPretty(diffs []*AuditDiff) {
+	auditDiffRenderLog.Printf("Rendering %d audit diff(s) as pretty output", len(diffs))
+	for i, diff := range diffs {
+		if i > 0 {
+			fmt.Fprintln(os.Stderr, strings.Repeat("─", 60))
+			fmt.Fprintln(os.Stderr)
+		}
+		renderSingleAuditDiffPretty(diff)
+	}
+}
+
+// renderSingleAuditDiffMarkdown outputs a single audit diff as markdown to stdout
+func renderSingleAuditDiffMarkdown(diff *AuditDiff) {
 	auditDiffRenderLog.Printf("Rendering audit diff as markdown: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
 	fmt.Printf("### Audit Diff: Run #%d → Run #%d\n\n", diff.Run1ID, diff.Run2ID)
 
@@ -35,8 +70,8 @@ func renderAuditDiffMarkdown(diff *AuditDiff) {
 	renderRunMetricsDiffMarkdownSection(diff.Run1ID, diff.Run2ID, diff.RunMetricsDiff)
 }
 
-// renderAuditDiffPretty outputs the full audit diff as formatted console output to stderr
-func renderAuditDiffPretty(diff *AuditDiff) {
+// renderSingleAuditDiffPretty outputs a single audit diff as formatted console output to stderr
+func renderSingleAuditDiffPretty(diff *AuditDiff) {
 	auditDiffRenderLog.Printf("Rendering audit diff as pretty output: run1=%d, run2=%d", diff.Run1ID, diff.Run2ID)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Audit Diff: Run #%d → Run #%d", diff.Run1ID, diff.Run2ID)))
 	fmt.Fprintln(os.Stderr)
@@ -228,6 +263,41 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 		fmt.Printf("| Turns | %d | %d | %s |\n", diff.Run1Turns, diff.Run2Turns, turnsChange)
 	}
 	fmt.Println()
+
+	if diff.TokenUsageDetails != nil {
+		renderTokenUsageDiffMarkdownSection(run1ID, run2ID, diff.TokenUsageDetails)
+	}
+}
+
+// renderTokenUsageDiffMarkdownSection renders detailed token usage as a markdown sub-section
+func renderTokenUsageDiffMarkdownSection(run1ID, run2ID int64, diff *TokenUsageDiff) {
+	fmt.Println("#### Token Usage Details")
+	fmt.Println()
+	fmt.Printf("| Token Type | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+	fmt.Println("|------------|---------|---------|--------|")
+
+	if diff.Run1InputTokens > 0 || diff.Run2InputTokens > 0 {
+		fmt.Printf("| Input | %d | %d | %s |\n", diff.Run1InputTokens, diff.Run2InputTokens, diff.InputTokensChange)
+	}
+	if diff.Run1OutputTokens > 0 || diff.Run2OutputTokens > 0 {
+		fmt.Printf("| Output | %d | %d | %s |\n", diff.Run1OutputTokens, diff.Run2OutputTokens, diff.OutputTokensChange)
+	}
+	if diff.Run1CacheReadTokens > 0 || diff.Run2CacheReadTokens > 0 {
+		fmt.Printf("| Cache read | %d | %d | %s |\n", diff.Run1CacheReadTokens, diff.Run2CacheReadTokens, diff.CacheReadTokensChange)
+	}
+	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
+		fmt.Printf("| Cache write | %d | %d | %s |\n", diff.Run1CacheWriteTokens, diff.Run2CacheWriteTokens, diff.CacheWriteTokensChange)
+	}
+	if diff.Run1EffectiveTokens > 0 || diff.Run2EffectiveTokens > 0 {
+		fmt.Printf("| Effective | %d | %d | %s |\n", diff.Run1EffectiveTokens, diff.Run2EffectiveTokens, diff.EffectiveTokensChange)
+	}
+	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
+		fmt.Printf("| API requests | %d | %d | %s |\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsChange)
+	}
+	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
+		fmt.Printf("| Cache efficiency | %.1f%% | %.1f%% | |\n", diff.Run1CacheEfficiency*100, diff.Run2CacheEfficiency*100)
+	}
+	fmt.Println()
 }
 
 // renderFirewallDiffPrettySection renders the firewall diff as a pretty console sub-section
@@ -353,7 +423,38 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 		fmt.Fprintf(os.Stderr, "    Turns:        %d → %d (%+d)\n", diff.Run1Turns, diff.Run2Turns, diff.TurnsChange)
 	}
 
+	if diff.TokenUsageDetails != nil {
+		renderTokenUsageDiffPrettySection(diff.TokenUsageDetails)
+	}
+
 	fmt.Fprintln(os.Stderr)
+}
+
+// renderTokenUsageDiffPrettySection renders detailed token usage as a pretty console sub-section
+func renderTokenUsageDiffPrettySection(diff *TokenUsageDiff) {
+	fmt.Fprintf(os.Stderr, "    Token Usage Details:\n")
+
+	if diff.Run1InputTokens > 0 || diff.Run2InputTokens > 0 {
+		fmt.Fprintf(os.Stderr, "      Input:            %d → %d (%s)\n", diff.Run1InputTokens, diff.Run2InputTokens, diff.InputTokensChange)
+	}
+	if diff.Run1OutputTokens > 0 || diff.Run2OutputTokens > 0 {
+		fmt.Fprintf(os.Stderr, "      Output:           %d → %d (%s)\n", diff.Run1OutputTokens, diff.Run2OutputTokens, diff.OutputTokensChange)
+	}
+	if diff.Run1CacheReadTokens > 0 || diff.Run2CacheReadTokens > 0 {
+		fmt.Fprintf(os.Stderr, "      Cache read:       %d → %d (%s)\n", diff.Run1CacheReadTokens, diff.Run2CacheReadTokens, diff.CacheReadTokensChange)
+	}
+	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
+		fmt.Fprintf(os.Stderr, "      Cache write:      %d → %d (%s)\n", diff.Run1CacheWriteTokens, diff.Run2CacheWriteTokens, diff.CacheWriteTokensChange)
+	}
+	if diff.Run1EffectiveTokens > 0 || diff.Run2EffectiveTokens > 0 {
+		fmt.Fprintf(os.Stderr, "      Effective:        %d → %d (%s)\n", diff.Run1EffectiveTokens, diff.Run2EffectiveTokens, diff.EffectiveTokensChange)
+	}
+	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
+		fmt.Fprintf(os.Stderr, "      API requests:     %d → %d (%s)\n", diff.Run1TotalRequests, diff.Run2TotalRequests, diff.RequestsChange)
+	}
+	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
+		fmt.Fprintf(os.Stderr, "      Cache efficiency: %.1f%% → %.1f%%\n", diff.Run1CacheEfficiency*100, diff.Run2CacheEfficiency*100)
+	}
 }
 
 // statusEmoji returns the status emoji for a domain status
