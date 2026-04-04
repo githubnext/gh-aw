@@ -286,6 +286,8 @@ Some content here.`;
           warning: vi.fn(),
           error: vi.fn(),
           setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
           summary: {
             addRaw: vi.fn().mockReturnThis(),
             addDetails: vi.fn().mockReturnThis(),
