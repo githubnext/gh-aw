@@ -79,55 +79,68 @@ async function main() {
   }
 
   // For workflow_call events, use referenced_workflows from the GitHub API run object to
-  // resolve the callee (reusable workflow) repo and ref. This is more reliable than
-  // GH_AW_CONTEXT_WORKFLOW_REF (${{ github.workflow_ref }}) which can still point to the
-  // caller workflow's repo in cross-repo reusable workflow scenarios.
+  // resolve the callee (reusable workflow) repo and ref.
+  //
+  // Resolution priority:
+  //   1. referenced_workflows[].sha  — immutable commit SHA from the callee repo (most precise).
+  //      GH_AW_CONTEXT_WORKFLOW_REF (${{ github.workflow_ref }}) correctly identifies the callee
+  //      in most cases, but referenced_workflows carries the pinned sha which won't drift if a
+  //      branch ref moves during a long-running job.
+  //   2. referenced_workflows[].ref  — branch/tag ref from the callee (fallback when sha absent).
+  //   3. GH_AW_CONTEXT_WORKFLOW_REF  — injected by the compiler; used when the API is unavailable
+  //      or when no matching entry is found in referenced_workflows.
   //
   // When a reusable workflow is called from another repo, GITHUB_RUN_ID and GITHUB_REPOSITORY
   // are set to the caller's run ID and repo. The caller's run object includes a
   // referenced_workflows array listing the callee's exact path, sha, and ref.
   //
-  // Ref: https://github.com/github/gh-aw/issues/24422
   // GITHUB_EVENT_NAME and GITHUB_RUN_ID are always set in GitHub Actions environments.
   // context.eventName / context.runId are fallbacks for environments where env vars are absent.
+  //
+  // Ref: https://github.com/github/gh-aw/issues/24422
   const eventName = process.env.GITHUB_EVENT_NAME || context.eventName;
   if (eventName === "workflow_call") {
     const runId = parseInt(process.env.GITHUB_RUN_ID || String(context.runId), 10);
-    const [runOwner, runRepo] = currentRepo.split("/");
-    try {
-      core.info(`workflow_call event detected, resolving callee repo via referenced_workflows API (run ${runId})`);
-      const runResponse = await github.rest.actions.getWorkflowRun({
-        owner: runOwner,
-        repo: runRepo,
-        run_id: runId,
-      });
+    if (Number.isFinite(runId)) {
+      const [runOwner, runRepo] = currentRepo.split("/");
+      try {
+        core.info(`workflow_call event detected, resolving callee repo via referenced_workflows API (run ${runId})`);
+        const runResponse = await github.rest.actions.getWorkflowRun({
+          owner: runOwner,
+          repo: runRepo,
+          run_id: runId,
+        });
 
-      const referencedWorkflows = runResponse.data.referenced_workflows || [];
-      core.info(`Found ${referencedWorkflows.length} referenced workflow(s) in caller run`);
+        const referencedWorkflows = runResponse.data.referenced_workflows || [];
+        core.info(`Found ${referencedWorkflows.length} referenced workflow(s) in caller run`);
 
-      // Find the entry whose path matches the current workflow file.
-      // Path format: "org/repo/.github/workflows/file.lock.yml@ref"
-      // Using a regex to robustly strip the optional @ref suffix before matching.
-      const matchingEntry = referencedWorkflows.find(wf => {
-        const pathWithoutRef = wf.path.replace(/@.*$/, "");
-        return pathWithoutRef.endsWith(`/.github/workflows/${workflowFile}`);
-      });
+        // Find the entry whose path matches the current workflow file.
+        // Path format: "org/repo/.github/workflows/file.lock.yml@ref"
+        // Using replace to robustly strip the optional @ref suffix before matching.
+        const matchingEntry = referencedWorkflows.find(wf => {
+          const pathWithoutRef = wf.path.replace(/@.*$/, "");
+          return pathWithoutRef.endsWith(`/.github/workflows/${workflowFile}`);
+        });
 
-      if (matchingEntry) {
-        const pathMatch = matchingEntry.path.match(/^([^/]+)\/([^/]+)\/.+?(?:@(.+))?$/);
-        if (pathMatch) {
-          owner = pathMatch[1];
-          repo = pathMatch[2];
-          ref = matchingEntry.ref || pathMatch[3];
-          workflowRepo = `${owner}/${repo}`;
-          core.info(`Resolved callee repo from referenced_workflows: ${owner}/${repo} @ ${ref || "(default branch)"}`);
-          core.info(`  Referenced workflow path: ${matchingEntry.path}`);
+        if (matchingEntry) {
+          const pathMatch = matchingEntry.path.match(/^([^/]+)\/([^/]+)\/.+?(?:@(.+))?$/);
+          if (pathMatch) {
+            owner = pathMatch[1];
+            repo = pathMatch[2];
+            // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
+            ref = matchingEntry.sha || matchingEntry.ref || pathMatch[3];
+            workflowRepo = `${owner}/${repo}`;
+            core.info(`Resolved callee repo from referenced_workflows: ${owner}/${repo} @ ${ref || "(default branch)"}`);
+            core.info(`  Referenced workflow path: ${matchingEntry.path}`);
+          }
+        } else {
+          core.info(`No matching entry in referenced_workflows for "${workflowFile}", falling back to GH_AW_CONTEXT_WORKFLOW_REF`);
         }
-      } else {
-        core.info(`No matching entry in referenced_workflows for "${workflowFile}", falling back to GH_AW_CONTEXT_WORKFLOW_REF`);
+      } catch (error) {
+        core.info(`Could not fetch referenced_workflows from API: ${getErrorMessage(error)}, falling back to GH_AW_CONTEXT_WORKFLOW_REF`);
       }
-    } catch (error) {
-      core.info(`Could not fetch referenced_workflows from API: ${getErrorMessage(error)}, falling back to GH_AW_CONTEXT_WORKFLOW_REF`);
+    } else {
+      core.info("workflow_call event detected but run ID is unavailable or invalid, falling back to GH_AW_CONTEXT_WORKFLOW_REF");
     }
   }
 
