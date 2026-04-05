@@ -130,6 +130,21 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 	// Return gateway config with required fields populated
 	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
 	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
+	//
+	// OTLPEndpoint and OTLPHeaders are derived from workflowData.OTLPEndpoint and the raw
+	// frontmatter headers string. These compile-time values are written directly into the
+	// gateway config JSON so the gateway does not need to read them from environment variables.
+	var otlpHeaders map[string]string
+	if workflowData.OTLPEndpoint != "" {
+		// Read headers from raw frontmatter (same source as injectOTLPConfig)
+		_, rawHeaders := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
+		if rawHeaders == "" && workflowData.ParsedFrontmatter != nil &&
+			workflowData.ParsedFrontmatter.Observability != nil &&
+			workflowData.ParsedFrontmatter.Observability.OTLP != nil {
+			rawHeaders = workflowData.ParsedFrontmatter.Observability.OTLP.Headers
+		}
+		otlpHeaders = parseOTLPHeaders(rawHeaders)
+	}
 	return &MCPGatewayRuntimeConfig{
 		Port:                 int(DefaultMCPGatewayPort),                       // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
 		Domain:               "${MCP_GATEWAY_DOMAIN}",                          // Gateway variable expression
@@ -139,10 +154,12 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		PayloadSizeThreshold: payloadSizeThreshold,                             // Size threshold in bytes
 		TrustedBots:          workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
 		KeepaliveInterval:    workflowData.SandboxConfig.MCP.KeepaliveInterval, // Keepalive interval from frontmatter (0=default, -1=disabled, >0=custom)
-		// OTLPEnabled is set from workflowData.OTLPEndpoint which is the fully resolved OTLP
-		// endpoint (including imports) set by injectOTLPConfig. Using this field ensures
-		// gateway OTLP config honours observability defined in imported shared workflows.
-		OTLPEnabled: workflowData.OTLPEndpoint != "",
+		// OTLPEndpoint and OTLPHeaders are set from workflowData.OTLPEndpoint which is the
+		// fully resolved OTLP endpoint (including imports) set by injectOTLPConfig. Using
+		// these fields ensures gateway OTLP config honours observability defined in imported
+		// shared workflows.
+		OTLPEndpoint: workflowData.OTLPEndpoint,
+		OTLPHeaders:  otlpHeaders,
 	}
 }
 
