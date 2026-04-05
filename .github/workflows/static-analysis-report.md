@@ -46,8 +46,16 @@ jobs:
         run: go install github.com/Vigilant-LLC/runner-guard/cmd/runner-guard@v2.6.0
       - name: Run runner-guard scan
         run: |
-          $(go env GOPATH)/bin/runner-guard scan . --format json > /tmp/runner-guard-results.json 2>&1 || true
-          test -f /tmp/runner-guard-results.json || echo '{"findings":[]}' > /tmp/runner-guard-results.json
+          RUNNER_GUARD="$(go env GOPATH)/bin/runner-guard"
+          if [ ! -x "$RUNNER_GUARD" ]; then
+            echo '{"findings":[],"error":"runner-guard binary not found after install"}' > /tmp/runner-guard-results.json
+          else
+            "$RUNNER_GUARD" scan . --format json > /tmp/runner-guard-results.json 2>/tmp/runner-guard-stderr.log || true
+            # If output is empty or not valid JSON, write empty result
+            if ! python3 -c "import json,sys; json.load(open('/tmp/runner-guard-results.json'))" 2>/dev/null; then
+              echo '{"findings":[],"stderr":"'"$(cat /tmp/runner-guard-stderr.log | head -20 | tr '"' "'")"'"}' > /tmp/runner-guard-results.json
+            fi
+          fi
       - name: Upload runner-guard results
         if: always()
         uses: actions/upload-artifact@v7
@@ -421,7 +429,7 @@ Issues created: [list of issue links for Critical/High findings, or "none"]
 Runner-guard has performed source-to-sink vulnerability scanning on the repository's GitHub Actions workflows. The results are available at `/tmp/gh-aw/runner-guard-results.json`.
 
 1. **Read Runner-Guard Output**:
-   Read the file `/tmp/gh-aw/runner-guard-results.json` which contains findings from runner-guard's taint analysis (18 detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
+   Read the file `/tmp/gh-aw/runner-guard-results.json` which contains findings from runner-guard's taint analysis (detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
 
 2. **Analyze Findings**:
    - Parse the JSON to extract findings
@@ -433,9 +441,9 @@ Runner-guard has performed source-to-sink vulnerability scanning on the reposito
    For up to 3 of the most critical findings (by severity, then rule ID), create a GitHub issue.
 
    Before creating issues:
-   - Search for existing open issues with the "[runner-guard]" prefix to avoid duplicates
+   - Search for existing open issues whose title contains `[runner-guard]` and the rule ID (e.g. `RGS-001`) to avoid duplicates
    - Only create issues for Critical and High severity findings
-   - Do not create an issue if a matching open issue already exists for the same rule and file
+   - Do not create an issue if a matching open issue already exists for the same rule ID
    - Maximum 3 issues total across all runner-guard findings per run
 
    Issue format:
