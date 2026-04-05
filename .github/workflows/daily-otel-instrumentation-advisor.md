@@ -125,12 +125,14 @@ Create a GitHub issue with your recommendation.
 
 **Title format**: `OTel improvement: <short description of the improvement>` (e.g., `OTel improvement: add github.run_id and github.event_name to all spans`)
 
+> **Note**: The `[otel-advisor]` prefix is added automatically by the workflow — craft your title to read naturally after that prefix.
+
 **Issue body**:
 
 ```markdown
 ## 📡 OTel Instrumentation Improvement: <title>
 
-**Analysis Date**: YYYY-MM-DD  
+**Analysis Date**: <date from `date +%Y-%m-%d`>  
 **Priority**: High / Medium / Low  
 **Effort**: Small (< 2h) / Medium (2–4h) / Large (> 4h)
 
@@ -195,11 +197,12 @@ After this change:
 
 ## Output Requirements
 
-**Always create exactly one issue** with your top recommendation. Do not list multiple improvements — choose the best one and make the case for it clearly.
+You **MUST** call exactly one of these safe-output tools before finishing:
 
-If for any reason the analysis cannot produce a meaningful improvement (e.g., the instrumentation is already complete and exemplary across all dimensions), emit a `noop` safe output explaining why, including what was analyzed and what makes the current state high quality.
+1. **`create_issue`** — Use this when you have identified an improvement. Create exactly one issue with your top recommendation. Do not list multiple improvements — choose the best one and make the case for it clearly.
+2. **`noop`** — Use this when the instrumentation is already complete and exemplary across all dimensions. Explain what was analyzed and what makes the current state high quality.
 
-**Important**: You **MUST** call either the `create_issue` or `noop` safe-output tool. Failing to call a safe-output tool is the most common cause of workflow failures.
+Failing to call a safe-output tool is the most common cause of workflow failures.
 
 ```json
 {"noop": {"message": "No action needed: [explanation of what was analyzed and why no improvement was found]"}}
