@@ -28,9 +28,11 @@ describe("action_conclusion_otlp.cjs", () => {
     originalEnv = {
       OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       INPUT_JOB_NAME: process.env.INPUT_JOB_NAME,
+      GITHUB_AW_OTEL_JOB_START_MS: process.env.GITHUB_AW_OTEL_JOB_START_MS,
     };
     delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
     delete process.env.INPUT_JOB_NAME;
+    delete process.env.GITHUB_AW_OTEL_JOB_START_MS;
   });
 
   afterEach(() => {
@@ -46,6 +48,11 @@ describe("action_conclusion_otlp.cjs", () => {
       process.env.INPUT_JOB_NAME = originalEnv.INPUT_JOB_NAME;
     } else {
       delete process.env.INPUT_JOB_NAME;
+    }
+    if (originalEnv.GITHUB_AW_OTEL_JOB_START_MS !== undefined) {
+      process.env.GITHUB_AW_OTEL_JOB_START_MS = originalEnv.GITHUB_AW_OTEL_JOB_START_MS;
+    } else {
+      delete process.env.GITHUB_AW_OTEL_JOB_START_MS;
     }
   });
 
@@ -95,7 +102,7 @@ describe("action_conclusion_otlp.cjs", () => {
       it("should use default span name 'gh-aw.job.conclusion' when INPUT_JOB_NAME is not set", async () => {
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion");
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
 
       it("should use job name from INPUT_JOB_NAME when set", async () => {
@@ -103,7 +110,7 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.agent.conclusion");
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.agent.conclusion", { startMs: undefined });
       });
 
       it("should log the full span name in the sending message", async () => {
@@ -119,7 +126,40 @@ describe("action_conclusion_otlp.cjs", () => {
 
         await run();
 
-        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.activation.conclusion");
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.activation.conclusion", { startMs: undefined });
+      });
+    });
+
+    describe("startMs propagation from GITHUB_AW_OTEL_JOB_START_MS", () => {
+      it("should pass startMs when GITHUB_AW_OTEL_JOB_START_MS is set to a valid timestamp", async () => {
+        const jobStartMs = Date.now() - 60_000; // 1 minute ago
+        process.env.GITHUB_AW_OTEL_JOB_START_MS = String(jobStartMs);
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: jobStartMs });
+      });
+
+      it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is not set", async () => {
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
+      });
+
+      it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is '0'", async () => {
+        process.env.GITHUB_AW_OTEL_JOB_START_MS = "0";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
+      });
+
+      it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is not a number", async () => {
+        process.env.GITHUB_AW_OTEL_JOB_START_MS = "not-a-number";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
       });
     });
   });

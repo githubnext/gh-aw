@@ -17,6 +17,12 @@
  *   GITHUB_OUTPUT   – path to the GitHub Actions output file
  *   GITHUB_ENV      – path to the GitHub Actions env file
  *   INPUT_*         – standard GitHub Actions input env vars (read by sendJobSetupSpan)
+ *
+ * Environment variables written:
+ *   GITHUB_AW_OTEL_TRACE_ID        – resolved trace ID (for cross-job correlation)
+ *   GITHUB_AW_OTEL_PARENT_SPAN_ID  – setup span ID (links conclusion span as child)
+ *   GITHUB_AW_OTEL_JOB_START_MS    – epoch ms when setup finished (used by conclusion
+ *                                     span to measure actual job execution duration)
  */
 
 const path = require("path");
@@ -83,6 +89,11 @@ async function run() {
       appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_PARENT_SPAN_ID=${spanId}\n`);
       console.log(`[otlp] GITHUB_AW_OTEL_PARENT_SPAN_ID written to GITHUB_ENV`);
     }
+    // Propagate setup-end timestamp so the conclusion span can measure actual
+    // job execution duration (setup-end → conclusion-start).
+    const setupEndMs = Date.now();
+    appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_JOB_START_MS=${setupEndMs}\n`);
+    console.log(`[otlp] GITHUB_AW_OTEL_JOB_START_MS written to GITHUB_ENV`);
   }
 }
 

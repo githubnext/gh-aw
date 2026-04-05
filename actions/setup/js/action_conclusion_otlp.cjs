@@ -20,6 +20,10 @@
  *                                   ("success", "failure", "timed_out", etc.);
  *                                   "failure" and "timed_out" set the span
  *                                   status to STATUS_CODE_ERROR.
+ *   GITHUB_AW_OTEL_JOB_START_MS   – epoch ms written by action_setup_otlp.cjs when
+ *                                   setup finished; used as the span startMs so the
+ *                                   conclusion span duration covers the actual job
+ *                                   execution window rather than this step's overhead.
  *   GITHUB_AW_OTEL_TRACE_ID       – parent trace ID (set by action_setup_otlp.cjs)
  *   GITHUB_AW_OTEL_PARENT_SPAN_ID – parent span ID (set by action_setup_otlp.cjs)
  *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (no-op when not set)
@@ -39,10 +43,15 @@ async function run() {
     return;
   }
 
+  // Read the job-start timestamp written by action_setup_otlp so the conclusion
+  // span duration covers the actual job execution window, not just this step's overhead.
+  const rawJobStartMs = parseInt(process.env.GITHUB_AW_OTEL_JOB_START_MS || "0", 10);
+  const startMs = rawJobStartMs > 0 ? rawJobStartMs : undefined;
+
   const spanName = process.env.INPUT_JOB_NAME ? `gh-aw.${process.env.INPUT_JOB_NAME}.conclusion` : "gh-aw.job.conclusion";
   console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
 
-  await sendOtlpSpan.sendJobConclusionSpan(spanName);
+  await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
   console.log(`[otlp] conclusion span sent`);
 }
 
