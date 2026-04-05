@@ -559,6 +559,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const workflowName = awInfo.workflow_name || "";
   const engineId = awInfo.engine_id || "";
   const model = awInfo.model || "";
+  const staged = awInfo.staged === true;
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
   const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
@@ -594,6 +595,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
   if (model) attributes.push(buildAttr("gh-aw.model", model));
+  attributes.push(buildAttr("gh-aw.staged", staged));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
@@ -633,6 +635,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
   }
+  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
   const payload = buildOTLPPayload({
     traceId,
