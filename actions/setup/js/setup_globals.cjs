@@ -7,9 +7,15 @@
  * This allows required modules to access these objects without needing to pass them as parameters
  */
 
+const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs");
+
 /**
  * Stores GitHub Actions builtin objects (core, github, context, exec, io) in the global scope
  * This must be called before requiring any script that depends on these globals
+ *
+ * The github object is wrapped with a rate-limit-aware proxy so that every
+ * github.rest.*.*() call automatically logs rate-limit headers to
+ * /tmp/gh-aw/github_rate_limits.jsonl for post-run observability.
  *
  * @param {typeof core} coreModule - The @actions/core module
  * @param {typeof github} githubModule - The @actions/github module
@@ -21,7 +27,9 @@ function setupGlobals(coreModule, githubModule, contextModule, execModule, ioMod
   // @ts-expect-error - Assigning to global properties that are declared as const
   global.core = coreModule;
   // @ts-expect-error - Assigning to global properties that are declared as const
-  global.github = githubModule;
+  // Wrap the github object so every github.rest.*.*() call automatically logs
+  // x-ratelimit-* headers to github_rate_limits.jsonl for observability.
+  global.github = createRateLimitAwareGithub(githubModule);
   // @ts-expect-error - Assigning to global properties that are declared as const
   global.context = contextModule;
   // @ts-expect-error - Assigning to global properties that are declared as const

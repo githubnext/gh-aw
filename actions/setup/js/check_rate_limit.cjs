@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { logRateLimitFromResponse, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
+const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 /**
  * Rate limit check for per-user per-workflow triggers
@@ -59,7 +59,6 @@ async function main() {
       repo,
       username: actor,
     });
-    logRateLimitFromResponse(permResponse, "repos.getCollaboratorPermissionLevel");
 
     const { data: permissionData } = permResponse;
     const userPermission = permissionData.permission;
@@ -136,7 +135,6 @@ async function main() {
         per_page: perPage,
         page,
       });
-      logRateLimitFromResponse(response, "actions.listWorkflowRuns");
 
       const runs = response.data.workflow_runs;
       core.info(`   Retrieved ${runs.length} runs from page ${page}`);
