@@ -701,6 +701,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
               "opentelemetry": {
                 "endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
+                "headers": "${{ secrets.GH_AW_OTEL_HEADERS }}",
                 "traceId": "${GITHUB_AW_OTEL_TRACE_ID}",
                 "spanId": "${GITHUB_AW_OTEL_PARENT_SPAN_ID}"
               }
@@ -788,10 +789,11 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GH_AW_OTEL_ENDPOINT,GH_AW_SIDE_REPO_PAT,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GH_AW_OTEL_ENDPOINT,GH_AW_OTEL_HEADERS,GH_AW_SIDE_REPO_PAT,GITHUB_TOKEN'
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GH_AW_OTEL_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+          SECRET_GH_AW_OTEL_HEADERS: ${{ secrets.GH_AW_OTEL_HEADERS }}
           SECRET_GH_AW_SIDE_REPO_PAT: ${{ secrets.GH_AW_SIDE_REPO_PAT }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Append agent step summary

@@ -47,7 +47,6 @@ package workflow
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -196,30 +195,16 @@ func RenderJSONMCPConfig(
 		}
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
 		// gateway config. Endpoint and headers are known at compile time from the workflow
-		// frontmatter and are written as literal values. traceId and spanId are set at
-		// runtime by actions/setup (via GITHUB_ENV) and use ${VARIABLE_NAME} expressions
-		// which the gateway expands at config-load time.
+		// frontmatter and are written as literal values (including GitHub Actions expressions
+		// such as ${{ secrets.X }} which GH Actions expands at runtime). traceId and spanId
+		// are set at runtime by actions/setup (via GITHUB_ENV) and use ${VARIABLE_NAME}
+		// expressions which the gateway expands at config-load time.
 		// Per MCP Gateway Specification §4.1.3.6 and the opentelemetryConfig schema.
 		if options.GatewayConfig.OTLPEndpoint != "" {
 			configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
 			fmt.Fprintf(&configBuilder, "                \"endpoint\": %q,\n", options.GatewayConfig.OTLPEndpoint)
-			if len(options.GatewayConfig.OTLPHeaders) > 0 {
-				configBuilder.WriteString("                \"headers\": {")
-				first := true
-				// Sort keys for deterministic output
-				keys := make([]string, 0, len(options.GatewayConfig.OTLPHeaders))
-				for k := range options.GatewayConfig.OTLPHeaders {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
-				for _, k := range keys {
-					if !first {
-						configBuilder.WriteString(", ")
-					}
-					fmt.Fprintf(&configBuilder, "%q: %q", k, options.GatewayConfig.OTLPHeaders[k])
-					first = false
-				}
-				configBuilder.WriteString("},\n")
+			if options.GatewayConfig.OTLPHeaders != "" {
+				fmt.Fprintf(&configBuilder, "                \"headers\": %q,\n", options.GatewayConfig.OTLPHeaders)
 			}
 			configBuilder.WriteString("                \"traceId\": \"${GITHUB_AW_OTEL_TRACE_ID}\",\n")
 			configBuilder.WriteString("                \"spanId\": \"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\"\n")

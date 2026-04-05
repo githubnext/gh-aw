@@ -514,7 +514,7 @@ type MCPGatewayRuntimeConfig struct {
 	TrustedBots          []string          `yaml:"trusted-bots,omitempty"`           // Additional bot identity strings to pass to the gateway, merged with its built-in list
 	KeepaliveInterval    int               `yaml:"keepalive-interval,omitempty"`     // Keepalive ping interval in seconds for HTTP MCP backends (0=default 1500s, -1=disabled, >0=custom)
 	OTLPEndpoint         string            `yaml:"-"`                                // OTLP collector endpoint (derived from observability.otlp, not user-settable)
-	OTLPHeaders          map[string]string `yaml:"-"`                                // Parsed OTLP HTTP headers keyed by name (derived from observability.otlp, not user-settable)
+	OTLPHeaders          string            `yaml:"-"`                                // Raw OTLP HTTP headers string (derived from observability.otlp, not user-settable)
 }
 
 // HasTool checks if a tool is present in the configuration

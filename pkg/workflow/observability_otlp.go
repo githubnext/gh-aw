@@ -8,33 +8,6 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-// parseOTLPHeaders parses the comma-separated key=value OTLP headers string into a map.
-// Returns nil when the input is empty or does not contain any valid key=value pairs.
-// GitHub Actions expressions (e.g. "${{ secrets.HEADERS }}") are skipped — they cannot
-// be resolved at compile time and cannot be encoded as a JSON object key-value map.
-func parseOTLPHeaders(headers string) map[string]string {
-	if headers == "" || strings.Contains(headers, "${{") {
-		return nil
-	}
-	result := make(map[string]string)
-	for pair := range strings.SplitSeq(headers, ",") {
-		pair = strings.TrimSpace(pair)
-		idx := strings.IndexByte(pair, '=')
-		if idx <= 0 {
-			continue
-		}
-		key := strings.TrimSpace(pair[:idx])
-		val := strings.TrimSpace(pair[idx+1:])
-		if key != "" {
-			result[key] = val
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
-}
-
 var otlpLog = logger.New("workflow:observability_otlp")
 
 // extractOTLPEndpointDomain parses an OTLP endpoint URL and returns its hostname.
