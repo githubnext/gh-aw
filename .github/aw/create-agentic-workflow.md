@@ -731,9 +731,12 @@ tools:
     toolsets: [default]
 steps:
   - name: Fetch data
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
     run: |
       # Download heavy data before the AI session begins
-      gh run view ${{ github.event.workflow_run.id }} --log > /tmp/gh-aw/agent/ci-logs.txt 2>&1 || true
+      gh run view "$RUN_ID" --log > /tmp/gh-aw/agent/ci-logs.txt 2>&1 || true
       # Trim to last 500 lines to stay within token budget
       tail -500 /tmp/gh-aw/agent/ci-logs.txt > /tmp/gh-aw/agent/ci-logs-trimmed.txt
 safe-outputs:
@@ -754,6 +757,8 @@ Identify the root cause, suggest a fix, and add a comment to the triggering PR.
    ```yaml
    steps:
      - name: Fetch deployment logs
+       env:
+         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
        run: |
          heroku logs --tail --num 200 --app ${{ vars.HEROKU_APP }} \
            > /tmp/gh-aw/agent/deploy-logs.txt
@@ -763,6 +768,8 @@ Identify the root cause, suggest a fix, and add a comment to the triggering PR.
    ```yaml
    steps:
      - name: Build and capture output
+       env:
+         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
        run: |
          npm ci 2>&1 | tail -200 > /tmp/gh-aw/agent/build-output.txt
          npm run test -- --reporter=json > /tmp/gh-aw/agent/test-results.json 2>&1 || true
@@ -772,8 +779,11 @@ Identify the root cause, suggest a fix, and add a comment to the triggering PR.
    ```yaml
    steps:
      - name: Download test artifact
+       env:
+         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         RUN_ID: ${{ github.event.workflow_run.id }}
        run: |
-         gh run download ${{ github.event.workflow_run.id }} \
+         gh run download "$RUN_ID" \
            --name test-results --dir /tmp/gh-aw/agent/artifacts/ || true
    ```
 
