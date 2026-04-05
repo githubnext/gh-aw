@@ -135,11 +135,11 @@ make test-js
 **Before running recompile**, check whether any workflow `.md` files were modified:
 
 ```bash
-git diff --name-only | grep '\.md$'
+git diff --name-only | grep '^\.github/workflows/.*\.md$'
 ```
 
-- **If the output is empty** (no `.md` files changed) → **SKIP this step entirely**. Do not run `make recompile`.
-- **If `.md` files are listed** → Run the recompile:
+- **If the output is empty** (no workflow `.md` files changed) → **SKIP this step entirely**. Do not run `make recompile`.
+- **If workflow `.md` files are listed** → Run the recompile:
 
 ```bash
 make recompile

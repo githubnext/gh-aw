@@ -166,10 +166,10 @@ Follow the instructions from the ci-cleaner agent to:
 Before running `make recompile`:
 1. Check if any workflow `.md` files were modified:
    ```bash
-   git diff --name-only | grep '\.md$'
+   git diff --name-only | grep '^\.github/workflows/.*\.md$'
    ```
-2. **If NO `.md` files changed** → **SKIP `make recompile` entirely**.
-3. **If `.md` files changed** → Run `make recompile`, then immediately check:
+2. **If NO workflow `.md` files changed** → **SKIP `make recompile` entirely**.
+3. **If workflow `.md` files changed** → Run `make recompile`, then immediately check:
    ```bash
    git diff --name-only | wc -l
    ```
