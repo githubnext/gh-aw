@@ -81,6 +81,11 @@ func TestIsAuthError(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "GITHUB_TOKEN mention",
+			errMsg:   "GITHUB_TOKEN is missing or invalid",
+			expected: true,
+		},
+		{
 			name:     "authentication error",
 			errMsg:   "authentication required",
 			expected: true,
@@ -88,6 +93,26 @@ func TestIsAuthError(t *testing.T) {
 		{
 			name:     "not logged in",
 			errMsg:   "not logged into any GitHub hosts",
+			expected: true,
+		},
+		{
+			name:     "unauthorized",
+			errMsg:   "HTTP 401: Unauthorized",
+			expected: true,
+		},
+		{
+			name:     "forbidden",
+			errMsg:   "HTTP 403: Forbidden",
+			expected: true,
+		},
+		{
+			name:     "permission denied",
+			errMsg:   "permission denied: insufficient scope",
+			expected: true,
+		},
+		{
+			name:     "saml enforcement",
+			errMsg:   "Resource protected by organization SAML enforcement",
 			expected: true,
 		},
 		{
@@ -108,4 +133,119 @@ func TestIsAuthError(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "IsAuthError(%q) should return %v", tt.errMsg, tt.expected)
 		})
 	}
+}
+
+func TestIsHexString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "valid lowercase hex",
+			input:    "deadbeef",
+			expected: true,
+		},
+		{
+			name:     "valid uppercase hex",
+			input:    "DEADBEEF",
+			expected: true,
+		},
+		{
+			name:     "valid mixed case hex",
+			input:    "DeAdBeEf",
+			expected: true,
+		},
+		{
+			name:     "valid full git sha",
+			input:    "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+			expected: true,
+		},
+		{
+			name:     "digits only",
+			input:    "0123456789",
+			expected: true,
+		},
+		{
+			name:     "single valid char",
+			input:    "a",
+			expected: true,
+		},
+		{
+			name:     "invalid char g",
+			input:    "deadbeeg",
+			expected: false,
+		},
+		{
+			name:     "contains space",
+			input:    "dead beef",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "non-hex word",
+			input:    "xyz",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsHexString(tt.input)
+			assert.Equal(t, tt.expected, result, "IsHexString(%q) should return %v", tt.input, tt.expected)
+		})
+	}
+}
+
+func TestExtractBaseRepo(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple owner/repo path",
+			input:    "actions/checkout",
+			expected: "actions/checkout",
+		},
+		{
+			name:     "path with one subpath segment",
+			input:    "github/codeql-action/upload-sarif",
+			expected: "github/codeql-action",
+		},
+		{
+			name:     "deep path with multiple segments",
+			input:    "owner/repo/sub/dir/file",
+			expected: "owner/repo",
+		},
+		{
+			name:     "no slash returns input as-is",
+			input:    "onlyone",
+			expected: "onlyone",
+		},
+		{
+			name:     "empty string returns empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractBaseRepo(tt.input)
+			assert.Equal(t, tt.expected, result, "ExtractBaseRepo(%q) should return %q", tt.input, tt.expected)
+		})
+	}
+}
+
+func TestFindGitRoot(t *testing.T) {
+	t.Run("returns non-empty path when inside a git repository", func(t *testing.T) {
+		gitRoot, err := FindGitRoot()
+		assert.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
+		assert.NotEmpty(t, gitRoot, "FindGitRoot should return a non-empty path")
+	})
 }
