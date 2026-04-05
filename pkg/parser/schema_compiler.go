@@ -352,11 +352,10 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				// For a single failure, strip that prefix: the IDE-format "file:line:col: error:"
 				// header already communicates the position, so repeating it in the message body
 				// is redundant noise.
-				message := detailLines[0]
+				// Start with the stripped single-failure form; override below for multi-failure.
+				message := stripDetailLinePrefix(detailLines[0])
 				if len(detailLines) != 1 {
 					message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
-				} else {
-					message = stripDetailLinePrefix(detailLines[0])
 				}
 
 				// Create a compiler error with precise location information
@@ -437,13 +436,12 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
 	message = translateSchemaConstraintMessage(message)
 	// Append valid-values hint for well-known fields (e.g. permissions scopes).
-	message = appendKnownFieldValidValuesHint(message, pathInfo.Path)
-	// Guard: only add schema-based suggestions if the hint above did not already add a
-	// valid-values list or a "Did you mean" suggestion.  appendKnownFieldValidValuesHint
-	// may produce "Valid permission scopes: …" and/or "Did you mean 'X'?" text for known
-	// paths (e.g. /permissions).  Calling generateSchemaBasedSuggestions on top would
-	// repeat that information, producing an excessively long duplicate list.
-	if !strings.Contains(message, "Valid ") && !strings.Contains(message, "Did you mean") {
+	// hintAdded is true when appendKnownFieldValidValuesHint actually augmented the message
+	// (i.e. the path is a known field and the error is an unknown-property error).
+	// When a hint was added we skip generateSchemaBasedSuggestions to avoid repeating the
+	// same valid-values or "Did you mean" content.
+	message, hintAdded := appendKnownFieldValidValuesHint(message, pathInfo.Path)
+	if !hintAdded {
 		suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
 		if suggestions != "" {
 			message = message + ". " + suggestions

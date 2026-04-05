@@ -11,6 +11,12 @@ import (
 
 var frontmatterErrorLog = logger.New("workflow:frontmatter_error")
 
+// frontmatterParseErrPrefix is the string prefix that ExtractFrontmatterFromContent
+// prepends to the formatted yaml.FormatError() output when a YAML syntax error occurs.
+// It is used as a sentinel to detect whether a frontmatter error already carries
+// formatted YAML position information.
+const frontmatterParseErrPrefix = "failed to parse frontmatter:\n"
+
 // Package-level compiled regex patterns for better performance
 var (
 	lineColPattern       = regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
@@ -47,7 +53,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 
 	// Check if error already contains formatted yaml.FormatError() output with source context
 	// yaml.FormatError() produces output like "failed to parse frontmatter:\n[line:col] message\n>  line | content..."
-	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
+	if strings.Contains(errorStr, frontmatterParseErrPrefix+"[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
 		// Extract line and column from the formatted error for VSCode compatibility
 		// Pattern: [line:col] message
 		if matches := lineColPattern.FindStringSubmatch(errorStr); len(matches) >= 4 {
@@ -86,12 +92,9 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 		frontmatterErrorLog.Print("Could not extract line/col from formatted error, falling back to frontmatter start")
 		fallbackMsg := "failed to parse YAML frontmatter"
 		// Try to surface a single-line description from the raw error text.
-		if idx := strings.Index(errorStr, "failed to parse frontmatter:\n"); idx >= 0 {
-			rest := errorStr[idx+len("failed to parse frontmatter:\n"):]
-			if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
-				rest = rest[:nl]
-			}
-			if translated := parser.TranslateYAMLMessage(strings.TrimSpace(rest)); translated != "" {
+		if _, rest, found := strings.Cut(errorStr, frontmatterParseErrPrefix); found {
+			firstLine, _, _ := strings.Cut(rest, "\n")
+			if translated := parser.TranslateYAMLMessage(strings.TrimSpace(firstLine)); translated != "" {
 				fallbackMsg = "failed to parse YAML frontmatter: " + translated
 			}
 		}
