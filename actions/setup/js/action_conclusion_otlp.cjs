@@ -4,8 +4,8 @@
 /**
  * action_conclusion_otlp.cjs
  *
- * Sends a gh-aw.job.conclusion OTLP span (or a span named after the current
- * job).  Used by both:
+ * Sends a `gh-aw.<jobName>.conclusion` OTLP span (or `gh-aw.job.conclusion`
+ * when no job name is configured).  Used by both:
  *
  *   - actions/setup/post.js   (dev/release/action mode)
  *   - actions/setup/clean.sh  (script mode)
@@ -14,7 +14,7 @@
  *
  * Environment variables read:
  *   INPUT_JOB_NAME – job name from the `job-name` action input; when set the
- *                    span is named "gh-aw.job.<name>", otherwise
+ *                    span is named "gh-aw.<name>.conclusion", otherwise
  *                    "gh-aw.job.conclusion".
  *   GITHUB_AW_OTEL_TRACE_ID       – parent trace ID (set by action_setup_otlp.cjs)
  *   GITHUB_AW_OTEL_PARENT_SPAN_ID – parent span ID (set by action_setup_otlp.cjs)
@@ -35,7 +35,7 @@ async function run() {
     return;
   }
 
-  const spanName = process.env.INPUT_JOB_NAME ? `gh-aw.job.${process.env.INPUT_JOB_NAME}` : "gh-aw.job.conclusion";
+  const spanName = process.env.INPUT_JOB_NAME ? `gh-aw.${process.env.INPUT_JOB_NAME}.conclusion` : "gh-aw.job.conclusion";
   console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
 
   const { sendJobConclusionSpan } = require(path.join(__dirname, "send_otlp_span.cjs"));

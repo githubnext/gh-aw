@@ -11,7 +11,7 @@ inputs:
     required: false
     default: 'false'
   job-name:
-    description: 'Name of the job being set up. When OTEL_EXPORTER_OTLP_ENDPOINT is configured, a gh-aw.job.setup span is pushed to the OTLP endpoint.'
+    description: 'Name of the job being set up. When OTEL_EXPORTER_OTLP_ENDPOINT is configured, a gh-aw.<job-name>.setup span is pushed to the OTLP endpoint.'
     required: false
     default: ''
   trace-id:
@@ -23,7 +23,7 @@ outputs:
   files_copied:
     description: 'Number of files copied'
   trace-id:
-    description: 'The OTLP trace ID used for the gh-aw.job.setup span. Pass this to subsequent job setup steps via the trace-id input to correlate all job spans under a single trace.'
+    description: 'The OTLP trace ID used for the gh-aw.<job-name>.setup span. Pass this to subsequent job setup steps via the trace-id input to correlate all job spans under a single trace.'
 
 runs:
   using: 'node24'

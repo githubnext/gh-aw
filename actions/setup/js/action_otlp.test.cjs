@@ -173,7 +173,7 @@ describe("action_conclusion_otlp run()", () => {
 
     const payload = JSON.parse(capturedBody);
     const spanName = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name;
-    expect(spanName).toBe("gh-aw.job.agent");
+    expect(spanName).toBe("gh-aw.agent.conclusion");
     fetchSpy.mockRestore();
   });
 

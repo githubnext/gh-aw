@@ -43,7 +43,7 @@ if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
 
-// Send a gh-aw.job.setup span to the OTLP endpoint when configured.
+// Send a gh-aw.<jobName>.setup span to the OTLP endpoint when configured.
 // Delegates to action_setup_otlp.cjs so that script mode (setup.sh) and
 // dev/release mode share the same implementation.
 // Explicitly set INPUT_TRACE_ID (normalized above) so action_setup_otlp.cjs

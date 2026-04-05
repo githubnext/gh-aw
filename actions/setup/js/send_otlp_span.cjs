@@ -281,7 +281,8 @@ function isValidSpanId(id) {
  */
 
 /**
- * Send a `gh-aw.job.setup` span to the configured OTLP endpoint.
+ * Send a `gh-aw.<jobName>.setup` span (or `gh-aw.job.setup` when no job name
+ * is configured) to the configured OTLP endpoint.
  *
  * This is designed to be called from `actions/setup/index.js` immediately after
  * the setup script completes.  It always returns `{ traceId, spanId }` so callers
@@ -363,7 +364,7 @@ async function sendJobSetupSpan(options = {}) {
   const payload = buildOTLPPayload({
     traceId,
     spanId,
-    spanName: "gh-aw.job.setup",
+    spanName: jobName ? `gh-aw.${jobName}.setup` : "gh-aw.job.setup",
     startMs,
     endMs,
     serviceName,

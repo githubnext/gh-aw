@@ -16,7 +16,7 @@ const fs = require("fs");
 // Wrap everything in an async IIFE so that the OTLP span is fully sent before
 // the cleanup deletes /tmp/gh-aw/ (which contains aw_info.json and otel.jsonl).
 (async () => {
-  // Send a gh-aw.job.conclusion span to the configured OTLP endpoint, if any.
+  // Send a gh-aw.<jobName>.conclusion span to the configured OTLP endpoint, if any.
   // Delegates to action_conclusion_otlp.cjs so that script mode (clean.sh) and
   // dev/release mode share the same implementation.  Non-fatal: errors are
   // handled inside sendJobConclusionSpan via console.warn.

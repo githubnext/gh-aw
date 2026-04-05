@@ -615,8 +615,7 @@ describe("sendJobSetupSpan", () => {
 
     const body = JSON.parse(init.body);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
-    expect(span.name).toBe("gh-aw.job.setup");
-    // Span traceId and spanId must match the returned values
+    expect(span.name).toBe("gh-aw.agent.setup");
     expect(span.traceId).toBe(traceId);
     expect(span.spanId).toBe(spanId);
 

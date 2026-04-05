@@ -4,7 +4,7 @@
 /**
  * action_setup_otlp.cjs
  *
- * Sends a gh-aw.job.setup OTLP span and writes the trace/span IDs to
+ * Sends a `gh-aw.<jobName>.setup` OTLP span and writes the trace/span IDs to
  * GITHUB_OUTPUT and GITHUB_ENV.  Used by both:
  *
  *   - actions/setup/index.js  (dev/release/action mode)
