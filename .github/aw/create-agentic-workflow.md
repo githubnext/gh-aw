@@ -705,6 +705,83 @@ When creating workflows that involve coding agents operating in large repositori
   - Documentation updates for multiple services
   - Dependency updates across microservices
 
+### Pre-step Data Fetching
+
+**Always fetch heavy data before the AI session begins.** Passing large blobs of raw data (logs, artifacts, build output) directly to the AI agent wastes tokens, increases inference latency, and reduces reliability. Instead, use a deterministic `steps:` block to download, filter, and store the data at a well-known path before the agent reads it.
+
+**Why this matters:**
+- Token budgets are finite — raw CI logs or deployment output can be thousands of lines; pre-fetching lets you truncate or filter to only the relevant parts.
+- Deterministic shell steps are faster and more reliable than asking the agent to call tools repeatedly to download the same data.
+- Pre-fetched data is reusable: the agent reads a local file instead of making repeated API calls.
+
+**Reusable template:**
+
+```yaml
+---
+description: <workflow description>
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+tools:
+  github:
+    toolsets: [default]
+steps:
+  - name: Fetch data
+    run: |
+      # Download heavy data before the AI session begins
+      gh run view ${{ github.event.workflow_run.id }} --log > /tmp/gh-aw/agent/ci-logs.txt 2>&1 || true
+      # Trim to last 500 lines to stay within token budget
+      tail -500 /tmp/gh-aw/agent/ci-logs.txt > /tmp/gh-aw/agent/ci-logs-trimmed.txt
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+Analyze the CI failure logs at `/tmp/gh-aw/agent/ci-logs-trimmed.txt`.
+
+Identify the root cause, suggest a fix, and add a comment to the triggering PR.
+```
+
+**The agent data directory** (`/tmp/gh-aw/agent/`) is the canonical location for files produced by pre-steps and consumed by the agent. Write pre-fetched data there so the agent can find it with a predictable path.
+
+**Example use cases:**
+
+1. **Deployment failure logs** — Download Heroku/Vercel/Railway deployment logs via their CLI before the AI analyses the failure:
+   ```yaml
+   steps:
+     - name: Fetch deployment logs
+       run: |
+         heroku logs --tail --num 200 --app ${{ vars.HEROKU_APP }} \
+           > /tmp/gh-aw/agent/deploy-logs.txt
+   ```
+
+2. **Build artifacts / test results** — Run `npm ci && npm run build` (or equivalent) and save the output so the agent can inspect compilation errors without re-running the build:
+   ```yaml
+   steps:
+     - name: Build and capture output
+       run: |
+         npm ci 2>&1 | tail -200 > /tmp/gh-aw/agent/build-output.txt
+         npm run test -- --reporter=json > /tmp/gh-aw/agent/test-results.json 2>&1 || true
+   ```
+
+3. **GitHub Actions workflow run artifacts** — Download a specific artifact from a failed run before asking the agent to diagnose it:
+   ```yaml
+   steps:
+     - name: Download test artifact
+       run: |
+         gh run download ${{ github.event.workflow_run.id }} \
+           --name test-results --dir /tmp/gh-aw/agent/artifacts/ || true
+   ```
+
+**Related patterns:**
+
+- For loading a **baseline before AI analysis** (e.g., architecture notes, known-issues registry), use `repo-memory` — see `.github/aw/memory.md` for the full comparison of `cache-memory`, `repo-memory`, and `repo-memory` with wiki.
+- For **multi-step data processing pipelines** that pre-compute aggregations before the AI runs, see the [DataOps pattern](https://github.github.com/gh-aw/patterns/data-ops/) and [Deterministic & Agentic Patterns guide](https://github.github.com/gh-aw/guides/deterministic-agentic-patterns/).
+
 ## Issue Form Mode: Step-by-Step Workflow Creation
 
 When processing a GitHub issue created via the workflow creation form, follow these steps:
