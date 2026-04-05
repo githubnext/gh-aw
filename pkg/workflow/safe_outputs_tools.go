@@ -57,8 +57,3 @@ func GetSafeOutputToolOptions() []SafeOutputToolOption {
 	}
 	return options
 }
-
-// GetSafeOutputsToolsJSON returns the raw JSON content of safe_outputs_tools.json.
-func GetSafeOutputsToolsJSON() string {
-	return safeOutputsToolsJSONContent
-}

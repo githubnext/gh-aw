@@ -159,6 +159,7 @@ export default defineConfig({
 				maxHeadingLevel: 4
 			},
 			pagination: true,
+			breadcrumbs: true,
 			expressiveCode: {
 				frames: {
 					showCopyToClipboardButton: true,

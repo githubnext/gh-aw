@@ -299,6 +299,76 @@ Returns formatted text output showing:
 	})
 }
 
+// registerChecksTool registers the checks tool with the MCP server.
+// The checks tool is read-only and idempotent.
+func registerChecksTool(server *mcp.Server) {
+	type checksArgs struct {
+		PRNumber string `json:"pr_number" jsonschema:"Pull request number to classify CI checks for"`
+		Repo     string `json:"repo,omitempty" jsonschema:"Repository in owner/repo format (defaults to current repository)"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "checks",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
+		Description: `Classify CI check state for a pull request and return a normalized result.
+
+Maps PR check rollups to one of the following normalized states:
+  success        - all checks passed
+  failed         - one or more checks failed
+  pending        - checks are still running or queued
+  no_checks      - no checks configured or triggered
+  policy_blocked - policy or account gates are blocking the PR
+
+Returns JSON with two state fields:
+  state          - aggregate state across all check runs and commit statuses
+  required_state - state derived from check runs and policy commit statuses only;
+                   ignores optional third-party commit statuses (e.g. Vercel,
+                   Netlify deployments) but still surfaces policy_blocked when
+                   branch-protection or account-gate statuses fail
+
+Use required_state as the authoritative CI verdict in repos that have optional
+deployment integrations posting commit statuses alongside required CI checks.
+
+Also returns pr_number, head_sha, check_runs, statuses, and total_count.`,
+		Icons: []mcp.Icon{
+			{Source: "✅"},
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args checksArgs) (*mcp.CallToolResult, any, error) {
+		// Check for cancellation before starting
+		select {
+		case <-ctx.Done():
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
+		default:
+		}
+
+		if args.PRNumber == "" {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "missing required parameter: pr_number", nil)
+		}
+
+		mcpLog.Printf("Executing checks tool: pr_number=%s, repo=%s", args.PRNumber, args.Repo)
+
+		result, err := FetchChecksResult(args.Repo, args.PRNumber)
+		if err != nil {
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fetch checks", map[string]any{"error": err.Error()})
+		}
+
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal checks result", map[string]any{"error": err.Error()})
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(jsonBytes)},
+			},
+		}, nil, nil
+	})
+}
+
 // buildDockerErrorResults builds a []ValidationResult with a config_error for each target
 // workflow. It is used when Docker is unavailable so the compile tool returns consistent
 // structured JSON instead of a protocol-level error.

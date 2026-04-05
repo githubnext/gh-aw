@@ -515,6 +515,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "          path: |\n")
 	steps = append(steps, "            /tmp/gh-aw/aw_info.json\n")
 	steps = append(steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	steps = append(steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
+	steps = append(steps, "          if-no-files-found: ignore\n")
 	steps = append(steps, "          retention-days: 1\n")
 
 	// Set permissions - activation job always needs contents:read for GitHub API access

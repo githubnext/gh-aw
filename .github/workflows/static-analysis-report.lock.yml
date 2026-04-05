@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"4d3b34422436feaf3ecc878115b3dffd83dc2daeec29a2636d73b77498076454","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"fd178852a30ebfb9988ae8d15e30e67b297eb3689ff6eabbc2fedd19afc5ca02","strict":true,"agent_id":"claude"}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -21,7 +21,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint
+# Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, actionlint, and runner-guard
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -153,23 +153,24 @@ jobs:
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         # poutine:ignore untrusted_checkout_exec
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_a7a2b1849ed34e29_EOF'
+          cat << 'GH_AW_PROMPT_8758499c2b24a61d_EOF'
           <system>
-          GH_AW_PROMPT_a7a2b1849ed34e29_EOF
+          GH_AW_PROMPT_8758499c2b24a61d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_a7a2b1849ed34e29_EOF'
+          cat << 'GH_AW_PROMPT_8758499c2b24a61d_EOF'
           <safe-output-tools>
-          Tools: create_discussion, missing_tool, missing_data, noop
+          Tools: create_issue(max:3), create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -199,19 +200,21 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_a7a2b1849ed34e29_EOF
+          GH_AW_PROMPT_8758499c2b24a61d_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_a7a2b1849ed34e29_EOF'
+          cat << 'GH_AW_PROMPT_8758499c2b24a61d_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/static-analysis-report.md}}
-          GH_AW_PROMPT_a7a2b1849ed34e29_EOF
+          GH_AW_PROMPT_8758499c2b24a61d_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -232,6 +235,7 @@ jobs:
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
@@ -254,6 +258,7 @@ jobs:
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
               }
             });
@@ -275,10 +280,14 @@ jobs:
           path: |
             /tmp/gh-aw/aw_info.json
             /tmp/gh-aw/aw-prompts/prompt.txt
+            /tmp/gh-aw/github_rate_limits.jsonl
+          if-no-files-found: ignore
           retention-days: 1
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - runner_guard
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -378,7 +387,12 @@ jobs:
       - name: Verify static analysis tools
         run: "set -e\necho \"Verifying static analysis tools are available...\"\n\n# Verify zizmor\necho \"Testing zizmor...\"\ndocker run --rm ghcr.io/zizmorcore/zizmor:latest --version || echo \"Warning: zizmor version check failed\"\n\n# Verify poutine\necho \"Testing poutine...\"\ndocker run --rm ghcr.io/boostsecurityio/poutine:latest --version || echo \"Warning: poutine version check failed\"\n\necho \"Static analysis tools verification complete\"\n"
       - name: Run compile with security tools
-        run: "set -e\necho \"Running gh aw compile with security tools to download Docker images...\"\n\n# Run compile with all security scanner flags to download Docker images\n# Store the output in a file for inspection\ngh aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt\n\necho \"Compile with security tools completed\"\necho \"Output saved to /tmp/gh-aw/compile-output.txt\""
+        run: "set -e\necho \"Running gh aw compile with security tools to download Docker images...\"\n\n# Run compile with all security scanner flags to download Docker images\n# Store the output in a file for inspection\ngh aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt\n\necho \"Compile with security tools completed\"\necho \"Output saved to /tmp/gh-aw/compile-output.txt\"\n"
+      - name: Download runner-guard results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: runner-guard-results
+          path: /tmp/gh-aw/
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -399,13 +413,14 @@ jobs:
         env:
           REPO_NAME: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         id: checkout-pr
@@ -471,21 +486,22 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_6d5779da1ff5b48a_EOF'
-          {"create_discussion":{"category":"security","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_6d5779da1ff5b48a_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_9a50545c6505d3d7_EOF'
+          {"create_discussion":{"category":"security","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1},"create_issue":{"expires":168,"labels":["security","automation"],"max":3,"title_prefix":"[runner-guard] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
+          GH_AW_SAFE_OUTPUTS_CONFIG_9a50545c6505d3d7_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_3b863b81f42bb639_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_62d189da2111f489_EOF'
           {
             "description_suffixes": {
-              "create_discussion": " CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"security\"."
+              "create_discussion": " CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"security\".",
+              "create_issue": " CONSTRAINTS: Maximum 3 issue(s) can be created. Title will be prefixed with \"[runner-guard] \". Labels [\"security\" \"automation\"] will be automatically added."
             },
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_3b863b81f42bb639_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_4ba8849c6dc59d40_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_62d189da2111f489_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_29e512618de29162_EOF'
           {
             "create_discussion": {
               "defaultMax": 1,
@@ -504,6 +520,39 @@ jobs:
                 "repo": {
                   "type": "string",
                   "maxLength": 256
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              }
+            },
+            "create_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
                 },
                 "title": {
                   "required": true,
@@ -571,7 +620,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_4ba8849c6dc59d40_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_29e512618de29162_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -641,7 +690,7 @@ jobs:
           export GH_AW_ENGINE="claude"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.14'
           
-          cat << GH_AW_MCP_CONFIG_d7f650b7f588b3cb_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_dd311f6fe490ccdb_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -699,7 +748,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_d7f650b7f588b3cb_EOF
+          GH_AW_MCP_CONFIG_dd311f6fe490ccdb_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -816,13 +865,14 @@ jobs:
         env:
           REPO_NAME: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Stop MCP Gateway
         if: always()
@@ -948,6 +998,7 @@ jobs:
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
+            /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
@@ -969,6 +1020,7 @@ jobs:
       - activation
       - agent
       - detection
+      - runner_guard
       - safe_outputs
       - update_cache_memory
     if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
@@ -1159,7 +1211,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Static Analysis Report"
-          WORKFLOW_DESCRIPTION: "Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint"
+          WORKFLOW_DESCRIPTION: "Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, actionlint, and runner-guard"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1243,6 +1295,48 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_threat_detection_results.cjs');
             await main();
 
+  runner_guard:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: |
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install runner-guard
+        run: go install github.com/Vigilant-LLC/runner-guard/cmd/runner-guard@v2.6.0
+      - name: Run runner-guard scan
+        run: |
+          RUNNER_GUARD="$(go env GOPATH)/bin/runner-guard"
+          if [ ! -x "$RUNNER_GUARD" ]; then
+            echo '{"findings":[],"error":"runner-guard binary not found after install"}' > /tmp/runner-guard-results.json
+          else
+            "$RUNNER_GUARD" scan . --format json > /tmp/runner-guard-results.json 2>/tmp/runner-guard-stderr.log || true
+            # If output is empty or not valid JSON, write empty result
+            if ! python3 -c "import json,sys; json.load(open('/tmp/runner-guard-results.json'))" 2>/dev/null; then
+              echo '{"findings":[],"stderr":"'"$(cat /tmp/runner-guard-stderr.log | head -20 | tr '"' "'")"'"}' > /tmp/runner-guard-results.json
+            fi
+          fi
+      - name: Upload runner-guard results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: runner-guard-results
+          path: /tmp/runner-guard-results.json
+          retention-days: 1
+
   safe_outputs:
     needs:
       - activation
@@ -1267,6 +1361,8 @@ jobs:
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
+      created_issue_number: ${{ steps.process_safe_outputs.outputs.created_issue_number }}
+      created_issue_url: ${{ steps.process_safe_outputs.outputs.created_issue_url }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
@@ -1315,7 +1411,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"security\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"security\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1},\"create_issue\":{\"expires\":168,\"labels\":[\"security\",\"automation\"],\"max\":3,\"title_prefix\":\"[runner-guard] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

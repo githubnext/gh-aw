@@ -36,6 +36,14 @@ All commands are run from the root of the project, from a terminal:
 | `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
 
+## ⚠️ Known Dev-Mode Limitations
+
+### Sitemap not available in dev mode
+
+The sitemap (`/gh-aw/sitemap-index.xml`) is **only generated during a production build** (`npm run build`). It is not available when running the local development server (`npm run dev`).
+
+If a CI pipeline or automated tool checks for the sitemap URL during a local preview, it will receive a 404 response. To verify the sitemap, run `npm run build` followed by `npm run preview`.
+
 ## Want to learn more?
 
 Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).

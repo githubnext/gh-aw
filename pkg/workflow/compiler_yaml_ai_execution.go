@@ -7,31 +7,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
-func getObservabilityJobSummaryMode(data *WorkflowData) string {
-	if data == nil {
-		return ""
-	}
-
-	mode := ""
-	if data.ParsedFrontmatter != nil && data.ParsedFrontmatter.Observability != nil {
-		mode = data.ParsedFrontmatter.Observability.JobSummary
-	}
-
-	if mode == "" && data.RawFrontmatter != nil {
-		if rawObservability, ok := data.RawFrontmatter["observability"].(map[string]any); ok {
-			if rawMode, ok := rawObservability["job-summary"].(string); ok {
-				mode = rawMode
-			}
-		}
-	}
-
-	if mode == "off" {
-		return ""
-	}
-
-	return mode
-}
-
 // generateEngineExecutionSteps generates the GitHub Actions steps for executing the AI engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 
@@ -119,27 +94,36 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("            await main();\n")
 }
 
-// generateObservabilitySummary generates an opt-in step that synthesizes a compact
+// generateObservabilitySummary generates a step that synthesizes a compact
 // observability section for the GitHub Actions step summary from existing runtime files.
+// The step is only emitted when OTLP is configured in the workflow.
 func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *WorkflowData) {
-	mode := getObservabilityJobSummaryMode(data)
-	if mode == "" {
+	if !isOTLPEnabled(data) {
 		return
 	}
 
-	compilerYamlLog.Printf("Generating observability step summary: mode=%s", mode)
+	compilerYamlLog.Print("Generating observability step summary")
 
 	yaml.WriteString("      - name: Generate observability summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_AW_OBSERVABILITY_JOB_SUMMARY: %q\n", mode)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');\n")
 	yaml.WriteString("            await main(core);\n")
+}
+
+// isOTLPEnabled returns true when OTLP has been configured in the workflow (including
+// imported frontmatter). It checks whether injectOTLPConfig has already written the
+// OTEL_EXPORTER_OTLP_ENDPOINT env var into workflowData.Env, which is the authoritative
+// result of OTLP detection after all frontmatter (main + imports) has been processed.
+func isOTLPEnabled(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_ENDPOINT")
 }
 
 // generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output

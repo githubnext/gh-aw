@@ -5905,11 +5905,7 @@ secret-masking:
 
 # Optional observability output settings for workflow runs.
 # (optional)
-observability:
-  # If set to 'on', append a compact observability section to the GitHub Actions job
-  # summary. Defaults to off when omitted.
-  # (optional)
-  job-summary: "on"
+observability: {}
 
 # Allow list of bot identifiers that can trigger the workflow even if they don't
 # meet the required role permissions. When the actor is in this list, the bot must

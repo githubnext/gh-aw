@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.2
-**Last Updated**: 2026-04-04
+**Version**: 5.3
+**Last Updated**: 2026-04-05
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2144,6 +2144,37 @@ func GetMCPLogLevel() string {
 }
 ```
 
+### GitHub API Rate Limit Observability
+
+GitHub API rate-limit data is logged to a JSONL file during workflow execution, uploaded as a job artifact, and surfaced in OTLP conclusion spans.
+
+**Log file**: `/tmp/gh-aw/github_rate_limits.jsonl` (constant: `GithubRateLimitsFilename`)
+
+**Entry format**:
+```json
+{"timestamp":"2026-04-05T08:30:00.000Z","source":"response_headers","operation":"issues.listComments","resource":"core","limit":5000,"remaining":4823,"used":177,"reset":"2026-04-05T09:00:00.000Z"}
+```
+
+**JS helper** (`actions/setup/js/github_rate_limit_logger.cjs`) — three usage patterns:
+
+| Pattern | Function | When to Use |
+|---------|----------|-------------|
+| Per-call | `logRateLimitFromResponse(response, op)` | After individual REST calls |
+| Snapshot | `fetchAndLogRateLimit(github, op)` | Job start/end |
+| Auto-wrap | `createRateLimitAwareGithub(github)` | Zero call-site change |
+
+`setupGlobals` wraps the injected `github` object with `createRateLimitAwareGithub` automatically, so all scripts using `global.github` get rate-limit logging without per-file changes.
+
+**Artifact upload**: included in both activation and agent job artifacts (`if-no-files-found: ignore`, 1-day retention). See `compiler_activation_job.go` and `compiler_yaml_main_job.go`.
+
+**OTLP span attributes** (added to conclusion span by `send_otlp_span.cjs`):
+- `gh-aw.github.rate_limit.remaining`
+- `gh-aw.github.rate_limit.limit`
+- `gh-aw.github.rate_limit.used`
+- `gh-aw.github.rate_limit.resource`
+
+See `scratchpad/github-rate-limit-observability.md` for full details including debugging with `jq`.
+
 ---
 
 ## Go Type Patterns
@@ -2704,6 +2735,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Agent Sessions Terminology Migration](./agent-sessions.md) - Migration plan for renaming "agent task" to "agent session": schema updates, codemod in `fix_codemods.go`, Go/JavaScript code changes, documentation updates, and backward compatibility strategy
 - [Safe Output Handler Factory Pattern](./safe-output-handlers-refactoring.md) - Refactoring status for all 11 safe output handlers to the handler factory pattern (`main(config)` returns a message handler function): per-handler status, testing strategy, and handler manager compatibility
 - [Serena Tools Statistical Analysis](./serena-tools-analysis.md) - Deep statistical analysis of Serena MCP tool usage in workflow run 21560089409: tool adoption rates (26% of registered tools used), call distributions, and unused tool identification
+- [GitHub API Rate Limit Observability](./github-rate-limit-observability.md) - JSONL artifact logging and OTLP span enrichment for GitHub API rate-limit visibility: `github_rate_limit_logger.cjs` helper, three usage patterns, artifact upload paths, and `jq` debugging commands
 
 ### External References
 
@@ -2715,6 +2747,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.3 (2026-04-05): Added GitHub API Rate Limit Observability subsection to MCP Integration (from PR #24694: `github_rate_limit_logger.cjs`, `GithubRateLimitsFilename` constant, artifact upload paths, OTLP span enrichment). Created new spec file `scratchpad/github-rate-limit-observability.md`. Added 1 new Related Documentation link. Coverage: 73 spec files (1 new).
 - v5.2 (2026-04-04): Added Secrets in Custom Steps Validation subsection to Compiler Validation (from PR #24450: `pkg/workflow/strict_mode_steps_validation.go`). Documents `validateStepsSecrets()` behavior in strict vs. non-strict mode, `secrets.GITHUB_TOKEN` exemption, and migration guidance. Coverage: 72 spec files (no new spec files; new Go implementation only).
 - v5.1 (2026-04-03): Maintenance tone scan — 0 tone issues found across 3 previously uncovered spec files. Added 3 new Related Documentation links: `agent-sessions.md` (terminology migration plan), `safe-output-handlers-refactoring.md` (handler factory pattern status), `serena-tools-analysis.md` (Serena tool usage statistics). Coverage: 72 spec files (3 new).
 - v5.0 (2026-04-02): Maintenance tone scan — fixed 3 tone issues across 2 previously uncovered spec files: `capitalization.md` (2 fixes: "maintains professional consistency"→removed, "simplifies both user comprehension"→"reduces ambiguity for contributors"), `mdflow.md` ("significantly exceeds"→"supports capabilities not currently available in"). Added 7 new Related Documentation links for 7 previously uncovered spec files (capitalization.md, labels.md, gastown.md, mdflow.md, mdflow-comparison.md, oh-my-code.md). Coverage: 69 spec files (7 new).

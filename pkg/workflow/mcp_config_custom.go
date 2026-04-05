@@ -72,9 +72,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		)
 	}
 
-	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
+	// SECURITY: extract secrets from headers for all HTTP MCP engines so that
+	// secret values are passed as data through env vars rather than embedded
+	// directly in the JSON config as syntax.
 	var headerSecrets map[string]string
-	if mcpConfig.Type == "http" && renderer.RequiresCopilotFields {
+	if mcpConfig.Type == "http" {
 		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
 	}
 
@@ -400,7 +402,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					}
 
 					// Check if this is a header secret (needs passthrough)
-					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret && renderer.RequiresCopilotFields {
+					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret {
+						// SECURITY: use passthrough syntax for all engines so the MCP gateway passes
+						// the env var value to the MCP server rather than the literal secret expression.
 						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
 						fmt.Fprintf(yaml, "%s  \"%s\": \"\\${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
 					} else {
@@ -463,9 +467,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					headerComma = ""
 				}
 
-				// Replace secret expressions with env var references for copilot
+				// SECURITY: replace secret expressions with env var references for all engines.
+				// This prevents the token value from being embedded directly in the script text,
+				// treating it as data rather than syntax.
 				headerValue := mcpConfig.Headers[headerKey]
-				if renderer.RequiresCopilotFields && len(headerSecrets) > 0 {
+				if len(headerSecrets) > 0 {
 					headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
 				}
 

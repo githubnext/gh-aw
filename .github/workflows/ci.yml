@@ -2978,7 +2978,11 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Log in to GitHub Container Registry
-        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        # SECURITY: token moved to env mapping to prevent shell interpretation
+        # of the token value as syntax
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Pull DIFC proxy image
         run: bash actions/setup/sh/download_docker_images.sh "$DIFC_PROXY_IMAGE"

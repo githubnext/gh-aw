@@ -109,16 +109,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML configuration sections from frontmatter
 	c.extractYAMLSections(result.Frontmatter, workflowData)
 
-	// Merge imported observability into RawFrontmatter when the top-level workflow does not
-	// define its own observability section. This ensures that shared observability configs
-	// (e.g. .github/workflows/shared/observability-otlp.md) are honoured by injectOTLPConfig
-	// and all downstream code operating on the fully-resolved frontmatter.
-	if _, hasObs := workflowData.RawFrontmatter["observability"]; !hasObs {
-		if engineSetup.importsResult.MergedObservability != "" {
-			var importedObs any
-			if jsonErr := json.Unmarshal([]byte(engineSetup.importsResult.MergedObservability), &importedObs); jsonErr == nil {
-				workflowData.RawFrontmatter["observability"] = importedObs
-				orchestratorWorkflowLog.Print("Merged observability from imports into RawFrontmatter")
+	// Merge observability config from imports into RawFrontmatter so that injectOTLPConfig
+	// can see an OTLP endpoint defined in an imported workflow (first-wins from imports).
+	if obs := engineSetup.importsResult.MergedObservability; obs != "" {
+		if _, hasObs := workflowData.RawFrontmatter["observability"]; !hasObs {
+			var obsMap map[string]any
+			if err := json.Unmarshal([]byte(obs), &obsMap); err == nil {
+				workflowData.RawFrontmatter["observability"] = obsMap
+				orchestratorWorkflowLog.Printf("Merged observability config from imports into RawFrontmatter")
 			}
 		}
 	}

@@ -131,7 +131,7 @@ func renderCrossRunReportMarkdown(report *CrossRunAuditReport) {
 		fmt.Printf("| Domain | Status | Seen In | Allowed | Blocked |\n")
 		fmt.Printf("|--------|--------|---------|---------|--------|\n")
 		for _, entry := range report.DomainInventory {
-			icon := statusEmoji(entry.OverallStatus)
+			icon := firewallStatusEmoji(entry.OverallStatus)
 			fmt.Printf("| `%s` | %s %s | %d/%d runs | %d | %d |\n",
 				entry.Domain, icon, entry.OverallStatus, entry.SeenInRuns, report.RunsAnalyzed,
 				entry.TotalAllowed, entry.TotalBlocked)
@@ -289,7 +289,7 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	if len(report.DomainInventory) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Domain Inventory (%d domains)", len(report.DomainInventory))))
 		for _, entry := range report.DomainInventory {
-			icon := statusEmoji(entry.OverallStatus)
+			icon := firewallStatusEmoji(entry.OverallStatus)
 			fmt.Fprintf(os.Stderr, "  %s %-45s  %s  seen=%d/%d  allowed=%d  blocked=%d\n",
 				icon, entry.Domain, entry.OverallStatus, entry.SeenInRuns, report.RunsAnalyzed,
 				entry.TotalAllowed, entry.TotalBlocked)

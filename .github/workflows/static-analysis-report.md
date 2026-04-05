@@ -1,5 +1,5 @@
 ---
-description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, and actionlint
+description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, actionlint, and runner-guard
 on:
   schedule: daily
   workflow_dispatch:
@@ -23,10 +23,46 @@ safe-outputs:
     category: "security"
     max: 1
     close-older-discussions: true
+  create-issue:
+    expires: 7d
+    title-prefix: "[runner-guard] "
+    labels: [security, automation]
+    max: 3
 timeout-minutes: 45
 strict: true
 imports:
   - shared/reporting.md
+jobs:
+  runner_guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install runner-guard
+        run: go install github.com/Vigilant-LLC/runner-guard/cmd/runner-guard@v2.6.0
+      - name: Run runner-guard scan
+        run: |
+          RUNNER_GUARD="$(go env GOPATH)/bin/runner-guard"
+          if [ ! -x "$RUNNER_GUARD" ]; then
+            echo '{"findings":[],"error":"runner-guard binary not found after install"}' > /tmp/runner-guard-results.json
+          else
+            "$RUNNER_GUARD" scan . --format json > /tmp/runner-guard-results.json 2>/tmp/runner-guard-stderr.log || true
+            # If output is empty or not valid JSON, write empty result
+            if ! python3 -c "import json,sys; json.load(open('/tmp/runner-guard-results.json'))" 2>/dev/null; then
+              echo '{"findings":[],"stderr":"'"$(cat /tmp/runner-guard-stderr.log | head -20 | tr '"' "'")"'"}' > /tmp/runner-guard-results.json
+            fi
+          fi
+      - name: Upload runner-guard results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runner-guard-results
+          path: /tmp/runner-guard-results.json
+          retention-days: 1
 steps:
   - name: Install gh-aw CLI
     env:
@@ -77,6 +113,11 @@ steps:
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"
+  - name: Download runner-guard results
+    uses: actions/download-artifact@v8.0.1
+    with:
+      name: runner-guard-results
+      path: /tmp/gh-aw/
 ---
 
 # Static Analysis Report
@@ -266,7 +307,7 @@ Create a discussion with:
 
 ### Analysis Summary
 
-- **Tools Used**: zizmor, poutine, actionlint
+- **Tools Used**: zizmor, poutine, actionlint, runner-guard
 - **Total Findings**: [NUMBER]
 - **Workflows Scanned**: [NUMBER]
 - **Workflows Affected**: [NUMBER]
@@ -278,6 +319,7 @@ Create a discussion with:
 | zizmor (security) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
 | poutine (supply chain) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
 | actionlint (linting) | [NUM] | - | - | - | - |
+| runner-guard (taint analysis) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
 
 ### Clustered Findings by Tool and Type
 
@@ -301,10 +343,20 @@ Create a discussion with:
 |------------|-------|-------------------|
 | [rule]     | [num] | [workflow names]  |
 
+#### Runner-Guard Taint Analysis Findings
+
+Runner-Guard Score: [SCORE]/100 (Grade: [LETTER])
+
+| Rule ID | Name | Severity | Affected Workflows |
+|---------|------|----------|--------------------|
+| [RGS-XXX] | [name] | [level] | [workflow names] |
+
+Issues created: [list of issue links for Critical/High findings, or "none"]
+
 ### Top Priority Issues
 
 #### 1. [Most Common/Severe Issue]
-- **Tool**: [zizmor/poutine/actionlint]
+- **Tool**: [zizmor/poutine/actionlint/runner-guard]
 - **Count**: [NUMBER]
 - **Severity**: [LEVEL]
 - **Affected**: [WORKFLOW NAMES]
@@ -357,7 +409,7 @@ Create a discussion with:
 
 ### Recommendations
 
-1. **Immediate**: Fix all Critical and High severity security issues (zizmor, poutine)
+1. **Immediate**: Fix all Critical and High severity security issues (zizmor, poutine, runner-guard)
 2. **Short-term**: Address Medium severity issues and critical linting problems (actionlint)
 3. **Long-term**: Establish automated static analysis in CI/CD
 4. **Prevention**: Update workflow templates to avoid common patterns
@@ -371,6 +423,56 @@ Create a discussion with:
 - [ ] Update workflow creation guidelines
 - [ ] Consider adding all three tools to pre-commit hooks
 ```
+
+### Phase 6: Analyze Runner-Guard Findings
+
+Runner-guard has performed source-to-sink vulnerability scanning on the repository's GitHub Actions workflows. The results are available at `/tmp/gh-aw/runner-guard-results.json`.
+
+1. **Read Runner-Guard Output**:
+   Read the file `/tmp/gh-aw/runner-guard-results.json` which contains findings from runner-guard's taint analysis (detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
+
+2. **Analyze Findings**:
+   - Parse the JSON to extract findings
+   - Prioritize by severity: Critical > High > Medium > Low
+   - Note the Runner-Guard Score (0-100) and grade if present
+   - For each finding, extract: rule ID (e.g. RGS-001), name, severity, affected file, line number, description, remediation
+
+3. **Create Issues for Critical/High Findings (max 3)**:
+   For up to 3 of the most critical findings (by severity, then rule ID), create a GitHub issue.
+
+   Before creating issues:
+   - Search for existing open issues whose title contains `[runner-guard]` and the rule ID (e.g. `RGS-001`) to avoid duplicates
+   - Only create issues for Critical and High severity findings
+   - Do not create an issue if a matching open issue already exists for the same rule ID
+   - Maximum 3 issues total across all runner-guard findings per run
+
+   Issue format:
+   ```
+   Title: [runner-guard] <RuleID>: <FindingName> in <AffectedFile>
+
+   ## 🚨 Runner-Guard Security Finding
+
+   **Rule**: <ID> — <Name>
+   **Severity**: <Level>
+   **File**: `<path>`
+   **Line**: <number>
+
+   ### Description
+   <finding description from runner-guard>
+
+   ### Impact
+   <why this vulnerability is dangerous — attacker-controlled input, secrets exposure, etc.>
+
+   ### Remediation
+   <how to fix this issue>
+
+   ---
+   *Detected by [runner-guard](https://github.com/Vigilant-LLC/runner-guard) v2.6.0 — CI/CD source-to-sink vulnerability scanner*
+   *Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
+   ```
+
+4. **Add to Discussion**:
+   Include a "Runner-Guard Analysis" section in the Phase 5 discussion report (see updated discussion template below).
 
 ## Important Guidelines
 
@@ -426,8 +528,10 @@ A successful static analysis scan:
 - ✅ Creates a comprehensive discussion report with findings
 - ✅ Provides actionable recommendations
 - ✅ Maintains historical context for trend analysis
+- ✅ Reads and analyzes runner-guard source-to-sink findings
+- ✅ Creates up to 3 GitHub issues for Critical/High runner-guard findings (avoiding duplicates)
 
-Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/compile-output.txt`, analyze the findings from all three tools (zizmor, poutine, actionlint), cluster them, generate fix suggestions, and create a discussion with your complete analysis.
+Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/compile-output.txt`, analyze the findings from all four tools (zizmor, poutine, actionlint, runner-guard), cluster them, generate fix suggestions, create up to 3 issues for critical runner-guard findings, and create a discussion with your complete analysis.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 

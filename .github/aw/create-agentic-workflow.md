@@ -705,6 +705,63 @@ When creating workflows that involve coding agents operating in large repositori
   - Documentation updates for multiple services
   - Dependency updates across microservices
 
+### Pre-step Data Fetching
+
+Use a deterministic `steps:` block to download, trim, and store heavy data before the agent runs. The agent reads local files instead of making repeated API calls, staying within its token budget.
+
+**Rules:**
+- Always set `env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` on every step that calls `gh` — the token is not injected automatically.
+- Write output to `/tmp/gh-aw/agent/` (canonical agent data directory).
+- Trim large blobs before writing (`tail -N`).
+- Add `permissions: actions: read` when reading workflow logs or artifacts.
+- Use `jq` to filter JSON responses before writing them to disk — extract only the fields the agent needs and keep file sizes small.
+
+**Template (CI log analysis):**
+
+```yaml
+---
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read          # required for gh run view / gh run download
+tools:
+  github:
+    toolsets: [default]
+  cache-memory: true     # persist pre-fetched data across runs (dedup, trending)
+steps:
+  - name: Fetch CI logs
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+      gh run view "$RUN_ID" --log > /tmp/gh-aw/agent/ci-logs.txt 2>&1 || true
+      tail -500 /tmp/gh-aw/agent/ci-logs.txt > /tmp/gh-aw/agent/ci-logs-trimmed.txt
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+Analyze `/tmp/gh-aw/agent/ci-logs-trimmed.txt`. Identify the root cause and post a comment to the triggering PR.
+
+Check `/tmp/gh-aw/cache-memory/seen-runs.json` for previously seen run IDs; skip if already processed and append the current run ID when done.
+```
+
+**Use cases:**
+
+| Scenario | Step snippet |
+|---|---|
+| Deployment logs (Heroku/Vercel/Railway) | `heroku logs --tail --num 200 --app ${{ vars.HEROKU_APP }} > /tmp/gh-aw/agent/deploy-logs.txt` |
+| Build / test output | `npm ci 2>&1 \| tail -200 > /tmp/gh-aw/agent/build.txt && npm run test -- --reporter=json > /tmp/gh-aw/agent/test.json 2>&1 \|\| true` |
+| Workflow run artifact | `gh run download "$RUN_ID" --name test-results --dir /tmp/gh-aw/agent/artifacts/ \|\| true` |
+| Filter JSON API response | `gh api repos/{owner}/{repo}/issues --jq '[.[] \| {number,title,state,labels:[.labels[].name]}]' > /tmp/gh-aw/agent/issues.json` |
+| Agentic workflow run logs | No shell step needed — add `tools: agentic-workflows:` and the agent uses `logs` and `audit` commands directly |
+
+**`cache-memory` tip:** Add `cache-memory: true` under `tools:` to persist pre-fetched data across runs. This enables deduplication (skip already-diagnosed run IDs), trending (compare metrics over time), and avoids redundant downloads on retries. The agent reads and writes `/tmp/gh-aw/cache-memory/`. Use `jq` to update the dedup file efficiently — for example `jq '. + ["'"$RUN_ID"'"]' /tmp/gh-aw/cache-memory/seen-runs.json > /tmp/seen-runs.tmp && mv /tmp/seen-runs.tmp /tmp/gh-aw/cache-memory/seen-runs.json`. See `.github/aw/memory.md` for full configuration options.
+
 ## Issue Form Mode: Step-by-Step Workflow Creation
 
 When processing a GitHub issue created via the workflow creation form, follow these steps:

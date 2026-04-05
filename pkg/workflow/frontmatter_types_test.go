@@ -248,7 +248,9 @@ func TestParseFrontmatterConfig(t *testing.T) {
 	t.Run("handles observability configuration", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"observability": map[string]any{
-				"job-summary": "on",
+				"otlp": map[string]any{
+					"endpoint": "https://traces.example.com",
+				},
 			},
 		}
 
@@ -261,8 +263,8 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			t.Fatal("Observability should not be nil")
 		}
 
-		if config.Observability.JobSummary != "on" {
-			t.Errorf("JobSummary = %q, want %q", config.Observability.JobSummary, "on")
+		if config.Observability.OTLP == nil {
+			t.Fatal("OTLP should not be nil")
 		}
 	})
 

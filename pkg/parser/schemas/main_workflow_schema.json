@@ -8324,11 +8324,6 @@
       "type": "object",
       "description": "Optional observability output settings for workflow runs.",
       "properties": {
-        "job-summary": {
-          "type": "string",
-          "enum": ["on", "off"],
-          "description": "If set to 'on', append a compact observability section to the GitHub Actions job summary. Defaults to off when omitted."
-        },
         "otlp": {
           "type": "object",
           "description": "OTLP (OpenTelemetry Protocol) trace export configuration.",

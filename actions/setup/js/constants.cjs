@@ -88,6 +88,14 @@ const MANIFEST_FILE_PATH = `${TMP_GH_AW_PATH}/safe-output-items.jsonl`;
 const OTEL_JSONL_PATH = `${TMP_GH_AW_PATH}/otel.jsonl`;
 
 /**
+ * Path to the GitHub API rate-limit log file.
+ * Each entry records the x-ratelimit-* headers (or rate-limit API snapshot)
+ * at the time of a GitHub REST API call, enabling post-run rate-limit analysis.
+ * @type {string}
+ */
+const GITHUB_RATE_LIMITS_JSONL_PATH = `${TMP_GH_AW_PATH}/github_rate_limits.jsonl`;
+
+/**
  * Filename of the threat detection log written by the detection engine via tee.
  * The detection copilot's stdout (containing THREAT_DETECTION_RESULT) is piped
  * through `tee -a` to this file inside the threat-detection directory.
@@ -106,5 +114,6 @@ module.exports = {
   RPC_MESSAGES_PATH,
   MANIFEST_FILE_PATH,
   OTEL_JSONL_PATH,
+  GITHUB_RATE_LIMITS_JSONL_PATH,
   DETECTION_LOG_FILENAME,
 };

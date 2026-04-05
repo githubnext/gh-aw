@@ -73,26 +73,6 @@ func (m *Miner) Train(line string) (*MatchResult, error) {
 	}, nil
 }
 
-// Match performs inference only: it finds the best matching cluster but does
-// not mutate any state. Returns (result, true) when a match is found.
-// It is safe to call from multiple goroutines.
-func (m *Miner) Match(line string) (*MatchResult, bool, error) {
-	masked := m.masker.Mask(line)
-	tokens := Tokenize(masked)
-	if len(tokens) == 0 {
-		return nil, false, errors.New("agentdrain: Match: empty line after masking")
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	result, _ := m.match(tokens)
-	if result == nil {
-		return nil, false, nil
-	}
-	return result, true, nil
-}
-
 // match is the internal (non-locking) lookup. Must be called with mu held.
 func (m *Miner) match(tokens []string) (*MatchResult, bool) {
 	candidates := m.tree.search(tokens, m.cfg.Depth, m.cfg.ParamToken)

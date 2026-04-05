@@ -5,8 +5,25 @@ import fs from "fs";
 // Module import
 // ---------------------------------------------------------------------------
 
-const { isValidTraceId, isValidSpanId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan, OTEL_JSONL_PATH, appendToOTLPJSONL } =
-  await import("./send_otlp_span.cjs");
+const {
+  isValidTraceId,
+  isValidSpanId,
+  generateTraceId,
+  generateSpanId,
+  toNanoString,
+  buildAttr,
+  buildOTLPPayload,
+  parseOTLPHeaders,
+  sendOTLPSpan,
+  sendJobSetupSpan,
+  sendJobConclusionSpan,
+  readLastRateLimitEntry,
+  GITHUB_RATE_LIMITS_JSONL_PATH,
+  OTEL_JSONL_PATH,
+  appendToOTLPJSONL,
+  SPAN_KIND_INTERNAL,
+  SPAN_KIND_SERVER,
+} = await import("./send_otlp_span.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -179,7 +196,7 @@ describe("buildOTLPPayload", () => {
     expect(span.traceId).toBe(traceId);
     expect(span.spanId).toBe(spanId);
     expect(span.name).toBe("gh-aw.job.setup");
-    expect(span.kind).toBe(2);
+    expect(span.kind).toBe(SPAN_KIND_INTERNAL);
     expect(span.startTimeUnixNano).toBe(toNanoString(1000));
     expect(span.endTimeUnixNano).toBe(toNanoString(2000));
     expect(span.status.code).toBe(1);
@@ -274,6 +291,35 @@ describe("buildOTLPPayload", () => {
     const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.parentSpanId).toBeUndefined();
   });
+
+  it("uses SPAN_KIND_INTERNAL (1) by default when kind is not specified", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.kind).toBe(SPAN_KIND_INTERNAL);
+  });
+
+  it("uses the caller-supplied kind when specified (e.g. SPAN_KIND_SERVER)", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+      kind: SPAN_KIND_SERVER,
+    });
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.kind).toBe(SPAN_KIND_SERVER);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -361,6 +407,73 @@ describe("sendOTLPSpan", () => {
     expect(warnSpy.mock.calls[1][0]).toContain("error after 2 attempts");
 
     warnSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readLastRateLimitEntry
+// ---------------------------------------------------------------------------
+
+describe("readLastRateLimitEntry", () => {
+  let readFileSpy;
+
+  beforeEach(() => {
+    readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+  });
+
+  afterEach(() => {
+    readFileSpy.mockRestore();
+  });
+
+  it("returns null when the file does not exist", () => {
+    expect(readLastRateLimitEntry()).toBeNull();
+  });
+
+  it("returns null when the file is empty", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return "";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toBeNull();
+  });
+
+  it("returns null when the file contains only blank lines", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return "\n\n  \n";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toBeNull();
+  });
+
+  it("returns the parsed entry for a single-line file", () => {
+    const entry = { resource: "core", limit: 5000, remaining: 4823, used: 177 };
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return JSON.stringify(entry) + "\n";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toEqual(entry);
+  });
+
+  it("returns the last entry for a multi-line file", () => {
+    const first = { resource: "core", remaining: 4900 };
+    const last = { resource: "core", remaining: 4500 };
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+        return JSON.stringify(first) + "\n" + JSON.stringify(last) + "\n";
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toEqual(last);
+  });
+
+  it("returns null when the last line is invalid JSON", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return "not valid json\n";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toBeNull();
   });
 });
 
@@ -818,6 +931,60 @@ describe("sendJobSetupSpan", () => {
     expect(resourceKeys).not.toContain("github.event_name");
   });
 
+  it("includes github.actions.run_url as resource attribute when repository and run_id are set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GITHUB_RUN_ID = "987654321";
+    delete process.env.GITHUB_SERVER_URL;
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.com/owner/repo/actions/runs/987654321" },
+    });
+  });
+
+  it("uses GITHUB_SERVER_URL for github.actions.run_url in sendJobSetupSpan", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GITHUB_RUN_ID = "987654321";
+    process.env.GITHUB_SERVER_URL = "https://github.example.com";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.example.com/owner/repo/actions/runs/987654321" },
+    });
+  });
+
+  it("omits github.actions.run_url when repository or run_id is missing in sendJobSetupSpan", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_RUN_ID;
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const resourceKeys = resourceAttrs.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.actions.run_url");
+  });
+
   it("includes service.version resource attribute when GH_AW_INFO_VERSION is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -844,6 +1011,73 @@ describe("sendJobSetupSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const keys = span.attributes.map(a => a.key);
     expect(keys).not.toContain("gh-aw.engine.id");
+  });
+
+  describe("staged / deployment.environment", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("sets deployment.environment=production when aw_info.json is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
+    });
+
+    it("sets deployment.environment=staging when awInfo.staged=true", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ staged: true });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "staging" } });
+    });
+
+    it("sets deployment.environment=production when awInfo.staged=false", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ staged: false });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
+    });
   });
 });
 
@@ -1090,6 +1324,60 @@ describe("sendJobConclusionSpan", () => {
     expect(resourceKeys).not.toContain("github.event_name");
   });
 
+  it("includes github.actions.run_url as resource attribute when repository and run_id are set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GITHUB_RUN_ID = "987654321";
+    delete process.env.GITHUB_SERVER_URL;
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.com/owner/repo/actions/runs/987654321" },
+    });
+  });
+
+  it("uses GITHUB_SERVER_URL for github.actions.run_url in sendJobConclusionSpan", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    process.env.GITHUB_RUN_ID = "987654321";
+    process.env.GITHUB_SERVER_URL = "https://github.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    expect(resourceAttrs).toContainEqual({
+      key: "github.actions.run_url",
+      value: { stringValue: "https://github.example.com/owner/repo/actions/runs/987654321" },
+    });
+  });
+
+  it("omits github.actions.run_url when repository or run_id is missing in sendJobConclusionSpan", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_RUN_ID;
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const resourceAttrs = body.resourceSpans[0].resource.attributes;
+    const resourceKeys = resourceAttrs.map(a => a.key);
+    expect(resourceKeys).not.toContain("github.actions.run_url");
+  });
+
   it("includes service.version resource attribute when version is known", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1290,6 +1578,191 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.error.count");
       expect(keys).not.toContain("gh-aw.error.messages");
       expect(span.status.message).toBe("agent failure");
+    });
+  });
+
+  describe("rate-limit enrichment in conclusion span", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("includes rate-limit attributes when github_rate_limits.jsonl has entries", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const entry = { timestamp: "2026-04-05T09:00:00.000Z", source: "response_headers", operation: "issues.get", resource: "core", limit: 5000, remaining: 4823, used: 177, reset: "2026-04-05T09:30:00.000Z" };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return JSON.stringify(entry) + "\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4823);
+      expect(attrs["gh-aw.github.rate_limit.limit"]).toBe(5000);
+      expect(attrs["gh-aw.github.rate_limit.used"]).toBe(177);
+      expect(attrs["gh-aw.github.rate_limit.resource"]).toBe("core");
+    });
+
+    it("uses the last entry when the file contains multiple lines", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const first = { resource: "core", limit: 5000, remaining: 4900, used: 100 };
+      const last = { resource: "core", limit: 5000, remaining: 4500, used: 500 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return JSON.stringify(first) + "\n" + JSON.stringify(last) + "\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4500);
+      expect(attrs["gh-aw.github.rate_limit.used"]).toBe(500);
+    });
+
+    it("omits rate-limit attributes when github_rate_limits.jsonl is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      // readFileSpy already throws ENOENT for all paths
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.limit");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.used");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.resource");
+    });
+
+    it("omits rate-limit attributes when the file contains only invalid JSON", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return "not valid json\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
+    });
+  });
+
+  describe("staged / deployment.environment", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("sets gh-aw.staged=false and deployment.environment=production when staged is not set", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const stagedAttr = span.attributes.find(a => a.key === "gh-aw.staged");
+      expect(stagedAttr).toBeDefined();
+      expect(stagedAttr.value.boolValue).toBe(false);
+
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
+    });
+
+    it("sets gh-aw.staged=true and deployment.environment=staging when awInfo.staged=true", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ staged: true });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const stagedAttr = span.attributes.find(a => a.key === "gh-aw.staged");
+      expect(stagedAttr).toBeDefined();
+      expect(stagedAttr.value.boolValue).toBe(true);
+
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "staging" } });
+    });
+
+    it("sets gh-aw.staged=false and deployment.environment=production when awInfo.staged=false", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/aw_info.json") {
+          return JSON.stringify({ staged: false });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const stagedAttr = span.attributes.find(a => a.key === "gh-aw.staged");
+      expect(stagedAttr).toBeDefined();
+      expect(stagedAttr.value.boolValue).toBe(false);
+
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
     });
   });
 });

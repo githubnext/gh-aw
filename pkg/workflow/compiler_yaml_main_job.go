@@ -443,7 +443,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
 	}
 
-	// Optionally synthesize a compact observability section from runtime artifacts.
+	// Synthesize a compact observability section from runtime artifacts when OTLP is enabled.
 	c.generateObservabilitySummary(yaml, data)
 
 	// Collect agent stdio logs path for unified upload
@@ -453,6 +453,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This directory is used by workflows that instruct the agent to write files
 	// (e.g., smoke-claude status summaries)
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/agent/")
+
+	// Collect GitHub API rate-limit log for observability.
+	// Written by github_rate_limit_logger.cjs during REST API calls.
+	artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.GithubRateLimitsFilename)
 
 	// Collect safe outputs and agent output paths for the unified artifact.
 	// These were previously uploaded as separate safe-output and agent-output artifacts.

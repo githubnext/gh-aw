@@ -370,6 +370,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @jaroslawgajewski
 
+- #24373 _(direct issue)_
 - #24372 _(direct issue)_
 - #24371 _(direct issue)_
 - #24259 _(direct issue)_
@@ -465,6 +466,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @MattSkala
 
+- #24567 _(direct issue)_
 - #21203 _(direct issue)_
 
 ### @maxbeizer
@@ -638,6 +640,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @straub
 
+- #24569 _(direct issue)_
 - #19631 _(direct issue)_
 
 ### @strawgate
@@ -747,6 +750,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @yskopets
 
+- #24573 _(direct issue)_
 - #23914 _(direct issue)_
 
 </details>

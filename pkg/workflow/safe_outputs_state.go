@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"reflect"
-	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -169,36 +168,6 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	}
 
 	return enabled
-}
-
-// checkAllEnabledToolsPresent verifies that every tool in enabledTools has a matching entry
-// in filteredTools. This is a compiler error check: if a safe-output type is registered in
-// Go code but its definition is missing from safe-output-tools.json, it will not appear in
-// filteredTools and this function returns an error.
-//
-// Dispatch-workflow and custom-job tools are intentionally excluded from this check because
-// they are generated dynamically and are never part of the static tools JSON.
-func checkAllEnabledToolsPresent(enabledTools map[string]bool, filteredTools []map[string]any) error {
-	presentTools := make(map[string]bool, len(filteredTools))
-	for _, tool := range filteredTools {
-		if name, ok := tool["name"].(string); ok {
-			presentTools[name] = true
-		}
-	}
-
-	var missingTools []string
-	for toolName := range enabledTools {
-		if !presentTools[toolName] {
-			missingTools = append(missingTools, toolName)
-		}
-	}
-
-	if len(missingTools) == 0 {
-		return nil
-	}
-
-	sort.Strings(missingTools)
-	return fmt.Errorf("compiler error: safe-output tool(s) %v are registered but missing from safe-output-tools.json; please report this issue to the developer", missingTools)
 }
 
 // applyDefaultCreateIssue injects a default create-issues safe output when safe-outputs is configured

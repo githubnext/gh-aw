@@ -28,7 +28,7 @@
 //   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64
 //
 // Map Operations:
-//   - filterMapKeys() - Create new map excluding specified keys
+//   - excludeMapKeys() - Create new map excluding specified keys
 //   - sortedMapKeys() - Return sorted keys of a map[string]string
 //
 // These utilities handle common type conversion and map manipulation patterns that
@@ -93,8 +93,8 @@ func safeUint64ToInt(u uint64) int {
 // This is a thin wrapper around safeUint64ToInt that widens the uint argument first.
 func safeUintToInt(u uint) int { return safeUint64ToInt(uint64(u)) }
 
-// filterMapKeys creates a new map excluding the specified keys
-func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
+// excludeMapKeys creates a new map excluding the specified keys
+func excludeMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
 	excludeSet := make(map[string]bool)
 	for _, key := range excludeKeys {
 		excludeSet[key] = true

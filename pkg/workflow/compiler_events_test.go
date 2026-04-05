@@ -236,8 +236,8 @@ This is a test workflow for command triggering.
 			}
 
 			// Check that the expected if condition is present (normalize for multiline comparison)
-			normalizedLockContent := NormalizeExpressionForComparison(lockContent)
-			normalizedExpectedIf := NormalizeExpressionForComparison(tt.expectedIf)
+			normalizedLockContent := strings.Join(strings.Fields(lockContent), " ")
+			normalizedExpectedIf := strings.Join(strings.Fields(tt.expectedIf), " ")
 			if !strings.Contains(normalizedLockContent, normalizedExpectedIf) {
 				t.Errorf("Expected lock file to contain '%s' but it didn't.\nExpected (normalized): %s\nActual (normalized): %s\nOriginal Content:\n%s",
 					tt.expectedIf, normalizedExpectedIf, normalizedLockContent, lockContent)
@@ -464,8 +464,8 @@ This is a test workflow for command merging with other events.
 			}
 
 			// Check that the expected if condition is present (normalize for multiline comparison)
-			normalizedLockContent := NormalizeExpressionForComparison(lockContent)
-			normalizedExpectedIf := NormalizeExpressionForComparison(tt.expectedIf)
+			normalizedLockContent := strings.Join(strings.Fields(lockContent), " ")
+			normalizedExpectedIf := strings.Join(strings.Fields(tt.expectedIf), " ")
 			if !strings.Contains(normalizedLockContent, normalizedExpectedIf) {
 				t.Errorf("Expected lock file to contain '%s' but it didn't.\nExpected (normalized): %s\nActual (normalized): %s\nOriginal Content:\n%s",
 					tt.expectedIf, normalizedExpectedIf, normalizedLockContent, lockContent)

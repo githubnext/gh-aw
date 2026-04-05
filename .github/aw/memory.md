@@ -1,5 +1,5 @@
 ---
-description: Guide for choosing the right persistent memory strategy in agentic workflows — cache-memory, repo-memory, and repo-memory with wiki. cache-memory is the first choice.
+description: Guide for choosing the right persistent memory strategy in agentic workflows — cache-memory, repo-memory, and repo-memory with wiki. cache-memory is the first choice. Includes a stateful scanning pattern (load baseline → scan → diff → write) for "alert on new X" workflows.
 ---
 
 # Persistent Memory in Agentic Workflows
@@ -203,6 +203,59 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 | Great for human-readable knowledge bases | Produces Git commits to wiki repo |
 | Standard Markdown with wiki link syntax | Restricted to `.md` files in practice |
 | Separate from main repo history | Less suitable for structured JSON state |
+
+---
+
+## Stateful Scanning Pattern (repo-memory)
+
+Use `repo-memory` to persist a baseline JSON file between scheduled runs so that the workflow only alerts on *new* findings — vulnerability scans, dependency audits, licence checks, or any "track changes over time" scenario.
+
+### Example Workflow
+
+```markdown
+---
+description: Nightly npm vulnerability scan — alerts only on new advisories
+on:
+  schedule:
+    - cron: "0 2 * * *"
+permissions:
+  issues: write
+  contents: read
+engine: claude
+tools:
+  repo-memory:
+    allowed-extensions: [".json"]
+network:
+  allowed:
+    - registry.npmjs.org
+safe-outputs:
+  create-issue:
+    title-prefix: "[vuln] "
+    labels: [security, automated]
+    max: 5
+timeout-minutes: 20
+---
+
+Load `/tmp/gh-aw/repo-memory/default/vuln-baseline.json`.
+If missing, treat the baseline as `[]` (first run).
+
+Run `npm audit --json`. Collect each advisory's id, severity, title, and URL.
+
+Diff against the baseline:
+- **New** (in current, not in baseline) → open a `create-issue` per finding (max 5).
+- **Resolved** (in baseline, not in current) → log only.
+- If no new findings, use the `noop` safe output.
+
+Write the current advisory IDs to `/tmp/gh-aw/repo-memory/default/vuln-baseline.json` as a JSON array.
+```
+
+### Key Design Decisions
+
+- **`repo-memory` for baselines, not `cache-memory`** — caches expire after 7 days; a lost baseline makes every known finding appear "new" on the next run, flooding the repo with duplicate issues
+- **First-run handling** — treat a missing baseline file as `[]` and write it at the end of the first run, giving subsequent runs a clean starting point
+- **`max:` flood guard** — caps issues opened per run; use `max: 5` for nightly scans, `max: 1` for secret alerts, `max: 10` for weekly audits
+- **Engine restriction** — `repo-memory` requires Claude or a custom engine; it is **not available** for the Copilot engine
+- **Baseline schema** — store only stable identifiers (advisory ID strings), not mutable fields like severity, to avoid false "new" alerts when metadata changes
 
 ---
 

@@ -69,6 +69,7 @@ type LogsSummary struct {
 	TotalSafeItems         int     `json:"total_safe_items" console:"header:Total Safe Items"`
 	TotalEpisodes          int     `json:"total_episodes" console:"header:Total Episodes"`
 	HighConfidenceEpisodes int     `json:"high_confidence_episodes" console:"header:High Confidence Episodes"`
+	TotalGitHubAPICalls    int     `json:"total_github_api_calls,omitempty" console:"header:Total GitHub API Calls,format:number,omitempty"`
 }
 
 // RunData contains information about a single workflow run
@@ -113,8 +114,9 @@ type RunData struct {
 	TaskDomain          *TaskDomainInfo      `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint *BehaviorFingerprint `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments  []AgenticAssessment  `json:"agentic_assessments,omitempty" console:"-"`
-	AwContext           *AwContext           `json:"context,omitempty" console:"-"`             // aw_context data from aw_info.json
-	TokenUsageSummary   *TokenUsageSummary   `json:"token_usage_summary,omitempty" console:"-"` // Token usage from firewall proxy
+	AwContext           *AwContext           `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
+	TokenUsageSummary   *TokenUsageSummary   `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
+	GitHubAPICalls      int                  `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
 }
 
 // ToolUsageSummary contains aggregated tool usage statistics
@@ -175,6 +177,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalMissingTools int
 	var totalMissingData int
 	var totalSafeItems int
+	var totalGitHubAPICalls int
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
@@ -195,6 +198,13 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalMissingTools += run.MissingToolCount
 		totalMissingData += run.MissingDataCount
 		totalSafeItems += run.SafeItemsCount
+
+		// Accumulate GitHub API call counts
+		var gitHubAPICalls int
+		if pr.GitHubRateLimitUsage != nil {
+			gitHubAPICalls = pr.GitHubRateLimitUsage.TotalRequestsMade
+		}
+		totalGitHubAPICalls += gitHubAPICalls
 
 		// Extract agent/engine ID and aw_context from aw_info.json.
 		agentID := ""
@@ -246,6 +256,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			AgenticAssessments:  pr.AgenticAssessments,
 			AwContext:           awContext,
 			TokenUsageSummary:   pr.TokenUsage,
+			GitHubAPICalls:      gitHubAPICalls,
 		}
 		if awInfo != nil {
 			runData.Repository = awInfo.Repository
@@ -280,6 +291,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalMissingTools:    totalMissingTools,
 		TotalMissingData:     totalMissingData,
 		TotalSafeItems:       totalSafeItems,
+		TotalGitHubAPICalls:  totalGitHubAPICalls,
 	}
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)

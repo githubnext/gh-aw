@@ -310,12 +310,8 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			wantOTLPConfig: false,
 		},
 		{
-			name: "observability without otlp",
-			frontmatter: map[string]any{
-				"observability": map[string]any{
-					"job-summary": "on",
-				},
-			},
+			name:           "observability without otlp",
+			frontmatter:    map[string]any{"observability": map[string]any{}},
 			wantOTLPConfig: false,
 		},
 		{
@@ -343,10 +339,9 @@ func TestObservabilityConfigParsing(t *testing.T) {
 			expectedEndpoint: "${{ secrets.OTLP_ENDPOINT }}",
 		},
 		{
-			name: "observability with both job-summary and otlp",
+			name: "observability with both otlp endpoint and config",
 			frontmatter: map[string]any{
 				"observability": map[string]any{
-					"job-summary": "on",
 					"otlp": map[string]any{
 						"endpoint": "https://traces.example.com",
 					},
@@ -427,10 +422,8 @@ func TestExtractOTLPConfigFromRaw(t *testing.T) {
 			frontmatter: map[string]any{"name": "test"},
 		},
 		{
-			name: "observability without otlp",
-			frontmatter: map[string]any{
-				"observability": map[string]any{"job-summary": "on"},
-			},
+			name:        "observability without otlp",
+			frontmatter: map[string]any{"observability": map[string]any{}},
 		},
 		{
 			name: "observability.otlp with endpoint",

@@ -1646,14 +1646,7 @@
     "observability": {
       "type": "object",
       "desc": "Optional observability output settings for workflow runs.",
-      "children": {
-        "job-summary": {
-          "type": "string",
-          "desc": "If set to 'on', append a compact observability section to the GitHub Actions job summary.",
-          "enum": ["on", "off"],
-          "leaf": true
-        }
-      }
+      "children": {}
     },
     "bots": {
       "type": "array",

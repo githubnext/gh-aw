@@ -202,6 +202,22 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// GitHub Actions rejects any YAML scalar value that contains ${{ }} expressions
 		// AND exceeds 21,000 characters total.
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
+
+		// SECURITY: extract any ${{ secrets.* }} from config.json content and pass them
+		// as env vars so the shell treats the values as data, not syntax.
+		configSecrets := ExtractSecretsFromValue(safeOutputConfig)
+		if len(configSecrets) > 0 {
+			yaml.WriteString("        env:\n")
+			secretKeys := make([]string, 0, len(configSecrets))
+			for k := range configSecrets {
+				secretKeys = append(secretKeys, k)
+			}
+			sort.Strings(secretKeys)
+			for _, varName := range secretKeys {
+				yaml.WriteString("          " + varName + ": " + configSecrets[varName] + "\n")
+			}
+		}
+
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
@@ -210,9 +226,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Write the safe-outputs configuration to config.json
 		delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_CONFIG", workflowData.FrontmatterHash)
 		if safeOutputConfig != "" {
-			yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << '" + delimiter + "'\n")
-			yaml.WriteString("          " + safeOutputConfig + "\n")
-			yaml.WriteString("          " + delimiter + "\n")
+			if len(configSecrets) > 0 {
+				// Replace ${{ secrets.X }} with ${X} and use unquoted heredoc so the
+				// shell expands the env var references we set above.
+				sanitizedConfig := safeOutputConfig
+				for varName, secretExpr := range configSecrets {
+					sanitizedConfig = strings.ReplaceAll(sanitizedConfig, secretExpr, "${"+varName+"}")
+				}
+				yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << " + delimiter + "\n")
+				yaml.WriteString("          " + sanitizedConfig + "\n")
+				yaml.WriteString("          " + delimiter + "\n")
+			} else {
+				yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << '" + delimiter + "'\n")
+				yaml.WriteString("          " + safeOutputConfig + "\n")
+				yaml.WriteString("          " + delimiter + "\n")
+			}
 		}
 
 		// Step 1b: Write tools_meta.json and validation.json in a SEPARATE step.

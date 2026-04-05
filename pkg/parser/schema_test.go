@@ -194,25 +194,3 @@ func TestGetSafeOutputTypeKeys(t *testing.T) {
 		}
 	}
 }
-
-func TestValidateMainWorkflowFrontmatterWithSchema_AllowsObservabilityJobSummary(t *testing.T) {
-	frontmatter := map[string]any{
-		"on": "push",
-		"observability": map[string]any{
-			"job-summary": "on",
-		},
-	}
-
-	tempFile := "/tmp/gh-aw/test_observability_frontmatter.md"
-	if err := os.MkdirAll("/tmp/gh-aw", 0755); err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	if err := os.WriteFile(tempFile, []byte("---\non: push\nobservability:\n  job-summary: on\n---\n"), 0644); err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tempFile)
-
-	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, tempFile); err != nil {
-		t.Fatalf("Expected observability config to validate, got: %v", err)
-	}
-}

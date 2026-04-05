@@ -142,7 +142,7 @@ func TestParseIntValueTruncation(t *testing.T) {
 	}
 }
 
-func TestFilterMapKeys(t *testing.T) {
+func TestExcludeMapKeys(t *testing.T) {
 	tests := []struct {
 		name        string
 		original    map[string]any
@@ -219,28 +219,28 @@ func TestFilterMapKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := filterMapKeys(tt.original, tt.excludeKeys...)
+			result := excludeMapKeys(tt.original, tt.excludeKeys...)
 
 			// Check length
 			if len(result) != len(tt.expected) {
-				t.Errorf("filterMapKeys() length = %v, want %v", len(result), len(tt.expected))
+				t.Errorf("excludeMapKeys() length = %v, want %v", len(result), len(tt.expected))
 			}
 
 			// Check each key-value pair
 			for key, expectedValue := range tt.expected {
 				resultValue, exists := result[key]
 				if !exists {
-					t.Errorf("filterMapKeys() missing key %v", key)
+					t.Errorf("excludeMapKeys() missing key %v", key)
 				}
 				if resultValue != expectedValue {
-					t.Errorf("filterMapKeys() value for key %v = %v, want %v", key, resultValue, expectedValue)
+					t.Errorf("excludeMapKeys() value for key %v = %v, want %v", key, resultValue, expectedValue)
 				}
 			}
 
 			// Check for unexpected keys
 			for key := range result {
 				if _, exists := tt.expected[key]; !exists {
-					t.Errorf("filterMapKeys() unexpected key %v", key)
+					t.Errorf("excludeMapKeys() unexpected key %v", key)
 				}
 			}
 		})

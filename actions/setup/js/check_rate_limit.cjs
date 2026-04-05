@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 /**
  * Rate limit check for per-user per-workflow triggers
@@ -14,6 +15,9 @@ async function main() {
   const repo = context.repo.repo;
   const eventName = context.eventName;
   const runId = context.runId;
+
+  // Capture a rate-limit snapshot at the start of the check for observability.
+  await fetchAndLogRateLimit(github, "check_rate_limit_start");
 
   // Get workflow file name from GITHUB_WORKFLOW_REF (format: "owner/repo/.github/workflows/file.yml@ref")
   // or fall back to GITHUB_WORKFLOW (workflow name)
@@ -50,12 +54,13 @@ async function main() {
 
   try {
     // Check user's permission level in the repository
-    const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
+    const permResponse = await github.rest.repos.getCollaboratorPermissionLevel({
       owner,
       repo,
       username: actor,
     });
 
+    const { data: permissionData } = permResponse;
     const userPermission = permissionData.permission;
     core.info(`   User '${actor}' has permission level: ${userPermission}`);
 
