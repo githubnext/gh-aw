@@ -10,6 +10,11 @@ permissions:
   pull-requests: read
 tracker-id: daily-otel-instrumentation-advisor
 engine: claude
+mcp-servers:
+  sentry:
+    url: "https://mcp.sentry.dev/mcp/gh-aw-test.sentry.io/gh-aw/"
+    headers:
+      Authorization: "Bearer ${{ secrets.SENTRY_API_KEY }}"
 tools:
   bash: true
   github:
