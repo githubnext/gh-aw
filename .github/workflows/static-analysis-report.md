@@ -43,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install runner-guard
-        run: go install github.com/Vigilant-LLC/runner-guard/cmd/runner-guard@v2.6.0
+        run: go install github.com/Vigilant-LLC/runner-guard/v2/cmd/runner-guard@v2.6.0
       - name: Run runner-guard scan
         run: |
           RUNNER_GUARD="$(go env GOPATH)/bin/runner-guard"
