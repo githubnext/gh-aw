@@ -115,19 +115,15 @@ func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            await main(core);\n")
 }
 
-// isOTLPEnabled returns true when an OTLP endpoint is configured in the workflow.
+// isOTLPEnabled returns true when OTLP has been configured in the workflow (including
+// imported frontmatter). It checks whether injectOTLPConfig has already written the
+// OTEL_EXPORTER_OTLP_ENDPOINT env var into workflowData.Env, which is the authoritative
+// result of OTLP detection after all frontmatter (main + imports) has been processed.
 func isOTLPEnabled(data *WorkflowData) bool {
 	if data == nil {
 		return false
 	}
-	endpoint, _ := extractOTLPConfigFromRaw(data.RawFrontmatter)
-	if endpoint != "" {
-		return true
-	}
-	return data.ParsedFrontmatter != nil &&
-		data.ParsedFrontmatter.Observability != nil &&
-		data.ParsedFrontmatter.Observability.OTLP != nil &&
-		data.ParsedFrontmatter.Observability.OTLP.Endpoint != ""
+	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_ENDPOINT")
 }
 
 // generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output
