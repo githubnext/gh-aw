@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -367,6 +368,90 @@ func TestMCPServer_LogsToolReturnsValidJSON(t *testing.T) {
 	}
 }
 
+// TestMCPServer_ChecksToolReturnsValidJSON tests that the checks tool returns valid JSON
+// (or a well-formed MCP error when GitHub credentials are unavailable in test environments).
+func TestMCPServer_ChecksToolReturnsValidJSON(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	session, _, ctx, cancel := setupMCPServerTest(t, binaryPath)
+	defer cancel()
+	defer session.Close()
+
+	t.Run("missing pr_number returns MCP error", func(t *testing.T) {
+		params := &mcp.CallToolParams{
+			Name:      "checks",
+			Arguments: map[string]any{},
+		}
+		_, err := session.CallTool(ctx, params)
+		if err == nil {
+			t.Error("Expected MCP error when pr_number is missing")
+		} else {
+			t.Logf("Checks tool correctly returned error for missing pr_number: %v", err)
+		}
+	})
+
+	t.Run("valid pr_number returns JSON or auth error", func(t *testing.T) {
+		params := &mcp.CallToolParams{
+			Name: "checks",
+			Arguments: map[string]any{
+				"pr_number": "1",
+			},
+		}
+		result, err := session.CallTool(ctx, params)
+		if err != nil {
+			// Expected: GitHub credentials are not available in the test environment
+			t.Logf("Checks tool correctly returned error (expected without GitHub credentials): %v", err)
+			return
+		}
+
+		if len(result.Content) == 0 {
+			t.Fatal("Expected non-empty result from checks tool")
+		}
+
+		textContent, ok := result.Content[0].(*mcp.TextContent)
+		if !ok {
+			t.Fatal("Expected text content from checks tool")
+		}
+
+		if textContent.Text == "" {
+			t.Fatal("Expected non-empty text content from checks tool")
+		}
+
+		// In test environments without GitHub credentials, an error message is returned
+		if strings.HasPrefix(textContent.Text, "Error:") {
+			t.Logf("Checks tool returned error message (expected in test environment without GitHub credentials)")
+			return
+		}
+
+		// If credentials are available, verify JSON structure
+		jsonOutput := extractJSONFromOutput(textContent.Text)
+		if !isValidJSON(jsonOutput) {
+			t.Errorf("Checks tool did not return valid JSON. Output: %s", textContent.Text)
+			return
+		}
+
+		var checksData map[string]any
+		if err := json.Unmarshal([]byte(jsonOutput), &checksData); err != nil {
+			t.Errorf("Failed to unmarshal checks JSON: %v", err)
+			return
+		}
+
+		// Fields mirror the ChecksResult struct JSON tags defined in checks_command.go.
+		expectedFields := []string{"state", "required_state", "pr_number", "head_sha", "check_runs", "statuses", "total_count"}
+		for _, field := range expectedFields {
+			if _, ok := checksData[field]; !ok {
+				t.Errorf("Expected field '%s' not found in checks output", field)
+			}
+		}
+
+		t.Logf("Checks tool returned valid JSON with state=%v", checksData["state"])
+	})
+}
+
 // TestMCPServer_AllToolsReturnContent tests that all tools return non-empty content
 func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 	// Skip if the binary doesn't exist
@@ -416,6 +501,13 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 			},
 			expectJSON:    false, // May return error message in test environment
 			mayFailInTest: true,  // Expected to fail without workflow runs
+		},
+		{
+			name:          "checks",
+			toolName:      "checks",
+			args:          map[string]any{"pr_number": "1"},
+			expectJSON:    false, // May return error in test environment without GitHub credentials
+			mayFailInTest: true,  // Expected to fail without GitHub credentials
 		},
 		{
 			name:       "mcp-inspect",
