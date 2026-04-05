@@ -53,6 +53,7 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 // This is needed because the YAML marshaller quotes strings containing #, but GitHub Actions
 // expects unquoted uses values with inline comments.
 func unquoteUsesWithComments(yamlStr string) string {
+	stepConversionLog.Printf("Post-processing YAML to unquote uses-with-comments: %d chars", len(yamlStr))
 	lines := strings.Split(yamlStr, "\n")
 	for i, line := range lines {
 		// Look for uses: followed by a quoted string containing a # comment
