@@ -224,9 +224,7 @@ permissions:
 engine: claude
 tools:
   repo-memory:
-    branch-name: memory/vuln-baseline
     allowed-extensions: [".json"]
-    max-file-size: 102400
 network:
   allowed:
     - registry.npmjs.org
@@ -238,27 +236,26 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-Load `/tmp/gh-aw/repo-memory/vuln-baseline.json`.
-If the file does not exist this is the first run — use an empty array `[]` as the baseline.
+Load `/tmp/gh-aw/repo-memory/default/vuln-baseline.json`.
+If missing, treat the baseline as `[]` (first run).
 
-Run `npm audit --json`. Collect every advisory as `{ "id": "...", "severity": "...", "title": "...", "url": "..." }`.
+Run `npm audit --json`. Collect each advisory's id, severity, title, and URL.
 
 Diff against the baseline:
-- **New** (in current, not in baseline) → open a `create-issue` for each, body includes severity, package, URL, and fix hint.
-- **Resolved** (in baseline, not in current) → log only, no issue.
-- If no new advisories, use the `noop` safe output.
+- **New** (in current, not in baseline) → open a `create-issue` per finding (max 5).
+- **Resolved** (in baseline, not in current) → log only.
+- If no new findings, use the `noop` safe output.
 
-Write the current advisory IDs back to `/tmp/gh-aw/repo-memory/vuln-baseline.json` as a JSON array of strings.
+Write the current advisory IDs to `/tmp/gh-aw/repo-memory/default/vuln-baseline.json` as a JSON array.
 ```
 
 ### Key Design Decisions
 
-- **`repo-memory` for baselines, not `cache-memory`** — caches expire after 7 days by default; a lost baseline causes every known vulnerability to appear "new" on the next run, flooding the repository with duplicate issues
-- **First-run handling** — the baseline file does not exist on the first run; the prompt must treat a missing file as `[]` and write it at the end, so subsequent runs have a clean starting point
-- **`max:` flood guard** — caps how many issues can be opened in a single run regardless of how many new findings are found; use `max: 5` for nightly scans, `max: 1` for secret alerts, `max: 10` for weekly audits
+- **`repo-memory` for baselines, not `cache-memory`** — caches expire after 7 days; a lost baseline makes every known finding appear "new" on the next run, flooding the repo with duplicate issues
+- **First-run handling** — treat a missing baseline file as `[]` and write it at the end of the first run, giving subsequent runs a clean starting point
+- **`max:` flood guard** — caps issues opened per run; use `max: 5` for nightly scans, `max: 1` for secret alerts, `max: 10` for weekly audits
 - **Engine restriction** — `repo-memory` requires Claude or a custom engine; it is **not available** for the Copilot engine
-- **Baseline schema** — store only the stable identifier (e.g., advisory ID string), not mutable fields like severity; this avoids false "new" alerts when metadata changes without a new vulnerability being introduced
-- **`allowed-extensions: [".json"]`** — restricts the branch to JSON files only, preventing accidental code commits to the memory branch
+- **Baseline schema** — store only stable identifiers (advisory ID strings), not mutable fields like severity, to avoid false "new" alerts when metadata changes
 
 ---
 
