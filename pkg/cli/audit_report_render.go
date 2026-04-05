@@ -96,6 +96,13 @@ func renderConsole(data AuditData, logsPath string) {
 		renderTokenUsage(data.FirewallTokenUsage)
 	}
 
+	// GitHub API Rate Limit Usage Section
+	if data.GitHubRateLimitUsage != nil {
+		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🐙 GitHub API Usage"))
+		fmt.Fprintln(os.Stderr)
+		renderGitHubRateLimitUsage(data.GitHubRateLimitUsage)
+	}
+
 	// Engine Configuration Section
 	if data.EngineConfig != nil {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Engine Configuration"))
@@ -1090,4 +1097,43 @@ func renderTokenUsage(summary *TokenUsageSummary) {
 		fmt.Fprint(os.Stderr, console.RenderTable(config))
 		fmt.Fprintln(os.Stderr)
 	}
+}
+
+// renderGitHubRateLimitUsage displays GitHub API quota consumption for the run.
+func renderGitHubRateLimitUsage(usage *GitHubRateLimitUsage) {
+	if usage == nil {
+		return
+	}
+
+	// Summary line
+	summary := "Total GitHub API calls: " + console.FormatNumber(usage.TotalRequestsMade)
+	if usage.CoreLimit > 0 {
+		summary += fmt.Sprintf("  |  Core quota consumed: %s / %s  (remaining: %s)",
+			console.FormatNumber(usage.CoreConsumed),
+			console.FormatNumber(usage.CoreLimit),
+			console.FormatNumber(usage.CoreRemaining),
+		)
+	}
+	fmt.Fprintf(os.Stderr, "  %s\n\n", summary)
+
+	// Per-resource breakdown table (only when there are multiple resources or non-core resources)
+	rows := usage.ResourceRows()
+	if len(rows) == 0 {
+		return
+	}
+	cfg := console.TableConfig{
+		Headers: []string{"Resource", "API Calls", "Quota Consumed", "Remaining", "Limit"},
+		Rows:    make([][]string, 0, len(rows)),
+	}
+	for _, row := range rows {
+		cfg.Rows = append(cfg.Rows, []string{
+			row.Resource,
+			console.FormatNumber(row.RequestsMade),
+			console.FormatNumber(row.QuotaConsumed),
+			console.FormatNumber(row.FinalRemaining),
+			console.FormatNumber(row.Limit),
+		})
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(cfg))
+	fmt.Fprintln(os.Stderr)
 }

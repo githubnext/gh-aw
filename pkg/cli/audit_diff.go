@@ -288,16 +288,32 @@ type TokenUsageDiff struct {
 
 // RunMetricsDiff represents the diff of run-level metrics (token usage, duration, turns) between two runs
 type RunMetricsDiff struct {
-	Run1TokenUsage    int             `json:"run1_token_usage"`
-	Run2TokenUsage    int             `json:"run2_token_usage"`
-	TokenUsageChange  string          `json:"token_usage_change,omitempty"` // e.g. "+15%", "-5%"
-	Run1Duration      string          `json:"run1_duration,omitempty"`
-	Run2Duration      string          `json:"run2_duration,omitempty"`
-	DurationChange    string          `json:"duration_change,omitempty"` // e.g. "+2m30s", "-1m"
-	Run1Turns         int             `json:"run1_turns,omitempty"`
-	Run2Turns         int             `json:"run2_turns,omitempty"`
-	TurnsChange       int             `json:"turns_change,omitempty"`
-	TokenUsageDetails *TokenUsageDiff `json:"token_usage_details,omitempty"` // Detailed breakdown from firewall proxy
+	Run1TokenUsage         int                  `json:"run1_token_usage"`
+	Run2TokenUsage         int                  `json:"run2_token_usage"`
+	TokenUsageChange       string               `json:"token_usage_change,omitempty"` // e.g. "+15%", "-5%"
+	Run1Duration           string               `json:"run1_duration,omitempty"`
+	Run2Duration           string               `json:"run2_duration,omitempty"`
+	DurationChange         string               `json:"duration_change,omitempty"` // e.g. "+2m30s", "-1m"
+	Run1Turns              int                  `json:"run1_turns,omitempty"`
+	Run2Turns              int                  `json:"run2_turns,omitempty"`
+	TurnsChange            int                  `json:"turns_change,omitempty"`
+	TokenUsageDetails      *TokenUsageDiff      `json:"token_usage_details,omitempty"`       // Detailed breakdown from firewall proxy
+	GitHubRateLimitDetails *GitHubRateLimitDiff `json:"github_rate_limit_details,omitempty"` // GitHub API quota consumption diff
+}
+
+// GitHubRateLimitDiff represents the diff of GitHub API quota consumption between two runs.
+// It is populated from the github_rate_limits.jsonl artifact (GitHubRateLimitUsage).
+type GitHubRateLimitDiff struct {
+	Run1TotalAPICalls  int    `json:"run1_total_api_calls"`
+	Run2TotalAPICalls  int    `json:"run2_total_api_calls"`
+	APICallsChange     string `json:"api_calls_change,omitempty"` // e.g. "+20%", "-5%"
+	Run1CoreConsumed   int    `json:"run1_core_consumed,omitempty"`
+	Run2CoreConsumed   int    `json:"run2_core_consumed,omitempty"`
+	CoreConsumedChange string `json:"core_consumed_change,omitempty"` // e.g. "+10%", "-3%"
+	Run1CoreRemaining  int    `json:"run1_core_remaining,omitempty"`
+	Run2CoreRemaining  int    `json:"run2_core_remaining,omitempty"`
+	Run1CoreLimit      int    `json:"run1_core_limit,omitempty"`
+	Run2CoreLimit      int    `json:"run2_core_limit,omitempty"`
 }
 
 // AuditDiff is the top-level diff combining firewall behavior, MCP tool invocations,
@@ -457,23 +473,27 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	var run1Duration, run2Duration time.Duration
 	var run1Turns, run2Turns int
 	var tu1, tu2 *TokenUsageSummary
+	var rl1, rl2 *GitHubRateLimitUsage
 
 	if summary1 != nil {
 		run1Tokens = summary1.Run.TokenUsage
 		run1Duration = summary1.Run.Duration
 		run1Turns = summary1.Run.Turns
 		tu1 = summary1.TokenUsage
+		rl1 = summary1.GitHubRateLimitUsage
 	}
 	if summary2 != nil {
 		run2Tokens = summary2.Run.TokenUsage
 		run2Duration = summary2.Run.Duration
 		run2Turns = summary2.Run.Turns
 		tu2 = summary2.TokenUsage
+		rl2 = summary2.GitHubRateLimitUsage
 	}
 
 	// Skip if there is no meaningful data
 	hasTokenDetails := tu1 != nil || tu2 != nil
-	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 && !hasTokenDetails {
+	hasRateLimitDetails := rl1 != nil || rl2 != nil
+	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 && !hasTokenDetails && !hasRateLimitDetails {
 		return nil
 	}
 
@@ -505,6 +525,54 @@ func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
 	}
 
 	diff.TokenUsageDetails = computeTokenUsageDiff(tu1, tu2)
+	diff.GitHubRateLimitDetails = computeGitHubRateLimitDiff(rl1, rl2)
+
+	return diff
+}
+
+// computeGitHubRateLimitDiff computes the diff of GitHub API quota consumption between two
+// runs using the GitHubRateLimitUsage data from RunSummary.GitHubRateLimitUsage.
+// Returns nil when both summaries are nil.
+func computeGitHubRateLimitDiff(rl1, rl2 *GitHubRateLimitUsage) *GitHubRateLimitDiff {
+	if rl1 == nil && rl2 == nil {
+		return nil
+	}
+
+	var run1Calls, run2Calls int
+	var run1CoreConsumed, run2CoreConsumed int
+	var run1CoreRemaining, run2CoreRemaining int
+	var run1CoreLimit, run2CoreLimit int
+
+	if rl1 != nil {
+		run1Calls = rl1.TotalRequestsMade
+		run1CoreConsumed = rl1.CoreConsumed
+		run1CoreRemaining = rl1.CoreRemaining
+		run1CoreLimit = rl1.CoreLimit
+	}
+	if rl2 != nil {
+		run2Calls = rl2.TotalRequestsMade
+		run2CoreConsumed = rl2.CoreConsumed
+		run2CoreRemaining = rl2.CoreRemaining
+		run2CoreLimit = rl2.CoreLimit
+	}
+
+	diff := &GitHubRateLimitDiff{
+		Run1TotalAPICalls: run1Calls,
+		Run2TotalAPICalls: run2Calls,
+		Run1CoreConsumed:  run1CoreConsumed,
+		Run2CoreConsumed:  run2CoreConsumed,
+		Run1CoreRemaining: run1CoreRemaining,
+		Run2CoreRemaining: run2CoreRemaining,
+		Run1CoreLimit:     run1CoreLimit,
+		Run2CoreLimit:     run2CoreLimit,
+	}
+
+	if run1Calls > 0 || run2Calls > 0 {
+		diff.APICallsChange = formatVolumeChange(run1Calls, run2Calls)
+	}
+	if run1CoreConsumed > 0 || run2CoreConsumed > 0 {
+		diff.CoreConsumedChange = formatVolumeChange(run1CoreConsumed, run2CoreConsumed)
+	}
 
 	return diff
 }
@@ -636,8 +704,16 @@ func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname 
 		return nil, fmt.Errorf("failed to analyze firewall logs for run %d: %w", runID, err)
 	}
 
+	// Analyze GitHub API rate limit consumption
+	rateLimitUsage, err := analyzeGitHubRateLimits(runOutputDir, verbose)
+	if err != nil {
+		auditDiffLog.Printf("Failed to analyze GitHub rate limits for run %d: %v", runID, err)
+		// Non-fatal: proceed without rate limit data
+	}
+
 	return &RunSummary{
-		RunID:            runID,
-		FirewallAnalysis: analysis,
+		RunID:                runID,
+		FirewallAnalysis:     analysis,
+		GitHubRateLimitUsage: rateLimitUsage,
 	}, nil
 }

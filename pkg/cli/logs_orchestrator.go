@@ -382,6 +382,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 					MCPFailures:             result.MCPFailures,
 					MCPToolUsage:            result.MCPToolUsage,
 					TokenUsage:              result.TokenUsage,
+					GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
 					JobDetails:              result.JobDetails,
 				}
 				processedRuns = append(processedRuns, processedRun)
@@ -687,6 +688,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					MCPFailures:             summary.MCPFailures,
 					MCPToolUsage:            summary.MCPToolUsage,
 					TokenUsage:              summary.TokenUsage,
+					GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
 					JobDetails:              summary.JobDetails,
 					LogsPath:                runOutputDir,
 					Cached:                  true, // Mark as cached
@@ -842,6 +844,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					result.Run.EffectiveTokens = tokenUsage.TotalEffectiveTokens
 				}
 
+				// Analyze GitHub API rate limit consumption from github_rate_limits.jsonl
+				rateLimitUsage, rlErr := analyzeGitHubRateLimits(runOutputDir, verbose)
+				if rlErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage for run %d: %v", run.DatabaseID, rlErr)))
+					}
+				}
+				result.GitHubRateLimitUsage = rateLimitUsage
+
 				// Count safe output items created in GitHub (from manifest artifact)
 				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
 
@@ -872,6 +883,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					MCPFailures:             mcpFailures,
 					MCPToolUsage:            mcpToolUsage,
 					TokenUsage:              tokenUsage,
+					GitHubRateLimitUsage:    rateLimitUsage,
 					JobDetails:              jobDetails,
 				}
 				awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
@@ -900,6 +912,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 					MCPFailures:             mcpFailures,
 					MCPToolUsage:            mcpToolUsage,
 					TokenUsage:              tokenUsage,
+					GitHubRateLimitUsage:    rateLimitUsage,
 					ArtifactsList:           artifacts,
 					JobDetails:              jobDetails,
 				}

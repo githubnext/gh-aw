@@ -363,6 +363,7 @@ async function sendJobSetupSpan(options = {}) {
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
   const rawContextTraceId = typeof awInfo.context?.otel_trace_id === "string" ? awInfo.context.otel_trace_id.trim().toLowerCase() : "";
   const contextTraceId = isValidTraceId(rawContextTraceId) ? rawContextTraceId : "";
+  const staged = awInfo.staged === true;
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
 
@@ -410,6 +411,7 @@ async function sendJobSetupSpan(options = {}) {
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
   }
+  resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
   const payload = buildOTLPPayload({
     traceId,

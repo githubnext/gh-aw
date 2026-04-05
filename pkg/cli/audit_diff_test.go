@@ -930,3 +930,105 @@ func TestComputeAuditDiff_MultipleRuns(t *testing.T) {
 	// The two diffs should be independent (no shared state)
 	assert.NotEqual(t, diff1.Run2ID, diff2.Run2ID, "The two diffs should have different Run2IDs")
 }
+
+func TestComputeGitHubRateLimitDiff_BothNil(t *testing.T) {
+	diff := computeGitHubRateLimitDiff(nil, nil)
+	assert.Nil(t, diff, "both nil should return nil")
+}
+
+func TestComputeGitHubRateLimitDiff_WithData(t *testing.T) {
+	rl1 := &GitHubRateLimitUsage{
+		TotalRequestsMade: 40,
+		CoreConsumed:      40,
+		CoreRemaining:     4960,
+		CoreLimit:         5000,
+	}
+	rl2 := &GitHubRateLimitUsage{
+		TotalRequestsMade: 60,
+		CoreConsumed:      60,
+		CoreRemaining:     4940,
+		CoreLimit:         5000,
+	}
+
+	diff := computeGitHubRateLimitDiff(rl1, rl2)
+	require.NotNil(t, diff, "diff should not be nil")
+
+	assert.Equal(t, 40, diff.Run1TotalAPICalls, "Run1 total API calls should be 40")
+	assert.Equal(t, 60, diff.Run2TotalAPICalls, "Run2 total API calls should be 60")
+	assert.Equal(t, "+50%", diff.APICallsChange, "API calls should increase by 50%")
+	assert.Equal(t, 40, diff.Run1CoreConsumed, "Run1 core consumed should be 40")
+	assert.Equal(t, 60, diff.Run2CoreConsumed, "Run2 core consumed should be 60")
+	assert.Equal(t, "+50%", diff.CoreConsumedChange, "Core consumed should increase by 50%")
+	assert.Equal(t, 4960, diff.Run1CoreRemaining, "Run1 core remaining should be 4960")
+	assert.Equal(t, 4940, diff.Run2CoreRemaining, "Run2 core remaining should be 4940")
+	assert.Equal(t, 5000, diff.Run1CoreLimit, "Run1 core limit should be 5000")
+	assert.Equal(t, 5000, diff.Run2CoreLimit, "Run2 core limit should be 5000")
+}
+
+func TestComputeGitHubRateLimitDiff_Run1Nil(t *testing.T) {
+	rl2 := &GitHubRateLimitUsage{
+		TotalRequestsMade: 30,
+		CoreConsumed:      30,
+		CoreRemaining:     4970,
+		CoreLimit:         5000,
+	}
+
+	diff := computeGitHubRateLimitDiff(nil, rl2)
+	require.NotNil(t, diff, "diff should not be nil when run2 has data")
+	assert.Equal(t, 0, diff.Run1TotalAPICalls, "Run1 total API calls should be 0")
+	assert.Equal(t, 30, diff.Run2TotalAPICalls, "Run2 total API calls should be 30")
+}
+
+func TestComputeRunMetricsDiff_WithRateLimitData(t *testing.T) {
+	summary1 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 1000,
+			Duration:   2 * time.Minute,
+			Turns:      5,
+		},
+		GitHubRateLimitUsage: &GitHubRateLimitUsage{
+			TotalRequestsMade: 40,
+			CoreConsumed:      40,
+			CoreRemaining:     4960,
+			CoreLimit:         5000,
+		},
+	}
+	summary2 := &RunSummary{
+		Run: WorkflowRun{
+			TokenUsage: 1200,
+			Duration:   3 * time.Minute,
+			Turns:      6,
+		},
+		GitHubRateLimitUsage: &GitHubRateLimitUsage{
+			TotalRequestsMade: 60,
+			CoreConsumed:      60,
+			CoreRemaining:     4940,
+			CoreLimit:         5000,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff, "diff should not be nil")
+	require.NotNil(t, diff.GitHubRateLimitDetails, "GitHubRateLimitDetails should be populated")
+	assert.Equal(t, 40, diff.GitHubRateLimitDetails.Run1TotalAPICalls, "Run1 API calls should be 40")
+	assert.Equal(t, 60, diff.GitHubRateLimitDetails.Run2TotalAPICalls, "Run2 API calls should be 60")
+	assert.Equal(t, "+50%", diff.GitHubRateLimitDetails.APICallsChange, "API calls should increase by 50%")
+}
+
+func TestComputeRunMetricsDiff_RateLimitAloneNotNil(t *testing.T) {
+	// RunMetricsDiff should be non-nil when only rate limit data is present
+	summary1 := &RunSummary{
+		GitHubRateLimitUsage: &GitHubRateLimitUsage{
+			TotalRequestsMade: 10,
+		},
+	}
+	summary2 := &RunSummary{
+		GitHubRateLimitUsage: &GitHubRateLimitUsage{
+			TotalRequestsMade: 15,
+		},
+	}
+
+	diff := computeRunMetricsDiff(summary1, summary2)
+	require.NotNil(t, diff, "diff should not be nil when rate limit data is present")
+	require.NotNil(t, diff.GitHubRateLimitDetails, "GitHubRateLimitDetails should be populated")
+}

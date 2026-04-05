@@ -268,6 +268,9 @@ func renderRunMetricsDiffMarkdownSection(run1ID, run2ID int64, diff *RunMetricsD
 	if diff.TokenUsageDetails != nil {
 		renderTokenUsageDiffMarkdownSection(run1ID, run2ID, diff.TokenUsageDetails)
 	}
+	if diff.GitHubRateLimitDetails != nil {
+		renderGitHubRateLimitDiffMarkdownSection(run1ID, run2ID, diff.GitHubRateLimitDetails)
+	}
 }
 
 // renderTokenUsageDiffMarkdownSection renders detailed token usage as a markdown sub-section
@@ -509,6 +512,10 @@ func renderRunMetricsDiffPrettySection(run1ID, run2ID int64, diff *RunMetricsDif
 		fmt.Fprintln(os.Stderr)
 		renderTokenUsageDiffPrettySection(run1ID, run2ID, diff.TokenUsageDetails)
 	}
+	if diff.GitHubRateLimitDetails != nil {
+		fmt.Fprintln(os.Stderr)
+		renderGitHubRateLimitDiffPrettySection(run1ID, run2ID, diff.GitHubRateLimitDetails)
+	}
 }
 
 // renderTokenUsageDiffPrettySection renders detailed token usage as a pretty console sub-section
@@ -575,6 +582,76 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 			fmt.Sprintf("%.1f%%", diff.Run1CacheEfficiency*100),
 			fmt.Sprintf("%.1f%%", diff.Run2CacheEfficiency*100),
 			diff.CacheEfficiencyChange,
+		})
+	}
+
+	if len(config.Rows) > 0 {
+		fmt.Fprint(os.Stderr, console.RenderTable(config))
+	}
+}
+
+// renderGitHubRateLimitDiffMarkdownSection renders the GitHub API rate limit diff as markdown
+func renderGitHubRateLimitDiffMarkdownSection(run1ID, run2ID int64, diff *GitHubRateLimitDiff) {
+	fmt.Println("#### GitHub API Usage")
+	fmt.Println()
+	fmt.Printf("| Metric | Run #%d | Run #%d | Change |\n", run1ID, run2ID)
+	fmt.Println("|--------|---------|---------|--------|")
+
+	if diff.Run1TotalAPICalls > 0 || diff.Run2TotalAPICalls > 0 {
+		fmt.Printf("| Total API calls | %d | %d | %s |\n", diff.Run1TotalAPICalls, diff.Run2TotalAPICalls, diff.APICallsChange)
+	}
+	if diff.Run1CoreConsumed > 0 || diff.Run2CoreConsumed > 0 {
+		fmt.Printf("| Core quota consumed | %d | %d | %s |\n", diff.Run1CoreConsumed, diff.Run2CoreConsumed, diff.CoreConsumedChange)
+	}
+	if diff.Run1CoreRemaining > 0 || diff.Run2CoreRemaining > 0 {
+		fmt.Printf("| Core remaining | %d | %d | — |\n", diff.Run1CoreRemaining, diff.Run2CoreRemaining)
+	}
+	if diff.Run1CoreLimit > 0 || diff.Run2CoreLimit > 0 {
+		fmt.Printf("| Core limit | %d | %d | — |\n", diff.Run1CoreLimit, diff.Run2CoreLimit)
+	}
+	fmt.Println()
+}
+
+// renderGitHubRateLimitDiffPrettySection renders the GitHub API rate limit diff as a pretty console sub-section
+func renderGitHubRateLimitDiffPrettySection(run1ID, run2ID int64, diff *GitHubRateLimitDiff) {
+	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🐙 GitHub API Usage"))
+	fmt.Fprintln(os.Stderr)
+
+	config := console.TableConfig{
+		Headers: []string{"Metric", fmt.Sprintf("Run #%d", run1ID), fmt.Sprintf("Run #%d", run2ID), "Change"},
+		Rows:    make([][]string, 0),
+	}
+
+	if diff.Run1TotalAPICalls > 0 || diff.Run2TotalAPICalls > 0 {
+		config.Rows = append(config.Rows, []string{
+			"Total API calls",
+			strconv.Itoa(diff.Run1TotalAPICalls),
+			strconv.Itoa(diff.Run2TotalAPICalls),
+			diff.APICallsChange,
+		})
+	}
+	if diff.Run1CoreConsumed > 0 || diff.Run2CoreConsumed > 0 {
+		config.Rows = append(config.Rows, []string{
+			"Core quota consumed",
+			strconv.Itoa(diff.Run1CoreConsumed),
+			strconv.Itoa(diff.Run2CoreConsumed),
+			diff.CoreConsumedChange,
+		})
+	}
+	if diff.Run1CoreRemaining > 0 || diff.Run2CoreRemaining > 0 {
+		config.Rows = append(config.Rows, []string{
+			"Core remaining",
+			strconv.Itoa(diff.Run1CoreRemaining),
+			strconv.Itoa(diff.Run2CoreRemaining),
+			"—",
+		})
+	}
+	if diff.Run1CoreLimit > 0 || diff.Run2CoreLimit > 0 {
+		config.Rows = append(config.Rows, []string{
+			"Core limit",
+			strconv.Itoa(diff.Run1CoreLimit),
+			strconv.Itoa(diff.Run2CoreLimit),
+			"—",
 		})
 	}
 
