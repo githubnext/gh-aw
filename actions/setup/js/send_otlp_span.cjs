@@ -3,7 +3,7 @@
 
 const { randomBytes } = require("crypto");
 const fs = require("fs");
-const { performance } = require("perf_hooks");
+const { nowMs } = require("./performance_now.cjs");
 
 /**
  * send_otlp_span.cjs
@@ -359,8 +359,8 @@ async function sendJobSetupSpan(options = {}) {
     return { traceId, spanId };
   }
 
-  const startMs = options.startMs ?? performance.timeOrigin + performance.now();
-  const endMs = performance.timeOrigin + performance.now();
+  const startMs = options.startMs ?? nowMs();
+  const endMs = nowMs();
 
   const serviceName = process.env.OTEL_SERVICE_NAME || "gh-aw";
   const jobName = process.env.INPUT_JOB_NAME || "";
@@ -468,7 +468,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     return;
   }
 
-  const startMs = options.startMs ?? performance.timeOrigin + performance.now();
+  const startMs = options.startMs ?? nowMs();
 
   // Read workflow metadata from aw_info.json (written by the agent job setup step).
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
@@ -558,7 +558,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     ...(parentSpanId ? { parentSpanId } : {}),
     spanName,
     startMs,
-    endMs: performance.timeOrigin + performance.now(),
+    endMs: nowMs(),
     serviceName,
     scopeVersion: version,
     attributes,
