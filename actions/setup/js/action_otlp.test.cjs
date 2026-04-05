@@ -130,6 +130,39 @@ describe("action_setup_otlp run()", () => {
     await expect(runSetup()).resolves.toBeUndefined();
     fetchSpy.mockRestore();
   });
+
+  it("includes github.repository, github.run_id resource attributes in setup span", async () => {
+    const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_resource_attrs_${Date.now()}.txt`);
+    try {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env.GITHUB_REPOSITORY = "owner/repo";
+      process.env.GITHUB_RUN_ID = "111222333";
+      process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+      process.env.GITHUB_OUTPUT = tmpOut;
+      process.env.GITHUB_ENV = tmpOut;
+
+      let capturedBody;
+      const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+        capturedBody = opts?.body;
+        return Promise.resolve(new Response(null, { status: 200 }));
+      });
+
+      await runSetup();
+
+      const payload = JSON.parse(capturedBody);
+      const resourceAttrs = payload?.resourceSpans?.[0]?.resource?.attributes ?? [];
+      expect(resourceAttrs).toContainEqual({ key: "github.repository", value: { stringValue: "owner/repo" } });
+      expect(resourceAttrs).toContainEqual({ key: "github.run_id", value: { stringValue: "111222333" } });
+      expect(resourceAttrs).toContainEqual({ key: "github.event_name", value: { stringValue: "workflow_dispatch" } });
+
+      fetchSpy.mockRestore();
+    } finally {
+      fs.rmSync(tmpOut, { force: true });
+      delete process.env.GITHUB_REPOSITORY;
+      delete process.env.GITHUB_RUN_ID;
+      delete process.env.GITHUB_EVENT_NAME;
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

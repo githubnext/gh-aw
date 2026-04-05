@@ -83,6 +83,7 @@ function buildAttr(key, value) {
  * @property {string} serviceName       - Value for the service.name resource attribute
  * @property {string} [scopeVersion]    - gh-aw version string (e.g. from GH_AW_INFO_VERSION)
  * @property {Array<{key: string, value: object}>} attributes - Span attributes
+ * @property {Array<{key: string, value: object}>} [resourceAttributes] - Extra resource attributes (e.g. github.repository, github.run_id)
  * @property {number} [statusCode]      - OTLP status code: 0=UNSET, 1=OK, 2=ERROR (defaults to 1)
  * @property {string} [statusMessage]   - Human-readable status message (included when statusCode is 2)
  */
@@ -93,18 +94,23 @@ function buildAttr(key, value) {
  * @param {OTLPSpanOptions} opts
  * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
-function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, statusCode, statusMessage }) {
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage }) {
   const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
   /** @type {{ code: number, message?: string }} */
   const status = { code };
   if (statusMessage) {
     status.message = statusMessage;
   }
+  const baseResourceAttrs = [buildAttr("service.name", serviceName)];
+  if (scopeVersion && scopeVersion !== "unknown") {
+    baseResourceAttrs.push(buildAttr("service.version", scopeVersion));
+  }
+  const allResourceAttrs = resourceAttributes ? [...baseResourceAttrs, ...resourceAttributes] : baseResourceAttrs;
   return {
     resourceSpans: [
       {
         resource: {
-          attributes: [buildAttr("service.name", serviceName)],
+          attributes: allResourceAttrs,
         },
         scopeSpans: [
           {
@@ -362,11 +368,17 @@ async function sendJobSetupSpan(options = {}) {
   const runId = process.env.GITHUB_RUN_ID || "";
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
+  const eventName = process.env.GITHUB_EVENT_NAME || "";
 
   const attributes = [buildAttr("gh-aw.job.name", jobName), buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
 
   if (engineId) {
     attributes.push(buildAttr("gh-aw.engine.id", engineId));
+  }
+
+  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (eventName) {
+    resourceAttributes.push(buildAttr("github.event_name", eventName));
   }
 
   const payload = buildOTLPPayload({
@@ -378,6 +390,7 @@ async function sendJobSetupSpan(options = {}) {
     serviceName,
     scopeVersion: process.env.GH_AW_INFO_VERSION || "unknown",
     attributes,
+    resourceAttributes,
   });
 
   await sendOTLPSpan(endpoint, payload);
@@ -483,6 +496,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const runId = process.env.GITHUB_RUN_ID || "";
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
+  const eventName = process.env.GITHUB_EVENT_NAME || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
@@ -506,6 +520,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }
 
+  const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (eventName) {
+    resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+
   const payload = buildOTLPPayload({
     traceId,
     spanId: generateSpanId(),
@@ -516,6 +535,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     serviceName,
     scopeVersion: version,
     attributes,
+    resourceAttributes,
     statusCode,
     statusMessage,
   });
