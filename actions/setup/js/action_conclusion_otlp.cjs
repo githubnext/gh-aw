@@ -25,7 +25,7 @@
  *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (no-op when not set)
  */
 
-const path = require("path");
+const sendOtlpSpan = require("./send_otlp_span.cjs");
 
 /**
  * Send the OTLP job-conclusion span.  Non-fatal: all errors are silently
@@ -42,8 +42,7 @@ async function run() {
   const spanName = process.env.INPUT_JOB_NAME ? `gh-aw.${process.env.INPUT_JOB_NAME}.conclusion` : "gh-aw.job.conclusion";
   console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
 
-  const { sendJobConclusionSpan } = require(path.join(__dirname, "send_otlp_span.cjs"));
-  await sendJobConclusionSpan(spanName);
+  await sendOtlpSpan.sendJobConclusionSpan(spanName);
   console.log(`[otlp] conclusion span sent`);
 }
 

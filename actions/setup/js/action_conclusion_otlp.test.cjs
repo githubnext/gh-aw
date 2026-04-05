@@ -1,0 +1,136 @@
+// @ts-check
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createRequire } from "module";
+
+// Use CJS require so we share the same module cache as action_conclusion_otlp.cjs
+const req = createRequire(import.meta.url);
+
+// Load the real send_otlp_span module and capture the original function
+const sendOtlpModule = req("./send_otlp_span.cjs");
+const originalSendJobConclusionSpan = sendOtlpModule.sendJobConclusionSpan;
+
+// Load the module under test — it holds a reference to the same sendOtlpModule object
+const { run } = req("./action_conclusion_otlp.cjs");
+
+// Shared mock function — patched onto the module exports in beforeEach
+const mockSendJobConclusionSpan = vi.fn();
+
+describe("action_conclusion_otlp.cjs", () => {
+  let originalEnv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    mockSendJobConclusionSpan.mockResolvedValue(undefined);
+    // Patch the shared CJS exports object — run() accesses this at call time
+    sendOtlpModule.sendJobConclusionSpan = mockSendJobConclusionSpan;
+
+    originalEnv = {
+      OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      INPUT_JOB_NAME: process.env.INPUT_JOB_NAME,
+    };
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.INPUT_JOB_NAME;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    sendOtlpModule.sendJobConclusionSpan = originalSendJobConclusionSpan;
+
+    if (originalEnv.OTEL_EXPORTER_OTLP_ENDPOINT !== undefined) {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalEnv.OTEL_EXPORTER_OTLP_ENDPOINT;
+    } else {
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    }
+    if (originalEnv.INPUT_JOB_NAME !== undefined) {
+      process.env.INPUT_JOB_NAME = originalEnv.INPUT_JOB_NAME;
+    } else {
+      delete process.env.INPUT_JOB_NAME;
+    }
+  });
+
+  it("should export run as a function", () => {
+    expect(typeof run).toBe("function");
+  });
+
+  describe("when OTEL_EXPORTER_OTLP_ENDPOINT is not set", () => {
+    it("should log that the endpoint is not set and skip span", async () => {
+      await run();
+
+      expect(console.log).toHaveBeenCalledWith("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping conclusion span");
+      expect(mockSendJobConclusionSpan).not.toHaveBeenCalled();
+    });
+
+    it("should not call sendJobConclusionSpan", async () => {
+      await run();
+
+      expect(mockSendJobConclusionSpan).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when OTEL_EXPORTER_OTLP_ENDPOINT is set", () => {
+    beforeEach(() => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+    });
+
+    it("should call sendJobConclusionSpan once", async () => {
+      await run();
+
+      expect(mockSendJobConclusionSpan).toHaveBeenCalledOnce();
+    });
+
+    it("should log the conclusion span as sent", async () => {
+      await run();
+
+      expect(console.log).toHaveBeenCalledWith("[otlp] conclusion span sent");
+    });
+
+    it("should log the endpoint URL in the sending message", async () => {
+      await run();
+
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining("http://localhost:4318"));
+    });
+
+    describe("span name construction", () => {
+      it("should use default span name 'gh-aw.job.conclusion' when INPUT_JOB_NAME is not set", async () => {
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion");
+      });
+
+      it("should use job name from INPUT_JOB_NAME when set", async () => {
+        process.env.INPUT_JOB_NAME = "agent";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.agent.conclusion");
+      });
+
+      it("should log the full span name in the sending message", async () => {
+        process.env.INPUT_JOB_NAME = "setup";
+
+        await run();
+
+        expect(console.log).toHaveBeenCalledWith('[otlp] sending conclusion span "gh-aw.setup.conclusion" to http://localhost:4318');
+      });
+
+      it("should handle different job names correctly", async () => {
+        process.env.INPUT_JOB_NAME = "activation";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.activation.conclusion");
+      });
+    });
+  });
+
+  describe("error handling", () => {
+    it("should propagate errors from sendJobConclusionSpan", async () => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+      mockSendJobConclusionSpan.mockRejectedValueOnce(new Error("Network error"));
+
+      // run() propagates the error; callers swallow it via .catch(() => {})
+      await expect(run()).rejects.toThrow("Network error");
+    });
+  });
+});
