@@ -385,7 +385,11 @@ async function sendJobSetupSpan(options = {}) {
     attributes.push(buildAttr("gh-aw.engine.id", engineId));
   }
 
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (repository && runId) {
+    resourceAttributes.push(buildAttr("github.actions.run_url", `${serverUrl}/${repository}/actions/runs/${runId}`));
+  }
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
   }
@@ -547,7 +551,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
   }
 
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
+  if (repository && runId) {
+    resourceAttributes.push(buildAttr("github.actions.run_url", `${serverUrl}/${repository}/actions/runs/${runId}`));
+  }
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
   }
