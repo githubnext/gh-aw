@@ -363,7 +363,7 @@ A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool 
 
 ### Audit Diff (`gh aw audit diff`)
 
-A `gh aw audit` subcommand that compares behavior across two workflow runs across firewall, MCP tool usage, and run metrics dimensions. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-audit-diff-run-id-1-run-id-2).
+A `gh aw audit` subcommand that compares behavior across two workflow runs across firewall, MCP tool usage, and run metrics dimensions. Reports domain additions and removals, allowed/denied status changes, request volume drift, and anomaly flags. Useful for detecting regressions and behavioral drift between runs. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-audit-diff-base-run-id-comparison-run-id-comparison-run-id).
 
 ### Behavior Fingerprint
 
