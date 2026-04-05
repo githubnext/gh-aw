@@ -1744,7 +1744,79 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Conversation:");
       expect(result).toContain("◆ I'll help you with that task.");
       expect(result).toContain("✓ $ echo hello");
+      expect(result).toContain("   └ hello");
       expect(result).toContain("◆ The command executed successfully!");
+    });
+
+    it("should show first 2 lines of tool call result preview", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        { type: "system", subtype: "init", model: "gpt-5" },
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "I'll help you explore the repository structure first." },
+              { type: "tool_use", id: "1", name: "Bash", input: { command: "ls -la" } },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "1", is_error: false, content: "file1.txt\nfile2.txt\nfile3.txt" }],
+          },
+        },
+        { type: "result", num_turns: 3, duration_ms: 45000, usage: { input_tokens: 1500, output_tokens: 800 }, total_cost_usd: 0.0023 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      // Check for Conversation section
+      expect(result).toContain("Conversation:");
+
+      // Check for Agent message
+      expect(result).toContain("◆ I'll help you explore the repository structure first.");
+
+      // Check for tool execution with success icon and first 2 lines of output
+      expect(result).toContain("✓ $ ls -la");
+      expect(result).toContain("   ├ file1.txt");
+      expect(result).toContain("   └ file2.txt (+ 1 more)");
+
+      // Check for Statistics section
+      expect(result).toContain("Statistics:");
+      expect(result).toContain("  Turns: 3");
+      expect(result).toContain("  Duration: 45s");
+      expect(result).toContain("  Tools: 1/1 succeeded");
+      expect(result).toContain("  Tokens: 2,300 total (1,500 in / 800 out)");
+      expect(result).toContain("  Cost: $0.0023");
+    });
+
+    it("should show error icon and result preview for failed tools", async () => {
+      const { generatePlainTextSummary } = await import("./log_parser_shared.cjs");
+
+      const logEntries = [
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: "1", name: "mcp__github__search_issues", input: {} }],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "1", is_error: true, content: "Error: API rate limit exceeded" }],
+          },
+        },
+        { type: "result", num_turns: 1 },
+      ];
+
+      const result = generatePlainTextSummary(logEntries, { parserName: "Agent" });
+
+      expect(result).toContain("✗ github-search_issues");
+      expect(result).toContain("   └ Error: API rate limit exceeded");
+      expect(result).toContain("  Tools: 0/1 succeeded");
     });
 
     it("should truncate long agent responses", async () => {
