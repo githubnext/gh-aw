@@ -97,7 +97,7 @@ func renderConsole(data AuditData, logsPath string) {
 	}
 
 	// GitHub API Rate Limit Usage Section
-	if data.GitHubRateLimitUsage != nil && data.GitHubRateLimitUsage.TotalRequestsMade > 0 {
+	if data.GitHubRateLimitUsage != nil {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("🐙 GitHub API Usage"))
 		fmt.Fprintln(os.Stderr)
 		renderGitHubRateLimitUsage(data.GitHubRateLimitUsage)

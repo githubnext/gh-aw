@@ -39,7 +39,7 @@ type GitHubRateLimitEntry struct {
 	Reset     string `json:"reset,omitempty"`
 }
 
-// GitHubRateLimitResourceUsage summarises API usage for a single GitHub rate-limit
+// GitHubRateLimitResourceUsage summarizes API usage for a single GitHub rate-limit
 // resource category (e.g. "core", "search", "graphql") over a workflow run.
 type GitHubRateLimitResourceUsage struct {
 	Resource       string `json:"resource" console:"header:Resource"`
