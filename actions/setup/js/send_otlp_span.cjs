@@ -366,11 +366,19 @@ async function sendJobSetupSpan(options = {}) {
   const workflowName = process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
   const engineId = process.env.GH_AW_INFO_ENGINE_ID || "";
   const runId = process.env.GITHUB_RUN_ID || "";
+  const runAttempt = process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
 
-  const attributes = [buildAttr("gh-aw.job.name", jobName), buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  const attributes = [
+    buildAttr("gh-aw.job.name", jobName),
+    buildAttr("gh-aw.workflow.name", workflowName),
+    buildAttr("gh-aw.run.id", runId),
+    buildAttr("gh-aw.run.attempt", runAttempt),
+    buildAttr("gh-aw.run.actor", actor),
+    buildAttr("gh-aw.repository", repository),
+  ];
 
   if (engineId) {
     attributes.push(buildAttr("gh-aw.engine.id", engineId));
@@ -494,6 +502,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const model = awInfo.model || "";
   const jobName = process.env.INPUT_JOB_NAME || "";
   const runId = process.env.GITHUB_RUN_ID || "";
+  const runAttempt = awInfo.run_attempt || process.env.GITHUB_RUN_ATTEMPT || "1";
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
@@ -508,7 +517,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const statusCode = isAgentFailure ? 2 : 1;
   const statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
 
-  const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
+  const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));

@@ -574,6 +574,7 @@ describe("sendJobSetupSpan", () => {
     "GH_AW_INFO_WORKFLOW_NAME",
     "GH_AW_INFO_ENGINE_ID",
     "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
     "GITHUB_EVENT_NAME",
@@ -661,6 +662,7 @@ describe("sendJobSetupSpan", () => {
     process.env.GH_AW_INFO_WORKFLOW_NAME = "my-workflow";
     process.env.GH_AW_INFO_ENGINE_ID = "copilot";
     process.env.GITHUB_RUN_ID = "123456789";
+    process.env.GITHUB_RUN_ATTEMPT = "2";
     process.env.GITHUB_ACTOR = "octocat";
     process.env.GITHUB_REPOSITORY = "owner/repo";
 
@@ -684,8 +686,23 @@ describe("sendJobSetupSpan", () => {
     expect(attrs["gh-aw.workflow.name"]).toBe("my-workflow");
     expect(attrs["gh-aw.engine.id"]).toBe("copilot");
     expect(attrs["gh-aw.run.id"]).toBe("123456789");
+    expect(attrs["gh-aw.run.attempt"]).toBe("2");
     expect(attrs["gh-aw.run.actor"]).toBe("octocat");
     expect(attrs["gh-aw.repository"]).toBe("owner/repo");
+  });
+
+  it("defaults gh-aw.run.attempt to '1' when GITHUB_RUN_ATTEMPT is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.run.attempt"]).toBe("1");
   });
 
   it("uses trace ID from options.traceId for cross-job correlation", async () => {
@@ -845,6 +862,7 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_AW_OTEL_TRACE_ID",
     "GITHUB_AW_OTEL_PARENT_SPAN_ID",
     "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
     "GITHUB_ACTOR",
     "GITHUB_REPOSITORY",
     "GITHUB_EVENT_NAME",
@@ -897,6 +915,35 @@ describe("sendJobConclusionSpan", () => {
     expect(span.name).toBe("gh-aw.job.safe-outputs");
     expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_RUN_ATTEMPT = "3";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.run.attempt"]).toBe("3");
+  });
+
+  it("defaults gh-aw.run.attempt to '1' when neither awInfo nor GITHUB_RUN_ATTEMPT is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.run.attempt"]).toBe("1");
   });
 
   it("includes effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is set", async () => {
