@@ -97,8 +97,11 @@ repo:${{ github.repository }} is:issue is:open label:documentation
 For each open issue:
 1. Read the issue body to understand the described gap.
 2. Check the referenced documentation file to verify the gap still exists.
+   - **If the issue references an existing file**: confirm the content is missing or incorrect.
+   - **If the issue references a file path that does not yet exist** (e.g., body says "Create `docs/guides/foo.md`"): treat this as a **confirmed new-file gap** and proceed to Step 5 to create the file.
 3. If confirmed, include a fix in this run's PR and reference the issue with `Closes #NNN`.
-4. If the gap is already fixed, note it (do not reopen or comment on the issue).
+4. If the gap is already fixed (file exists and contains the described content), note it and skip.
+5. If you choose not to address an open documentation issue in this run (e.g., it requires structural navigation changes, is out of scope, or cannot be confirmed), record it in the **Skipped Issues** section of the PR description (see Step 6).
 
 ### 1c. Scan Recently Closed Documentation Issues
 
@@ -249,6 +252,13 @@ This PR updates the documentation based on features merged in the last 24 hours.
 - #PR_NUMBER - Brief description
 
 </details>
+
+### Skipped Issues
+
+<!-- List every open documentation issue that was NOT addressed in this run -->
+<!-- Format: - #NNN — [title]: [reason for skip] -->
+<!-- Example: - #123 — docs: add guide for foo: requires structural nav changes beyond docs scope -->
+<!-- If all open issues were addressed or confirmed already fixed, write "None." -->
 
 ### Notes
 
