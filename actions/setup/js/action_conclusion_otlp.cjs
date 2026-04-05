@@ -16,6 +16,10 @@
  *   INPUT_JOB_NAME – job name from the `job-name` action input; when set the
  *                    span is named "gh-aw.job.<name>", otherwise
  *                    "gh-aw.job.conclusion".
+ *   GH_AW_AGENT_CONCLUSION        – agent job result passed from the agent job
+ *                                   ("success", "failure", "timed_out", etc.);
+ *                                   "failure" and "timed_out" set the span
+ *                                   status to STATUS_CODE_ERROR.
  *   GITHUB_AW_OTEL_TRACE_ID       – parent trace ID (set by action_setup_otlp.cjs)
  *   GITHUB_AW_OTEL_PARENT_SPAN_ID – parent span ID (set by action_setup_otlp.cjs)
  *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (no-op when not set)

@@ -192,4 +192,106 @@ describe("action_conclusion_otlp run()", () => {
     expect(spanName).toBe("gh-aw.job.conclusion");
     fetchSpy.mockRestore();
   });
+
+  it("records agent failure conclusion as STATUS_CODE_ERROR when GH_AW_AGENT_CONCLUSION is 'failure'", async () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_AGENT_CONCLUSION = "failure";
+    let capturedBody;
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+      capturedBody = opts?.body;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    await runConclusion();
+
+    const payload = JSON.parse(capturedBody);
+    const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
+    expect(span?.status?.code).toBe(2); // STATUS_CODE_ERROR
+    expect(span?.status?.message).toBe("agent failure");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
+    expect(conclusionAttr?.value?.stringValue).toBe("failure");
+    fetchSpy.mockRestore();
+    delete process.env.GH_AW_AGENT_CONCLUSION;
+  });
+
+  it("records timed_out conclusion as STATUS_CODE_ERROR when GH_AW_AGENT_CONCLUSION is 'timed_out'", async () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
+    let capturedBody;
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+      capturedBody = opts?.body;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    await runConclusion();
+
+    const payload = JSON.parse(capturedBody);
+    const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
+    expect(span?.status?.code).toBe(2); // STATUS_CODE_ERROR
+    expect(span?.status?.message).toBe("agent timed_out");
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
+    expect(conclusionAttr?.value?.stringValue).toBe("timed_out");
+    fetchSpy.mockRestore();
+    delete process.env.GH_AW_AGENT_CONCLUSION;
+  });
+
+  it("records success conclusion as STATUS_CODE_OK when GH_AW_AGENT_CONCLUSION is 'success'", async () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_AGENT_CONCLUSION = "success";
+    let capturedBody;
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+      capturedBody = opts?.body;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    await runConclusion();
+
+    const payload = JSON.parse(capturedBody);
+    const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
+    expect(span?.status?.code).toBe(1); // STATUS_CODE_OK
+    expect(span?.status?.message).toBeUndefined();
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
+    expect(conclusionAttr?.value?.stringValue).toBe("success");
+    fetchSpy.mockRestore();
+    delete process.env.GH_AW_AGENT_CONCLUSION;
+  });
+
+  it("records cancelled conclusion as STATUS_CODE_OK when GH_AW_AGENT_CONCLUSION is 'cancelled'", async () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+    let capturedBody;
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+      capturedBody = opts?.body;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    await runConclusion();
+
+    const payload = JSON.parse(capturedBody);
+    const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
+    expect(span?.status?.code).toBe(1); // STATUS_CODE_OK (cancelled is not an error)
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
+    expect(conclusionAttr?.value?.stringValue).toBe("cancelled");
+    fetchSpy.mockRestore();
+    delete process.env.GH_AW_AGENT_CONCLUSION;
+  });
+
+  it("omits gh-aw.agent.conclusion attribute when GH_AW_AGENT_CONCLUSION is not set", async () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+    delete process.env.GH_AW_AGENT_CONCLUSION;
+    let capturedBody;
+    const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+      capturedBody = opts?.body;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    await runConclusion();
+
+    const payload = JSON.parse(capturedBody);
+    const span = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0];
+    expect(span?.status?.code).toBe(1); // STATUS_CODE_OK
+    const conclusionAttr = span?.attributes?.find(a => a.key === "gh-aw.agent.conclusion");
+    expect(conclusionAttr).toBeUndefined();
+    fetchSpy.mockRestore();
+  });
 });

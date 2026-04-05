@@ -83,6 +83,8 @@ function buildAttr(key, value) {
  * @property {string} serviceName       - Value for the service.name resource attribute
  * @property {string} [scopeVersion]    - gh-aw version string (e.g. from GH_AW_INFO_VERSION)
  * @property {Array<{key: string, value: object}>} attributes - Span attributes
+ * @property {number} [statusCode]      - OTLP status code: 0=UNSET, 1=OK, 2=ERROR (defaults to 1)
+ * @property {string} [statusMessage]   - Human-readable status message (included when statusCode is 2)
  */
 
 /**
@@ -91,7 +93,13 @@ function buildAttr(key, value) {
  * @param {OTLPSpanOptions} opts
  * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
-function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes }) {
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, statusCode, statusMessage }) {
+  const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
+  /** @type {{ code: number, message?: string }} */
+  const status = { code };
+  if (statusMessage) {
+    status.message = statusMessage;
+  }
   return {
     resourceSpans: [
       {
@@ -110,7 +118,7 @@ function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, en
                 kind: 2, // SPAN_KIND_SERVER
                 startTimeUnixNano: toNanoString(startMs),
                 endTimeUnixNano: toNanoString(endMs),
-                status: { code: 1 }, // STATUS_CODE_OK
+                status,
                 attributes,
               },
             ],
@@ -411,6 +419,9 @@ function readJSONIfExists(filePath) {
  * - `OTEL_EXPORTER_OTLP_ENDPOINT`  – collector endpoint
  * - `OTEL_SERVICE_NAME`             – service name (defaults to "gh-aw")
  * - `GH_AW_EFFECTIVE_TOKENS`        – total effective token count for the run
+ * - `GH_AW_AGENT_CONCLUSION`        – agent job result ("success", "failure", "timed_out",
+ *                                     "cancelled", "skipped"); when "failure" or "timed_out"
+ *                                     the span status is set to STATUS_CODE_ERROR (2)
  * - `INPUT_JOB_NAME`               – job name; set automatically by GitHub Actions from the
  *                                     `job-name` action input
  * - `GITHUB_AW_OTEL_TRACE_ID`      – trace ID written to GITHUB_ENV by the setup step;
@@ -472,6 +483,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
 
+  // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
+  // Values: "success", "failure", "timed_out", "cancelled", "skipped".
+  const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
+
+  // Mark the span as an error when the agent job failed or timed out.
+  const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
+  // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
+  const statusCode = isAgentFailure ? 2 : 1;
+  const statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
+
   const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
 
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
@@ -479,6 +500,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (model) attributes.push(buildAttr("gh-aw.model", model));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
+  }
+  if (agentConclusion) {
+    attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }
 
   const payload = buildOTLPPayload({
@@ -491,6 +515,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     serviceName,
     scopeVersion: version,
     attributes,
+    statusCode,
+    statusMessage,
   });
 
   await sendOTLPSpan(endpoint, payload);
