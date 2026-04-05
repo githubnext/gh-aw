@@ -128,13 +128,30 @@ make test-js
 
 **Success criteria**: All JavaScript tests pass
 
-### 5. Recompile All Workflows
+### 5. Recompile All Workflows (Only When Necessary)
 
-Recompile all workflow markdown files to YAML lock files:
+`make recompile` regenerates ALL `.lock.yml` files. Running it when no `.md` workflow files changed produces 40–100 unchanged diffs and triggers an E003 "PR too large" error.
+
+**Before running recompile**, check whether any workflow `.md` files were modified:
+
+```bash
+git diff --name-only | grep '\.md$'
+```
+
+- **If the output is empty** (no `.md` files changed) → **SKIP this step entirely**. Do not run `make recompile`.
+- **If `.md` files are listed** → Run the recompile:
 
 ```bash
 make recompile
 ```
+
+After recompile, immediately verify the file count:
+
+```bash
+git diff --name-only | wc -l
+```
+
+**If more than 50 files changed**: This indicates a deeper issue (e.g., binary version mismatch or template changes). Do **not** create a PR with 50+ changed files. Call `noop` with: "Recompile generated {count} files (>50 limit). Possible cause: binary version mismatch / template changes. Manual investigation required."
 
 This command:
 1. Syncs templates from `.github` to `pkg/cli/templates`
@@ -148,7 +165,7 @@ This command:
 3. Fix issues in the workflow frontmatter or content
 4. Re-run `make recompile`
 
-**Success criteria**: All workflows compile successfully without errors
+**Success criteria**: All workflows compile successfully without errors; total changed file count ≤ 50
 
 ## Mandatory Exit Protocol
 
@@ -170,6 +187,16 @@ This command:
 
 This is a strict requirement — **every session must produce a safe output**.
 
+## ⚠️ ABSOLUTE FINAL RULE (cannot be skipped)
+
+Before your response ends — no matter what happened — you MUST call one of:
+- `create_pull_request` if you changed any files
+- `noop` if you changed nothing
+
+**If you are about to end your response without having called a safe-output tool, call `noop` RIGHT NOW** with whatever message describes the situation.
+
+There are no exceptions to this rule.
+
 ## Workflow & Best Practices
 
 ### Execution Order
@@ -190,6 +217,18 @@ When fixing issues:
 2. **Re-run the relevant check** after each fix
 3. **Verify the fix** before moving to the next issue
 4. **Commit progress** after completing each major step
+
+### File-Count Guard Before PR Creation
+
+Before committing and calling `create_pull_request`, **always** verify how many files you are about to include:
+
+```bash
+git add -A
+git diff --cached --name-only | wc -l
+```
+
+- **If the count is ≤ 80**: Proceed normally with `git commit` and `create_pull_request`.
+- **If the count is > 80**: Too many files — this will exceed the PR size limit. Call `noop` with an explanation of what caused the large diff instead of creating an oversized PR.
 
 ### Common Issues
 
@@ -227,30 +266,20 @@ The repository uses a Makefile for all build/test/lint operations. Key commands:
 - `make test` - Run all Go tests including integration (~30s)
 - `make test-js` - Run JavaScript tests
 - `make test-all` - Run both Go and JavaScript tests
-- `make recompile` - Recompile all workflows
-- `make agent-finish` - Run complete validation (use this for final check)
+- `make recompile` - Recompile all workflows (only if .md files changed)
+- `make agent-finish` - Run complete validation (avoid — takes 10–15 min)
+
+**⚠️ Do NOT run `make deps-dev` or `make agent-finish`** — deps are already installed by the workflow setup steps, and `make agent-finish` takes 10–15 minutes. Only run targeted commands (`make fmt`, `make lint`, `make test-unit`, `make recompile` (only if .md files changed)) as needed.
 
 ### Final Validation
 
-Before completing your work, optionally run the full validation suite:
+Only run targeted validations, not the full suite:
 
 ```bash
-make agent-finish
+make fmt && make lint && make test-unit
 ```
 
-**WARNING**: This command takes ~10-15 minutes and runs:
-- `make deps-dev` - Install dev dependencies
-- `make fmt` - Format code
-- `make lint` - Run linters
-- `make build` - Build binary
-- `make test-all` - Run all tests
-- `make recompile` - Recompile workflows
-- `make dependabot` - Generate Dependabot manifests
-- `make generate-schema-docs` - Generate schema documentation
-- `make generate-agent-factory` - Generate agent factory documentation
-- `make security-scan` - Run security scans
-
-Only run this if explicitly requested or for final verification.
+**Avoid `make agent-finish`** — it takes 10–15 minutes and re-installs dev dependencies that are already present.
 
 ## Response Style
 

@@ -15,9 +15,10 @@ tracker-id: hourly-ci-cleaner
 # - Early exit: Already optimized with check_ci_status job
 # - Target: Focus on systematic fix application with minimal iteration
 # - Budget target: 15-20 turns for typical CI fixes
-# Note: max-turns not available for Copilot engine (Claude only)
+# - max-turns: 20 (hard limit via Claude engine)
 engine:
-  id: copilot
+  id: claude
+  max-turns: 20
   agent: ci-cleaner
 network:
   allowed:
@@ -126,7 +127,7 @@ When CI fails on the main branch, automatically diagnose and fix the issues by:
 1. Formatting code
 2. Running and fixing linters
 3. Running and fixing tests
-4. Recompiling workflows
+4. Recompiling workflows (only when necessary)
 
 ## Context
 
@@ -135,22 +136,58 @@ When CI fails on the main branch, automatically diagnose and fix the issues by:
 - **CI Status**: ${{ needs.check_ci_status.outputs.ci_status }}
 - **CI Run ID**: ${{ needs.check_ci_status.outputs.ci_run_id }}
 
-## First: Check CI Status
+## First: Verify CI Status
 
-**CRITICAL**: Before starting any work, check the CI Status value above:
+**CRITICAL**: Before starting any work, re-verify the CI status:
 
-- **If CI Status is "success"**: The CI is passing. **Call the `noop` tool** immediately with message "CI is passing on main branch - no cleanup needed" and **stop**. Do not run any commands or make any changes.
+1. **If CI Status above is "success"** (from the context): CI was passing at activation time — call `noop` immediately with "CI is passing on main branch - no cleanup needed" and **stop**.
+2. **If CI Status is "failure"**: Re-verify using the live API — CI may have self-healed since the activation job ran:
+   ```bash
+   gh run list --workflow=ci.yml --branch=main --limit=2 --json conclusion,status,databaseId
+   ```
+   - **If both completed runs are "success"**: CI has self-healed. Call `noop` and **stop**.
+   - **Otherwise**: Proceed with the cleanup tasks below.
 
-- **If CI Status is "failure"** or anything else: The CI workflow has failed. Proceed with the cleanup tasks below.
+## Your Task (Only if CI is still failing)
 
-## Your Task (Only if CI Status is "failure")
+**⚠️ Do NOT run `make deps-dev` or `make agent-finish`** — these take 10–15 minutes. Deps are already installed by the workflow setup steps.
 
 Follow the instructions from the ci-cleaner agent to:
 
 1. **Format sources** - Run `make fmt` to format all code
 2. **Run linters** - Run `make lint` and fix any issues
 3. **Run tests** - Run `make test-unit` and fix failures
-4. **Recompile workflows** - Run `make recompile` to update lock files
+4. **Recompile workflows** - Only if `.md` workflow files changed (see below)
+
+## Recompile Only When Necessary
+
+**IMPORTANT**: `make recompile` regenerates ALL `.lock.yml` files and can easily produce 40–100 changed files, triggering an E003 "PR too large" error.
+
+Before running `make recompile`:
+1. Check if any workflow `.md` files were modified:
+   ```bash
+   git diff --name-only | grep '\.md$'
+   ```
+2. **If NO `.md` files changed** → **SKIP `make recompile` entirely**.
+3. **If `.md` files changed** → Run `make recompile`, then immediately check:
+   ```bash
+   git diff --name-only | wc -l
+   ```
+4. **If more than 50 files changed** after recompile → This indicates a deeper issue (e.g., binary version mismatch). Do NOT create a PR. Call `noop` with: "Recompile generated {count} files (>50 limit). Possible cause: binary version mismatch / template changes. Manual investigation required."
+
+## File-Count Guard Before PR Creation
+
+Before committing and calling `create_pull_request`, **always** check how many files you are about to include:
+
+```bash
+git add -A
+git diff --cached --name-only | wc -l
+```
+
+- **If the count is ≤ 80**: Proceed normally with `git commit` and `create_pull_request`.
+- **If the count is > 80**: Too many files — this will exceed the PR size limit. Call `noop` with an explanation of what happened instead of creating an oversized PR.
+
+> **Note on thresholds**: The 50-file recompile check is an early warning that something unexpected happened during recompile itself. The 80-file PR guard is the final safety net for the total changeset (formatting + linting + test fixes + recompile combined).
 
 ## Execution Guidelines
 
@@ -159,10 +196,9 @@ Follow the instructions from the ci-cleaner agent to:
 - **Verify quickly**: Re-run checks after fixes to confirm, then move on
 - **One issue at a time**: Only proceed to next step when current step passes
 - **Be concise**: Keep analysis brief and actionable
-- **Early termination & PR creation**: If all checks pass, stop immediately and **call the `create_pull_request` MCP tool from the safe-outputs server** to create a PR with all fixes
 
 **Token Budget Awareness:**
-- Aim to complete fixes within 15-20 conversation turns
+- Hard limit: 20 conversation turns (enforced)
 - Avoid verbose explanations - focus on actions
 - If stuck on a single issue after 3 attempts, document it and move on
 - Prioritize formatting and linting fixes over complex test failures
@@ -181,6 +217,16 @@ Follow the instructions from the ci-cleaner agent to:
 - Stage and commit whatever changes you have made so far (`git add -A && git commit`)
 - Call `create_pull_request` with a description of what was fixed and what remains
 - Do NOT exit without calling a safe-outputs tool
+
+## ⚠️ ABSOLUTE FINAL RULE (cannot be skipped)
+
+Before your response ends — no matter what happened — you MUST call one of:
+- `create_pull_request` if you changed any files
+- `noop` if you changed nothing
+
+**If you are about to end your response without having called a safe-output tool, call `noop` RIGHT NOW** with whatever message describes the situation.
+
+There are no exceptions to this rule.
 
 ## Pull Request Guidelines
 
@@ -201,10 +247,10 @@ Your pull request should:
    - **body**: Detailed description including:
      - Summary of CI failures discovered
      - List of fixes applied (formatting, linting, test fixes, recompilation)
-     - Confirmation that `make fmt`, `make lint`, `make test-unit`, and `make recompile` all pass
+     - Confirmation that `make fmt`, `make lint`, `make test-unit`, and (if applicable) `make recompile` all pass
      - Link to the failed CI run that triggered this fix
    - The title will automatically be prefixed with "[ca] " as configured in safe-outputs
-   
+
 **Important**: Do NOT write JSON to files manually. Use the MCP tool by calling it directly. The tool is available in your environment and will handle creating the pull request.
 
-Begin by checking out the main branch and running the CI cleaner steps.
+Begin by verifying the current CI status as described above.
