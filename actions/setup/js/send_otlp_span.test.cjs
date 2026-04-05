@@ -17,6 +17,8 @@ const {
   sendOTLPSpan,
   sendJobSetupSpan,
   sendJobConclusionSpan,
+  readLastRateLimitEntry,
+  GITHUB_RATE_LIMITS_JSONL_PATH,
   OTEL_JSONL_PATH,
   appendToOTLPJSONL,
   SPAN_KIND_INTERNAL,
@@ -405,6 +407,73 @@ describe("sendOTLPSpan", () => {
     expect(warnSpy.mock.calls[1][0]).toContain("error after 2 attempts");
 
     warnSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readLastRateLimitEntry
+// ---------------------------------------------------------------------------
+
+describe("readLastRateLimitEntry", () => {
+  let readFileSpy;
+
+  beforeEach(() => {
+    readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+  });
+
+  afterEach(() => {
+    readFileSpy.mockRestore();
+  });
+
+  it("returns null when the file does not exist", () => {
+    expect(readLastRateLimitEntry()).toBeNull();
+  });
+
+  it("returns null when the file is empty", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return "";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toBeNull();
+  });
+
+  it("returns null when the file contains only blank lines", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return "\n\n  \n";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toBeNull();
+  });
+
+  it("returns the parsed entry for a single-line file", () => {
+    const entry = { resource: "core", limit: 5000, remaining: 4823, used: 177 };
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return JSON.stringify(entry) + "\n";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toEqual(entry);
+  });
+
+  it("returns the last entry for a multi-line file", () => {
+    const first = { resource: "core", remaining: 4900 };
+    const last = { resource: "core", remaining: 4500 };
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+        return JSON.stringify(first) + "\n" + JSON.stringify(last) + "\n";
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toEqual(last);
+  });
+
+  it("returns null when the last line is invalid JSON", () => {
+    readFileSpy.mockImplementation(filePath => {
+      if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) return "not valid json\n";
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+    expect(readLastRateLimitEntry()).toBeNull();
   });
 });
 
@@ -1442,6 +1511,109 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.error.count");
       expect(keys).not.toContain("gh-aw.error.messages");
       expect(span.status.message).toBe("agent failure");
+    });
+  });
+
+  describe("rate-limit enrichment in conclusion span", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("includes rate-limit attributes when github_rate_limits.jsonl has entries", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const entry = { timestamp: "2026-04-05T09:00:00.000Z", source: "response_headers", operation: "issues.get", resource: "core", limit: 5000, remaining: 4823, used: 177, reset: "2026-04-05T09:30:00.000Z" };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return JSON.stringify(entry) + "\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4823);
+      expect(attrs["gh-aw.github.rate_limit.limit"]).toBe(5000);
+      expect(attrs["gh-aw.github.rate_limit.used"]).toBe(177);
+      expect(attrs["gh-aw.github.rate_limit.resource"]).toBe("core");
+    });
+
+    it("uses the last entry when the file contains multiple lines", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const first = { resource: "core", limit: 5000, remaining: 4900, used: 100 };
+      const last = { resource: "core", limit: 5000, remaining: 4500, used: 500 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return JSON.stringify(first) + "\n" + JSON.stringify(last) + "\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4500);
+      expect(attrs["gh-aw.github.rate_limit.used"]).toBe(500);
+    });
+
+    it("omits rate-limit attributes when github_rate_limits.jsonl is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      // readFileSpy already throws ENOENT for all paths
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.limit");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.used");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.resource");
+    });
+
+    it("omits rate-limit attributes when the file contains only invalid JSON", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return "not valid json\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
     });
   });
 });
