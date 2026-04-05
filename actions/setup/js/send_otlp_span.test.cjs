@@ -867,6 +867,7 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_REPOSITORY",
     "GITHUB_EVENT_NAME",
     "INPUT_JOB_NAME",
+    "GH_AW_AGENT_CONCLUSION",
   ];
   let mkdirSpy, appendSpy;
 
@@ -1101,5 +1102,194 @@ describe("sendJobConclusionSpan", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     expect(resourceAttrs).toContainEqual({ key: "service.version", value: { stringValue: "v3.0.0" } });
+  });
+
+  describe("agent_output.json error enrichment", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("adds gh-aw.error.count and gh-aw.error.messages attributes when agent_output.json has errors on failure", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Rate limit exceeded" }, { message: "Tool call failed" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = span.attributes;
+      const errorCount = attrs.find(a => a.key === "gh-aw.error.count");
+      const errorMessages = attrs.find(a => a.key === "gh-aw.error.messages");
+      expect(errorCount).toBeDefined();
+      expect(errorCount.value.intValue).toBe(2);
+      expect(errorMessages).toBeDefined();
+      expect(errorMessages.value.stringValue).toBe("Rate limit exceeded | Tool call failed");
+    });
+
+    it("enriches statusMessage with the first error message on failure", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Rate limit exceeded on claude-3-5-sonnet" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.status.message).toBe("agent failure: Rate limit exceeded on claude-3-5-sonnet");
+    });
+
+    it("enriches statusMessage with the first error message on timed_out", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Execution exceeded 30 minute limit" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.status.message).toBe("agent timed_out: Execution exceeded 30 minute limit");
+    });
+
+    it("caps error messages at 5 entries", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      const manyErrors = [1, 2, 3, 4, 5, 6, 7].map(i => ({ message: `Error ${i}` }));
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: manyErrors });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const errorMessages = span.attributes.find(a => a.key === "gh-aw.error.messages");
+      expect(errorMessages).toBeDefined();
+      expect(errorMessages.value.stringValue).toBe("Error 1 | Error 2 | Error 3 | Error 4 | Error 5");
+      // gh-aw.error.count reflects the full error count (7), not the capped count
+      const errorCount = span.attributes.find(a => a.key === "gh-aw.error.count");
+      expect(errorCount.value.intValue).toBe(7);
+    });
+
+    it("truncates statusMessage to 256 characters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      const longMessage = "x".repeat(300);
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: longMessage }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.status.message.length).toBe(256);
+      expect(span.status.message.startsWith("agent failure: ")).toBe(true);
+    });
+
+    it("does not add error attributes when agent_output.json has no errors array", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ items: [] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.error.count");
+      expect(keys).not.toContain("gh-aw.error.messages");
+      expect(span.status.message).toBe("agent failure");
+    });
+
+    it("does not read agent_output.json when agent conclusion is success", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const agentOutputCalls = readFileSpy.mock.calls.filter(([p]) => p === "/tmp/gh-aw/agent_output.json");
+      expect(agentOutputCalls).toHaveLength(0);
+    });
+
+    it("does not add error attributes when agent_output.json is absent on failure", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      // readFileSpy already throws ENOENT for all paths (set in beforeEach)
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.error.count");
+      expect(keys).not.toContain("gh-aw.error.messages");
+      expect(span.status.message).toBe("agent failure");
+    });
   });
 });

@@ -515,7 +515,20 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const isAgentFailure = agentConclusion === "failure" || agentConclusion === "timed_out";
   // STATUS_CODE_ERROR = 2, STATUS_CODE_OK = 1
   const statusCode = isAgentFailure ? 2 : 1;
-  const statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
+  let statusMessage = isAgentFailure ? `agent ${agentConclusion}` : undefined;
+
+  // When the agent failed, read agent_output.json to surface structured error details.
+  // Lazy-read: skip I/O entirely when the job succeeded or was cancelled.
+  const agentOutput = isAgentFailure ? readJSONIfExists("/tmp/gh-aw/agent_output.json") || {} : {};
+  const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
+  const errorMessages = outputErrors
+    .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (isAgentFailure && errorMessages.length > 0) {
+    statusMessage = `agent ${agentConclusion}: ${errorMessages[0]}`.slice(0, 256);
+  }
 
   const attributes = [buildAttr("gh-aw.workflow.name", workflowName), buildAttr("gh-aw.run.id", runId), buildAttr("gh-aw.run.attempt", runAttempt), buildAttr("gh-aw.run.actor", actor), buildAttr("gh-aw.repository", repository)];
 
@@ -527,6 +540,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
+  }
+  if (isAgentFailure && errorMessages.length > 0) {
+    attributes.push(buildAttr("gh-aw.error.count", outputErrors.length));
+    attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
   }
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
