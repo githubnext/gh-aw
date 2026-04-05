@@ -193,19 +193,18 @@ func RenderJSONMCPConfig(
 		if options.GatewayConfig.KeepaliveInterval != 0 {
 			fmt.Fprintf(&configBuilder, ",\n              \"keepaliveInterval\": %d", options.GatewayConfig.KeepaliveInterval)
 		}
-		// Append OTLP opentelemetry section when configured (shell variable set by setup step).
-		// ${GH_AW_GATEWAY_OTEL} expands to a JSON fragment like ,"opentelemetry":{...} or empty
-		// string when OTLP is not configured, keeping the JSON valid in both cases.
-		//
-		// Contract: GH_AW_GATEWAY_OTEL is only emitted here when OTLPEnabled is true.
-		// The corresponding shell variable is built by generateMCPSetupStep in
-		// mcp_setup_generator.go whenever it detects observability.otlp.endpoint in the
-		// frontmatter (the same condition that sets OTLPEnabled on GatewayConfig).
+		// When OTLP tracing is configured, add the opentelemetry section directly to the
+		// gateway config using ${VARIABLE_NAME} expressions. The gateway expands these at
+		// config-load time from the environment variables passed via -e flags.
+		// Per MCP Gateway Specification §4.1.3.6 and the opentelemetryConfig schema.
 		if options.GatewayConfig.OTLPEnabled {
-			configBuilder.WriteString("${GH_AW_GATEWAY_OTEL}\n")
-		} else {
-			configBuilder.WriteString("\n")
+			configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
+			configBuilder.WriteString("                \"endpoint\": \"${OTEL_EXPORTER_OTLP_ENDPOINT}\",\n")
+			configBuilder.WriteString("                \"traceId\": \"${GITHUB_AW_OTEL_TRACE_ID}\",\n")
+			configBuilder.WriteString("                \"spanId\": \"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\"\n")
+			configBuilder.WriteString("              }")
 		}
+		configBuilder.WriteString("\n")
 		configBuilder.WriteString("            }\n")
 	} else {
 		configBuilder.WriteString("            }\n")
