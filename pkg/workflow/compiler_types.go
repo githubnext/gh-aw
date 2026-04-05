@@ -420,6 +420,7 @@ type WorkflowData struct {
 	SecretMasking               *SecretMaskingConfig      // secret masking configuration
 	ParsedFrontmatter           *FrontmatterConfig        // cached parsed frontmatter configuration (for performance optimization)
 	RawFrontmatter              map[string]any            // raw parsed frontmatter map (for passing to hash functions without re-parsing)
+	ResolvedMCPServers          map[string]any            // fully merged mcp-servers from main workflow and all imports (for mcp inspect)
 	ActionPinWarnings           map[string]bool           // cache of already-warned action pin failures (key: "repo@version")
 	ActionMode                  ActionMode                // action mode for workflow compilation (dev, release, script)
 	HasExplicitGitHubTool       bool                      // true if tools.github was explicitly configured in frontmatter

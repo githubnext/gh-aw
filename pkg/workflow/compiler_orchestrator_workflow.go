@@ -209,6 +209,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
 		RawFrontmatter:        result.Frontmatter,
+		ResolvedMCPServers:    toolsResult.resolvedMCPServers,
 		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
 		ActionMode:            c.actionMode,
 		InlinedImports:        inlinedImports,

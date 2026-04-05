@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -248,29 +249,35 @@ The command will:
 	return cmd
 }
 
-// buildFrontmatterFromWorkflowData reconstructs a frontmatter map from WorkflowData
-// This is used to extract MCP configurations after the compiler has processed imports and merging
+// buildFrontmatterFromWorkflowData constructs a fully resolved frontmatter map from WorkflowData.
+// It uses RawFrontmatter as the base (for safe-outputs, mcp-scripts, on, etc.) and overlays the
+// fully merged tools and mcp-servers so that configurations from imported workflows are included.
+// This is critical for `mcp inspect` to display all MCP servers from the main workflow and imports.
 func buildFrontmatterFromWorkflowData(workflowData *workflow.WorkflowData) map[string]any {
-	// Use the parsed frontmatter's ToMap() method if available
-	// This preserves the original frontmatter structure with imports already merged
-	if workflowData.ParsedFrontmatter != nil {
-		return workflowData.ParsedFrontmatter.ToMap()
-	}
-
-	// Fallback to RawFrontmatter when ParsedFrontmatter is unavailable.
-	// ParseFrontmatterConfig can fail (e.g. when "on:" is a plain string like "issues"
-	// which cannot be unmarshalled into map[string]any), leaving ParsedFrontmatter nil.
-	// RawFrontmatter always contains the complete original frontmatter including mcp-servers.
-	if workflowData.RawFrontmatter != nil {
-		return workflowData.RawFrontmatter
-	}
-
-	// Last-resort fallback – build from tools only (legacy path, should not be reached)
 	frontmatter := make(map[string]any)
 
-	// Add tools section if present
+	// Start from RawFrontmatter to preserve top-level keys like safe-outputs, mcp-scripts, on, etc.
+	// Guard against nil (maps.Copy is safe with a nil source, but explicit is clearer).
+	if workflowData.RawFrontmatter != nil {
+		maps.Copy(frontmatter, workflowData.RawFrontmatter)
+	}
+
+	// Override tools with the fully merged result (includes built-in tools from imports such as
+	// github, playwright, and serena). ExtractMCPConfigurations only picks up github/playwright/serena
+	// from the tools key, so extra user-defined entries here are harmless.
 	if len(workflowData.Tools) > 0 {
 		frontmatter["tools"] = workflowData.Tools
+	}
+
+	// Override mcp-servers with the fully merged result (includes user-defined servers from all
+	// imports). ResolvedMCPServers is set to allMCPServers in processToolsAndMarkdown, which merges
+	// the main workflow's mcp-servers with every imported workflow's mcp-servers.
+	if len(workflowData.ResolvedMCPServers) > 0 {
+		frontmatter["mcp-servers"] = workflowData.ResolvedMCPServers
+	} else {
+		// No mcp-servers defined in main workflow or any import; remove any stale key so
+		// ExtractMCPConfigurations falls through to check tools for built-in MCP tools.
+		delete(frontmatter, "mcp-servers")
 	}
 
 	return frontmatter

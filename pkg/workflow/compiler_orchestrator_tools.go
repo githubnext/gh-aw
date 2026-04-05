@@ -16,6 +16,7 @@ var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
 // toolsProcessingResult holds the results of tools and markdown processing
 type toolsProcessingResult struct {
 	tools                 map[string]any
+	resolvedMCPServers    map[string]any // fully merged mcp-servers from main workflow and all imports
 	runtimes              map[string]any
 	toolsTimeout          string
 	toolsStartupTimeout   string
@@ -295,6 +296,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	return &toolsProcessingResult{
 		tools:                 tools,
+		resolvedMCPServers:    allMCPServers,
 		runtimes:              runtimes,
 		toolsTimeout:          toolsTimeout,
 		toolsStartupTimeout:   toolsStartupTimeout,
