@@ -591,6 +591,41 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// When OTLP tracing is configured (observability.otlp.endpoint set in frontmatter),
+	// build the GH_AW_GATEWAY_OTEL shell variable that injects the opentelemetry section
+	// into the MCP gateway config JSON. The section includes:
+	//   - endpoint: from OTEL_EXPORTER_OTLP_ENDPOINT (workflow-level env var)
+	//   - headers:  parsed from OTEL_EXPORTER_OTLP_HEADERS (comma-separated key=value pairs)
+	//   - traceId:  from GITHUB_AW_OTEL_TRACE_ID (set by actions/setup via GITHUB_ENV)
+	//   - spanId:   from GITHUB_AW_OTEL_PARENT_SPAN_ID (set by actions/setup via GITHUB_ENV)
+	// The variable is consumed by ${GH_AW_GATEWAY_OTEL} in the MCP config heredoc.
+	otlpEndpoint, _ := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
+	if otlpEndpoint == "" {
+		otlpEndpoint = getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter)
+	}
+	otlpEnabled := otlpEndpoint != ""
+	if otlpEnabled {
+		yaml.WriteString("          # Build OpenTelemetry config for MCP gateway (§4.1.3.6)\n")
+		yaml.WriteString("          _otel_extra=\"\"\n")
+		yaml.WriteString("          if [ -n \"${OTEL_EXPORTER_OTLP_HEADERS:-}\" ]; then\n")
+		yaml.WriteString("            _parts=\"\"\n")
+		yaml.WriteString("            IFS=',' read -ra _pairs <<< \"${OTEL_EXPORTER_OTLP_HEADERS}\"\n")
+		yaml.WriteString("            for _pair in \"${_pairs[@]}\"; do\n")
+		yaml.WriteString("              _key=\"${_pair%%=*}\"\n")
+		yaml.WriteString("              _val=\"${_pair#*=}\"\n")
+		yaml.WriteString("              if [ -n \"$_key\" ]; then\n")
+		yaml.WriteString("                [ -n \"$_parts\" ] && _parts=\"${_parts},\"\n")
+		yaml.WriteString("                _parts=\"${_parts}\\\"${_key}\\\":\\\"${_val}\\\"\"\n")
+		yaml.WriteString("              fi\n")
+		yaml.WriteString("            done\n")
+		yaml.WriteString("            [ -n \"$_parts\" ] && _otel_extra=\"${_otel_extra},\\\"headers\\\":{${_parts}}\"\n")
+		yaml.WriteString("          fi\n")
+		yaml.WriteString("          [ -n \"${GITHUB_AW_OTEL_TRACE_ID:-}\" ] && _otel_extra=\"${_otel_extra},\\\"traceId\\\":\\\"${GITHUB_AW_OTEL_TRACE_ID}\\\"\"\n")
+		yaml.WriteString("          [ -n \"${GITHUB_AW_OTEL_PARENT_SPAN_ID:-}\" ] && _otel_extra=\"${_otel_extra},\\\"spanId\\\":\\\"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\\\"\"\n")
+		yaml.WriteString("          GH_AW_GATEWAY_OTEL=\",\\\"opentelemetry\\\":{\\\"endpoint\\\":\\\"${OTEL_EXPORTER_OTLP_ENDPOINT}\\\"${_otel_extra}}\"\n")
+		yaml.WriteString("          \n")
+	}
+
 	// Build container command
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
@@ -676,6 +711,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_PORT")
 		containerCmd.WriteString(" -e GH_AW_SAFE_OUTPUTS_API_KEY")
 	}
+	// OpenTelemetry tracing env vars - pass to gateway when OTLP is configured so the
+	// gateway can export distributed traces for MCP tool calls (spec §4.1.3.6)
+	if otlpEnabled {
+		containerCmd.WriteString(" -e OTEL_EXPORTER_OTLP_ENDPOINT")
+		containerCmd.WriteString(" -e OTEL_EXPORTER_OTLP_HEADERS")
+		containerCmd.WriteString(" -e GITHUB_AW_OTEL_TRACE_ID")
+		containerCmd.WriteString(" -e GITHUB_AW_OTEL_PARENT_SPAN_ID")
+	}
 	if len(gatewayConfig.Env) > 0 {
 		// Using functional helper to extract map keys
 		envVarNames := sliceutil.MapToSlice(gatewayConfig.Env)
@@ -720,6 +763,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 			addedEnvVars["GH_AW_SAFE_OUTPUTS_PORT"] = true
 			addedEnvVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = true
+		}
+		if otlpEnabled {
+			addedEnvVars["OTEL_EXPORTER_OTLP_ENDPOINT"] = true
+			addedEnvVars["OTEL_EXPORTER_OTLP_HEADERS"] = true
+			addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = true
+			addedEnvVars["GITHUB_AW_OTEL_PARENT_SPAN_ID"] = true
 		}
 
 		// Mark gateway config environment variables as added

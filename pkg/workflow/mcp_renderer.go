@@ -193,7 +193,19 @@ func RenderJSONMCPConfig(
 		if options.GatewayConfig.KeepaliveInterval != 0 {
 			fmt.Fprintf(&configBuilder, ",\n              \"keepaliveInterval\": %d", options.GatewayConfig.KeepaliveInterval)
 		}
-		configBuilder.WriteString("\n")
+		// Append OTLP opentelemetry section when configured (shell variable set by setup step).
+		// ${GH_AW_GATEWAY_OTEL} expands to a JSON fragment like ,"opentelemetry":{...} or empty
+		// string when OTLP is not configured, keeping the JSON valid in both cases.
+		//
+		// Contract: GH_AW_GATEWAY_OTEL is only emitted here when OTLPEnabled is true.
+		// The corresponding shell variable is built by generateMCPSetupStep in
+		// mcp_setup_generator.go whenever it detects observability.otlp.endpoint in the
+		// frontmatter (the same condition that sets OTLPEnabled on GatewayConfig).
+		if options.GatewayConfig.OTLPEnabled {
+			configBuilder.WriteString("${GH_AW_GATEWAY_OTEL}\n")
+		} else {
+			configBuilder.WriteString("\n")
+		}
 		configBuilder.WriteString("            }\n")
 	} else {
 		configBuilder.WriteString("            }\n")

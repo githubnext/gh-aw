@@ -127,6 +127,14 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		payloadSizeThreshold = constants.DefaultMCPGatewayPayloadSizeThreshold
 	}
 
+	// Detect OTLP configuration from observability.otlp frontmatter.
+	// When configured, the gateway will emit distributed traces to the OTLP collector
+	// using the trace/span IDs from the actions/setup step for cross-job correlation.
+	otlpEndpoint, _ := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
+	if otlpEndpoint == "" {
+		otlpEndpoint = getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter)
+	}
+
 	// Return gateway config with required fields populated
 	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
 	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
@@ -139,6 +147,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		PayloadSizeThreshold: payloadSizeThreshold,                             // Size threshold in bytes
 		TrustedBots:          workflowData.SandboxConfig.MCP.TrustedBots,       // Additional trusted bot identities from frontmatter
 		KeepaliveInterval:    workflowData.SandboxConfig.MCP.KeepaliveInterval, // Keepalive interval from frontmatter (0=default, -1=disabled, >0=custom)
+		OTLPEnabled:          otlpEndpoint != "",                               // Enable gateway OTLP tracing when observability.otlp.endpoint is configured
 	}
 }
 
