@@ -19,6 +19,7 @@ imports:
   - shared/activation-app.md
   - shared/go-source-analysis.md
   - shared/safe-output-app.md
+  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:

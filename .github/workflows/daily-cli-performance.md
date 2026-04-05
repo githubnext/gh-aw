@@ -56,6 +56,7 @@ strict: true
 imports:
   - shared/reporting.md
   - shared/go-make.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'

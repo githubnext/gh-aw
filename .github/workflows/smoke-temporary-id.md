@@ -40,6 +40,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed successfully. Temporary ID validation passed."
     run-failure: "❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details."
 timeout-minutes: 10
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Temporary ID Functionality

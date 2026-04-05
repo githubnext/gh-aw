@@ -15,6 +15,7 @@ engine: codex
 strict: true
 imports:
   - shared/github-guard-policy.md
+  - shared/observability-otlp.md
 tools:
   github:
     mode: local

@@ -46,6 +46,7 @@ safe-outputs:
 
 imports:
   - shared/community-attribution.md
+  - shared/observability-otlp.md
 
 steps:
   - name: Fetch PR data for attribution index

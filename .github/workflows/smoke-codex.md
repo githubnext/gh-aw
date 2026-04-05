@@ -30,6 +30,7 @@ imports:
           type: issues
           max: 500
           github-token: ${{ secrets.GITHUB_TOKEN }}
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults

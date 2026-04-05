@@ -22,6 +22,7 @@ safe-outputs:
 timeout-minutes: 60
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 
 # Daily Security Red Team Agent

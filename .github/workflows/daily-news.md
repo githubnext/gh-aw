@@ -284,6 +284,7 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trends.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---

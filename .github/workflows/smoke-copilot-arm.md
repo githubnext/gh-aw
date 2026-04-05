@@ -21,6 +21,7 @@ imports:
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
@@ -106,10 +107,6 @@ safe-outputs:
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
 strict: false
-observability:
-  otlp:
-    endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
-    headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
 ---
 
 # Smoke Test: Copilot Engine Validation (ARM64)

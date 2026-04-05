@@ -34,6 +34,7 @@ imports:
     with:
       packages:
         - microsoft/apm-sample-package
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults

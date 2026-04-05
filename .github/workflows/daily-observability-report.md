@@ -21,6 +21,7 @@ imports:
       title-prefix: "[observability] "
       expires: 1d
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

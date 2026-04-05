@@ -39,6 +39,8 @@ timeout-minutes: 15
 
 features:
   copilot-requests: true
+imports:
+  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

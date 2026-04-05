@@ -33,6 +33,7 @@ imports:
       title-prefix: "[daily-firewall-report] "
   - shared/reporting.md
   - shared/trending-charts-simple.md
+  - shared/observability-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

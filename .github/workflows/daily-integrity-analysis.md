@@ -56,6 +56,7 @@ imports:
       title-prefix: "[integrity] "
   - shared/reporting.md
   - shared/python-dataviz.md
+  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -16,6 +16,7 @@ imports:
       title-prefix: "[daily-compiler-quality] "
       expires: 1d
   - shared/go-source-analysis.md
+  - shared/observability-otlp.md
 tools:
   github:
     toolsets:

@@ -21,6 +21,7 @@ timeout-minutes: 15
 strict: true
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---

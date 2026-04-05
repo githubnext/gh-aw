@@ -24,6 +24,7 @@ imports:
       title-prefix: "[daily regulatory] "
   - shared/github-queries-mcp-script.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -21,6 +21,7 @@ imports:
     with:
       title-prefix: "[daily secrets] "
   - shared/reporting.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---
