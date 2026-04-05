@@ -34,8 +34,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 	// Activation job doesn't need project support (no safe outputs processed here)
-	// traceID is empty: activation generates the root trace ID
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, "")...)
+	// When a pre-activation job exists, reuse its trace ID so all three jobs (pre_activation,
+	// activation, agent) share a single OTLP trace. When no pre-activation job exists, the
+	// empty string instructs the setup action to generate a new root trace ID.
+	activationSetupTraceID := ""
+	if preActivationJobCreated {
+		activationSetupTraceID = fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.PreActivationJobName)
+	}
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, activationSetupTraceID)...)
 	// Expose the trace ID for cross-job span correlation so downstream jobs can reuse it
 	outputs["setup-trace-id"] = "${{ steps.setup.outputs.trace-id }}"
 

@@ -23,6 +23,7 @@ timeout-minutes: 60
 strict: true
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 
 # Daily CLI Tools Exploratory Tester

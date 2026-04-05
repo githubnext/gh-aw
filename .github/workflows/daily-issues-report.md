@@ -27,6 +27,7 @@ imports:
   - shared/python-nlp.md
   - shared/trends.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

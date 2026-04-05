@@ -60,6 +60,7 @@ imports:
             - ".git/**"
             - "node_modules/**"
           context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
+  - shared/observability-otlp.md
 
 ---
 

@@ -18,6 +18,7 @@ imports:
   - shared/activation-app.md
   - shared/go-source-analysis.md
   - shared/safe-output-app.md
+  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:
@@ -30,7 +31,7 @@ tools:
   repo-memory:
     branch-name: memory/testify-expert
     description: "Tracks processed test files to avoid duplicates"
-    file-glob: ["memory/testify-expert/*.json", "memory/testify-expert/*.txt"]
+    file-glob: ["*.json", "*.txt"]
     max-file-size: 51200  # 50KB
   github:
     toolsets: [default]

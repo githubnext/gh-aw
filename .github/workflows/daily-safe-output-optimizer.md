@@ -28,6 +28,7 @@ imports:
   - shared/activation-app.md
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 
 # Safe Output Tool Optimizer

@@ -26,6 +26,7 @@ imports:
   - shared/reporting.md
   - shared/python-dataviz.md
   - shared/trends.md
+  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

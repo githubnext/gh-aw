@@ -19,6 +19,7 @@ strict: true
 imports:
   - shared/gh.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 network:
   allowed:
     - defaults

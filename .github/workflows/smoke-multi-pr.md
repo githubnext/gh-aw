@@ -42,6 +42,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) successfully created multiple PRs."
     run-failure: "❌ [{workflow_name}]({run_url}) failed to create multiple PRs. Check the logs."
 timeout-minutes: 10
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Multiple Pull Request Creation

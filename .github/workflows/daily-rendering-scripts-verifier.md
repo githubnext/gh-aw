@@ -47,6 +47,7 @@ timeout-minutes: 30
 imports:
   - shared/activation-app.md
   - shared/reporting.md
+  - shared/observability-otlp.md
 ---
 
 # Daily Rendering Scripts Verifier

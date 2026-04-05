@@ -3,6 +3,7 @@ description: Daily Semgrep security scan for SQL injection and other vulnerabili
 name: Daily Semgrep Scan
 imports:
   - shared/mcp/semgrep.md
+  - shared/observability-otlp.md
 on:
   schedule: daily
   workflow_dispatch:

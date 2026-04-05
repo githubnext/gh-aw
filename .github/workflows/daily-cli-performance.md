@@ -36,7 +36,7 @@ tools:
   repo-memory:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
-    file-glob: ["memory/cli-performance/*.json", "memory/cli-performance/*.jsonl", "memory/cli-performance/*.txt"]
+    file-glob: ["*.json", "*.jsonl", "*.txt"]
     max-file-size: 131072  # 128KB — bounded to limit context size
   bash: true
   edit:
@@ -56,6 +56,7 @@ strict: true
 imports:
   - shared/reporting.md
   - shared/go-make.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'

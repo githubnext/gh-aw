@@ -39,6 +39,8 @@ safe-outputs:
       run-success: "✅ Service ports validation passed! [{workflow_name}]({run_url}) confirms agent can reach Redis."
       run-failure: "❌ Service ports validation failed! [{workflow_name}]({run_url}) could not reach Redis: {status}"
 timeout-minutes: 5
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Service Ports (Redis)

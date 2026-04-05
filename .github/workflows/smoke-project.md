@@ -62,6 +62,8 @@ safe-outputs:
       run-failure: "❌ [{workflow_name}]({run_url}) encountered failures. Check the logs for details."
 timeout-minutes: 15
 strict: true
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Project Operations Validation

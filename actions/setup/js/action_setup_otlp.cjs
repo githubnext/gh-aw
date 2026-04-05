@@ -41,7 +41,9 @@ async function run() {
   // Explicitly read INPUT_TRACE_ID and pass it as options.traceId so the
   // activation job's trace ID is used even when process.env propagation
   // through GitHub Actions expression evaluation is unreliable.
-  const inputTraceId = (process.env.INPUT_TRACE_ID || "").trim().toLowerCase();
+  // Also handle INPUT_TRACE-ID (with hyphen) in case the runner preserves
+  // the original input name hyphen instead of converting it to an underscore.
+  const inputTraceId = (process.env.INPUT_TRACE_ID || process.env["INPUT_TRACE-ID"] || "").trim().toLowerCase();
   if (inputTraceId) {
     console.log(`[otlp] INPUT_TRACE_ID=${inputTraceId} (will reuse activation trace)`);
   } else {

@@ -44,6 +44,8 @@ safe-outputs:
       run-success: "✅ All tools validated successfully! [{workflow_name}]({run_url}) confirms agent container is ready."
       run-failure: "❌ Tool validation failed! [{workflow_name}]({run_url}) detected missing tools: {status}"
 timeout-minutes: 5
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Agent Container Tools

@@ -43,6 +43,7 @@ steps:
       gh aw --version
 imports:
   - shared/reporting.md
+  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---

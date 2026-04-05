@@ -17,6 +17,7 @@ engine: claude
 imports:
   - shared/reporting.md
   - shared/mcp/serena-go.md
+  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:

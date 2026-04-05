@@ -23,6 +23,8 @@ safe-outputs:
       - smoke-workflow-call
     max: 1
 timeout-minutes: 20
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Call Workflow Orchestrator

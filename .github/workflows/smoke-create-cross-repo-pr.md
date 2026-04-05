@@ -58,6 +58,8 @@ safe-outputs:
 timeout-minutes: 10
 features:
   copilot-requests: true
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Smoke Test: Cross-Repo Pull Request Creation

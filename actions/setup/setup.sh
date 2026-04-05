@@ -20,6 +20,14 @@ set -e
 # Falls back to 0 when node is unavailable.
 SETUP_START_MS=$(node -e "process.stdout.write(String(Date.now()))" 2>/dev/null || echo "0")
 
+# Log a message only when GitHub Actions debug mode is active.
+# Handles both RUNNER_DEBUG=1 and RUNNER_DEBUG=true (GitHub Actions sets 'true').
+debug_log() {
+  if [[ "${RUNNER_DEBUG:-0}" == "1" || "${RUNNER_DEBUG:-0}" == "true" ]]; then
+    echo "$@"
+  fi
+}
+
 # Helper: create directories, using sudo on macOS where system directories are root-owned
 create_dir() {
   if [[ "$(uname -s)" == "Darwin" ]] && [[ "$1" == /opt/* ]]; then
@@ -51,7 +59,7 @@ if [ ! -w "${RUNNER_TEMP}" ]; then
   exit 1
 fi
 
-echo "Using RUNNER_TEMP: ${RUNNER_TEMP} (writable: yes)"
+debug_log "Using RUNNER_TEMP: ${RUNNER_TEMP} (writable: yes)"
 
 # Get destination from input or use default
 DESTINATION="${INPUT_DESTINATION:-${GH_AW_ROOT}/actions}"
@@ -59,28 +67,30 @@ DESTINATION="${INPUT_DESTINATION:-${GH_AW_ROOT}/actions}"
 # Get safe-output-custom-tokens flag from input (default: false)
 SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED="${INPUT_SAFE_OUTPUT_CUSTOM_TOKENS:-false}"
 
-echo "Copying activation files to ${DESTINATION}"
-echo "Safe-output custom tokens support: ${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}"
+debug_log "Copying activation files to ${DESTINATION}"
+debug_log "Safe-output custom tokens support: ${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}"
 
 # Create destination directory if it doesn't exist
 create_dir "${DESTINATION}"
-echo "Created directory: ${DESTINATION}"
+debug_log "Created directory: ${DESTINATION}"
 
 # Remove and recreate /tmp/gh-aw directory to ensure a clean state
 rm -rf /tmp/gh-aw
 mkdir -p /tmp/gh-aw
-echo "Created /tmp/gh-aw directory"
+debug_log "Created /tmp/gh-aw directory"
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JS_SOURCE_DIR="${SCRIPT_DIR}/js"
 
-echo "Script directory: ${SCRIPT_DIR}"
-echo "Looking for JavaScript sources in: ${JS_SOURCE_DIR}"
+debug_log "Script directory: ${SCRIPT_DIR}"
+debug_log "Looking for JavaScript sources in: ${JS_SOURCE_DIR}"
 
-# Debug: List the contents of the script directory to understand the file layout
-echo "Contents of ${SCRIPT_DIR}:"
-ls -la "${SCRIPT_DIR}" || echo "::warning::Failed to list ${SCRIPT_DIR}"
+# In debug mode, list the contents of the script directory to understand the file layout
+if [[ "${RUNNER_DEBUG:-0}" == "1" ]]; then
+  echo "Contents of ${SCRIPT_DIR}:"
+  ls -la "${SCRIPT_DIR}" || echo "::warning::Failed to list ${SCRIPT_DIR}"
+fi
 
 # Check if js directory exists
 if [ ! -d "${JS_SOURCE_DIR}" ]; then
@@ -88,18 +98,20 @@ if [ ! -d "${JS_SOURCE_DIR}" ]; then
   echo "::error::The js/ directory should contain the source of truth JavaScript files"
   echo "::error::These files should be committed to git in actions/setup/js/"
   
-  # Additional debugging: show what's in the parent directory
+  # Show parent directory contents to aid debugging
   echo "Contents of parent directory $(dirname "${SCRIPT_DIR}"):"
   ls -la "$(dirname "${SCRIPT_DIR}")" || echo "::warning::Failed to list parent directory"
   
   exit 1
 fi
 
-# List files in js directory for debugging
-echo "Files in ${JS_SOURCE_DIR}:"
-ls -1 "${JS_SOURCE_DIR}" | head -10 || echo "::warning::Failed to list files in ${JS_SOURCE_DIR}"
+# In debug mode, list files in js directory
+if [[ "${RUNNER_DEBUG:-0}" == "1" ]]; then
+  echo "Files in ${JS_SOURCE_DIR}:"
+  ls -1 "${JS_SOURCE_DIR}" | head -10 || echo "::warning::Failed to list files in ${JS_SOURCE_DIR}"
+fi
 FILE_COUNT_IN_DIR=$(ls -1 "${JS_SOURCE_DIR}" 2>/dev/null | wc -l)
-echo "Found ${FILE_COUNT_IN_DIR} files in ${JS_SOURCE_DIR}"
+debug_log "Found ${FILE_COUNT_IN_DIR} files in ${JS_SOURCE_DIR}"
 
 # Copy all .cjs files from js/ to destination (excluding test files)
 FILE_COUNT=0
@@ -108,11 +120,11 @@ for file in "${JS_SOURCE_DIR}"/*.cjs; do
     filename=$(basename "$file")
     # Skip test files
     if [[ "$filename" == *.test.cjs ]]; then
-      echo "Skipping test file: ${filename}"
+      debug_log "Skipping test file: ${filename}"
       continue
     fi
     cp "$file" "${DESTINATION}/${filename}"
-    echo "Copied: ${filename}"
+    debug_log "Copied: ${filename}"
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done
@@ -122,7 +134,7 @@ for file in "${JS_SOURCE_DIR}"/*.json; do
   if [ -f "$file" ]; then
     filename=$(basename "$file")
     cp "$file" "${DESTINATION}/${filename}"
-    echo "Copied: ${filename}"
+    debug_log "Copied: ${filename}"
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done
@@ -130,18 +142,18 @@ done
 # Copy shell scripts from sh/ directory with executable permissions
 SH_SOURCE_DIR="${SCRIPT_DIR}/sh"
 if [ -d "${SH_SOURCE_DIR}" ]; then
-  echo "Found shell scripts directory: ${SH_SOURCE_DIR}"
+  debug_log "Found shell scripts directory: ${SH_SOURCE_DIR}"
   for file in "${SH_SOURCE_DIR}"/*.sh; do
     if [ -f "$file" ]; then
       filename=$(basename "$file")
       cp "$file" "${DESTINATION}/${filename}"
       chmod +x "${DESTINATION}/${filename}"
-      echo "Copied shell script: ${filename}"
+      debug_log "Copied shell script: ${filename}"
       FILE_COUNT=$((FILE_COUNT + 1))
     fi
   done
 else
-  echo "No shell scripts directory found at ${SH_SOURCE_DIR}"
+  debug_log "No shell scripts directory found at ${SH_SOURCE_DIR}"
 fi
 
 echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
@@ -156,34 +168,34 @@ if [ -f "${MODEL_MULTIPLIERS_FILE}" ] && [ -n "${GITHUB_ENV:-}" ]; then
     cat "${MODEL_MULTIPLIERS_FILE}"
     echo "EOF_MODEL_MULTIPLIERS"
   } >> "${GITHUB_ENV}"
-  echo "Exported GH_AW_MODEL_MULTIPLIERS from ${MODEL_MULTIPLIERS_FILE}"
+  debug_log "Exported GH_AW_MODEL_MULTIPLIERS from ${MODEL_MULTIPLIERS_FILE}"
 fi
 
 # Copy prompt markdown files to their expected directory
 PROMPTS_DEST="${GH_AW_ROOT}/prompts"
-echo "Copying prompt markdown files to ${PROMPTS_DEST}"
+debug_log "Copying prompt markdown files to ${PROMPTS_DEST}"
 create_dir "${PROMPTS_DEST}"
 
 MD_SOURCE_DIR="${SCRIPT_DIR}/md"
 PROMPT_COUNT=0
 if [ -d "${MD_SOURCE_DIR}" ]; then
-  echo "Found markdown prompts directory: ${MD_SOURCE_DIR}"
+  debug_log "Found markdown prompts directory: ${MD_SOURCE_DIR}"
   for file in "${MD_SOURCE_DIR}"/*.md; do
     if [ -f "$file" ]; then
       filename=$(basename "$file")
       cp "$file" "${PROMPTS_DEST}/${filename}"
-      echo "Copied prompt: ${filename}"
+      debug_log "Copied prompt: ${filename}"
       PROMPT_COUNT=$((PROMPT_COUNT + 1))
     fi
   done
-  echo "Successfully copied ${PROMPT_COUNT} prompt files to ${PROMPTS_DEST}"
+  debug_log "Successfully copied ${PROMPT_COUNT} prompt files to ${PROMPTS_DEST}"
 else
   echo "::warning::No markdown prompts directory found at ${MD_SOURCE_DIR}"
 fi
 
 # Copy mcp-scripts files to their expected directory
 MCP_SCRIPTS_DEST="${GH_AW_ROOT}/mcp-scripts"
-echo "Copying mcp-scripts files to ${MCP_SCRIPTS_DEST}"
+debug_log "Copying mcp-scripts files to ${MCP_SCRIPTS_DEST}"
 create_dir "${MCP_SCRIPTS_DEST}"
 
 MCP_SCRIPTS_FILES=(
@@ -217,7 +229,7 @@ MCP_SCRIPTS_MISSING=()
 for file in "${MCP_SCRIPTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${MCP_SCRIPTS_DEST}/${file}"
-    echo "Copied mcp-scripts: ${file}"
+    debug_log "Copied mcp-scripts: ${file}"
     MCP_SCRIPTS_COUNT=$((MCP_SCRIPTS_COUNT + 1))
   else
     echo "::error::MCP Scripts file not found: ${file}"
@@ -239,7 +251,7 @@ echo "Successfully copied ${MCP_SCRIPTS_COUNT} mcp-scripts files to ${MCP_SCRIPT
 
 # Copy safe-outputs files to their expected directory
 SAFE_OUTPUTS_DEST="${GH_AW_ROOT}/safeoutputs"
-echo "Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+debug_log "Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 create_dir "${SAFE_OUTPUTS_DEST}"
 
 SAFE_OUTPUTS_FILES=(
@@ -302,12 +314,12 @@ SAFE_OUTPUTS_MISSING=()
 for file in "${SAFE_OUTPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
-    echo "Copied safe-outputs: ${file}"
+    debug_log "Copied safe-outputs: ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   elif [ -f "${DESTINATION}/${file}" ]; then
     # If file was already copied to main destination, copy from there
     cp "${DESTINATION}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
-    echo "Copied safe-outputs (from destination): ${file}"
+    debug_log "Copied safe-outputs (from destination): ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   else
     echo "::error::Safe-outputs file not found: ${file}"
@@ -329,7 +341,7 @@ fi
 if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
   cp "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
   chmod +x "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
-  echo "Copied safe-outputs MCP entry point: mcp-server.cjs"
+  debug_log "Copied safe-outputs MCP entry point: mcp-server.cjs"
   SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
 else
   echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
@@ -338,7 +350,7 @@ fi
 # Copy safe_outputs_tools.json to tools.json (required by safe-outputs server)
 if [ -f "${JS_SOURCE_DIR}/safe_outputs_tools.json" ]; then
   cp "${JS_SOURCE_DIR}/safe_outputs_tools.json" "${SAFE_OUTPUTS_DEST}/tools.json"
-  echo "Copied safe-outputs tools definition: tools.json"
+  debug_log "Copied safe-outputs tools definition: tools.json"
   SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
 else
   echo "::error::Safe-outputs tools definition not found: safe_outputs_tools.json"
@@ -349,7 +361,7 @@ fi
 # The actual config is optional and will be loaded from environment if provided
 if [ ! -f "${SAFE_OUTPUTS_DEST}/config.json" ]; then
   echo "{}" > "${SAFE_OUTPUTS_DEST}/config.json"
-  echo "Created empty config.json for safe-outputs server"
+  debug_log "Created empty config.json for safe-outputs server"
 fi
 
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
@@ -384,7 +396,7 @@ if [ "${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}" = "true" ]; then
   # Return to original directory
   cd - > /dev/null
 else
-  echo "Custom tokens not enabled - skipping @actions/github installation"
+  debug_log "Custom tokens not enabled - skipping @actions/github installation"
 fi
 
 # Send OTLP job setup span when configured (non-fatal).
@@ -392,9 +404,9 @@ fi
 # to keep dev/release and script mode behavior in sync.
 # Skipped when GH_AW_SKIP_SETUP_OTLP=1 because index.js will send the span itself.
 if [ -z "${GH_AW_SKIP_SETUP_OTLP}" ] && command -v node &>/dev/null && [ -f "${DESTINATION}/action_setup_otlp.cjs" ]; then
-  echo "Sending OTLP setup span..."
+  debug_log "Sending OTLP setup span..."
   SETUP_START_MS="${SETUP_START_MS}" INPUT_TRACE_ID="${INPUT_TRACE_ID:-}" node "${DESTINATION}/action_setup_otlp.cjs" || true
-  echo "OTLP setup span step complete"
+  debug_log "OTLP setup span step complete"
 fi
 
 # Set output
@@ -404,5 +416,5 @@ if [ -n "${GITHUB_OUTPUT}" ]; then
   echo "safe_outputs_files_copied=${SAFE_OUTPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
   echo "prompt_files_copied=${PROMPT_COUNT}" >> "${GITHUB_OUTPUT}"
 else
-  echo "GITHUB_OUTPUT not set, skipping output"
+  debug_log "GITHUB_OUTPUT not set, skipping output"
 fi

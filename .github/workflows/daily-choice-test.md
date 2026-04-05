@@ -56,6 +56,8 @@ safe-outputs:
             else
               echo "No agent output found"
             fi
+imports:
+  - shared/observability-otlp.md
 ---
 
 # Daily Choice Type Test

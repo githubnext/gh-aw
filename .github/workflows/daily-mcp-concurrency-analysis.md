@@ -20,6 +20,7 @@ imports:
   - uses: shared/mcp/serena.md
     with:
       languages: ["go", "typescript"]
+  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:
