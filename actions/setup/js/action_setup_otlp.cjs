@@ -27,6 +27,7 @@
 
 const path = require("path");
 const { appendFileSync } = require("fs");
+const { performance } = require("perf_hooks");
 
 /**
  * Send the OTLP job-setup span and propagate trace context via GITHUB_OUTPUT /
@@ -91,7 +92,7 @@ async function run() {
     }
     // Propagate setup-end timestamp so the conclusion span can measure actual
     // job execution duration (setup-end → conclusion-start).
-    const setupEndMs = Date.now();
+    const setupEndMs = Math.round(performance.timeOrigin + performance.now());
     appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_JOB_START_MS=${setupEndMs}\n`);
     console.log(`[otlp] GITHUB_AW_OTEL_JOB_START_MS written to GITHUB_ENV`);
   }
