@@ -515,3 +515,115 @@ safe-outputs:
 		t.Errorf("single failure should not use 'Multiple schema validation failures' prefix; got:\n%s", errorText)
 	}
 }
+
+// TestStripDetailLinePrefix verifies that stripDetailLinePrefix removes the
+// "'path' (line N, col M): " prefix added by formatSchemaFailureDetail.
+func TestStripDetailLinePrefix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "strips path-position prefix",
+			input:    "'engine' (line 2, col 1): value must be one of 'claude', 'codex'",
+			expected: "value must be one of 'claude', 'codex'",
+		},
+		{
+			name:     "strips nested path prefix",
+			input:    "'safe-outputs/create-issue' (line 5, col 3): Unknown property: bad-field",
+			expected: "Unknown property: bad-field",
+		},
+		{
+			name:     "leaves plain message unchanged (no prefix)",
+			input:    "value must be one of 'read', 'write', 'none'",
+			expected: "value must be one of 'read', 'write', 'none'",
+		},
+		{
+			name:     "leaves multi-failure message unchanged",
+			input:    "Multiple schema validation failures:\n- 'engine' (line 2, col 1): bad value",
+			expected: "Multiple schema validation failures:\n- 'engine' (line 2, col 1): bad value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := stripDetailLinePrefix(tt.input)
+			if result != tt.expected {
+				t.Errorf("stripDetailLinePrefix(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestFormatSchemaFailureDetailNoDuplicateSuggestions verifies that when
+// appendKnownFieldValidValuesHint already adds a "Valid …" list (e.g. for
+// permissions paths), generateSchemaBasedSuggestions does not append another
+// duplicate list to the same message.
+func TestFormatSchemaFailureDetailNoDuplicateSuggestions(t *testing.T) {
+	t.Parallel()
+
+	// A permissions path triggers appendKnownFieldValidValuesHint to add
+	// "Valid permission scopes: …".  Without the guard introduced by the fix,
+	// generateSchemaBasedSuggestions would also append "Valid fields are: …",
+	// resulting in the permission list being shown twice.
+	pathInfo := JSONPathInfo{
+		Path:    "/permissions/completely-unknown-xyz",
+		Message: "additional properties not allowed",
+	}
+	result := formatSchemaFailureDetail(pathInfo, mainWorkflowSchema, "on: daily\npermissions:\n  completely-unknown-xyz: read\n", 2)
+
+	// Count occurrences of "Valid " — there must be at most one.
+	count := strings.Count(result, "Valid ")
+	if count > 1 {
+		t.Errorf("formatSchemaFailureDetail should not repeat 'Valid ' more than once; got %d occurrences in:\n%s", count, result)
+	}
+}
+
+// TestValidateWithSchemaAndLocationSingleFailureStripsPathPrefix verifies that
+// for a single schema validation failure the "'path' (line N, col M):" prefix is
+// stripped from the error message (it is redundant because the IDE-format header
+// already encodes the position).
+func TestValidateWithSchemaAndLocationSingleFailureStripsPathPrefix(t *testing.T) {
+	t.Parallel()
+
+	// Use an unknown top-level field that is guaranteed to fail with a single
+	// additional-properties error.
+	yamlContent := `---
+on: daily
+completely-unknown-field-xyz: true
+---
+# body`
+	filePath := filepath.Join(t.TempDir(), "workflow.md")
+	if err := os.WriteFile(filePath, []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	frontmatter := map[string]any{
+		"on":                           "daily",
+		"completely-unknown-field-xyz": true,
+	}
+
+	err := validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath)
+	if err == nil {
+		t.Fatal("expected schema validation error, got nil")
+	}
+
+	errorText := err.Error()
+	// The "'completely-unknown-field-xyz' (line N, col M):" prefix must NOT appear
+	// for a single failure — the IDE header already encodes position.
+	if strings.Contains(errorText, "(line ") && strings.Contains(errorText, ", col ") {
+		// Only fail if the path+position prefix appears BEFORE the message content,
+		// which indicates it hasn't been stripped.
+		if strings.Contains(errorText, "'completely-unknown-field-xyz' (line") {
+			t.Errorf("single failure message should not contain the path+position prefix; got:\n%s", errorText)
+		}
+	}
+	// The error must still describe the problem.
+	if !strings.Contains(errorText, "completely-unknown-field-xyz") {
+		t.Errorf("error message should identify the invalid field; got:\n%s", errorText)
+	}
+}

@@ -80,12 +80,29 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			return parser.NewFormattedParserError(vscodeFormat)
 		}
 
-		// Fallback if we can't parse the line/col
-		frontmatterErrorLog.Print("Could not extract line/col from formatted error")
-		return fmt.Errorf("%s: %w", filePath, err)
+		// Fallback if we can't parse the line/col: emit an IDE-compatible error
+		// pointing to the frontmatter start so the developer is at least brought to
+		// the right section rather than the useless line 1, col 1.
+		frontmatterErrorLog.Print("Could not extract line/col from formatted error, falling back to frontmatter start")
+		fallbackMsg := "failed to parse YAML frontmatter"
+		// Try to surface a single-line description from the raw error text.
+		if idx := strings.Index(errorStr, "failed to parse frontmatter:\n"); idx >= 0 {
+			rest := errorStr[idx+len("failed to parse frontmatter:\n"):]
+			if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
+				rest = rest[:nl]
+			}
+			if translated := parser.TranslateYAMLMessage(strings.TrimSpace(rest)); translated != "" {
+				fallbackMsg = "failed to parse YAML frontmatter: " + translated
+			}
+		}
+		fallbackFmt := fmt.Sprintf("%s:%d:1: error: %s", filePath, frontmatterLineOffset, fallbackMsg)
+		return parser.NewFormattedParserError(fallbackFmt)
 	}
 
-	// Fallback: if not already formatted, return with filename prefix
+	// Fallback: if not already formatted, create a FormattedParserError pointing to the
+	// frontmatter start so the IDE navigates to the right file and section rather than
+	// defaulting to line 1, col 1.
 	frontmatterErrorLog.Printf("Using fallback error message: %v", err)
-	return fmt.Errorf("%s: failed to extract frontmatter: %w", filePath, err)
+	fallbackFmt := fmt.Sprintf("%s:%d:1: error: %s", filePath, frontmatterLineOffset, err.Error())
+	return parser.NewFormattedParserError(fallbackFmt)
 }
