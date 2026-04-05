@@ -353,7 +353,7 @@ describe("sanitizeOTLPPayload", () => {
   });
 
   it("redacts span attributes matching all sensitive key patterns", () => {
-    const sensitiveKeys = ["token", "secret", "password", "passwd", "api_key", "auth", "credential", "access_key"];
+    const sensitiveKeys = ["token", "secret", "password", "passwd", "key", "api_key", "auth", "credential", "access_key"];
     const attrs = sensitiveKeys.map(k => buildAttr(k, "should-be-redacted"));
     const payload = makePayload(attrs);
     const sanitized = sanitizeOTLPPayload(payload);
@@ -361,6 +361,18 @@ describe("sanitizeOTLPPayload", () => {
     for (const k of sensitiveKeys) {
       const attr = spanAttrs.find(a => a.key === k);
       expect(attr.value.stringValue, `${k} should be redacted`).toBe("[REDACTED]");
+    }
+  });
+
+  it("does not redact non-sensitive compound keys containing 'key' after underscore", () => {
+    const nonSensitiveKeys = ["sort_key", "cache_key", "primary_key", "partition_key"];
+    const attrs = nonSensitiveKeys.map(k => buildAttr(k, "safe-value"));
+    const payload = makePayload(attrs);
+    const sanitized = sanitizeOTLPPayload(payload);
+    const spanAttrs = sanitized.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    for (const k of nonSensitiveKeys) {
+      const attr = spanAttrs.find(a => a.key === k);
+      expect(attr.value.stringValue, `${k} should not be redacted`).toBe("safe-value");
     }
   });
 
@@ -379,7 +391,19 @@ describe("sanitizeOTLPPayload", () => {
     const payload = makePayload([buildAttr("large.output", longValue)]);
     const sanitized = sanitizeOTLPPayload(payload);
     const attr = sanitized.resourceSpans[0].scopeSpans[0].spans[0].attributes.find(a => a.key === "large.output");
-    expect(attr.value.stringValue.length, "value should be truncated to 1024 chars").toBe(1024);
+    expect(attr.value.stringValue, "value should be truncated to 1024 chars").toBe(longValue.slice(0, 1024));
+  });
+
+  it("does not redact non-string sensitive attribute values (e.g. intValue, boolValue)", () => {
+    const intAttr = { key: "auth_count", value: { intValue: 42 } };
+    const boolAttr = { key: "token_valid", value: { boolValue: true } };
+    const payload = makePayload([intAttr, boolAttr]);
+    const sanitized = sanitizeOTLPPayload(payload);
+    const spanAttrs = sanitized.resourceSpans[0].scopeSpans[0].spans[0].attributes;
+    const sanitizedInt = spanAttrs.find(a => a.key === "auth_count");
+    expect(sanitizedInt.value.intValue, "intValue sensitive attribute should not be redacted").toBe(42);
+    const sanitizedBool = spanAttrs.find(a => a.key === "token_valid");
+    expect(sanitizedBool.value.boolValue, "boolValue sensitive attribute should not be redacted").toBe(true);
   });
 
   it("does not mutate the original payload", () => {

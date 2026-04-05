@@ -216,11 +216,14 @@ function parseOTLPHeaders(raw) {
 /**
  * Regular expression matching attribute key fragments that indicate the value
  * is sensitive and should be redacted before the payload is sent over the
- * wire.  The pattern is case-insensitive and matches as a substring so that
- * compound keys like `gh.auth_token` or `db.password_hash` are also caught.
+ * wire.  The pattern is case-insensitive.  Word-boundary anchors (`\b`) are
+ * used for `key` so that generic infrastructure keys like `sort_key` or
+ * `cache_key` (where "key" is preceded by an underscore, a word character)
+ * are **not** over-redacted, while dot-separated forms like `app.key` and
+ * standalone `key` attributes are still caught.
  * @type {RegExp}
  */
-const SENSITIVE_ATTR_KEY_RE = /token|secret|password|passwd|key|auth|credential|api[_-]?key|access[_-]?key/i;
+const SENSITIVE_ATTR_KEY_RE = /token|secret|password|passwd|\bkey\b|auth|credential|api[_-]?key|access[_-]?key/i;
 
 /**
  * Maximum length (in characters) allowed for a string attribute value.
