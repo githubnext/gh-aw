@@ -96,8 +96,10 @@ Test workflow that creates issues.`,
 
 			// For workflows with safe-outputs, verify they reference the correct job name
 			if strings.Contains(tt.workflowContent, "safe-outputs:") {
-				expectedNeedsLine := "needs: " + tt.expectedJobName
-				if !strings.Contains(lockContentStr, expectedNeedsLine) {
+				// The safe_outputs job depends on multiple jobs (activation, agent, detection),
+				// so the needs value is a YAML list ("- agent") rather than a scalar ("needs: agent").
+				expectedNeedsItem := "- " + tt.expectedJobName
+				if !strings.Contains(lockContentStr, expectedNeedsItem) {
 					t.Errorf("Safe output jobs should depend on '%s' job", tt.expectedJobName)
 					t.Logf("Lock file content:\n%s", lockContentStr)
 				}
