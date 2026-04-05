@@ -389,6 +389,8 @@ async function sendJobSetupSpan(options = {}) {
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
+  const ref = process.env.GITHUB_REF || "";
+  const sha = process.env.GITHUB_SHA || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -410,6 +412,12 @@ async function sendJobSetupSpan(options = {}) {
   }
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
@@ -568,6 +576,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
+  const ref = process.env.GITHUB_REF || "";
+  const sha = process.env.GITHUB_SHA || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
@@ -636,6 +646,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
