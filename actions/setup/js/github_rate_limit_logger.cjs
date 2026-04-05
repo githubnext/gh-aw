@@ -108,9 +108,9 @@ function logRateLimitFromResponse(response, operation) {
   };
 
   if (resource) entry.resource = resource;
-  if (limit !== undefined) entry.limit = limit !== undefined ? parseInt(limit, 10) : undefined;
-  if (remaining !== undefined) entry.remaining = remaining !== undefined ? parseInt(remaining, 10) : undefined;
-  if (used !== undefined) entry.used = used !== undefined ? parseInt(used, 10) : undefined;
+  if (limit !== undefined) entry.limit = parseInt(limit, 10);
+  if (remaining !== undefined) entry.remaining = parseInt(remaining, 10);
+  if (used !== undefined) entry.used = parseInt(used, 10);
   if (reset) entry.reset = parseResetTimestamp(reset);
 
   appendEntry(entry);
