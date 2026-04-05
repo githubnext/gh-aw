@@ -85,19 +85,3 @@ func (m *Miner) LoadJSON(data []byte) error {
 	persistLog.Printf("Loaded miner state: clusters=%d", len(snap.Clusters))
 	return nil
 }
-
-// LoadMinerJSON creates a new Miner by restoring state from JSON bytes.
-func LoadMinerJSON(data []byte) (*Miner, error) {
-	var snap Snapshot
-	if err := json.Unmarshal(data, &snap); err != nil {
-		return nil, fmt.Errorf("agentdrain: LoadMinerJSON: %w", err)
-	}
-	m, err := NewMiner(snap.Config)
-	if err != nil {
-		return nil, err
-	}
-	if err := m.LoadJSON(data); err != nil {
-		return nil, err
-	}
-	return m, nil
-}

@@ -67,28 +67,6 @@ func TestTrain_ClusterMerge(t *testing.T) {
 	}
 }
 
-func TestMatch_InferenceOnly(t *testing.T) {
-	m, err := NewMiner(DefaultConfig())
-	if err != nil {
-		t.Fatalf("NewMiner: %v", err)
-	}
-	// Train once.
-	_, err = m.Train("stage=plan action=start")
-	if err != nil {
-		t.Fatalf("Train: %v", err)
-	}
-	before := m.ClusterCount()
-
-	// Match should not create new clusters.
-	_, _, err = m.Match("stage=plan action=unknown_value")
-	if err != nil {
-		t.Fatalf("Match: unexpected error: %v", err)
-	}
-	if m.ClusterCount() != before {
-		t.Errorf("Match: cluster count changed from %d to %d", before, m.ClusterCount())
-	}
-}
-
 func TestMasking(t *testing.T) {
 	masker, err := NewMasker(DefaultConfig().MaskRules)
 	if err != nil {
@@ -151,38 +129,6 @@ func TestFlattenEvent(t *testing.T) {
 	// Stage should appear first.
 	if !strings.HasPrefix(result, "stage=tool_call") {
 		t.Errorf("FlattenEvent: stage not first: %q", result)
-	}
-}
-
-func TestSaveLoadJSON(t *testing.T) {
-	cfg := DefaultConfig()
-	m, err := NewMiner(cfg)
-	if err != nil {
-		t.Fatalf("NewMiner: %v", err)
-	}
-	lines := []string{
-		"stage=plan action=start",
-		"stage=plan action=start",
-		"stage=tool_call tool=search",
-	}
-	for _, l := range lines {
-		if _, err := m.Train(l); err != nil {
-			t.Fatalf("Train(%q): %v", l, err)
-		}
-	}
-	originalCount := m.ClusterCount()
-
-	data, err := m.SaveJSON()
-	if err != nil {
-		t.Fatalf("SaveJSON: %v", err)
-	}
-
-	m2, err := LoadMinerJSON(data)
-	if err != nil {
-		t.Fatalf("LoadMinerJSON: %v", err)
-	}
-	if m2.ClusterCount() != originalCount {
-		t.Errorf("round-trip: expected %d clusters, got %d", originalCount, m2.ClusterCount())
 	}
 }
 

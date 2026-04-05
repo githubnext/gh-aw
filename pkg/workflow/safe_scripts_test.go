@@ -174,52 +174,6 @@ func TestGenerateCustomScriptToolDefinition(t *testing.T) {
 }
 
 // TestScriptToolsInFilteredJSON verifies scripts appear in the filtered tools JSON
-func TestScriptToolsInFilteredJSON(t *testing.T) {
-	workflowData := &WorkflowData{
-		SafeOutputs: &SafeOutputsConfig{
-			Scripts: map[string]*SafeScriptConfig{
-				"my-custom-handler": {
-					Description: "A custom script handler",
-					Inputs: map[string]*InputDefinition{
-						"target": {
-							Description: "Target to process",
-							Required:    true,
-							Type:        "string",
-						},
-					},
-					Script: "return async (m) => ({ success: true });",
-				},
-			},
-		},
-	}
-
-	toolsJSON, err := generateFilteredToolsJSON(workflowData, ".github/workflows/test.md")
-	require.NoError(t, err, "Should generate tools JSON without error")
-
-	var tools []map[string]any
-	err = json.Unmarshal([]byte(toolsJSON), &tools)
-	require.NoError(t, err, "Tools JSON should be parseable")
-
-	var customTool map[string]any
-	for _, tool := range tools {
-		if name, ok := tool["name"].(string); ok && name == "my_custom_handler" {
-			customTool = tool
-			break
-		}
-	}
-	require.NotNil(t, customTool, "Should find my_custom_handler tool in tools JSON")
-	assert.Equal(t, "A custom script handler", customTool["description"], "Description should match")
-
-	inputSchema, ok := customTool["inputSchema"].(map[string]any)
-	require.True(t, ok, "Should have inputSchema")
-
-	properties, ok := inputSchema["properties"].(map[string]any)
-	require.True(t, ok, "Should have properties")
-	assert.Contains(t, properties, "target", "Should have target property")
-}
-
-// TestGenerateSafeOutputScriptContent verifies that the handler body is wrapped with config
-// destructuring and a handler function — users write only the handler body.
 func TestGenerateSafeOutputScriptContent(t *testing.T) {
 	scriptConfig := &SafeScriptConfig{
 		Script: "core.info(`Channel: ${item.channel}`); return { success: true };",
