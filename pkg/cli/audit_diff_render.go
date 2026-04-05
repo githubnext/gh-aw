@@ -149,7 +149,7 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 		fmt.Printf("**New domains (%d)**\n", len(diff.NewDomains))
 		for _, entry := range diff.NewDomains {
 			total := entry.Run2Allowed + entry.Run2Blocked
-			statusIcon := statusEmoji(entry.Run2Status)
+			statusIcon := firewallStatusEmoji(entry.Run2Status)
 			anomalyTag := ""
 			if entry.IsAnomaly {
 				anomalyTag = " ⚠️"
@@ -171,8 +171,8 @@ func renderFirewallDiffMarkdownSection(diff *FirewallDiff) {
 	if len(diff.StatusChanges) > 0 {
 		fmt.Printf("**Status changes (%d)**\n", len(diff.StatusChanges))
 		for _, entry := range diff.StatusChanges {
-			icon1 := statusEmoji(entry.Run1Status)
-			icon2 := statusEmoji(entry.Run2Status)
+			icon1 := firewallStatusEmoji(entry.Run1Status)
+			icon2 := firewallStatusEmoji(entry.Run2Status)
 			anomalyTag := ""
 			if entry.IsAnomaly {
 				anomalyTag = " ⚠️"
@@ -324,7 +324,7 @@ func renderFirewallDiffPrettySection(diff *FirewallDiff) {
 			}
 			config.Rows = append(config.Rows, []string{
 				entry.Domain,
-				statusEmoji(entry.Run2Status) + " " + entry.Run2Status,
+				firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status,
 				strconv.Itoa(total),
 				anomalyNote,
 			})
@@ -342,7 +342,7 @@ func renderFirewallDiffPrettySection(diff *FirewallDiff) {
 			total := entry.Run1Allowed + entry.Run1Blocked
 			config.Rows = append(config.Rows, []string{
 				entry.Domain,
-				statusEmoji(entry.Run1Status) + " " + entry.Run1Status,
+				firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status,
 				strconv.Itoa(total),
 			})
 		}
@@ -362,8 +362,8 @@ func renderFirewallDiffPrettySection(diff *FirewallDiff) {
 			}
 			config.Rows = append(config.Rows, []string{
 				entry.Domain,
-				statusEmoji(entry.Run1Status) + " " + entry.Run1Status,
-				statusEmoji(entry.Run2Status) + " " + entry.Run2Status,
+				firewallStatusEmoji(entry.Run1Status) + " " + entry.Run1Status,
+				firewallStatusEmoji(entry.Run2Status) + " " + entry.Run2Status,
 				anomalyNote,
 			})
 		}
@@ -583,8 +583,8 @@ func renderTokenUsageDiffPrettySection(run1ID, run2ID int64, diff *TokenUsageDif
 	}
 }
 
-// statusEmoji returns the status emoji for a domain status
-func statusEmoji(status string) string {
+// firewallStatusEmoji returns the status emoji for a domain status
+func firewallStatusEmoji(status string) string {
 	switch status {
 	case "allowed":
 		return "✅"

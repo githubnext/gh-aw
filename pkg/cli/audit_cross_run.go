@@ -229,7 +229,7 @@ func buildCrossRunAuditReport(inputs []crossRunInput) *CrossRunAuditReport {
 				agg.totalBlocked += stats.Blocked
 				agg.perRun = append(agg.perRun, DomainRunStatus{
 					RunID:   in.RunID,
-					Status:  domainStatus(stats),
+					Status:  classifyFirewallDomainStatus(stats),
 					Allowed: stats.Allowed,
 					Blocked: stats.Blocked,
 				})
@@ -354,7 +354,7 @@ func buildCrossRunAuditReport(inputs []crossRunInput) *CrossRunAuditReport {
 			SeenInRuns:    len(agg.perRun),
 			TotalAllowed:  agg.totalAllowed,
 			TotalBlocked:  agg.totalBlocked,
-			OverallStatus: domainStatus(DomainRequestStats{Allowed: agg.totalAllowed, Blocked: agg.totalBlocked}),
+			OverallStatus: classifyFirewallDomainStatus(DomainRequestStats{Allowed: agg.totalAllowed, Blocked: agg.totalBlocked}),
 			PerRunStatus:  fullPerRun,
 		}
 		report.DomainInventory = append(report.DomainInventory, entry)

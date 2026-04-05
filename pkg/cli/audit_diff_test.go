@@ -243,7 +243,7 @@ func TestDomainStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := domainStatus(tt.stats)
+			result := classifyFirewallDomainStatus(tt.stats)
 			assert.Equal(t, tt.expected, result, "Domain status should match")
 		})
 	}
@@ -297,11 +297,11 @@ func TestFirewallDiffJSONSerialization(t *testing.T) {
 }
 
 func TestStatusEmoji(t *testing.T) {
-	assert.Equal(t, "✅", statusEmoji("allowed"), "Allowed should show checkmark")
-	assert.Equal(t, "❌", statusEmoji("denied"), "Denied should show X")
-	assert.Equal(t, "⚠️", statusEmoji("mixed"), "Mixed should show warning")
-	assert.Equal(t, "❓", statusEmoji("unknown"), "Unknown should show question mark")
-	assert.Equal(t, "❓", statusEmoji(""), "Empty should show question mark")
+	assert.Equal(t, "✅", firewallStatusEmoji("allowed"), "Allowed should show checkmark")
+	assert.Equal(t, "❌", firewallStatusEmoji("denied"), "Denied should show X")
+	assert.Equal(t, "⚠️", firewallStatusEmoji("mixed"), "Mixed should show warning")
+	assert.Equal(t, "❓", firewallStatusEmoji("unknown"), "Unknown should show question mark")
+	assert.Equal(t, "❓", firewallStatusEmoji(""), "Empty should show question mark")
 }
 
 func TestIsEmptyDiff(t *testing.T) {

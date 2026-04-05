@@ -109,7 +109,7 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 				Status:      "new",
 				Run2Allowed: stats2.Allowed,
 				Run2Blocked: stats2.Blocked,
-				Run2Status:  domainStatus(stats2),
+				Run2Status:  classifyFirewallDomainStatus(stats2),
 			}
 			// Anomaly: new denied domain
 			if stats2.Blocked > 0 {
@@ -125,13 +125,13 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 				Status:      "removed",
 				Run1Allowed: stats1.Allowed,
 				Run1Blocked: stats1.Blocked,
-				Run1Status:  domainStatus(stats1),
+				Run1Status:  classifyFirewallDomainStatus(stats1),
 			}
 			diff.RemovedDomains = append(diff.RemovedDomains, entry)
 		} else {
 			// Domain exists in both runs - check for changes
-			status1 := domainStatus(stats1)
-			status2 := domainStatus(stats2)
+			status1 := classifyFirewallDomainStatus(stats1)
+			status2 := classifyFirewallDomainStatus(stats2)
 
 			if status1 != status2 {
 				// Status changed
@@ -198,8 +198,8 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 	return diff
 }
 
-// domainStatus returns "allowed", "denied", or "mixed" based on request stats
-func domainStatus(stats DomainRequestStats) string {
+// classifyFirewallDomainStatus returns "allowed", "denied", or "mixed" based on request stats
+func classifyFirewallDomainStatus(stats DomainRequestStats) string {
 	if stats.Allowed > 0 && stats.Blocked == 0 {
 		return "allowed"
 	}
