@@ -71,6 +71,21 @@ function buildAttr(key, value) {
 }
 
 // ---------------------------------------------------------------------------
+// OTLP SpanKind constants
+// ---------------------------------------------------------------------------
+
+/** OTLP SpanKind: span represents an internal operation (default for job lifecycle spans). */
+const SPAN_KIND_INTERNAL = 1;
+/** OTLP SpanKind: span covers server-side handling of a remote network request. */
+const SPAN_KIND_SERVER = 2;
+/** OTLP SpanKind: span represents an outbound remote call. */
+const SPAN_KIND_CLIENT = 3;
+/** OTLP SpanKind: span represents a message producer (e.g. message queue publish). */
+const SPAN_KIND_PRODUCER = 4;
+/** OTLP SpanKind: span represents a message consumer (e.g. message queue subscriber). */
+const SPAN_KIND_CONSUMER = 5;
+
+// ---------------------------------------------------------------------------
 // OTLP payload builder
 // ---------------------------------------------------------------------------
 
@@ -88,6 +103,7 @@ function buildAttr(key, value) {
  * @property {Array<{key: string, value: object}>} [resourceAttributes] - Extra resource attributes (e.g. github.repository, github.run_id)
  * @property {number} [statusCode]      - OTLP status code: 0=UNSET, 1=OK, 2=ERROR (defaults to 1)
  * @property {string} [statusMessage]   - Human-readable status message (included when statusCode is 2)
+ * @property {number} [kind]            - OTLP SpanKind: use SPAN_KIND_* constants. Defaults to SPAN_KIND_INTERNAL (1).
  */
 
 /**
@@ -96,7 +112,7 @@ function buildAttr(key, value) {
  * @param {OTLPSpanOptions} opts
  * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
-function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage }) {
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL }) {
   const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
   /** @type {{ code: number, message?: string }} */
   const status = { code };
@@ -123,7 +139,7 @@ function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, en
                 spanId,
                 ...(parentSpanId ? { parentSpanId } : {}),
                 name: spanName,
-                kind: 2, // SPAN_KIND_SERVER
+                kind,
                 startTimeUnixNano: toNanoString(startMs),
                 endTimeUnixNano: toNanoString(endMs),
                 status,
@@ -580,6 +596,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 }
 
 module.exports = {
+  SPAN_KIND_INTERNAL,
+  SPAN_KIND_SERVER,
+  SPAN_KIND_CLIENT,
+  SPAN_KIND_PRODUCER,
+  SPAN_KIND_CONSUMER,
   isValidTraceId,
   isValidSpanId,
   generateTraceId,

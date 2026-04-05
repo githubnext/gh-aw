@@ -5,8 +5,23 @@ import fs from "fs";
 // Module import
 // ---------------------------------------------------------------------------
 
-const { isValidTraceId, isValidSpanId, generateTraceId, generateSpanId, toNanoString, buildAttr, buildOTLPPayload, parseOTLPHeaders, sendOTLPSpan, sendJobSetupSpan, sendJobConclusionSpan, OTEL_JSONL_PATH, appendToOTLPJSONL } =
-  await import("./send_otlp_span.cjs");
+const {
+  isValidTraceId,
+  isValidSpanId,
+  generateTraceId,
+  generateSpanId,
+  toNanoString,
+  buildAttr,
+  buildOTLPPayload,
+  parseOTLPHeaders,
+  sendOTLPSpan,
+  sendJobSetupSpan,
+  sendJobConclusionSpan,
+  OTEL_JSONL_PATH,
+  appendToOTLPJSONL,
+  SPAN_KIND_INTERNAL,
+  SPAN_KIND_SERVER,
+} = await import("./send_otlp_span.cjs");
 
 // ---------------------------------------------------------------------------
 // isValidTraceId
@@ -179,7 +194,7 @@ describe("buildOTLPPayload", () => {
     expect(span.traceId).toBe(traceId);
     expect(span.spanId).toBe(spanId);
     expect(span.name).toBe("gh-aw.job.setup");
-    expect(span.kind).toBe(2);
+    expect(span.kind).toBe(SPAN_KIND_INTERNAL);
     expect(span.startTimeUnixNano).toBe(toNanoString(1000));
     expect(span.endTimeUnixNano).toBe(toNanoString(2000));
     expect(span.status.code).toBe(1);
@@ -273,6 +288,35 @@ describe("buildOTLPPayload", () => {
     });
     const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.parentSpanId).toBeUndefined();
+  });
+
+  it("uses SPAN_KIND_INTERNAL (1) by default when kind is not specified", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+    });
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.kind).toBe(SPAN_KIND_INTERNAL);
+  });
+
+  it("uses the caller-supplied kind when specified (e.g. SPAN_KIND_SERVER)", () => {
+    const payload = buildOTLPPayload({
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      spanName: "test",
+      startMs: 0,
+      endMs: 1,
+      serviceName: "gh-aw",
+      attributes: [],
+      kind: SPAN_KIND_SERVER,
+    });
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.kind).toBe(SPAN_KIND_SERVER);
   });
 });
 
