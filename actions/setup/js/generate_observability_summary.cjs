@@ -60,7 +60,7 @@ function collectObservabilityData() {
   const agentOutput = readJSONIfExists(AGENT_OUTPUT_PATH) || { items: [], errors: [] };
   const items = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
-  const traceId = awInfo.context && typeof awInfo.context.workflow_call_id === "string" ? awInfo.context.workflow_call_id : "";
+  const traceId = awInfo.context ? awInfo.context.otel_trace_id || awInfo.context.workflow_call_id || "" : "";
 
   return {
     workflowName: awInfo.workflow_name || "",
