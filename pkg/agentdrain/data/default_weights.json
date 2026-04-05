@@ -39,28 +39,7 @@
         "id": 5,
         "size": 1,
         "stage": "error",
-        "template": [
-          "stage=error",
-          "reason=The",
-          "Serena",
-          "MCP",
-          "server",
-          "is",
-          "not",
-          "available",
-          "in",
-          "this",
-          "environment.",
-          "No",
-          "serena-*",
-          "tools",
-          "are",
-          "registered.",
-          "tool=Serena",
-          "MCP",
-          "server",
-          "type=missing_tool"
-        ]
+        "template": ["stage=error", "reason=The", "Serena", "MCP", "server", "is", "not", "available", "in", "this", "environment.", "No", "serena-*", "tools", "are", "registered.", "tool=Serena", "MCP", "server", "type=missing_tool"]
       },
       {
         "id": 6,
@@ -234,12 +213,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -285,21 +259,12 @@
         "id": 1,
         "size": 100,
         "stage": "finish",
-        "template": [
-          "stage=finish",
-          "\u003c*\u003e",
-          "tokens=\u003cNUM\u003e"
-        ]
+        "template": ["stage=finish", "\u003c*\u003e", "tokens=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -345,21 +310,12 @@
         "id": 1,
         "size": 72,
         "stage": "plan",
-        "template": [
-          "stage=plan",
-          "errors=\u003cNUM\u003e",
-          "turns=\u003cNUM\u003e"
-        ]
+        "template": ["stage=plan", "errors=\u003cNUM\u003e", "turns=\u003cNUM\u003e"]
       }
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -403,12 +359,7 @@
     "clusters": null,
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -452,12 +403,7 @@
     "clusters": null,
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
@@ -1607,12 +1553,7 @@
     ],
     "config": {
       "Depth": 4,
-      "ExcludeFields": [
-        "session_id",
-        "trace_id",
-        "span_id",
-        "timestamp"
-      ],
+      "ExcludeFields": ["session_id", "trace_id", "span_id", "timestamp"],
       "MaskRules": [
         {
           "Name": "uuid",
