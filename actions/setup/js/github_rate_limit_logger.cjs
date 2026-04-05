@@ -183,11 +183,23 @@ function createRateLimitAwareGithub(github) {
       get(target, method) {
         const fn = target[method];
         if (typeof fn !== "function") return fn;
-        return async (/** @type {any[]} */ ...args) => {
+        const wrapper = async (/** @type {any[]} */ ...args) => {
           const response = await fn.apply(target, args);
           logRateLimitFromResponse(response, `${namespaceName}.${String(method)}`);
           return response;
         };
+        // Wrap the wrapper in a Proxy so that Octokit-specific property accesses
+        // (e.g. .endpoint, used by github.paginate()) fall back to the original fn.
+        // Without this, github.paginate(github.rest.checks.listForRef, ...) throws
+        // "route.endpoint is not a function" because the wrapper does not have
+        // the .endpoint decorator that Octokit endpoint methods carry.
+        return new Proxy(wrapper, {
+          get(wrapperTarget, prop) {
+            const own = Reflect.get(wrapperTarget, prop);
+            if (own !== undefined) return own;
+            return Reflect.get(fn, prop);
+          },
+        });
       },
     });
   }

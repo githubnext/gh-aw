@@ -354,4 +354,49 @@ describe("createRateLimitAwareGithub", () => {
     expect(first.remaining).toBe(4999);
     expect(second.remaining).toBe(4998);
   });
+
+  it("preserves .endpoint on the wrapped method for github.paginate() compatibility", () => {
+    // Octokit endpoint-decorated methods (e.g. github.rest.checks.listForRef) carry
+    // a .endpoint property used by github.paginate() internally.  The proxy must
+    // forward .endpoint to the original function so paginate() doesn't throw
+    // "route.endpoint is not a function".
+    const endpointObj = { merge: vi.fn(), defaults: vi.fn() };
+    const mockListForRef = vi.fn().mockResolvedValue({ data: [], headers: {} });
+    mockListForRef.endpoint = endpointObj;
+
+    const mockGithub = {
+      rest: {
+        checks: { listForRef: mockListForRef },
+      },
+    };
+
+    const gh = createRateLimitAwareGithub(mockGithub);
+    const wrapped = gh.rest.checks.listForRef;
+
+    // The wrapped function must expose .endpoint from the original
+    expect(typeof wrapped).toBe("function");
+    expect(wrapped.endpoint).toBe(endpointObj);
+    expect(wrapped.endpoint.merge).toBe(endpointObj.merge);
+  });
+
+  it("allows github.paginate() to call endpoint.merge on the wrapped method", () => {
+    // Simulate how @octokit/plugin-paginate-rest v9+ uses the endpoint method:
+    //   const options = route.endpoint.merge(parameters)
+    const mergedOptions = { url: "/repos/o/r/commits/main/check-runs", per_page: 100 };
+    const endpointObj = { merge: vi.fn().mockReturnValue(mergedOptions) };
+    const mockListForRef = vi.fn().mockResolvedValue({ data: [], headers: {} });
+    mockListForRef.endpoint = endpointObj;
+
+    const mockGithub = {
+      rest: { checks: { listForRef: mockListForRef } },
+    };
+
+    const gh = createRateLimitAwareGithub(mockGithub);
+    const wrapped = gh.rest.checks.listForRef;
+
+    // paginate() would call this internally
+    const result = wrapped.endpoint.merge({ owner: "o", repo: "r", ref: "main", per_page: 100 });
+    expect(result).toBe(mergedOptions);
+    expect(endpointObj.merge).toHaveBeenCalledWith({ owner: "o", repo: "r", ref: "main", per_page: 100 });
+  });
 });
