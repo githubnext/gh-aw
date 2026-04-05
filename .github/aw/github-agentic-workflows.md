@@ -299,6 +299,22 @@ The YAML frontmatter supports these fields:
           run: find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +
     ```
 
+- **`observability:`** - Workflow observability and telemetry configuration (object)
+  - **`otlp:`** - Export OpenTelemetry spans to any OTLP-compatible backend (Honeycomb, Grafana Tempo, Sentry, etc.) (object)
+    - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
+    - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
+  - **`job-summary:`** - Control job summary output mode (`"on"` or `"off"`)
+  - Example:
+
+    ```yaml
+    observability:
+      otlp:
+        endpoint: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+        headers: ${{ secrets.GH_AW_OTEL_HEADERS }}
+    ```
+
+    Every job emits setup and conclusion spans with rich attributes (`gh-aw.job.name`, `gh-aw.workflow.name`, `gh-aw.engine.id`, token usage). All jobs in a run share one trace ID. Dispatched child workflows inherit the parent's trace context via `aw_context`.
+
 - **`runtimes:`** - Runtime environment version overrides (object)
   - Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes
   - Runtimes from imported shared workflows are also merged
