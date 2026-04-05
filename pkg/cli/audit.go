@@ -361,6 +361,12 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
 	}
 
+	// Analyze GitHub API rate limit consumption from github_rate_limits.jsonl
+	rateLimitUsage, err := analyzeGitHubRateLimits(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze GitHub rate limit usage: %v", err)))
+	}
+
 	// List all artifacts
 	artifacts, err := listArtifacts(runOutputDir)
 	if err != nil && verbose {
@@ -381,6 +387,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		Noops:                   noops,
 		MCPFailures:             mcpFailures,
 		TokenUsage:              tokenUsageSummary,
+		GitHubRateLimitUsage:    rateLimitUsage,
 		JobDetails:              jobDetails,
 	}
 	awContext, _, _, taskDomain, behaviorFingerprint, agenticAssessments := deriveRunAgenticAnalysis(processedRun, metrics)
@@ -468,6 +475,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		MCPFailures:             mcpFailures,
 		MCPToolUsage:            mcpToolUsage,
 		TokenUsage:              tokenUsageSummary,
+		GitHubRateLimitUsage:    rateLimitUsage,
 		ArtifactsList:           artifacts,
 		JobDetails:              jobDetails,
 	}
