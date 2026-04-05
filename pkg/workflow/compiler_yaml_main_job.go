@@ -454,6 +454,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// (e.g., smoke-claude status summaries)
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/agent/")
 
+	// Collect GitHub API rate-limit log for observability.
+	// Written by github_rate_limit_logger.cjs during REST API calls.
+	artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.GithubRateLimitsFilename)
+
 	// Collect safe outputs and agent output paths for the unified artifact.
 	// These were previously uploaded as separate safe-output and agent-output artifacts.
 	if data.SafeOutputs != nil {

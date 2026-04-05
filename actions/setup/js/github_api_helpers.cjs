@@ -7,6 +7,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logRateLimitFromResponse } = require("./github_rate_limit_logger.cjs");
 
 /**
  * @typedef {Object} GraphQLErrorHints
@@ -74,6 +75,8 @@ async function getFileContent(github, owner, repo, path, ref) {
       path,
       ref,
     });
+
+    logRateLimitFromResponse(response, "repos.getContent");
 
     // Handle case where response is an array (directory listing)
     if (Array.isArray(response.data)) {

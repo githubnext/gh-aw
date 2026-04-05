@@ -93,6 +93,11 @@ const SafeOutputsFilename = "safeoutputs.jsonl"
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename = "agent_usage.json"
 
+// GithubRateLimitsFilename is the filename of the GitHub API rate-limit log written to /tmp/gh-aw/.
+// Each line is a JSON object recording the x-ratelimit-* headers (or rate-limit API snapshot)
+// captured during github.rest API calls, enabling post-run analysis of rate-limit consumption.
+const GithubRateLimitsFilename = "github_rate_limits.jsonl"
+
 // ArtifactPrefixOutputName is the job output name that exposes the artifact name prefix.
 // In workflow_call context, the prefix is a stable hash derived from the workflow inputs,
 // ensuring artifact names are unique when the same workflow is called multiple times in
