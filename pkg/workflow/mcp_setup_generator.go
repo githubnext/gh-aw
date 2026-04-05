@@ -591,19 +591,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
-	// When OTLP tracing is configured (observability.otlp.endpoint set in frontmatter),
-	// build the GH_AW_GATEWAY_OTEL shell variable that injects the opentelemetry section
-	// into the MCP gateway config JSON. The section includes:
+	// When OTLP tracing is configured, build the GH_AW_GATEWAY_OTEL shell variable that
+	// injects the opentelemetry section into the MCP gateway config JSON. The section includes:
 	//   - endpoint: from OTEL_EXPORTER_OTLP_ENDPOINT (workflow-level env var)
 	//   - headers:  parsed from OTEL_EXPORTER_OTLP_HEADERS (comma-separated key=value pairs)
 	//   - traceId:  from GITHUB_AW_OTEL_TRACE_ID (set by actions/setup via GITHUB_ENV)
 	//   - spanId:   from GITHUB_AW_OTEL_PARENT_SPAN_ID (set by actions/setup via GITHUB_ENV)
 	// The variable is consumed by ${GH_AW_GATEWAY_OTEL} in the MCP config heredoc.
-	otlpEndpoint, _ := extractOTLPConfigFromRaw(workflowData.RawFrontmatter)
-	if otlpEndpoint == "" {
-		otlpEndpoint = getOTLPEndpointEnvValue(workflowData.ParsedFrontmatter)
-	}
-	otlpEnabled := otlpEndpoint != ""
+	//
+	// workflowData.OTLPEndpoint is the single source of truth: it is set by injectOTLPConfig
+	// after resolving observability.otlp from the top-level frontmatter AND from any imported
+	// shared workflows (e.g. .github/workflows/shared/observability-otlp.md).
+	otlpEnabled := workflowData.OTLPEndpoint != ""
 	if otlpEnabled {
 		yaml.WriteString("          # Build OpenTelemetry config for MCP gateway (§4.1.3.6)\n")
 		yaml.WriteString("          _otel_extra=\"\"\n")

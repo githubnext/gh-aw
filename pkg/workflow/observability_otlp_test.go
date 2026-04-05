@@ -525,3 +525,51 @@ func TestInjectOTLPConfig_RawFrontmatterFallback(t *testing.T) {
 		assert.Nil(t, wd.NetworkPermissions, "NetworkPermissions should remain nil")
 	})
 }
+
+// TestInjectOTLPConfig_OTLPEndpointField verifies that injectOTLPConfig sets workflowData.OTLPEndpoint
+// so that downstream code (buildMCPGatewayConfig, mcp_setup_generator) can use it as the
+// single source of truth for "is OTLP configured?" without re-reading raw frontmatter.
+func TestInjectOTLPConfig_OTLPEndpointField(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("sets OTLPEndpoint when endpoint is configured", func(t *testing.T) {
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "https://traces.example.com:4318",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Equal(t, "https://traces.example.com:4318", wd.OTLPEndpoint, "OTLPEndpoint should be set to the resolved endpoint")
+	})
+
+	t.Run("does not set OTLPEndpoint when OTLP is not configured", func(t *testing.T) {
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{"name": "no-otlp"},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Empty(t, wd.OTLPEndpoint, "OTLPEndpoint should remain empty when OTLP is not configured")
+	})
+
+	t.Run("sets OTLPEndpoint from imported observability merged into RawFrontmatter", func(t *testing.T) {
+		// Simulate what compiler_orchestrator_workflow.go does when importing shared/observability-otlp.md:
+		// the imported observability JSON is decoded and injected into RawFrontmatter before injectOTLPConfig runs.
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				// Imported observability merged in (top-level has no observability key)
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
+						"headers":  "${{ secrets.GH_AW_OTEL_HEADERS }}",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.Equal(t, "${{ secrets.GH_AW_OTEL_ENDPOINT }}", wd.OTLPEndpoint, "OTLPEndpoint should be set from imported observability")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT:", "env var should be injected")
+	})
+}

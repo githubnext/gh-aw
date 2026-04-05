@@ -52,6 +52,8 @@ type importAccumulator struct {
 	activationGitHubApp   string // JSON-encoded GitHubAppConfig
 	// First top-level github-app found across all imported files (first-wins strategy)
 	topLevelGitHubApp string // JSON-encoded GitHubAppConfig
+	// First observability config found across all imported files (first-wins strategy)
+	mergedObservability string // JSON-encoded observability config
 }
 
 // newImportAccumulator creates and initializes a new importAccumulator.
@@ -350,6 +352,15 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract observability from imported file (first-wins: only take the first one found)
+	if acc.mergedObservability == "" {
+		observabilityContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}")
+		if obsErr == nil && observabilityContent != "" && observabilityContent != "{}" {
+			acc.mergedObservability = observabilityContent
+			log.Printf("Extracted observability from import: %s", item.fullPath)
+		}
+	}
+
 	return nil
 }
 
@@ -389,6 +400,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedActivationGitHubToken: acc.activationGitHubToken,
 		MergedActivationGitHubApp:   acc.activationGitHubApp,
 		MergedTopLevelGitHubApp:     acc.topLevelGitHubApp,
+		MergedObservability:         acc.mergedObservability,
 	}
 }
 

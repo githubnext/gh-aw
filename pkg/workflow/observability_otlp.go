@@ -136,4 +136,9 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		workflowData.Env = workflowData.Env + "\n" + otlpEnvLines
 	}
 	otlpLog.Printf("Injected OTEL env vars into workflow env block")
+
+	// Store the resolved endpoint so downstream code (mcp_gateway_config, mcp_setup_generator)
+	// can use workflowData.OTLPEndpoint as the single source of truth instead of
+	// re-reading raw frontmatter independently.
+	workflowData.OTLPEndpoint = endpoint
 }

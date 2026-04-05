@@ -109,6 +109,20 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML configuration sections from frontmatter
 	c.extractYAMLSections(result.Frontmatter, workflowData)
 
+	// Merge imported observability into RawFrontmatter when the top-level workflow does not
+	// define its own observability section. This ensures that shared observability configs
+	// (e.g. .github/workflows/shared/observability-otlp.md) are honoured by injectOTLPConfig
+	// and all downstream code operating on the fully-resolved frontmatter.
+	if _, hasObs := workflowData.RawFrontmatter["observability"]; !hasObs {
+		if engineSetup.importsResult.MergedObservability != "" {
+			var importedObs any
+			if jsonErr := json.Unmarshal([]byte(engineSetup.importsResult.MergedObservability), &importedObs); jsonErr == nil {
+				workflowData.RawFrontmatter["observability"] = importedObs
+				orchestratorWorkflowLog.Print("Merged observability from imports into RawFrontmatter")
+			}
+		}
+	}
+
 	// Inject OTLP configuration: add endpoint domain to firewall allowlist and
 	// set OTEL env vars in the workflow env block (no-op when not configured).
 	c.injectOTLPConfig(workflowData)
