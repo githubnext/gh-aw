@@ -206,6 +206,111 @@ Files follow GitHub Wiki Markdown conventions: use `[[Page Name]]` syntax for in
 
 ---
 
+## Stateful Scanning Pattern (repo-memory)
+
+Use this pattern for any workflow that should **alert only on new findings** — vulnerability scans, dependency audits, secret scanning, licence checks, etc.  The workflow loads a previously stored baseline from `repo-memory`, compares it against the current scan results, and writes the updated baseline back.  Only *new* items (absent from the baseline) trigger notifications.
+
+### Why `repo-memory` (not `cache-memory`)?
+
+Baselines must survive cache eviction.  A nightly scanner that loses its baseline after 7 days would flood the repository with duplicate issues.  `repo-memory` keeps the baseline in a dedicated Git branch indefinitely.
+
+> ⚠️ `repo-memory` is not available for the Copilot engine.  Use Claude or a custom engine.
+
+### Lifecycle
+
+```
+run N-1:  [write baseline]  ──── /tmp/gh-aw/repo-memory/vuln-baseline.json
+                                        │
+run N:    [load baseline]  ─────────────┘
+          [scan current]
+          [diff current vs baseline]  ──► new items only
+          [create issues]  ─────────────► max: 5 (flood guard)
+          [write updated baseline]
+```
+
+### First-run edge case
+
+On the very first run `vuln-baseline.json` does not exist yet.  The prompt must handle this gracefully:
+
+> "If the file does not exist, treat the baseline as an empty array and create it at the end of this run."
+
+This ensures the first run stores a full baseline and creates no duplicate issues on subsequent runs.
+
+### Complete example
+
+```markdown
+---
+on:
+  schedule:
+    - cron: "0 2 * * *"   # nightly at 02:00 UTC
+permissions:
+  issues: write
+  contents: read
+engine: claude
+tools:
+  repo-memory:
+    branch-name: memory/vuln-baseline
+    allowed-extensions: [".json"]
+    max-file-size: 102400   # 100 KB
+network:
+  allowed:
+    - registry.npmjs.org
+safe-outputs:
+  create-issue:
+    title-prefix: "[vuln] "
+    labels: [security, automated]
+    max: 5   # never open more than 5 issues per run — prevents flooding
+timeout-minutes: 20
+---
+
+## Vulnerability Baseline Scan
+
+1. Load `/tmp/gh-aw/repo-memory/vuln-baseline.json`.
+   - If the file does not exist, treat the baseline as an empty JSON array `[]`
+     and note that this is the first run.
+
+2. Run `npm audit --json` and collect all vulnerability advisories
+   (fields: `id`, `severity`, `title`, `url`).
+
+3. Compare the current advisory IDs against the baseline:
+   - **New**: present in current results but not in the baseline.
+   - **Resolved**: present in the baseline but not in current results.
+
+4. For each *new* vulnerability (up to 5), use the `create-issue` safe output
+   to open a GitHub issue with:
+   - Title: the vulnerability title
+   - Body: severity, affected package, advisory URL, and remediation hint
+   If there are no new vulnerabilities, use the `noop` safe output.
+
+5. Log the count of resolved vulnerabilities (no issues needed — they are gone).
+
+6. Write the updated full list of current advisory IDs back to
+   `/tmp/gh-aw/repo-memory/vuln-baseline.json` as a JSON array of strings.
+```
+
+### Flood prevention with `max:`
+
+The `max:` key on any `safe-outputs` action caps how many times that action can
+fire in a single workflow run.  Without it a scanner that finds 50 new
+vulnerabilities would open 50 issues at once.
+
+```yaml
+safe-outputs:
+  create-issue:
+    max: 5   # open at most 5 issues; the rest are skipped
+```
+
+Recommended caps for scanning workflows:
+
+| Scenario | Suggested `max:` |
+|---|---|
+| Nightly vulnerability scan | `5` |
+| Dependency licence check | `3` |
+| Secret scanning alert | `1` |
+| Weekly dependency audit | `10` |
+
+---
+
 ## Summary Comparison
 
 | Feature | `cache-memory` | `repo-memory` | `repo-memory` + wiki |
