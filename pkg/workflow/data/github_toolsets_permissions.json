@@ -1,5 +1,5 @@
 {
-  "version": "2.1",
+  "version": "2.2",
   "description": "GitHub MCP server toolsets and their required permissions (updated to match actual MCP server source code in github/github-mcp-server)",
   "toolsets": {
     "actions": {
@@ -19,6 +19,12 @@
       "read_permissions": [],
       "write_permissions": [],
       "tools": ["get_me", "get_team_members", "get_teams"]
+    },
+    "copilot_spaces": {
+      "description": "GitHub Copilot Spaces (remote-only)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["get_copilot_space", "list_copilot_spaces"]
     },
     "dependabot": {
       "description": "Dependabot alerts",
@@ -43,6 +49,18 @@
       "read_permissions": [],
       "write_permissions": [],
       "tools": ["create_gist", "get_gist", "list_gists", "update_gist"]
+    },
+    "git": {
+      "description": "Git API operations (tree, refs)",
+      "read_permissions": ["contents"],
+      "write_permissions": [],
+      "tools": ["get_repository_tree"]
+    },
+    "github_support_docs_search": {
+      "description": "GitHub support documentation search (remote-only)",
+      "read_permissions": [],
+      "write_permissions": [],
+      "tools": ["github_support_docs_search"]
     },
     "issues": {
       "description": "Issue management",
@@ -114,16 +132,16 @@
       ]
     },
     "search": {
-      "description": "Advanced search across GitHub",
+      "description": "Advanced search across GitHub (keyword and semantic)",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["search_code", "search_orgs", "search_repositories", "search_users"]
+      "tools": ["search_code", "search_orgs", "search_repositories", "search_users", "semantic_issue_similarity_search", "semantic_issues_search"]
     },
     "secret_protection": {
       "description": "Secret scanning",
       "read_permissions": ["security-events"],
       "write_permissions": [],
-      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts"]
+      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts", "run_secret_scanning"]
     },
     "security_advisories": {
       "description": "Security advisories",
