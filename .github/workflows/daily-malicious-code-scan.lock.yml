@@ -31,6 +31,8 @@
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
 #   - GH_AW_GITHUB_TOKEN
+#   - GH_AW_OTEL_ENDPOINT
+#   - GH_AW_OTEL_HEADERS
 #   - GITHUB_TOKEN
 #
 # Custom actions used:
@@ -59,6 +61,11 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Daily Malicious Code Scan Agent"
+
+env:
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
+  OTEL_SERVICE_NAME: gh-aw
+  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_OTEL_HEADERS }}
 
 jobs:
   activation:
@@ -750,6 +757,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_token_usage.cjs');
             await main();
+      - name: Generate observability summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');
+            await main(core);
       - name: Write agent output placeholder if missing
         if: always()
         run: |
