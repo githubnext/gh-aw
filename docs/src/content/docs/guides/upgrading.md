@@ -5,20 +5,12 @@ sidebar:
   order: 100
 ---
 
-This guide walks you through upgrading your agentic workflows to the latest version, ensuring you have access to the newest features, improvements, and security fixes.
+This guide walks you through upgrading agentic workflows. `gh aw upgrade` handles the full process: updating the dispatcher agent file, migrating deprecated workflow syntax, and recompiling all workflows.
 
 > [!TIP]
 > Agentic Upgrade
 >
 > You can start an agent session in your repository on GitHub.com and use the command `/agent agentic-workflows Upgrade` to automatically upgrade your workflows.
-
-## Overview
-
-The upgrade process updates three key areas:
-
-1. **Dispatcher agent file** - Updates `.github/agents/agentic-workflows.agent.md` to the latest template
-2. **Workflow syntax** - Automatically migrates deprecated fields and applies the latest configuration patterns
-3. **Workflow compilation** - Automatically compiles all workflows to generate up-to-date `.lock.yml` files
 
 > [!TIP]
 > Quick Upgrade
@@ -55,7 +47,7 @@ Check your version with `gh aw version` and compare against the [latest release]
 
 ## Step 2: Backup Your Workflows
 
-Create a backup branch (`git checkout -b backup-before-upgrade`) or ensure your changes are committed and pushed. Since workflows are tracked in Git, you can always revert changes with `git checkout HEAD~1 -- .github/workflows/my-workflow.md`.
+Create a backup branch (`git checkout -b backup-before-upgrade`) before upgrading. Workflows are tracked in Git, so you can always revert with `git checkout backup-before-upgrade`.
 
 ## Step 3: Run the Upgrade Command
 
@@ -69,11 +61,7 @@ This command performs three main operations:
 
 ### 3.1 Updates Dispatcher Agent File
 
-The upgrade updates the dispatcher agent file to the latest template (similar to running `gh aw init`):
-
-- `.github/agents/agentic-workflows.agent.md` - Dispatcher agent for routing tasks
-
-Workflow prompt files (`.github/aw/*.md`) are no longer managed by the CLI. They live in the gh-aw repository and are resolved directly from GitHub by the agent.
+Updates `.github/agents/agentic-workflows.agent.md` to the latest template. Workflow prompt files (`.github/aw/*.md`) are resolved directly from GitHub by the agent — they're no longer managed by the CLI.
 
 ### 3.2 Applies Codemods to All Workflows
 
@@ -114,16 +102,9 @@ Compiling all workflows...
 ### Command Options
 
 ```bash wrap
-# Standard upgrade (updates agent files + applies codemods + compiles workflows)
-gh aw upgrade
-
-# Verbose output (shows detailed progress)
-gh aw upgrade -v
-
-# Update agent files only (skip codemods and compilation)
-gh aw upgrade --no-fix
-
-# Upgrade workflows in custom directory
+gh aw upgrade                       # updates agent files + codemods + compiles
+gh aw upgrade -v                    # verbose output
+gh aw upgrade --no-fix              # skip codemods and compilation
 gh aw upgrade --dir custom/workflows
 ```
 
@@ -137,13 +118,7 @@ gh aw upgrade --dir custom/workflows
 
 ## Step 4: Review the Changes
 
-After upgrading, carefully review all changes before committing:
-
-Review changes with `git diff .github/workflows/` to verify that deprecated fields are updated, formatting is preserved, and workflow logic remains intact.
-
-### Common Changes
-
-Typical migrations include `sandbox: false` → `sandbox.agent: false`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `mcp-scripts.mode` fields. Use `git diff --word-diff` for detailed comparison.
+Run `git diff .github/workflows/` to verify the changes. Typical migrations include `sandbox: false` → `sandbox.agent: false`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `mcp-scripts.mode` fields.
 
 ## Step 5: Verify Compilation
 
@@ -155,7 +130,7 @@ Verify that each `.md` workflow has a corresponding `.lock.yml` file with `git s
 
 ## Step 7: Test Your Workflows
 
-Test workflows locally with `gh aw status` and `gh aw compile my-workflow --validate`. Trigger manual runs with `gh aw run my-workflow` and monitor with `gh aw logs my-workflow`. If using MCP servers, verify configuration with `gh aw mcp list`. Consider testing in a draft PR before merging to production.
+Trigger a manual run with `gh aw run my-workflow` and monitor with `gh aw logs my-workflow`. Consider testing via a draft PR before merging to production.
 
 ## Step 8: Commit and Push
 
@@ -167,7 +142,7 @@ git commit -m "Upgrade agentic workflows to latest version"
 git push origin main
 ```
 
-For better traceability, consider separate commits for agent files, workflow migrations, and lock files. Always commit both `.md` and `.lock.yml` files together - never add `.lock.yml` to `.gitignore`.
+Always commit both `.md` and `.lock.yml` files together — never add `.lock.yml` to `.gitignore`.
 
 ## Troubleshooting
 
@@ -183,20 +158,8 @@ For better traceability, consider separate commits for agent files, workflow mig
 
 ## Advanced Topics
 
-**Upgrading across versions:** Review the [changelog](https://github.com/github/gh-aw/blob/main/CHANGELOG.md) for cumulative changes.
-
-**Custom directories:** Use `gh aw upgrade --dir custom/workflows`.
-
-**Selective codemods:** Apply specific workflows with `gh aw fix my-workflow --write` or skip codemods with `gh aw upgrade --no-fix`.
+**Upgrading across versions:** Review the [changelog](https://github.com/github/gh-aw/blob/main/CHANGELOG.md) for cumulative changes when upgrading across multiple releases.
 
 **CI/CD automation:** Automate upgrades with a scheduled workflow that creates PRs. Always review automated upgrade PRs before merging.
 
-## Best Practices
-
-Upgrade regularly to stay current with features and security fixes. Always review changes, test workflows, and read release notes. Keep backups using Git branches for easy rollback.
-
-## What's Next?
-
-Learn about new features in the [changelog](https://github.com/github/gh-aw/blob/main/CHANGELOG.md), explore the [frontmatter reference](/gh-aw/reference/frontmatter-full/), review [best practices](/gh-aw/guides/deterministic-agentic-patterns/), or browse the [agentics collection](https://github.com/githubnext/agentics).
-
-Need help? Check the [troubleshooting guide](/gh-aw/troubleshooting/common-issues/) or [open an issue](https://github.com/github/gh-aw/issues/new).
+See the [troubleshooting guide](/gh-aw/troubleshooting/common-issues/) if you run into issues.
