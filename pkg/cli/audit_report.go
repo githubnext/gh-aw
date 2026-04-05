@@ -311,12 +311,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	// Build downloaded files list
 	downloadedFiles := extractDownloadedFiles(run.LogsPath)
 
-	// No error/warning extraction since error patterns have been removed
-	var errors []ErrorInfo
-	var warnings []ErrorInfo
-
 	// For failed workflows where the agent never ran (no agent-stdio.log),
 	// extract errors from step log files to surface the actual failure reason.
+	var errors []ErrorInfo
 	if run.Conclusion == "failure" && run.LogsPath != "" {
 		if stepErrors := extractPreAgentStepErrors(run.LogsPath); len(stepErrors) > 0 {
 			errors = stepErrors
@@ -331,7 +328,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, overview.AwContext)
 
 	// Generate key findings
-	findings := generateFindings(processedRun, metricsData, errors, warnings)
+	findings := generateFindings(processedRun, metricsData, errors)
 	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
 
 	// Generate recommendations
@@ -352,8 +349,8 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	mcpServerHealth := buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures)
 
 	if auditReportLog.Enabled() {
-		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d warnings, %d tool types, %d findings, %d recommendations",
-			len(jobs), len(errors), len(warnings), len(toolUsage), len(findings), len(recommendations))
+		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d tool types, %d findings, %d recommendations",
+			len(jobs), len(errors), len(toolUsage), len(findings), len(recommendations))
 	}
 
 	return AuditData{
@@ -383,7 +380,6 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		PolicyAnalysis:          processedRun.PolicyAnalysis,
 		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,
 		Errors:                  errors,
-		Warnings:                warnings,
 		ToolUsage:               toolUsage,
 		MCPToolUsage:            mcpToolUsage,
 		CreatedItems:            createdItems,
@@ -773,5 +769,3 @@ func stripGHALogTimestamps(content string) string {
 	}
 	return strings.Join(stripped, "\n")
 }
-
-// renderJSON outputs the audit data as JSON

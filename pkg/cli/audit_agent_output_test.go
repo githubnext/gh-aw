@@ -19,7 +19,6 @@ func TestKeyFindingsGeneration(t *testing.T) {
 		run           WorkflowRun
 		metrics       MetricsData
 		errors        []ErrorInfo
-		warnings      []ErrorInfo
 		mcpFailures   []MCPFailureReport
 		missingTools  []MissingToolReport
 		expectedCount int
@@ -99,7 +98,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 				MissingTools: tt.missingTools,
 			}
 
-			findings := generateFindings(processedRun, tt.metrics, tt.errors, tt.warnings)
+			findings := generateFindings(processedRun, tt.metrics, tt.errors)
 
 			if len(findings) < tt.expectedCount {
 				t.Errorf("Expected at least %d findings, got %d", tt.expectedCount, len(findings))

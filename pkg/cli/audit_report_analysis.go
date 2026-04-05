@@ -11,8 +11,8 @@ import (
 )
 
 // generateFindings creates key findings from workflow run data
-func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo, warnings []ErrorInfo) []Finding {
-	auditReportLog.Printf("Generating findings: errors=%d, warnings=%d, conclusion=%s", len(errors), len(warnings), processedRun.Run.Conclusion)
+func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo) []Finding {
+	auditReportLog.Printf("Generating findings: errors=%d, conclusion=%s", len(errors), processedRun.Run.Conclusion)
 	var findings []Finding
 	run := processedRun.Run
 
