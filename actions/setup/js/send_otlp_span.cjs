@@ -424,6 +424,43 @@ function readJSONIfExists(filePath) {
   }
 }
 
+/**
+ * Path to the GitHub rate-limit JSONL log file.
+ * Mirrors GITHUB_RATE_LIMITS_JSONL_PATH from constants.cjs without introducing
+ * a runtime require() dependency on that module.
+ * @type {string}
+ */
+const GITHUB_RATE_LIMITS_JSONL_PATH = "/tmp/gh-aw/github_rate_limits.jsonl";
+
+/**
+ * @typedef {Object} RateLimitEntry
+ * @property {string} [resource]   - GitHub rate-limit resource category (e.g. "core", "graphql")
+ * @property {number} [limit]      - Total request quota for the window
+ * @property {number} [remaining]  - Requests remaining in the current window
+ * @property {number} [used]       - Requests consumed in the current window
+ * @property {string} [reset]      - ISO 8601 timestamp when the window resets
+ * @property {string} [operation]  - API operation that produced this entry
+ */
+
+/**
+ * Read the last entry from the GitHub rate-limit JSONL log file.
+ * Returns the parsed entry or `null` when the file is absent, empty, or
+ * contains no valid JSON lines.  Errors are silently swallowed — this is
+ * an observability enrichment and must never break the workflow.
+ *
+ * @returns {RateLimitEntry | null}
+ */
+function readLastRateLimitEntry() {
+  try {
+    const content = fs.readFileSync(GITHUB_RATE_LIMITS_JSONL_PATH, "utf8");
+    const lines = content.split("\n").filter(l => l.trim() !== "");
+    if (lines.length === 0) return null;
+    return JSON.parse(lines[lines.length - 1]);
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // High-level: job conclusion span
 // ---------------------------------------------------------------------------
@@ -546,6 +583,26 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     attributes.push(buildAttr("gh-aw.error.messages", errorMessages.join(" | ")));
   }
 
+  // Enrich span with the most recent GitHub API rate-limit snapshot for post-run
+  // observability.  Reads the last entry from github_rate_limits.jsonl so that
+  // rate-limit headroom at conclusion time is visible in the OTLP span without
+  // requiring a live collector to parse the artifact separately.
+  const lastRateLimit = readLastRateLimitEntry();
+  if (lastRateLimit) {
+    if (typeof lastRateLimit.remaining === "number") {
+      attributes.push(buildAttr("gh-aw.github.rate_limit.remaining", lastRateLimit.remaining));
+    }
+    if (typeof lastRateLimit.limit === "number") {
+      attributes.push(buildAttr("gh-aw.github.rate_limit.limit", lastRateLimit.limit));
+    }
+    if (typeof lastRateLimit.used === "number") {
+      attributes.push(buildAttr("gh-aw.github.rate_limit.used", lastRateLimit.used));
+    }
+    if (lastRateLimit.resource) {
+      attributes.push(buildAttr("gh-aw.github.rate_limit.resource", String(lastRateLimit.resource)));
+    }
+  }
+
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
@@ -580,6 +637,8 @@ module.exports = {
   parseOTLPHeaders,
   sendOTLPSpan,
   readJSONIfExists,
+  readLastRateLimitEntry,
+  GITHUB_RATE_LIMITS_JSONL_PATH,
   sendJobSetupSpan,
   sendJobConclusionSpan,
   OTEL_JSONL_PATH,
