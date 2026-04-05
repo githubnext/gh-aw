@@ -23,7 +23,7 @@ tools:
   repo-memory:
     branch-name: memory/copilot-cli-research
     description: "Copilot CLI research notes and analysis history"
-    file-glob: ["memory/copilot-cli-research/*.json", "memory/copilot-cli-research/*.md"]
+    file-glob: ["*.json", "*.md"]
     max-file-size: 204800  # 200KB
   bash:
     - "find .github -name '*.md'"

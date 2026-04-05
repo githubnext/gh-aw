@@ -36,7 +36,7 @@ tools:
   repo-memory:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
-    file-glob: ["memory/cli-performance/*.json", "memory/cli-performance/*.jsonl", "memory/cli-performance/*.txt"]
+    file-glob: ["*.json", "*.jsonl", "*.txt"]
     max-file-size: 131072  # 128KB — bounded to limit context size
   bash: true
   edit:

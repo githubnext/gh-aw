@@ -12,7 +12,6 @@ permissions:
 tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
-  agentic-workflows:
   github:
     toolsets: [default]
   bash:
@@ -35,20 +34,47 @@ imports:
   - shared/reporting.md
 features:
   copilot-requests: true
+steps:
+  - name: Download recent Copilot workflow logs
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/token-audit
+
+      echo "📥 Downloading Copilot workflow logs (last 7 days)..."
+
+      LOGS_EXIT=0
+      gh aw logs \
+        --engine copilot \
+        --start-date -7d \
+        --json \
+        -c 50 \
+        > /tmp/gh-aw/token-audit/all-runs.json || LOGS_EXIT=$?
+
+      if [ -s /tmp/gh-aw/token-audit/all-runs.json ]; then
+        TOTAL=$(jq '.runs | length' /tmp/gh-aw/token-audit/all-runs.json)
+        echo "✅ Downloaded $TOTAL Copilot workflow runs (last 7 days)"
+        if [ "$LOGS_EXIT" -ne 0 ]; then
+          echo "⚠️ gh aw logs exited with code $LOGS_EXIT (partial results — likely API rate limit)"
+        fi
+      else
+        echo "❌ No log data downloaded (exit code $LOGS_EXIT)"
+        echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/all-runs.json
+      fi
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Token Usage Optimizer
 
-You are the Copilot Token Optimizer — an analyst that picks one high-token-usage workflow per day, deeply audits its recent runs, and produces actionable recommendations to reduce token consumption.
+You are the Copilot Token Optimizer — an analyst that picks one high-token-usage workflow, deeply audits its recent runs, and produces actionable recommendations to reduce token consumption.
 
 ## Mission
 
-1. Read the latest token audit snapshot from repo-memory to identify heavy-hitter workflows.
-2. Pick the **single workflow** with the highest total token usage that has **not been optimized recently**.
-3. Use the `agentic-workflows` MCP tools (`logs`, `audit`) to deeply inspect 5–10 recent runs of that workflow.
-4. Analyze firewall proxy token logs, tool usage patterns, MCP server calls, and error/warning counts.
-5. Produce a conservative, evidence-based optimization issue with specific recommendations.
+1. Select a target workflow from the audit snapshot in repo-memory.
+2. Filter the pre-downloaded run data for that workflow.
+3. Analyze token usage patterns, tool usage, error rates, and prompt efficiency.
+4. Produce a conservative, evidence-based optimization issue with specific recommendations.
 
 ## Guiding Principles
 
@@ -58,29 +84,38 @@ You are the Copilot Token Optimizer — an analyst that picks one high-token-usa
 - **Preserve correctness**: Never recommend removing a tool that is successfully used in *any* observed run.
 - **Prioritize high-impact**: Focus on the biggest token savings first.
 
+## Pre-loaded Data
+
+The following data has been pre-downloaded and is available for analysis:
+
+### Workflow run logs
+
+The file `/tmp/gh-aw/token-audit/all-runs.json` contains the output of `gh aw logs --json` for the last 7 days across all workflows. This includes per-run token usage, tool calls, and run metadata.
+
+### Audit snapshots (repo-memory)
+
+Historical daily snapshots are at `/tmp/gh-aw/repo-memory/default/`. Each `YYYY-MM-DD.json` file has per-workflow token totals from the daily audit.
+
+### Optimization history
+
+If `/tmp/gh-aw/repo-memory/default/optimization-log.json` exists, it lists previously optimized workflows with dates.
+
 ## Phase 1 — Select Target Workflow
 
-### Step 1.1: Load Audit Snapshot
+### Step 1.1: Load Audit Snapshot and Select Target
 
-Read the latest audit snapshot from repo-memory:
+Read the latest audit snapshot from repo-memory and select a target:
 
 ```bash
 # Find the most recent snapshot
 LATEST=$(ls -1 /tmp/gh-aw/repo-memory/default/*.json 2>/dev/null | grep -v rolling | grep -v optimization | sort -r | head -1)
 if [ -z "$LATEST" ]; then
-  echo "⚠️ No audit snapshots found. The copilot-token-audit workflow may not have run yet."
-  echo "Falling back to live data collection..."
+  echo "⚠️ No audit snapshots found"
 fi
 echo "Latest snapshot: $LATEST"
 cat "$LATEST" | jq '.workflows[:10]'
-```
 
-### Step 1.2: Check Optimization History
-
-Read the optimization history to avoid re-analyzing recently optimized workflows:
-
-```bash
-# Check if optimization log exists
+# Check optimization history
 OPT_LOG="/tmp/gh-aw/repo-memory/default/optimization-log.json"
 if [ -f "$OPT_LOG" ]; then
   echo "Previous optimizations:"
@@ -90,55 +125,33 @@ else
 fi
 ```
 
-### Step 1.3: Select Target
+Pick the workflow with the highest `total_tokens` from the audit snapshot that does **not** appear in the optimization log within the last 14 days. Randomly select from the top 5 candidates to ensure variety. Skip any workflow with "Token" in the name (to avoid optimizing ourselves).
 
-Pick the workflow with the highest `total_tokens` from the audit snapshot that does **not** appear in the optimization log within the last 14 days. If all top workflows have been recently optimized, pick the one that was optimized longest ago.
+If no audit snapshot exists, aggregate the pre-downloaded run data from `/tmp/gh-aw/token-audit/all-runs.json` to find the highest consumer.
 
-If no audit snapshot exists, use the `agentic-workflows` MCP `logs` tool to query recent Copilot runs and select the heaviest consumer.
-
-## Phase 2 — Deep Audit
-
-### Step 2.1: Fetch Recent Runs via MCP
-
-Use the `agentic-workflows` MCP `logs` tool to fetch the last 7 days of runs for the target workflow. This returns structured data including token usage, tool calls, and run metadata.
-
-Then use `gh aw logs` to download runs with firewall data for deeper analysis:
+### Step 1.2: Filter Run Data for Selected Workflow
 
 ```bash
-# Download last 7 days of runs for the selected workflow, with firewall data
-gh aw logs \
-  --engine copilot \
-  --start-date -7d \
-  --json \
-  --firewall \
-  -c 20 \
-  > /tmp/gh-aw/token-audit/target-runs.json
-
-# Show summary
-jq '{
-  workflow: .runs[0].workflow_name,
-  total_runs: (.runs | length),
-  total_tokens: [.runs[].token_usage // 0] | add,
-  avg_tokens: ([.runs[].token_usage // 0] | add) / ([.runs[].token_usage // 0] | length),
-  tool_usage: .tool_usage
-}' /tmp/gh-aw/token-audit/target-runs.json
+SELECTED="<the workflow name you selected>"
+jq --arg name "$SELECTED" '{
+  workflow: $name,
+  total_runs: [.runs[] | select(.workflow_name == $name)] | length,
+  total_tokens: [.runs[] | select(.workflow_name == $name) | .token_usage // 0] | add,
+  runs: [.runs[] | select(.workflow_name == $name) | {
+    run_id: .run_id,
+    tokens: .token_usage,
+    effective_tokens: .effective_tokens,
+    turns: .turns,
+    model: .model,
+    conclusion: .conclusion,
+    created_at: .created_at
+  }]
+}' /tmp/gh-aw/token-audit/all-runs.json
 ```
 
-### Step 2.2: Audit Individual Runs
+If no runs are found for the selected workflow in the pre-downloaded data, report this in the issue and base your analysis on the audit snapshot and workflow source code.
 
-Use the `agentic-workflows` MCP `audit` tool to get detailed data on 3–5 representative runs (mix of high-token and typical-token runs).
-
-For each audited run, extract:
-- **Token usage breakdown** by model (`token_usage_summary.by_model`)
-- **Tool usage**: which MCP tools were called, how many times, and whether they succeeded
-- **Missing tools**: tools the agent tried to use but were not available
-- **MCP failures**: MCP server errors or timeouts
-- **Error and warning counts**
-- **Turns**: total conversation turns
-- **Firewall analysis**: blocked requests, allowed domains
-- **Cache efficiency**: `token_usage_summary.cache_efficiency`
-
-### Step 2.3: Read the Workflow Source
+### Step 1.3: Read the Workflow Source
 
 Use the GitHub MCP tools to read the target workflow's `.md` file from the repository. This lets you see:
 - Which MCP tools are configured
@@ -146,9 +159,9 @@ Use the GitHub MCP tools to read the target workflow's `.md` file from the repos
 - Prompt instructions
 - Imported shared components
 
-## Phase 3 — Analysis
+## Phase 2 — Analysis
 
-### 3.1: Tool Usage Analysis
+### 2.1: Tool Usage Analysis
 
 Cross-reference **configured tools** (from the workflow `.md`) with **actual tool usage** (from audit data):
 
@@ -161,26 +174,26 @@ Cross-reference **configured tools** (from the workflow `.md`) with **actual too
 - **Consider removing**: Used in <20% of runs AND not part of the workflow's core purpose
 - **Remove**: Never used across all audited runs AND not referenced in the prompt
 
-### 3.2: Token Efficiency Analysis
+### 2.2: Token Efficiency Analysis
 
 - Compare `token_usage` vs `effective_tokens` — a large gap suggests poor cache utilization
 - Check `cache_efficiency` — below 0.3 suggests the workflow isn't benefiting from caching
 - Look at `turns` — high turn counts relative to task complexity suggest the prompt could be clearer
 - Check input vs output token ratio from `token_usage_summary.by_model`
 
-### 3.3: Error Pattern Analysis
+### 2.3: Error Pattern Analysis
 
 - Recurring errors or warnings that cause retries waste tokens
 - MCP failures that trigger fallback behavior
 - Missing tools that cause the agent to improvise (expensive)
 
-### 3.4: Prompt Efficiency
+### 2.4: Prompt Efficiency
 
 - Is the prompt overly verbose? Long prompts consume input tokens on every turn
 - Are there redundant instructions?
 - Could few-shot examples be replaced with clearer constraints?
 
-## Phase 4 — Recommendations
+## Phase 3 — Recommendations
 
 Generate specific, actionable recommendations with estimated token savings:
 
@@ -206,7 +219,7 @@ Generate specific, actionable recommendations with estimated token savings:
    - Use shared components to reduce duplication
    - Pre-compute data in bash steps to reduce agent work
 
-## Phase 5 — Publish Issue
+## Phase 4 — Publish Issue
 
 Create an issue with the analysis. Use this structure:
 
@@ -259,7 +272,7 @@ Create an issue with the analysis. Use this structure:
 - Verify changes in a test run before applying permanently
 ```
 
-## Phase 6 — Update Optimization Log
+## Phase 5 — Update Optimization Log
 
 Append an entry to `/tmp/gh-aw/repo-memory/default/optimization-log.json`:
 
@@ -278,8 +291,7 @@ Load the existing array, append the new entry, trim to the last 30 entries, and 
 
 ## Important Notes
 
-- The `agentic-workflows` MCP tools (`logs`, `audit`) are your primary interface for querying run data beyond the pre-downloaded snapshot.
-- Use `gh aw logs` and `gh aw audit` CLI commands in bash steps for bulk data downloads with firewall details.
+- Run data is pre-downloaded to `/tmp/gh-aw/token-audit/all-runs.json` — use `jq` to filter and analyze it. Do not try to download logs yourself.
 - Treat null/missing `token_usage` and `estimated_cost` as 0.
 - The repo-memory branch `memory/token-audit` is shared with the `copilot-token-audit` workflow — read its snapshots but don't overwrite them. Only write to `optimization-log.json`.
-- If the audit snapshot is stale (>3 days old), fall back to the `agentic-workflows` MCP `logs` tool for fresh data.
+- Use `cat` and `jq` to inspect the pre-downloaded data. Use GitHub MCP tools to read workflow source files.

@@ -43,7 +43,7 @@ tools:
   repo-memory:
     branch-name: memory/deep-report
     description: "Long-term insights, patterns, and trend data"
-    file-glob: ["memory/deep-report/*.md"]
+    file-glob: ["*.md"]
     max-file-size: 1048576  # 1MB
   github:
     toolsets:

@@ -25,10 +25,11 @@ tools:
   repo-memory:
     branch-name: memory/(your-analysis-name)
     description: "Historical (analysis type) results"
-    file-glob: ["memory/(your-analysis-name)/*.json", "memory/(your-analysis-name)/*.jsonl",
-                "memory/(your-analysis-name)/*.csv", "memory/(your-analysis-name)/*.md"]
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
     max-file-size: 102400  # 100KB
 ```
+
+> **Warning**: File glob patterns are matched against the **relative file path** from the artifact directory, not the branch path. Use bare extension patterns like `*.json` — never include the branch name (e.g. `memory/(your-analysis-name)/*.json` is incorrect and will silently skip all files).
 
 ### Common jq Queries
 
