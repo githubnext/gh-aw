@@ -109,6 +109,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML configuration sections from frontmatter
 	c.extractYAMLSections(result.Frontmatter, workflowData)
 
+	// Merge observability config from imports into RawFrontmatter so that injectOTLPConfig
+	// can see an OTLP endpoint defined in an imported workflow (first-wins from imports).
+	if obs := engineSetup.importsResult.MergedObservability; obs != "" {
+		if _, hasObs := workflowData.RawFrontmatter["observability"]; !hasObs {
+			var obsMap map[string]any
+			if err := json.Unmarshal([]byte(obs), &obsMap); err == nil {
+				workflowData.RawFrontmatter["observability"] = obsMap
+				orchestratorWorkflowLog.Printf("Merged observability config from imports into RawFrontmatter")
+			}
+		}
+	}
+
 	// Inject OTLP configuration: add endpoint domain to firewall allowlist and
 	// set OTEL env vars in the workflow env block (no-op when not configured).
 	c.injectOTLPConfig(workflowData)

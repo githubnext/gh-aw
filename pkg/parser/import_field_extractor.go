@@ -30,6 +30,7 @@ type importAccumulator struct {
 	secretMaskingBuilder     strings.Builder
 	postStepsBuilder         strings.Builder
 	jobsBuilder              strings.Builder // Jobs from imported YAML workflows
+	observabilityBuilder     strings.Builder // observability config (first-wins for OTLP endpoint)
 	engines                  []string
 	safeOutputs              []string
 	mcpScripts               []string
@@ -350,6 +351,17 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract observability from imported file (first-wins: only set if not yet populated).
+	// This ensures an imported workflow's OTLP config is visible to injectOTLPConfig even
+	// when the main workflow's frontmatter does not contain an observability section.
+	if acc.observabilityBuilder.Len() == 0 {
+		obsContent, obsErr := extractFieldJSONFromMap(fm, "observability", "{}")
+		if obsErr == nil && obsContent != "" && obsContent != "{}" {
+			acc.observabilityBuilder.WriteString(obsContent)
+			log.Printf("Extracted observability from import: %s", item.fullPath)
+		}
+	}
+
 	return nil
 }
 
@@ -381,6 +393,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedCaches:                acc.caches,
 		MergedJobs:                  acc.jobsBuilder.String(),
 		MergedFeatures:              acc.features,
+		MergedObservability:         acc.observabilityBuilder.String(),
 		ImportedFiles:               topologicalOrder,
 		AgentFile:                   acc.agentFile,
 		AgentImportSpec:             acc.agentImportSpec,

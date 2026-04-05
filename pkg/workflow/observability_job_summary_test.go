@@ -77,7 +77,63 @@ engine: copilot
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	if strings.Contains(string(lockContent), "- name: Generate observability summary") {
+	compiled := string(lockContent)
+	if strings.Contains(compiled, "- name: Generate observability summary") {
 		t.Fatal("Did not expect observability summary step when OTLP is not configured")
+	}
+	if strings.Contains(compiled, "GH_AW_OBSERVABILITY_JOB_SUMMARY") {
+		t.Fatal("Did not expect GH_AW_OBSERVABILITY_JOB_SUMMARY env var in compiled workflow")
+	}
+}
+
+func TestCompileWorkflow_IncludesObservabilitySummaryStepWhenOTLPEnabledViaImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create an imported workflow with OTLP configured
+	importedPath := filepath.Join(tmpDir, "shared-otlp.md")
+	importedContent := `---
+observability:
+  otlp:
+    endpoint: https://traces.example.com:4317
+---
+`
+	if err := os.WriteFile(importedPath, []byte(importedContent), 0o644); err != nil {
+		t.Fatalf("Failed to write imported workflow: %v", err)
+	}
+
+	// Main workflow imports the shared OTLP config but has no observability section itself
+	workflowPath := filepath.Join(tmpDir, "main-import-otlp.md")
+	content := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+imports:
+  - ./shared-otlp.md
+---
+
+# Test Observability Summary via Import
+`
+	if err := os.WriteFile(workflowPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to write main workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Unexpected compile error: %v", err)
+	}
+
+	lockPath := filepath.Join(tmpDir, "main-import-otlp.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	compiled := string(lockContent)
+	if !strings.Contains(compiled, "- name: Generate observability summary") {
+		t.Fatal("Expected observability summary step when OTLP is enabled via import")
+	}
+	if !strings.Contains(compiled, "OTEL_EXPORTER_OTLP_ENDPOINT") {
+		t.Fatal("Expected OTEL_EXPORTER_OTLP_ENDPOINT env var to be injected when OTLP is configured via import")
 	}
 }
