@@ -758,6 +758,7 @@ Check `/tmp/gh-aw/cache-memory/seen-runs.json` for previously seen run IDs; skip
 | Build / test output | `npm ci 2>&1 \| tail -200 > /tmp/gh-aw/agent/build.txt && npm run test -- --reporter=json > /tmp/gh-aw/agent/test.json 2>&1 \|\| true` |
 | Workflow run artifact | `gh run download "$RUN_ID" --name test-results --dir /tmp/gh-aw/agent/artifacts/ \|\| true` |
 | Filter JSON API response | `gh api repos/{owner}/{repo}/issues --jq '[.[] \| {number,title,state,labels:[.labels[].name]}]' > /tmp/gh-aw/agent/issues.json` |
+| Agentic workflow run logs | No shell step needed — add `tools: agentic-workflows:` and the agent uses `logs` and `audit` commands directly |
 
 **`cache-memory` tip:** Add `cache-memory: true` under `tools:` to persist pre-fetched data across runs. This enables deduplication (skip already-diagnosed run IDs), trending (compare metrics over time), and avoids redundant downloads on retries. The agent reads and writes `/tmp/gh-aw/cache-memory/`. Use `jq` to update the dedup file efficiently — for example `jq '. + ["'"$RUN_ID"'"]' /tmp/gh-aw/cache-memory/seen-runs.json > /tmp/seen-runs.tmp && mv /tmp/seen-runs.tmp /tmp/gh-aw/cache-memory/seen-runs.json`. See `.github/aw/memory.md` for full configuration options.
 
