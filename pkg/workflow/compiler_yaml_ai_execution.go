@@ -96,7 +96,12 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 
 // generateObservabilitySummary generates a step that synthesizes a compact
 // observability section for the GitHub Actions step summary from existing runtime files.
-func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder) {
+// The step is only emitted when OTLP is configured in the workflow.
+func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *WorkflowData) {
+	if !isOTLPEnabled(data) {
+		return
+	}
+
 	compilerYamlLog.Print("Generating observability step summary")
 
 	yaml.WriteString("      - name: Generate observability summary\n")
@@ -108,6 +113,21 @@ func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder) {
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');\n")
 	yaml.WriteString("            await main(core);\n")
+}
+
+// isOTLPEnabled returns true when an OTLP endpoint is configured in the workflow.
+func isOTLPEnabled(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	endpoint, _ := extractOTLPConfigFromRaw(data.RawFrontmatter)
+	if endpoint != "" {
+		return true
+	}
+	return data.ParsedFrontmatter != nil &&
+		data.ParsedFrontmatter.Observability != nil &&
+		data.ParsedFrontmatter.Observability.OTLP != nil &&
+		data.ParsedFrontmatter.Observability.OTLP.Endpoint != ""
 }
 
 // generateStopMCPGateway generates a step that stops the MCP gateway process using its PID from step output
