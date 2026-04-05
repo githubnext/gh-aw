@@ -380,13 +380,14 @@ jobs:
         env:
           REPO_NAME: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         id: checkout-pr
@@ -421,12 +422,14 @@ jobs:
       - name: Download container images
         run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.13 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.13 ghcr.io/github/gh-aw-firewall/squid:0.25.13 ghcr.io/github/gh-aw-mcpg:v0.2.14 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
+        env:
+          GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_1160c02dd06158cf_EOF'
-          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-project"]},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":1},"create_project_status_update":{"github-token":"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}","max":1,"project":"https://github.com/orgs/github/projects/24068"},"create_pull_request":{"expires":2,"if_no_changes":"warn","labels":["ai-generated"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[smoke-project] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke-project"]},"update_project":{"github-token":"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}","max":20,"project":"https://github.com/orgs/github/projects/24068","views":[{"name":"Smoke Test Board","layout":"board","filter":"is:open"}]}}
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << GH_AW_SAFE_OUTPUTS_CONFIG_1160c02dd06158cf_EOF
+          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-project"]},"create_issue":{"close_older_issues":true,"expires":2,"group":true,"labels":["ai-generated","automation","testing"],"max":1},"create_project_status_update":{"github-token":"${GH_AW_PROJECT_GITHUB_TOKEN}","max":1,"project":"https://github.com/orgs/github/projects/24068"},"create_pull_request":{"expires":2,"if_no_changes":"warn","labels":["ai-generated"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[smoke-project] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke-project"]},"update_project":{"github-token":"${GH_AW_PROJECT_GITHUB_TOKEN}","max":20,"project":"https://github.com/orgs/github/projects/24068","views":[{"name":"Smoke Test Board","layout":"board","filter":"is:open"}]}}
           GH_AW_SAFE_OUTPUTS_CONFIG_1160c02dd06158cf_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -873,13 +876,14 @@ jobs:
         env:
           REPO_NAME: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git config --global am.keepcr true
           # Re-authenticate git with GitHub token
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Copy Copilot session state files to logs
         if: always()

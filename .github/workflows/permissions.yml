@@ -23,13 +23,16 @@ jobs:
     steps:
       - name: Check three users via REST
         shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e  # we want to keep going even on 403
           IFS=' ' read -r -a users <<< "${USERS}"
           for u in "${users[@]}"; do
             echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
             code=$(curl -sS -o resp.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
@@ -52,13 +55,16 @@ jobs:
     steps:
       - name: Check three users via REST
         shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
           IFS=' ' read -r -a users <<< "${USERS}"
           for u in "${users[@]}"; do
             echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
             code=$(curl -sS -o resp.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
@@ -80,13 +86,16 @@ jobs:
     steps:
       - name: Check three users via REST
         shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
           IFS=' ' read -r -a users <<< "${USERS}"
           for u in "${users[@]}"; do
             echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
             code=$(curl -sS -D headers.txt -o resp.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
@@ -112,13 +121,16 @@ jobs:
     steps:
       - name: Check three users via REST
         shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
           IFS=' ' read -r -a users <<< "${USERS}"
           for u in "${users[@]}"; do
             echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
             code=$(curl -sS -o resp.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
@@ -139,13 +151,16 @@ jobs:
     steps:
       - name: Check three users via REST
         shell: bash
+        # SECURITY: secret moved to env mapping to prevent shell interpretation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
           IFS=' ' read -r -a users <<< "${USERS}"
           for u in "${users[@]}"; do
             echo "::group::GET /repos/${{ github.repository }}/collaborators/$u/permission"
             code=$(curl -sS -o resp.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: ${API_VERSION}" \
               "${API_URL}/repos/${{ github.repository }}/collaborators/$u/permission")
