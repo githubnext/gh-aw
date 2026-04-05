@@ -35,6 +35,7 @@ The server provides the following tools:
   - compile     - Compile Markdown workflows to GitHub Actions YAML
   - logs        - Download and analyze workflow logs (requires write+ access)
   - audit       - Investigate a workflow run, job, or step and generate a report (requires write+ access)
+  - checks      - Classify CI check state for a pull request
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
   - add         - Add workflows from remote repositories to .github/workflows
   - update      - Update workflows from their source repositories

@@ -154,6 +154,22 @@ Investigate a workflow run, job, or specific step and generate a detailed report
 
 Returns JSON with `overview`, `metrics`, `jobs`, `downloaded_files`, `missing_tools`, `mcp_failures`, `errors`, `warnings`, `tool_usage`, and `firewall_analysis`.
 
+### `checks`
+
+Classify CI check state for a pull request and return a normalized result.
+
+- `pr_number` (required): Pull request number to classify CI checks for
+- `repo` (optional): Repository in `owner/repo` format (defaults to current repository)
+
+Returns JSON with:
+- `state`: Aggregate check state across all check runs and commit statuses
+- `required_state`: State derived from check runs and policy commit statuses only (ignores optional third-party statuses like Vercel/Netlify deployments)
+- `pr_number`, `head_sha`, `check_runs`, `statuses`, `total_count`
+
+Normalized states: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`.
+
+Use `required_state` as the authoritative CI verdict in repos with optional deployment integrations.
+
 ### `mcp-inspect`
 
 Inspect MCP servers in workflows and list available tools, resources, and roots.

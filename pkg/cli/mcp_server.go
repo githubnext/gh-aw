@@ -70,6 +70,7 @@ func createMCPServer(cmdPath string, actor string, validateActor bool) *mcp.Serv
 	}
 
 	// Register remaining read-only tools
+	registerChecksTool(server)
 	registerMCPInspectTool(server, execCmd)
 
 	// Register workflow management tools

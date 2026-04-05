@@ -92,6 +92,7 @@ Report back with specific findings and actionable fixes.
 > - `compile` tool → equivalent to `gh aw compile`
 > - `logs` tool → equivalent to `gh aw logs`
 > - `audit` tool → equivalent to `gh aw audit`
+> - `checks` tool → equivalent to `gh aw checks`
 > - `update` tool → equivalent to `gh aw update`
 > - `add` tool → equivalent to `gh aw add`
 > - `mcp-inspect` tool → equivalent to `gh aw mcp inspect`
