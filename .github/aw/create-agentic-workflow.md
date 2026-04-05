@@ -707,90 +707,57 @@ When creating workflows that involve coding agents operating in large repositori
 
 ### Pre-step Data Fetching
 
-**Always fetch heavy data before the AI session begins.** Passing large blobs of raw data (logs, artifacts, build output) directly to the AI agent wastes tokens, increases inference latency, and reduces reliability. Instead, use a deterministic `steps:` block to download, filter, and store the data at a well-known path before the agent reads it.
+Use a deterministic `steps:` block to download, trim, and store heavy data before the agent runs. The agent reads local files instead of making repeated API calls, staying within its token budget.
 
-**Why this matters:**
-- Token budgets are finite — raw CI logs or deployment output can be thousands of lines; pre-fetching lets you truncate or filter to only the relevant parts.
-- Deterministic shell steps are faster and more reliable than asking the agent to call tools repeatedly to download the same data.
-- Pre-fetched data is reusable: the agent reads a local file instead of making repeated API calls.
+**Rules:**
+- Always set `env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` on every step that calls `gh` — the token is not injected automatically.
+- Write output to `/tmp/gh-aw/agent/` (canonical agent data directory).
+- Trim large blobs before writing (`tail -N`).
+- Add `permissions: actions: read` when reading workflow logs or artifacts.
 
-**Reusable template:**
+**Template (CI log analysis):**
 
 ```yaml
 ---
-description: <workflow description>
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
 permissions:
   contents: read
-  actions: read
+  actions: read          # required for gh run view / gh run download
 tools:
   github:
     toolsets: [default]
+  cache-memory: true     # persist pre-fetched data across runs (dedup, trending)
 steps:
-  - name: Fetch data
+  - name: Fetch CI logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RUN_ID: ${{ github.event.workflow_run.id }}
     run: |
-      # Download heavy data before the AI session begins
+      mkdir -p /tmp/gh-aw/agent
       gh run view "$RUN_ID" --log > /tmp/gh-aw/agent/ci-logs.txt 2>&1 || true
-      # Trim to last 500 lines to stay within token budget
       tail -500 /tmp/gh-aw/agent/ci-logs.txt > /tmp/gh-aw/agent/ci-logs-trimmed.txt
 safe-outputs:
   add-comment:
     max: 1
 ---
 
-Analyze the CI failure logs at `/tmp/gh-aw/agent/ci-logs-trimmed.txt`.
+Analyze `/tmp/gh-aw/agent/ci-logs-trimmed.txt`. Identify the root cause and post a comment to the triggering PR.
 
-Identify the root cause, suggest a fix, and add a comment to the triggering PR.
+Check `/tmp/gh-aw/cache-memory/seen-runs.json` for previously seen run IDs; skip if already processed and append the current run ID when done.
 ```
 
-**The agent data directory** (`/tmp/gh-aw/agent/`) is the canonical location for files produced by pre-steps and consumed by the agent. Write pre-fetched data there so the agent can find it with a predictable path.
+**Use cases:**
 
-**Example use cases:**
+| Scenario | Step snippet |
+|---|---|
+| Deployment logs (Heroku/Vercel/Railway) | `heroku logs --tail --num 200 --app ${{ vars.HEROKU_APP }} > /tmp/gh-aw/agent/deploy-logs.txt` |
+| Build / test output | `npm ci 2>&1 \| tail -200 > /tmp/gh-aw/agent/build.txt && npm run test -- --reporter=json > /tmp/gh-aw/agent/test.json 2>&1 \|\| true` |
+| Workflow run artifact | `gh run download "$RUN_ID" --name test-results --dir /tmp/gh-aw/agent/artifacts/ \|\| true` |
 
-1. **Deployment failure logs** — Download Heroku/Vercel/Railway deployment logs via their CLI before the AI analyses the failure:
-   ```yaml
-   steps:
-     - name: Fetch deployment logs
-       env:
-         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         heroku logs --tail --num 200 --app ${{ vars.HEROKU_APP }} \
-           > /tmp/gh-aw/agent/deploy-logs.txt
-   ```
-
-2. **Build artifacts / test results** — Run `npm ci && npm run build` (or equivalent) and save the output so the agent can inspect compilation errors without re-running the build:
-   ```yaml
-   steps:
-     - name: Build and capture output
-       env:
-         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         npm ci 2>&1 | tail -200 > /tmp/gh-aw/agent/build-output.txt
-         npm run test -- --reporter=json > /tmp/gh-aw/agent/test-results.json 2>&1 || true
-   ```
-
-3. **GitHub Actions workflow run artifacts** — Download a specific artifact from a failed run before asking the agent to diagnose it:
-   ```yaml
-   steps:
-     - name: Download test artifact
-       env:
-         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-         RUN_ID: ${{ github.event.workflow_run.id }}
-       run: |
-         gh run download "$RUN_ID" \
-           --name test-results --dir /tmp/gh-aw/agent/artifacts/ || true
-   ```
-
-**Related patterns:**
-
-- For loading a **baseline before AI analysis** (e.g., architecture notes, known-issues registry), use `repo-memory` — see `.github/aw/memory.md` for the full comparison of `cache-memory`, `repo-memory`, and `repo-memory` with wiki.
-- For **multi-step data processing pipelines** that pre-compute aggregations before the AI runs, see the [DataOps pattern](https://github.github.com/gh-aw/patterns/data-ops/) and [Deterministic & Agentic Patterns guide](https://github.github.com/gh-aw/guides/deterministic-agentic-patterns/).
+**`cache-memory` tip:** Add `cache-memory: true` under `tools:` to persist pre-fetched data across runs. This enables deduplication (skip already-diagnosed run IDs), trending (compare metrics over time), and avoids redundant downloads on retries. The agent reads and writes `/tmp/gh-aw/cache-memory/`. See `.github/aw/memory.md` for full configuration options.
 
 ## Issue Form Mode: Step-by-Step Workflow Creation
 
