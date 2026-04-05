@@ -17,12 +17,10 @@ describe("generate_observability_summary.cjs", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     fs.mkdirSync("/tmp/gh-aw/mcp-logs", { recursive: true });
-    process.env.GH_AW_OBSERVABILITY_JOB_SUMMARY = "on";
     module = await import("./generate_observability_summary.cjs");
   });
 
   afterEach(() => {
-    delete process.env.GH_AW_OBSERVABILITY_JOB_SUMMARY;
     for (const path of ["/tmp/gh-aw/aw_info.json", "/tmp/gh-aw/agent_output.json", "/tmp/gh-aw/mcp-logs/gateway.jsonl", "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl"]) {
       if (fs.existsSync(path)) {
         fs.unlinkSync(path);
@@ -87,13 +85,10 @@ describe("generate_observability_summary.cjs", () => {
     expect(summary).toContain("- **trace id**: 12345678901-1");
   });
 
-  it("skips summary generation when opt-in mode is disabled", async () => {
-    process.env.GH_AW_OBSERVABILITY_JOB_SUMMARY = "off";
-
+  it("always generates summary regardless of env vars", async () => {
     await module.main(mockCore);
 
-    expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
-    expect(mockCore.summary.write).not.toHaveBeenCalled();
-    expect(mockCore.info).toHaveBeenCalledWith("Skipping observability summary: mode=off");
+    expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
+    expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
   });
 });

@@ -7,31 +7,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
-func getObservabilityJobSummaryMode(data *WorkflowData) string {
-	if data == nil {
-		return ""
-	}
-
-	mode := ""
-	if data.ParsedFrontmatter != nil && data.ParsedFrontmatter.Observability != nil {
-		mode = data.ParsedFrontmatter.Observability.JobSummary
-	}
-
-	if mode == "" && data.RawFrontmatter != nil {
-		if rawObservability, ok := data.RawFrontmatter["observability"].(map[string]any); ok {
-			if rawMode, ok := rawObservability["job-summary"].(string); ok {
-				mode = rawMode
-			}
-		}
-	}
-
-	if mode == "off" {
-		return ""
-	}
-
-	return mode
-}
-
 // generateEngineExecutionSteps generates the GitHub Actions steps for executing the AI engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 
@@ -119,21 +94,14 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 	yaml.WriteString("            await main();\n")
 }
 
-// generateObservabilitySummary generates an opt-in step that synthesizes a compact
+// generateObservabilitySummary generates a step that synthesizes a compact
 // observability section for the GitHub Actions step summary from existing runtime files.
-func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *WorkflowData) {
-	mode := getObservabilityJobSummaryMode(data)
-	if mode == "" {
-		return
-	}
-
-	compilerYamlLog.Printf("Generating observability step summary: mode=%s", mode)
+func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating observability step summary")
 
 	yaml.WriteString("      - name: Generate observability summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_AW_OBSERVABILITY_JOB_SUMMARY: %q\n", mode)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")

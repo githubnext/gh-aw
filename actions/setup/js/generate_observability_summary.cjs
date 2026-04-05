@@ -114,12 +114,6 @@ function buildObservabilitySummary(data) {
 }
 
 async function main(core) {
-  const mode = process.env.GH_AW_OBSERVABILITY_JOB_SUMMARY || "";
-  if (mode !== "on") {
-    core.info(`Skipping observability summary: mode=${mode || "unset"}`);
-    return;
-  }
-
   const data = collectObservabilityData();
   const markdown = buildObservabilitySummary(data);
   await core.summary.addRaw(markdown).write();

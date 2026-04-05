@@ -134,8 +134,7 @@ type OTLPConfig struct {
 
 // ObservabilityConfig represents workflow observability options.
 type ObservabilityConfig struct {
-	JobSummary string      `json:"job-summary,omitempty"`
-	OTLP       *OTLPConfig `json:"otlp,omitempty"`
+	OTLP *OTLPConfig `json:"otlp,omitempty"`
 }
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter

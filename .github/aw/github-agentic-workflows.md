@@ -303,7 +303,6 @@ The YAML frontmatter supports these fields:
   - **`otlp:`** - Export OpenTelemetry spans to any OTLP-compatible backend (Honeycomb, Grafana Tempo, Sentry, etc.) (object)
     - `endpoint:` - OTLP collector endpoint URL. When a static URL is provided, its hostname is added to the AWF firewall allowlist automatically. Supports GitHub Actions expressions.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
-  - **`job-summary:`** - Control job summary output mode (`"on"` or `"off"`)
   - Example:
 
     ```yaml

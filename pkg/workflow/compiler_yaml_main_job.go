@@ -443,8 +443,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
 	}
 
-	// Optionally synthesize a compact observability section from runtime artifacts.
-	c.generateObservabilitySummary(yaml, data)
+	// Synthesize a compact observability section from runtime artifacts.
+	c.generateObservabilitySummary(yaml)
 
 	// Collect agent stdio logs path for unified upload
 	artifactPaths = append(artifactPaths, logFileFull)
