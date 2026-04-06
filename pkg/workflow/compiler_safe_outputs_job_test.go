@@ -432,8 +432,8 @@ func TestJobWithGitHubApp(t *testing.T) {
 }
 
 // TestAssignToAgentWithGitHubAppUsesAgentToken tests that when github-app: is configured,
-// assign-to-agent uses GH_AW_AGENT_TOKEN rather than the App installation token.
-// The Copilot assignment API only accepts PATs, not GitHub App tokens.
+// assign-to-agent uses the agent token (GH_AW_ASSIGN_TO_AGENT_TOKEN in the handler manager step)
+// rather than the App installation token. The Copilot assignment API only accepts PATs.
 func TestAssignToAgentWithGitHubAppUsesAgentToken(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
@@ -461,24 +461,38 @@ func TestAssignToAgentWithGitHubAppUsesAgentToken(t *testing.T) {
 	// App token minting step should be present (github-app: is configured)
 	assert.Contains(t, stepsContent, "Generate GitHub App token", "App token minting step should be present")
 
-	// Find the assign_to_agent step section
-	assignToAgentStart := strings.Index(stepsContent, "id: assign_to_agent")
-	require.Greater(t, assignToAgentStart, -1, "assign_to_agent step should exist")
+	// assign_to_agent is now handled in the process_safe_outputs step
+	assert.NotContains(t, stepsContent, "id: assign_to_agent",
+		"assign_to_agent should not have a dedicated step — it is handled in the handler manager")
 
-	// Find the end of the assign_to_agent step (next step starts with "      - ")
-	nextStepOffset := strings.Index(stepsContent[assignToAgentStart:], "\n      - ")
-	var assignToAgentSection string
+	// Find the process_safe_outputs step section
+	processSafeOutputsStart := strings.Index(stepsContent, "id: process_safe_outputs")
+	require.Greater(t, processSafeOutputsStart, -1, "process_safe_outputs step should exist")
+
+	nextStepOffset := strings.Index(stepsContent[processSafeOutputsStart:], "\n      - ")
+	var processSafeOutputsSection string
 	if nextStepOffset == -1 {
-		assignToAgentSection = stepsContent[assignToAgentStart:]
+		processSafeOutputsSection = stepsContent[processSafeOutputsStart:]
 	} else {
-		assignToAgentSection = stepsContent[assignToAgentStart : assignToAgentStart+nextStepOffset]
+		processSafeOutputsSection = stepsContent[processSafeOutputsStart : processSafeOutputsStart+nextStepOffset]
 	}
 
-	// The assign_to_agent step should use GH_AW_AGENT_TOKEN, NOT the App token
-	assert.Contains(t, assignToAgentSection, "GH_AW_AGENT_TOKEN",
-		"assign_to_agent step should use GH_AW_AGENT_TOKEN, not the App token")
-	assert.NotContains(t, assignToAgentSection, "safe-outputs-app-token.outputs.token",
-		"assign_to_agent step should not use the GitHub App token")
+	// The process_safe_outputs step should have GH_AW_ASSIGN_TO_AGENT_TOKEN using the agent token chain
+	assert.Contains(t, processSafeOutputsSection, "GH_AW_ASSIGN_TO_AGENT_TOKEN",
+		"process_safe_outputs step should set GH_AW_ASSIGN_TO_AGENT_TOKEN for the assign-to-agent handler")
+	assert.Contains(t, processSafeOutputsSection, "GH_AW_AGENT_TOKEN",
+		"GH_AW_ASSIGN_TO_AGENT_TOKEN should use the agent token chain (GH_AW_AGENT_TOKEN)")
+	// Verify GH_AW_ASSIGN_TO_AGENT_TOKEN value specifically does not use the App token
+	// (only the step-level github-token uses the App token, which is expected)
+	tokenLineStart := strings.Index(processSafeOutputsSection, "GH_AW_ASSIGN_TO_AGENT_TOKEN:")
+	require.Greater(t, tokenLineStart, -1, "GH_AW_ASSIGN_TO_AGENT_TOKEN line should exist")
+	tokenLineEnd := strings.Index(processSafeOutputsSection[tokenLineStart:], "\n")
+	if tokenLineEnd == -1 {
+		tokenLineEnd = len(processSafeOutputsSection) - tokenLineStart
+	}
+	tokenLine := processSafeOutputsSection[tokenLineStart : tokenLineStart+tokenLineEnd]
+	assert.NotContains(t, tokenLine, "safe-outputs-app-token.outputs.token",
+		"GH_AW_ASSIGN_TO_AGENT_TOKEN value should not use the GitHub App token")
 }
 
 // TestAssignToAgentWithGitHubAppAndExplicitToken tests that an explicit github-token
@@ -510,25 +524,29 @@ func TestAssignToAgentWithGitHubAppAndExplicitToken(t *testing.T) {
 
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Find the assign_to_agent step section
-	assignToAgentStart := strings.Index(stepsContent, "id: assign_to_agent")
-	require.Greater(t, assignToAgentStart, -1, "assign_to_agent step should exist")
+	// assign_to_agent is now handled in the process_safe_outputs step
+	assert.NotContains(t, stepsContent, "id: assign_to_agent",
+		"assign_to_agent should not have a dedicated step — it is handled in the handler manager")
 
-	nextStepOffset := strings.Index(stepsContent[assignToAgentStart:], "\n      - ")
-	var assignToAgentSection string
+	// Find the process_safe_outputs step section
+	processSafeOutputsStart := strings.Index(stepsContent, "id: process_safe_outputs")
+	require.Greater(t, processSafeOutputsStart, -1, "process_safe_outputs step should exist")
+
+	nextStepOffset := strings.Index(stepsContent[processSafeOutputsStart:], "\n      - ")
+	var processSafeOutputsSection string
 	if nextStepOffset == -1 {
-		assignToAgentSection = stepsContent[assignToAgentStart:]
+		processSafeOutputsSection = stepsContent[processSafeOutputsStart:]
 	} else {
-		assignToAgentSection = stepsContent[assignToAgentStart : assignToAgentStart+nextStepOffset]
+		processSafeOutputsSection = stepsContent[processSafeOutputsStart : processSafeOutputsStart+nextStepOffset]
 	}
 
-	// The explicit token should take precedence
-	assert.Contains(t, assignToAgentSection, "secrets.MY_CUSTOM_TOKEN",
-		"assign_to_agent step should use the explicitly configured github-token")
-	assert.NotContains(t, assignToAgentSection, "safe-outputs-app-token.outputs.token",
-		"assign_to_agent step should not use the GitHub App token even with explicit token")
-	assert.NotContains(t, assignToAgentSection, "GH_AW_AGENT_TOKEN",
-		"assign_to_agent step should not use GH_AW_AGENT_TOKEN when explicit token is set")
+	// GH_AW_ASSIGN_TO_AGENT_TOKEN should use the explicit token, not the agent chain or App token
+	assert.Contains(t, processSafeOutputsSection, "GH_AW_ASSIGN_TO_AGENT_TOKEN",
+		"process_safe_outputs step should set GH_AW_ASSIGN_TO_AGENT_TOKEN for the assign-to-agent handler")
+	assert.Contains(t, processSafeOutputsSection, "secrets.MY_CUSTOM_TOKEN",
+		"GH_AW_ASSIGN_TO_AGENT_TOKEN should use the explicitly configured github-token")
+	assert.NotContains(t, processSafeOutputsSection, "GH_AW_AGENT_TOKEN",
+		"GH_AW_ASSIGN_TO_AGENT_TOKEN should not use the default agent chain when an explicit token is set")
 }
 
 // TestJobOutputs tests that job outputs are correctly configured

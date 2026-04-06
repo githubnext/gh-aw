@@ -306,6 +306,18 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 		steps = append(steps, fmt.Sprintf("          GH_AW_PROJECT_GITHUB_TOKEN: %s\n", projectToken))
 	}
 
+	// Add GH_AW_ASSIGN_TO_AGENT_TOKEN when assign-to-agent is configured.
+	// The assign_to_agent handler creates a dedicated Octokit using this token (agent token
+	// preference chain), which is required because the Copilot assignment API only accepts PATs
+	// (not GitHub App tokens). This env var is evaluated as a GitHub Actions expression, so it
+	// resolves to the actual token value before the step runs.
+	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
+		agentTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.AssignToAgent.GitHubToken)
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+		steps = append(steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN: %s\n", agentTokenStr))
+		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for assign-to-agent handler")
+	}
+
 	// When create-pull-request or push-to-pull-request-branch is configured with a custom token
 	// (including GitHub App), expose that token as GITHUB_TOKEN so that git CLI operations in
 	// the JavaScript handlers can authenticate. The create_pull_request.cjs handler reads

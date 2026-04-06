@@ -159,6 +159,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.AutofixCodeScanningAlert != nil ||
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil ||
+		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
 		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
 		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 
@@ -173,7 +174,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, scriptSetupSteps...)
 	}
 
-	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, etc.)
+	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, assign_to_agent, etc.)
 	// This processes all safe output types that are handled by the unified handler
 	// Critical for workflows that create projects and then add issues/PRs to those projects
 	if hasHandlerManagerTypes {
@@ -192,6 +193,14 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Note: Permissions are now computed centrally by ComputePermissionsForSafeOutputs()
 		// at the start of this function to ensure consistent permission calculation
+
+		// Export assign_to_agent outputs from the handler manager step
+		if data.SafeOutputs.AssignToAgent != nil {
+			consolidatedSafeOutputsJobLog.Print("Exposing assign_to_agent outputs from handler manager")
+			outputs["assign_to_agent_assigned"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assigned }}"
+			outputs["assign_to_agent_assignment_errors"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_errors }}"
+			outputs["assign_to_agent_assignment_error_count"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_error_count }}"
+		}
 
 		// If create-issue is configured with assignees: copilot, run a follow-up step to
 		// assign the Copilot coding agent. The handler manager exports the list via
@@ -233,19 +242,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, buildSarifArtifactUploadStep(agentArtifactPrefix)...)
 	}
 
-	// 3. Assign To Agent step (runs after handler managers)
-	if data.SafeOutputs.AssignToAgent != nil {
-		stepConfig := c.buildAssignToAgentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
-		outputs["assign_to_agent_assignment_errors"] = "${{ steps.assign_to_agent.outputs.assignment_errors }}"
-		outputs["assign_to_agent_assignment_error_count"] = "${{ steps.assign_to_agent.outputs.assignment_error_count }}"
-	}
-
-	// 4. Create Agent Session step
+	// 3. Create Agent Session step
 	if data.SafeOutputs.CreateAgentSessions != nil {
 		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
@@ -256,7 +253,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
 	}
 
-	// 5. Custom action steps — compiler-generated steps for each configured safe-output action.
+	// 4. Custom action steps — compiler-generated steps for each configured safe-output action.
 	// These steps run after the handler manager, which processes the agent payload and exports
 	// a JSON payload output for each action tool call. Each step is guarded by an `if:` condition
 	// that checks whether the handler manager exported a payload for this action.

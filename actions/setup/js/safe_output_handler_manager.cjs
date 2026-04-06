@@ -17,6 +17,7 @@ const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
+const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorCount, writeAssignToAgentSummary } = require("./assign_to_agent.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
@@ -55,6 +56,7 @@ const HANDLER_MAP = {
   assign_milestone: "./assign_milestone.cjs",
   assign_to_user: "./assign_to_user.cjs",
   unassign_from_user: "./unassign_from_user.cjs",
+  assign_to_agent: "./assign_to_agent.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
@@ -76,10 +78,10 @@ const HANDLER_MAP = {
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  *
- * Standalone types: assign_to_agent, create_agent_session, upload_asset, noop
+ * Standalone types: create_agent_session, upload_asset, noop
  *   - Have dedicated processing steps with specialized logic
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_session", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["create_agent_session", "upload_asset", "noop"]);
 
 /**
  * Code-push safe output types that must succeed before remaining outputs are processed.
@@ -1149,7 +1151,7 @@ async function main() {
       core.warning(`${skippedNoHandlerResults.length} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
     }
 
-    // Export temporary ID map as output for downstream steps (e.g., assign_to_agent)
+    // Export temporary ID map as output for downstream steps
     const temporaryIdMapJson = JSON.stringify(processingResult.temporaryIdMap);
     core.setOutput("temporary_id_map", temporaryIdMapJson);
     core.info(`Exported temporary ID map with ${Object.keys(processingResult.temporaryIdMap).length} mapping(s)`);
@@ -1165,6 +1167,21 @@ async function main() {
       core.info(`Exported ${issuesToAssignCopilot.length} issue(s) for copilot assignment: ${issuesToAssignStr}`);
     } else {
       core.setOutput("issues_to_assign_copilot", "");
+    }
+
+    // Export assign_to_agent outputs when the handler was loaded
+    if (messageHandlers.has("assign_to_agent")) {
+      const assignToAgentAssigned = getAssignToAgentAssigned();
+      const assignToAgentErrors = getAssignToAgentErrors();
+      const assignToAgentErrorCount = getAssignToAgentErrorCount();
+      core.setOutput("assign_to_agent_assigned", assignToAgentAssigned);
+      core.setOutput("assign_to_agent_assignment_errors", assignToAgentErrors);
+      core.setOutput("assign_to_agent_assignment_error_count", assignToAgentErrorCount.toString());
+      if (assignToAgentErrorCount > 0) {
+        core.warning(`${assignToAgentErrorCount} agent assignment(s) failed`);
+      }
+      core.info(`Exported assign_to_agent outputs (${assignToAgentErrorCount} error(s))`);
+      await writeAssignToAgentSummary();
     }
 
     // Export create_discussion errors for conclusion job
