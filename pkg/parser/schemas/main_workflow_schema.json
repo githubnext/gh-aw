@@ -5807,6 +5807,22 @@
                   ],
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
                 },
+                "assignees": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single username to assign to the fallback issue when protected-files: fallback-to-issue triggers."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of usernames to assign to the fallback issue when protected-files: fallback-to-issue triggers.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional assignee(s) for the fallback issue created when protected-files: fallback-to-issue triggers. Accepts either a single string or an array of usernames."
+                },
                 "draft": {
                   "allOf": [
                     {

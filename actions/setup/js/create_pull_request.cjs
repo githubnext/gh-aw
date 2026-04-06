@@ -146,6 +146,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
+  const configAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
   const draftDefault = parseBoolTemplatable(config.draft, true);
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
@@ -198,6 +199,9 @@ async function main(config = {}) {
   }
   if (configReviewers.length > 0) {
     core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
+  }
+  if (configAssignees.length > 0) {
+    core.info(`Configured assignees (for fallback issues): ${configAssignees.join(", ")}`);
   }
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);
@@ -803,6 +807,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
             title: title,
             body: fallbackBody,
             labels: mergeFallbackIssueLabels(labels),
+            ...(configAssignees.length > 0 && { assignees: configAssignees }),
           });
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
@@ -1049,6 +1054,7 @@ ${patchPreview}`;
                 title: title,
                 body: fallbackBody,
                 labels: mergeFallbackIssueLabels(labels),
+                ...(configAssignees.length > 0 && { assignees: configAssignees }),
               });
 
               core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
@@ -1227,6 +1233,7 @@ ${patchPreview}`;
           title: title,
           body: fallbackBody,
           labels: mergeFallbackIssueLabels(labels),
+          ...(configAssignees.length > 0 && { assignees: configAssignees }),
         });
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
@@ -1427,6 +1434,7 @@ ${patchPreview}`;
             title: title,
             body: fallbackBody,
             labels: mergeFallbackIssueLabels(labels),
+            ...(configAssignees.length > 0 && { assignees: configAssignees }),
           });
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
@@ -1498,6 +1506,7 @@ ${patchPreview}`;
           title: title,
           body: fallbackBody,
           labels: mergeFallbackIssueLabels(labels),
+          ...(configAssignees.length > 0 && { assignees: configAssignees }),
         });
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);

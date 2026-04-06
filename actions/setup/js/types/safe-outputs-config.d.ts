@@ -81,6 +81,8 @@ interface AddCommentConfig extends SafeOutputConfig {
 interface CreatePullRequestConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   labels?: string[];
+  reviewers?: string | string[];
+  assignees?: string | string[];
   draft?: boolean;
   "if-no-changes"?: string;
   footer?: boolean;
