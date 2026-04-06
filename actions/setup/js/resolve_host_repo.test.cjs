@@ -14,8 +14,31 @@ const mockCore = {
   },
 };
 
+const mockGetWorkflowRun = vi.fn();
+const mockGithub = {
+  rest: {
+    actions: {
+      getWorkflowRun: mockGetWorkflowRun,
+    },
+  },
+};
+
+const mockContext = {
+  runId: 99999,
+};
+
 // Set up global mocks before importing the module
 global.core = mockCore;
+global.github = mockGithub;
+global.context = mockContext;
+
+/**
+ * Creates a default mock response for getWorkflowRun with no referenced workflows.
+ * Used for same-repo and same-org cross-repo tests where the API should not change the result.
+ */
+function mockNoReferencedWorkflows() {
+  mockGetWorkflowRun.mockResolvedValue({ data: { referenced_workflows: [] } });
+}
 
 describe("resolve_host_repo.cjs", () => {
   let main;
@@ -24,6 +47,8 @@ describe("resolve_host_repo.cjs", () => {
     vi.clearAllMocks();
     mockCore.summary.addRaw.mockReturnThis();
     mockCore.summary.write.mockResolvedValue(undefined);
+    // Default: no referenced workflows (same-repo or same-org cross-repo invocations)
+    mockNoReferencedWorkflows();
 
     const module = await import("./resolve_host_repo.cjs");
     main = module.main;
@@ -33,6 +58,7 @@ describe("resolve_host_repo.cjs", () => {
     delete process.env.GITHUB_WORKFLOW_REF;
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GITHUB_REF;
+    delete process.env.GITHUB_RUN_ID;
   });
 
   it("should output the platform repo when invoked cross-repo", async () => {
@@ -234,5 +260,166 @@ describe("resolve_host_repo.cjs", () => {
 
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("refs/heads/feature-branch"));
     expect(mockCore.summary.write).toHaveBeenCalled();
+  });
+
+  describe("cross-org workflow_call scenarios", () => {
+    it("should resolve callee repo via referenced_workflows API when GITHUB_WORKFLOW_REF matches GITHUB_REPOSITORY", async () => {
+      // Cross-org workflow_call: GITHUB_WORKFLOW_REF points to the caller's repo (not the callee),
+      // so workflowRepo === currentRepo. The referenced_workflows API returns the actual callee.
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockResolvedValue({
+        data: {
+          referenced_workflows: [
+            {
+              path: "platform-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main",
+              sha: "abc123def456",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
+
+      await main();
+
+      expect(mockGetWorkflowRun).toHaveBeenCalledWith({
+        owner: "caller-org",
+        repo: "caller-repo",
+        run_id: 12345,
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "platform-org/platform-repo");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo_name", "platform-repo");
+      // sha is preferred over ref
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_ref", "abc123def456");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved callee repo from referenced_workflows"));
+    });
+
+    it("should use ref from referenced_workflows entry when sha is absent", async () => {
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockResolvedValue({
+        data: {
+          referenced_workflows: [
+            {
+              path: "platform-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/feature",
+              sha: undefined,
+              ref: "refs/heads/feature",
+            },
+          ],
+        },
+      });
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "platform-org/platform-repo");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_ref", "refs/heads/feature");
+    });
+
+    it("should fall back to path-parsed ref when sha and ref are absent in referenced_workflows", async () => {
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockResolvedValue({
+        data: {
+          referenced_workflows: [
+            {
+              path: "platform-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/stable",
+              sha: undefined,
+              ref: undefined,
+            },
+          ],
+        },
+      });
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "platform-org/platform-repo");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_ref", "refs/heads/stable");
+    });
+
+    it("should log cross-repo detection and write step summary for cross-org callee", async () => {
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockResolvedValue({
+        data: {
+          referenced_workflows: [
+            {
+              path: "platform-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main",
+              sha: "abc123",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
+
+      await main();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Cross-repo invocation detected"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("platform-org/platform-repo"));
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should fall back to GITHUB_REPOSITORY when referenced_workflows has no cross-org entry", async () => {
+      // workflowRepo === currentRepo but no cross-org entry (same-org same-repo, no callee)
+      process.env.GITHUB_WORKFLOW_REF = "my-org/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "my-org/my-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockResolvedValue({ data: { referenced_workflows: [] } });
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "my-org/my-repo");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No cross-org callee found in referenced_workflows"));
+    });
+
+    it("should fall back gracefully when referenced_workflows API call fails", async () => {
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockRejectedValue(new Error("API unavailable"));
+
+      await main();
+
+      // Should fall back to the currentRepo (caller) — not ideal but safe degradation
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "caller-org/caller-repo");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("API unavailable"));
+    });
+
+    it("should fall back gracefully when GITHUB_RUN_ID is missing", async () => {
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      delete process.env.GITHUB_RUN_ID;
+      mockContext.runId = NaN;
+
+      await main();
+
+      expect(mockGetWorkflowRun).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "caller-org/caller-repo");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Run ID is unavailable or invalid"));
+
+      // Restore runId for other tests
+      mockContext.runId = 99999;
+    });
+
+    it("should not call referenced_workflows API for normal cross-repo (same-org) invocations", async () => {
+      // workflowRepo !== currentRepo → no API call needed
+      process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "my-org/app-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      await main();
+
+      expect(mockGetWorkflowRun).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "my-org/platform-repo");
+    });
   });
 });

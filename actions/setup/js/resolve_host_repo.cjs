@@ -10,13 +10,19 @@
  * so the expression introduced in #20301 incorrectly fell back to github.repository
  * (the caller's repo) instead of the platform repo.
  *
- * GITHUB_WORKFLOW_REF always reflects the currently executing workflow file, not the
- * triggering event. Its format is:
+ * GITHUB_WORKFLOW_REF reflects the currently executing workflow file for most triggers, but
+ * in cross-org workflow_call scenarios it resolves to the TOP-LEVEL CALLER's workflow ref,
+ * not the reusable (callee) workflow being executed. Its format is:
  *   owner/repo/.github/workflows/file.yml@refs/heads/main
  *
- * When the platform workflow runs cross-repo (called via uses:), GITHUB_WORKFLOW_REF
- * starts with the platform repo slug, while GITHUB_REPOSITORY is the caller repo.
- * Comparing the two lets us detect cross-repo invocations without relying on event_name.
+ * When the platform workflow runs cross-repo (called via uses: from the same org),
+ * GITHUB_WORKFLOW_REF starts with the platform repo slug, while GITHUB_REPOSITORY is the
+ * caller repo. Comparing the two lets us detect cross-repo invocations without relying on
+ * event_name.
+ *
+ * For cross-org workflow_call, GITHUB_WORKFLOW_REF and GITHUB_REPOSITORY both resolve to
+ * the caller's repo. In that case we fall back to the referenced_workflows API lookup to
+ * find the actual callee (platform) repo and ref.
  *
  * In a caller-hosted relay pinned to a feature branch (e.g. uses: platform/.github/workflows/
  * gateway.lock.yml@feature-branch), the @feature-branch portion is encoded in
@@ -24,12 +30,70 @@
  * the correct branch rather than the platform repo's default branch.
  *
  * SEC-005: The targetRepo and targetRef values are resolved solely from trusted system
- * environment variables (GITHUB_WORKFLOW_REF, GITHUB_REPOSITORY, GITHUB_REF) set by the
- * GitHub Actions runtime. They are not derived from user-supplied input, so no allowlist
- * check is required in this handler.
+ * environment variables (GITHUB_WORKFLOW_REF, GITHUB_REPOSITORY, GITHUB_REF) and the
+ * GitHub Actions API (referenced_workflows), set/provided by the GitHub Actions runtime.
+ * They are not derived from user-supplied input, so no allowlist check is required here.
  *
  * @safe-outputs-exempt SEC-005: values sourced from trusted runtime env vars only
  */
+
+/**
+ * Attempts to resolve the callee repository and ref from the referenced_workflows API.
+ *
+ * This is used as a fallback when GITHUB_WORKFLOW_REF points to the same repo as
+ * GITHUB_REPOSITORY (cross-org workflow_call scenario), because in that case
+ * GITHUB_WORKFLOW_REF reflects the caller's workflow ref, not the callee's.
+ *
+ * @param {string} currentRepo - The value of GITHUB_REPOSITORY (owner/repo)
+ * @returns {Promise<{repo: string, ref: string} | null>} Resolved callee repo and ref, or null
+ */
+async function resolveFromReferencedWorkflows(currentRepo) {
+  const runId = parseInt(process.env.GITHUB_RUN_ID || String(context.runId), 10);
+  if (!Number.isFinite(runId)) {
+    core.info("Run ID is unavailable or invalid, cannot perform referenced_workflows lookup");
+    return null;
+  }
+
+  const [runOwner, runRepo] = currentRepo.split("/");
+  try {
+    core.info(`Checking for cross-org callee via referenced_workflows API (run ${runId})`);
+    const runResponse = await github.rest.actions.getWorkflowRun({
+      owner: runOwner,
+      repo: runRepo,
+      run_id: runId,
+    });
+
+    const referencedWorkflows = runResponse.data.referenced_workflows || [];
+    core.info(`Found ${referencedWorkflows.length} referenced workflow(s) in run`);
+
+    // Find the first referenced workflow from a different repo than the caller.
+    // In cross-org workflow_call, the callee (platform) repo is different from currentRepo
+    // (the caller's repo). For same-repo invocations there will be no cross-repo entry.
+    const matchingEntry = referencedWorkflows.find(wf => {
+      const pathRepoMatch = wf.path.match(/^([^/]+\/[^/]+)\//);
+      const entryRepo = pathRepoMatch ? pathRepoMatch[1] : "";
+      return entryRepo && entryRepo !== currentRepo;
+    });
+
+    if (matchingEntry) {
+      const pathRepoMatch = matchingEntry.path.match(/^([^/]+\/[^/]+)\//);
+      const calleeRepo = pathRepoMatch ? pathRepoMatch[1] : "";
+      // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
+      const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
+      const calleeRef = matchingEntry.sha || matchingEntry.ref || (pathRefMatch ? pathRefMatch[1] : "");
+      core.info(`Resolved callee repo from referenced_workflows: ${calleeRepo} @ ${calleeRef || "(default branch)"}`);
+      core.info(`  Referenced workflow path: ${matchingEntry.path}`);
+      return { repo: calleeRepo, ref: calleeRef };
+    } else {
+      core.info("No cross-org callee found in referenced_workflows, using current repo");
+      return null;
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    core.info(`Could not fetch referenced_workflows from API: ${msg}, using current repo`);
+    return null;
+  }
+}
 
 /**
  * @returns {Promise<void>}
@@ -44,7 +108,7 @@ async function main() {
   const workflowRepo = repoMatch ? repoMatch[1] : "";
 
   // Fall back to currentRepo when GITHUB_WORKFLOW_REF cannot be parsed
-  const targetRepo = workflowRepo || currentRepo;
+  let targetRepo = workflowRepo || currentRepo;
 
   // Extract the ref portion after '@' from GITHUB_WORKFLOW_REF.
   // GITHUB_WORKFLOW_REF format: owner/repo/.github/workflows/file.yml@ref
@@ -57,7 +121,25 @@ async function main() {
   // scenarios GITHUB_REF is the *caller* repo's ref, not the callee's, and using it
   // would check out the wrong branch.
   const refMatch = workflowRef.match(/@(.+)$/);
-  const targetRef = refMatch ? refMatch[1] : "";
+  let targetRef = refMatch ? refMatch[1] : "";
+
+  // Cross-org workflow_call detection: when GITHUB_WORKFLOW_REF points to the same repo as
+  // GITHUB_REPOSITORY, it means GITHUB_WORKFLOW_REF is resolving to the caller's workflow
+  // (not the callee's). This happens in cross-org workflow_call invocations where GitHub
+  // Actions sets GITHUB_WORKFLOW_REF to the top-level caller's workflow ref rather than the
+  // reusable workflow being executed. In that case, fall back to the referenced_workflows API
+  // to find the actual callee (platform) repo and ref.
+  //
+  // Note: GITHUB_EVENT_NAME inside a reusable workflow reflects the ORIGINAL trigger event
+  // (e.g., "push", "issues"), NOT "workflow_call", so we cannot use event_name to detect
+  // this scenario.
+  if (workflowRepo && workflowRepo === currentRepo) {
+    const resolved = await resolveFromReferencedWorkflows(currentRepo);
+    if (resolved) {
+      targetRepo = resolved.repo;
+      targetRef = resolved.ref || targetRef;
+    }
+  }
 
   core.info(`GITHUB_WORKFLOW_REF: ${workflowRef}`);
   core.info(`GITHUB_REPOSITORY: ${currentRepo}`);
