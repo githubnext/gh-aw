@@ -3,7 +3,7 @@
 // for filtering artifact downloads in the logs and audit commands.
 //
 // Key responsibilities:
-//   - Defining known artifact set names (all, agent, mcp, detection, github-api, activation)
+//   - Defining known artifact set names (all, agent, mcp, firewall, detection, github-api, activation)
 //   - Mapping sets to concrete artifact name patterns
 //   - Validating artifact set inputs from CLI flags and MCP arguments
 //   - Determining whether a given artifact name matches an active filter
@@ -35,9 +35,16 @@ const (
 	// safe outputs, token usage, and agent-side github_rate_limits.jsonl.
 	ArtifactSetAgent ArtifactSet = "agent"
 
-	// ArtifactSetMCP downloads the firewall-audit-logs artifact containing MCP
-	// gateway / proxy traffic logs.
+	// ArtifactSetMCP downloads the firewall-audit-logs artifact to access MCP
+	// gateway traffic logs (gateway.jsonl / rpc-messages.jsonl), which record
+	// all tool calls, server negotiations, and RPC request/response pairs
+	// between the agent and MCP servers.
 	ArtifactSetMCP ArtifactSet = "mcp"
+
+	// ArtifactSetFirewall downloads the firewall-audit-logs artifact to access
+	// AWF network policy data: domain allow/deny decisions, firewall audit trail,
+	// and token-usage proxy logs.
+	ArtifactSetFirewall ArtifactSet = "firewall"
 
 	// ArtifactSetDetection downloads the detection artifact containing threat
 	// detection log output.
@@ -58,6 +65,7 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetActivation: {constants.ActivationArtifactName},
 	ArtifactSetAgent:      {constants.AgentArtifactName},
 	ArtifactSetMCP:        {constants.FirewallAuditArtifactName},
+	ArtifactSetFirewall:   {constants.FirewallAuditArtifactName},
 	ArtifactSetDetection:  {constants.DetectionArtifactName},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.
 	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},

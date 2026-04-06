@@ -335,45 +335,56 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
 	}
 
+	// Analyze firewall/gateway data only when firewall-audit-logs was downloaded.
+	// Skip silently when the artifact was intentionally excluded from the filter to
+	// avoid spurious "not found" warnings in verbose mode.
+	hasFirewallArtifact := artifactMatchesFilter(constants.FirewallAuditArtifactName, artifactFilter)
+
 	// Analyze firewall logs if available
-	firewallAnalysis, err := analyzeFirewallLogs(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
-	}
-
-	// Supplement firewall analysis with blocked domains extracted directly from
-	// agent-stdio.log (e.g., Codex CLI emits "--allow-domains <domain>" warnings
-	// when the sandbox firewall denies a network request).
-	if agentLogFirewall := extractFirewallFromAgentLog(runOutputDir, verbose); agentLogFirewall != nil {
-		if firewallAnalysis == nil {
-			firewallAnalysis = agentLogFirewall
-		} else {
-			firewallAnalysis.AddMetrics(agentLogFirewall)
+	var firewallAnalysis *FirewallAnalysis
+	var policyAnalysis *PolicyAnalysis
+	var mcpToolUsage *MCPToolUsageData
+	var tokenUsageSummary *TokenUsageSummary
+	if hasFirewallArtifact {
+		firewallAnalysis, err = analyzeFirewallLogs(runOutputDir, verbose)
+		if err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
 		}
-	}
 
-	// Analyze firewall policy artifacts if available (policy-manifest.json + audit.jsonl)
-	policyAnalysis, err := analyzeFirewallPolicy(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+		// Supplement firewall analysis with blocked domains extracted directly from
+		// agent-stdio.log (e.g., Codex CLI emits "--allow-domains <domain>" warnings
+		// when the sandbox firewall denies a network request).
+		if agentLogFirewall := extractFirewallFromAgentLog(runOutputDir, verbose); agentLogFirewall != nil {
+			if firewallAnalysis == nil {
+				firewallAnalysis = agentLogFirewall
+			} else {
+				firewallAnalysis.AddMetrics(agentLogFirewall)
+			}
+		}
+
+		// Analyze firewall policy artifacts if available (policy-manifest.json + audit.jsonl)
+		policyAnalysis, err = analyzeFirewallPolicy(runOutputDir, verbose)
+		if err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall policy: %v", err)))
+		}
+
+		// Extract MCP tool usage data from gateway logs
+		mcpToolUsage, err = extractMCPToolUsageData(runOutputDir, verbose)
+		if err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
+		}
+
+		// Analyze token usage from firewall proxy logs
+		tokenUsageSummary, err = analyzeTokenUsage(runOutputDir, verbose)
+		if err != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
+		}
 	}
 
 	// Analyze redacted domains if available
 	redactedDomainsAnalysis, err := analyzeRedactedDomains(runOutputDir, verbose)
 	if err != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze redacted domains: %v", err)))
-	}
-
-	// Extract MCP tool usage data from gateway logs
-	mcpToolUsage, err := extractMCPToolUsageData(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage: %v", err)))
-	}
-
-	// Analyze token usage from firewall proxy logs
-	tokenUsageSummary, err := analyzeTokenUsage(runOutputDir, verbose)
-	if err != nil && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage: %v", err)))
 	}
 
 	// Analyze GitHub API rate limit consumption from github_rate_limits.jsonl

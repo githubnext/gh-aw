@@ -779,11 +779,20 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.AccessAnalysis = accessAnalysis
 
+				// Analyze firewall/gateway data only when firewall-audit-logs was downloaded.
+				// Skip silently when the artifact was intentionally excluded from the filter to
+				// avoid spurious "not found" warnings in verbose mode.
+				hasFirewallArtifact := artifactMatchesFilter(constants.FirewallAuditArtifactName, artifactFilter)
+
 				// Analyze firewall logs if available
-				firewallAnalysis, firewallErr := analyzeFirewallLogs(runOutputDir, verbose)
-				if firewallErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", run.DatabaseID, firewallErr)))
+				var firewallAnalysis *FirewallAnalysis
+				if hasFirewallArtifact {
+					var firewallErr error
+					firewallAnalysis, firewallErr = analyzeFirewallLogs(runOutputDir, verbose)
+					if firewallErr != nil {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", run.DatabaseID, firewallErr)))
+						}
 					}
 				}
 				result.FirewallAnalysis = firewallAnalysis
@@ -833,20 +842,30 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.MCPFailures = mcpFailures
 
-				// Extract MCP tool usage data from gateway logs if available
-				mcpToolUsage, mcpToolErr := extractMCPToolUsageData(runOutputDir, verbose)
-				if mcpToolErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage for run %d: %v", run.DatabaseID, mcpToolErr)))
+				// Extract MCP tool usage data from gateway logs if available.
+				// Gated on hasFirewallArtifact since gateway.jsonl lives in firewall-audit-logs.
+				var mcpToolUsage *MCPToolUsageData
+				if hasFirewallArtifact {
+					var mcpToolErr error
+					mcpToolUsage, mcpToolErr = extractMCPToolUsageData(runOutputDir, verbose)
+					if mcpToolErr != nil {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP tool usage for run %d: %v", run.DatabaseID, mcpToolErr)))
+						}
 					}
 				}
 				result.MCPToolUsage = mcpToolUsage
 
-				// Analyze token usage from firewall proxy logs
-				tokenUsage, tokenErr := analyzeTokenUsage(runOutputDir, verbose)
-				if tokenErr != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", run.DatabaseID, tokenErr)))
+				// Analyze token usage from firewall proxy logs.
+				// Gated on hasFirewallArtifact since token-usage.jsonl lives in firewall-audit-logs.
+				var tokenUsage *TokenUsageSummary
+				if hasFirewallArtifact {
+					var tokenErr error
+					tokenUsage, tokenErr = analyzeTokenUsage(runOutputDir, verbose)
+					if tokenErr != nil {
+						if verbose {
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze token usage for run %d: %v", run.DatabaseID, tokenErr)))
+						}
 					}
 				}
 				result.TokenUsage = tokenUsage

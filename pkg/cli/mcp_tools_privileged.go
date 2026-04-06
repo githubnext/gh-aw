@@ -30,7 +30,7 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 		Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
 		MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
-		Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, github-api, mcp"`
+		Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
 	}
 
 	// Generate schema with elicitation defaults
@@ -232,7 +232,7 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	type auditArgs struct {
 		RunIDOrURL string   `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
-		Artifacts  []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, github-api, mcp"`
+		Artifacts  []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
 	}
 
 	// Generate schema for audit tool

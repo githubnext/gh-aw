@@ -41,6 +41,11 @@ func TestValidateArtifactSets(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "firewall is valid",
+			sets:      []string{"firewall"},
+			expectErr: false,
+		},
+		{
 			name:      "detection is valid",
 			sets:      []string{"detection"},
 			expectErr: false,
@@ -118,6 +123,16 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "mcp resolves to firewall-audit-logs artifact",
 			sets:     []string{"mcp"},
+			expected: []string{"firewall-audit-logs"},
+		},
+		{
+			name:     "firewall resolves to firewall-audit-logs artifact",
+			sets:     []string{"firewall"},
+			expected: []string{"firewall-audit-logs"},
+		},
+		{
+			name:     "mcp and firewall both deduplicate to single firewall-audit-logs",
+			sets:     []string{"mcp", "firewall"},
 			expected: []string{"firewall-audit-logs"},
 		},
 		{
@@ -225,6 +240,6 @@ func TestValidArtifactSetNames(t *testing.T) {
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
-	expected := []string{"all", "activation", "agent", "detection", "github-api", "mcp"}
+	expected := []string{"all", "activation", "agent", "detection", "firewall", "github-api", "mcp"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
 }
