@@ -112,9 +112,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add print flag for non-interactive mode
 	claudeArgs = append(claudeArgs, "--print")
 
-	// Disable slash commands for controlled execution
-	claudeArgs = append(claudeArgs, "--disable-slash-commands")
-
 	// Disable Chrome integration for security and deterministic execution
 	claudeArgs = append(claudeArgs, "--no-chrome")
 
