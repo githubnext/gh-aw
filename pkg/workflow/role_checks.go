@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var roleLog = logger.New("workflow:role_checks")
@@ -161,27 +162,7 @@ func (c *Compiler) extractBots(frontmatter map[string]any) []string {
 
 // parseBotsValue parses a bots value from frontmatter (supports string, []any, []string)
 func parseBotsValue(botsValue any, fieldName string) []string {
-	switch v := botsValue.(type) {
-	case []any:
-		// Array of bot identifiers
-		var bots []string
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				bots = append(bots, str)
-			}
-		}
-		roleLog.Printf("Extracted %d bot identifiers from '%s' array: %v", len(bots), fieldName, bots)
-		return bots
-	case []string:
-		// Already a string slice
-		roleLog.Printf("Extracted %d bot identifiers from '%s': %v", len(v), fieldName, v)
-		return v
-	case string:
-		// Single bot identifier as string
-		roleLog.Printf("Extracted single bot identifier from '%s': %s", fieldName, v)
-		return []string{v}
-	}
-	return nil
+	return extractStringSliceField(botsValue, fieldName)
 }
 
 // extractRateLimitConfig extracts the 'rate-limit' field from frontmatter
@@ -496,46 +477,31 @@ func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafe
 	return RenderCondition(combinedExpr)
 }
 
-// extractSkipRoles extracts the 'skip-roles' field from the 'on:' section of frontmatter
-// Returns nil if skip-roles is not configured
-func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
-	// Check the "on" section in frontmatter
+// extractSkipField extracts a named field from the 'on:' section of frontmatter.
+// Returns nil if the field is not configured.
+func extractSkipField(frontmatter map[string]any, fieldName string) []string {
 	onValue, exists := frontmatter["on"]
 	if !exists || onValue == nil {
 		return nil
 	}
-
-	// Handle different formats of the on: section
-	switch on := onValue.(type) {
-	case map[string]any:
-		// Complex object format - look for skip-roles
-		if skipRolesValue, exists := on["skip-roles"]; exists && skipRolesValue != nil {
-			return extractStringSliceField(skipRolesValue, "skip-roles")
+	if on, ok := onValue.(map[string]any); ok {
+		if val, exists := on[fieldName]; exists && val != nil {
+			return extractStringSliceField(val, fieldName)
 		}
 	}
-
 	return nil
+}
+
+// extractSkipRoles extracts the 'skip-roles' field from the 'on:' section of frontmatter
+// Returns nil if skip-roles is not configured
+func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
+	return extractSkipField(frontmatter, "skip-roles")
 }
 
 // extractSkipBots extracts the 'skip-bots' field from the 'on:' section of frontmatter
 // Returns nil if skip-bots is not configured
 func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
-	// Check the "on" section in frontmatter
-	onValue, exists := frontmatter["on"]
-	if !exists || onValue == nil {
-		return nil
-	}
-
-	// Handle different formats of the on: section
-	switch on := onValue.(type) {
-	case map[string]any:
-		// Complex object format - look for skip-bots
-		if skipBotsValue, exists := on["skip-bots"]; exists && skipBotsValue != nil {
-			return extractStringSliceField(skipBotsValue, "skip-bots")
-		}
-	}
-
-	return nil
+	return extractSkipField(frontmatter, "skip-bots")
 }
 
 // extractStringSliceField extracts a string slice from various input formats
@@ -575,62 +541,24 @@ func extractStringSliceField(value any, fieldName string) []string {
 	return nil
 }
 
+// mergeStringSlicesDedup merges two string slices with deduplication (preserving order of first occurrence).
+// Logs the merged result under the given logLabel when the result is non-empty.
+func mergeStringSlicesDedup(top, imported []string, logLabel string) []string {
+	result := sliceutil.Deduplicate(append(top, imported...))
+	if len(result) > 0 {
+		roleLog.Printf("Merged %s: %v (top=%d, imported=%d, total=%d)", logLabel, result, len(top), len(imported), len(result))
+	}
+	return result
+}
+
 // mergeSkipRoles merges top-level skip-roles with imported skip-roles (union)
 func (c *Compiler) mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
-	// Create a set for deduplication
-	rolesSet := make(map[string]bool)
-	var result []string
-
-	// Add top-level skip-roles first
-	for _, role := range topSkipRoles {
-		if !rolesSet[role] {
-			rolesSet[role] = true
-			result = append(result, role)
-		}
-	}
-
-	// Merge imported skip-roles
-	for _, role := range importedSkipRoles {
-		if !rolesSet[role] {
-			rolesSet[role] = true
-			result = append(result, role)
-		}
-	}
-
-	if len(result) > 0 {
-		roleLog.Printf("Merged skip-roles: %v (top=%d, imported=%d, total=%d)", result, len(topSkipRoles), len(importedSkipRoles), len(result))
-	}
-
-	return result
+	return mergeStringSlicesDedup(topSkipRoles, importedSkipRoles, "skip-roles")
 }
 
 // mergeSkipBots merges top-level skip-bots with imported skip-bots (union)
 func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
-	// Create a set for deduplication
-	usersSet := make(map[string]bool)
-	var result []string
-
-	// Add top-level skip-bots first
-	for _, user := range topSkipBots {
-		if !usersSet[user] {
-			usersSet[user] = true
-			result = append(result, user)
-		}
-	}
-
-	// Merge imported skip-bots
-	for _, user := range importedSkipBots {
-		if !usersSet[user] {
-			usersSet[user] = true
-			result = append(result, user)
-		}
-	}
-
-	if len(result) > 0 {
-		roleLog.Printf("Merged skip-bots: %v (top=%d, imported=%d, total=%d)", result, len(topSkipBots), len(importedSkipBots), len(result))
-	}
-
-	return result
+	return mergeStringSlicesDedup(topSkipBots, importedSkipBots, "skip-bots")
 }
 
 // extractActivationGitHubToken extracts the 'github-token' field from the 'on:' section of frontmatter.
