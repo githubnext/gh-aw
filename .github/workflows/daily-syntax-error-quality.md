@@ -11,16 +11,15 @@ permissions:
 tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
-  github:
-    toolsets:
-      - default
   bash:
     - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
     - "gh aw compile *"
+    - "gh aw compile /tmp/syntax-error-tests/*.md"
     - "cat .github/workflows/*.md"
     - "head -n * .github/workflows/*.md"
-    - "cp .github/workflows/*.md /tmp/*.md"
-    - "cat /tmp/*.md"
+    - "cp .github/workflows/*.md /tmp/syntax-error-tests/*.md"
+    - "cat /tmp/syntax-error-tests/*.md"
+    - "mkdir -p /tmp/syntax-error-tests"
 safe-outputs:
   create-issue:
     expires: 3d
