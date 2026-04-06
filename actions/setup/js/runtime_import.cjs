@@ -754,6 +754,8 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
     const stripped = filepath.replace(/^\/+/, "");
     if (stripped.startsWith(".agents/") || stripped.startsWith(".agents\\") || stripped.startsWith(".github/") || stripped.startsWith(".github\\")) {
       filepath = stripped;
+    } else {
+      throw new Error(`${ERR_VALIDATION}: Security: Path ${filepathOrUrl} must be within .agents/ or .github/ folder`);
     }
   }
 
