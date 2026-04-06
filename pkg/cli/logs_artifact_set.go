@@ -36,9 +36,8 @@ const (
 	ArtifactSetAgent ArtifactSet = "agent"
 
 	// ArtifactSetMCP downloads the firewall-audit-logs artifact to access MCP
-	// gateway traffic logs (gateway.jsonl / rpc-messages.jsonl), which record
-	// all tool calls, server negotiations, and RPC request/response pairs
-	// between the agent and MCP servers.
+	// gateway traffic logs (gateway.jsonl, rpc-messages.jsonl) containing tool
+	// calls, server negotiations, and RPC request/response pairs.
 	ArtifactSetMCP ArtifactSet = "mcp"
 
 	// ArtifactSetFirewall downloads the firewall-audit-logs artifact to access

@@ -211,7 +211,7 @@ Examples:
 	logsCmd.Flags().Bool("train", false, "Train drain3 log template weights from downloaded runs and write drain3_weights.json to the output directory")
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: markdown, pretty (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to analyze when generating a cross-run report")
-	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download, default is all. Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

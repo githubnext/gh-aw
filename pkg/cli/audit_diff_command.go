@@ -90,7 +90,7 @@ Examples:
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	cmd.Flags().String("format", "pretty", "Output format: pretty, markdown")
-	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download, default is all. Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 
 	return cmd
 }
