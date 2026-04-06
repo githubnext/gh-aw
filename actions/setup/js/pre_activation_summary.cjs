@@ -20,8 +20,11 @@ async function writeDenialSummary(reason, remediation) {
     const templatePath = path.join(runnerTemp, "gh-aw", "prompts", "pre_activation_skip.md");
     try {
       content = renderTemplateFromFile(templatePath, { reason, remediation });
-    } catch {
-      // Template file not available; fall back to hardcoded format below
+    } catch (err) {
+      // Log unexpected errors but still fall through to the hardcoded fallback
+      if (err && typeof err === "object" && "code" in err && err.code !== "ENOENT") {
+        core.warning(`pre_activation_summary: could not read template ${templatePath}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 

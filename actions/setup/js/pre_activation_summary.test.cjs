@@ -42,7 +42,7 @@ describe("pre_activation_summary.cjs", () => {
       process.env.RUNNER_TEMP = tmpDir;
 
       try {
-        const { writeDenialSummary } = await import("./pre_activation_summary.cjs?" + Date.now());
+        const { writeDenialSummary } = await import("./pre_activation_summary.cjs");
         await writeDenialSummary("Denied: insufficient perms", "Update frontmatter roles");
 
         expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Skipped\n\n> Denied: insufficient perms\n\n**Fix:** Update frontmatter roles\n");
@@ -55,7 +55,7 @@ describe("pre_activation_summary.cjs", () => {
     it("falls back to hardcoded format when RUNNER_TEMP is not set", async () => {
       delete process.env.RUNNER_TEMP;
 
-      const { writeDenialSummary } = await import("./pre_activation_summary.cjs?" + Date.now());
+      const { writeDenialSummary } = await import("./pre_activation_summary.cjs");
       await writeDenialSummary("Bot not authorized", "Add bot to on.bots:");
 
       const rawCall = mockCore.summary.addRaw.mock.calls[0][0];
@@ -70,7 +70,7 @@ describe("pre_activation_summary.cjs", () => {
       // No template file created
 
       try {
-        const { writeDenialSummary } = await import("./pre_activation_summary.cjs?" + Date.now());
+        const { writeDenialSummary } = await import("./pre_activation_summary.cjs");
         await writeDenialSummary("Stop time exceeded", "Update on.stop-after:");
 
         const rawCall = mockCore.summary.addRaw.mock.calls[0][0];
