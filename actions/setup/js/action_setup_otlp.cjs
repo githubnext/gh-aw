@@ -28,6 +28,7 @@
 const path = require("path");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
+const { getActionInput } = require("./action_input_utils.cjs");
 
 /**
  * Send the OTLP job-setup span and propagate trace context via GITHUB_OUTPUT /
@@ -48,24 +49,17 @@ async function run() {
   // Explicitly read INPUT_TRACE_ID and pass it as options.traceId so the
   // activation job's trace ID is used even when process.env propagation
   // through GitHub Actions expression evaluation is unreliable.
-  // Also handle INPUT_TRACE-ID (with hyphen) in case the runner preserves
-  // the original input name hyphen instead of converting it to an underscore.
-  const inputTraceId = (process.env.INPUT_TRACE_ID || process.env["INPUT_TRACE-ID"] || "").trim().toLowerCase();
+  const inputTraceId = getActionInput("TRACE_ID").toLowerCase();
   if (inputTraceId) {
     console.log(`[otlp] INPUT_TRACE_ID=${inputTraceId} (will reuse activation trace)`);
   } else {
     console.log("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
   }
 
-  // Normalize job-name input: handle both INPUT_JOB_NAME (underscore, standard)
-  // and INPUT_JOB-NAME (hyphen, used by some runner versions).  Mirror the same
-  // two-key lookup that INPUT_TRACE_ID uses above so script-mode invocations
-  // (setup.sh → node action_setup_otlp.cjs) always resolve the job name even
-  // when the runner preserves the original hyphen in the env var name.
-  const inputJobName = (process.env.INPUT_JOB_NAME || process.env["INPUT_JOB-NAME"] || "").trim();
+  // Normalize to the canonical underscore form so sendJobSetupSpan (which
+  // reads process.env.INPUT_JOB_NAME) always finds the value.
+  const inputJobName = getActionInput("JOB_NAME");
   if (inputJobName) {
-    // Normalise to the canonical underscore form so sendJobSetupSpan (which
-    // reads process.env.INPUT_JOB_NAME) always finds the value.
     process.env.INPUT_JOB_NAME = inputJobName;
   }
 

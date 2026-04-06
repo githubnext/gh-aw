@@ -3,32 +3,17 @@
 
 const { spawnSync } = require("child_process");
 const path = require("path");
+const { getActionInput } = require("./js/action_input_utils.cjs");
 
 // Record start time for the OTLP span before any setup work begins.
 const setupStartMs = Date.now();
 
-// GitHub Actions sets INPUT_* env vars for JavaScript actions by converting
-// input names to uppercase and replacing hyphens with underscores. Explicitly
-// normalize inputs with hyphens in their names because some runner versions
-// preserve the original hyphen instead of converting it to an underscore.
-const safeOutputCustomTokens =
-  process.env["INPUT_SAFE_OUTPUT_CUSTOM_TOKENS"] ||
-  process.env["INPUT_SAFE-OUTPUT-CUSTOM-TOKENS"] ||
-  "false";
-
-// Normalize trace-id input: handle both INPUT_TRACE_ID (underscore, standard)
-// and INPUT_TRACE-ID (hyphen, used by some runner versions).
-const inputTraceId =
-  process.env["INPUT_TRACE_ID"] ||
-  process.env["INPUT_TRACE-ID"] ||
-  "";
-
-// Normalize job-name input: handle both INPUT_JOB_NAME (underscore, standard)
-// and INPUT_JOB-NAME (hyphen, used by some runner versions).
-const inputJobName =
-  process.env["INPUT_JOB_NAME"] ||
-  process.env["INPUT_JOB-NAME"] ||
-  "";
+// GitHub Actions converts input names to INPUT_<UPPER_UNDERSCORE>, but some
+// runner versions preserve the original hyphen form. getActionInput() handles
+// both forms automatically.
+const safeOutputCustomTokens = getActionInput("SAFE_OUTPUT_CUSTOM_TOKENS") || "false";
+const inputTraceId = getActionInput("TRACE_ID");
+const inputJobName = getActionInput("JOB_NAME");
 
 const result = spawnSync(path.join(__dirname, "setup.sh"), [], {
   stdio: "inherit",
