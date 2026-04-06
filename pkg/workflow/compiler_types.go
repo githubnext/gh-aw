@@ -32,6 +32,11 @@ func WithNoEmit(noEmit bool) CompilerOption {
 	return func(c *Compiler) { c.noEmit = noEmit }
 }
 
+// WithSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets)
+func WithSafeUpdate(safeUpdate bool) CompilerOption {
+	return func(c *Compiler) { c.safeUpdate = safeUpdate }
+}
+
 // WithFailFast configures whether to stop at first validation error
 func WithFailFast(failFast bool) CompilerOption {
 	return func(c *Compiler) { c.failFast = failFast }
@@ -57,6 +62,7 @@ type Compiler struct {
 	skipValidation          bool                // If true, skip schema validation
 	noEmit                  bool                // If true, validate without generating lock files
 	strictMode              bool                // If true, enforce strict validation requirements
+	safeUpdate              bool                // If true, enforce safe update mode (reject newly introduced secrets)
 	trialMode               bool                // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug    string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime         bool                // If true, regenerate stop-after times instead of preserving existing ones
@@ -150,6 +156,12 @@ func (c *Compiler) SetQuiet(quiet bool) {
 // SetNoEmit configures whether to validate without generating lock files
 func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
+}
+
+// SetSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets).
+// When enabled via the CLI it takes precedence over the frontmatter safe-update field.
+func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
+	c.safeUpdate = safeUpdate
 }
 
 // SetFileTracker sets the file tracker for tracking created files

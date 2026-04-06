@@ -155,6 +155,12 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	if config.ForceRefreshActionPins {
 		compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
 	}
+
+	// Set safe update flag: when enabled via CLI it overrides any frontmatter setting
+	compiler.SetSafeUpdate(config.SafeUpdate)
+	if config.SafeUpdate {
+		compileCompilerSetupLog.Print("Safe update mode enabled: compilations introducing new restricted secrets will be rejected")
+	}
 }
 
 // setupActionMode configures the action script inlining mode

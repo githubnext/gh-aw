@@ -34,6 +34,24 @@ func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
 	return true
 }
 
+// effectiveSafeUpdate returns true when safe update mode should be enforced for
+// the given workflow. Priority:
+//
+//  1. CLI flag (c.safeUpdate) – always overrides frontmatter.
+//  2. Frontmatter field "safe-update" (bool).
+//  3. Default: false (safe update is opt-in).
+func (c *Compiler) effectiveSafeUpdate(data *WorkflowData) bool {
+	if c.safeUpdate {
+		return true
+	}
+	if val, exists := data.RawFrontmatter["safe-update"]; exists {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
 // buildJobsAndValidate builds all workflow jobs and validates their dependencies.
 // It resets the job manager, builds jobs from the workflow data, and performs
 // dependency and duplicate step validation.
@@ -101,6 +119,16 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		} else {
 			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
 		}
+	}
+
+	// Embed the GHAW manifest immediately after gh-aw-metadata for easy machine parsing.
+	// The manifest records all secrets and external actions detected at compile time so
+	// that subsequent compilations can perform safe update enforcement.
+	manifest := NewGHAWManifest(secrets, actions)
+	if manifestJSON, err := manifest.ToJSON(); err == nil {
+		fmt.Fprintf(yaml, "# GHAW manifest: %s\n", manifestJSON)
+	} else {
+		compilerYamlLog.Printf("Warning: failed to serialize GHAW manifest: %v", err)
 	}
 
 	// Add workflow header with logo and instructions

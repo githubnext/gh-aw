@@ -676,6 +676,20 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
+	// Read the existing lock file before generating new content so we can extract
+	// the previous GHAW manifest for safe update enforcement.
+	var oldManifest *GHAWManifest
+	if existingContent, readErr := os.ReadFile(lockFile); readErr == nil {
+		if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
+			oldManifest = m
+			if oldManifest != nil {
+				log.Printf("Loaded existing GHAW manifest: %d secret(s)", len(oldManifest.Secrets))
+			}
+		} else {
+			log.Printf("Warning: failed to parse existing GHAW manifest: %v", parseErr)
+		}
+	}
+
 	// Validate workflow data
 	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
 		return err
@@ -687,10 +701,20 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Note: compute-text functionality is now inlined directly in the task job
 	// instead of using a shared action file
 
-	// Generate and validate YAML
+	// Generate and validate YAML (also embeds the new GHAW manifest in the header)
 	yamlContent, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {
 		return err
+	}
+
+	// Enforce safe update mode: reject compilations that introduce new restricted secrets.
+	// This check uses the manifest from the *previous* lock file so that only genuinely
+	// new secrets (not previously recorded) trigger a failure.
+	if c.effectiveSafeUpdate(workflowData) {
+		newSecrets := CollectSecretReferences(yamlContent)
+		if enforceErr := EnforceSafeUpdate(oldManifest, newSecrets); enforceErr != nil {
+			return formatCompilerError(markdownPath, "error", enforceErr.Error(), enforceErr)
+		}
 	}
 
 	// Write output

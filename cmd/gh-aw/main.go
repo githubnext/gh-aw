@@ -282,6 +282,7 @@ Examples:
 		failFast, _ := cmd.Flags().GetBool("fail-fast")
 		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
+		safeUpdate, _ := cmd.Flags().GetBool("safe-update")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
@@ -335,6 +336,7 @@ Examples:
 			Stats:                  stats,
 			FailFast:               failFast,
 			ScheduleSeed:           scheduleSeed,
+			SafeUpdate:             safeUpdate,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			// Return error as-is without additional formatting
@@ -681,6 +683,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. 'github/gh-aw'). Bypasses git remote detection entirely. Use this when your git remote is not named 'origin' and you have multiple remotes configured")
+	compileCmd.Flags().Bool("safe-update", false, "Enforce safe update mode: reject compilations that introduce new restricted secrets not present in the existing GHAW manifest. CLI override always takes precedence over frontmatter safe-update field")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 
 	// Register completions for compile command
