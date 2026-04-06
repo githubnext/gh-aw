@@ -434,16 +434,23 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 		{
 			name: "non-stem command does not get wildcard",
 			tools: map[string]any{
-				"bash": []any{"echo", "curl"},
+				"bash": []any{"echo", "ls"},
 			},
-			expected: []string{"--allow-tool", "shell(curl)", "--allow-tool", "shell(echo)"},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+		},
+		{
+			name: "curl and wget get wildcard as stem commands",
+			tools: map[string]any{
+				"bash": []any{"curl", "wget"},
+			},
+			expected: []string{"--allow-tool", "shell(curl:*)", "--allow-tool", "shell(wget:*)"},
 		},
 		{
 			name: "mixed stem and non-stem commands",
 			tools: map[string]any{
 				"bash": []any{"dotnet", "echo", "npm", "curl", "git status"},
 			},
-			expected: []string{"--allow-tool", "shell(curl)", "--allow-tool", "shell(dotnet:*)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm:*)"},
+			expected: []string{"--allow-tool", "shell(curl:*)", "--allow-tool", "shell(dotnet:*)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm:*)"},
 		},
 		{
 			name: "all stem commands get wildcard",

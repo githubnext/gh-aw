@@ -242,6 +242,11 @@ const (
 //
 // This list must be kept in sync with the stem configurations in Copilot CLI's
 // shell command parser (tree-sitter based).
+//
+// NOTE: Network tools like curl and wget are also included here because the Copilot CLI
+// treats them as stem commands — shell(curl) only matches a bare "curl" invocation with
+// no arguments. Using shell(curl:*) ensures that "curl -s ...", "curl --max-time 30 ...",
+// etc. are all permitted when bash: ["curl"] is specified.
 var CopilotStemCommands = map[string]bool{
 	"git": true, "gh": true, "glab": true,
 	"npm": true, "npx": true, "yarn": true, "pnpm": true,
@@ -251,4 +256,5 @@ var CopilotStemCommands = map[string]bool{
 	"dotnet": true,
 	"bundle": true, "swift": true, "sbt": true, "flutter": true,
 	"mix": true, "cabal": true, "stack": true,
+	"curl": true, "wget": true,
 }
