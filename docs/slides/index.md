@@ -274,6 +274,12 @@ gh aw logs
 # Filter by date range
 gh aw logs --start-date -1w accessibility-review
 
+# Cross-run analysis report
+gh aw logs --format markdown --count 10
+
+# Audit a specific workflow run
+gh aw audit 123456
+
 # Generate the lock file for a workflow
 gh aw compile
 ```
