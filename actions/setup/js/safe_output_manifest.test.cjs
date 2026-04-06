@@ -52,6 +52,7 @@ describe("safe_output_manifest", () => {
       expect(NOT_LOGGED_TYPES.has("noop")).toBe(true);
       expect(NOT_LOGGED_TYPES.has("missing_tool")).toBe(true);
       expect(NOT_LOGGED_TYPES.has("missing_data")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("report_incomplete")).toBe(true);
     });
 
     it("should not contain any handler or modification types (all are logged by default)", () => {
@@ -232,6 +233,7 @@ describe("safe_output_manifest", () => {
       expect(extractCreatedItemFromResult("noop", result)).toBeNull();
       expect(extractCreatedItemFromResult("missing_tool", result)).toBeNull();
       expect(extractCreatedItemFromResult("missing_data", result)).toBeNull();
+      expect(extractCreatedItemFromResult("report_incomplete", result)).toBeNull();
     });
 
     it("should extract item from custom safe job type (generic: any type not excluded is logged)", () => {

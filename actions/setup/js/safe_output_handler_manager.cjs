@@ -325,7 +325,7 @@ function formatManifestLogMessage(item) {
 async function processMessages(messageHandlers, messages, onItemCreated = null) {
   const results = [];
 
-  // Collect missing_tool and missing_data messages first
+  // Collect missing_tool, missing_data, noop, and report_incomplete messages first
   const missings = collectMissingMessages(messages);
 
   // Initialize shared temporary ID map

@@ -937,6 +937,53 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings.noopMessages[1].message).toBe("Analysis complete");
     });
 
+    it("should collect report_incomplete signals alongside other message types", async () => {
+      const messages = [
+        {
+          type: "report_incomplete",
+          reason: "MCP server crashed during execution",
+          details: "Connection refused on port 3000",
+        },
+        {
+          type: "create_issue",
+          title: "Test Issue",
+          body: "Issue body",
+        },
+        {
+          type: "report_incomplete",
+          reason: "Missing authentication token",
+        },
+        {
+          type: "missing_tool",
+          tool: "docker",
+          reason: "Need containerization",
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([
+        ["create_issue", mockCreateIssueHandler],
+        ["report_incomplete", vi.fn().mockResolvedValue({ success: true })],
+        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.missings).toBeDefined();
+      expect(result.missings.reportIncomplete).toHaveLength(2);
+      expect(result.missings.missingTools).toHaveLength(1);
+
+      expect(result.missings.reportIncomplete[0].reason).toBe("MCP server crashed during execution");
+      expect(result.missings.reportIncomplete[0].details).toBe("Connection refused on port 3000");
+      expect(result.missings.reportIncomplete[1].reason).toBe("Missing authentication token");
+      expect(result.missings.reportIncomplete[1].details).toBeNull();
+    });
+
     it("should return empty arrays when no missing messages present", async () => {
       const messages = [
         {
@@ -960,6 +1007,7 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings.missingTools).toHaveLength(0);
       expect(result.missings.missingData).toHaveLength(0);
       expect(result.missings.noopMessages).toHaveLength(0);
+      expect(result.missings.reportIncomplete).toHaveLength(0);
     });
   });
 
