@@ -267,12 +267,21 @@
           "minLength": 1
         },
         "headers": {
-          "type": "object",
-          "description": "Additional HTTP headers sent with every OTLP export request (e.g., for authentication). Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "default": {}
+          "description": "Additional HTTP headers sent with every OTLP export request (e.g., for authentication). Accepts either an object mapping header names to values, or a multi-line string where each line uses 'name=value' syntax (splitting on the first '=' character). Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Object form: keys are header names, values are header values.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "string",
+              "description": "String form: each line is 'name=value'. Lines not containing '=' are ignored. Leading and trailing whitespace on names and values is trimmed.",
+              "minLength": 1
+            }
+          ]
         },
         "traceId": {
           "type": "string",
