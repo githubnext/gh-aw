@@ -37,6 +37,9 @@
  * @safe-outputs-exempt SEC-005: values sourced from trusted runtime env vars only
  */
 
+// Matches the "owner/repo" prefix from a GitHub workflow path of the form "owner/repo/...".
+const REPO_PREFIX_RE = /^([^/]+\/[^/]+)\//;
+
 /**
  * Attempts to resolve the callee repository and ref from the referenced_workflows API.
  *
@@ -49,7 +52,14 @@
  */
 async function resolveFromReferencedWorkflows(currentRepo) {
   const rawRunId = process.env.GITHUB_RUN_ID;
-  const runId = rawRunId ? parseInt(rawRunId, 10) : typeof context.runId === "number" && Number.isFinite(context.runId) ? context.runId : NaN;
+  let runId;
+  if (rawRunId) {
+    runId = parseInt(rawRunId, 10);
+  } else if (typeof context.runId === "number" && Number.isFinite(context.runId)) {
+    runId = context.runId;
+  } else {
+    runId = NaN;
+  }
   if (!Number.isFinite(runId)) {
     core.info("Run ID is unavailable or invalid, cannot perform referenced_workflows lookup");
     return null;
@@ -71,13 +81,13 @@ async function resolveFromReferencedWorkflows(currentRepo) {
     // In cross-org workflow_call, the callee (platform) repo is different from currentRepo
     // (the caller's repo). For same-repo invocations there will be no cross-repo entry.
     const matchingEntry = referencedWorkflows.find(wf => {
-      const pathRepoMatch = wf.path.match(/^([^/]+\/[^/]+)\//);
+      const pathRepoMatch = wf.path.match(REPO_PREFIX_RE);
       const entryRepo = pathRepoMatch ? pathRepoMatch[1] : "";
       return entryRepo && entryRepo !== currentRepo;
     });
 
     if (matchingEntry) {
-      const pathRepoMatch = matchingEntry.path.match(/^([^/]+\/[^/]+)\//);
+      const pathRepoMatch = matchingEntry.path.match(REPO_PREFIX_RE);
       const calleeRepo = pathRepoMatch ? pathRepoMatch[1] : "";
       // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
       const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
@@ -105,7 +115,7 @@ async function main() {
 
   // GITHUB_WORKFLOW_REF format: owner/repo/.github/workflows/file.yml@ref
   // The regex captures everything before the third slash segment (i.e., the owner/repo prefix).
-  const repoMatch = workflowRef.match(/^([^/]+\/[^/]+)\//);
+  const repoMatch = workflowRef.match(REPO_PREFIX_RE);
   const workflowRepo = repoMatch ? repoMatch[1] : "";
 
   // Fall back to currentRepo when GITHUB_WORKFLOW_REF cannot be parsed
