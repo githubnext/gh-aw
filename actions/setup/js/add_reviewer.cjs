@@ -19,12 +19,9 @@ const { COPILOT_REVIEWER_BOT } = require("./constants.cjs");
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
-  // Extract configuration
-  const allowedReviewers = config.allowed || [];
-  const maxCount = config.max || 10;
+  const allowedReviewers = config.allowed ?? [];
+  const maxCount = config.max ?? 10;
   const githubClient = await createAuthenticatedGitHubClient(config);
-
-  // Check if we're in staged mode
   const isStaged = isStagedMode(config);
 
   core.info(`Add reviewer configuration: max=${maxCount}`);
@@ -32,17 +29,14 @@ async function main(config = {}) {
     core.info(`Allowed reviewers: ${allowedReviewers.join(", ")}`);
   }
 
-  // Track how many items we've processed for max limit
   let processedCount = 0;
 
   /**
-   * Message handler function that processes a single add_reviewer message
    * @param {Object} message - The add_reviewer message to process
    * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
    * @returns {Promise<Object>} Result with success/error status
    */
   return async function handleAddReviewer(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping add_reviewer: max count of ${maxCount} reached`);
       return {
@@ -53,7 +47,6 @@ async function main(config = {}) {
 
     processedCount++;
 
-    // Determine PR number using helper
     const { prNumber, error } = getPullRequestNumber(message, context);
 
     if (error) {
@@ -64,7 +57,7 @@ async function main(config = {}) {
       };
     }
 
-    const requestedReviewers = message.reviewers || [];
+    const requestedReviewers = message.reviewers ?? [];
     core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
 
     // Use shared helper to filter, sanitize, dedupe, and limit
