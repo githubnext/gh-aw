@@ -37,8 +37,8 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenSteps(c *Compiler, permission
 
 // GenerateCheckoutAppTokenInvalidationSteps generates token invalidation steps
 // for all checkout entries that use app authentication.
-// The tokens were minted in the activation job and are referenced via
-// needs.activation.outputs.checkout_app_token_{index}.
+// The tokens were minted in the agent job and are referenced via
+// steps.checkout-app-token-{index}.outputs.token.
 func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler) []string {
 	var steps []string
 	for i, entry := range cm.ordered {
@@ -47,9 +47,11 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler
 		}
 		checkoutManagerLog.Printf("Generating app token invalidation step for checkout index=%d", i)
 		rawSteps := c.buildGitHubAppTokenInvalidationStep()
-		outputName := fmt.Sprintf("checkout_app_token_%d", i)
+		stepID := fmt.Sprintf("checkout-app-token-%d", i)
 		for _, step := range rawSteps {
-			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "needs.activation.outputs."+outputName)
+			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps."+stepID+".outputs.token")
+			// Update the if condition to reference the step output (not activation outputs)
+			modified = strings.ReplaceAll(modified, "if: always() && steps.safe-outputs-app-token.outputs.token != ''", fmt.Sprintf("if: always() && steps.%s.outputs.token != ''", stepID))
 			// Update step name to indicate it's for checkout
 			modified = strings.ReplaceAll(modified, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
 			steps = append(steps, modified)
@@ -163,9 +165,10 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		// Determine effective token: github-app-minted token takes precedence
 		effectiveOverrideToken := override.token
 		if override.githubApp != nil {
-			// The default checkout is always at index 0 in the ordered list
+			// The default checkout is always at index 0 in the ordered list.
+			// The token is minted in the agent job itself (same-job step reference).
 			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-			effectiveOverrideToken = "${{ needs.activation.outputs.checkout_app_token_0 }}"
+			effectiveOverrideToken = "${{ steps.checkout-app-token-0.outputs.token }}"
 		}
 		if effectiveOverrideToken != "" {
 			fmt.Fprintf(&sb, "          token: %s\n", effectiveOverrideToken)
@@ -231,8 +234,9 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin 
 	// Determine effective token: github-app-minted token takes precedence
 	effectiveToken := entry.token
 	if entry.githubApp != nil {
+		// The token is minted in the agent job itself (same-job step reference).
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		effectiveToken = fmt.Sprintf("${{ needs.activation.outputs.checkout_app_token_%d }}", index)
+		effectiveToken = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
 	}
 	if effectiveToken != "" {
 		fmt.Fprintf(&sb, "          token: %s\n", effectiveToken)
@@ -319,8 +323,9 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	// Determine authentication token
 	token := entry.token
 	if entry.githubApp != nil {
+		// The token is minted in the agent job itself (same-job step reference).
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		token = fmt.Sprintf("${{ needs.activation.outputs.checkout_app_token_%d }}", index)
+		token = fmt.Sprintf("${{ steps.checkout-app-token-%d.outputs.token }}", index)
 	}
 	if token == "" {
 		token = getEffectiveGitHubToken("")

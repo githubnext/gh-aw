@@ -890,7 +890,9 @@ func TestDefaultCheckoutWithAppAuth(t *testing.T) {
 		})
 		lines := cm.GenerateDefaultCheckoutStep(false, "", getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "needs.activation.outputs.checkout_app_token_0", "checkout should reference app token step")
+		// Token is now minted in the agent job itself (same-job step reference)
+		assert.Contains(t, combined, "steps.checkout-app-token-0.outputs.token", "checkout should reference step output in same job")
+		assert.NotContains(t, combined, "needs.activation.outputs.checkout_app_token_0", "checkout must not reference activation job outputs (masked values are dropped by runner)")
 	})
 }
 
@@ -908,7 +910,9 @@ func TestAdditionalCheckoutWithAppAuth(t *testing.T) {
 		})
 		lines := cm.GenerateAdditionalCheckoutSteps(getPin)
 		combined := strings.Join(lines, "")
-		assert.Contains(t, combined, "needs.activation.outputs.checkout_app_token_1", "additional checkout should reference app token at index 1")
+		// Token is now minted in the agent job itself (same-job step reference)
+		assert.Contains(t, combined, "steps.checkout-app-token-1.outputs.token", "additional checkout should reference step output at index 1")
+		assert.NotContains(t, combined, "needs.activation.outputs.checkout_app_token_1", "checkout must not reference activation job outputs (masked values are dropped by runner)")
 		assert.Contains(t, combined, "other/repo", "should reference the additional repo")
 	})
 }

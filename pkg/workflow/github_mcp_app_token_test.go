@@ -537,20 +537,20 @@ Test that write is rejected in tools.github.github-app.permissions.
 	assert.Contains(t, err.Error(), "members", "Error should mention the offending scope")
 }
 
-// TestCheckoutAppTokensNotMintedInAgentJob verifies that checkout-related GitHub App token
-// minting steps (create-github-app-token) do NOT appear in the agent job.
-// Checkout app tokens are minted in the activation job so that app-id / private-key secrets
-// never reach the agent's environment.
-// Note: the GitHub MCP App token (tools.github.github-app) IS minted in the agent job —
-// this is intentional because masked values are silently dropped by the runner when passed
-// as job outputs (runner v2.308+).
-func TestCheckoutAppTokensNotMintedInAgentJob(t *testing.T) {
+// TestCheckoutAppTokensMintedInAgentJob verifies that checkout-related GitHub App token
+// minting steps (create-github-app-token) appear directly in the agent job.
+// Previously, checkout tokens were minted in the activation job and passed via job outputs,
+// but the GitHub Actions runner silently drops masked values in job outputs (runner v2.308+),
+// causing actions/checkout to fail with "Input required and not supplied: token".
+// The fix mints checkout tokens in the agent job itself (same as github-mcp-app-token),
+// so the token is accessible as steps.checkout-app-token-{index}.outputs.token.
+func TestCheckoutAppTokensMintedInAgentJob(t *testing.T) {
 	tests := []struct {
 		name     string
 		markdown string
 	}{
 		{
-			name: "checkout.github-app token not minted in agent job",
+			name: "checkout.github-app token minted in agent job",
 			markdown: `---
 on: issues
 permissions:
@@ -564,11 +564,11 @@ checkout:
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
-Test workflow - checkout app token must not be minted in agent job.
+Test workflow - checkout app token must be minted in agent job.
 `,
 		},
 		{
-			name: "top-level github-app fallback for checkout not minted in agent job",
+			name: "top-level github-app fallback for checkout minted in agent job",
 			markdown: `---
 on: issues
 permissions:
@@ -582,7 +582,7 @@ checkout:
   path: private
 ---
 
-Test workflow - top-level github-app checkout token must not be minted in agent job.
+Test workflow - top-level github-app checkout token must be minted in agent job.
 `,
 		},
 	}
@@ -603,21 +603,22 @@ Test workflow - top-level github-app checkout token must not be minted in agent 
 			require.NoError(t, err, "Failed to read lock file")
 			lockContent := string(content)
 
-			// Locate the agent job section (after "  agent:" and before the next top-level job)
-			agentJobStart := strings.Index(lockContent, "\n  agent:\n")
-			require.NotEqual(t, -1, agentJobStart, "Agent job should be present")
+			// The token minting step must appear in the compiled workflow
+			assert.Contains(t, lockContent, "id: checkout-app-token-0",
+				"Checkout app token minting step must be present in the compiled workflow")
+			assert.Contains(t, lockContent, "create-github-app-token",
+				"Checkout app token minting step must use create-github-app-token action")
 
-			// Find the next top-level job after agent (or end of file)
-			nextJobStart := strings.Index(lockContent[agentJobStart+len("\n  agent:\n"):], "\n  ")
-			var agentJobContent string
-			if nextJobStart == -1 {
-				agentJobContent = lockContent[agentJobStart:]
-			} else {
-				agentJobContent = lockContent[agentJobStart : agentJobStart+len("\n  agent:\n")+nextJobStart]
-			}
+			// The token must be referenced via the step output (same-job), not via activation outputs.
+			// Activation job outputs of masked values are silently dropped by the runner (v2.308+).
+			assert.Contains(t, lockContent, "steps.checkout-app-token-0.outputs.token",
+				"Token must be referenced via step output within the same job")
+			assert.NotContains(t, lockContent, "needs.activation.outputs.checkout_app_token_0",
+				"Token must not be passed via activation job outputs (masked values are dropped by runner)")
 
-			assert.NotContains(t, agentJobContent, "create-github-app-token",
-				"Agent job must not mint checkout GitHub App tokens; checkout token minting must be in activation job")
+			// The activation job must NOT expose checkout_app_token as a job output.
+			assert.NotContains(t, lockContent, "checkout_app_token_0: ${{ steps.checkout-app-token-0.outputs.token }}",
+				"Activation job must not expose checkout app token as a job output")
 		})
 	}
 }

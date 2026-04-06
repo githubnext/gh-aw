@@ -35,6 +35,26 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		checkoutMgr.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
 	}
 
+	// Mint checkout app tokens directly in the agent job before checkout steps are executed.
+	// Tokens cannot be passed via job outputs from the activation job because
+	// actions/create-github-app-token calls ::add-mask:: on the token, and the GitHub Actions
+	// runner silently drops masked values when used as job outputs (runner v2.308+).
+	// By minting here, the token is available as steps.checkout-app-token-{index}.outputs.token
+	// within the same job, just like the github-mcp-app-token pattern.
+	if checkoutMgr.HasAppAuth() {
+		compilerYamlLog.Print("Generating checkout app token minting steps in agent job")
+		var checkoutPermissions *Permissions
+		if data.Permissions != "" {
+			parser := NewPermissionsParser(data.Permissions)
+			checkoutPermissions = parser.ToPermissions()
+		} else {
+			checkoutPermissions = NewPermissions()
+		}
+		for _, step := range checkoutMgr.GenerateCheckoutAppTokenSteps(c, checkoutPermissions) {
+			yaml.WriteString(step)
+		}
+	}
+
 	// Add checkout step first if needed
 	if needsCheckout {
 		// Emit the default workspace checkout, applying any user-supplied overrides
