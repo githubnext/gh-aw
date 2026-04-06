@@ -17,19 +17,20 @@ import (
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	type logsArgs struct {
-		WorkflowName      string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-		Count             int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
-		StartDate         string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		EndDate           string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		Engine            string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
-		Firewall          bool   `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
-		NoFirewall        bool   `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
-		FilteredIntegrity bool   `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
-		Branch            string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
-		AfterRunID        int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
-		BeforeRunID       int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-		Timeout           int    `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
-		MaxTokens         int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
+		WorkflowName      string   `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
+		Count             int      `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
+		StartDate         string   `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		EndDate           string   `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		Engine            string   `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
+		Firewall          bool     `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
+		NoFirewall        bool     `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
+		FilteredIntegrity bool     `json:"filtered_integrity,omitempty" jsonschema:"Filter to only runs that contain DIFC integrity-filtered events in gateway logs"`
+		Branch            string   `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
+		AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
+		BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+		Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
+		MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
+		Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, github-api, mcp"`
 	}
 
 	// Generate schema with elicitation defaults
@@ -149,6 +150,9 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 		if args.BeforeRunID > 0 {
 			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
 		}
+		if len(args.Artifacts) > 0 {
+			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+		}
 
 		// Set timeout to 1 minute for MCP server if not explicitly specified
 		timeoutValue := args.Timeout
@@ -227,7 +231,8 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 // Returns an error if schema generation fails.
 func registerAuditTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
 	type auditArgs struct {
-		RunIDOrURL string `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
+		RunIDOrURL string   `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
+		Artifacts  []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, github-api, mcp"`
 	}
 
 	// Generate schema for audit tool
@@ -290,6 +295,9 @@ Returns JSON with the following structure:
 		// Use --json flag to output structured JSON for MCP consumption
 		// Pass the run ID or URL directly - the audit command will parse it
 		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
+		if len(args.Artifacts) > 0 {
+			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+		}
 
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:

@@ -71,7 +71,7 @@ func TestDownloadWorkflowLogsWithCancellation(t *testing.T) {
 	cancel()
 
 	// Try to download logs with a cancelled context
-	err := DownloadWorkflowLogs(ctx, "", 10, "", "", "/tmp/test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 0, "", "", false, false, "")
+	err := DownloadWorkflowLogs(ctx, "", 10, "", "", "/tmp/test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 0, "", "", false, false, "", nil)
 
 	// Should return context.Canceled error
 	assert.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error when context is cancelled")
@@ -84,7 +84,7 @@ func TestAuditWorkflowRunWithCancellation(t *testing.T) {
 	cancel()
 
 	// Try to audit a run with a cancelled context
-	err := AuditWorkflowRun(ctx, 123456, "", "", "", "/tmp/test-audit", false, false, false, 0, 0)
+	err := AuditWorkflowRun(ctx, 123456, "", "", "", "/tmp/test-audit", false, false, false, 0, 0, nil)
 
 	// Should return context.Canceled error
 	assert.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error when context is cancelled")
@@ -111,7 +111,7 @@ func TestDownloadWorkflowLogsTimeoutRespected(t *testing.T) {
 
 	start := time.Now()
 	// Use a workflow name that doesn't exist to avoid actual network calls
-	_ = DownloadWorkflowLogs(ctx, "nonexistent-workflow-12345", 100, "", "", "/tmp/test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 1, "", "", false, false, "")
+	_ = DownloadWorkflowLogs(ctx, "nonexistent-workflow-12345", 100, "", "", "/tmp/test-logs", "", "", 0, 0, "", false, false, false, false, false, false, false, 1, "", "", false, false, "", nil)
 	elapsed := time.Since(start)
 
 	// Should complete within reasonable time (give 5 seconds buffer for test overhead)

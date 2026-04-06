@@ -692,7 +692,7 @@ func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname 
 	}
 
 	// Download artifacts if needed
-	if err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname); err != nil {
+	if err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname, nil); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			return nil, fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
 		}

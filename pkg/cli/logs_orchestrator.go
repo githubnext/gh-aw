@@ -42,8 +42,20 @@ func getMaxConcurrentDownloads() int {
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format)
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets)
+
+	// Validate and resolve artifact sets into a concrete filter (list of artifact base names).
+	if err := ValidateArtifactSets(artifactSets); err != nil {
+		return err
+	}
+	artifactFilter := ResolveArtifactFilter(artifactSets)
+	if len(artifactFilter) > 0 {
+		logsOrchestratorLog.Printf("Artifact filter active: %v", artifactFilter)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Artifact filter: downloading only "+strings.Join(artifactFilter, ", ")))
+		}
+	}
 
 	// Ensure .github/aw/logs/.gitignore exists on every invocation
 	if err := ensureLogsGitignore(); err != nil {
@@ -200,7 +212,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
 
-			downloadResults := downloadRunArtifactsConcurrent(ctx, chunk, outputDir, verbose, remainingNeeded, repoOverride)
+			downloadResults := downloadRunArtifactsConcurrent(ctx, chunk, outputDir, verbose, remainingNeeded, repoOverride, artifactFilter)
 
 			for _, result := range downloadResults {
 				if result.Skipped {
@@ -592,7 +604,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 }
 
 // downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
-func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string) []DownloadResult {
+func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int, repoOverride string, artifactFilter []string) []DownloadResult {
 	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
 	if len(runs) == 0 {
 		return []DownloadResult{}
@@ -702,7 +714,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			}
 
 			// No cached summary or version mismatch - download and process
-			err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose, dlOwner, dlRepo, "")
+			err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose, dlOwner, dlRepo, "", artifactFilter)
 
 			result := DownloadResult{
 				Run:      run,

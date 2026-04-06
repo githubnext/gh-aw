@@ -569,7 +569,8 @@ var criticalArtifactNames = []string{"activation", "agent", "firewall-audit-logs
 // retryCriticalArtifacts downloads critical artifacts individually when the bulk download
 // was only partially successful. gh run download aborts on the first non-zip artifact,
 // which may prevent valid artifacts from being downloaded.
-func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string) {
+// artifactFilter limits which critical artifacts are retried; nil means retry all.
+func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) {
 	// Build the repo flag once for reuse across retries
 	var repoFlag string
 	if owner != "" && repo != "" {
@@ -581,6 +582,11 @@ func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, 
 	}
 
 	for _, name := range criticalArtifactNames {
+		// Skip artifacts not included in the active filter.
+		if !artifactMatchesFilter(name, artifactFilter) {
+			logsDownloadLog.Printf("Skipping critical artifact %q (not in artifact filter)", name)
+			continue
+		}
 		artifactDir := filepath.Join(outputDir, name)
 		if fileutil.DirExists(artifactDir) {
 			logsDownloadLog.Printf("Critical artifact %q already present, skipping retry", name)
@@ -613,9 +619,10 @@ func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, 
 	}
 }
 
-// downloadRunArtifacts downloads artifacts for a specific workflow run
-func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
-	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
+// downloadRunArtifacts downloads artifacts for a specific workflow run.
+// artifactFilter is a list of artifact base names to download; nil means download all.
+func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) error {
+	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", runID, outputDir, owner, repo, artifactFilter)
 
 	// Check if artifacts already exist on disk (since they're immutable)
 	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
@@ -653,7 +660,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		for _, name := range artifactNames {
 			if isDockerBuildArtifact(name) {
 				dockerBuildArtifacts = append(dockerBuildArtifacts, name)
-			} else {
+			} else if artifactMatchesFilter(name, artifactFilter) {
 				downloadableNames = append(downloadableNames, name)
 			}
 		}
@@ -671,14 +678,16 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		spinner.Start()
 	}
 
-	if len(dockerBuildArtifacts) > 0 {
-		// .dockerbuild artifacts detected — download only the valid artifacts individually
-		// to avoid the bulk download aborting on the non-zip files.
+	if len(dockerBuildArtifacts) > 0 || len(artifactFilter) > 0 {
+		// When .dockerbuild artifacts are present or an artifact filter is active, download
+		// only the selected artifacts individually instead of using the bulk downloader.
+		// The bulk downloader (gh run download without --name) cannot apply a name filter,
+		// and it aborts on non-zip artifacts.
 		if !verbose {
 			spinner.Stop()
 		}
 		if len(downloadableNames) == 0 {
-			// All artifacts are .dockerbuild; nothing can be downloaded.
+			// Nothing to download (all artifacts are either .dockerbuild or excluded by filter).
 			// Attempt workflow run logs for diagnostics before returning.
 			if logErr := downloadWorkflowRunLogs(runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
 				if verbose {
@@ -775,7 +784,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		// before downloading all valid artifacts. Retry individually for critical artifacts
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
-			retryCriticalArtifacts(runID, outputDir, verbose, owner, repo, hostname)
+			retryCriticalArtifacts(runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
 		}
 
 		if skippedNonZipArtifacts && fileutil.IsDirEmpty(outputDir) {

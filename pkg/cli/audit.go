@@ -79,6 +79,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			parse, _ := cmd.Flags().GetBool("parse")
 			repoFlag, _ := cmd.Flags().GetString("repo")
+			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 
 			// If --repo is provided and owner/repo were not parsed from a URL, apply them
 			if repoFlag != "" && components.Owner == "" {
@@ -102,6 +103,7 @@ Examples:
 				jsonOutput,
 				components.JobID,
 				components.StepNumber,
+				artifacts,
 			)
 		},
 	}
@@ -111,6 +113,7 @@ Examples:
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
+	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 
 	// Register completions for audit command
 	RegisterDirFlagCompletion(cmd, "output")
@@ -137,7 +140,7 @@ func isPermissionError(err error) bool {
 // AuditWorkflowRun audits a single workflow run and generates a report
 // If jobID is provided (>0), focuses audit on that specific job
 // If stepNumber is provided (>0), extracts output for that specific step
-func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int) error {
+func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int, artifactSets []string) error {
 	// Auto-detect GHES host from git remote if hostname is not provided
 	if hostname == "" {
 		hostname = getHostFromOriginRemote()
@@ -147,6 +150,18 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	}
 
 	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s, hostname=%s, jobID=%d, stepNumber=%d", runID, owner, repo, hostname, jobID, stepNumber)
+
+	// Validate and resolve artifact sets into a concrete filter.
+	if err := ValidateArtifactSets(artifactSets); err != nil {
+		return err
+	}
+	artifactFilter := ResolveArtifactFilter(artifactSets)
+	if len(artifactFilter) > 0 {
+		auditLog.Printf("Artifact filter active: %v", artifactFilter)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Artifact filter: downloading only "+strings.Join(artifactFilter, ", ")))
+		}
+	}
 
 	// Check context cancellation at the start
 	select {
@@ -216,7 +231,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 
 		// Download artifacts for the run
 		auditLog.Printf("Downloading artifacts for run %d", runID)
-		err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname)
+		err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter)
 		if err != nil {
 			// Gracefully handle cases where the run legitimately has no artifacts
 			if errors.Is(err, ErrNoArtifacts) {
