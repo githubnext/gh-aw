@@ -83,17 +83,15 @@ async function main() {
     ref = undefined;
   }
 
-  // Always attempt referenced_workflows API lookup to resolve the callee repo/ref.
-  // This handles cross-repo reusable workflow scenarios reliably.
+  // Attempt referenced_workflows API lookup to detect cross-repo callee repo/ref.
   //
   // IMPORTANT: GITHUB_EVENT_NAME inside a reusable workflow reflects the ORIGINAL trigger
   // event (e.g., "push", "issues"), NOT "workflow_call". We therefore cannot rely on event
-  // name to detect cross-repo scenarios and must always attempt the referenced_workflows
-  // API lookup.
+  // name to detect cross-repo scenarios.
   //
   // Similarly, GH_AW_CONTEXT_WORKFLOW_REF (${{ github.workflow_ref }}) resolves to the
   // CALLER's workflow ref, not the callee's. It is used as a fallback only when the API
-  // lookup does not find a matching entry.
+  // lookup is unavailable or finds no matching entry.
   //
   // Resolution priority:
   //   1. referenced_workflows[].sha  — immutable commit SHA from the callee repo (most precise).
@@ -105,12 +103,21 @@ async function main() {
   // are set to the caller's run ID and repo. The caller's run object includes a
   // referenced_workflows array listing the callee's exact path, sha, and ref.
   //
+  // Short-circuit: if the env workflow ref already ends with the current workflow file,
+  // the env vars already correctly identify the source (same-repo or non-reusable run).
+  // Skip the API call to avoid unnecessary rate-limit usage and permission noise.
+  //
   // GITHUB_RUN_ID is always set in GitHub Actions environments.
   // context.runId is a fallback for environments where env vars are absent.
   //
   // Refs: https://github.com/github/gh-aw/issues/24422
   const runId = parseInt(process.env.GITHUB_RUN_ID || String(context.runId), 10);
-  if (Number.isFinite(runId)) {
+  const envRefWithoutAt = workflowEnvRef.replace(/@.*$/, "");
+  const envRefMatchesWorkflow = envRefWithoutAt.endsWith(`/.github/workflows/${workflowFile}`);
+
+  if (envRefMatchesWorkflow) {
+    core.info("Env workflow ref already identifies this workflow, skipping referenced_workflows API lookup");
+  } else if (Number.isFinite(runId)) {
     const [runOwner, runRepo] = currentRepo.split("/");
     try {
       core.info(`Checking for cross-repo callee via referenced_workflows API (run ${runId})`);
@@ -155,7 +162,7 @@ async function main() {
   const contextWorkflowRef = process.env.GH_AW_CONTEXT_WORKFLOW_REF;
   core.info(`GITHUB_WORKFLOW_REF: ${process.env.GITHUB_WORKFLOW_REF || "(not set)"}`);
   if (contextWorkflowRef) {
-    core.info(`GH_AW_CONTEXT_WORKFLOW_REF: ${contextWorkflowRef} (used for source repo resolution)`);
+    core.info(`GH_AW_CONTEXT_WORKFLOW_REF: ${contextWorkflowRef} (available as env fallback)`);
   }
   core.info(`GITHUB_REPOSITORY: ${currentRepo}`);
   core.info(`Resolved source repo: ${owner}/${repo} @ ${ref || "(default branch)"}`);
