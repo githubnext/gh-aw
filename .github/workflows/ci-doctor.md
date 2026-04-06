@@ -14,7 +14,7 @@ permissions:
 
 network: defaults
 
-engine: codex
+engine: claude
 
 safe-outputs:
   create-issue:
