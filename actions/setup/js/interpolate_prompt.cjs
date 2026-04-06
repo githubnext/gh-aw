@@ -56,9 +56,20 @@ function renderMarkdownTemplate(markdown) {
   core.info(`[renderMarkdownTemplate] Starting template rendering`);
   core.info(`[renderMarkdownTemplate] Input length: ${markdown.length} characters`);
 
+  // Preserve fenced code blocks to avoid processing {{#if}} markers inside them
+  const _codeBlocks = [];
+  const _FENCE_PH = "\x00FENCE\x00";
+  const _stripped = markdown.replace(/`{3,}[^\n]*\n[\s\S]*?\n`{3,}[ \t]*/g, (m) => {
+    _codeBlocks.push(m);
+    return `${_FENCE_PH}${_codeBlocks.length - 1}${_FENCE_PH}`;
+  });
+  if (_codeBlocks.length > 0) {
+    core.info(`[renderMarkdownTemplate] Preserved ${_codeBlocks.length} fenced code block(s) from template processing`);
+  }
+
   // Count conditionals before processing
-  const blockConditionals = (markdown.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g) || []).length;
-  const inlineConditionals = (markdown.match(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g) || []).length - blockConditionals;
+  const blockConditionals = (_stripped.match(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g) || []).length;
+  const inlineConditionals = (_stripped.match(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g) || []).length - blockConditionals;
 
   core.info(`[renderMarkdownTemplate] Found ${blockConditionals} block conditional(s) and ${inlineConditionals} inline conditional(s)`);
 
@@ -68,7 +79,7 @@ function renderMarkdownTemplate(markdown) {
 
   // First pass: Handle blocks where tags are on their own lines
   // Captures: (leading newline)(opening tag line)(condition)(body)(closing tag line)(trailing newline)
-  let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+  let result = _stripped.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
     blockCount++;
     const condTrimmed = cond.trim();
     const truthyResult = isTruthy(cond);
@@ -126,6 +137,11 @@ function renderMarkdownTemplate(markdown) {
     core.info(`[renderMarkdownTemplate] Cleaned up ${excessiveLines} excessive blank line sequence(s)`);
     core.info(`[renderMarkdownTemplate] Length change from cleanup: ${beforeCleanup} -> ${result.length} characters`);
   }
+  // Restore fenced code blocks
+  if (_codeBlocks.length > 0) {
+    result = result.replace(/\x00FENCE\x00(\d+)\x00FENCE\x00/g, (_, i) => _codeBlocks[+i]);
+  }
+
   core.info(`[renderMarkdownTemplate] Final output length: ${result.length} characters`);
 
   return result;
