@@ -57,11 +57,23 @@ You are the Daily Syntax Error Quality Check Agent - a developer experience spec
 ## Mission
 
 Test the quality of compiler error messages by:
-1. Selecting 3 existing agentic workflows
-2. Introducing 3 different types of syntax errors (one per workflow)
+1. Selecting 2 existing agentic workflows
+2. Introducing 2 different types of syntax errors (one per workflow)
 3. Running the compiler and capturing error output
 4. Evaluating error message quality across multiple dimensions
 5. Creating an issue with suggestions if improvements are needed
+
+## Token Budget Guidelines
+
+**Target**: Complete the full analysis in ≤ 20 turns.
+
+- Test **2 workflows** (not 3) — one simple, one complex.
+- One error category per workflow (Category A for workflow 1, Category B for workflow 2).
+- **If the average score across both test cases is ≥ 70 and no individual score is < 55**: call `noop` immediately with a one-line summary — do **not** generate a full structured report.
+- When scores require an issue: use the compact format below — skip verbose per-dimension narratives and the lengthy implementation guide section.
+- Do **not** re-read files already loaded into context.
+- One `gh aw compile` call per test case — do not retry after an expected failure.
+- Avoid printing full file contents; use `head -n 30` to confirm error locations.
 
 ## Current Context
 
@@ -71,7 +83,7 @@ Test the quality of compiler error messages by:
 
 ## Phase 1: Select Test Workflows
 
-Select 3 diverse workflows for testing (avoid daily-* and test workflows):
+Select 2 diverse workflows for testing (avoid daily-* and test workflows):
 
 ```bash
 # Find candidate workflows
@@ -79,20 +91,18 @@ find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test
 ```
 
 **Selection Criteria**:
-- Choose workflows with different complexity levels (simple, medium, complex)
+- Choose workflows with different complexity levels (simple, complex)
 - Prefer workflows with different structures (different engines, tools, safe-outputs)
-- Ensure variety in frontmatter configuration
 
 **Example selections**:
 1. Simple workflow (< 100 lines, minimal config)
-2. Medium workflow (100-300 lines, moderate config)
-3. Complex workflow (> 300 lines, many tools/features)
+2. Complex workflow (> 300 lines, many tools/features)
 
 ## Phase 2: Generate Syntax Errors
 
-For each selected workflow, create exactly **3 test cases** with different error types:
+For each selected workflow, create exactly **1 test case** with a different error type:
 
-### Test Case Categories (Select One Per Workflow)
+### Test Case Categories (One Per Workflow)
 
 #### Category A: Frontmatter Syntax Errors
 Examples:
@@ -159,7 +169,6 @@ For each workflow:
 2. **Introduce ONE error** from a different category:
    - Workflow 1: Category A error (frontmatter syntax)
    - Workflow 2: Category B error (configuration)
-   - Workflow 3: Category C error (semantic)
 
 3. **Document the error** for later evaluation:
    ```json
@@ -316,41 +325,13 @@ For each error output, score across these dimensions:
 
 ## Phase 5: Generate Evaluation Report
 
-Create a detailed evaluation for each test case:
+For each test case, record a **compact** one-line summary:
 
-```json
-{
-  "test_id": "test-1",
-  "workflow": "selected-workflow.md",
-  "error_type": "Invalid YAML syntax",
-  "error_introduced": "Line 5: 'engine copilot' missing colon",
-  "compiler_output": "...(full error output)...",
-  "scores": {
-    "clarity": 22,
-    "actionability": 18,
-    "context": 16,
-    "examples": 12,
-    "consistency": 14
-  },
-  "total_score": 82,
-  "rating": "Good",
-  "strengths": [
-    "Error location is clearly shown (file:line:column)",
-    "Message clearly states 'invalid YAML syntax'",
-    "Provides actionable hint about missing colon"
-  ],
-  "weaknesses": [
-    "No example of correct YAML syntax provided",
-    "Could show the problematic line with ^ pointer",
-    "Doesn't mention YAML specification for reference"
-  ],
-  "improvement_suggestions": [
-    "Add visual pointer (^) to exact error location in source",
-    "Include example of correct syntax: 'engine: copilot'",
-    "Reference YAML specification or workflow documentation"
-  ]
-}
 ```
+test-1 | <workflow> | <error type> | clarity:<n>/25 actionability:<n>/25 context:<n>/20 examples:<n>/15 consistency:<n>/15 | total:<n>/100 | <Good/Acceptable/Poor>
+```
+
+Collect key strengths (1–2 bullets) and improvement suggestions (1–2 bullets) per test. Do **not** reproduce the full compiler output in your report — reference file:line only.
 
 ## Phase 6: Create Issue with Suggestions
 
@@ -361,263 +342,24 @@ Create a detailed evaluation for each test case:
 
 ### Issue Structure
 
-**Note**: The template below demonstrates the complete structure and formatting for the issue report.
+Use this **compact** template (do not add extra sections):
 
 ```markdown
 ### 📊 Error Message Quality Analysis
 
-**Analysis Date**: Use current date in YYYY-MM-DD format  
-**Test Cases**: 3  
-**Average Score**: XX/100  
-**Status**: [✅ Good | ⚠️ Needs Improvement | ❌ Critical Issues]
-
----
-
-### Executive Summary
-
-[2-3 sentences summarizing the findings and overall quality assessment]
-
-**Key Findings**:
-- **Strengths**: [List 2-3 strengths observed across test cases]
-- **Weaknesses**: [List 2-3 common weaknesses]
-- **Critical Issues**: [List any critical issues that severely impact DX]
-
----
-
-### Test Case Results
-
-<details>
-<summary>Test Case 1: Invalid YAML Syntax - Score: 82/100 ✅</summary>
-
-#### Test Configuration
-
-**Workflow**: `selected-workflow.md`  
-**Error Type**: Invalid YAML syntax  
-**Error Introduced**: Line 5: `engine copilot` (missing colon)
-
-#### Compiler Output
-
-```
-.github/workflows/selected-workflow.md:5:1: error: invalid YAML syntax: mapping values are not allowed in this context
-```
-
-#### Evaluation Scores
-
-| Dimension | Score | Rating |
-|-----------|-------|--------|
-| Clarity | 22/25 | Excellent |
-| Actionability | 18/25 | Good |
-| Context | 16/20 | Good |
-| Examples | 12/15 | Good |
-| Consistency | 14/15 | Excellent |
-| **Total** | **82/100** | **Good** |
-
-#### Strengths
-- ✅ Clear file:line:column format for IDE integration
-- ✅ Error message directly identifies the problem
-- ✅ Consistent format with other compiler errors
-
-#### Weaknesses
-- ⚠️ No visual indicator (^) showing exact error location
-- ⚠️ No example of correct syntax
-- ⚠️ YAML error message is technical (comes from parser)
-
-#### Improvement Suggestions
-
-1. **Add visual pointer to error location**:
-   ```
-   5 | engine copilot
-     |       ^ expected ':' after key
-   ```
-
-2. **Include corrected syntax example**:
-   ```
-   Correct usage:
-   engine: copilot
-   ```
-
-3. **Simplify technical YAML error messages**:
-   - Current: "mapping values are not allowed in this context"
-   - Better: "Missing colon (:) after 'engine' key"
-
-</details>
-
-<details>
-<summary>Test Case 2: Invalid Engine Name - Score: 68/100 ⚠️</summary>
-
-[Similar detailed analysis...]
-
-</details>
-
-<details>
-<summary>Test Case 3: Conflicting Configuration - Score: 74/100 ✅</summary>
-
-[Similar detailed analysis...]
-
-</details>
-
----
-
-### Overall Statistics
-
-| Metric | Value |
-|--------|-------|
-| Tests Run | 3 |
-| Average Score | 74.7/100 |
-| Excellent (85+) | 0 |
-| Good (70-84) | 2 |
-| Acceptable (55-69) | 1 |
-| Poor (<55) | 0 |
-
-**Quality Assessment**: ✅ **Good** (Average score: 74.7/100, above threshold of 70. One test case scored in Acceptable range but above critical threshold of 55. No issue creation required.)
-
-**Note**: This example demonstrates a scenario where **no issue would be created** because:
-- Average score (74.7) ≥ 70 ✓
-- All individual scores ≥ 55 ✓
-- No critical patterns identified ✓
-
-To see an example that **would trigger issue creation**, the average score would need to be < 70 or any individual test would need to score < 55.
-
----
-
-### Priority Improvement Recommendations
-
-#### 🔴 High Priority (Critical for DX)
-
-1. **Add visual error pointers in compiler output**
-   - Problem: Users must manually locate the exact error position
-   - Solution: Add `^` or `~~~` under problematic code
-   - Impact: Reduces time to identify and fix errors by ~50%
-   - Example:
-     ```
-     5 | engine copilot
-       |       ^ missing ':'
-     ```
-
-2. **Include corrected syntax examples in all errors**
-   - Problem: Error messages tell what's wrong but not what's right
-   - Solution: Add "Correct usage:" section with example
-   - Impact: Reduces back-and-forth, enables self-service fixes
-   - Example:
-     ```
-     Correct usage:
-     engine: copilot
-     ```
-
-#### 🟡 Medium Priority (Enhance DX)
-
-3. **Simplify technical YAML parser errors**
-   - Problem: Raw YAML parser errors are too technical
-   - Solution: Translate common YAML errors to plain language
-   - Impact: Makes errors accessible to non-YAML-experts
-   - Examples:
-     - "mapping values are not allowed" → "Missing colon (:) after key"
-     - "did not find expected key" → "Incorrect indentation or missing key"
-
-4. **Add context lines around error location**
-   - Problem: Single line doesn't show surrounding context
-   - Solution: Show 2 lines before and after error
-   - Impact: Helps users understand what section has the issue
-
-#### 🟢 Low Priority (Nice to Have)
-
-5. **Link to relevant documentation**
-   - Add links to workflow syntax documentation
-   - Reference section of AGENTS.md for common patterns
-   - Link to examples in .github/workflows/
-
-6. **Group related errors**
-   - If multiple errors exist, group them by type
-   - Show most critical errors first
-   - Provide "fix all" suggestions
-
----
-
-### Implementation Guide
-
-For developers implementing these improvements:
-
-#### 1. Enhance `formatCompilerError` Function
-
-Location: `pkg/workflow/compiler.go`
-
-**Current code**:
-```go
-func formatCompilerError(filePath string, errType string, message string) error {
-    formattedErr := console.FormatError(console.CompilerError{
-        Position: console.ErrorPosition{
-            File:   filePath,
-            Line:   1,
-            Column: 1,
-        },
-        Type:    errType,
-        Message: message,
-    })
-    return errors.New(formattedErr)
-}
-```
-
-**Suggested enhancement**:
-- Add `Context` field with source code lines
-- Add `Hint` field with correction suggestions
-- Parse line/column from error message if available
-
-#### 2. Add Source Context in Console Formatting
-
-Location: `pkg/console/console.go` (FormatError function)
-
-**Enhancements**:
-- Read source file and extract context lines
-- Add visual pointer (^) at error column
-- Include "Correct usage:" section with example
-
-#### 3. Create Error Message Translation Map
-
-**For YAML errors**:
-```go
-var yamlErrorTranslations = map[string]string{
-    "mapping values are not allowed": "Missing colon (:) after key",
-    "did not find expected key": "Incorrect indentation",
-    // Add more translations...
-}
-```
-
-#### 4. Add Examples Database
-
-Create a structured examples database for common errors:
-```go
-var errorExamples = map[string]ErrorExample{
-    "invalid-engine": {
-        Incorrect: "engine: copiilot",
-        Correct:   "engine: copilot",
-        Note:      "Valid engines: copilot, claude, codex, custom",
-    },
-    // Add more examples...
-}
-```
-
----
-
-### Success Metrics
-
-Track these metrics to measure improvement:
-
-1. **Error Resolution Time**: Time from error to fix (target: <2 min)
-2. **Documentation Lookups**: Number of times users search docs for errors (target: reduce by 50%)
-3. **User Feedback**: Survey responses on error helpfulness (target: 4+/5)
-4. **Repeat Errors**: Frequency of same errors being made (target: reduce by 30%)
-
----
-
-### Related Issues
-
-- [Link to related DX issues]
-- [Link to error message improvement PRs]
-
----
-
-*Generated by Daily Syntax Error Quality Check workflow*  
-*Next check: Runs daily (see workflow schedule)*
+**Date**: YYYY-MM-DD | **Tests**: 2 | **Average Score**: XX/100 | **Status**: [✅ Good | ⚠️ Needs Improvement | ❌ Critical]
+
+**Summary**: [1–2 sentences on overall findings]
+
+| Test | Workflow | Error Type | Score | Rating |
+|------|----------|------------|-------|--------|
+| 1 | `workflow.md` | Category A | XX/100 | Good |
+| 2 | `workflow.md` | Category B | XX/100 | Acceptable |
+
+**Weaknesses** (top 3 only):
+1. [specific issue + suggested fix]
+2. [specific issue + suggested fix]
+3. [specific issue + suggested fix]
 ```
 
 ## Important Guidelines
@@ -685,12 +427,11 @@ Error: invalid engine
 ## Success Criteria
 
 A successful analysis run:
-- ✅ Tests 3 different workflows with diverse complexity
-- ✅ Introduces 3 different error types (one per category)
-- ✅ Captures complete compiler output for each test
-- ✅ Provides detailed quality scores across all dimensions
-- ✅ Generates specific, actionable improvement suggestions
-- ✅ Creates issue only when quality is below threshold
+- ✅ Tests 2 different workflows with diverse complexity
+- ✅ Introduces 2 different error types (categories A and B)
+- ✅ Captures compiler output for each test
+- ✅ Provides quality scores across all dimensions
+- ✅ Creates issue only when quality is below threshold (average < 70 or any score < 55)
 - ✅ Cleans up temporary test files
 
 ---

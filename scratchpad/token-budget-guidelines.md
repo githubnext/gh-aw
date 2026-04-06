@@ -268,6 +268,79 @@ Explicit instructions in workflow prompts to reduce token consumption:
 - Issue-creation cap prevents excessive GitHub API calls
 - Cache-based skip logic avoids redundant re-scanning
 
+### Daily Syntax Error Quality Check
+
+**Engine**: Copilot - max-turns not available
+
+**Previous Configuration:**
+- No token budget controls
+- 20-minute timeout
+- Tests 3 workflows with 3 different error categories
+- Verbose JSON evaluation reports per test case
+- Lengthy issue template with implementation guide (~250 lines)
+- Regenerated full Go code examples every run
+
+**Optimized Configuration:**
+- `timeout-minutes: 20` (unchanged)
+- Added `## Token Budget Guidelines` section in prompt:
+  - Reduce test cases from 3 to 2 workflows
+  - Use compact one-line scoring format (no verbose JSON)
+  - Early stop (noop) when average score ≥ 70 and no individual score < 55
+  - Removed lengthy implementation guide from issue template
+  - Limit output to 20-turn target
+
+**Expected Impact:**
+- **Token Reduction**: 60-75% (from ~9.35M to ~2.3M-3.7M per run)
+- **Quality**: Maintained — compiler error quality still evaluated across all 5 dimensions
+- **Runtime**: Reduced from ~129 turns to ≤ 20 turns
+
+**Budget Target:**
+- **Target tokens/run**: 500K–1M
+- **Alert threshold**: >2M tokens
+- **Cost estimate**: $8.75-17.50 per run
+
+**Optimization Strategy:**
+- Fewer test cases → fewer compile calls and eval rounds
+- Compact scoring format → less output to generate and process
+- Early-stop for healthy quality → avoids generating verbose reports when not needed
+- Removed boilerplate implementation guide from issue template → less re-generation
+
+### Dead Code Remover
+
+**Engine**: Copilot - max-turns not available
+
+**Previous Configuration:**
+- No token budget controls
+- 30-minute timeout
+- Batch of up to 10 functions per run
+- Unlimited grep output for caller checks
+- Full test output captured per run
+
+**Optimized Configuration:**
+- `timeout-minutes: 30` (unchanged)
+- Added `## Token Budget Guidelines` section in prompt:
+  - Reduce batch from 10 to 5 functions per run
+  - Limit grep output to 5 matches (`grep -m 5`) per safety check
+  - Limit test output to last 20 lines (`tail -20`)
+  - Immediate noop if deadcode finds 0 unprocessed functions
+  - No re-read of full cache before appending
+
+**Expected Impact:**
+- **Token Reduction**: 45-55% (from ~9.1M to ~4M-5M per run)
+- **Quality**: Maintained — safety checks unchanged, build verification still required
+- **Runtime**: Reduced processing turns
+
+**Budget Target:**
+- **Target tokens/run**: 1M–2M
+- **Alert threshold**: >4M tokens
+- **Cost estimate**: $17.50-35.00 per run
+
+**Optimization Strategy:**
+- Half the batch size → half the safety checks, edits, and build iterations
+- Truncated grep output → avoids large result dumps increasing context
+- Truncated test output → avoids multi-MB test logs inflating token count
+- Early-stop condition → skips all phases when nothing new to process
+
 ## Alert Thresholds (Updated)
 
 | Workflow | Target Tokens | Alert Threshold | Critical Threshold |
@@ -277,6 +350,8 @@ Explicit instructions in workflow prompts to reduce token consumption:
 | Issue Monster | 50K-150K | >300K | >500K |
 | CI Optimization Coach | 300K-600K | >1M | >1.5M |
 | Step Name Alignment | 300K-500K | >800K | >1.2M |
+| Daily Syntax Error Quality Check | 500K-1M | >2M | >4M |
+| Dead Code Remover | 1M-2M | >4M | >7M |
 
 ## Optimization Strategies
 
@@ -410,6 +485,12 @@ When adding token budgets to a workflow:
 - 300K tokens ≈ $5.25
 
 ## Revision History
+
+- **2026-04-06**: Added token budget guardrails for two high-cost workflows
+  - Daily Syntax Error Quality Check: reduced to 2 test cases, compact scoring, early-stop noop (target 500K-1M/run)
+  - Dead Code Remover: reduced batch to 5 functions, truncated grep/test output, early-stop noop (target 1M-2M/run)
+  - Updated alert thresholds table to cover all seven tracked workflows
+  - See [DeepReport #24882](https://github.com/github/gh-aw/discussions/24882)
 
 - **2026-03-23**: Added token budget guardrails for top-cost workflows
   - Issue Monster: added prompt-level efficiency & early-stop guidelines (target 50K-150K/run)
