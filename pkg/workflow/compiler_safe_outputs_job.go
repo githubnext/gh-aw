@@ -160,6 +160,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil ||
 		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
+		data.SafeOutputs.CreateAgentSessions != nil || // create_agent_session is now handled by the handler manager
 		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
 		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 
@@ -202,6 +203,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			outputs["assign_to_agent_assignment_error_count"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_error_count }}"
 		}
 
+		// Export create_agent_session outputs from the handler manager step
+		if data.SafeOutputs.CreateAgentSessions != nil {
+			consolidatedSafeOutputsJobLog.Print("Exposing create_agent_session outputs from handler manager")
+			outputs["create_agent_session_session_number"] = "${{ steps.process_safe_outputs.outputs.session_number }}"
+			outputs["create_agent_session_session_url"] = "${{ steps.process_safe_outputs.outputs.session_url }}"
+		}
+
 		// If create-issue is configured with assignees: copilot, run a follow-up step to
 		// assign the Copilot coding agent. The handler manager exports the list via
 		// steps.process_safe_outputs.outputs.issues_to_assign_copilot.
@@ -242,18 +250,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, buildSarifArtifactUploadStep(agentArtifactPrefix)...)
 	}
 
-	// 3. Create Agent Session step
-	if data.SafeOutputs.CreateAgentSessions != nil {
-		stepConfig := c.buildCreateAgentSessionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["create_agent_session_session_number"] = "${{ steps.create_agent_session.outputs.session_number }}"
-		outputs["create_agent_session_session_url"] = "${{ steps.create_agent_session.outputs.session_url }}"
-	}
-
-	// 4. Custom action steps — compiler-generated steps for each configured safe-output action.
+	// 3. Custom action steps — compiler-generated steps for each configured safe-output action.
 	// These steps run after the handler manager, which processes the agent payload and exports
 	// a JSON payload output for each action tool call. Each step is guarded by an `if:` condition
 	// that checks whether the handler manager exported a payload for this action.

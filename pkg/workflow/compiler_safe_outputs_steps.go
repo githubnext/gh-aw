@@ -318,6 +318,17 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for assign-to-agent handler")
 	}
 
+	// Add GH_AW_AGENT_SESSION_TOKEN when create-agent-session is configured.
+	// The create_agent_session handler passes this token as GH_TOKEN to the gh CLI
+	// (agent token preference chain), which is required because the default GITHUB_TOKEN
+	// does not have permission to create agent sessions via gh agent-task create.
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateAgentSessions != nil {
+		agentSessionTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.CreateAgentSessions.GitHubToken)
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+		steps = append(steps, fmt.Sprintf("          GH_AW_AGENT_SESSION_TOKEN: %s\n", agentSessionTokenStr))
+		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_AGENT_SESSION_TOKEN env var for create-agent-session handler")
+	}
+
 	// When create-pull-request or push-to-pull-request-branch is configured with a custom token
 	// (including GitHub App), expose that token as GITHUB_TOKEN so that git CLI operations in
 	// the JavaScript handlers can authenticate. The create_pull_request.cjs handler reads

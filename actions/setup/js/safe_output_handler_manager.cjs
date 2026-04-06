@@ -18,6 +18,7 @@ const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorCount, writeAssignToAgentSummary } = require("./assign_to_agent.cjs");
+const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
@@ -57,6 +58,7 @@ const HANDLER_MAP = {
   assign_to_user: "./assign_to_user.cjs",
   unassign_from_user: "./unassign_from_user.cjs",
   assign_to_agent: "./assign_to_agent.cjs",
+  create_agent_session: "./create_agent_session.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
@@ -78,10 +80,10 @@ const HANDLER_MAP = {
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  *
- * Standalone types: create_agent_session, upload_asset, noop
+ * Standalone types: upload_asset, noop
  *   - Have dedicated processing steps with specialized logic
  */
-const STANDALONE_STEP_TYPES = new Set(["create_agent_session", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
 
 /**
  * Code-push safe output types that must succeed before remaining outputs are processed.
@@ -1182,6 +1184,16 @@ async function main() {
       }
       core.info(`Exported assign_to_agent outputs (${assignToAgentErrorCount} error(s))`);
       await writeAssignToAgentSummary();
+    }
+
+    // Export create_agent_session outputs when the handler was loaded
+    if (messageHandlers.has("create_agent_session")) {
+      const sessionNumber = getCreateAgentSessionNumber();
+      const sessionUrl = getCreateAgentSessionUrl();
+      core.setOutput("session_number", sessionNumber);
+      core.setOutput("session_url", sessionUrl);
+      core.info(`Exported create_agent_session outputs (session_number=${sessionNumber})`);
+      await writeCreateAgentSessionSummary();
     }
 
     // Export create_discussion errors for conclusion job

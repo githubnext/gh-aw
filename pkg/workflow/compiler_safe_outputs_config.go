@@ -350,6 +350,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("base", c.Base).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
