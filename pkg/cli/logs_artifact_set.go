@@ -7,11 +7,13 @@
 //   - Mapping sets to concrete artifact name patterns
 //   - Validating artifact set inputs from CLI flags and MCP arguments
 //   - Determining whether a given artifact name matches an active filter
+//   - Finding which filter entries are missing from a previously-downloaded run folder
 
 package cli
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -145,4 +147,44 @@ func artifactMatchesFilter(name string, filter []string) bool {
 		}
 	}
 	return false
+}
+
+// findMissingFilterEntries checks which entries of the given artifact filter do not yet
+// have a corresponding directory on disk in outputDir.
+//
+// For each filter entry (e.g. "firewall-audit-logs"), the function looks for:
+//  1. A directory exactly named {entry} inside outputDir, or
+//  2. Any directory whose name ends with "-{entry}" (workflow_call prefix pattern,
+//     e.g. "abc123-agent" for filter entry "agent").
+//
+// Entries that have a matching directory are considered already-downloaded.
+// Entries without a match are returned as "missing" — they still need to be fetched.
+func findMissingFilterEntries(filter []string, outputDir string) []string {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		// If we can't read the directory, assume everything is missing.
+		return filter
+	}
+
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e.Name())
+		}
+	}
+
+	var missing []string
+	for _, f := range filter {
+		found := false
+		for _, d := range dirs {
+			if d == f || strings.HasSuffix(d, "-"+f) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, f)
+		}
+	}
+	return missing
 }

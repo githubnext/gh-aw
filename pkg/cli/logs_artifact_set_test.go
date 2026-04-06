@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -242,4 +244,61 @@ func TestValidArtifactSetNames(t *testing.T) {
 
 	expected := []string{"all", "activation", "agent", "detection", "firewall", "github-api", "mcp"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
+}
+
+func TestFindMissingFilterEntries(t *testing.T) {
+	tests := []struct {
+		name         string
+		filter       []string
+		existingDirs []string
+		expected     []string
+	}{
+		{
+			name:         "all entries present (exact match)",
+			filter:       []string{"agent", "activation"},
+			existingDirs: []string{"agent", "activation"},
+			expected:     nil,
+		},
+		{
+			name:         "all entries present (prefix match)",
+			filter:       []string{"agent"},
+			existingDirs: []string{"abc123-agent", "activation"},
+			expected:     nil,
+		},
+		{
+			name:         "one entry missing",
+			filter:       []string{"agent", "firewall-audit-logs"},
+			existingDirs: []string{"agent"},
+			expected:     []string{"firewall-audit-logs"},
+		},
+		{
+			name:         "all entries missing",
+			filter:       []string{"agent", "firewall-audit-logs"},
+			existingDirs: []string{},
+			expected:     []string{"agent", "firewall-audit-logs"},
+		},
+		{
+			name:         "prefix match does not false-positive on substring",
+			filter:       []string{"agent"},
+			existingDirs: []string{"agent-output"},
+			expected:     []string{"agent"},
+		},
+		{
+			name:         "firewall-audit-logs exact match found",
+			filter:       []string{"firewall-audit-logs"},
+			existingDirs: []string{"firewall-audit-logs"},
+			expected:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, d := range tt.existingDirs {
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, d), 0755), "failed to create test dir")
+			}
+			result := findMissingFilterEntries(tt.filter, dir)
+			assert.Equal(t, tt.expected, result, "findMissingFilterEntries(%v, dir)", tt.filter)
+		})
+	}
 }

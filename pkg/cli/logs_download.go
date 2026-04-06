@@ -626,22 +626,45 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 
 	// Check if artifacts already exist on disk (since they're immutable)
 	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
-		// Try to load cached summary
-		if summary, ok := loadRunSummary(outputDir, verbose); ok {
-			// Valid cached summary exists, skip download
-			logsDownloadLog.Printf("Using cached artifacts for run %d", runID)
+		if len(artifactFilter) > 0 {
+			// A specific artifact set is requested. Check whether each requested
+			// artifact base name already has a matching directory on disk so we
+			// can avoid re-downloading artifacts that are already present and only
+			// fetch the ones that are missing.
+			missing := findMissingFilterEntries(artifactFilter, outputDir)
+			if len(missing) == 0 {
+				logsDownloadLog.Printf("All requested artifacts already on disk for run %d", runID)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All requested artifacts already present for run %d, skipping download", runID)))
+				}
+				return nil
+			}
+			// Restrict the download to only the artifacts that are not yet on disk.
+			logsDownloadLog.Printf("Downloading missing artifacts for run %d: %v (already have: %v)", runID, missing, artifactFilter)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", runID, outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading missing artifacts for run %d: %v", runID, missing)))
+			}
+			artifactFilter = missing
+			// Fall through to the download code below (MkdirAll is a no-op for existing dir).
+		} else {
+			// No filter — caller wants all artifacts. Keep the existing behaviour:
+			// if the directory is non-empty we assume the run was previously fully
+			// downloaded and skip the download.
+			if summary, ok := loadRunSummary(outputDir, verbose); ok {
+				// Valid cached summary exists, skip download
+				logsDownloadLog.Printf("Using cached artifacts for run %d", runID)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", runID, outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
+				}
+				return nil
+			}
+			// Summary doesn't exist or version mismatch - artifacts exist but need reprocessing
+			// Don't re-download, just reprocess what's there
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", runID)))
 			}
 			return nil
 		}
-		// Summary doesn't exist or version mismatch - artifacts exist but need reprocessing
-		// Don't re-download, just reprocess what's there
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", runID)))
-		}
-		// Return nil to indicate success - the artifacts are already there
-		return nil
 	}
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
