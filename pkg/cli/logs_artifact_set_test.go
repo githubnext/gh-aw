@@ -278,10 +278,19 @@ func TestFindMissingFilterEntries(t *testing.T) {
 			expected:     []string{"agent", "firewall-audit-logs"},
 		},
 		{
-			name:         "prefix match does not false-positive on substring",
+			name:         "prefix match does not false-positive on substring (suffix mismatch)",
 			filter:       []string{"agent"},
 			existingDirs: []string{"agent-output"},
 			expected:     []string{"agent"},
+		},
+		{
+			name:         "any-suffix directory matches filter entry (mirrors artifactMatchesFilter behavior)",
+			filter:       []string{"agent"},
+			existingDirs: []string{"super-agent"},
+			// strings.HasSuffix("super-agent", "-agent") is true; intentional (consistent
+			// with artifactMatchesFilter) — in practice only workflow_call hash-prefixed
+			// directories appear in a run folder.
+			expected: nil,
 		},
 		{
 			name:         "firewall-audit-logs exact match found",

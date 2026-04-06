@@ -177,6 +177,12 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 	for _, f := range filter {
 		found := false
 		for _, d := range dirs {
+			// Mirror the artifactMatchesFilter logic: accept exact match or any directory
+			// ending in "-{f}", which covers the workflow_call prefix pattern where GitHub
+			// Actions prepends a short hash (e.g. "abc123-agent"). Note that this means a
+			// hypothetical directory named "super-agent" would satisfy filter entry "agent",
+			// but in practice artifact directories in a run folder only come from GitHub
+			// Actions downloads and follow the "{hash}-{base}" or exact-base patterns.
 			if d == f || strings.HasSuffix(d, "-"+f) {
 				found = true
 				break
