@@ -1171,6 +1171,18 @@ The YAML frontmatter supports these fields:
 
     The missing-data safe-output allows agents to report when required data or information is unavailable. This is automatically enabled by default. When `create-issue` is true, missing data reports create or update GitHub issues for tracking.
 
+  - `report-incomplete:` - Signal that the task could not be completed due to an infrastructure or tool failure (auto-enabled)
+
+    ```yaml
+    safe-outputs:
+      report-incomplete:
+        create-issue: true              # Optional: create issues for incomplete tasks (default: true)
+        title-prefix: "[incomplete]"    # Optional: prefix for issue titles
+        labels: [agent-failure]         # Optional: labels for created issues
+    ```
+
+    The report-incomplete safe-output is automatically enabled by default and is distinct from `noop`. Use it when required tools or data are unavailable and the task cannot be meaningfully performed (e.g., MCP server crash, missing authentication, inaccessible repository). When an agent emits `report_incomplete`, gh-aw activates failure handling even when the agent process exits 0 — preventing empty outputs from being classified as successful. This ensures every unrecoverable failure is tracked.
+
   - `jobs:` - Custom safe-output jobs registered as MCP tools for third-party integrations
 
     ```yaml
