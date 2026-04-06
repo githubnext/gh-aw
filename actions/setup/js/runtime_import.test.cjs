@@ -491,7 +491,7 @@ describe("runtime_import", () => {
           // it falls through to the default branch and is confined to .github/workflows/, so it
           // cannot reach arbitrary filesystem paths like /etc/passwd.
           // The resolved path (.github/workflows/etc/passwd) does not exist, so it throws "file not found".
-          await expect(processRuntimeImport("/etc/passwd", !1, tempDir)).rejects.toThrow();
+          await expect(processRuntimeImport("/etc/passwd", !1, tempDir)).rejects.toThrow("Runtime import file not found");
         }),
         it("should support nested .github/workflows/shared/ path (issue: runtime-import fails for .github/workflows/* paths)", async () => {
           // Regression test: .github/workflows/shared/reporting.md should resolve to
