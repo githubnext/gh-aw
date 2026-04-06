@@ -178,6 +178,7 @@ func BuildStandardNpmEngineInstallSteps(
 		stepName,
 		cacheKeyPrefix,
 		true, // Include Node.js setup
+		workflowData.RunScripts,
 	)
 }
 

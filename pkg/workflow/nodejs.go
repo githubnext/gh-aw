@@ -22,22 +22,27 @@ func GenerateNodeJsSetupStep() GitHubActionStep {
 	}
 }
 
-// GenerateNpmInstallSteps creates GitHub Actions steps for installing an npm package globally
+// GenerateNpmInstallSteps creates GitHub Actions steps for installing an npm package globally.
+// By default, --ignore-scripts is added to the install command to prevent pre/post install
+// scripts from executing (supply chain security). Pass runScripts=true to allow scripts.
 // Parameters:
 //   - packageName: The npm package name (e.g., "@anthropic-ai/claude-code")
 //   - version: The package version to install
 //   - stepName: The name to display for the install step (e.g., "Install Claude Code CLI")
 //   - cacheKeyPrefix: The prefix for the cache key (unused, kept for API compatibility)
 //   - includeNodeSetup: If true, includes Node.js setup step before npm install
+//   - runScripts: If true, allow pre/post install scripts (omits --ignore-scripts)
 //
 // Returns steps for installing the npm package (optionally with Node.js setup)
-func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool) []GitHubActionStep {
-	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, includeNodeSetup, true)
+func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, runScripts bool) []GitHubActionStep {
+	return GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix, includeNodeSetup, true, runScripts)
 }
 
-// GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation
-func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, isGlobal bool) []GitHubActionStep {
-	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v, isGlobal=%v", packageName, version, includeNodeSetup, isGlobal)
+// GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation.
+// By default, --ignore-scripts is added to the install command to prevent pre/post install
+// scripts from executing (supply chain security). Pass runScripts=true to allow scripts.
+func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, isGlobal bool, runScripts bool) []GitHubActionStep {
+	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v, isGlobal=%v, runScripts=%v", packageName, version, includeNodeSetup, isGlobal, runScripts)
 
 	var steps []GitHubActionStep
 
@@ -53,6 +58,13 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 		globalFlag = "-g "
 	}
 
+	// Add --ignore-scripts by default to prevent pre/post install scripts (supply chain security).
+	// runScripts=true disables this protection (emits a warning at compile time).
+	ignoreScriptsFlag := "--ignore-scripts "
+	if runScripts {
+		ignoreScriptsFlag = ""
+	}
+
 	var installStep GitHubActionStep
 	if ExpressionPattern.MatchString(version) {
 		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
@@ -60,7 +72,7 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 		// if the expression evaluates to a malicious string, it would otherwise be
 		// substituted verbatim into the shell command before the shell parses it.
 		nodejsLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
-		installCmd := fmt.Sprintf(`npm install %s%s@"${ENGINE_VERSION}"`, globalFlag, packageName)
+		installCmd := fmt.Sprintf(`npm install %s%s%s@"${ENGINE_VERSION}"`, ignoreScriptsFlag, globalFlag, packageName)
 		installStep = GitHubActionStep{
 			"      - name: " + stepName,
 			"        run: " + installCmd,
@@ -68,7 +80,7 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 			"          ENGINE_VERSION: " + version,
 		}
 	} else {
-		installCmd := fmt.Sprintf("npm install %s%s@%s", globalFlag, packageName, version)
+		installCmd := fmt.Sprintf("npm install %s%s%s@%s", ignoreScriptsFlag, globalFlag, packageName, version)
 		installStep = GitHubActionStep{
 			"      - name: " + stepName,
 			"        run: " + installCmd,

@@ -69,6 +69,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Store a stable workflow identifier derived from the file name.
 	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
+	// Validate run-scripts setting (warning in non-strict mode, error in strict mode)
+	if err := c.validateRunScripts(workflowData); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate that inlined-imports is not used with agent file imports.
 	// Agent files require runtime access and cannot be resolved without sources.
 	if workflowData.InlinedImports && engineSetup.importsResult.AgentFile != "" {
@@ -204,6 +209,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		Tools:                 toolsResult.tools,
 		ParsedTools:           NewTools(toolsResult.tools),
 		Runtimes:              toolsResult.runtimes,
+		RunScripts:            toolsResult.runScripts,
 		MarkdownContent:       toolsResult.markdownContent,
 		AI:                    engineSetup.engineSetting,
 		EngineConfig:          engineSetup.engineConfig,

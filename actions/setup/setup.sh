@@ -387,7 +387,7 @@ if [ "${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}" = "true" ]; then
   fi
 
   # Install @actions/github package
-  npm install --no-save --loglevel=error @actions/github@^7.0.0 2>&1 | grep -v "npm WARN" || true
+  npm install --ignore-scripts --no-save --loglevel=error @actions/github@^7.0.0 2>&1 | grep -v "npm WARN" || true
   if [ -d "node_modules/@actions/github" ]; then
     echo "✓ Successfully installed @actions/github package"
   else

@@ -16,6 +16,7 @@ type RuntimeConfig struct {
 	If            string `json:"if,omitempty"`             // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
 	ActionRepo    string `json:"action-repo,omitempty"`    // Override the GitHub Actions repository (e.g., "actions/setup-node")
 	ActionVersion string `json:"action-version,omitempty"` // Override the action version (e.g., "v4")
+	RunScripts    *bool  `json:"run-scripts,omitempty"`    // If true, allow pre/post install scripts for this runtime (supply chain risk; emits warning or error in strict mode)
 }
 
 // RuntimesConfig represents the configuration for all runtime environments
@@ -152,8 +153,9 @@ type FrontmatterConfig struct {
 	TrackerID      string            `json:"tracker-id,omitempty"`
 	Version        string            `json:"version,omitempty"`
 	TimeoutMinutes *TemplatableInt32 `json:"timeout-minutes,omitempty"`
-	Strict         *bool             `json:"strict,omitempty"`  // Pointer to distinguish unset from false
-	Private        *bool             `json:"private,omitempty"` // If true, workflow cannot be added to other repositories
+	Strict         *bool             `json:"strict,omitempty"`      // Pointer to distinguish unset from false
+	Private        *bool             `json:"private,omitempty"`     // If true, workflow cannot be added to other repositories
+	RunScripts     *bool             `json:"run-scripts,omitempty"` // If true, allow pre/post install scripts globally (supply chain risk; emits warning or error in strict mode)
 	Labels         []string          `json:"labels,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
@@ -321,12 +323,21 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 		actionRepo, _ := configMap["action-repo"].(string)
 		actionVersion, _ := configMap["action-version"].(string)
 
+		// Extract run-scripts flag (optional)
+		var runScripts *bool
+		if rsAny, hasRS := configMap["run-scripts"]; hasRS {
+			if rsBool, ok := rsAny.(bool); ok {
+				runScripts = &rsBool
+			}
+		}
+
 		// Create runtime config with all fields
 		runtimeConfig := &RuntimeConfig{
 			Version:       version,
 			If:            ifCondition,
 			ActionRepo:    actionRepo,
 			ActionVersion: actionVersion,
+			RunScripts:    runScripts,
 		}
 
 		// Map to specific runtime field

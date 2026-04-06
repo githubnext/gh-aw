@@ -479,7 +479,7 @@ jobs:
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.13
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@latest
+        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@latest
       - name: Restore qmd index from cache
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -1439,7 +1439,7 @@ jobs:
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.13
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@latest
+        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@latest
       - name: Execute Claude Code CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
@@ -1553,7 +1553,7 @@ jobs:
       - name: Install @tobilu/qmd SDK
         if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
         run: |
-          npm install --prefix "${{ runner.temp }}/gh-aw/actions" --legacy-peer-deps @tobilu/qmd@2.0.1 @actions/github
+          npm install --ignore-scripts --prefix "${{ runner.temp }}/gh-aw/actions" --legacy-peer-deps @tobilu/qmd@2.0.1 @actions/github
       - name: Build qmd index
         if: steps.qmd-cache-restore.outputs.cache-hit != 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
