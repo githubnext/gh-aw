@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.15.0  
+**Version**: 1.16.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-03-29  
+**Publication Date**: 2026-04-06  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -198,7 +198,7 @@ An implementation satisfying ALL normative requirements (MUST, SHALL, REQUIRED s
 An implementation satisfying ALL security-critical normative requirements but omitting support for optional safe output types. Partial conformance requires:
 
 - Complete security architecture (non-negotiable)
-- Mandatory safe output types: `create_issue`, `add_comment`, `create_pull_request`, `noop`
+- Mandatory safe output types: `create_issue`, `add_comment`, `create_pull_request`, `noop`, `missing_tool`, `missing_data`, `report_incomplete`
 - Clear documentation listing unsupported optional types
 - Warning messages when workflows attempt to use unsupported types
 
@@ -3516,6 +3516,82 @@ safe-outputs:
 
 ---
 
+#### Type: report_incomplete
+
+**Purpose**: Signal that the task could not be completed due to an infrastructure or tool failure (e.g., MCP server crash, missing authentication, inaccessible repository). This is distinct from `noop` (no action needed) — it indicates an active failure that prevented the task from running. The workflow framework treats this as a failure signal even when the agent exits successfully.
+
+**Default Max**: 5  
+**Cross-Repository Support**: N/A (logging only)  
+**Mandatory**: Yes (always enabled, cannot be disabled)
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "report_incomplete",
+  "description": "Signal that the task could not be completed due to an infrastructure or tool failure (e.g., MCP server crash, missing authentication, inaccessible repository). Use this when required tools or data are unavailable and the task cannot be meaningfully performed. This is distinct from noop (no action needed) — it indicates an active failure that prevented the task from running. The workflow framework will treat this as a failure signal even when the agent exits successfully.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["reason"],
+    "properties": {
+      "reason": {
+        "type": "string",
+        "description": "A concise explanation of why the task could not be completed (max 1024 characters). Be specific about which tools or resources were unavailable."
+      },
+      "details": {
+        "type": "string",
+        "description": "Optional extended details or diagnostic context about the failure (max 65000 characters)."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Always Enabled**: Automatically registered in every workflow when `safe-outputs` is configured.
+2. **Failure Signal**: Triggers failure handling in the conclusion job regardless of agent exit code. This is the key distinction from `noop`.
+3. **No Side Effects** (unless `create-issue: true`): Records reason and details in workflow logs; optionally creates/updates a tracking issue.
+4. **Co-emission Handling**: When emitted alongside other safe outputs (e.g., `add_comment`), those outputs are treated as describing the failure state, not a successfully completed action.
+
+**Configuration Parameters**:
+
+- `create-issue`: When `true`, creates/updates a GitHub tracking issue when `report_incomplete` is emitted (default: `true`)
+- `title-prefix`: Prefix for tracking issue titles (default: `"[incomplete]"`)
+- `labels`: Labels to add to created issues (array of strings)
+- `max`: Maximum number of `report_incomplete` signals per run (default: 5)
+
+**Security Requirements**:
+
+- The `reason` field MUST undergo content sanitization (max 1024 characters)
+- The `details` field MUST undergo content sanitization (max 65000 characters)
+- The handler MUST NOT make any GitHub API calls unless `create-issue: true` is configured
+- The handler MUST activate failure handling in the conclusion job regardless of agent exit code
+- Co-emitted safe outputs (e.g., `add_comment`) MUST be treated as describing the failure state, not a completed action
+
+**Required Permissions**:
+
+*GitHub Actions Token*:
+
+- No additional permissions required beyond base workflow permissions
+- When `create-issue: true` configured, requires `issues: write` for issue creation
+
+*GitHub App*:
+
+- No additional permissions required beyond base app installation
+- When `create-issue: true` configured, requires `issues: write` for issue creation
+
+**Notes**:
+
+- Base functionality requires no permissions (logging only)
+- Optional issue creation requires `issues: write` when `create-issue: true`
+- Activates failure handling even when the agent exits with code 0
+- Should be used instead of `add_comment` for infrastructure failures
+- `noop + report_incomplete` combination correctly escalates to failure handling (noop bypass is suppressed)
+
+---
+
 ## 8. Protocol Exchange Patterns
 
 ### 8.1 HTTP Transport Layer
@@ -3927,7 +4003,7 @@ Operations execute in:
 
 1. NDJSON file order
 2. Type grouping (same type together)
-3. System types last (noop)
+3. System types last (noop, missing_tool, missing_data, report_incomplete)
 
 ### 10.3 Idempotency
 
@@ -4341,7 +4417,7 @@ Operators SHOULD communicate this expected one-time cache miss to their teams to
   - [ ] Content sanitization pipeline
 
 - [ ] Safe Output Types
-  - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop
+  - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop, missing_tool, missing_data, report_incomplete
   - [ ] Optional types documented if unsupported
 
 - [ ] Protocol
