@@ -48,10 +48,22 @@ async function main() {
 
   if (isSkipped) {
     // User is in skip-bots, skip the workflow
+    const errorMessage = `Workflow skipped: User '${actor}' is in skip-bots: [${skipBots.join(", ")}]`;
     core.info(`❌ User '${actor}' is in skip-bots [${skipBots.join(", ")}]. Workflow will be skipped.`);
     core.setOutput("skip_bots_ok", "false");
     core.setOutput("result", "skipped");
-    core.setOutput("error_message", `Workflow skipped: User '${actor}' is in skip-bots: [${skipBots.join(", ")}]`);
+    core.setOutput("error_message", errorMessage);
+    await core.summary
+      .addRaw(
+        [
+          "## ⏭️ Workflow Activation Skipped\n",
+          "> " + errorMessage + "\n",
+          "**Remediation:** Update `on.skip-bots:` in the workflow frontmatter to change which bots are excluded.\n",
+          "---",
+          "_See the `pre_activation` job log for full details._",
+        ].join("\n")
+      )
+      .write();
   } else {
     // User is NOT in skip-bots, allow workflow to proceed
     core.info(`✅ User '${actor}' is NOT in skip-bots [${skipBots.join(", ")}]. Workflow will proceed.`);

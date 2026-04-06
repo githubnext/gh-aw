@@ -3,6 +3,17 @@
 
 const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot } = require("./check_permissions_utils.cjs");
 
+/**
+ * Writes a denial reason to the GitHub Actions job summary.
+ *
+ * @param {string} message - The denial message from the check
+ * @param {string} remediation - Remediation hint for the operator
+ */
+async function writeDenialSummary(message, remediation) {
+  const lines = ["## ⏭️ Workflow Activation Skipped\n", "> " + message + "\n", "**Remediation:** " + remediation + "\n", "---", "_See the `pre_activation` job log for full details._"];
+  await core.summary.addRaw(lines.join("\n")).write();
+}
+
 async function main() {
   const { eventName } = context;
   const actor = context.actor;
@@ -46,6 +57,7 @@ async function main() {
     core.setOutput("is_team_member", "false");
     core.setOutput("result", "config_error");
     core.setOutput("error_message", "Configuration error: Required permissions not specified");
+    await writeDenialSummary("Configuration error: Required permissions not specified.", "Contact the repository administrator to fix the workflow frontmatter configuration.");
     return;
   }
 
@@ -76,11 +88,13 @@ async function main() {
           core.setOutput("user_permission", "bot");
           return;
         } else if (botStatus.isBot && !botStatus.isActive) {
+          const errorMessage = `Access denied: Bot '${actor}' is not active/installed on this repository`;
           core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
           core.setOutput("is_team_member", "false");
           core.setOutput("result", "bot_not_active");
           core.setOutput("user_permission", result.permission ?? "bot");
-          core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
+          core.setOutput("error_message", errorMessage);
+          await writeDenialSummary(errorMessage, "The bot is in the allowed list but is not installed or active on this repository. Install the GitHub App and try again.");
           return;
         } else {
           core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
@@ -90,18 +104,20 @@ async function main() {
 
     // Not authorized by role or bot
     if (result.error) {
+      const errorMessage = `Repository permission check failed: ${result.error}`;
       core.setOutput("is_team_member", "false");
       core.setOutput("result", "api_error");
-      core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+      core.setOutput("error_message", errorMessage);
+      await writeDenialSummary(errorMessage, "The permission check failed with a GitHub API error. Check the `pre_activation` job log for details.");
     } else {
+      const errorMessage =
+        `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
+        `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${requiredPermissions.join(", ")}, ${result.permission}]`;
       core.setOutput("is_team_member", "false");
       core.setOutput("result", "insufficient_permissions");
       core.setOutput("user_permission", result.permission);
-      core.setOutput(
-        "error_message",
-        `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
-          `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${requiredPermissions.join(", ")}, ${result.permission}]`
-      );
+      core.setOutput("error_message", errorMessage);
+      await writeDenialSummary(errorMessage, `To allow a bot or GitHub App actor, add it to \`on.bots:\` in the workflow frontmatter. ` + `To change the required roles for human actors, update \`on.roles:\` in the workflow frontmatter.`);
     }
   }
 }

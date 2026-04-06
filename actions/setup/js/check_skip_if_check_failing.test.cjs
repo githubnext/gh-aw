@@ -12,6 +12,10 @@ describe("check_skip_if_check_failing.cjs", () => {
       error: vi.fn(),
       setFailed: vi.fn(),
       setOutput: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
     };
 
     mockGithub = {

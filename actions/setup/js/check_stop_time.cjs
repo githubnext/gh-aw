@@ -33,6 +33,17 @@ async function main() {
   if (currentTime >= stopTimeDate) {
     core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
     core.setOutput("stop_time_ok", "false");
+    await core.summary
+      .addRaw(
+        [
+          "## ⏭️ Workflow Activation Skipped\n",
+          `> Workflow '${workflowName}' has passed its configured stop-time (${stopTimeDate.toISOString()}).\n`,
+          "**Remediation:** Update or remove `on.stop-after:` in the workflow frontmatter to extend the active window.\n",
+          "---",
+          "_See the `pre_activation` job log for full details._",
+        ].join("\n")
+      )
+      .write();
     return;
   }
 

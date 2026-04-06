@@ -19,6 +19,10 @@ describe("check_skip_if_no_match", () => {
       warnings: [],
       errors: [],
       outputs: {},
+      summary: {
+        addRaw: () => mockCore.summary,
+        write: async () => {},
+      },
     };
 
     mockCore.info = msg => {

@@ -12,6 +12,10 @@ describe("check_skip_bots.cjs", () => {
       error: vi.fn(),
       setFailed: vi.fn(),
       setOutput: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
     };
 
     mockContext = {

@@ -1030,22 +1030,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_skip_bots.cjs');
             await main();
-      - name: Report skip reason
-        id: report-skip-reason
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_RATE_LIMIT_OK: ${{ steps.check_rate_limit.outputs.rate_limit_ok }}
-          GH_AW_SKIP_ROLES_OK: ${{ steps.check_skip_roles.outputs.skip_roles_ok }}
-          GH_AW_SKIP_ROLES_ERROR_MESSAGE: ${{ steps.check_skip_roles.outputs.error_message }}
-          GH_AW_SKIP_BOTS_OK: ${{ steps.check_skip_bots.outputs.skip_bots_ok }}
-          GH_AW_SKIP_BOTS_ERROR_MESSAGE: ${{ steps.check_skip_bots.outputs.error_message }}
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/report_pre_activation_skip.cjs');
-            await main();
 
   safe_outputs:
     needs:

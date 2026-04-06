@@ -206,6 +206,17 @@ async function main() {
       const names = failingChecks.map(r => (r.status === "completed" ? `${r.name} (${r.conclusion})` : `${r.name} (${r.status})`)).join(", ");
       core.warning(`⚠️ Failing CI checks detected on "${ref}": ${names}. Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_if_check_failing_ok", "false");
+      await core.summary
+        .addRaw(
+          [
+            "## ⏭️ Workflow Activation Skipped\n",
+            `> Failing CI checks detected on \`${ref}\`: ${names}.\n`,
+            "**Remediation:** Fix the failing check(s) referenced in `on.skip-if-check-failing:`, or update the frontmatter configuration.\n",
+            "---",
+            "_See the `pre_activation` job log for full details._",
+          ].join("\n")
+        )
+        .write();
       return;
     }
 

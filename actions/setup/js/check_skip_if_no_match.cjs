@@ -42,6 +42,17 @@ async function main() {
     if (totalCount < minMatches) {
       core.warning(`🔍 Skip condition matched (${totalCount} items found, minimum required: ${minMatches}). Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_no_match_check_ok", "false");
+      await core.summary
+        .addRaw(
+          [
+            "## ⏭️ Workflow Activation Skipped\n",
+            `> Skip-if-no-match query returned too few results: ${totalCount} item(s) found (minimum required: ${minMatches}).\n`,
+            "**Remediation:** Update `on.skip-if-no-match:` in the workflow frontmatter if this skip was unexpected.\n",
+            "---",
+            "_See the `pre_activation` job log for full details._",
+          ].join("\n")
+        )
+        .write();
       return;
     }
 

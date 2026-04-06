@@ -42,6 +42,17 @@ async function main() {
     if (totalCount >= maxMatches) {
       core.warning(`🔍 Skip condition matched (${totalCount} items found, threshold: ${maxMatches}). Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_check_ok", "false");
+      await core.summary
+        .addRaw(
+          [
+            "## ⏭️ Workflow Activation Skipped\n",
+            `> Skip-if-match query matched: ${totalCount} item(s) found (threshold: ${maxMatches}).\n`,
+            "**Remediation:** Update `on.skip-if-match:` in the workflow frontmatter if this skip was unexpected.\n",
+            "---",
+            "_See the `pre_activation` job log for full details._",
+          ].join("\n")
+        )
+        .write();
       return;
     }
 

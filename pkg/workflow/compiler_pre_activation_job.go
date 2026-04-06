@@ -421,13 +421,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		jobIfCondition = data.If
 	}
 
-	// Add report-skip-reason step to surface denial reasons in the job summary when activation
-	// is denied. Only added when there are actual blocking conditions (not for on.steps-only
-	// pre-activation where activated is unconditionally true).
-	if len(conditions) > 0 {
-		steps = append(steps, c.generateReportSkipStep(needsPermissionCheck, data))
-	}
-
 	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
@@ -448,80 +441,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 // generateReportSkipStep generates the "Report skip reason" step for the pre-activation job.
 // The step runs with if: always() and writes skip reasons to the GitHub Actions job summary
-// when one or more pre-activation checks deny activation, so operators can see the denial
-// reason directly from the PR / workflow run surface without opening raw job logs.
-//
-// Only env vars for checks that are actually configured are emitted, keeping the YAML minimal
-// and avoiding actionlint warnings about references to unconfigured step outputs.
-func (c *Compiler) generateReportSkipStep(needsPermissionCheck bool, data *WorkflowData) string {
-	var step strings.Builder
-
-	step.WriteString("      - name: Report skip reason\n")
-	step.WriteString(fmt.Sprintf("        id: %s\n", constants.ReportSkipReasonStepID))
-	step.WriteString("        if: always()\n")
-	step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-	step.WriteString("        env:\n")
-
-	if needsPermissionCheck {
-		step.WriteString(fmt.Sprintf("          GH_AW_IS_TEAM_MEMBER: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckMembershipStepID, constants.IsTeamMemberOutput))
-		step.WriteString(fmt.Sprintf("          GH_AW_MEMBERSHIP_RESULT: ${{ steps.%s.outputs.result }}\n",
-			constants.CheckMembershipStepID))
-		step.WriteString(fmt.Sprintf("          GH_AW_MEMBERSHIP_ERROR_MESSAGE: ${{ steps.%s.outputs.error_message }}\n",
-			constants.CheckMembershipStepID))
-	}
-
-	if data.StopTime != "" {
-		step.WriteString(fmt.Sprintf("          GH_AW_STOP_TIME_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckStopTimeStepID, constants.StopTimeOkOutput))
-	}
-
-	if data.RateLimit != nil {
-		step.WriteString(fmt.Sprintf("          GH_AW_RATE_LIMIT_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckRateLimitStepID, constants.RateLimitOkOutput))
-	}
-
-	if data.SkipIfMatch != nil {
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_CHECK_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckSkipIfMatchStepID, constants.SkipCheckOkOutput))
-	}
-
-	if data.SkipIfNoMatch != nil {
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_NO_MATCH_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckSkipIfNoMatchStepID, constants.SkipNoMatchCheckOkOutput))
-	}
-
-	if data.SkipIfCheckFailing != nil {
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_IF_CHECK_FAILING_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckSkipIfCheckFailingStepID, constants.SkipIfCheckFailingOkOutput))
-	}
-
-	if len(data.SkipRoles) > 0 {
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_ROLES_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckSkipRolesStepID, constants.SkipRolesOkOutput))
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_ROLES_ERROR_MESSAGE: ${{ steps.%s.outputs.error_message }}\n",
-			constants.CheckSkipRolesStepID))
-	}
-
-	if len(data.SkipBots) > 0 {
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_BOTS_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckSkipBotsStepID, constants.SkipBotsOkOutput))
-		step.WriteString(fmt.Sprintf("          GH_AW_SKIP_BOTS_ERROR_MESSAGE: ${{ steps.%s.outputs.error_message }}\n",
-			constants.CheckSkipBotsStepID))
-	}
-
-	if len(data.Command) > 0 {
-		step.WriteString(fmt.Sprintf("          GH_AW_COMMAND_POSITION_OK: ${{ steps.%s.outputs.%s }}\n",
-			constants.CheckCommandPositionStepID, constants.CommandPositionOkOutput))
-	}
-
-	step.WriteString("        with:\n")
-	step.WriteString("          script: |\n")
-	step.WriteString(generateGitHubScriptWithRequire("report_pre_activation_skip.cjs"))
-
-	return step.String()
-}
-
 // extractPreActivationCustomFields extracts custom steps and outputs from jobs.pre-activation field in frontmatter.
 // It validates that only steps and outputs fields are present, and errors on any other fields.
 // If both jobs.pre-activation and jobs.pre_activation are defined, imports from both.

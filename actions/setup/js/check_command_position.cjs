@@ -100,6 +100,17 @@ async function main() {
       core.warning(`⚠️ None of the commands [${expectedCommands}] matched the first word (found: '${firstWord}'). Workflow will be skipped.`);
       core.setOutput("command_position_ok", "false");
       core.setOutput("matched_command", "");
+      await core.summary
+        .addRaw(
+          [
+            "## ⏭️ Workflow Activation Skipped\n",
+            `> The trigger comment did not start with a required command. Expected one of: ${expectedCommands}. Found: \`${firstWord}\`.\n`,
+            "**Remediation:** Make sure the trigger comment starts with the required command defined in `on.command:` in the workflow frontmatter.\n",
+            "---",
+            "_See the `pre_activation` job log for full details._",
+          ].join("\n")
+        )
+        .write();
     }
   } catch (error) {
     core.setFailed(`${ERR_API}: ${getErrorMessage(error)}`);
