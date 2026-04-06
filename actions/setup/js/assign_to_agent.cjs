@@ -34,6 +34,7 @@ let _allResults = [];
 async function createAssignToAgentGitHubClient(config) {
   const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
   if (!token) {
+    core.debug("No dedicated agent token configured — using step-level github client for assign-to-agent operations");
     return github;
   }
   core.info("Using dedicated github client for assign-to-agent operations");
@@ -164,9 +165,11 @@ async function main(config = {}) {
       return { success: true, skipped: true };
     }
 
-    // Enforce max count
+    // Enforce max count — track the attempt in _allResults so it appears in the summary
     if (processedCount >= maxCount) {
       core.info(`⏭ Max count (${maxCount}) reached, skipping agent assignment`);
+      const agentNameForSkip = message.agent ?? defaultAgent;
+      _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentNameForSkip, owner: null, repo: null, success: false, skipped: true });
       return { success: false, skipped: true };
     }
 
@@ -193,6 +196,7 @@ async function main(config = {}) {
     if (message.issue_number != null && isTemporaryId(message.issue_number)) {
       const normalized = normalizeTemporaryId(String(message.issue_number));
       if (!temporaryIdMap.has(normalized)) {
+        core.info(`Deferring assign_to_agent — temporary ID ${message.issue_number} not yet resolved`);
         return { deferred: true };
       }
     }
