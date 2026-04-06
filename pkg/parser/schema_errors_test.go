@@ -366,7 +366,7 @@ func TestAppendKnownFieldValidValuesHint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := appendKnownFieldValidValuesHint(tt.message, tt.jsonPath)
+			result, _ := appendKnownFieldValidValuesHint(tt.message, tt.jsonPath)
 			for _, want := range tt.contains {
 				assert.Contains(t, result, want,
 					"appendKnownFieldValidValuesHint should contain %q\nResult: %s", want, result)

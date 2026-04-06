@@ -214,6 +214,90 @@ function parseOTLPHeaders(raw) {
 }
 
 /**
+ * Regular expression matching attribute key fragments that indicate the value
+ * is sensitive and should be redacted before the payload is sent over the
+ * wire.  The pattern is case-insensitive.  Word-boundary anchors (`\b`) are
+ * used for `key` so that generic infrastructure keys like `sort_key` or
+ * `cache_key` (where "key" is preceded by an underscore, a word character)
+ * are **not** over-redacted, while dot-separated forms like `app.key` and
+ * standalone `key` attributes are still caught.
+ * @type {RegExp}
+ */
+const SENSITIVE_ATTR_KEY_RE = /token|secret|password|passwd|\bkey\b|auth|credential|api[_-]?key|access[_-]?key/i;
+
+/**
+ * Maximum length (in characters) allowed for a string attribute value.
+ * Values that exceed this limit are truncated to avoid sending unexpectedly
+ * large payloads to the OTLP collector.
+ * @type {number}
+ */
+const MAX_ATTR_VALUE_LENGTH = 1024;
+
+/**
+ * Redaction placeholder substituted for sensitive attribute values.
+ * @type {string}
+ */
+const REDACTED = "[REDACTED]";
+
+/**
+ * Sanitize an array of OTLP key-value attributes in-place (shallowly cloned).
+ *
+ * For each attribute:
+ * - If the key matches {@link SENSITIVE_ATTR_KEY_RE} the string value is
+ *   replaced with {@link REDACTED}.
+ * - String values longer than {@link MAX_ATTR_VALUE_LENGTH} are truncated.
+ *
+ * @param {Array<{key: string, value: object}>} attrs
+ * @returns {Array<{key: string, value: object}>}
+ */
+function sanitizeAttrs(attrs) {
+  if (!Array.isArray(attrs)) return attrs;
+  return attrs.map(attr => {
+    if (!attr || typeof attr.key !== "string") return attr;
+    const isSensitive = SENSITIVE_ATTR_KEY_RE.test(attr.key);
+    const val = attr.value;
+    if (typeof val !== "object" || val === null) return attr;
+    if (isSensitive && "stringValue" in val) {
+      return { key: attr.key, value: { stringValue: REDACTED } };
+    }
+    if (!isSensitive && "stringValue" in val && typeof val.stringValue === "string" && val.stringValue.length > MAX_ATTR_VALUE_LENGTH) {
+      return { key: attr.key, value: { stringValue: val.stringValue.slice(0, MAX_ATTR_VALUE_LENGTH) } };
+    }
+    return attr;
+  });
+}
+
+/**
+ * Sanitize an OTLP traces payload before sending it over the wire.
+ *
+ * Walks the `resourceSpans[].resource.attributes` and
+ * `resourceSpans[].scopeSpans[].spans[].attributes` arrays and applies
+ * {@link sanitizeAttrs} to each, redacting values for sensitive keys and
+ * truncating excessively long string values.
+ *
+ * The original payload object is not mutated; a shallow-clone is returned.
+ *
+ * @param {object} payload - OTLP traces payload produced by {@link buildOTLPPayload}
+ * @returns {object} Sanitized payload suitable for serialisation
+ */
+function sanitizeOTLPPayload(payload) {
+  if (!payload || !Array.isArray(payload.resourceSpans)) return payload;
+  return {
+    ...payload,
+    resourceSpans: payload.resourceSpans.map(rs => ({
+      ...rs,
+      resource: rs.resource ? { ...rs.resource, attributes: sanitizeAttrs(rs.resource.attributes) } : rs.resource,
+      scopeSpans: Array.isArray(rs.scopeSpans)
+        ? rs.scopeSpans.map(ss => ({
+            ...ss,
+            spans: Array.isArray(ss.spans) ? ss.spans.map(span => ({ ...span, attributes: sanitizeAttrs(span.attributes) })) : ss.spans,
+          }))
+        : rs.scopeSpans,
+    })),
+  };
+}
+
+/**
  * POST an OTLP traces payload to `{endpoint}/v1/traces` with automatic retries.
  *
  * Failures are surfaced as `console.warn` messages and never thrown; OTLP
@@ -244,7 +328,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
       const response = await fetch(url, {
         method: "POST",
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify(sanitizeOTLPPayload(payload)),
       });
       if (response.ok) {
         return;
@@ -389,6 +473,8 @@ async function sendJobSetupSpan(options = {}) {
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
+  const ref = process.env.GITHUB_REF || "";
+  const sha = process.env.GITHUB_SHA || "";
 
   const attributes = [
     buildAttr("gh-aw.job.name", jobName),
@@ -410,6 +496,12 @@ async function sendJobSetupSpan(options = {}) {
   }
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
+  }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
@@ -568,6 +660,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const actor = process.env.GITHUB_ACTOR || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
   const eventName = process.env.GITHUB_EVENT_NAME || "";
+  const ref = process.env.GITHUB_REF || "";
+  const sha = process.env.GITHUB_SHA || "";
 
   // Agent conclusion is passed to downstream jobs via GH_AW_AGENT_CONCLUSION.
   // Values: "success", "failure", "timed_out", "cancelled", "skipped".
@@ -637,6 +731,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (eventName) {
     resourceAttributes.push(buildAttr("github.event_name", eventName));
   }
+  if (ref) {
+    resourceAttributes.push(buildAttr("github.ref", ref));
+  }
+  if (sha) {
+    resourceAttributes.push(buildAttr("github.sha", sha));
+  }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
   const payload = buildOTLPPayload({
@@ -670,6 +770,7 @@ module.exports = {
   toNanoString,
   buildAttr,
   buildOTLPPayload,
+  sanitizeOTLPPayload,
   parseOTLPHeaders,
   sendOTLPSpan,
   readJSONIfExists,

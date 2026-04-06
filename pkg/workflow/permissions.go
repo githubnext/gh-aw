@@ -266,7 +266,11 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 // IsGitHubAppOnlyScope returns true if the scope is a GitHub App-only permission
 // (not supported by GITHUB_TOKEN). These scopes require a GitHub App to exercise.
 func IsGitHubAppOnlyScope(scope PermissionScope) bool {
-	return slices.Contains(GetAllGitHubAppOnlyScopes(), scope)
+	isAppOnly := slices.Contains(GetAllGitHubAppOnlyScopes(), scope)
+	if isAppOnly {
+		permissionsLog.Printf("Scope %q requires GitHub App (not supported by GITHUB_TOKEN)", scope)
+	}
+	return isAppOnly
 }
 
 // Permissions represents GitHub Actions permissions

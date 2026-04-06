@@ -89,6 +89,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 //
 // Returns the YAML for the step as a single string (for inclusion in a []string steps slice).
 func (c *Compiler) generateRestoreActionsSetupStep() string {
+	compilerYamlStepGenerationLog.Print("Generating restore actions setup step")
 	var step strings.Builder
 	step.WriteString("      - name: Restore actions folder\n")
 	step.WriteString("        if: always()\n")
@@ -135,6 +136,7 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 	}
 
 	// Dev/Release mode: use the setup action
+	compilerYamlStepGenerationLog.Printf("Generating setup step: ref=%s, destination=%s, customTokens=%t, traceID=%q", setupActionRef, destination, enableCustomTokens, traceID)
 	lines := []string{
 		"      - name: Setup Scripts\n",
 		"        id: setup\n",
@@ -157,6 +159,7 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 // is not available there (only in step-level env: and run: blocks).
 // The step ID "set-runtime-paths" is referenced by downstream steps that consume these outputs.
 func (c *Compiler) generateSetRuntimePathsStep() []string {
+	compilerYamlStepGenerationLog.Print("Generating set-runtime-paths step")
 	return []string{
 		"      - name: Set runtime paths\n",
 		"        id: set-runtime-paths\n",

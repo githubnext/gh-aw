@@ -249,11 +249,12 @@ var unknownPropertyPattern = regexp.MustCompile(`(?i)^Unknown propert(?:y|ies): 
 // and a documentation link to message when the jsonPath matches a well-known field and the
 // message is an unknown-property error.
 // It returns the message unchanged for unknown paths or non-additional-properties messages.
-func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
+// The second return value is true if a hint was actually appended to the message.
+func appendKnownFieldValidValuesHint(message string, jsonPath string) (string, bool) {
 	// Use truncated prefix "unknown propert" to match both singular ("Unknown property")
 	// and plural ("Unknown properties") forms produced by rewriteAdditionalPropertiesError.
 	if !strings.Contains(strings.ToLower(message), "unknown propert") {
-		return message
+		return message, false
 	}
 	log.Printf("Appending known field hint for path: %s", jsonPath)
 
@@ -282,7 +283,7 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 		}
 	}
 	if !hintOK {
-		return message
+		return message, false
 	}
 
 	result := message + " (" + hint + ")"
@@ -326,7 +327,7 @@ func appendKnownFieldValidValuesHint(message string, jsonPath string) string {
 		result = fmt.Sprintf("%s See: %s", result, docsURL)
 	}
 
-	return result
+	return result, true
 }
 
 // rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly

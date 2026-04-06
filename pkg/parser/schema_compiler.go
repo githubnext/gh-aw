@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -228,6 +229,18 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	return nil
 }
 
+// pathPositionPrefixPattern matches the "'path' (line N, col M): " prefix that
+// formatSchemaFailureDetail prepends to each detail line for multi-failure output.
+var pathPositionPrefixPattern = regexp.MustCompile(`^'[^']*' \(line \d+, col \d+\): `)
+
+// stripDetailLinePrefix removes the "'path' (line N, col M): " prefix from a
+// formatSchemaFailureDetail result.  This prefix is redundant for single-failure
+// errors because the IDE-compatible "file:line:col: error:" header already encodes
+// the position; stripping it avoids the information appearing twice to the user.
+func stripDetailLinePrefix(detail string) string {
+	return pathPositionPrefixPattern.ReplaceAllString(detail, "")
+}
+
 // validateWithSchemaAndLocation validates frontmatter against a JSON schema with location information
 func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, context, filePath string) error {
 	// First try the basic validation
@@ -334,7 +347,13 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				}
 
 				// Include every schema failure with path + line + column.
-				message := detailLines[0]
+				// For multiple failures, each detail line keeps its "'path' (line N, col M):" prefix
+				// so the developer can navigate to every failure location.
+				// For a single failure, strip that prefix: the IDE-format "file:line:col: error:"
+				// header already communicates the position, so repeating it in the message body
+				// is redundant noise.
+				// Start with the stripped single-failure form; override below for multi-failure.
+				message := stripDetailLinePrefix(detailLines[0])
 				if len(detailLines) != 1 {
 					message = "Multiple schema validation failures:\n- " + strings.Join(detailLines, "\n- ")
 				}
@@ -417,10 +436,16 @@ func formatSchemaFailureDetail(pathInfo JSONPathInfo, schemaJSON, frontmatterCon
 	// Translate schema constraint language (e.g. "minimum: got X, want Y") to plain English.
 	message = translateSchemaConstraintMessage(message)
 	// Append valid-values hint for well-known fields (e.g. permissions scopes).
-	message = appendKnownFieldValidValuesHint(message, pathInfo.Path)
-	suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
-	if suggestions != "" {
-		message = message + ". " + suggestions
+	// hintAdded is true when appendKnownFieldValidValuesHint actually augmented the message
+	// (i.e. the path is a known field and the error is an unknown-property error).
+	// When a hint was added we skip generateSchemaBasedSuggestions to avoid repeating the
+	// same valid-values or "Did you mean" content.
+	message, hintAdded := appendKnownFieldValidValuesHint(message, pathInfo.Path)
+	if !hintAdded {
+		suggestions := generateSchemaBasedSuggestions(schemaJSON, pathInfo.Message, pathInfo.Path, frontmatterContent)
+		if suggestions != "" {
+			message = message + ". " + suggestions
+		}
 	}
 	displayPath := strings.TrimPrefix(path, "/")
 	if displayPath == "" {

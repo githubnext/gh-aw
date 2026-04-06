@@ -156,6 +156,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 
 	// Add volume mounts
 	// When guard policies follow, mounts is not the last field (add trailing comma)
+	mcpPlaywrightLog.Printf("Adding volume mounts: guard_policies=%d", len(guardPolicies))
 	if len(guardPolicies) > 0 {
 		yaml.WriteString("                \"mounts\": [\"/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs:rw\"],\n")
 		renderGuardPoliciesJSON(yaml, guardPolicies, "                ")
@@ -171,4 +172,5 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 	} else {
 		yaml.WriteString("              },\n")
 	}
+	mcpPlaywrightLog.Printf("Playwright MCP config rendered: is_last=%t, entrypoint_args=%d", isLast, len(entrypointArgs))
 }

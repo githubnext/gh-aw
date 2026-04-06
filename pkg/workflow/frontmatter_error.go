@@ -11,6 +11,12 @@ import (
 
 var frontmatterErrorLog = logger.New("workflow:frontmatter_error")
 
+// frontmatterParseErrPrefix is the string prefix that ExtractFrontmatterFromContent
+// prepends to the formatted yaml.FormatError() output when a YAML syntax error occurs.
+// It is used as a sentinel to detect whether a frontmatter error already carries
+// formatted YAML position information.
+const frontmatterParseErrPrefix = "failed to parse frontmatter:\n"
+
 // Package-level compiled regex patterns for better performance
 var (
 	lineColPattern       = regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
@@ -47,7 +53,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 
 	// Check if error already contains formatted yaml.FormatError() output with source context
 	// yaml.FormatError() produces output like "failed to parse frontmatter:\n[line:col] message\n>  line | content..."
-	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
+	if strings.Contains(errorStr, frontmatterParseErrPrefix+"[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
 		// Extract line and column from the formatted error for VSCode compatibility
 		// Pattern: [line:col] message
 		if matches := lineColPattern.FindStringSubmatch(errorStr); len(matches) >= 4 {
@@ -80,12 +86,26 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			return parser.NewFormattedParserError(vscodeFormat)
 		}
 
-		// Fallback if we can't parse the line/col
-		frontmatterErrorLog.Print("Could not extract line/col from formatted error")
-		return fmt.Errorf("%s: %w", filePath, err)
+		// Fallback if we can't parse the line/col: emit an IDE-compatible error
+		// pointing to the frontmatter start so the developer is at least brought to
+		// the right section rather than the useless line 1, col 1.
+		frontmatterErrorLog.Print("Could not extract line/col from formatted error, falling back to frontmatter start")
+		fallbackMsg := "failed to parse YAML frontmatter"
+		// Try to surface a single-line description from the raw error text.
+		if _, rest, found := strings.Cut(errorStr, frontmatterParseErrPrefix); found {
+			firstLine, _, _ := strings.Cut(rest, "\n")
+			if translated := parser.TranslateYAMLMessage(strings.TrimSpace(firstLine)); translated != "" {
+				fallbackMsg = "failed to parse YAML frontmatter: " + translated
+			}
+		}
+		fallbackFmt := fmt.Sprintf("%s:%d:1: error: %s", filePath, frontmatterLineOffset, fallbackMsg)
+		return parser.NewFormattedParserError(fallbackFmt)
 	}
 
-	// Fallback: if not already formatted, return with filename prefix
+	// Fallback: if not already formatted, create a FormattedParserError pointing to the
+	// frontmatter start so the IDE navigates to the right file and section rather than
+	// defaulting to line 1, col 1.
 	frontmatterErrorLog.Printf("Using fallback error message: %v", err)
-	return fmt.Errorf("%s: failed to extract frontmatter: %w", filePath, err)
+	fallbackFmt := fmt.Sprintf("%s:%d:1: error: %s", filePath, frontmatterLineOffset, err.Error())
+	return parser.NewFormattedParserError(fallbackFmt)
 }

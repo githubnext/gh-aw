@@ -211,6 +211,9 @@ func runGlobValidation(pat string, isRef bool) []invalidGlobPattern {
 	v := globValidator{}
 	v.isRef = isRef
 	v.validate(pat)
+	if len(v.errs) > 0 {
+		globValidationLog.Printf("Glob validation found %d error(s) for pattern %q (isRef=%t)", len(v.errs), pat, isRef)
+	}
 	return v.errs
 }
 
@@ -240,6 +243,7 @@ func validatePathGlob(pat string) []invalidGlobPattern {
 	// Reject '.', '..', './<path>', and '../<path>' (#521 in actionlint)
 	stripped := strings.TrimPrefix(p, "!")
 	if stripped == "." || stripped == ".." || strings.HasPrefix(stripped, "./") || strings.HasPrefix(stripped, "../") {
+		globValidationLog.Printf("Path glob rejected due to invalid prefix: %s", stripped)
 		errs = append(errs, invalidGlobPattern{"'.', '..', and paths starting with './' or '../' are not allowed in glob path", 0})
 	}
 
