@@ -44,7 +44,7 @@ type importAccumulator struct {
 	skipBotsSet              map[string]bool
 	caches                   []string
 	features                 []map[string]any
-	runScripts               bool // true if any imported workflow sets run-scripts: true (global or node-level)
+	runInstallScripts        bool // true if any imported workflow sets run-install-scripts: true (global or node-level)
 	agentFile                string
 	agentImportSpec          string
 	repositoryImports        []string
@@ -352,25 +352,25 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Extract run-scripts flag from imported file.
-	// If global run-scripts: true is set OR if runtimes.node.run-scripts: true is set,
+	// Extract run-install-scripts flag from imported file.
+	// If global run-install-scripts: true is set OR if runtimes.node.run-install-scripts: true is set,
 	// propagate to the accumulator (OR semantics: any import enabling it enables it overall).
-	if !acc.runScripts {
-		if rsAny, hasRS := fm["run-scripts"]; hasRS {
+	if !acc.runInstallScripts {
+		if rsAny, hasRS := fm["run-install-scripts"]; hasRS {
 			if rsBool, ok := rsAny.(bool); ok && rsBool {
-				acc.runScripts = true
-				log.Printf("Extracted run-scripts: true from import: %s", item.fullPath)
+				acc.runInstallScripts = true
+				log.Printf("Extracted run-install-scripts: true from import: %s", item.fullPath)
 			}
 		}
-		// Also check runtimes.node.run-scripts
+		// Also check runtimes.node.run-install-scripts
 		if runtimesAny, hasRuntimes := fm["runtimes"]; hasRuntimes {
 			if runtimesMap, ok := runtimesAny.(map[string]any); ok {
 				if nodeAny, hasNode := runtimesMap["node"]; hasNode {
 					if nodeMap, ok := nodeAny.(map[string]any); ok {
-						if rsAny, hasRS := nodeMap["run-scripts"]; hasRS {
+						if rsAny, hasRS := nodeMap["run-install-scripts"]; hasRS {
 							if rsBool, ok := rsAny.(bool); ok && rsBool {
-								acc.runScripts = true
-								log.Printf("Extracted runtimes.node.run-scripts: true from import: %s", item.fullPath)
+								acc.runInstallScripts = true
+								log.Printf("Extracted runtimes.node.run-install-scripts: true from import: %s", item.fullPath)
 							}
 						}
 					}
@@ -409,7 +409,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedSteps:                 acc.stepsBuilder.String(),
 		CopilotSetupSteps:           acc.copilotSetupStepsBuilder.String(),
 		MergedRuntimes:              acc.runtimesBuilder.String(),
-		MergedRunScripts:            acc.runScripts,
+		MergedRunInstallScripts:     acc.runInstallScripts,
 		MergedServices:              acc.servicesBuilder.String(),
 		MergedNetwork:               acc.networkBuilder.String(),
 		MergedPermissions:           acc.permissionsBuilder.String(),

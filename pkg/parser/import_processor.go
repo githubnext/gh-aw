@@ -24,7 +24,7 @@ type ImportsResult struct {
 	MergedSteps                 string           // Merged steps configuration from all imports (excluding copilot-setup-steps)
 	CopilotSetupSteps           string           // Steps from copilot-setup-steps.yml (inserted at start)
 	MergedRuntimes              string           // Merged runtimes configuration from all imports
-	MergedRunScripts            bool             // true if any imported workflow sets run-scripts: true (global or node-level)
+	MergedRunInstallScripts     bool             // true if any imported workflow sets run-install-scripts: true (global or node-level)
 	MergedServices              string           // Merged services configuration from all imports
 	MergedNetwork               string           // Merged network configuration from all imports
 	MergedPermissions           string           // Merged permissions configuration from all imports
