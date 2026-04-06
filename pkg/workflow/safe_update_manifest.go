@@ -43,7 +43,7 @@ type GHAWManifest struct {
 //
 //	"actions/checkout@abc1234 # v4"
 func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
-	// Normalise secret names to full "secrets.NAME" form and deduplicate.
+	// Normalize secret names to full "secrets.NAME" form and deduplicate.
 	seen := make(map[string]bool)
 	secrets := make([]string, 0, len(secretNames))
 	for _, name := range secretNames {
