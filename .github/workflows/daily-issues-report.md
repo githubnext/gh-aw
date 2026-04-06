@@ -16,6 +16,9 @@ tools:
     min-integrity: approved
     toolsets: [default, discussions]
 timeout-minutes: 30
+runtimes:
+  node:
+    version: "20"
 imports:
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-discussion.md
