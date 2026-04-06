@@ -104,7 +104,7 @@ async function run() {
     }
     // Propagate setup-end timestamp so the conclusion span can measure actual
     // job execution duration (setup-end → conclusion-start).
-    const setupEndMs = Math.round(nowMs());
+    const setupEndMs = Math.floor(nowMs());
     appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OTEL_JOB_START_MS=${setupEndMs}\n`);
     console.log(`[otlp] GITHUB_AW_OTEL_JOB_START_MS written to GITHUB_ENV`);
   }
