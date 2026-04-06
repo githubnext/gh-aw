@@ -49,9 +49,9 @@ func (cm *CheckoutManager) GenerateCheckoutAppTokenInvalidationSteps(c *Compiler
 		rawSteps := c.buildGitHubAppTokenInvalidationStep()
 		stepID := fmt.Sprintf("checkout-app-token-%d", i)
 		for _, step := range rawSteps {
+			// Replace all references to safe-outputs-app-token with the checkout-specific step ID.
+			// This covers both the `if:` condition and the `env:` token reference in one pass.
 			modified := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps."+stepID+".outputs.token")
-			// Update the if condition to reference the step output (not activation outputs)
-			modified = strings.ReplaceAll(modified, "if: always() && steps.safe-outputs-app-token.outputs.token != ''", fmt.Sprintf("if: always() && steps.%s.outputs.token != ''", stepID))
 			// Update step name to indicate it's for checkout
 			modified = strings.ReplaceAll(modified, "Invalidate GitHub App token", fmt.Sprintf("Invalidate checkout app token (%d)", i))
 			steps = append(steps, modified)

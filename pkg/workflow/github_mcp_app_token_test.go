@@ -603,22 +603,33 @@ Test workflow - top-level github-app checkout token must be minted in agent job.
 			require.NoError(t, err, "Failed to read lock file")
 			lockContent := string(content)
 
-			// The token minting step must appear in the compiled workflow
-			assert.Contains(t, lockContent, "id: checkout-app-token-0",
-				"Checkout app token minting step must be present in the compiled workflow")
-			assert.Contains(t, lockContent, "create-github-app-token",
+			// Extract the agent job section (from "  agent:" to the next top-level job).
+			// The token minting step must be inside the agent job, not the activation job.
+			agentJobSection := extractJobSection(lockContent, "agent")
+			require.NotEmpty(t, agentJobSection, "Agent job should be present")
+
+			// The token minting step must appear inside the agent job section
+			assert.Contains(t, agentJobSection, "id: checkout-app-token-0",
+				"Checkout app token minting step must be inside the agent job")
+			assert.Contains(t, agentJobSection, "create-github-app-token",
 				"Checkout app token minting step must use create-github-app-token action")
 
 			// The token must be referenced via the step output (same-job), not via activation outputs.
 			// Activation job outputs of masked values are silently dropped by the runner (v2.308+).
-			assert.Contains(t, lockContent, "steps.checkout-app-token-0.outputs.token",
+			assert.Contains(t, agentJobSection, "steps.checkout-app-token-0.outputs.token",
 				"Token must be referenced via step output within the same job")
 			assert.NotContains(t, lockContent, "needs.activation.outputs.checkout_app_token_0",
 				"Token must not be passed via activation job outputs (masked values are dropped by runner)")
 
-			// The activation job must NOT expose checkout_app_token as a job output.
+			// The activation job must NOT expose checkout_app_token as a job output or contain
+			// the minting step.
 			assert.NotContains(t, lockContent, "checkout_app_token_0: ${{ steps.checkout-app-token-0.outputs.token }}",
 				"Activation job must not expose checkout app token as a job output")
+			activationJobSection := extractJobSection(lockContent, "activation")
+			if activationJobSection != "" {
+				assert.NotContains(t, activationJobSection, "id: checkout-app-token-0",
+					"Checkout app token minting step must NOT be in the activation job")
+			}
 		})
 	}
 }
