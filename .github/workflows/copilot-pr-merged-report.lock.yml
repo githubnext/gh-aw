@@ -573,7 +573,7 @@ jobs:
           
           bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup MCP Scripts Config
+      - name: Write MCP Scripts Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
           cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_668c234bd11c168e_EOF'
@@ -624,7 +624,7 @@ jobs:
           GH_AW_MCP_SCRIPTS_SERVER_0244857e55b4d1a9_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
-      - name: Setup MCP Scripts Tool Files
+      - name: Write MCP Scripts Tool Files
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_f381fd4bda351416_EOF'
           #!/bin/bash

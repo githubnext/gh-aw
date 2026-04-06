@@ -974,7 +974,7 @@ jobs:
           
           bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup MCP Scripts Config
+      - name: Write MCP Scripts Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
           cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_7babc89e6d790778_EOF'
@@ -1111,7 +1111,7 @@ jobs:
           GH_AW_MCP_SCRIPTS_SERVER_ef1fbc7ce3eca295_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
-      - name: Setup MCP Scripts Tool Files
+      - name: Write MCP Scripts Tool Files
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_5a6688685d632c08_EOF'
           #!/bin/bash
@@ -2315,7 +2315,7 @@ jobs:
         with:
           name: agent
           path: ${{ runner.temp }}/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
+      - name: Configure Safe Job Environment Variables
         id: setup-safe-job-env
         run: |
           find "${RUNNER_TEMP}/gh-aw/safe-jobs/" -type f -print

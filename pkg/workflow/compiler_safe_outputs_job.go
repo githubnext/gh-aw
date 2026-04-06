@@ -734,7 +734,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatte
 	sort.Strings(scriptNames)
 
 	var steps []string
-	steps = append(steps, "      - name: Setup Safe Outputs Custom Scripts\n")
+	steps = append(steps, "      - name: Configure Safe Outputs Custom Scripts\n")
 	steps = append(steps, "        run: |\n")
 
 	for _, scriptName := range scriptNames {

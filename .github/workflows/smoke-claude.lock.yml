@@ -1380,7 +1380,7 @@ jobs:
           
           bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Setup MCP Scripts Config
+      - name: Write MCP Scripts Config
         run: |
           mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
           cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_366e65d6f1dfcf37_EOF'
@@ -1553,7 +1553,7 @@ jobs:
           GH_AW_MCP_SCRIPTS_SERVER_65373c4dd9fe570a_EOF
           chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
           
-      - name: Setup MCP Scripts Tool Files
+      - name: Write MCP Scripts Tool Files
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh << 'GH_AW_MCP_SCRIPTS_SH_GH_d37845b69526d1d0_EOF'
           #!/bin/bash
@@ -2916,7 +2916,7 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      - name: Setup Safe Outputs Custom Scripts
+      - name: Configure Safe Outputs Custom Scripts
         run: |
           cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_551ad3d0c1083150_EOF'
           // @ts-check
