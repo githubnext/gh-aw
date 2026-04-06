@@ -348,6 +348,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.MissingTool != nil
 	case "noop":
 		return config.NoOp != nil
+	case "report-incomplete":
+		return config.ReportIncomplete != nil
 	case "threat-detection":
 		return config.ThreatDetection != nil
 	default:
@@ -484,6 +486,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.NoOp == nil && importedConfig.NoOp != nil {
 		result.NoOp = importedConfig.NoOp
+	}
+	if result.ReportIncomplete == nil && importedConfig.ReportIncomplete != nil {
+		result.ReportIncomplete = importedConfig.ReportIncomplete
 	}
 	// ThreatDetection is a workflow-level concern; only merge from an import that
 	// explicitly carries a threat-detection key (not just an auto-enabled default).

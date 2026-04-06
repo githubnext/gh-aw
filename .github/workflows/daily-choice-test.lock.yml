@@ -381,7 +381,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_bbecc17c2ecf89d9_EOF'
-          {"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
+          {"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{"max":5},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
           GH_AW_SAFE_OUTPUTS_CONFIG_bbecc17c2ecf89d9_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -480,6 +480,22 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "report_incomplete": {
+              "defaultMax": 5,
+              "fields": {
+                "details": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "reason": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 1024
                 }
               }
             }
@@ -1203,7 +1219,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"test_environment\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{\"max\":5}}"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

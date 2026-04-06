@@ -597,6 +597,64 @@ function buildMissingDataContext() {
 }
 
 /**
+ * Load report_incomplete messages from agent output
+ * @returns {Array<{reason: string, details?: string}>} Array of report_incomplete messages
+ */
+function loadReportIncompleteMessages() {
+  try {
+    const { loadAgentOutput } = require("./load_agent_output.cjs");
+    const agentOutputResult = loadAgentOutput();
+
+    if (!agentOutputResult.success || !agentOutputResult.items) {
+      return [];
+    }
+
+    const messages = [];
+    for (const item of agentOutputResult.items) {
+      if (item.type === "report_incomplete" && item.reason) {
+        messages.push({
+          reason: item.reason,
+          details: item.details || null,
+        });
+      }
+    }
+
+    return messages;
+  } catch (error) {
+    core.warning(`Failed to load report_incomplete messages: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Build report_incomplete context string for display in failure issues/comments.
+ * This surfaces the agent's structured incompletion signal so maintainers can
+ * distinguish a tool-failure report from a real task outcome.
+ * @returns {string} Formatted report_incomplete context
+ */
+function buildReportIncompleteContext() {
+  const messages = loadReportIncompleteMessages();
+
+  if (messages.length === 0) {
+    return "";
+  }
+
+  core.info(`Found ${messages.length} report_incomplete signal(s)`);
+
+  let context = "\n**⚠️ Task Could Not Be Completed**: The agent reported that the task could not be performed due to an infrastructure or tool failure.\n\n**Reasons:**\n";
+  for (const msg of messages) {
+    context += `- ${msg.reason}\n`;
+    if (msg.details) {
+      context += `  \n  ${msg.details}\n`;
+    }
+  }
+  context +=
+    "\nThis is a structured incompletion signal (`report_incomplete`), not a real task outcome. Any other safe outputs emitted alongside this signal (e.g., comments) describe the failure state, not a completed review or action.\n\n";
+
+  return context;
+}
+
+/**
  * Build a context string with a frontmatter hint when the agent timed out.
  * @param {boolean} isTimedOut - Whether the agent job timed out
  * @param {string} timeoutMinutes - Current timeout value in minutes (e.g. "20")
@@ -893,6 +951,7 @@ async function main() {
     // Check if agent succeeded but produced no safe outputs
     let hasMissingSafeOutputs = false;
     let hasOnlyNoopOutputs = false;
+    let hasReportIncomplete = false;
     const { loadAgentOutput } = require("./load_agent_output.cjs");
     const agentOutputResult = loadAgentOutput();
 
@@ -922,9 +981,26 @@ async function main() {
       }
     }
 
+    // Check if the agent emitted report_incomplete — a first-class signal that the task
+    // could not be performed (e.g., MCP crash, missing auth, inaccessible repo).
+    // This activates failure handling even when the agent exited 0 and emitted other
+    // safe outputs such as add_comment, preventing a tool-failure narrative from being
+    // classified as a successful review or other completed task.
+    if (agentOutputResult.success && agentOutputResult.items && agentOutputResult.items.length > 0) {
+      const reportIncompleteItems = agentOutputResult.items.filter(item => item.type === "report_incomplete");
+      if (reportIncompleteItems.length > 0) {
+        hasReportIncomplete = true;
+        core.info(`Agent emitted ${reportIncompleteItems.length} report_incomplete signal(s) - activating failure handling`);
+        for (const item of reportIncompleteItems) {
+          core.info(`  report_incomplete reason: ${item.reason}`);
+        }
+      }
+    }
+
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
-    // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed.
+    // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
+    // OR the agent reported task incompletion via report_incomplete.
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -936,14 +1012,15 @@ async function main() {
       !hasPushRepoMemoryFailure &&
       !hasMissingSafeOutputs &&
       !hasAppTokenMintingFailed &&
-      !hasLockdownCheckFailed
+      !hasLockdownCheckFailed &&
+      !hasReportIncomplete
     ) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/report-incomplete errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
-    // If we only have noop outputs, skip failure handling - this is a successful no-action scenario
-    if (hasOnlyNoopOutputs) {
+    // If we only have noop outputs (and no report_incomplete), skip failure handling - this is a successful no-action scenario
+    if (hasOnlyNoopOutputs && !hasReportIncomplete) {
       core.info("Agent completed with only noop outputs - skipping failure handling");
       return;
     }
@@ -1080,6 +1157,9 @@ async function main() {
         // Build missing_data context
         const missingDataContext = buildMissingDataContext();
 
+        // Build report_incomplete context
+        const reportIncompleteContext = buildReportIncompleteContext();
+
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
@@ -1133,6 +1213,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
+          report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
           timeout_context: timeoutContext,
@@ -1221,6 +1302,9 @@ async function main() {
         // Build missing_data context
         const missingDataContext = buildMissingDataContext();
 
+        // Build report_incomplete context
+        const reportIncompleteContext = buildReportIncompleteContext();
+
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
@@ -1275,6 +1359,7 @@ async function main() {
           repo_memory_validation_context: repoMemoryValidationContext,
           push_repo_memory_failure_context: pushRepoMemoryFailureContext,
           missing_data_context: missingDataContext,
+          report_incomplete_context: reportIncompleteContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
           engine_failure_context: engineFailureContext,
           timeout_context: timeoutContext,
@@ -1338,4 +1423,14 @@ async function main() {
   }
 }
 
-module.exports = { main, buildCodePushFailureContext, buildPushRepoMemoryFailureContext, buildAppTokenMintingFailedContext, buildLockdownCheckFailedContext, buildTimeoutContext, buildAssignCopilotFailureContext, buildEngineFailureContext };
+module.exports = {
+  main,
+  buildCodePushFailureContext,
+  buildPushRepoMemoryFailureContext,
+  buildAppTokenMintingFailedContext,
+  buildLockdownCheckFailedContext,
+  buildTimeoutContext,
+  buildAssignCopilotFailureContext,
+  buildEngineFailureContext,
+  buildReportIncompleteContext,
+};

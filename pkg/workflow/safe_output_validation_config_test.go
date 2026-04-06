@@ -54,6 +54,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 		"missing_data",
 		"autofix_code_scanning_alert",
 		"mark_pull_request_as_ready_for_review",
+		"report_incomplete",
 	}
 
 	for _, typeName := range expectedTypes {

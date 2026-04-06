@@ -549,7 +549,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_6e6a58c7547bc1c1_EOF'
-          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-codex"]},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-codex","expires":2,"labels":["automation","testing"],"max":1},"hide_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"unassign_from_user":{"allowed":["githubactionagent"],"max":1}}
+          {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-codex"]},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-codex","expires":2,"labels":["automation","testing"],"max":1},"hide_comment":{"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["smoke"]},"report_incomplete":{"max":5},"unassign_from_user":{"allowed":["githubactionagent"],"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_6e6a58c7547bc1c1_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -756,6 +756,22 @@ jobs:
                 "repo": {
                   "type": "string",
                   "maxLength": 256
+                }
+              }
+            },
+            "report_incomplete": {
+              "defaultMax": 5,
+              "fields": {
+                "details": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "reason": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 1024
                 }
               }
             },
@@ -1878,7 +1894,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_ACTIONS: "{\"add_smoked_label\":\"add_smoked_label\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-codex\"]},\"create_issue\":{\"close_older_issues\":true,\"close_older_key\":\"smoke-codex\",\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"hide_comment\":{\"max\":5},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"unassign_from_user\":{\"allowed\":[\"githubactionagent\"],\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-codex\"]},\"create_issue\":{\"close_older_issues\":true,\"close_older_key\":\"smoke-codex\",\"expires\":2,\"labels\":[\"automation\",\"testing\"],\"max\":1},\"hide_comment\":{\"max\":5},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"report_incomplete\":{\"max\":5},\"unassign_from_user\":{\"allowed\":[\"githubactionagent\"],\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

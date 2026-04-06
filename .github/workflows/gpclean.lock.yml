@@ -402,7 +402,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_3078e00ba1b97e86_EOF'
-          {"create_issue":{"expires":48,"labels":["dependency-cleaner"],"max":1,"title_prefix":"[gpl-dependency]"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"}}
+          {"create_issue":{"expires":48,"labels":["dependency-cleaner"],"max":1,"title_prefix":"[gpl-dependency]"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{"max":5}}
           GH_AW_SAFE_OUTPUTS_CONFIG_3078e00ba1b97e86_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -504,6 +504,22 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "report_incomplete": {
+              "defaultMax": 5,
+              "fields": {
+                "details": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "reason": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 1024
                 }
               }
             }
@@ -1160,7 +1176,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,go.googlesource.com,host.docker.internal,pkg.go.dev,proxy.golang.org,raw.githubusercontent.com,registry.npmjs.org,storage.googleapis.com,sum.golang.org,telemetry.enterprise.githubcopilot.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":48,\"labels\":[\"dependency-cleaner\"],\"max\":1,\"title_prefix\":\"[gpl-dependency]\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"expires\":48,\"labels\":[\"dependency-cleaner\"],\"max\":1,\"title_prefix\":\"[gpl-dependency]\"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{\"max\":5}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -545,7 +545,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_e821f472e60500fa_EOF'
-          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[mcp-inspector] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"}}
+          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[mcp-inspector] "},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"},"report_incomplete":{"max":5}}
           GH_AW_SAFE_OUTPUTS_CONFIG_e821f472e60500fa_EOF
       - name: Write Safe Outputs Tools
         run: |
@@ -675,6 +675,22 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "report_incomplete": {
+              "defaultMax": 5,
+              "fields": {
+                "details": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "reason": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 1024
                 }
               }
             }
@@ -1960,7 +1976,7 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_SAFE_OUTPUT_JOBS: "{\"notion_add_comment\":\"\",\"post_to_slack_channel\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[mcp-inspector] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[mcp-inspector] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{\"max\":5}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

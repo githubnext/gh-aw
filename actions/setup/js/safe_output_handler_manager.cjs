@@ -65,6 +65,7 @@ const HANDLER_MAP = {
   create_missing_data_issue: "./create_missing_data_issue.cjs",
   missing_data: "./missing_data.cjs",
   noop: "./noop_handler.cjs",
+  report_incomplete: "./report_incomplete_handler.cjs",
   create_project: "./create_project.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",

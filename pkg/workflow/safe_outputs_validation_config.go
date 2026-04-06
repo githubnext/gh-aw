@@ -360,6 +360,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"alternatives": {Type: "string", Sanitize: true, MaxLength: 256},
 		},
 	},
+	"report_incomplete": {
+		DefaultMax: 5,
+		Fields: map[string]FieldValidation{
+			"reason":  {Required: true, Type: "string", Sanitize: true, MaxLength: 1024},
+			"details": {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+		},
+	},
 	"autofix_code_scanning_alert": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{

@@ -703,6 +703,16 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"report_incomplete": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.ReportIncomplete == nil {
+			return nil
+		}
+		c := cfg.ReportIncomplete
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
 	"assign_to_agent": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AssignToAgent == nil {
 			return nil
