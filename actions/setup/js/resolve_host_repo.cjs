@@ -52,14 +52,7 @@ const REPO_PREFIX_RE = /^([^/]+\/[^/]+)\//;
  */
 async function resolveFromReferencedWorkflows(currentRepo) {
   const rawRunId = process.env.GITHUB_RUN_ID;
-  let runId;
-  if (rawRunId) {
-    runId = parseInt(rawRunId, 10);
-  } else if (typeof context.runId === "number" && Number.isFinite(context.runId)) {
-    runId = context.runId;
-  } else {
-    runId = NaN;
-  }
+  const runId = rawRunId ? parseInt(rawRunId, 10) : typeof context.runId === "number" ? context.runId : NaN;
   if (!Number.isFinite(runId)) {
     core.info("Run ID is unavailable or invalid, cannot perform referenced_workflows lookup");
     return null;
@@ -80,15 +73,20 @@ async function resolveFromReferencedWorkflows(currentRepo) {
     // Find the first referenced workflow from a different repo than the caller.
     // In cross-org workflow_call, the callee (platform) repo is different from currentRepo
     // (the caller's repo). For same-repo invocations there will be no cross-repo entry.
-    const matchingEntry = referencedWorkflows.find(wf => {
+    // Capture the repo from the path match so we don't run the regex twice.
+    let calleeRepo = "";
+    let matchingEntry = null;
+    for (const wf of referencedWorkflows) {
       const pathRepoMatch = wf.path.match(REPO_PREFIX_RE);
       const entryRepo = pathRepoMatch ? pathRepoMatch[1] : "";
-      return entryRepo && entryRepo !== currentRepo;
-    });
+      if (entryRepo && entryRepo !== currentRepo) {
+        matchingEntry = wf;
+        calleeRepo = entryRepo;
+        break;
+      }
+    }
 
     if (matchingEntry) {
-      const pathRepoMatch = matchingEntry.path.match(REPO_PREFIX_RE);
-      const calleeRepo = pathRepoMatch ? pathRepoMatch[1] : "";
       // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
       const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
       const calleeRef = matchingEntry.sha || matchingEntry.ref || (pathRefMatch ? pathRefMatch[1] : "");

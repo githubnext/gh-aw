@@ -47,8 +47,6 @@ describe("resolve_host_repo.cjs", () => {
     vi.clearAllMocks();
     mockCore.summary.addRaw.mockReturnThis();
     mockCore.summary.write.mockResolvedValue(undefined);
-    // Default: no referenced workflows (same-repo or same-org cross-repo invocations)
-    mockNoReferencedWorkflows();
 
     const module = await import("./resolve_host_repo.cjs");
     main = module.main;
@@ -86,6 +84,7 @@ describe("resolve_host_repo.cjs", () => {
   it("should output the current repo when same-repo invocation", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
     process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
+    mockNoReferencedWorkflows();
 
     await main();
 
@@ -96,6 +95,7 @@ describe("resolve_host_repo.cjs", () => {
   it("should not write step summary for same-repo invocations", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
     process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
+    mockNoReferencedWorkflows();
 
     await main();
 
@@ -239,6 +239,7 @@ describe("resolve_host_repo.cjs", () => {
   it("should output target_repo_name when same-repo invocation", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
     process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
+    mockNoReferencedWorkflows();
 
     await main();
 
