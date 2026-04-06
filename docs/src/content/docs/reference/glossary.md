@@ -257,6 +257,10 @@ engine:
 
 See [Engines Reference](/gh-aw/reference/engines/).
 
+### Feature Flags (`features:`)
+
+A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot), and `mcp-gateway` (enables the MCP gateway proxy). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
+
 ### Fuzzy Scheduling
 
 Natural language schedule syntax that automatically distributes workflow execution times to avoid load spikes. Instead of specifying exact times with cron expressions, fuzzy schedules like `daily`, `weekly`, or `daily on weekdays` are converted by the compiler into deterministic but scattered cron expressions. The compiler automatically adds `workflow_dispatch:` trigger for manual runs. Example: `schedule: daily on weekdays` compiles to something like `43 5 * * 1-5` with varied execution times across different workflows.
@@ -352,6 +356,10 @@ A GitHub Actions environment variable pointing to a per-job temporary directory 
 ### CLI (Command Line Interface)
 
 The `gh aw` extension for GitHub CLI providing commands for managing agentic workflows: compile, run, status, logs, add, and project management.
+
+### Codemod
+
+An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading](/gh-aw/guides/upgrading/).
 
 ### Playground
 
