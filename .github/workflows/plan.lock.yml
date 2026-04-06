@@ -59,6 +59,7 @@ jobs:
     if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/plan ') || startsWith(github.event.comment.body, '/plan\n') || github.event.comment.body == '/plan') && github.event.issue.pull_request == null || github.event_name == 'discussion_comment' && (startsWith(github.event.comment.body, '/plan ') || startsWith(github.event.comment.body, '/plan\n') || github.event.comment.body == '/plan'))"
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

@@ -511,6 +511,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		PermissionContents: PermissionRead, // Always needed for GitHub API access to check file commits
 	}
 
+	// Add actions:read permission when the hash check API step is emitted.
+	// check_workflow_timestamp_api.cjs calls github.rest.actions.getWorkflowRun() which
+	// requires the actions:read scope. GitHub Actions enforces explicit permissions when
+	// any permissions block is present, so we must add it explicitly.
+	if !data.StaleCheckDisabled {
+		permsMap[PermissionActions] = PermissionRead
+	}
+
 	if hasReaction {
 		permsMap[PermissionDiscussions] = PermissionWrite
 		permsMap[PermissionIssues] = PermissionWrite

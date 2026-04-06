@@ -92,6 +92,7 @@ jobs:
       !(github.event_name == 'pull_request'))
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

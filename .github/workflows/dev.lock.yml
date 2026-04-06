@@ -76,6 +76,7 @@ jobs:
       (!(github.event_name == 'pull_request')) && (!(github.event_name == 'discussion')))
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

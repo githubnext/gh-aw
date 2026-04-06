@@ -76,6 +76,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'refine'))
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
     outputs:
       body: ${{ steps.sanitized.outputs.body }}

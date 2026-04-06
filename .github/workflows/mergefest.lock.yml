@@ -56,6 +56,7 @@ jobs:
     if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/mergefest ') || startsWith(github.event.comment.body, '/mergefest\n') || github.event.comment.body == '/mergefest') && github.event.issue.pull_request != null)"
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

@@ -67,6 +67,7 @@ jobs:
     if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
     outputs:
       comment_id: ""

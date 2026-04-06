@@ -60,6 +60,7 @@ jobs:
   activation:
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
     outputs:
       comment_id: ""

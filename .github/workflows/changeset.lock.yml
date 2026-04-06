@@ -77,6 +77,7 @@ jobs:
       github.event.label.name == 'smoke'))
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

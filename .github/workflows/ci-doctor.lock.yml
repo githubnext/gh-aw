@@ -72,6 +72,7 @@ jobs:
       needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'pull_request' && github.event.label.name == 'ci-doctor')
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

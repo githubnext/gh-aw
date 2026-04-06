@@ -61,6 +61,7 @@ jobs:
     if: needs.precompute.outputs.action != 'none'
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
     outputs:
       comment_id: ""

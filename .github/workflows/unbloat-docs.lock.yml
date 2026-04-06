@@ -73,6 +73,7 @@ jobs:
     if: "needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/unbloat ') || startsWith(github.event.comment.body, '/unbloat\n') || github.event.comment.body == '/unbloat') && github.event.issue.pull_request != null || !(github.event_name == 'issue_comment'))"
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write

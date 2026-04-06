@@ -70,6 +70,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'firewall-escape-test'))
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
