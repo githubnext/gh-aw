@@ -411,16 +411,18 @@ func isGitHubExpression(s string) bool {
 
 var safeOutputsMaxValidationLog = newValidationLogger("safe_outputs_max")
 
-// isInvalidMaxValue returns true if n is a disallowed integer for max.
-// Valid values are: positive integers (n > 0) and -1 (unlimited).
-// -1 means "unlimited" per the safe-outputs specification.
-// 0 and other negative values are invalid.
+// isInvalidMaxValue returns true if n is not a valid max field value.
+// Valid values are positive integers (n > 0) or -1 (unlimited).
+// Invalid values are 0 and negative integers except -1.
 func isInvalidMaxValue(n int) bool {
 	if n == -1 {
 		return false // -1 = unlimited, explicitly allowed by spec
 	}
 	return n <= 0
 }
+
+// maxInvalidErrSuffix is the common suffix of max validation error messages.
+const maxInvalidErrSuffix = "\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer (e.g., max: 1 or max: 5) or -1 for unlimited"
 
 // validateSafeOutputsMax validates that all max fields in safe-outputs configs hold valid values.
 // Valid values are positive integers (n > 0) or -1 (unlimited per spec).
@@ -476,8 +478,8 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			toolDisplayName := strings.ReplaceAll(toolName, "_", "-")
 			safeOutputsMaxValidationLog.Printf("Invalid max value %d for %s", n, toolDisplayName)
 			return fmt.Errorf(
-				"safe-outputs.%s: max must be a positive integer or -1 (unlimited), got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer (e.g., max: 1 or max: 5) or -1 for unlimited",
-				toolDisplayName, n,
+				"safe-outputs.%s: max must be a positive integer or -1 (unlimited), got %d%s",
+				toolDisplayName, n, maxInvalidErrSuffix,
 			)
 		}
 	}
@@ -505,8 +507,8 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			if isInvalidMaxValue(n) {
 				safeOutputsMaxValidationLog.Printf("Invalid max value %d for dispatch_repository tool %s", n, toolName)
 				return fmt.Errorf(
-					"safe-outputs.dispatch_repository.%s: max must be a positive integer or -1 (unlimited), got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer (e.g., max: 1 or max: 5) or -1 for unlimited",
-					toolName, n,
+					"safe-outputs.dispatch_repository.%s: max must be a positive integer or -1 (unlimited), got %d%s",
+					toolName, n, maxInvalidErrSuffix,
 				)
 			}
 		}
