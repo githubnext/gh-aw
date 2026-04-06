@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 const { ERR_CONFIG } = require("./error_codes.cjs");
 const __filename = fileURLToPath(import.meta.url),
   __dirname = path.dirname(__filename),
-  core = { info: vi.fn(), setFailed: vi.fn() };
+  core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
 const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
   { isTruthy } = require("./is_truthy.cjs"),

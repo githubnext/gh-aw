@@ -86,4 +86,36 @@ describe("renderMarkdownTemplate", () => {
       const output = renderMarkdownTemplate("  {{#if true}}\n  Content\n  {{/if}}\nNext line");
       expect(output).toBe("  Content\nNext line");
     }));
+  describe("fenced code blocks", () => {
+    it("should preserve {{#if false}} markers inside a fenced code block (regression)", () => {
+      const input = "```js\n{{#if false}}\nHidden\n{{/if}}\n```";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe(input);
+    });
+    it("should preserve {{#if true}} markers inside a fenced code block", () => {
+      const input = "```js\n{{#if true}}\nVisible\n{{/if}}\n```";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe(input);
+    });
+    it("should process conditionals outside fenced blocks while preserving inside", () => {
+      const input = "{{#if false}}\nRemove this\n{{/if}}\n```js\n{{#if false}}\nKeep this\n{{/if}}\n```";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe("```js\n{{#if false}}\nKeep this\n{{/if}}\n```");
+    });
+    it("should preserve fence count (no fence markers lost or gained)", () => {
+      const input = "```js\n{{#if false}}\nHidden\n{{/if}}\n```";
+      const output = renderMarkdownTemplate(input);
+      expect((output.match(/`{3,}/g) || []).length).toBe((input.match(/`{3,}/g) || []).length);
+    });
+    it("should preserve multiple fenced code blocks unchanged", () => {
+      const input = "```js\ncode 1\n```\n\n```py\ncode 2\n```";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe(input);
+    });
+    it("should handle fenced blocks with language tag and conditional outside", () => {
+      const input = "{{#if true}}\nKeep\n{{/if}}\n```python\nprint('hello')\n```";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe("Keep\n```python\nprint('hello')\n```");
+    });
+  });
 });

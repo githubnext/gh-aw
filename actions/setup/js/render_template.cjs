@@ -27,7 +27,7 @@ function renderMarkdownTemplate(markdown) {
   // Preserve fenced code blocks to avoid processing {{#if}} markers inside them
   const _codeBlocks = [];
   const _FENCE_PH = "\x00FENCE\x00";
-  const _stripped = markdown.replace(/`{3,}[^\n]*\n[\s\S]*?\n`{3,}[ \t]*/g, (m) => {
+  const _stripped = markdown.replace(/`{3,}[^\n]*\n[\s\S]*?\n`{3,}[ \t]*/g, m => {
     _codeBlocks.push(m);
     return `${_FENCE_PH}${_codeBlocks.length - 1}${_FENCE_PH}`;
   });
@@ -96,6 +96,13 @@ function renderMarkdownTemplate(markdown) {
   // Restore fenced code blocks
   if (_codeBlocks.length > 0) {
     result = result.replace(/\x00FENCE\x00(\d+)\x00FENCE\x00/g, (_, i) => _codeBlocks[+i]);
+  }
+
+  // Runtime assertion: number of fence markers must be the same before and after processing
+  const _inputFenceCount = (markdown.match(/`{3,}/g) || []).length;
+  const _outputFenceCount = (result.match(/`{3,}/g) || []).length;
+  if (_inputFenceCount !== _outputFenceCount) {
+    core.warning(`[renderMarkdownTemplate] Fence count mismatch: input had ${_inputFenceCount} fence marker(s), output has ${_outputFenceCount}`);
   }
 
   core.info(`[renderMarkdownTemplate] Final output length: ${result.length} characters`);
