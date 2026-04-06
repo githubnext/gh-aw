@@ -2,7 +2,7 @@
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/reference/safe-outputs-specification.md
-# Version: 1.15.0 (2026-03-29)
+# Version: 1.16.0 (2026-04-06)
 
 set -euo pipefail
 
