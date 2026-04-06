@@ -463,150 +463,154 @@ jobs:
           {"create_pull_request_review_comment":{"max":5,"side":"RIGHT"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_da0cd85a0ff1d627_EOF
       - name: Write Safe Outputs Tools
-        run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_951d38e2d3380865_EOF'
-          {
-            "description_suffixes": {
-              "create_pull_request_review_comment": " CONSTRAINTS: Maximum 5 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
-              "submit_pull_request_review": " CONSTRAINTS: Maximum 1 review(s) can be submitted."
-            },
-            "repo_params": {},
-            "dynamic_tools": []
-          }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_951d38e2d3380865_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_57efae5f64135fb4_EOF'
-          {
-            "create_pull_request_review_comment": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
+        env:
+          GH_AW_TOOLS_META_JSON: |
+            {
+              "description_suffixes": {
+                "create_pull_request_review_comment": " CONSTRAINTS: Maximum 5 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
+                "submit_pull_request_review": " CONSTRAINTS: Maximum 1 review(s) can be submitted."
+              },
+              "repo_params": {},
+              "dynamic_tools": []
+            }
+          GH_AW_VALIDATION_JSON: |
+            {
+              "create_pull_request_review_comment": {
+                "defaultMax": 1,
+                "fields": {
+                  "body": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "line": {
+                    "required": true,
+                    "positiveInteger": true
+                  },
+                  "path": {
+                    "required": true,
+                    "type": "string"
+                  },
+                  "pull_request_number": {
+                    "optionalPositiveInteger": true
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "side": {
+                    "type": "string",
+                    "enum": [
+                      "LEFT",
+                      "RIGHT"
+                    ]
+                  },
+                  "start_line": {
+                    "optionalPositiveInteger": true
+                  }
                 },
-                "line": {
-                  "required": true,
-                  "positiveInteger": true
-                },
-                "path": {
-                  "required": true,
-                  "type": "string"
-                },
-                "pull_request_number": {
-                  "optionalPositiveInteger": true
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "side": {
-                  "type": "string",
-                  "enum": [
-                    "LEFT",
-                    "RIGHT"
-                  ]
-                },
-                "start_line": {
-                  "optionalPositiveInteger": true
+                "customValidation": "startLineLessOrEqualLine"
+              },
+              "missing_data": {
+                "defaultMax": 20,
+                "fields": {
+                  "alternatives": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "context": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "data_type": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  },
+                  "reason": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  }
                 }
               },
-              "customValidation": "startLineLessOrEqualLine"
-            },
-            "missing_data": {
-              "defaultMax": 20,
-              "fields": {
-                "alternatives": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "context": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "data_type": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "reason": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
+              "missing_tool": {
+                "defaultMax": 20,
+                "fields": {
+                  "alternatives": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 512
+                  },
+                  "reason": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "tool": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
                 }
-              }
-            },
-            "missing_tool": {
-              "defaultMax": 20,
-              "fields": {
-                "alternatives": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512
-                },
-                "reason": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "tool": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
+              },
+              "noop": {
+                "defaultMax": 1,
+                "fields": {
+                  "message": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  }
                 }
-              }
-            },
-            "noop": {
-              "defaultMax": 1,
-              "fields": {
-                "message": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
+              },
+              "report_incomplete": {
+                "defaultMax": 5,
+                "fields": {
+                  "details": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "reason": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 1024
+                  }
                 }
-              }
-            },
-            "report_incomplete": {
-              "defaultMax": 5,
-              "fields": {
-                "details": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "reason": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 1024
-                }
-              }
-            },
-            "submit_pull_request_review": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "event": {
-                  "type": "string",
-                  "enum": [
-                    "APPROVE",
-                    "REQUEST_CHANGES",
-                    "COMMENT"
-                  ]
+              },
+              "submit_pull_request_review": {
+                "defaultMax": 1,
+                "fields": {
+                  "body": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "event": {
+                    "type": "string",
+                    "enum": [
+                      "APPROVE",
+                      "REQUEST_CHANGES",
+                      "COMMENT"
+                    ]
+                  }
                 }
               }
             }
-          }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_57efae5f64135fb4_EOF
-          node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_safe_outputs_tools.cjs');
+            await main();
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
         run: |

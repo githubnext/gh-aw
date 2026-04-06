@@ -409,174 +409,178 @@ jobs:
           {"assign_to_agent":{"allowed":["copilot"],"max":1,"target":"triggering"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"update_issue":{"allow_body":true,"allow_status":true,"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_3f58b4200a5b8f57_EOF
       - name: Write Safe Outputs Tools
-        run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_cc9cdbf523f70baf_EOF'
-          {
-            "description_suffixes": {
-              "assign_to_agent": " CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent.",
-              "update_issue": " CONSTRAINTS: Maximum 1 issue(s) can be updated. Body updates are allowed."
-            },
-            "repo_params": {},
-            "dynamic_tools": []
-          }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_cc9cdbf523f70baf_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_0e8f60aba9150d22_EOF'
-          {
-            "assign_to_agent": {
-              "defaultMax": 1,
-              "fields": {
-                "agent": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "issue_number": {
-                  "issueNumberOrTemporaryId": true
-                },
-                "pull_number": {
-                  "optionalPositiveInteger": true
-                },
-                "pull_request_repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                }
+        env:
+          GH_AW_TOOLS_META_JSON: |
+            {
+              "description_suffixes": {
+                "assign_to_agent": " CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent.",
+                "update_issue": " CONSTRAINTS: Maximum 1 issue(s) can be updated. Body updates are allowed."
               },
-              "customValidation": "requiresOneOf:issue_number,pull_number"
-            },
-            "missing_data": {
-              "defaultMax": 20,
-              "fields": {
-                "alternatives": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "context": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "data_type": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "reason": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                }
-              }
-            },
-            "missing_tool": {
-              "defaultMax": 20,
-              "fields": {
-                "alternatives": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512
-                },
-                "reason": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "tool": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              }
-            },
-            "noop": {
-              "defaultMax": 1,
-              "fields": {
-                "message": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                }
-              }
-            },
-            "report_incomplete": {
-              "defaultMax": 5,
-              "fields": {
-                "details": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "reason": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 1024
-                }
-              }
-            },
-            "update_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "assignees": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 39
-                },
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "issue_number": {
-                  "issueOrPRNumber": true
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "milestone": {
-                  "optionalPositiveInteger": true
-                },
-                "operation": {
-                  "type": "string",
-                  "enum": [
-                    "replace",
-                    "append",
-                    "prepend",
-                    "replace-island"
-                  ]
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "open",
-                    "closed"
-                  ]
-                },
-                "title": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              },
-              "customValidation": "requiresOneOf:status,title,body"
+              "repo_params": {},
+              "dynamic_tools": []
             }
-          }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_0e8f60aba9150d22_EOF
-          node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
+          GH_AW_VALIDATION_JSON: |
+            {
+              "assign_to_agent": {
+                "defaultMax": 1,
+                "fields": {
+                  "agent": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  },
+                  "issue_number": {
+                    "issueNumberOrTemporaryId": true
+                  },
+                  "pull_number": {
+                    "optionalPositiveInteger": true
+                  },
+                  "pull_request_repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                },
+                "customValidation": "requiresOneOf:issue_number,pull_number"
+              },
+              "missing_data": {
+                "defaultMax": 20,
+                "fields": {
+                  "alternatives": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "context": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "data_type": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  },
+                  "reason": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  }
+                }
+              },
+              "missing_tool": {
+                "defaultMax": 20,
+                "fields": {
+                  "alternatives": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 512
+                  },
+                  "reason": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "tool": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                }
+              },
+              "noop": {
+                "defaultMax": 1,
+                "fields": {
+                  "message": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  }
+                }
+              },
+              "report_incomplete": {
+                "defaultMax": 5,
+                "fields": {
+                  "details": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "reason": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 1024
+                  }
+                }
+              },
+              "update_issue": {
+                "defaultMax": 1,
+                "fields": {
+                  "assignees": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 39
+                  },
+                  "body": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "issue_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "labels": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 128
+                  },
+                  "milestone": {
+                    "optionalPositiveInteger": true
+                  },
+                  "operation": {
+                    "type": "string",
+                    "enum": [
+                      "replace",
+                      "append",
+                      "prepend",
+                      "replace-island"
+                    ]
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "closed"
+                    ]
+                  },
+                  "title": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                },
+                "customValidation": "requiresOneOf:status,title,body"
+              }
+            }
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_safe_outputs_tools.cjs');
+            await main();
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
         run: |

@@ -282,29 +282,23 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			validationConfigJSON = "{}"
 		}
 
+		// Pass tools_meta.json and validation.json as env var payloads so the step
+		// receives them as data (no heredoc, no shell node invocation). The JS module
+		// writes the files to disk and then generates tools.json.
 		yaml.WriteString("      - name: Write Safe Outputs Tools\n")
-		yaml.WriteString("        run: |\n")
-
-		toolsMetaDelimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_TOOLS_META", workflowData.FrontmatterHash)
-		yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << '" + toolsMetaDelimiter + "'\n")
-		// Write each line of the compact meta JSON with proper YAML indentation
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_AW_TOOLS_META_JSON: |\n")
 		for line := range strings.SplitSeq(toolsMetaJSON, "\n") {
-			yaml.WriteString("          " + line + "\n")
+			yaml.WriteString("            " + line + "\n")
 		}
-		yaml.WriteString("          " + toolsMetaDelimiter + "\n")
-
-		validationDelimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_VALIDATION", workflowData.FrontmatterHash)
-		yaml.WriteString("          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << '" + validationDelimiter + "'\n")
-		// Write each line of the indented JSON with proper YAML indentation
+		yaml.WriteString("          GH_AW_VALIDATION_JSON: |\n")
 		for line := range strings.SplitSeq(validationConfigJSON, "\n") {
-			yaml.WriteString("          " + line + "\n")
+			yaml.WriteString("            " + line + "\n")
 		}
-		yaml.WriteString("          " + validationDelimiter + "\n")
-
-		// Generate the final tools.json at runtime from the source file in the actions folder.
-		// generate_safe_outputs_tools.cjs reads safe_outputs_tools.json (deployed by actions/setup),
-		// applies the meta overrides from tools_meta.json, and writes tools.json.
-		yaml.WriteString("          node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs\n")
+		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          script: |\n")
+		yaml.WriteString(generateGitHubScriptWithRequire("generate_safe_outputs_tools.cjs"))
 
 		// Note: The MCP server entry point (mcp-server.cjs) is now copied by actions/setup
 		// from safe-outputs-mcp-server.cjs - no need to generate it here
