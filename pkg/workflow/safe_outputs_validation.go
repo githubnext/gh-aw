@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -410,7 +411,20 @@ func isGitHubExpression(s string) bool {
 
 var safeOutputsMaxValidationLog = newValidationLogger("safe_outputs_max")
 
-// validateSafeOutputsMax validates that all max fields in safe-outputs configs are > 0.
+// isInvalidMaxValue returns true if n is a disallowed integer for max.
+// Valid values are: positive integers (n > 0) and -1 (unlimited).
+// -1 means "unlimited" per the safe-outputs specification.
+// 0 and other negative values are invalid.
+func isInvalidMaxValue(n int) bool {
+	if n == -1 {
+		return false // -1 = unlimited, explicitly allowed by spec
+	}
+	return n <= 0
+}
+
+// validateSafeOutputsMax validates that all max fields in safe-outputs configs hold valid values.
+// Valid values are positive integers (n > 0) or -1 (unlimited per spec).
+// 0 and other negative values are rejected.
 // GitHub Actions expressions (e.g. "${{ inputs.max }}") are not evaluable at compile time
 // and are therefore skipped.
 func validateSafeOutputsMax(config *SafeOutputsConfig) error {
@@ -422,8 +436,16 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 
 	val := reflect.ValueOf(config).Elem()
 
+	// Iterate over sorted field names for deterministic error reporting.
+	sortedFieldNames := make([]string, 0, len(safeOutputFieldMapping))
+	for fieldName := range safeOutputFieldMapping {
+		sortedFieldNames = append(sortedFieldNames, fieldName)
+	}
+	sort.Strings(sortedFieldNames)
+
 	// Validate max on all named safe output fields that embed BaseSafeOutputConfig
-	for fieldName, toolName := range safeOutputFieldMapping {
+	for _, fieldName := range sortedFieldNames {
+		toolName := safeOutputFieldMapping[fieldName]
 		field := val.FieldByName(fieldName)
 		if !field.IsValid() || field.IsNil() {
 			continue
@@ -450,19 +472,27 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			continue
 		}
 
-		if n <= 0 {
+		if isInvalidMaxValue(n) {
 			toolDisplayName := strings.ReplaceAll(toolName, "_", "-")
 			safeOutputsMaxValidationLog.Printf("Invalid max value %d for %s", n, toolDisplayName)
 			return fmt.Errorf(
-				"safe-outputs.%s: max must be greater than 0, got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer value (e.g., max: 1 or max: 5)",
+				"safe-outputs.%s: max must be a positive integer or -1 (unlimited), got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer (e.g., max: 1 or max: 5) or -1 for unlimited",
 				toolDisplayName, n,
 			)
 		}
 	}
 
-	// Validate max on dispatch_repository tools (different structure: map of tools)
+	// Validate max on dispatch_repository tools (different structure: map of tools).
+	// Use sorted tool names for deterministic error reporting.
 	if config.DispatchRepository != nil {
-		for toolName, tool := range config.DispatchRepository.Tools {
+		sortedToolNames := make([]string, 0, len(config.DispatchRepository.Tools))
+		for toolName := range config.DispatchRepository.Tools {
+			sortedToolNames = append(sortedToolNames, toolName)
+		}
+		sort.Strings(sortedToolNames)
+
+		for _, toolName := range sortedToolNames {
+			tool := config.DispatchRepository.Tools[toolName]
 			if tool == nil || tool.Max == nil || isExpressionString(*tool.Max) {
 				continue
 			}
@@ -472,10 +502,10 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 				continue
 			}
 
-			if n <= 0 {
+			if isInvalidMaxValue(n) {
 				safeOutputsMaxValidationLog.Printf("Invalid max value %d for dispatch_repository tool %s", n, toolName)
 				return fmt.Errorf(
-					"safe-outputs.dispatch-repository.%s: max must be greater than 0, got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer value (e.g., max: 1 or max: 5)",
+					"safe-outputs.dispatch_repository.%s: max must be a positive integer or -1 (unlimited), got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer (e.g., max: 1 or max: 5) or -1 for unlimited",
 					toolName, n,
 				)
 			}
