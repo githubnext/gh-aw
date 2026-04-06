@@ -10,7 +10,7 @@ const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, c
  * @param {string} remediation - Remediation hint for the operator
  */
 async function writeDenialSummary(message, remediation) {
-  const lines = ["## ⏭️ Workflow Activation Skipped\n", "> " + message + "\n", "**Remediation:** " + remediation + "\n", "---", "_See the `pre_activation` job log for full details._"];
+  const lines = ["## ⏭️ Workflow Activation Skipped\n", `> ${message}\n`, `**Remediation:** ${remediation}\n`, "---", "_See the `pre_activation` job log for full details._"];
   await core.summary.addRaw(lines.join("\n")).write();
 }
 

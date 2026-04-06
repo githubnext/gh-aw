@@ -57,7 +57,7 @@ async function main() {
       .addRaw(
         [
           "## ⏭️ Workflow Activation Skipped\n",
-          "> " + errorMessage + "\n",
+          `> ${errorMessage}\n`,
           "**Remediation:** Update `on.skip-bots:` in the workflow frontmatter to change which bots are excluded.\n",
           "---",
           "_See the `pre_activation` job log for full details._",
