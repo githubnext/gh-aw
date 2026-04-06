@@ -12,6 +12,7 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -49,8 +50,9 @@ const (
 )
 
 // artifactSetArtifacts maps each named set to the list of artifact base names it includes.
-// An empty entry for ArtifactSetAll is intentional: it signals "no filter, download
-// everything" and is handled separately in ResolveArtifactFilter.
+// A nil value for ArtifactSetAll is intentional: it signals "no filter, download
+// everything" and is handled specially in ResolveArtifactFilter (a nil return from
+// ResolveArtifactFilter means no filter is active so the caller downloads all artifacts).
 var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
 	ArtifactSetActivation: {constants.ActivationArtifactName},
@@ -61,16 +63,15 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},
 }
 
-// ValidArtifactSetNames returns the set of valid artifact set names as a sorted slice.
+// ValidArtifactSetNames returns a sorted list of valid artifact set names,
+// derived dynamically from the artifactSetArtifacts map to stay in sync automatically.
 func ValidArtifactSetNames() []string {
-	return []string{
-		string(ArtifactSetAll),
-		string(ArtifactSetActivation),
-		string(ArtifactSetAgent),
-		string(ArtifactSetDetection),
-		string(ArtifactSetGitHubAPI),
-		string(ArtifactSetMCP),
+	names := make([]string, 0, len(artifactSetArtifacts))
+	for k := range artifactSetArtifacts {
+		names = append(names, string(k))
 	}
+	sort.Strings(names)
+	return names
 }
 
 // ValidateArtifactSets checks that every entry in sets is a known ArtifactSet name.
