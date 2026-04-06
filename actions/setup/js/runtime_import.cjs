@@ -746,11 +746,12 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   let filepath = filepathOrUrl;
   let isAgentsPath = false;
 
-  // Strip leading "/" for repo-root-absolute paths (e.g. /.agents/skills/..., /.github/agents/...).
+  // Strip leading "/" or "//" (and any number of slashes) for repo-root-absolute paths
+  // (e.g. /.agents/skills/..., //.github/agents/...).
   // After stripping, the existing .agents/ and .github/ prefix checks handle resolution correctly.
   // Only strip when the result begins with .agents/ or .github/ to preserve security restrictions.
   if (filepath.startsWith("/")) {
-    const stripped = filepath.substring(1);
+    const stripped = filepath.replace(/^\/+/, "");
     if (stripped.startsWith(".agents/") || stripped.startsWith(".agents\\") || stripped.startsWith(".github/") || stripped.startsWith(".github\\")) {
       filepath = stripped;
     }

@@ -476,6 +476,16 @@ describe("runtime_import", () => {
           const result = await processRuntimeImport("/.agents/skills/my-skill/instructions.md", !1, tempDir);
           expect(result).toBe(content);
         }),
+        it("should support //.agents/ prefix (double leading slash, repo-root-absolute)", async () => {
+          // Regression test: //.agents/skills/my-skill/instructions.md (double slash) should also
+          // resolve to <workspace>/.agents/skills/my-skill/instructions.md
+          const skillsDir = path.join(tempDir, ".agents", "skills", "my-skill");
+          fs.mkdirSync(skillsDir, { recursive: true });
+          const content = "# My Skill (double slash)\n\nThis is the skill content.";
+          fs.writeFileSync(path.join(skillsDir, "instructions.md"), content);
+          const result = await processRuntimeImport("//.agents/skills/my-skill/instructions.md", !1, tempDir);
+          expect(result).toBe(content);
+        }),
         it("should support /.github/ prefix (leading slash, repo-root-absolute)", async () => {
           // Regression test: /.github/agents/planner.md should resolve to
           // <workspace>/.github/agents/planner.md (not .github/workflows/.github/agents/...)
@@ -484,6 +494,16 @@ describe("runtime_import", () => {
           const content = "# Planner Agent\n\nThis is the planner content.";
           fs.writeFileSync(path.join(agentsDir, "planner.md"), content);
           const result = await processRuntimeImport("/.github/agents/planner.md", !1, tempDir);
+          expect(result).toBe(content);
+        }),
+        it("should support //.github/ prefix (double leading slash, repo-root-absolute)", async () => {
+          // Regression test: //.github/agents/planner.md (double slash) should also resolve to
+          // <workspace>/.github/agents/planner.md
+          const agentsDir = path.join(tempDir, ".github", "agents");
+          fs.mkdirSync(agentsDir, { recursive: true });
+          const content = "# Planner Agent (double slash)\n\nThis is the planner content.";
+          fs.writeFileSync(path.join(agentsDir, "planner.md"), content);
+          const result = await processRuntimeImport("//.github/agents/planner.md", !1, tempDir);
           expect(result).toBe(content);
         }),
         it("should reject /-prefixed paths not under .agents/ or .github/", async () => {
