@@ -101,7 +101,7 @@ func TestGenerateNpmInstallSteps_IgnoreScriptsByDefault(t *testing.T) {
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
-	installStep := strings.Join([]string(steps[0]), "\n")
+	installStep := strings.Join(steps[0], "\n")
 
 	assert.Contains(t, installStep, "--ignore-scripts", "Expected --ignore-scripts flag by default")
 	assert.Contains(t, installStep, "npm install --ignore-scripts -g @anthropic-ai/claude-code@latest")
@@ -118,7 +118,7 @@ func TestGenerateNpmInstallSteps_RunScriptsEnabled(t *testing.T) {
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
-	installStep := strings.Join([]string(steps[0]), "\n")
+	installStep := strings.Join(steps[0], "\n")
 
 	assert.NotContains(t, installStep, "--ignore-scripts", "Expected no --ignore-scripts flag when runScripts=true")
 	assert.Contains(t, installStep, "npm install -g @anthropic-ai/claude-code@latest")
@@ -136,7 +136,7 @@ func TestGenerateNpmInstallStepsWithScope_LocalInstall(t *testing.T) {
 	)
 
 	require.Len(t, steps, 1, "Expected 1 install step")
-	installStep := strings.Join([]string(steps[0]), "\n")
+	installStep := strings.Join(steps[0], "\n")
 
 	assert.Contains(t, installStep, "--ignore-scripts", "Expected --ignore-scripts flag")
 	assert.NotContains(t, installStep, " -g ", "Expected local install (no -g flag)")
