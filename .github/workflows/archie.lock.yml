@@ -1224,6 +1224,21 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_command_position.cjs');
             await main();
+      - name: Report skip reason
+        id: report-skip-reason
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_IS_TEAM_MEMBER: ${{ steps.check_membership.outputs.is_team_member }}
+          GH_AW_MEMBERSHIP_RESULT: ${{ steps.check_membership.outputs.result }}
+          GH_AW_MEMBERSHIP_ERROR_MESSAGE: ${{ steps.check_membership.outputs.error_message }}
+          GH_AW_COMMAND_POSITION_OK: ${{ steps.check_command_position.outputs.command_position_ok }}
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/report_pre_activation_skip.cjs');
+            await main();
 
   safe_outputs:
     needs:
