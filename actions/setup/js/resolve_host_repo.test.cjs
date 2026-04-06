@@ -59,6 +59,8 @@ describe("resolve_host_repo.cjs", () => {
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GITHUB_REF;
     delete process.env.GITHUB_RUN_ID;
+    // Reset context.runId to the default value to prevent test state leakage
+    mockContext.runId = 99999;
   });
 
   it("should output the platform repo when invoked cross-repo", async () => {
@@ -405,9 +407,6 @@ describe("resolve_host_repo.cjs", () => {
       expect(mockGetWorkflowRun).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "caller-org/caller-repo");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Run ID is unavailable or invalid"));
-
-      // Restore runId for other tests
-      mockContext.runId = 99999;
     });
 
     it("should not call referenced_workflows API for normal cross-repo (same-org) invocations", async () => {

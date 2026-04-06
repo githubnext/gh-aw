@@ -48,7 +48,8 @@
  * @returns {Promise<{repo: string, ref: string} | null>} Resolved callee repo and ref, or null
  */
 async function resolveFromReferencedWorkflows(currentRepo) {
-  const runId = parseInt(process.env.GITHUB_RUN_ID || String(context.runId), 10);
+  const rawRunId = process.env.GITHUB_RUN_ID;
+  const runId = rawRunId ? parseInt(rawRunId, 10) : typeof context.runId === "number" && Number.isFinite(context.runId) ? context.runId : NaN;
   if (!Number.isFinite(runId)) {
     core.info("Run ID is unavailable or invalid, cannot perform referenced_workflows lookup");
     return null;
