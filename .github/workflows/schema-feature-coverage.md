@@ -9,6 +9,10 @@ permissions:
   issues: read
 engine: codex
 strict: true
+network:
+  allowed:
+    - defaults
+    - github
 tools:
   bash: ["*"]
   edit:
