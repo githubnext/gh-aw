@@ -13,6 +13,13 @@ import (
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) error {
 	compilerYamlLog.Printf("Generating main job steps for workflow: %s", data.Name)
 
+	// Mask OTLP telemetry headers early so authentication tokens cannot leak in runner
+	// debug logs. The workflow-level OTEL_EXPORTER_OTLP_HEADERS env var is available
+	// from the very first step, so masking can happen before any other work.
+	if isOTLPHeadersPresent(data) {
+		yaml.WriteString(generateOTLPHeadersMaskStep())
+	}
+
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)

@@ -48,6 +48,36 @@ func getOTLPEndpointEnvValue(config *FrontmatterConfig) string {
 	return config.Observability.OTLP.Endpoint
 }
 
+// isOTLPHeadersPresent returns true when OTEL_EXPORTER_OTLP_HEADERS has been injected
+// into the workflow-level env block. This indicates that header masking is needed so
+// that authentication tokens in the header value do not leak into GitHub Actions runner
+// logs (including debug/step-debug logs).
+func isOTLPHeadersPresent(data *WorkflowData) bool {
+	if data == nil {
+		return false
+	}
+	return strings.Contains(data.Env, "OTEL_EXPORTER_OTLP_HEADERS")
+}
+
+// generateOTLPHeadersMaskStep returns a GitHub Actions step that issues the
+// ::add-mask:: workflow command for the OTEL_EXPORTER_OTLP_HEADERS environment
+// variable. Masking the value causes the GitHub Actions runner to replace any
+// subsequent occurrence of it in the job logs with "***", preventing authentication
+// tokens from leaking even when runner debug logging is enabled.
+//
+// The run command uses mixed quoting ('::add-mask::'  followed by "$VAR") so that
+// the prefix is treated as a literal string (safe from injection in the prefix)
+// while the environment variable is still expanded at runtime.
+func generateOTLPHeadersMaskStep() string {
+	var sb strings.Builder
+	sb.WriteString("      - name: Mask OTLP telemetry headers\n")
+	// Use mixed quoting: single-quoted prefix concatenated with double-quoted variable
+	// so the ::add-mask:: prefix is never subject to shell word-splitting or glob expansion,
+	// and the variable value is expanded but not further interpreted.
+	sb.WriteString("        run: echo '::add-mask::'\"$OTEL_EXPORTER_OTLP_HEADERS\"\n")
+	return sb.String()
+}
+
 // extractOTLPConfigFromRaw reads OTLP endpoint and headers directly from the raw
 // frontmatter map[string]any.  This avoids dependence on ParseFrontmatterConfig
 // succeeding -- that function may fail for workflows with complex tool configurations
