@@ -727,6 +727,21 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"missing_data"},
 		},
+		{
+			name: "report_incomplete config",
+			safeOutputs: &SafeOutputsConfig{
+				ReportIncomplete: &ReportIncompleteConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"report_incomplete"},
+		},
 	}
 
 	for _, tt := range tests {
