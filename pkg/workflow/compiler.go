@@ -177,6 +177,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate safe-outputs max configuration
+	log.Printf("Validating safe-outputs max fields")
+	if err := validateSafeOutputsMax(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate safe-outputs allowed-domains configuration
 	log.Printf("Validating safe-outputs allowed-domains")
 	if err := c.validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {

@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -404,4 +406,82 @@ func isGitHubExpression(s string) bool {
 	// The closing marker must come after the opening marker
 	// and there must be something between them
 	return openIndex >= 0 && closeIndex > openIndex+3
+}
+
+var safeOutputsMaxValidationLog = newValidationLogger("safe_outputs_max")
+
+// validateSafeOutputsMax validates that all max fields in safe-outputs configs are > 0.
+// GitHub Actions expressions (e.g. "${{ inputs.max }}") are not evaluable at compile time
+// and are therefore skipped.
+func validateSafeOutputsMax(config *SafeOutputsConfig) error {
+	if config == nil {
+		return nil
+	}
+
+	safeOutputsMaxValidationLog.Print("Validating safe-outputs max fields")
+
+	val := reflect.ValueOf(config).Elem()
+
+	// Validate max on all named safe output fields that embed BaseSafeOutputConfig
+	for fieldName, toolName := range safeOutputFieldMapping {
+		field := val.FieldByName(fieldName)
+		if !field.IsValid() || field.IsNil() {
+			continue
+		}
+
+		elem := field.Elem()
+		baseCfgField := elem.FieldByName("BaseSafeOutputConfig")
+		if !baseCfgField.IsValid() {
+			continue
+		}
+
+		maxField := baseCfgField.FieldByName("Max")
+		if !maxField.IsValid() || maxField.IsNil() {
+			continue
+		}
+
+		maxPtr, ok := maxField.Interface().(*string)
+		if !ok || maxPtr == nil || isExpressionString(*maxPtr) {
+			continue
+		}
+
+		n, err := strconv.Atoi(*maxPtr)
+		if err != nil {
+			continue
+		}
+
+		if n <= 0 {
+			toolDisplayName := strings.ReplaceAll(toolName, "_", "-")
+			safeOutputsMaxValidationLog.Printf("Invalid max value %d for %s", n, toolDisplayName)
+			return fmt.Errorf(
+				"safe-outputs.%s: max must be greater than 0, got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer value (e.g., max: 1 or max: 5)",
+				toolDisplayName, n,
+			)
+		}
+	}
+
+	// Validate max on dispatch_repository tools (different structure: map of tools)
+	if config.DispatchRepository != nil {
+		for toolName, tool := range config.DispatchRepository.Tools {
+			if tool == nil || tool.Max == nil || isExpressionString(*tool.Max) {
+				continue
+			}
+
+			n, err := strconv.Atoi(*tool.Max)
+			if err != nil {
+				continue
+			}
+
+			if n <= 0 {
+				safeOutputsMaxValidationLog.Printf("Invalid max value %d for dispatch_repository tool %s", n, toolName)
+				return fmt.Errorf(
+					"safe-outputs.dispatch-repository.%s: max must be greater than 0, got %d\n\nThe max field controls how many times this safe output can be triggered.\nProvide a positive integer value (e.g., max: 1 or max: 5)",
+					toolName, n,
+				)
+			}
+		}
+	}
+
+	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
+	return nil
 }
