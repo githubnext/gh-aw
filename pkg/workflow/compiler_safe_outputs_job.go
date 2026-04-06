@@ -56,6 +56,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, safeOutputsTraceID)...)
 	}
 
+	// Mask OTLP telemetry headers immediately after setup so authentication tokens cannot
+	// leak into runner debug logs for any subsequent step in the safe outputs job.
+	if isOTLPHeadersPresent(data) {
+		steps = append(steps, generateOTLPHeadersMaskStep())
+	}
+
 	// Add artifact download steps after setup.
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)

@@ -518,3 +518,98 @@ func TestInjectOTLPConfig_RawFrontmatterFallback(t *testing.T) {
 		assert.Nil(t, wd.NetworkPermissions, "NetworkPermissions should remain nil")
 	})
 }
+
+// TestIsOTLPHeadersPresent verifies that isOTLPHeadersPresent correctly detects
+// whether OTEL_EXPORTER_OTLP_HEADERS is present in the workflow env block.
+func TestIsOTLPHeadersPresent(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected bool
+	}{
+		{
+			name:     "nil WorkflowData returns false",
+			data:     nil,
+			expected: false,
+		},
+		{
+			name:     "empty Env returns false",
+			data:     &WorkflowData{},
+			expected: false,
+		},
+		{
+			name: "Env without OTEL_EXPORTER_OTLP_HEADERS returns false",
+			data: &WorkflowData{
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: gh-aw",
+			},
+			expected: false,
+		},
+		{
+			name: "Env with OTEL_EXPORTER_OTLP_HEADERS returns true",
+			data: &WorkflowData{
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  OTEL_SERVICE_NAME: gh-aw\n  OTEL_EXPORTER_OTLP_HEADERS: Authorization=Bearer tok",
+			},
+			expected: true,
+		},
+		{
+			name: "Env with secret expression headers returns true",
+			data: &WorkflowData{
+				Env: "env:\n  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}\n  OTEL_SERVICE_NAME: gh-aw\n  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTLP_HEADERS }}",
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isOTLPHeadersPresent(tt.data)
+			assert.Equal(t, tt.expected, got, "isOTLPHeadersPresent")
+		})
+	}
+}
+
+// TestGenerateOTLPHeadersMaskStep verifies that generateOTLPHeadersMaskStep
+// emits a step that uses the ::add-mask:: workflow command.
+func TestGenerateOTLPHeadersMaskStep(t *testing.T) {
+	step := generateOTLPHeadersMaskStep()
+
+	assert.Contains(t, step, "- name: Mask OTLP telemetry headers", "should have the masking step name")
+	assert.Contains(t, step, "::add-mask::", "should emit the ::add-mask:: workflow command")
+	assert.Contains(t, step, "$OTEL_EXPORTER_OTLP_HEADERS", "should reference the headers env var")
+	assert.Contains(t, step, "echo", "should use echo to emit the mask command")
+}
+
+// TestInjectOTLPConfig_HeadersPresenceAfterInjection verifies that
+// isOTLPHeadersPresent returns the expected value after injectOTLPConfig runs.
+func TestInjectOTLPConfig_HeadersPresenceAfterInjection(t *testing.T) {
+	t.Run("isOTLPHeadersPresent returns true after headers are injected", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+						Headers:  "Authorization=Bearer tok",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.True(t, isOTLPHeadersPresent(wd), "isOTLPHeadersPresent should return true after headers are injected")
+	})
+
+	t.Run("isOTLPHeadersPresent returns false when no headers are configured", func(t *testing.T) {
+		c := &Compiler{}
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{
+						Endpoint: "https://traces.example.com",
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+		assert.False(t, isOTLPHeadersPresent(wd), "isOTLPHeadersPresent should return false when no headers are configured")
+	})
+}
