@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { buildSearchQuery } = require("./check_skip_if_helpers.cjs");
+const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 async function main() {
   const { GH_AW_SKIP_QUERY: skipQuery, GH_AW_WORKFLOW_NAME: workflowName, GH_AW_SKIP_MAX_MATCHES: maxMatchesStr = "1", GH_AW_SKIP_SCOPE: skipScope } = process.env;
@@ -42,17 +43,7 @@ async function main() {
     if (totalCount >= maxMatches) {
       core.warning(`🔍 Skip condition matched (${totalCount} items found, threshold: ${maxMatches}). Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_check_ok", "false");
-      await core.summary
-        .addRaw(
-          [
-            "## ⏭️ Workflow Activation Skipped\n",
-            `> Skip-if-match query matched: ${totalCount} item(s) found (threshold: ${maxMatches}).\n`,
-            "**Remediation:** Update `on.skip-if-match:` in the workflow frontmatter if this skip was unexpected.\n",
-            "---",
-            "_See the `pre_activation` job log for full details._",
-          ].join("\n")
-        )
-        .write();
+      await writeDenialSummary(`Skip-if-match query matched: ${totalCount} item(s) found (threshold: ${maxMatches}).`, "Update `on.skip-if-match:` in the workflow frontmatter if this skip was unexpected.");
       return;
     }
 

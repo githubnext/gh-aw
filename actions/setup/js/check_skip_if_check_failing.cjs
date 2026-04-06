@@ -4,6 +4,7 @@
 const { getErrorMessage, isRateLimitError } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
+const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 /**
  * Determines the ref to check for CI status.
@@ -206,17 +207,7 @@ async function main() {
       const names = failingChecks.map(r => (r.status === "completed" ? `${r.name} (${r.conclusion})` : `${r.name} (${r.status})`)).join(", ");
       core.warning(`⚠️ Failing CI checks detected on "${ref}": ${names}. Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_if_check_failing_ok", "false");
-      await core.summary
-        .addRaw(
-          [
-            "## ⏭️ Workflow Activation Skipped\n",
-            `> Failing CI checks detected on \`${ref}\`: ${names}.\n`,
-            "**Remediation:** Fix the failing check(s) referenced in `on.skip-if-check-failing:`, or update the frontmatter configuration.\n",
-            "---",
-            "_See the `pre_activation` job log for full details._",
-          ].join("\n")
-        )
-        .write();
+      await writeDenialSummary(`Failing CI checks detected on \`${ref}\`: ${names}.`, "Fix the failing check(s) referenced in `on.skip-if-check-failing:`, or update the frontmatter configuration.");
       return;
     }
 

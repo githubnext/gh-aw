@@ -2,17 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus, isAllowedBot } = require("./check_permissions_utils.cjs");
-
-/**
- * Writes a denial reason to the GitHub Actions job summary.
- *
- * @param {string} message - The denial message from the check
- * @param {string} remediation - Remediation hint for the operator
- */
-async function writeDenialSummary(message, remediation) {
-  const lines = ["## ⏭️ Workflow Activation Skipped\n", `> ${message}\n`, `**Remediation:** ${remediation}\n`, "---", "_See the `pre_activation` job log for full details._"];
-  await core.summary.addRaw(lines.join("\n")).write();
-}
+const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 async function main() {
   const { eventName } = context;

@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { writeDenialSummary } = require("./pre_activation_summary.cjs");
+
 /**
  * Check if the workflow should be skipped based on bot/user identity
  * Reads skip-bots from GH_AW_SKIP_BOTS environment variable
@@ -53,17 +55,7 @@ async function main() {
     core.setOutput("skip_bots_ok", "false");
     core.setOutput("result", "skipped");
     core.setOutput("error_message", errorMessage);
-    await core.summary
-      .addRaw(
-        [
-          "## ⏭️ Workflow Activation Skipped\n",
-          `> ${errorMessage}\n`,
-          "**Remediation:** Update `on.skip-bots:` in the workflow frontmatter to change which bots are excluded.\n",
-          "---",
-          "_See the `pre_activation` job log for full details._",
-        ].join("\n")
-      )
-      .write();
+    await writeDenialSummary(errorMessage, "Update `on.skip-bots:` in the workflow frontmatter to change which bots are excluded.");
   } else {
     // User is NOT in skip-bots, allow workflow to proceed
     core.info(`✅ User '${actor}' is NOT in skip-bots [${skipBots.join(", ")}]. Workflow will proceed.`);

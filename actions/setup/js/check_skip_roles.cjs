@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { checkRepositoryPermission } = require("./check_permissions_utils.cjs");
+const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 /**
  * Check if the workflow should be skipped based on user's role
@@ -50,17 +51,7 @@ async function main() {
     core.setOutput("result", "skipped");
     core.setOutput("user_permission", result.permission);
     core.setOutput("error_message", errorMessage);
-    await core.summary
-      .addRaw(
-        [
-          "## ⏭️ Workflow Activation Skipped\n",
-          `> ${errorMessage}\n`,
-          "**Remediation:** Update `on.skip-roles:` in the workflow frontmatter to change which roles are excluded.\n",
-          "---",
-          "_See the `pre_activation` job log for full details._",
-        ].join("\n")
-      )
-      .write();
+    await writeDenialSummary(errorMessage, "Update `on.skip-roles:` in the workflow frontmatter to change which roles are excluded.");
   } else {
     // User does NOT have any of the skip-roles, allow workflow to proceed
     core.info(`✅ User '${actor}' has role '${result.permission}' which is NOT in skip-roles [${skipRoles.join(", ")}]. Workflow will proceed.`);

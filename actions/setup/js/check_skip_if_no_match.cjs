@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { buildSearchQuery } = require("./check_skip_if_helpers.cjs");
+const { writeDenialSummary } = require("./pre_activation_summary.cjs");
 
 async function main() {
   const { GH_AW_SKIP_QUERY: skipQuery, GH_AW_WORKFLOW_NAME: workflowName, GH_AW_SKIP_MIN_MATCHES: minMatchesStr = "1", GH_AW_SKIP_SCOPE: skipScope } = process.env;
@@ -42,17 +43,7 @@ async function main() {
     if (totalCount < minMatches) {
       core.warning(`🔍 Skip condition matched (${totalCount} items found, minimum required: ${minMatches}). Workflow execution will be prevented by activation job.`);
       core.setOutput("skip_no_match_check_ok", "false");
-      await core.summary
-        .addRaw(
-          [
-            "## ⏭️ Workflow Activation Skipped\n",
-            `> Skip-if-no-match query returned too few results: ${totalCount} item(s) found (minimum required: ${minMatches}).\n`,
-            "**Remediation:** Update `on.skip-if-no-match:` in the workflow frontmatter if this skip was unexpected.\n",
-            "---",
-            "_See the `pre_activation` job log for full details._",
-          ].join("\n")
-        )
-        .write();
+      await writeDenialSummary(`Skip-if-no-match query returned too few results: ${totalCount} item(s) found (minimum required: ${minMatches}).`, "Update `on.skip-if-no-match:` in the workflow frontmatter if this skip was unexpected.");
       return;
     }
 

@@ -84,6 +84,13 @@ describe("check_skip_roles.cjs", () => {
         utilsFunction(mockCore, mockGithub, mockContext, process, mockModule, moduleExports, mockRequire);
         return mockModule.exports;
       }
+      if (modulePath === "./pre_activation_summary.cjs") {
+        return {
+          writeDenialSummary: async (reason, remediation) => {
+            await mockCore.summary.addRaw(`${reason}\n${remediation}`).write();
+          },
+        };
+      }
       throw new Error(`Module not found: ${modulePath}`);
     };
 
