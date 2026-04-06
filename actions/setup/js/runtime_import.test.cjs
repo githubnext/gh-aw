@@ -507,11 +507,12 @@ describe("runtime_import", () => {
           expect(result).toBe(content);
         }),
         it("should reject /-prefixed paths not under .agents/ or .github/", async () => {
-          // A leading "/" that does not map to .agents/ or .github/ should NOT be stripped —
-          // it falls through to the default branch and is confined to .github/workflows/, so it
-          // cannot reach arbitrary filesystem paths like /etc/passwd.
-          // The resolved path (.github/workflows/etc/passwd) does not exist, so it throws "file not found".
-          await expect(processRuntimeImport("/etc/passwd", !1, tempDir)).rejects.toThrow("Runtime import file not found");
+          // A leading "/" that does not map to .agents/ or .github/ should NOT be stripped.
+          // It falls through to the default branch, and path joining preserves the absolute path
+          // (/etc/passwd on POSIX), which is then rejected by the .github base-folder security check.
+          // Assert the security rejection rather than a file-not-found error so the test remains
+          // stable across platforms.
+          await expect(processRuntimeImport("/etc/passwd", !1, tempDir)).rejects.toThrow("Security: Path");
         }),
         it("should support nested .github/workflows/shared/ path (issue: runtime-import fails for .github/workflows/* paths)", async () => {
           // Regression test: .github/workflows/shared/reporting.md should resolve to
