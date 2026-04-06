@@ -18,7 +18,7 @@ tools:
 timeout-minutes: 30
 runtimes:
   node:
-    version: "20"
+    version: "24"
 imports:
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-discussion.md
