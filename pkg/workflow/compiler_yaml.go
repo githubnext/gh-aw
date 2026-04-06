@@ -128,7 +128,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# GHAW manifest: %s\n", manifestJSON)
 	} else {
-		compilerYamlLog.Printf("Warning: failed to serialize GHAW manifest: %v", err)
+		compilerYamlLog.Printf("Failed to serialize GHAW manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
 	}
 
 	// Add workflow header with logo and instructions

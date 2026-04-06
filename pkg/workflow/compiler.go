@@ -687,7 +687,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				log.Printf("Loaded existing GHAW manifest: %d secret(s)", len(oldManifest.Secrets))
 			}
 		} else {
-			log.Printf("Warning: failed to parse existing GHAW manifest: %v", parseErr)
+			log.Printf("Failed to parse existing GHAW manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 		}
 	}
 
