@@ -152,6 +152,32 @@ describe("action_setup_otlp run()", () => {
     fetchSpy.mockRestore();
   });
 
+  it("uses job name from INPUT_JOB-NAME (hyphen form) in setup span when INPUT_JOB_NAME is not set", async () => {
+    const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_job_name_hyphen_${Date.now()}.txt`);
+    try {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:14317";
+      process.env["INPUT_JOB-NAME"] = "agent";
+      delete process.env.INPUT_JOB_NAME;
+      process.env.GITHUB_OUTPUT = tmpOut;
+      process.env.GITHUB_ENV = tmpOut;
+
+      let capturedBody;
+      const fetchSpy = vi.spyOn(global, "fetch").mockImplementation((_url, opts) => {
+        capturedBody = opts?.body;
+        return Promise.resolve(new Response(null, { status: 200 }));
+      });
+
+      await runSetup();
+
+      const payload = JSON.parse(capturedBody);
+      const spanName = payload?.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name;
+      expect(spanName).toBe("gh-aw.agent.setup");
+      fetchSpy.mockRestore();
+    } finally {
+      fs.rmSync(tmpOut, { force: true });
+    }
+  });
+
   it("includes github.repository, github.run_id resource attributes in setup span", async () => {
     const tmpOut = path.join(path.dirname(__dirname), `action_setup_otlp_test_resource_attrs_${Date.now()}.txt`);
     try {

@@ -28,10 +28,12 @@ describe("action_conclusion_otlp.cjs", () => {
     originalEnv = {
       OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       INPUT_JOB_NAME: process.env.INPUT_JOB_NAME,
+      "INPUT_JOB-NAME": process.env["INPUT_JOB-NAME"],
       GITHUB_AW_OTEL_JOB_START_MS: process.env.GITHUB_AW_OTEL_JOB_START_MS,
     };
     delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
     delete process.env.INPUT_JOB_NAME;
+    delete process.env["INPUT_JOB-NAME"];
     delete process.env.GITHUB_AW_OTEL_JOB_START_MS;
   });
 
@@ -48,6 +50,11 @@ describe("action_conclusion_otlp.cjs", () => {
       process.env.INPUT_JOB_NAME = originalEnv.INPUT_JOB_NAME;
     } else {
       delete process.env.INPUT_JOB_NAME;
+    }
+    if (originalEnv["INPUT_JOB-NAME"] !== undefined) {
+      process.env["INPUT_JOB-NAME"] = originalEnv["INPUT_JOB-NAME"];
+    } else {
+      delete process.env["INPUT_JOB-NAME"];
     }
     if (originalEnv.GITHUB_AW_OTEL_JOB_START_MS !== undefined) {
       process.env.GITHUB_AW_OTEL_JOB_START_MS = originalEnv.GITHUB_AW_OTEL_JOB_START_MS;
@@ -107,6 +114,15 @@ describe("action_conclusion_otlp.cjs", () => {
 
       it("should use job name from INPUT_JOB_NAME when set", async () => {
         process.env.INPUT_JOB_NAME = "agent";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.agent.conclusion", { startMs: undefined });
+      });
+
+      it("should use job name from INPUT_JOB-NAME (hyphen form) when INPUT_JOB_NAME is not set", async () => {
+        delete process.env.INPUT_JOB_NAME;
+        process.env["INPUT_JOB-NAME"] = "agent";
 
         await run();
 

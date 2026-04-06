@@ -23,11 +23,19 @@ const inputTraceId =
   process.env["INPUT_TRACE-ID"] ||
   "";
 
+// Normalize job-name input: handle both INPUT_JOB_NAME (underscore, standard)
+// and INPUT_JOB-NAME (hyphen, used by some runner versions).
+const inputJobName =
+  process.env["INPUT_JOB_NAME"] ||
+  process.env["INPUT_JOB-NAME"] ||
+  "";
+
 const result = spawnSync(path.join(__dirname, "setup.sh"), [], {
   stdio: "inherit",
   env: Object.assign({}, process.env, {
     INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: safeOutputCustomTokens,
     INPUT_TRACE_ID: inputTraceId,
+    INPUT_JOB_NAME: inputJobName,
     // Tell setup.sh to skip the OTLP span: in action mode index.js sends it
     // after setup.sh returns so that the startMs captured here is used.
     GH_AW_SKIP_SETUP_OTLP: "1",
@@ -54,6 +62,7 @@ if (result.status !== 0) {
   try {
     process.env.SETUP_START_MS = String(setupStartMs);
     process.env.INPUT_TRACE_ID = inputTraceId;
+    process.env.INPUT_JOB_NAME = inputJobName;
     const { run } = require(path.join(__dirname, "js", "action_setup_otlp.cjs"));
     await run();
   } catch {

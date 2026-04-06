@@ -57,6 +57,18 @@ async function run() {
     console.log("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
   }
 
+  // Normalize job-name input: handle both INPUT_JOB_NAME (underscore, standard)
+  // and INPUT_JOB-NAME (hyphen, used by some runner versions).  Mirror the same
+  // two-key lookup that INPUT_TRACE_ID uses above so script-mode invocations
+  // (setup.sh → node action_setup_otlp.cjs) always resolve the job name even
+  // when the runner preserves the original hyphen in the env var name.
+  const inputJobName = (process.env.INPUT_JOB_NAME || process.env["INPUT_JOB-NAME"] || "").trim();
+  if (inputJobName) {
+    // Normalise to the canonical underscore form so sendJobSetupSpan (which
+    // reads process.env.INPUT_JOB_NAME) always finds the value.
+    process.env.INPUT_JOB_NAME = inputJobName;
+  }
+
   if (!endpoint) {
     console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping setup span");
   } else {

@@ -48,7 +48,10 @@ async function run() {
   const rawJobStartMs = parseInt(process.env.GITHUB_AW_OTEL_JOB_START_MS || "0", 10);
   const startMs = rawJobStartMs > 0 ? rawJobStartMs : undefined;
 
-  const spanName = process.env.INPUT_JOB_NAME ? `gh-aw.${process.env.INPUT_JOB_NAME}.conclusion` : "gh-aw.job.conclusion";
+  // Normalize job-name input: handle both INPUT_JOB_NAME (underscore, standard)
+  // and INPUT_JOB-NAME (hyphen, used by some runner versions).
+  const jobName = (process.env.INPUT_JOB_NAME || process.env["INPUT_JOB-NAME"] || "").trim();
+  const spanName = jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
   console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
 
   await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
