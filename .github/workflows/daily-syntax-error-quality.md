@@ -14,12 +14,12 @@ tools:
   bash:
     - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
     - "gh aw compile *"
-    - "gh aw compile /tmp/syntax-error-tests/*.md"
+    - "gh aw compile /tmp/gh-aw/syntax-error-tests/*.md"
     - "cat .github/workflows/*.md"
     - "head -n * .github/workflows/*.md"
-    - "cp .github/workflows/*.md /tmp/syntax-error-tests/*.md"
-    - "cat /tmp/syntax-error-tests/*.md"
-    - "mkdir -p /tmp/syntax-error-tests"
+    - "cp .github/workflows/*.md /tmp/gh-aw/syntax-error-tests/*.md"
+    - "cat /tmp/gh-aw/syntax-error-tests/*.md"
+    - "mkdir -p /tmp/gh-aw/syntax-error-tests"
 safe-outputs:
   create-issue:
     expires: 3d
@@ -161,8 +161,8 @@ For each workflow:
 
 1. **Copy workflow to /tmp** for testing:
    ```bash
-   mkdir -p /tmp/syntax-error-tests
-   cp .github/workflows/selected-workflow.md /tmp/syntax-error-tests/test-1.md
+   mkdir -p /tmp/gh-aw/syntax-error-tests
+   cp .github/workflows/selected-workflow.md /tmp/gh-aw/syntax-error-tests/test-1.md
    ```
 
 2. **Introduce ONE error** from a different category:
@@ -186,7 +186,7 @@ For each test case:
 
 1. **Attempt to compile** the modified workflow:
    ```bash
-   cd /tmp/syntax-error-tests
+   cd /tmp/gh-aw/syntax-error-tests
    gh aw compile test-1.md 2>&1 | tee test-1-output.txt
    ```
 
