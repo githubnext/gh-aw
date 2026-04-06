@@ -8294,6 +8294,68 @@
               "additionalProperties": false
             }
           }
+        },
+        "report-incomplete": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for report_incomplete safe output",
+              "properties": {
+                "max": {
+                  "description": "Maximum number of report_incomplete signals (default: 5). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "create-issue": {
+                  "type": "boolean",
+                  "description": "Whether to create or update GitHub issues when the task was incomplete (default: true)",
+                  "default": true
+                },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Prefix for issue titles when creating issues for incomplete runs (default: '[incomplete]')",
+                  "default": "[incomplete]"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Labels to add to created issues for incomplete runs",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+                  "examples": [true, false]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable report_incomplete with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable report_incomplete (false). report_incomplete is enabled by default when safe-outputs is configured."
+            }
+          ],
+          "description": "Enable AI agents to signal that a task could not be completed due to infrastructure or tool failures (e.g., MCP crash, missing auth, inaccessible repository). Activates failure handling even when the agent exits 0."
         }
       },
       "additionalProperties": false

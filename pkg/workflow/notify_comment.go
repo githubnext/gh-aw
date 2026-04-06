@@ -137,6 +137,46 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, missingToolSteps...)
 	}
 
+	// Add report_incomplete processing step if report-incomplete is configured
+	if data.SafeOutputs.ReportIncomplete != nil {
+		// Build custom environment variables specific to report-incomplete
+		var reportIncompleteEnvVars []string
+		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildTemplatableIntEnvVar("GH_AW_REPORT_INCOMPLETE_MAX", data.SafeOutputs.ReportIncomplete.Max)...)
+
+		// Add create-issue configuration
+		if data.SafeOutputs.ReportIncomplete.CreateIssue {
+			reportIncompleteEnvVars = append(reportIncompleteEnvVars, "          GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: \"true\"\n")
+		}
+
+		// Add title-prefix configuration
+		if data.SafeOutputs.ReportIncomplete.TitlePrefix != "" {
+			reportIncompleteEnvVars = append(reportIncompleteEnvVars, fmt.Sprintf("          GH_AW_REPORT_INCOMPLETE_TITLE_PREFIX: %q\n", data.SafeOutputs.ReportIncomplete.TitlePrefix))
+		}
+
+		// Add labels configuration
+		if len(data.SafeOutputs.ReportIncomplete.Labels) > 0 {
+			labelsJSON, err := json.Marshal(data.SafeOutputs.ReportIncomplete.Labels)
+			if err == nil {
+				reportIncompleteEnvVars = append(reportIncompleteEnvVars, fmt.Sprintf("          GH_AW_REPORT_INCOMPLETE_LABELS: %q\n", string(labelsJSON)))
+			}
+		}
+
+		// Add workflow metadata for consistency
+		reportIncompleteEnvVars = append(reportIncompleteEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+
+		// Build the report_incomplete processing step (without artifact downloads - already added above)
+		reportIncompleteSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Record Incomplete",
+			StepID:        "report_incomplete",
+			MainJobName:   mainJobName,
+			CustomEnvVars: reportIncompleteEnvVars,
+			Script:        "const { main } = require('${{ runner.temp }}/gh-aw/actions/report_incomplete_handler.cjs'); await main();",
+			ScriptFile:    "report_incomplete_handler.cjs",
+			CustomToken:   data.SafeOutputs.ReportIncomplete.GitHubToken,
+		})
+		steps = append(steps, reportIncompleteSteps...)
+	}
+
 	// Add agent failure handling step - creates/updates an issue when agent job fails
 	// This step always runs and checks if the agent job failed
 	// Build environment variables for the agent failure handler
@@ -427,6 +467,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs.MissingTool != nil {
 		outputs["tools_reported"] = "${{ steps.missing_tool.outputs.tools_reported }}"
 		outputs["total_count"] = "${{ steps.missing_tool.outputs.total_count }}"
+	}
+	if data.SafeOutputs.ReportIncomplete != nil {
+		outputs["incomplete_count"] = "${{ steps.report_incomplete.outputs.incomplete_count }}"
 	}
 
 	// Compute permissions based on configured safe outputs (principle of least privilege)

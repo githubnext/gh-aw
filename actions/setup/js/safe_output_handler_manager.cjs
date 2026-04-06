@@ -66,6 +66,7 @@ const HANDLER_MAP = {
   missing_data: "./missing_data.cjs",
   noop: "./noop_handler.cjs",
   report_incomplete: "./report_incomplete_handler.cjs",
+  create_report_incomplete_issue: "./create_report_incomplete_issue.cjs",
   create_project: "./create_project.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",
@@ -246,14 +247,15 @@ async function loadHandlers(config, prReviewBuffer) {
 }
 
 /**
- * Collect missing_tool, missing_data, and noop messages from the messages array
+ * Collect missing_tool, missing_data, noop, and report_incomplete messages from the messages array
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {{missingTools: Array<any>, missingData: Array<any>, noopMessages: Array<any>}} Object with collected missing items and noop messages
+ * @returns {{missingTools: Array<any>, missingData: Array<any>, noopMessages: Array<any>, reportIncomplete: Array<any>}} Object with collected missing items, noop messages, and incomplete signals
  */
 function collectMissingMessages(messages) {
   const missingTools = [];
   const missingData = [];
   const noopMessages = [];
+  const reportIncomplete = [];
 
   for (const message of messages) {
     if (message.type === "missing_tool") {
@@ -282,11 +284,19 @@ function collectMissingMessages(messages) {
           message: message.message,
         });
       }
+    } else if (message.type === "report_incomplete") {
+      // Extract relevant fields from report_incomplete message
+      if (message.reason) {
+        reportIncomplete.push({
+          reason: message.reason,
+          details: message.details || null,
+        });
+      }
     }
   }
 
-  core.info(`Collected ${missingTools.length} missing tool(s), ${missingData.length} missing data item(s), and ${noopMessages.length} noop message(s)`);
-  return { missingTools, missingData, noopMessages };
+  core.info(`Collected ${missingTools.length} missing tool(s), ${missingData.length} missing data item(s), ${noopMessages.length} noop message(s), and ${reportIncomplete.length} incomplete signal(s)`);
+  return { missingTools, missingData, noopMessages, reportIncomplete };
 }
 
 /**
@@ -1065,7 +1075,7 @@ async function main() {
     if (processingResult.missings) {
       setCollectedMissings(processingResult.missings);
       core.info(
-        `Stored ${processingResult.missings.missingTools.length} missing tool(s), ${processingResult.missings.missingData.length} missing data item(s), and ${processingResult.missings.noopMessages.length} noop message(s) for footer generation`
+        `Stored ${processingResult.missings.missingTools.length} missing tool(s), ${processingResult.missings.missingData.length} missing data item(s), ${processingResult.missings.noopMessages.length} noop message(s), and ${processingResult.missings.reportIncomplete.length} incomplete signal(s) for footer generation`
       );
     }
 

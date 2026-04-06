@@ -710,6 +710,23 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.ReportIncomplete
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
+	"create_report_incomplete_issue": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.ReportIncomplete == nil {
+			return nil
+		}
+		c := cfg.ReportIncomplete
+		if !c.CreateIssue {
+			return nil
+		}
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("title-prefix", c.TitlePrefix).
+			AddStringSlice("labels", c.Labels).
+			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},

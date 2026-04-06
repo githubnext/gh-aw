@@ -364,8 +364,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
 				// This ensures agents always have a first-class channel to signal task incompletion.
 				if _, exists := outputMap["report-incomplete"]; !exists {
-					config.ReportIncomplete = &ReportIncompleteConfig{}
-					config.ReportIncomplete.Max = defaultIntStr(5) // Default max
+					config.ReportIncomplete = &ReportIncompleteConfig{
+						CreateIssue: true,
+						TitlePrefix: "",
+						Labels:      nil,
+					}
 				}
 			}
 

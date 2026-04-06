@@ -15,37 +15,13 @@ var reportIncompleteLog = logger.New("workflow:report_incomplete")
 // when the agent process exits 0 and other safe outputs were also emitted.
 // This prevents semantically-empty outputs (e.g., a comment describing tool
 // failures) from being classified as a successful result.
-type ReportIncompleteConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-}
+//
+// ReportIncompleteConfig is a type alias for IssueReportingConfig so that it
+// supports the same create-issue, title-prefix, and labels configuration fields
+// as missing-tool and missing-data.
+type ReportIncompleteConfig = IssueReportingConfig
 
 // parseReportIncompleteConfig handles report_incomplete configuration.
 func (c *Compiler) parseReportIncompleteConfig(outputMap map[string]any) *ReportIncompleteConfig {
-	configData, exists := outputMap["report-incomplete"]
-	if !exists {
-		reportIncompleteLog.Print("No report-incomplete configuration found")
-		return nil
-	}
-
-	// Explicitly disabled: report-incomplete: false
-	if configBool, ok := configData.(bool); ok && !configBool {
-		reportIncompleteLog.Print("report-incomplete explicitly disabled")
-		return nil
-	}
-
-	cfg := &ReportIncompleteConfig{}
-
-	// Enabled with no value: report-incomplete: (nil)
-	if configData == nil {
-		cfg.Max = defaultIntStr(5)
-		reportIncompleteLog.Print("report-incomplete enabled with defaults")
-		return cfg
-	}
-
-	if configMap, ok := configData.(map[string]any); ok {
-		c.parseBaseSafeOutputConfig(configMap, &cfg.BaseSafeOutputConfig, 5)
-		reportIncompleteLog.Printf("Parsed report-incomplete configuration")
-	}
-
-	return cfg
+	return c.parseIssueReportingConfig(outputMap, "report-incomplete", "[incomplete]", reportIncompleteLog)
 }
