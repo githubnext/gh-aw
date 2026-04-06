@@ -42,9 +42,10 @@ function getAgentName(assignee) {
  * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
  * @param {string} owner
  * @param {string} repo
+ * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<string[]>}
  */
-async function getAvailableAgentLogins(owner, repo) {
+async function getAvailableAgentLogins(owner, repo, githubClient = github) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -55,7 +56,7 @@ async function getAvailableAgentLogins(owner, repo) {
     }
   `;
   try {
-    const response = await github.graphql(query, { owner, repo });
+    const response = await githubClient.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
     const available = actors.filter(actor => actor?.login && knownValues.includes(actor.login)).map(actor => actor.login);
@@ -72,9 +73,10 @@ async function getAvailableAgentLogins(owner, repo) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {string} agentName - Agent name (copilot)
+ * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<string|null>} Agent ID or null if not found
  */
-async function findAgent(owner, repo, agentName) {
+async function findAgent(owner, repo, agentName, githubClient = github) {
   const query = `
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
@@ -92,7 +94,7 @@ async function findAgent(owner, repo, agentName) {
   `;
 
   try {
-    const response = await github.graphql(query, { owner, repo });
+    const response = await githubClient.graphql(query, { owner, repo });
     const actors = response.repository.suggestedActors.nodes;
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
@@ -144,9 +146,10 @@ async function findAgent(owner, repo, agentName) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} issueNumber - Issue number
+ * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<{issueId: string, currentAssignees: Array<{id: string, login: string}>}|null>}
  */
-async function getIssueDetails(owner, repo, issueNumber) {
+async function getIssueDetails(owner, repo, issueNumber, githubClient = github) {
   const query = `
     query($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -164,7 +167,7 @@ async function getIssueDetails(owner, repo, issueNumber) {
   `;
 
   try {
-    const response = await github.graphql(query, { owner, repo, issueNumber });
+    const response = await githubClient.graphql(query, { owner, repo, issueNumber });
     const issue = response.repository.issue;
 
     if (!issue || !issue.id) {
@@ -194,9 +197,10 @@ async function getIssueDetails(owner, repo, issueNumber) {
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} pullNumber - Pull request number
+ * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<{pullRequestId: string, currentAssignees: Array<{id: string, login: string}>}|null>}
  */
-async function getPullRequestDetails(owner, repo, pullNumber) {
+async function getPullRequestDetails(owner, repo, pullNumber, githubClient = github) {
   const query = `
     query($owner: String!, $repo: String!, $pullNumber: Int!) {
       repository(owner: $owner, name: $repo) {
@@ -214,7 +218,7 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
   `;
 
   try {
-    const response = await github.graphql(query, { owner, repo, pullNumber });
+    const response = await githubClient.graphql(query, { owner, repo, pullNumber });
     const pullRequest = response.repository.pullRequest;
 
     if (!pullRequest || !pullRequest.id) {
@@ -251,9 +255,10 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * @param {string|null} customAgent - Optional custom agent ID for custom agents
  * @param {string|null} customInstructions - Optional custom instructions for the agent
  * @param {string|null} baseBranch - Optional base branch for the PR (uses GraphQL baseRef field)
+ * @param {Object} [githubClient] - Authenticated GitHub client (defaults to global github)
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null, baseBranch = null) {
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null, baseBranch = null, githubClient = github) {
   // SECURITY: pullRequestRepoId specifies a cross-repo target (targetRepositoryId).
   // Callers MUST validate the corresponding repository slug against allowedRepos using
   // validateTargetRepo (from repo_helpers.cjs) before invoking this function.
@@ -358,7 +363,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   }
 
   try {
-    core.info("Using built-in github object for mutation");
+    core.info("Executing agent assignment GraphQL mutation");
 
     // Build debug log message with all parameters
     const debugParts = [
@@ -375,7 +380,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     // Build GraphQL-Features header - include coding_agent_model_selection when model is provided
     const graphqlFeatures = model ? "issues_copilot_assignment_api_support,coding_agent_model_selection" : "issues_copilot_assignment_api_support";
 
-    const response = await github.graphql(mutation, {
+    const response = await githubClient.graphql(mutation, {
       ...variables,
       headers: {
         "GraphQL-Features": graphqlFeatures,
@@ -472,9 +477,9 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
             }
           }
         `;
-        core.info("Using built-in github object for fallback mutation");
+        core.info("Executing fallback agent assignment GraphQL mutation");
         core.debug(`Fallback GraphQL mutation with variables: assignableId=${assignableId}, assigneeIds=[${agentId}]`);
-        const fallbackResp = await github.graphql(fallbackMutation, {
+        const fallbackResp = await githubClient.graphql(fallbackMutation, {
           assignableId,
           assigneeIds: [agentId],
           headers: {

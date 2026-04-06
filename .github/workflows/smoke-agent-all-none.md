@@ -11,7 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 name: "Smoke Agent: all/none"
-engine: codex
+engine: claude
 strict: true
 tools:
   github:
