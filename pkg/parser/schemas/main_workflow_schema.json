@@ -1887,7 +1887,7 @@
             },
             "status-comment": {
               "type": "boolean",
-              "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link and updates it on completion. When false or not specified, no status comments are posted. Must be explicitly set to true to enable status comments - there is no automatic bundling with ai-reaction.",
+              "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link and updates it on completion. When false or not specified, no status comments are posted. Automatically enabled for slash_command and label_command triggers — manual configuration is only needed for other trigger types.",
               "examples": [true, false]
             },
             "github-token": {

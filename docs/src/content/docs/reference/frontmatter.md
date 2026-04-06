@@ -30,7 +30,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 
 - Standard GitHub Actions triggers (push, pull_request, issues, schedule, etc.)
 - `reaction:` - Add emoji reactions to triggering items
-- `status-comment:` - Post a started/completed comment with a workflow run link (must be explicitly set to `true`; not automatically enabled by `reaction:`)
+- `status-comment:` - Post a started/completed comment with a workflow run link (automatically enabled for `slash_command` and `label_command` triggers; must be explicitly set to `true` for other trigger types)
 - `stop-after:` - Automatically disable triggers after a deadline
 - `manual-approval:` - Require manual approval using environment protection rules
 - `forks:` - Configure fork filtering for pull_request triggers
