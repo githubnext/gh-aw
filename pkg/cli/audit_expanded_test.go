@@ -668,7 +668,7 @@ func TestAwInfoHasMCPServers(t *testing.T) {
 			err := os.WriteFile(filepath.Join(targetDir, "aw_info.json"), []byte(tt.awInfoContent), 0644)
 			require.NoError(t, err, "Should write aw_info.json")
 
-			names, hasMCP := awInfoHasMCPServers(tmpDir)
+			names, hasMCP := extractMCPServerNamesFromAwInfo(tmpDir)
 			assert.Equal(t, tt.expectedHasMCP, hasMCP, "Has MCP servers should match")
 			if tt.expectedHasMCP {
 				assert.Equal(t, tt.expectedNames, names, "MCP server names should match")

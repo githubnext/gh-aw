@@ -136,7 +136,7 @@ func extractEngineConfig(logsPath string) *EngineConfig {
 	}
 
 	// Extract MCP server names from aw_info.json steps metadata
-	if mcpNames, ok := awInfoHasMCPServers(logsPath); ok {
+	if mcpNames, ok := extractMCPServerNamesFromAwInfo(logsPath); ok {
 		config.MCPServers = mcpNames
 	}
 
@@ -458,10 +458,11 @@ func buildSlowestToolCalls(calls []MCPToolCall, topN int) []MCPSlowestToolCall {
 	return result
 }
 
-// awInfoHasMCPServers checks if aw_info.json has MCP server configuration in steps.
+// extractMCPServerNamesFromAwInfo extracts MCP server names from aw_info.json steps metadata
+// and returns them along with a boolean indicating whether any servers were found.
 // We need to inspect the raw JSON since AwInfoSteps.MCPServers may not be
 // deserialized as a map for all formats.
-func awInfoHasMCPServers(logsPath string) ([]string, bool) {
+func extractMCPServerNamesFromAwInfo(logsPath string) ([]string, bool) {
 	awInfoPath := findAwInfoPath(logsPath)
 	if awInfoPath == "" {
 		return nil, false
