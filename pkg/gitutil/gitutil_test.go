@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsRateLimitError(t *testing.T) {
@@ -245,7 +246,7 @@ func TestExtractBaseRepo(t *testing.T) {
 func TestFindGitRoot(t *testing.T) {
 	t.Run("returns non-empty path when inside a git repository", func(t *testing.T) {
 		gitRoot, err := FindGitRoot()
-		assert.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
+		require.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
 		assert.NotEmpty(t, gitRoot, "FindGitRoot should return a non-empty path")
 	})
 }
