@@ -202,10 +202,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
-		// Inject the GitHub Actions context workflow_ref expression so that check_workflow_timestamp_api.cjs
-		// can identify the source repo correctly for cross-repo workflow_call invocations.
-		// Unlike the GITHUB_WORKFLOW_REF env var (which always reflects the top-level caller in workflow_call),
-		// ${{ github.workflow_ref }} correctly refers to the current reusable workflow being executed.
+		// Inject the GitHub Actions context workflow_ref expression as GH_AW_CONTEXT_WORKFLOW_REF
+		// for check_workflow_timestamp_api.cjs. Note: despite what was previously documented,
+		// ${{ github.workflow_ref }} resolves to the CALLER's workflow ref in reusable workflow
+		// contexts, not the callee's. The referenced_workflows API lookup in the script is the
+		// primary mechanism for resolving the callee's repo; GH_AW_CONTEXT_WORKFLOW_REF serves
+		// as a fallback when the API is unavailable or finds no matching entry.
 		steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_REF: \"${{ github.workflow_ref }}\"\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")

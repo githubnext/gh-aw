@@ -798,8 +798,11 @@ engine: copilot
     // Regression test for https://github.com/github/gh-aw/issues/23935
     // When a reusable workflow is invoked cross-repo via workflow_call:
     // - GITHUB_WORKFLOW_REF (env var) = top-level CALLER's workflow (e.g., repo-b/caller.yml@main)
-    // - GH_AW_CONTEXT_WORKFLOW_REF (injected from ${{ github.workflow_ref }}) = the CALLEE's reusable workflow
-    // Without this fix, the script would look for lock files in the caller's repo (404).
+    // - GH_AW_CONTEXT_WORKFLOW_REF (injected from ${{ github.workflow_ref }}) = CALLER's workflow too
+    //   (github.workflow_ref resolves to the caller in reusable workflow contexts)
+    // The referenced_workflows API lookup is the primary fix; GH_AW_CONTEXT_WORKFLOW_REF is
+    // used as a fallback. These tests cover the fallback path (no GITHUB_RUN_ID set) where
+    // GH_AW_CONTEXT_WORKFLOW_REF happens to correctly identify the callee (e.g., same-repo case).
 
     beforeEach(() => {
       process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
@@ -807,8 +810,10 @@ engine: copilot
       // called from caller-repo. GITHUB_WORKFLOW_REF wrongly points to the caller's workflow.
       process.env.GITHUB_WORKFLOW_REF = "caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main";
       process.env.GITHUB_REPOSITORY = "caller-owner/caller-repo";
-      // GH_AW_CONTEXT_WORKFLOW_REF is injected by the compiler from ${{ github.workflow_ref }}
-      // which correctly identifies the reusable workflow being executed.
+      // GH_AW_CONTEXT_WORKFLOW_REF is used as a fallback for repo resolution when the
+      // referenced_workflows API lookup is unavailable (no GITHUB_RUN_ID in these tests).
+      // Note: in practice, ${{ github.workflow_ref }} resolves to the caller's workflow,
+      // but when set correctly it still serves as a reliable fallback.
       process.env.GH_AW_CONTEXT_WORKFLOW_REF = "platform-owner/platform-repo/.github/workflows/test.lock.yml@refs/heads/main";
     });
 
@@ -922,10 +927,14 @@ engine: copilot
   });
 
   describe("cross-repo reusable workflow via referenced_workflows API (issue #24422)", () => {
-    // Fix for https://github.com/github/gh-aw/issues/24422
-    // When a reusable workflow is triggered by workflow_call, github.workflow_ref
-    // can still point to the caller's workflow. This fix uses referenced_workflows
-    // from the GitHub Actions API run object to reliably identify the callee's repo.
+    // Fix for https://github.com/github/gh-aw/issues/24422 and cross-repo bug
+    // When a reusable workflow is triggered, GITHUB_EVENT_NAME reflects the ORIGINAL trigger
+    // event (e.g., "push", "issues"), NOT "workflow_call". We therefore cannot rely on event
+    // name to detect cross-repo scenarios.
+    //
+    // Additionally, github.workflow_ref (injected as GH_AW_CONTEXT_WORKFLOW_REF) resolves to
+    // the CALLER's workflow ref, not the callee's. The referenced_workflows API lookup from
+    // the caller's run object is the reliable way to identify the callee's repo and ref.
     //
     // In the workflow_call context, GITHUB_RUN_ID and GITHUB_REPOSITORY are set to
     // the caller's run and repo. The caller's run object includes referenced_workflows
@@ -937,7 +946,7 @@ engine: copilot
       process.env.GITHUB_RUN_ID = "12345";
       // GITHUB_REPOSITORY is the caller's repo in a workflow_call context
       process.env.GITHUB_REPOSITORY = "caller-owner/caller-repo";
-      // GH_AW_CONTEXT_WORKFLOW_REF (from ${{ github.workflow_ref }}) may still point to caller
+      // GH_AW_CONTEXT_WORKFLOW_REF (from ${{ github.workflow_ref }}) resolves to the caller
       process.env.GH_AW_CONTEXT_WORKFLOW_REF = "caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main";
       process.env.GITHUB_WORKFLOW_REF = "caller-owner/caller-repo/.github/workflows/caller.yml@refs/heads/main";
     });
@@ -994,7 +1003,7 @@ engine: copilot
 
       await main();
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("workflow_call event detected"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Checking for cross-repo callee via referenced_workflows API"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved callee repo from referenced_workflows: callee-owner/callee-repo"));
     });
 
@@ -1044,13 +1053,29 @@ engine: copilot
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
     });
 
-    it("should not call referenced_workflows API for non-workflow_call events", async () => {
+    it("should call referenced_workflows API even for non-workflow_call events", async () => {
+      // In reusable workflows, GITHUB_EVENT_NAME reflects the original trigger event (e.g.,
+      // "push"), not "workflow_call". We must try referenced_workflows regardless of event name.
       process.env.GITHUB_EVENT_NAME = "push";
+      mockGithub.rest.actions.getWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "callee-owner/callee-repo/.github/workflows/callee-workflow.lock.yml@refs/heads/main",
+              sha: "deadbeef",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
       mockGithub.rest.repos.getContent.mockResolvedValue({ data: null });
 
       await main();
 
-      expect(mockGithub.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+      // API must be called even for "push" events
+      expect(mockGithub.rest.actions.getWorkflowRun).toHaveBeenCalled();
+      // Resolves to callee repo even though GITHUB_EVENT_NAME is "push"
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "callee-owner", repo: "callee-repo" }));
     });
 
     it("should prefer sha over ref from referenced_workflows entry", async () => {
@@ -1112,7 +1137,7 @@ engine: copilot
 
       // API must not be called with a NaN run_id
       expect(mockGithub.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("run ID is unavailable or invalid"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Run ID is unavailable or invalid"));
       // Falls back to caller repo from GH_AW_CONTEXT_WORKFLOW_REF
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
     });
