@@ -357,7 +357,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// For stdio mode, we only write the files but don't start the HTTP server
 	if IsMCPScriptsEnabled(workflowData.MCPScripts, workflowData) {
 		// Step 1: Write config files (JavaScript files are now copied by actions/setup)
-		yaml.WriteString("      - name: Setup MCP Scripts Config\n")
+		yaml.WriteString("      - name: Write MCP Scripts Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\n")
 
@@ -382,7 +382,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Step 2: Generate tool files (js/py/sh)
-		yaml.WriteString("      - name: Setup MCP Scripts Tool Files\n")
+		yaml.WriteString("      - name: Write MCP Scripts Tool Files\n")
 		yaml.WriteString("        run: |\n")
 
 		// Generate individual tool files (sorted by name for stable code generation)

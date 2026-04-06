@@ -1,193 +1,358 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
+import path from "path";
+
+const mockCore = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  summary: {
+    addRaw: vi.fn().mockReturnThis(),
+    write: vi.fn().mockResolvedValue(),
+  },
+};
+
+const mockExec = {
+  exec: vi.fn().mockResolvedValue(0),
+  getExecOutput: vi.fn(),
+};
+
+const mockContext = {
+  repo: { owner: "test-owner", repo: "test-repo" },
+};
+
+global.core = mockCore;
+global.exec = mockExec;
+global.context = mockContext;
+
 describe("create_agent_session.cjs", () => {
-  let mockCore, mockExec, mockContext, testOutputFile;
-  (beforeEach(() => {
-    ((mockCore = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } }),
-      (mockExec = { exec: vi.fn().mockResolvedValue(0), getExecOutput: vi.fn() }),
-      (mockContext = { repo: { owner: "test-owner", repo: "test-repo" } }),
-      (global.core = mockCore),
-      (global.exec = mockExec),
-      (global.context = mockContext),
-      (testOutputFile = `/tmp/test_agent_output_${Date.now()}.json`));
-  }),
-    afterEach(() => {
-      (delete global.core,
-        delete global.exec,
-        delete global.context,
-        delete process.env.GH_AW_AGENT_OUTPUT,
-        delete process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED,
-        delete process.env.GITHUB_AW_AGENT_SESSION_BASE,
-        delete process.env.GH_AW_TARGET_REPO_SLUG,
-        delete process.env.GH_AW_ALLOWED_REPOS,
-        delete process.env.GITHUB_REPOSITORY,
-        fs.existsSync(testOutputFile) && fs.unlinkSync(testOutputFile));
-    }));
-  const createAgentOutput = items => {
-      const output = { items };
-      (fs.writeFileSync(testOutputFile, JSON.stringify(output)), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile));
-    },
-    runScript = async () => {
-      ((global.core = mockCore), (global.exec = mockExec), (global.context = mockContext));
-      const scriptPath = require("path").join(process.cwd(), "create_agent_session.cjs");
-      delete require.cache[require.resolve(scriptPath)];
-      try {
-        const { main } = require(scriptPath);
-        await main();
-      } catch (error) {}
-    };
-  ((describe("basic functionality", () => {
-    (it("should handle missing environment variable", async () => {
-      (delete process.env.GH_AW_AGENT_OUTPUT,
-        await runScript(),
-        expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"),
-        expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", ""),
-        expect(mockCore.setOutput).toHaveBeenCalledWith("session_url", ""));
-    }),
-      it("should handle missing output file", async () => {
-        ((process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.json"),
-          await runScript(),
-          expect(mockCore.setFailed).not.toHaveBeenCalled(),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output file not available")));
-      }),
-      it("should handle empty agent output", async () => {
-        (fs.writeFileSync(testOutputFile, ""), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
-      }),
-      it("should handle invalid JSON", async () => {
-        (fs.writeFileSync(testOutputFile, "invalid json"),
-          (process.env.GH_AW_AGENT_OUTPUT = testOutputFile),
-          await runScript(),
-          expect(mockCore.setFailed).toHaveBeenCalled(),
-          expect(mockCore.setFailed.mock.calls[0][0]).toContain("Error parsing agent output JSON"));
-      }),
-      it("should handle no create_agent_session items", async () => {
-        (createAgentOutput([{ type: "create_issue", title: "Test", body: "Content" }]), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No create-agent-session items found in agent output"));
-      }));
-  }),
-  describe("staged mode", () => {
-    (beforeEach(() => {
-      ((process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"), (process.env.GITHUB_AW_AGENT_SESSION_BASE = "main"), (process.env.GITHUB_REPOSITORY = "owner/repo"));
-    }),
-      it("should preview agent sessions in staged mode", async () => {
-        (createAgentOutput([
-          { type: "create_agent_session", body: "Implement feature X" },
-          { type: "create_agent_session", body: "Fix bug Y" },
-        ]),
-          await runScript(),
-          expect(mockCore.info).toHaveBeenCalled());
-        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-        (expect(summaryCall[0]).toContain("🎭 Staged Mode: Create Agent Sessions Preview"),
-          expect(summaryCall[0]).toContain("Implement feature X"),
-          expect(summaryCall[0]).toContain("Fix bug Y"),
-          expect(summaryCall[0]).toContain("**Base Branch:** main"),
-          expect(summaryCall[0]).toContain("**Target Repository:** test-owner/test-repo"),
-          expect(mockCore.summary.write).toHaveBeenCalled());
-      }),
-      it("should handle task without body in staged mode", async () => {
-        (createAgentOutput([{ type: "create_agent_session", body: "" }]), await runScript());
-        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-        expect(summaryCall[0]).toContain("No description provided");
-      }),
-      it("should use target repo when specified", async () => {
-        ((process.env.GH_AW_TARGET_REPO_SLUG = "org/target-repo"), createAgentOutput([{ type: "create_agent_session", body: "Test task" }]), await runScript());
-        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-        expect(summaryCall[0]).toContain("**Target Repository:** org/target-repo");
-      }));
-  }),
-  describe("agent session creation", () => {
-    (beforeEach(() => {
-      ((process.env.GITHUB_AW_AGENT_SESSION_BASE = "develop"), (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "false"));
-    }),
-      it("should skip tasks with empty body", async () => {
-        (createAgentOutput([
-          { type: "create_agent_session", body: "" },
-          { type: "create_agent_session", body: "  \n\t  " },
-        ]),
-          await runScript(),
-          expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent task description is empty, skipping")));
-      }),
-      it("should log agent output content length", async () => {
-        (createAgentOutput([{ type: "create_agent_session", body: "Test agent session description" }]),
-          await runScript(),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output content length:")),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 1 create-agent-session item(s)")));
-      }));
-  }),
-  describe("output initialization", () => {
-    it("should initialize outputs to empty strings", async () => {
-      (delete process.env.GH_AW_AGENT_OUTPUT, await runScript(), expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", ""), expect(mockCore.setOutput).toHaveBeenCalledWith("session_url", ""));
+  let createAgentSessionModule;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
+    delete process.env.GH_AW_ALLOWED_REPOS;
+    delete process.env.GH_AW_AGENT_SESSION_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+
+    // Clear module cache to get a fresh module for each test
+    const scriptPath = path.join(process.cwd(), "create_agent_session.cjs");
+    delete require.cache[require.resolve(scriptPath)];
+    createAgentSessionModule = require(scriptPath);
+  });
+
+  afterEach(() => {
+    // Clean up tmp files
+    try {
+      const files = fs.readdirSync("/tmp/gh-aw").filter(f => f.startsWith("agent-task-description-"));
+      for (const file of files) {
+        fs.unlinkSync(path.join("/tmp/gh-aw", file));
+      }
+    } catch {}
+  });
+
+  describe("handler factory", () => {
+    it("should return a function when main() is called", async () => {
+      const handler = await createAgentSessionModule.main({});
+      expect(typeof handler).toBe("function");
     });
-  }),
-  describe("edge cases", () => {
-    (it("should handle output with no items array", async () => {
-      (fs.writeFileSync(testOutputFile, JSON.stringify({})), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
-    }),
-      it("should handle output with non-array items", async () => {
-        (fs.writeFileSync(testOutputFile, JSON.stringify({ items: "not an array" })), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
-      }),
-      it("should use default base branch when not specified", async () => {
-        (delete process.env.GITHUB_AW_AGENT_SESSION_BASE, delete process.env.GITHUB_REF_NAME, (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"), createAgentOutput([{ type: "create_agent_session", body: "Test" }]), await runScript());
-        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-        expect(summaryCall[0]).toContain("**Base Branch:** main");
-      }),
-      it("should use GITHUB_REF_NAME as fallback for base branch", async () => {
-        (delete process.env.GITHUB_AW_AGENT_SESSION_BASE,
-          (process.env.GITHUB_REF_NAME = "feature-branch"),
-          (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"),
-          createAgentOutput([{ type: "create_agent_session", body: "Test" }]),
-          await runScript());
-        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-        expect(summaryCall[0]).toContain("**Base Branch:** main");
-      }));
-  })),
-    describe("Cross-repository allowlist validation", () => {
-      it("should reject target repository not in allowlist", async () => {
-        process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
 
-        createAgentOutput([{ type: "create_agent_session", body: "Test task", repo: "not-allowed/other-repo" }]);
+    it("should log configuration on initialization", async () => {
+      await createAgentSessionModule.main({ base: "develop" });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Configured base branch: develop"));
+    });
 
-        await runScript();
+    it("should log target repo on initialization", async () => {
+      await createAgentSessionModule.main({ "target-repo": "owner/repo" });
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Default target repo: owner/repo"));
+    });
+  });
 
-        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("E004:"));
-        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+  describe("message handler - empty/invalid body", () => {
+    it("should skip messages with empty body", async () => {
+      const handler = await createAgentSessionModule.main({});
+      const result = await handler({ type: "create_agent_session", body: "" });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Empty task description");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent task description is empty, skipping"));
+    });
+
+    it("should skip messages with whitespace-only body", async () => {
+      const handler = await createAgentSessionModule.main({});
+      const result = await handler({ type: "create_agent_session", body: "  \n\t  " });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("staged mode", () => {
+    it("should generate staged preview and return skipped without calling gh CLI", async () => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Implement feature X" });
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+      // Should have written a staged preview summary
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Create Agent Session Preview"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Implement feature X"));
+    });
+
+    it("should include base branch and target repo in staged preview", async () => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      const handler = await createAgentSessionModule.main({ base: "develop" });
+      await handler({ type: "create_agent_session", body: "Test task" });
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("develop"));
+    });
+
+    it("should support staged mode via config flag", async () => {
+      const handler = await createAgentSessionModule.main({ staged: true, base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task" });
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
+      expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("successful session creation", () => {
+    it("should create agent session and extract task number from URL", async () => {
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/123",
+        stderr: "",
       });
 
-      it("should allow target repository in allowlist", async () => {
-        process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Implement feature X" });
 
-        createAgentOutput([{ type: "create_agent_session", body: "Test task", repo: "allowed-owner/allowed-repo" }]);
+      expect(result.success).toBe(true);
+      expect(result.number).toBe("123");
+      expect(result.url).toBe("https://github.com/test-owner/test-repo/issues/123");
+    });
 
-        // Mock gh CLI command
-        mockExec.getExecOutput.mockResolvedValueOnce({
-          exitCode: 0,
-          stdout: "https://github.com/allowed-owner/allowed-repo/issues/123",
-          stderr: "",
-        });
-
-        await runScript();
-
-        expect(mockCore.setFailed).not.toHaveBeenCalled();
-        expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", "123");
+    it("should use configured base branch when calling gh CLI", async () => {
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/42",
+        stderr: "",
       });
 
-      it("should allow default repository without allowlist", async () => {
-        // No GH_AW_TARGET_REPO_SLUG set, no GH_AW_ALLOWED_REPOS set - uses context repo
-        delete process.env.GH_AW_TARGET_REPO_SLUG;
-        delete process.env.GH_AW_ALLOWED_REPOS;
+      const handler = await createAgentSessionModule.main({ base: "develop" });
+      await handler({ type: "create_agent_session", body: "Test task" });
 
-        createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("gh", expect.arrayContaining(["--base", "develop"]), expect.any(Object));
+    });
 
-        // Mock gh CLI command
-        mockExec.getExecOutput.mockResolvedValueOnce({
-          exitCode: 0,
-          stdout: "https://github.com/test-owner/test-repo/issues/123",
-          stderr: "",
-        });
-
-        await runScript();
-
-        expect(mockCore.setFailed).not.toHaveBeenCalled();
-        expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", "123");
+    it("should add --repo flag for cross-repo sessions", async () => {
+      process.env.GH_AW_ALLOWED_REPOS = "other-owner/other-repo";
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/other-owner/other-repo/issues/99",
+        stderr: "",
       });
-    }));
+
+      const handler = await createAgentSessionModule.main({ "target-repo": "other-owner/other-repo", base: "main" });
+      await handler({ type: "create_agent_session", body: "Cross-repo task", repo: "other-owner/other-repo" });
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("gh", expect.arrayContaining(["--repo", "other-owner/other-repo"]), expect.any(Object));
+    });
+
+    it("should use GH_AW_AGENT_SESSION_TOKEN as GH_TOKEN for gh CLI", async () => {
+      process.env.GH_AW_AGENT_SESSION_TOKEN = "test-pat-token";
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/55",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      await handler({ type: "create_agent_session", body: "Test task" });
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith(
+        "gh",
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({ GH_TOKEN: "test-pat-token" }),
+        })
+      );
+    });
+
+    it("should prefer per-handler github-token over GH_AW_AGENT_SESSION_TOKEN", async () => {
+      process.env.GH_AW_AGENT_SESSION_TOKEN = "step-token";
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/55",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main", "github-token": "per-handler-token" });
+      await handler({ type: "create_agent_session", body: "Test task" });
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith(
+        "gh",
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({ GH_TOKEN: "per-handler-token" }),
+        })
+      );
+    });
+  });
+
+  describe("error handling", () => {
+    it("should return failure when gh CLI fails with auth error", async () => {
+      mockExec.getExecOutput.mockRejectedValueOnce(new Error("permission denied (403)"));
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task" });
+
+      expect(result.success).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("authentication/permission error"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("GH_AW_AGENT_SESSION_TOKEN"));
+    });
+
+    it("should return failure when gh CLI fails with generic error", async () => {
+      mockExec.getExecOutput.mockRejectedValueOnce(new Error("gh: command not found"));
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task" });
+
+      expect(result.success).toBe(false);
+      expect(mockCore.error).toHaveBeenCalled();
+    });
+
+    it("should warn when task number cannot be parsed from output", async () => {
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "Task created successfully",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task" });
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe("");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not parse task number"));
+    });
+
+    it("should reject repositories not in allowlist", async () => {
+      process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+
+      const handler = await createAgentSessionModule.main({ "target-repo": "other-owner/other-repo", base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task", repo: "not-allowed/other-repo" });
+
+      expect(result.success).toBe(false);
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+    });
+  });
+
+  describe("module-level getters", () => {
+    it("getCreateAgentSessionNumber() returns first successful session number", async () => {
+      mockExec.getExecOutput.mockResolvedValue({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/42",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      await handler({ type: "create_agent_session", body: "Task 1" });
+
+      expect(createAgentSessionModule.getCreateAgentSessionNumber()).toBe("42");
+    });
+
+    it("getCreateAgentSessionUrl() returns first successful session URL", async () => {
+      const expectedUrl = "https://github.com/test-owner/test-repo/issues/42";
+      mockExec.getExecOutput.mockResolvedValue({
+        exitCode: 0,
+        stdout: expectedUrl,
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      await handler({ type: "create_agent_session", body: "Task 1" });
+
+      expect(createAgentSessionModule.getCreateAgentSessionUrl()).toBe(expectedUrl);
+    });
+
+    it("getCreateAgentSessionNumber() returns empty string when no sessions created", async () => {
+      await createAgentSessionModule.main({ base: "main" });
+      expect(createAgentSessionModule.getCreateAgentSessionNumber()).toBe("");
+    });
+
+    it("getCreateAgentSessionUrl() returns empty string when no sessions created", async () => {
+      await createAgentSessionModule.main({ base: "main" });
+      expect(createAgentSessionModule.getCreateAgentSessionUrl()).toBe("");
+    });
+  });
+
+  describe("writeCreateAgentSessionSummary()", () => {
+    it("should write summary with successful sessions", async () => {
+      mockExec.getExecOutput.mockResolvedValue({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/42",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      await handler({ type: "create_agent_session", body: "Task 1" });
+      await createAgentSessionModule.writeCreateAgentSessionSummary();
+
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Agent Sessions"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("42"));
+    });
+
+    it("should not write summary when no results", async () => {
+      await createAgentSessionModule.main({ base: "main" });
+      await createAgentSessionModule.writeCreateAgentSessionSummary();
+
+      expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
+    });
+
+    it("should write summary with failed sessions", async () => {
+      mockExec.getExecOutput.mockRejectedValueOnce(new Error("some error"));
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      await handler({ type: "create_agent_session", body: "Task 1" });
+      await createAgentSessionModule.writeCreateAgentSessionSummary();
+
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("❌ Failed"));
+    });
+  });
+
+  describe("cross-repository allowlist validation", () => {
+    it("should allow target repository in allowlist", async () => {
+      process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/allowed-owner/allowed-repo/issues/123",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ "target-repo": "allowed-owner/allowed-repo", base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task", repo: "allowed-owner/allowed-repo" });
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe("123");
+    });
+
+    it("should allow default repository without allowlist", async () => {
+      delete process.env.GH_AW_TARGET_REPO_SLUG;
+      delete process.env.GH_AW_ALLOWED_REPOS;
+      mockExec.getExecOutput.mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: "https://github.com/test-owner/test-repo/issues/123",
+        stderr: "",
+      });
+
+      const handler = await createAgentSessionModule.main({ base: "main" });
+      const result = await handler({ type: "create_agent_session", body: "Test task" });
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe("123");
+    });
+  });
 });

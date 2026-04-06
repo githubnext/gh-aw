@@ -25,6 +25,13 @@ func (c *Compiler) hasCustomTokenSafeOutputs(safeOutputs *SafeOutputsConfig) boo
 		return true
 	}
 
+	// assign-to-agent always needs @actions/github to create a dedicated Octokit
+	// instance using the agent token (GH_AW_ASSIGN_TO_AGENT_TOKEN).
+	if safeOutputs.AssignToAgent != nil {
+		consolidatedSafeOutputsLog.Print("Custom token required: assign-to-agent detected")
+		return true
+	}
+
 	// Check BaseSafeOutputConfig.GitHubToken on all safe output types.
 	// Note: the top-level safeOutputs.GitHubToken is intentionally NOT checked
 	// here — that token is used as the step-level github-script token and does

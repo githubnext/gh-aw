@@ -11,7 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 name: "Smoke Agent: public/approved"
-engine: codex
+engine: claude
 strict: true
 imports:
   - shared/github-guard-policy.md

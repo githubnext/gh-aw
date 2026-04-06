@@ -4,126 +4,87 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
+const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 const fs = require("fs");
 const path = require("path");
 
-async function main() {
-  // Initialize outputs to empty strings to ensure they're always set
-  core.setOutput("session_number", "");
-  core.setOutput("session_url", "");
+/**
+ * Module-level state — populated by handleMessage(), read by the exported getters below.
+ * Using module-level variables (rather than closure-only state) allows the handler
+ * manager to read final output values after all messages have been processed.
+ * @type {Array<{number: string, url: string, success: boolean, error?: string}>}
+ */
+let _allResults = [];
 
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (!agentOutputFile) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-    return;
-  }
+/**
+ * Handler factory for create-agent-session safe output.
+ *
+ * Replaces the standalone create_agent_session step. This function is called once by the
+ * safe output handler manager with the handler's configuration. It returns a message
+ * processor function that is invoked for each create_agent_session message in the agent output.
+ *
+ * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+ * @returns {Promise<Function>} Message processor function
+ */
+async function main(config = {}) {
+  // Reset module-level state for this run
+  _allResults = [];
 
-  // Read agent output from file
-  let outputContent;
-  try {
-    outputContent = fs.readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    // A missing agent_output.json is expected when the engine fails before writing any safe outputs.
-    // Log at info level (not a failure of this step) and exit gracefully.
-    core.info(`Agent output file not available: ${getErrorMessage(error)}`);
-    return;
-  }
+  // Parse configuration
+  const configuredBaseBranch = config.base ? String(config.base).trim() : null;
+  const isStaged = isStagedMode(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    return;
-  }
-  core.info(`Agent output content length: ${outputContent.length}`);
+  if (configuredBaseBranch) core.info(`Configured base branch: ${configuredBaseBranch}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
 
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    return;
-  }
-
-  const createAgentSessionItems = validatedOutput.items.filter(item => item.type === "create_agent_session");
-  if (createAgentSessionItems.length === 0) {
-    core.info("No create-agent-session items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${createAgentSessionItems.length} create-agent-session item(s)`);
-
-  // Get default target repository and allowed repos using standardized helpers
-  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig({
-    allowed_repos: process.env.GH_AW_ALLOWED_REPOS,
-  });
-
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Create Agent Sessions Preview\n\n";
-    summaryContent += "The following agent sessions would be created if staged mode was disabled:\n\n";
-
-    for (const [index, item] of createAgentSessionItems.entries()) {
-      // Resolve and validate target repository for this item using the standardized helper
-      const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "agent session");
-      if (!repoResult.success) {
-        summaryContent += `### Task ${index + 1}\n\n`;
-        summaryContent += `**Error:** ${repoResult.error}\n\n`;
-        summaryContent += "---\n\n";
-        continue;
-      }
-      const { repo: effectiveRepo, repoParts } = repoResult;
-
-      // Resolve base branch: use custom config if set, otherwise resolve dynamically
-      // Pass target repo for cross-repo scenarios
-      const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch(repoParts));
-
-      summaryContent += `### Task ${index + 1}\n\n`;
-      summaryContent += `**Description:**\n${item.body || "No description provided"}\n\n`;
-
-      summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
-
-      summaryContent += `**Target Repository:** ${effectiveRepo}\n\n`;
-
-      summaryContent += "---\n\n";
-    }
-
-    core.info(summaryContent);
-    core.summary.addRaw(summaryContent);
-    await core.summary.write();
-    return;
-  }
-
-  // Process all agent session items
-  const createdTasks = [];
-  let summaryContent = "## ✅ Agent Sessions Created\n\n";
-
-  for (const [index, taskItem] of createAgentSessionItems.entries()) {
-    const taskDescription = taskItem.body;
+  /**
+   * Process a single create_agent_session message.
+   * @param {Object} message - The agent output message
+   * @returns {Promise<{success: boolean, number?: string, url?: string, error?: string}>}
+   */
+  return async function handleMessage(message) {
+    const taskDescription = message.body;
 
     if (!taskDescription || taskDescription.trim() === "") {
-      core.warning(`Task ${index + 1}: Agent task description is empty, skipping`);
-      continue;
+      core.warning("Agent task description is empty, skipping");
+      _allResults.push({ number: "", url: "", success: false, error: "Empty task description" });
+      return { success: false, error: "Empty task description" };
     }
 
-    // Resolve and validate target repository for this item using the standardized helper.
-    // taskItem.repo field (if present) overrides the default target repo.
-    const repoResult = resolveAndValidateRepo(taskItem, defaultTargetRepo, allowedRepos, "agent session");
+    // Resolve and validate target repository for this message
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "agent session");
     if (!repoResult.success) {
-      core.error(`E004: ${repoResult.error}`);
-      continue;
+      const errorMsg = `E004: ${repoResult.error}`;
+      core.error(errorMsg);
+      _allResults.push({ number: "", url: "", success: false, error: repoResult.error });
+      return { success: false, error: repoResult.error };
     }
     const { repo: effectiveRepo, repoParts } = repoResult;
 
-    // Resolve base branch: use custom config if set, otherwise resolve dynamically
+    // Resolve base branch: use custom config if set, otherwise resolve dynamically.
     // Dynamic resolution is needed for issue_comment events on PRs where the base branch
-    // is not available in GitHub Actions expressions and requires an API call
-    // Pass target repo for cross-repo scenarios
-    const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || (await getBaseBranch(repoParts));
+    // is not available in GitHub Actions expressions and requires an API call.
+    const baseBranch = configuredBaseBranch || (await getBaseBranch(repoParts));
+
+    if (isStaged) {
+      await generateStagedPreview({
+        title: "Create Agent Session",
+        description: "The following agent sessions would be created if staged mode was disabled:",
+        items: [message],
+        renderItem: item => {
+          const parts = [];
+          parts.push(`**Description:**\n${item.body}`);
+          parts.push(`**Base Branch:** ${baseBranch}`);
+          parts.push(`**Target Repository:** ${effectiveRepo}`);
+          return parts.join("\n\n") + "\n\n";
+        },
+      });
+      return { success: true, skipped: true };
+    }
 
     try {
       // Write task description to a temporary file
@@ -132,9 +93,10 @@ async function main() {
         fs.mkdirSync(tmpDir, { recursive: true });
       }
 
-      const taskFile = path.join(tmpDir, `agent-task-description-${index + 1}.md`);
+      const taskIndex = _allResults.length + 1;
+      const taskFile = path.join(tmpDir, `agent-task-description-${taskIndex}.md`);
       fs.writeFileSync(taskFile, taskDescription, "utf8");
-      core.info(`Task ${index + 1}: Task description written to ${taskFile}`);
+      core.info(`Task ${taskIndex}: Task description written to ${taskFile}`);
 
       // Build gh agent-task create command
       const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
@@ -144,7 +106,10 @@ async function main() {
         ghArgs.push("--repo", effectiveRepo);
       }
 
-      core.info(`Task ${index + 1}: Creating agent session with command: gh ${ghArgs.join(" ")}`);
+      core.info(`Task ${taskIndex}: Creating agent session with command: gh ${ghArgs.join(" ")}`);
+
+      // Determine token: prefer per-handler token, fall back to step-level token
+      const ghToken = config["github-token"] || process.env.GH_AW_AGENT_SESSION_TOKEN || process.env.GITHUB_TOKEN || "";
 
       // Execute gh agent-task create command
       let taskOutput;
@@ -154,7 +119,7 @@ async function main() {
           ignoreReturnCode: false,
           env: {
             ...process.env,
-            GH_TOKEN: process.env.GITHUB_TOKEN || "",
+            GH_TOKEN: ghToken,
           },
         });
       } catch (execError) {
@@ -162,55 +127,101 @@ async function main() {
 
         // Check for authentication/permission errors
         if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
-          core.error(`Task ${index + 1}: Failed to create agent session due to authentication/permission error.`);
-          core.error(`The default GITHUB_TOKEN does not have permission to create agent sessions.`);
-          core.error(`You must configure a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN or GH_AW_GITHUB_TOKEN.`);
+          core.error(`Task ${taskIndex}: Failed to create agent session due to authentication/permission error.`);
+          core.error(`The default GITHUB_TOKEN may not have permission to create agent sessions.`);
+          core.error(`Configure a Personal Access Token (PAT) using the handler's github-token setting or GH_AW_AGENT_SESSION_TOKEN.`);
           core.error(`See documentation: https://github.github.com/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-session`);
         } else {
-          core.error(`Task ${index + 1}: Failed to create agent session: ${errorMessage}`);
+          core.error(`Task ${taskIndex}: Failed to create agent session: ${errorMessage}`);
         }
-        continue;
+        _allResults.push({ number: "", url: "", success: false, error: errorMessage });
+        return { success: false, error: errorMessage };
       }
 
-      // Parse the output to extract task number and URL
+      // Parse the output to extract task number and URL.
       // Expected output format from gh agent-task create is typically:
       // https://github.com/owner/repo/issues/123
       const output = taskOutput.stdout.trim();
-      core.info(`Task ${index + 1}: Agent task created: ${output}`);
+      core.info(`Task ${taskIndex}: Agent task created: ${output}`);
 
       // Extract task number from URL
       const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
       if (urlMatch) {
         const taskNumber = urlMatch[1];
-        createdTasks.push({ number: taskNumber, url: output });
-
-        summaryContent += `### Task ${index + 1}\n\n`;
-        summaryContent += `**Task:** [#${taskNumber}](${output})\n\n`;
-        summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
-
         core.info(`✅ Successfully created agent session #${taskNumber}`);
+        _allResults.push({ number: taskNumber, url: output, success: true });
+        return { success: true, number: taskNumber, url: output };
       } else {
-        core.warning(`Task ${index + 1}: Could not parse task number from output: ${output}`);
-        createdTasks.push({ number: "", url: output });
+        core.warning(`Task ${taskIndex}: Could not parse task number from output: ${output}`);
+        _allResults.push({ number: "", url: output, success: true });
+        return { success: true, number: "", url: output };
       }
     } catch (error) {
-      core.error(`Task ${index + 1}: Error creating agent session: ${getErrorMessage(error)}`);
+      const errorMessage = getErrorMessage(error);
+      core.error(`Error creating agent session: ${errorMessage}`);
+      _allResults.push({ number: "", url: "", success: false, error: errorMessage });
+      return { success: false, error: errorMessage };
     }
-  }
-
-  // Set outputs for the first created task (for backward compatibility)
-  if (createdTasks.length > 0) {
-    core.setOutput("session_number", createdTasks[0].number);
-    core.setOutput("session_url", createdTasks[0].url);
-  } else {
-    core.setFailed("No agent sessions were created");
-    return;
-  }
-
-  // Write summary
-  core.info(summaryContent);
-  core.summary.addRaw(summaryContent);
-  await core.summary.write();
+  };
 }
 
-module.exports = { main };
+/**
+ * Returns the session_number output: the number of the first successfully created session.
+ * @returns {string}
+ */
+function getCreateAgentSessionNumber() {
+  const first = _allResults.find(r => r.success && r.number);
+  return first ? first.number : "";
+}
+
+/**
+ * Returns the session_url output: the URL of the first successfully created session.
+ * @returns {string}
+ */
+function getCreateAgentSessionUrl() {
+  const first = _allResults.find(r => r.success && r.url);
+  return first ? first.url : "";
+}
+
+/**
+ * Writes a step summary for agent session creation results.
+ * Called by the handler manager after all messages have been processed.
+ * @returns {Promise<void>}
+ */
+async function writeCreateAgentSessionSummary() {
+  const successResults = _allResults.filter(r => r.success);
+  const failedResults = _allResults.filter(r => !r.success);
+
+  if (_allResults.length === 0) return;
+
+  let summaryContent = "## Agent Sessions\n\n";
+
+  if (successResults.length > 0) {
+    summaryContent += `✅ Successfully created ${successResults.length} agent session(s):\n\n`;
+    summaryContent += successResults
+      .map((r, i) => {
+        if (r.url && r.number) {
+          return `- [#${r.number}](${r.url})`;
+        } else if (r.url) {
+          return `- [Session ${i + 1}](${r.url})`;
+        }
+        return `- Session ${i + 1}`;
+      })
+      .join("\n");
+    summaryContent += "\n\n";
+  }
+
+  if (failedResults.length > 0) {
+    summaryContent += `❌ Failed to create ${failedResults.length} agent session(s):\n\n`;
+    summaryContent += failedResults.map(r => `- ${r.error || "Unknown error"}`).join("\n");
+    summaryContent += "\n\n";
+  }
+
+  try {
+    await core.summary.addRaw(summaryContent).write();
+  } catch (error) {
+    core.warning(`Failed to write agent session summary: ${getErrorMessage(error)}`);
+  }
+}
+
+module.exports = { main, getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary };

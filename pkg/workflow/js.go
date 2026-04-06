@@ -17,7 +17,6 @@ func init() {
 
 // All getter functions return empty strings since embedded scripts were removed
 
-func getAssignToAgentScript() string      { return "" }
 func getNotifyCommentErrorScript() string { return "" }
 func getUploadAssetsScript() string       { return "" }
 
