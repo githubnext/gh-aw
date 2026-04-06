@@ -537,15 +537,49 @@ Process the issue. When done, use notify-slack to send a summary notification.
 Remote imports are cached by commit SHA in `.github/aw/imports/`. Keep import chains shallow and consolidate related imports; every compilation records imports in the lock file manifest.
 
 
-## Using Imports in Repository Rulesets (`inlined-imports: true`)
+## Self-Contained Lock Files (`inlined-imports: true`)
 
-When a workflow is configured as a **required status check** in a [repository ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), it runs in a restricted context that does not have access to other files in the repository. Shared files imported with the `imports:` field are loaded at runtime from the repository checkout, but this checkout is not available in the ruleset context, producing an error such as:
+Setting `inlined-imports: true` embeds all imported content directly into the compiled `.lock.yml` at compile time. The resulting lock file is **self-contained** — it requires no file-system access or cross-repository checkout at runtime.
+
+This flag is the recommended solution for two scenarios:
+
+### Cross-Organization `workflow_call`
+
+When a trigger file in **Organization A** calls an agentic workflow hosted in **Organization B**, the activation job must check out the platform repo's `.github` folder to load runtime imports. That checkout uses the `GITHUB_TOKEN` scoped to the caller's context, which has no access to a different organization's private repository:
+
+```
+Error: fatal: repository 'https://github.com/org-b/platform-repo/' not found
+```
+
+Setting `inlined-imports: true` on the platform workflow eliminates this cross-org checkout entirely — all imported content is bundled into the lock file at compile time:
+
+```aw wrap
+---
+on:
+  workflow_call:
+engine: copilot
+inlined-imports: true
+imports:
+  - shared/common-tools.md
+  - shared/security-setup.md
+---
+
+# Platform Gateway Workflow
+
+Workflow instructions here.
+```
+
+**Trade-off**: The compiled `.lock.yml` is larger because imported content is embedded inline, but there is no cross-organization token requirement at runtime.
+
+### Repository Rulesets
+
+When a workflow is configured as a **required status check** in a [repository ruleset](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets), it runs in a restricted context that does not have access to other files in the repository. Runtime imports cannot be resolved, producing an error such as:
 
 ```
 ERR_SYSTEM: Runtime import file not found: workflows/shared/file.md
 ```
 
-Set `inlined-imports: true` to bundle all imported content directly into the compiled `.lock.yml` at compile time, so no file system access is needed at runtime:
+Setting `inlined-imports: true` resolves this by bundling all imported content into the lock file at compile time, so no file-system access is needed at runtime:
 
 ```aw wrap
 ---
@@ -561,6 +595,8 @@ imports:
 
 Workflow instructions here.
 ```
+
+### Usage
 
 After adding `inlined-imports: true`, recompile the workflow:
 

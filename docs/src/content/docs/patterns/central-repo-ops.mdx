@@ -407,13 +407,47 @@ The callee (platform) repository must meet one of these requirements:
 
 ### How It Works
 
-When the compiler detects `workflow_call` in the `on:` section, it generates a cross-repo-aware checkout step in the activation job. Instead of always checking out `github.repository` (which is the caller in a `workflow_call` context), the step uses a conditional expression:
+When the compiler detects `workflow_call` in the `on:` section, it generates a cross-repo-aware checkout step in the activation job. A `resolve-host-repo` step inspects `GITHUB_WORKFLOW_REF` at runtime to determine whether the executing workflow lives in a different repository than the one that triggered the event. When a cross-repo invocation is detected, the activation job checks out the **platform repo's** `.github` folder — where the workflow markdown and runtime imports live — rather than the caller's repository.
 
-```yaml
-repository: ${{ github.event_name == 'workflow_call' && github.action_repository || github.repository }}
+This handles both direct `workflow_call` events and event-driven relays (for example, a trigger file that listens for `issue_comment` and then calls `workflow_call`) because `GITHUB_WORKFLOW_REF` always contains the path of the currently executing workflow file regardless of the triggering event.
+
+### Cross-Organization Setup
+
+The setup above works when the caller and callee repositories are in the **same organization** (the `GITHUB_TOKEN` can access internal repos within the org). When the platform repo is in a **different organization**, the caller's `GITHUB_TOKEN` cannot check out the platform repo's files, producing an error such as:
+
+```
+fatal: repository 'https://github.com/other-org/platform-repo/' not found
 ```
 
-This ensures the activation job checks out the **platform repo's** `.github` folder — where the workflow markdown and runtime imports live — regardless of which application repo triggered the workflow. For non-`workflow_call` events, the expression falls back to the current repository.
+Use `inlined-imports: true` on the platform workflow to make the lock file self-contained. All imported content is embedded into the `.lock.yml` at compile time and no cross-organization checkout is needed at runtime:
+
+```aw wrap
+---
+on:
+  workflow_call:
+engine: copilot
+inlined-imports: true
+imports:
+  - shared/common-tools.md
+  - shared/security-setup.md
+---
+
+# Platform Gateway Workflow
+
+Workflow instructions here.
+```
+
+After adding `inlined-imports: true`, recompile and commit the updated `.lock.yml`:
+
+```bash
+gh aw compile platform-gateway
+git add .github/workflows/platform-gateway.lock.yml
+git commit -m "compile: embed imports for cross-org workflow_call"
+git push
+```
+
+> [!NOTE]
+> With `inlined-imports: true`, any change to an imported file requires recompiling the workflow to take effect. See [Self-Contained Lock Files](/gh-aw/reference/imports/#self-contained-lock-files-inlined-imports-true) for full details and trade-offs.
 
 ## Best Practices
 
