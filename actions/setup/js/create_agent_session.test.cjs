@@ -90,26 +90,30 @@ describe("create_agent_session.cjs", () => {
   });
 
   describe("staged mode", () => {
-    it("should log staged mode and return success without calling gh CLI", async () => {
+    it("should generate staged preview and return skipped without calling gh CLI", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       const handler = await createAgentSessionModule.main({ base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Implement feature X" });
       expect(result.success).toBe(true);
-      expect(result.staged).toBe(true);
+      expect(result.skipped).toBe(true);
       expect(mockExec.getExecOutput).not.toHaveBeenCalled();
+      // Should have written a staged preview summary
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Create Agent Session Preview"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Implement feature X"));
     });
 
-    it("should log target repo and branch in staged mode", async () => {
+    it("should include base branch and target repo in staged preview", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       const handler = await createAgentSessionModule.main({ base: "develop" });
       await handler({ type: "create_agent_session", body: "Test task" });
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("develop"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("develop"));
     });
 
     it("should support staged mode via config flag", async () => {
       const handler = await createAgentSessionModule.main({ staged: true, base: "main" });
       const result = await handler({ type: "create_agent_session", body: "Test task" });
-      expect(result.staged).toBe(true);
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBe(true);
       expect(mockExec.getExecOutput).not.toHaveBeenCalled();
     });
   });
@@ -207,6 +211,7 @@ describe("create_agent_session.cjs", () => {
 
       expect(result.success).toBe(false);
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("authentication/permission error"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("GH_AW_AGENT_SESSION_TOKEN"));
     });
 
     it("should return failure when gh CLI fails with generic error", async () => {

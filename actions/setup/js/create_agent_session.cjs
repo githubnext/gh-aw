@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -70,10 +71,19 @@ async function main(config = {}) {
     const baseBranch = configuredBaseBranch || (await getBaseBranch(repoParts));
 
     if (isStaged) {
-      core.info(`[Staged] Would create agent session in ${effectiveRepo} on branch ${baseBranch}`);
-      core.info(`[Staged] Task description:\n${taskDescription}`);
-      _allResults.push({ number: "", url: "", success: true });
-      return { success: true, staged: true };
+      await generateStagedPreview({
+        title: "Create Agent Session",
+        description: "The following agent sessions would be created if staged mode was disabled:",
+        items: [message],
+        renderItem: item => {
+          const parts = [];
+          parts.push(`**Description:**\n${item.body}`);
+          parts.push(`**Base Branch:** ${baseBranch}`);
+          parts.push(`**Target Repository:** ${effectiveRepo}`);
+          return parts.join("\n\n") + "\n\n";
+        },
+      });
+      return { success: true, skipped: true };
     }
 
     try {
@@ -118,8 +128,8 @@ async function main(config = {}) {
         // Check for authentication/permission errors
         if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
           core.error(`Task ${taskIndex}: Failed to create agent session due to authentication/permission error.`);
-          core.error(`The default GITHUB_TOKEN does not have permission to create agent sessions.`);
-          core.error(`You must configure a Personal Access Token (PAT) as GH_AW_AGENT_TOKEN or GH_AW_GITHUB_TOKEN.`);
+          core.error(`The default GITHUB_TOKEN may not have permission to create agent sessions.`);
+          core.error(`Configure a Personal Access Token (PAT) using the handler's github-token setting or GH_AW_AGENT_SESSION_TOKEN.`);
           core.error(`See documentation: https://github.github.com/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-session`);
         } else {
           core.error(`Task ${taskIndex}: Failed to create agent session: ${errorMessage}`);
