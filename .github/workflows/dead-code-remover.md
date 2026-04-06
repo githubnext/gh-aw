@@ -49,7 +49,7 @@ Run the `deadcode` static analyzer, select a batch of up to 5 unreachable functi
 
 **Target**: Complete the full workflow in ≤ 30 turns.
 
-- **If deadcode finds 0 unprocessed functions**: call `noop` immediately — skip all remaining phases.
+- **After Phase 2: if deadcode finds 0 unprocessed functions**, call `noop` immediately — skip Phases 3–9.
 - Select **up to 5 functions** per run (not 10) — keeps PRs small and turns bounded.
 - Safety check grep: limit output with `grep -m 5` to avoid large result dumps.
 - Build/test output: pipe through `tail -20` to capture only the relevant tail; do not print full output.

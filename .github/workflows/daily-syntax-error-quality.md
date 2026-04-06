@@ -65,12 +65,12 @@ Test the quality of compiler error messages by:
 
 ## Token Budget Guidelines
 
-**Target**: Complete the full analysis in ≤ 20 turns.
+**Target**: Complete the full analysis in ≤ 40 turns.
 
 - Test **2 workflows** (not 3) — one simple, one complex.
 - One error category per workflow (Category A for workflow 1, Category B for workflow 2).
-- **If the average score across both test cases is ≥ 70 and no individual score is < 55**: call `noop` immediately with a one-line summary — do **not** generate a full structured report.
-- When scores require an issue: use the compact format below — skip verbose per-dimension narratives and the lengthy implementation guide section.
+- **If the average score across both test cases is ≥ 70 and no individual score is < 55**: skip Phase 6 entirely, call `noop` with a one-line summary — do **not** generate the issue or structured report.
+- When scores require an issue: use the compact format in Phase 6 — skip verbose per-dimension narratives.
 - Do **not** re-read files already loaded into context.
 - One `gh aw compile` call per test case — do not retry after an expected failure.
 - Avoid printing full file contents; use `head -n 30` to confirm error locations.

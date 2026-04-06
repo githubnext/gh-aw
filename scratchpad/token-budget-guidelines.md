@@ -285,24 +285,24 @@ Explicit instructions in workflow prompts to reduce token consumption:
 - Added `## Token Budget Guidelines` section in prompt:
   - Reduce test cases from 3 to 2 workflows
   - Use compact one-line scoring format (no verbose JSON)
-  - Early stop (noop) when average score ≥ 70 and no individual score < 55
+  - Early stop (noop) when average score ≥ 70 and no individual score < 55 — skips all report generation
   - Removed lengthy implementation guide from issue template
   - Limit output to 20-turn target
 
 **Expected Impact:**
-- **Token Reduction**: 60-75% (from ~9.35M to ~2.3M-3.7M per run)
+- **Token Reduction**: 85-95% for healthy runs (early-stop fires); 50-70% when an issue is created
 - **Quality**: Maintained — compiler error quality still evaluated across all 5 dimensions
-- **Runtime**: Reduced from ~129 turns to ≤ 20 turns
+- **Runtime**: Reduced from ~129 turns to ≤ 20 turns (most runs end early)
 
 **Budget Target:**
-- **Target tokens/run**: 500K–1M
+- **Target tokens/run**: 300K–600K (typical, early-stop); up to 2M (issue-creating run)
 - **Alert threshold**: >2M tokens
-- **Cost estimate**: $8.75-17.50 per run
+- **Cost estimate**: $5.25-10.50 per run (typical)
 
 **Optimization Strategy:**
 - Fewer test cases → fewer compile calls and eval rounds
 - Compact scoring format → less output to generate and process
-- Early-stop for healthy quality → avoids generating verbose reports when not needed
+- Early-stop for healthy quality → avoids generating verbose reports when not needed (covers ~most runs given 0 errors in prior run)
 - Removed boilerplate implementation guide from issue template → less re-generation
 
 ### Dead Code Remover
@@ -322,7 +322,7 @@ Explicit instructions in workflow prompts to reduce token consumption:
   - Reduce batch from 10 to 5 functions per run
   - Limit grep output to 5 matches (`grep -m 5`) per safety check
   - Limit test output to last 20 lines (`tail -20`)
-  - Immediate noop if deadcode finds 0 unprocessed functions
+  - Immediate noop (after Phase 2) if deadcode finds 0 unprocessed functions
   - No re-read of full cache before appending
 
 **Expected Impact:**
@@ -331,15 +331,15 @@ Explicit instructions in workflow prompts to reduce token consumption:
 - **Runtime**: Reduced processing turns
 
 **Budget Target:**
-- **Target tokens/run**: 1M–2M
-- **Alert threshold**: >4M tokens
-- **Cost estimate**: $17.50-35.00 per run
+- **Target tokens/run**: 4M–5M
+- **Alert threshold**: >7M tokens
+- **Cost estimate**: $70-87.50 per run
 
 **Optimization Strategy:**
 - Half the batch size → half the safety checks, edits, and build iterations
 - Truncated grep output → avoids large result dumps increasing context
 - Truncated test output → avoids multi-MB test logs inflating token count
-- Early-stop condition → skips all phases when nothing new to process
+- Early-stop condition (Phase 2) → skips all phases when nothing new to process
 
 ## Alert Thresholds (Updated)
 
@@ -350,8 +350,8 @@ Explicit instructions in workflow prompts to reduce token consumption:
 | Issue Monster | 50K-150K | >300K | >500K |
 | CI Optimization Coach | 300K-600K | >1M | >1.5M |
 | Step Name Alignment | 300K-500K | >800K | >1.2M |
-| Daily Syntax Error Quality Check | 500K-1M | >2M | >4M |
-| Dead Code Remover | 1M-2M | >4M | >7M |
+| Daily Syntax Error Quality Check | 300K-2M | >2M | >4M |
+| Dead Code Remover | 4M-5M | >7M | >9M |
 
 ## Optimization Strategies
 
