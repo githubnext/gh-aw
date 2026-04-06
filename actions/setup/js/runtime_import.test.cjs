@@ -466,6 +466,33 @@ describe("runtime_import", () => {
           const result = await processRuntimeImport(".agents/test-skill.md", !1, tempDir);
           expect(result).toBe(content);
         }),
+        it("should support /.agents/ prefix (leading slash, repo-root-absolute)", async () => {
+          // Regression test: /.agents/skills/my-skill/instructions.md should resolve to
+          // <workspace>/.agents/skills/my-skill/instructions.md (not .github/workflows/.agents/...)
+          const skillsDir = path.join(tempDir, ".agents", "skills", "my-skill");
+          fs.mkdirSync(skillsDir, { recursive: true });
+          const content = "# My Skill\n\nThis is the skill content.";
+          fs.writeFileSync(path.join(skillsDir, "instructions.md"), content);
+          const result = await processRuntimeImport("/.agents/skills/my-skill/instructions.md", !1, tempDir);
+          expect(result).toBe(content);
+        }),
+        it("should support /.github/ prefix (leading slash, repo-root-absolute)", async () => {
+          // Regression test: /.github/agents/planner.md should resolve to
+          // <workspace>/.github/agents/planner.md (not .github/workflows/.github/agents/...)
+          const agentsDir = path.join(tempDir, ".github", "agents");
+          fs.mkdirSync(agentsDir, { recursive: true });
+          const content = "# Planner Agent\n\nThis is the planner content.";
+          fs.writeFileSync(path.join(agentsDir, "planner.md"), content);
+          const result = await processRuntimeImport("/.github/agents/planner.md", !1, tempDir);
+          expect(result).toBe(content);
+        }),
+        it("should reject /-prefixed paths not under .agents/ or .github/", async () => {
+          // A leading "/" that does not map to .agents/ or .github/ should NOT be stripped —
+          // it falls through to the default branch and is confined to .github/workflows/, so it
+          // cannot reach arbitrary filesystem paths like /etc/passwd.
+          // The resolved path (.github/workflows/etc/passwd) does not exist, so it throws "file not found".
+          await expect(processRuntimeImport("/etc/passwd", !1, tempDir)).rejects.toThrow();
+        }),
         it("should support nested .github/workflows/shared/ path (issue: runtime-import fails for .github/workflows/* paths)", async () => {
           // Regression test: .github/workflows/shared/reporting.md should resolve to
           // <workspace>/.github/workflows/shared/reporting.md (not <workspace>/workflows/shared/reporting.md)
