@@ -58,8 +58,6 @@ After running this command, you can:
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 
-To create, update or debug automated agentic actions using GitHub, playwright, and other tools, load the .github/agents/agentic-workflows.agent.md (applies to .github/workflows/*.md)
-
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init                                # Interactive mode
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Interactive with verbose output

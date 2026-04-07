@@ -236,7 +236,7 @@ Process the issue ${{ github.event.issue.number }} and create a response.
 		}
 
 		// Generate YAML content
-		lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+		lockContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Failed to generate YAML in trial mode: %v", err)
 		}
@@ -279,7 +279,7 @@ Process the issue ${{ github.event.issue.number }} and create a response.
 		}
 
 		// Generate YAML content
-		lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+		lockContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Failed to generate YAML in normal mode: %v", err)
 		}
