@@ -8,36 +8,35 @@
  * safe output tool. The model must have already copied the files it wants to upload to
  * ${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
  *
- * This handler:
- * 1. Reads upload_artifact records from agent output.
- * 2. Validates each request against the workflow's policy configuration.
- * 3. Resolves the requested files (path or filter-based) from the staging directory.
- * 4. Copies approved files into per-slot directories under ${RUNNER_TEMP}/gh-aw/upload-artifacts/slot_N/.
- * 5. Sets step outputs so the wrapping job's actions/upload-artifact steps can run conditionally.
- * 6. Generates a temporary artifact ID for each slot.
+ * This handler follows the per-message handler pattern used by the safe_outputs handler loop.
+ * main(config) returns a per-message handler function that:
+ * 1. Validates the request against the workflow's policy configuration.
+ * 2. Resolves the requested files (path or filter-based) from the staging directory.
+ * 3. Copies approved files into per-slot directories under ${RUNNER_TEMP}/gh-aw/upload-artifacts/slot_N/.
+ * 4. Sets step outputs (slot_N_enabled, slot_N_name, etc.) so the wrapping job's
+ *    actions/upload-artifact steps can run conditionally.
+ * 5. Generates a temporary artifact ID for each slot.
  *
- * Environment variables consumed (set by the Go job builder):
- *   GH_AW_ARTIFACT_MAX_UPLOADS           - Max number of upload_artifact calls allowed
- *   GH_AW_ARTIFACT_DEFAULT_RETENTION_DAYS - Default retention period
- *   GH_AW_ARTIFACT_MAX_RETENTION_DAYS    - Maximum retention cap
- *   GH_AW_ARTIFACT_MAX_SIZE_BYTES        - Maximum total bytes per upload
- *   GH_AW_ARTIFACT_ALLOWED_PATHS         - JSON array of allowed path patterns
- *   GH_AW_ARTIFACT_ALLOW_SKIP_ARCHIVE    - "true" if skip_archive is permitted
- *   GH_AW_ARTIFACT_DEFAULT_SKIP_ARCHIVE  - "true" if skip_archive defaults to true
- *   GH_AW_ARTIFACT_DEFAULT_IF_NO_FILES   - "error" or "ignore"
- *   GH_AW_ARTIFACT_FILTERS_INCLUDE       - JSON array of default include patterns
- *   GH_AW_ARTIFACT_FILTERS_EXCLUDE       - JSON array of default exclude patterns
- *   GH_AW_AGENT_OUTPUT                   - Path to agent output file
- *   GH_AW_SAFE_OUTPUTS_STAGED            - "true" for staged/dry-run mode
+ * Configuration keys (passed via config parameter from handler manager):
+ *   max-uploads           - Max number of upload_artifact calls allowed (default: 1)
+ *   default-retention-days - Default retention period (default: 7)
+ *   max-retention-days    - Maximum retention cap (default: 30)
+ *   max-size-bytes        - Maximum total bytes per upload (default: 100 MB)
+ *   allowed-paths         - Array of allowed path glob patterns
+ *   allow-skip-archive    - true if skip_archive is permitted
+ *   default-skip-archive  - true if skip_archive defaults to true
+ *   default-if-no-files   - "error" or "ignore" (default: "error")
+ *   filters-include       - Array of default include glob patterns
+ *   filters-exclude       - Array of default exclude glob patterns
+ *   staged                - true for staged/dry-run mode
  */
 
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /** Staging directory where the model places files to be uploaded. */
 const STAGING_DIR = `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
@@ -63,21 +62,6 @@ function generateTemporaryArtifactId() {
     id += chars[Math.floor(Math.random() * chars.length)];
   }
   return id;
-}
-
-/**
- * Parse a JSON array from an environment variable, returning an empty array on failure.
- * @param {string|undefined} envVar
- * @returns {string[]}
- */
-function parseJsonArrayEnv(envVar) {
-  if (!envVar) return [];
-  try {
-    const parsed = JSON.parse(envVar);
-    return Array.isArray(parsed) ? parsed.filter(v => typeof v === "string") : [];
-  } catch {
-    return [];
-  }
 }
 
 /**
@@ -281,105 +265,103 @@ function stageFilesToSlot(files, slotDir) {
   }
 }
 
-async function main() {
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  // Load policy configuration from environment variables.
-  const maxUploads = parseInt(process.env.GH_AW_ARTIFACT_MAX_UPLOADS || "1", 10) || 1;
-  const defaultRetentionDays = parseInt(process.env.GH_AW_ARTIFACT_DEFAULT_RETENTION_DAYS || "7", 10) || 7;
-  const maxRetentionDays = parseInt(process.env.GH_AW_ARTIFACT_MAX_RETENTION_DAYS || "30", 10) || 30;
-  const maxSizeBytes = parseInt(process.env.GH_AW_ARTIFACT_MAX_SIZE_BYTES || "104857600", 10) || 104857600;
-  const allowSkipArchive = process.env.GH_AW_ARTIFACT_ALLOW_SKIP_ARCHIVE === "true";
-  const defaultSkipArchive = process.env.GH_AW_ARTIFACT_DEFAULT_SKIP_ARCHIVE === "true";
-  const defaultIfNoFiles = process.env.GH_AW_ARTIFACT_DEFAULT_IF_NO_FILES || "error";
-  const allowedPaths = parseJsonArrayEnv(process.env.GH_AW_ARTIFACT_ALLOWED_PATHS);
-  const filtersInclude = parseJsonArrayEnv(process.env.GH_AW_ARTIFACT_FILTERS_INCLUDE);
-  const filtersExclude = parseJsonArrayEnv(process.env.GH_AW_ARTIFACT_FILTERS_EXCLUDE);
+/**
+ * Main handler factory for upload_artifact.
+ * Returns a per-message handler function that processes a single upload_artifact request.
+ *
+ * @param {Object} config - Handler configuration from the safe outputs config
+ * @returns {Promise<Function>} Per-message handler function
+ */
+async function main(config = {}) {
+  const maxUploads = typeof config["max-uploads"] === "number" ? config["max-uploads"] : 1;
+  const defaultRetentionDays = typeof config["default-retention-days"] === "number" ? config["default-retention-days"] : 7;
+  const maxRetentionDays = typeof config["max-retention-days"] === "number" ? config["max-retention-days"] : 30;
+  const maxSizeBytes = typeof config["max-size-bytes"] === "number" ? config["max-size-bytes"] : 104857600;
+  const allowSkipArchive = config["allow-skip-archive"] === true;
+  const defaultSkipArchive = config["default-skip-archive"] === true;
+  const defaultIfNoFiles = typeof config["default-if-no-files"] === "string" ? config["default-if-no-files"] : "error";
+  const allowedPaths = Array.isArray(config["allowed-paths"]) ? config["allowed-paths"] : [];
+  const filtersInclude = Array.isArray(config["filters-include"]) ? config["filters-include"] : [];
+  const filtersExclude = Array.isArray(config["filters-exclude"]) ? config["filters-exclude"] : [];
+  const isStaged = config["staged"] === true || process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`upload_artifact handler: max_uploads=${maxUploads}, default_retention=${defaultRetentionDays}, max_retention=${maxRetentionDays}`);
   core.info(`Allowed paths: ${allowedPaths.length > 0 ? allowedPaths.join(", ") : "(none – all staging files allowed)"}`);
 
-  // Load agent output to find upload_artifact records.
-  const result = loadAgentOutput();
-  if (!result.success) {
-    core.info("No agent output found, skipping upload_artifact processing");
-    core.setOutput("artifact_count", "0");
-    return;
-  }
-
-  const uploadRequests = result.items.filter(/** @param {any} item */ item => item.type === "upload_artifact");
-
-  if (uploadRequests.length === 0) {
-    core.info("No upload_artifact records in agent output");
-    core.setOutput("artifact_count", "0");
-    return;
-  }
-
-  core.info(`Found ${uploadRequests.length} upload_artifact request(s)`);
-
-  // Enforce max-uploads policy.
-  if (uploadRequests.length > maxUploads) {
-    core.setFailed(`${ERR_VALIDATION}: upload_artifact: ${uploadRequests.length} requests exceed max-uploads policy (${maxUploads}). Reduce the number of upload_artifact calls or raise max-uploads in workflow configuration.`);
-    return;
-  }
-
-  if (!fs.existsSync(STAGING_DIR)) {
-    core.warning(`Staging directory ${STAGING_DIR} does not exist. Did the model copy files there before calling upload_artifact?`);
-    fs.mkdirSync(STAGING_DIR, { recursive: true });
-  }
+  // Slot index tracks which slot each successful request maps to.
+  let slotIndex = 0;
 
   /** @type {Record<string, string>} resolver: tmpId → artifact name */
   const resolver = {};
 
-  let successfulUploads = 0;
+  /**
+   * Per-message handler: processes one upload_artifact request.
+   *
+   * Called by the safe_outputs handler manager for each `upload_artifact` message emitted
+   * by the model. State (slotIndex, resolver) is shared across calls via closure so that
+   * successive requests are assigned to sequential slot directories.
+   *
+   * @param {Object} message - The upload_artifact message from the model
+   * @param {Object} resolvedTemporaryIds - Map of already-resolved temporary IDs (unused here)
+   * @param {Map<string, any>} temporaryIdMap - Shared temp-ID map; the handler does not modify it
+   * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, tmpId?: string, artifactName?: string, slotIndex?: number}>}
+   */
+  return async function handleUploadArtifact(message, resolvedTemporaryIds, temporaryIdMap) {
+    if (slotIndex >= maxUploads) {
+      return {
+        success: false,
+        error: `${ERR_VALIDATION}: upload_artifact: exceeded max-uploads policy (${maxUploads}). Reduce the number of upload_artifact calls or raise max-uploads in workflow configuration.`,
+      };
+    }
 
-  for (let i = 0; i < uploadRequests.length; i++) {
-    const request = uploadRequests[i];
-    core.info(`Processing upload_artifact request ${i + 1}/${uploadRequests.length}`);
+    const i = slotIndex;
 
     // Resolve skip_archive.
-    const skipArchive = typeof request.skip_archive === "boolean" ? request.skip_archive : defaultSkipArchive;
+    const skipArchive = typeof message.skip_archive === "boolean" ? message.skip_archive : defaultSkipArchive;
     if (skipArchive && !allowSkipArchive) {
-      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: skip_archive=true is not permitted. Enable it with allow.skip-archive: true in workflow configuration.`);
-      return;
+      return {
+        success: false,
+        error: `${ERR_VALIDATION}: upload_artifact: skip_archive=true is not permitted. Enable it with allow.skip-archive: true in workflow configuration.`,
+      };
     }
 
     // Resolve files.
-    const { files, error: resolveError } = resolveFiles(request, allowedPaths, filtersInclude, filtersExclude);
+    const { files, error: resolveError } = resolveFiles(message, allowedPaths, filtersInclude, filtersExclude);
     if (resolveError) {
-      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: ${resolveError}`);
-      return;
+      return { success: false, error: `${ERR_VALIDATION}: upload_artifact: ${resolveError}` };
     }
 
     if (files.length === 0) {
       if (defaultIfNoFiles === "ignore") {
-        core.warning(`upload_artifact request ${i + 1}: no files matched, skipping (if-no-files=ignore)`);
-        continue;
-      } else {
-        core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: no files matched the selection criteria. Check allowed-paths, filters, or use defaults.if-no-files: ignore to skip empty uploads.`);
-        return;
+        core.warning(`upload_artifact: no files matched, skipping (if-no-files=ignore)`);
+        return { success: false, skipped: true, error: "No files matched the selection criteria" };
       }
+      return {
+        success: false,
+        error: `${ERR_VALIDATION}: upload_artifact: no files matched the selection criteria. Check allowed-paths, filters, or use defaults.if-no-files: ignore to skip empty uploads.`,
+      };
     }
 
     // Validate skip_archive file-count constraint.
     const skipArchiveError = validateSkipArchive(skipArchive, files);
     if (skipArchiveError) {
-      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: ${skipArchiveError}`);
-      return;
+      return { success: false, error: `${ERR_VALIDATION}: upload_artifact: ${skipArchiveError}` };
     }
 
     // Validate total size.
     const totalSize = computeTotalSize(files);
     if (totalSize > maxSizeBytes) {
-      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: total file size ${totalSize} bytes exceeds max-size-bytes limit of ${maxSizeBytes} bytes.`);
-      return;
+      return {
+        success: false,
+        error: `${ERR_VALIDATION}: upload_artifact: total file size ${totalSize} bytes exceeds max-size-bytes limit of ${maxSizeBytes} bytes.`,
+      };
     }
 
     // Compute retention days.
-    const retentionDays = clampRetention(typeof request.retention_days === "number" ? request.retention_days : undefined, defaultRetentionDays, maxRetentionDays);
+    const retentionDays = clampRetention(typeof message.retention_days === "number" ? message.retention_days : undefined, defaultRetentionDays, maxRetentionDays);
 
     // Derive artifact name and generate temporary ID.
-    const artifactName = deriveArtifactName(request, i);
+    const artifactName = deriveArtifactName(message, i);
     const tmpId = generateTemporaryArtifactId();
     resolver[tmpId] = artifactName;
 
@@ -394,7 +376,7 @@ async function main() {
       core.info(`Staged mode: skipping file staging for slot ${i}`);
     }
 
-    // Set step outputs for the conditional actions/upload-artifact steps in the job YAML.
+    // Set step outputs for the conditional actions/upload-artifact steps in the safe_outputs job.
     core.setOutput(`slot_${i}_enabled`, "true");
     core.setOutput(`slot_${i}_name`, artifactName);
     core.setOutput(`slot_${i}_retention_days`, String(retentionDays));
@@ -402,26 +384,27 @@ async function main() {
     core.setOutput(`slot_${i}_file_count`, String(files.length));
     core.setOutput(`slot_${i}_size_bytes`, String(totalSize));
 
-    successfulUploads++;
-  }
+    slotIndex++;
 
-  // Write resolver mapping so downstream steps can resolve tmp IDs to artifact names.
-  try {
-    fs.mkdirSync(path.dirname(RESOLVER_FILE), { recursive: true });
-    fs.writeFileSync(RESOLVER_FILE, JSON.stringify(resolver, null, 2));
-    core.info(`Wrote artifact resolver mapping to ${RESOLVER_FILE}`);
-  } catch (err) {
-    core.warning(`Failed to write artifact resolver file: ${getErrorMessage(err)}`);
-  }
+    // Update the count output.
+    core.setOutput("upload_artifact_count", String(slotIndex));
 
-  core.setOutput("artifact_count", String(successfulUploads));
-  core.info(`upload_artifact handler complete: ${successfulUploads} artifact(s) staged`);
+    // Write/update resolver mapping so downstream steps can resolve tmp IDs to artifact names.
+    try {
+      fs.mkdirSync(path.dirname(RESOLVER_FILE), { recursive: true });
+      fs.writeFileSync(RESOLVER_FILE, JSON.stringify(resolver, null, 2));
+      core.info(`Wrote artifact resolver mapping to ${RESOLVER_FILE}`);
+    } catch (err) {
+      core.warning(`Failed to write artifact resolver file: ${getErrorMessage(err)}`);
+    }
 
-  if (isStaged) {
-    core.summary.addHeading("🎭 Staged Mode: Artifact Upload Preview", 2);
-    core.summary.addRaw(`Would upload **${successfulUploads}** artifact(s). Files staged at ${STAGING_DIR}.`);
-    await core.summary.write();
-  }
+    return {
+      success: true,
+      tmpId,
+      artifactName,
+      slotIndex: i,
+    };
+  };
 }
 
 module.exports = { main };

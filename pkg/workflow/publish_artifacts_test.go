@@ -202,67 +202,6 @@ func TestComputeEnabledToolNamesIncludesUploadArtifact(t *testing.T) {
 	assert.True(t, tools["upload_artifact"], "upload_artifact should be in enabled tools")
 }
 
-func TestBuildUploadArtifactJobBasicStructure(t *testing.T) {
-	c := NewCompiler()
-	data := &WorkflowData{
-		Name: "Test Workflow",
-		SafeOutputs: &SafeOutputsConfig{
-			UploadArtifact: &UploadArtifactConfig{
-				MaxUploads:           2,
-				DefaultRetentionDays: 7,
-				MaxRetentionDays:     30,
-				MaxSizeBytes:         defaultArtifactMaxSizeBytes,
-				AllowedPaths:         []string{"dist/**", "reports/**"},
-			},
-		},
-	}
-
-	job, err := c.buildUploadArtifactJob(data, "agent", false)
-	require.NoError(t, err, "buildUploadArtifactJob should not return error")
-	require.NotNil(t, job, "job should not be nil")
-
-	assert.Equal(t, "upload_artifact", job.Name, "job name should be upload_artifact")
-
-	// Convert steps to string for inspection.
-	var stepsStr strings.Builder
-	for _, step := range job.Steps {
-		stepsStr.WriteString(step)
-	}
-	s := stepsStr.String()
-
-	assert.Contains(t, s, "Download agent output artifact", "should have agent output download step")
-	assert.Contains(t, s, "Download upload-artifact staging", "should have staging artifact download step")
-	assert.Contains(t, s, "GH_AW_ARTIFACT_MAX_UPLOADS", "should have max uploads env var")
-	assert.Contains(t, s, "GH_AW_ARTIFACT_DEFAULT_RETENTION_DAYS", "should have default retention env var")
-	assert.Contains(t, s, "GH_AW_ARTIFACT_MAX_RETENTION_DAYS", "should have max retention env var")
-	assert.Contains(t, s, "GH_AW_ARTIFACT_MAX_SIZE_BYTES", "should have max size bytes env var")
-	assert.Contains(t, s, "GH_AW_ARTIFACT_ALLOWED_PATHS", "should have allowed paths env var")
-
-	// Should have upload steps for each slot (MaxUploads = 2).
-	assert.Contains(t, s, "Upload artifact slot 0", "should have upload step for slot 0")
-	assert.Contains(t, s, "Upload artifact slot 1", "should have upload step for slot 1")
-	assert.NotContains(t, s, "Upload artifact slot 2", "should NOT have upload step for slot 2")
-}
-
-func TestBuildUploadArtifactJobRequiresConfig(t *testing.T) {
-	c := NewCompiler()
-
-	t.Run("nil SafeOutputs returns error", func(t *testing.T) {
-		data := &WorkflowData{Name: "Test", SafeOutputs: nil}
-		_, err := c.buildUploadArtifactJob(data, "agent", false)
-		assert.Error(t, err, "should return error when SafeOutputs is nil")
-	})
-
-	t.Run("nil UploadArtifact returns error", func(t *testing.T) {
-		data := &WorkflowData{
-			Name:        "Test",
-			SafeOutputs: &SafeOutputsConfig{UploadArtifact: nil},
-		}
-		_, err := c.buildUploadArtifactJob(data, "agent", false)
-		assert.Error(t, err, "should return error when UploadArtifact is nil")
-	})
-}
-
 func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {
 	t.Run("generates step when UploadArtifact is configured", func(t *testing.T) {
 		var b strings.Builder

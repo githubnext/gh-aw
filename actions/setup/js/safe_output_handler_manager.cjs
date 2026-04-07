@@ -74,16 +74,17 @@ const HANDLER_MAP = {
   create_project: "./create_project.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",
+  upload_artifact: "./upload_artifact.cjs",
 };
 
 /**
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  *
- * Standalone types: upload_asset, upload_artifact, noop
+ * Standalone types: upload_asset, noop
  *   - Have dedicated processing steps with specialized logic
  */
-const STANDALONE_STEP_TYPES = new Set(["upload_asset", "upload_artifact", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
 
 /**
  * Code-push safe output types that must succeed before remaining outputs are processed.

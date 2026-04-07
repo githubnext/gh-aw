@@ -161,6 +161,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.MissingData != nil ||
 		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
 		data.SafeOutputs.CreateAgentSessions != nil || // create_agent_session is now handled by the handler manager
+		data.SafeOutputs.UploadArtifact != nil || // upload_artifact is handled inline in the handler loop
 		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
 		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 
@@ -175,7 +176,23 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, scriptSetupSteps...)
 	}
 
-	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, assign_to_agent, etc.)
+	// Download the upload-artifact staging artifact before the handler manager runs so that
+	// the upload_artifact handler (which runs inline in the handler loop) can access the files.
+	if data.SafeOutputs.UploadArtifact != nil {
+		consolidatedSafeOutputsJobLog.Print("Adding upload-artifact staging download step")
+		stagingArtifactName := agentArtifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
+		steps = append(steps,
+			"      - name: Download upload-artifact staging\n",
+			"        continue-on-error: true\n",
+			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")),
+			"        with:\n",
+			fmt.Sprintf("          name: %s\n", stagingArtifactName),
+			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
+		)
+	}
+
+	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, assign_to_agent,
+	// upload_artifact, etc.)
 	// This processes all safe output types that are handled by the unified handler
 	// Critical for workflows that create projects and then add issues/PRs to those projects
 	if hasHandlerManagerTypes {
@@ -208,6 +225,32 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			consolidatedSafeOutputsJobLog.Print("Exposing create_agent_session outputs from handler manager")
 			outputs["create_agent_session_session_number"] = "${{ steps.process_safe_outputs.outputs.session_number }}"
 			outputs["create_agent_session_session_url"] = "${{ steps.process_safe_outputs.outputs.session_url }}"
+		}
+
+		// Export upload_artifact outputs and add conditional slot upload steps.
+		// The handler sets slot_N_* outputs on the process_safe_outputs step; we expose
+		// them as upload_artifact_slot_N_* job outputs for external consumers.
+		if data.SafeOutputs.UploadArtifact != nil {
+			consolidatedSafeOutputsJobLog.Print("Adding upload_artifact slot upload steps")
+			cfg := data.SafeOutputs.UploadArtifact
+			outputs["upload_artifact_count"] = "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}"
+			for i := range cfg.MaxUploads {
+				outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
+			}
+			// Add one conditional actions/upload-artifact step per MaxUploads slot.
+			for i := range cfg.MaxUploads {
+				slotDir := fmt.Sprintf("%sslot_%d/", artifactSlotDirExpr, i)
+				steps = append(steps,
+					fmt.Sprintf("      - name: Upload artifact slot %d\n", i),
+					fmt.Sprintf("        if: steps.process_safe_outputs.outputs.slot_%d_enabled == 'true'\n", i),
+					fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+					"        with:\n",
+					fmt.Sprintf("          name: ${{ steps.process_safe_outputs.outputs.slot_%d_name }}\n", i),
+					fmt.Sprintf("          path: %s\n", slotDir),
+					fmt.Sprintf("          retention-days: ${{ steps.process_safe_outputs.outputs.slot_%d_retention_days }}\n", i),
+					"          if-no-files-found: ignore\n",
+				)
+			}
 		}
 
 		// If create-issue is configured with assignees: copilot, run a follow-up step to
@@ -345,6 +388,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Add artifact download steps count
 		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix))
+
+		// Add upload-artifact staging download step count.
+		// The step has 6 YAML string entries: name, continue-on-error, uses, with:, name: <artifact>, path: <dir>
+		if data.SafeOutputs.UploadArtifact != nil {
+			insertIndex += 6
+		}
 
 		// Add patch download steps if present
 		// Download from unified agent artifact (prefixed in workflow_call context)

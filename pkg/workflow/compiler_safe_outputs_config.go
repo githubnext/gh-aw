@@ -797,6 +797,14 @@ var handlerRegistry = map[string]handlerBuilder{
 				b = b.AddIfNotEmpty("default-if-no-files", c.Defaults.IfNoFiles)
 			}
 		}
+		if c.Filters != nil {
+			if len(c.Filters.Include) > 0 {
+				b = b.AddStringSlice("filters-include", c.Filters.Include)
+			}
+			if len(c.Filters.Exclude) > 0 {
+				b = b.AddStringSlice("filters-exclude", c.Filters.Exclude)
+			}
+		}
 		return b.Build()
 	},
 	"autofix_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {

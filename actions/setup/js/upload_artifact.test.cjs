@@ -16,17 +16,7 @@ const RESOLVER_FILE = `${RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
 
 describe("upload_artifact.cjs", () => {
   let mockCore;
-  let agentOutputPath;
   let originalEnv;
-
-  /**
-   * @param {object} data
-   */
-  function writeAgentOutput(data) {
-    agentOutputPath = path.join(os.tmpdir(), `test_upload_artifact_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
-    fs.writeFileSync(agentOutputPath, JSON.stringify(data));
-    process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
-  }
 
   /**
    * @param {string} relPath
@@ -39,12 +29,41 @@ describe("upload_artifact.cjs", () => {
   }
 
   /**
-   * @returns {Promise<void>}
+   * Build a config object (replaces ENV vars in the old standalone approach).
+   * @param {object} overrides
    */
-  async function runMain() {
+  function buildConfig(overrides = {}) {
+    return {
+      "max-uploads": 3,
+      "default-retention-days": 7,
+      "max-retention-days": 30,
+      "max-size-bytes": 104857600,
+      ...overrides,
+    };
+  }
+
+  /**
+   * Run the handler against a list of messages using the new per-message pattern.
+   * Simulates what the handler manager does.
+   * @param {object} config
+   * @param {object[]} messages
+   * @returns {Promise<object[]>} results from each message handler call
+   */
+  async function runHandler(config, messages) {
     const scriptText = fs.readFileSync(path.join(__dirname, "upload_artifact.cjs"), "utf8");
     global.core = mockCore;
-    await eval(`(async () => { ${scriptText}; await main(); })()`);
+    let handlerFn;
+    await eval(`(async () => { ${scriptText}; handlerFn = await main(config); })()`);
+    const results = [];
+    for (const msg of messages) {
+      const result = await handlerFn(msg, {}, new Map());
+      results.push(result);
+      // Simulate handler manager calling setFailed on failure
+      if (result && result.success === false && !result.skipped) {
+        mockCore.setFailed(result.error);
+      }
+    }
+    return results;
   }
 
   beforeEach(() => {
@@ -67,18 +86,6 @@ describe("upload_artifact.cjs", () => {
 
     // Set RUNNER_TEMP so the script resolves paths to the same directories as the test helpers.
     process.env.RUNNER_TEMP = RUNNER_TEMP;
-
-    // Set reasonable defaults
-    process.env.GH_AW_ARTIFACT_MAX_UPLOADS = "3";
-    process.env.GH_AW_ARTIFACT_DEFAULT_RETENTION_DAYS = "7";
-    process.env.GH_AW_ARTIFACT_MAX_RETENTION_DAYS = "30";
-    process.env.GH_AW_ARTIFACT_MAX_SIZE_BYTES = "104857600";
-    delete process.env.GH_AW_ARTIFACT_ALLOWED_PATHS;
-    delete process.env.GH_AW_ARTIFACT_ALLOW_SKIP_ARCHIVE;
-    delete process.env.GH_AW_ARTIFACT_DEFAULT_SKIP_ARCHIVE;
-    delete process.env.GH_AW_ARTIFACT_DEFAULT_IF_NO_FILES;
-    delete process.env.GH_AW_ARTIFACT_FILTERS_INCLUDE;
-    delete process.env.GH_AW_ARTIFACT_FILTERS_EXCLUDE;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
 
     // Ensure staging dir exists and is clean
@@ -99,45 +106,19 @@ describe("upload_artifact.cjs", () => {
   });
 
   afterEach(() => {
-    // Restore env
     process.env = originalEnv;
-
-    if (agentOutputPath && fs.existsSync(agentOutputPath)) {
-      fs.unlinkSync(agentOutputPath);
-    }
-  });
-
-  describe("no agent output", () => {
-    it("sets artifact_count to 0 when no agent output is present", async () => {
-      delete process.env.GH_AW_AGENT_OUTPUT;
-      await runMain();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("artifact_count", "0");
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("no upload_artifact records", () => {
-    it("sets artifact_count to 0 when output has no upload_artifact items", async () => {
-      writeAgentOutput({ items: [{ type: "create_issue", title: "test" }] });
-      await runMain();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("artifact_count", "0");
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
   });
 
   describe("path-based upload", () => {
     it("stages a single file and sets slot outputs", async () => {
       writeStaging("report.json", '{"result": "ok"}');
-      writeAgentOutput({
-        items: [{ type: "upload_artifact", path: "report.json", retention_days: 14 }],
-      });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 14 }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_retention_days", "14");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("artifact_count", "1");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("upload_artifact_count", "1");
 
       // Verify the file was staged into slot_0.
       const slotFile = path.join(SLOT_BASE_DIR, "slot_0", "report.json");
@@ -146,11 +127,8 @@ describe("upload_artifact.cjs", () => {
 
     it("clamps retention days to max-retention-days", async () => {
       writeStaging("report.json");
-      writeAgentOutput({
-        items: [{ type: "upload_artifact", path: "report.json", retention_days: 999 }],
-      });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 999 }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_retention_days", "30");
@@ -158,9 +136,8 @@ describe("upload_artifact.cjs", () => {
 
     it("uses default retention when retention_days is absent", async () => {
       writeStaging("report.json");
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "report.json" }] });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_retention_days", "7");
     });
@@ -169,98 +146,67 @@ describe("upload_artifact.cjs", () => {
   describe("validation errors", () => {
     it("fails when both path and filters are present", async () => {
       writeStaging("report.json");
-      writeAgentOutput({
-        items: [
-          {
-            type: "upload_artifact",
-            path: "report.json",
-            filters: { include: ["**/*.json"] },
-          },
-        ],
-      });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", filters: { include: ["**/*.json"] } }]);
+
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exactly one of 'path' or 'filters'"));
     });
 
     it("fails when neither path nor filters are present", async () => {
-      writeAgentOutput({ items: [{ type: "upload_artifact", retention_days: 7 }] });
-
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", retention_days: 7 }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exactly one of 'path' or 'filters'"));
     });
 
     it("fails when path traverses outside staging dir", async () => {
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "../etc/passwd" }] });
-
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "../etc/passwd" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must not traverse outside staging directory"));
     });
 
     it("fails when absolute path is provided", async () => {
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "/etc/passwd" }] });
-
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "/etc/passwd" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be relative"));
     });
 
     it("fails when path does not exist in staging dir", async () => {
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "nonexistent.json" }] });
-
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "nonexistent.json" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("does not exist in staging directory"));
     });
 
     it("fails when max-uploads is exceeded", async () => {
-      process.env.GH_AW_ARTIFACT_MAX_UPLOADS = "1";
       writeStaging("a.json");
       writeStaging("b.json");
-      writeAgentOutput({
-        items: [
-          { type: "upload_artifact", path: "a.json" },
-          { type: "upload_artifact", path: "b.json" },
-        ],
-      });
 
-      await runMain();
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exceed max-uploads policy"));
+      await runHandler(buildConfig({ "max-uploads": 1 }), [
+        { type: "upload_artifact", path: "a.json" },
+        { type: "upload_artifact", path: "b.json" },
+      ]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exceeded max-uploads policy"));
     });
 
     it("fails when skip_archive is requested but not allowed", async () => {
       writeStaging("app.bin");
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "app.bin", skip_archive: true }] });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
+
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip_archive=true is not permitted"));
     });
 
     it("fails when skip_archive=true with multiple files", async () => {
-      process.env.GH_AW_ARTIFACT_ALLOW_SKIP_ARCHIVE = "true";
       writeStaging("output/a.json");
       writeStaging("output/b.json");
-      writeAgentOutput({
-        items: [
-          {
-            type: "upload_artifact",
-            // Use "output/**" which matches output/a.json and output/b.json
-            filters: { include: ["output/**"] },
-            skip_archive: true,
-          },
-        ],
-      });
 
-      await runMain();
+      await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", filters: { include: ["output/**"] }, skip_archive: true }]);
+
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip_archive=true requires exactly one selected file"));
     });
   });
 
   describe("skip_archive allowed", () => {
     it("succeeds with skip_archive=true and a single file", async () => {
-      process.env.GH_AW_ARTIFACT_ALLOW_SKIP_ARCHIVE = "true";
       writeStaging("app.bin", "binary data");
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "app.bin", skip_archive: true }] });
 
-      await runMain();
+      await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
@@ -272,19 +218,13 @@ describe("upload_artifact.cjs", () => {
       writeStaging("reports/daily/summary.json", "{}");
       writeStaging("reports/weekly/summary.json", "{}");
       writeStaging("reports/private/secret.json", "{}");
-      writeAgentOutput({
-        items: [
-          {
-            type: "upload_artifact",
-            filters: {
-              include: ["reports/**/*.json"],
-              exclude: ["reports/private/**"],
-            },
-          },
-        ],
-      });
 
-      await runMain();
+      await runHandler(buildConfig(), [
+        {
+          type: "upload_artifact",
+          filters: { include: ["reports/**/*.json"], exclude: ["reports/private/**"] },
+        },
+      ]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
@@ -292,33 +232,15 @@ describe("upload_artifact.cjs", () => {
     });
 
     it("handles no-files with if-no-files=ignore", async () => {
-      process.env.GH_AW_ARTIFACT_DEFAULT_IF_NO_FILES = "ignore";
-      writeAgentOutput({
-        items: [
-          {
-            type: "upload_artifact",
-            filters: { include: ["nonexistent/**"] },
-          },
-        ],
-      });
-
-      await runMain();
+      await runHandler(buildConfig({ "default-if-no-files": "ignore" }), [{ type: "upload_artifact", filters: { include: ["nonexistent/**"] } }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("artifact_count", "0");
+      // No slot output set since skipped
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("slot_0_enabled", "true");
     });
 
     it("fails when no files match and if-no-files=error (default)", async () => {
-      writeAgentOutput({
-        items: [
-          {
-            type: "upload_artifact",
-            filters: { include: ["nonexistent/**"] },
-          },
-        ],
-      });
-
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", filters: { include: ["nonexistent/**"] } }]);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("no files matched"));
     });
@@ -326,19 +248,22 @@ describe("upload_artifact.cjs", () => {
 
   describe("allowed-paths policy", () => {
     it("filters out files not in allowed-paths", async () => {
-      process.env.GH_AW_ARTIFACT_ALLOWED_PATHS = JSON.stringify(["dist/**"]);
       writeStaging("dist/app.js");
       writeStaging("secret.env");
-      writeAgentOutput({
-        items: [
-          {
-            type: "upload_artifact",
-            filters: { include: ["**"] },
-          },
-        ],
-      });
 
-      await runMain();
+      await runHandler(buildConfig({ "allowed-paths": ["dist/**"] }), [{ type: "upload_artifact", filters: { include: ["**"] } }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_file_count", "1");
+    });
+  });
+
+  describe("filters-include / filters-exclude from config", () => {
+    it("uses config filters-include as default when request has no filters", async () => {
+      writeStaging("dist/app.js");
+      writeStaging("secret.env");
+
+      await runHandler(buildConfig({ "filters-include": ["dist/**"] }), [{ type: "upload_artifact", filters: {} }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_file_count", "1");
@@ -349,9 +274,8 @@ describe("upload_artifact.cjs", () => {
     it("skips file staging but sets outputs in staged mode", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       writeStaging("report.json");
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "report.json" }] });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
@@ -360,14 +284,25 @@ describe("upload_artifact.cjs", () => {
       const slotFile = path.join(SLOT_BASE_DIR, "slot_0", "report.json");
       expect(fs.existsSync(slotFile)).toBe(false);
     });
+
+    it("skips file staging when staged=true in config", async () => {
+      writeStaging("report.json");
+
+      await runHandler(buildConfig({ staged: true }), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
+
+      const slotFile = path.join(SLOT_BASE_DIR, "slot_0", "report.json");
+      expect(fs.existsSync(slotFile)).toBe(false);
+    });
   });
 
   describe("resolver file", () => {
     it("writes a resolver mapping with temporary IDs", async () => {
       writeStaging("report.json");
-      writeAgentOutput({ items: [{ type: "upload_artifact", path: "report.json" }] });
 
-      await runMain();
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
 
       expect(fs.existsSync(RESOLVER_FILE)).toBe(true);
       const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));

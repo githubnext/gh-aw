@@ -2,11 +2,9 @@ package workflow
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -24,22 +22,12 @@ const defaultArtifactMaxRetentionDays = 30
 // defaultArtifactMaxSizeBytes is the default maximum total upload size (100 MB).
 const defaultArtifactMaxSizeBytes int64 = 104857600
 
-// artifactStagingDir is the path where the model stages files to be uploaded as artifacts.
-// Use the shell-variable form only inside `run:` blocks; for `with: path:` inputs use
-// artifactStagingDirExpr which uses the GitHub Actions expression syntax.
-const artifactStagingDir = "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/"
-
-// artifactStagingDirExpr is the GitHub Actions expression form of artifactStagingDir.
+// artifactStagingDirExpr is the GitHub Actions expression form of the staging directory.
 // `actions/upload-artifact` and `actions/download-artifact` do not expand shell variables
 // in their `path:` inputs, so we must use ${{ runner.temp }} here.
 const artifactStagingDirExpr = "${{ runner.temp }}/gh-aw/safeoutputs/upload-artifacts/"
 
-// artifactSlotDir is the per-slot directory used by the handler to organise staged files.
-// Use the shell-variable form only inside `run:` blocks; for `with: path:` inputs use
-// artifactSlotDirExpr which uses the GitHub Actions expression syntax.
-const artifactSlotDir = "${RUNNER_TEMP}/gh-aw/upload-artifacts/"
-
-// artifactSlotDirExpr is the GitHub Actions expression form of artifactSlotDir.
+// artifactSlotDirExpr is the GitHub Actions expression form of the per-slot artifact directory.
 const artifactSlotDirExpr = "${{ runner.temp }}/gh-aw/upload-artifacts/"
 
 // SafeOutputsUploadArtifactStagingArtifactName is the artifact that carries the staging directory
@@ -202,142 +190,8 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 	return config
 }
 
-// buildUploadArtifactJob creates the upload_artifact standalone job.
-//
-// Architecture:
-//  1. The model stages files to artifactStagingDir during its run.
-//  2. The main agent job uploads that directory as a GitHub Actions staging artifact.
-//  3. This job downloads the staging artifact, validates each upload_artifact request,
-//     copies approved files into per-slot directories, and then uploads each slot using
-//     actions/upload-artifact with a conditional step per MaxUploads slot.
-//  4. A temporary artifact ID is returned for each slot via job outputs.
-func (c *Compiler) buildUploadArtifactJob(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) (*Job, error) {
-	publishArtifactsLog.Printf("Building upload_artifact job: workflow=%s, main_job=%s, threat_detection=%v",
-		data.Name, mainJobName, threatDetectionEnabled)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.UploadArtifact == nil {
-		return nil, errors.New("safe-outputs.upload-artifact configuration is required")
-	}
-
-	cfg := data.SafeOutputs.UploadArtifact
-
-	var preSteps []string
-
-	// Add setup step so scripts are available at SetupActionDestination.
-	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" || c.actionMode.IsScript() {
-		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
-		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, publishTraceID)...)
-	}
-
-	// Download the staging artifact that contains the files staged by the model.
-	// The agent output artifact (carrying upload_artifact NDJSON records) is NOT added here
-	// because buildCustomActionStep / buildGitHubScriptStep already prepends that step
-	// automatically to every safe-output job.
-	artifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
-	stagingArtifactName := artifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
-	preSteps = append(preSteps,
-		"      - name: Download upload-artifact staging\n",
-		"        continue-on-error: true\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")),
-		"        with:\n",
-		fmt.Sprintf("          name: %s\n", stagingArtifactName),
-		fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
-	)
-
-	// Build custom environment variables consumed by upload_artifact.cjs.
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_MAX_UPLOADS: %d\n", cfg.MaxUploads))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_DEFAULT_RETENTION_DAYS: %d\n", cfg.DefaultRetentionDays))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_MAX_RETENTION_DAYS: %d\n", cfg.MaxRetentionDays))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_MAX_SIZE_BYTES: %d\n", cfg.MaxSizeBytes))
-
-	if len(cfg.AllowedPaths) > 0 {
-		allowedPathsJSON := marshalStringSliceJSON(cfg.AllowedPaths)
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_ALLOWED_PATHS: %q\n", allowedPathsJSON))
-	}
-
-	if cfg.Allow != nil && cfg.Allow.SkipArchive {
-		customEnvVars = append(customEnvVars, "          GH_AW_ARTIFACT_ALLOW_SKIP_ARCHIVE: \"true\"\n")
-	}
-	if cfg.Defaults != nil {
-		if cfg.Defaults.SkipArchive {
-			customEnvVars = append(customEnvVars, "          GH_AW_ARTIFACT_DEFAULT_SKIP_ARCHIVE: \"true\"\n")
-		}
-		if cfg.Defaults.IfNoFiles != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_DEFAULT_IF_NO_FILES: %q\n", cfg.Defaults.IfNoFiles))
-		}
-	}
-	if cfg.Filters != nil {
-		if len(cfg.Filters.Include) > 0 {
-			filtersIncJSON := marshalStringSliceJSON(cfg.Filters.Include)
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_FILTERS_INCLUDE: %q\n", filtersIncJSON))
-		}
-		if len(cfg.Filters.Exclude) > 0 {
-			filtersExcJSON := marshalStringSliceJSON(cfg.Filters.Exclude)
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ARTIFACT_FILTERS_EXCLUDE: %q\n", filtersExcJSON))
-		}
-	}
-
-	// Add standard env vars (run ID, repo, etc.).
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
-
-	// Build conditional actions/upload-artifact steps – one per MaxUploads slot.
-	// The handler sets slot_N_enabled=true and outputs the slot name / retention when
-	// the Nth upload_artifact request was successfully validated and staged.
-	var postSteps []string
-	for i := range cfg.MaxUploads {
-		slotDir := fmt.Sprintf("%sslot_%d/", artifactSlotDirExpr, i)
-		postSteps = append(postSteps,
-			fmt.Sprintf("      - name: Upload artifact slot %d\n", i),
-			fmt.Sprintf("        if: steps.upload_artifacts.outputs.slot_%d_enabled == 'true'\n", i),
-			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
-			"        with:\n",
-			fmt.Sprintf("          name: ${{ steps.upload_artifacts.outputs.slot_%d_name }}\n", i),
-			fmt.Sprintf("          path: %s\n", slotDir),
-			fmt.Sprintf("          retention-days: ${{ steps.upload_artifacts.outputs.slot_%d_retention_days }}\n", i),
-			"          if-no-files-found: ignore\n",
-		)
-	}
-
-	// In dev mode, restore the actions/setup folder so the post-step cleanup succeeds.
-	if c.actionMode.IsDev() {
-		postSteps = append(postSteps, c.generateRestoreActionsSetupStep())
-		publishArtifactsLog.Print("Added restore actions folder step to upload_artifact job (dev mode)")
-	}
-
-	jobCondition := BuildSafeOutputType("upload_artifact")
-	needs := []string{mainJobName, string(constants.ActivationJobName)}
-
-	// Collect job outputs for all slots so downstream jobs can reference them.
-	outputs := map[string]string{
-		"artifact_count": "${{ steps.upload_artifacts.outputs.artifact_count }}",
-	}
-	for i := range cfg.MaxUploads {
-		outputs[fmt.Sprintf("slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.upload_artifacts.outputs.slot_%d_tmp_id }}", i)
-	}
-
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:       "upload_artifact",
-		StepName:      "Upload artifacts",
-		StepID:        "upload_artifacts",
-		ScriptName:    "upload_artifact",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        "",
-		Permissions:   NewPermissions(),
-		Outputs:       outputs,
-		Condition:     jobCondition,
-		PreSteps:      preSteps,
-		PostSteps:     postSteps,
-		Token:         cfg.GitHubToken,
-		Needs:         needs,
-	})
-}
-
 // generateSafeOutputsArtifactStagingUpload generates a step in the main agent job that uploads
-// the artifact staging directory so the upload_artifact job can download it.
+// the artifact staging directory so the safe_outputs job can download it for inline processing.
 // This step only appears when upload-artifact is configured in safe-outputs.
 func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadArtifact == nil {
