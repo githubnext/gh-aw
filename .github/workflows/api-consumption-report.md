@@ -1,5 +1,5 @@
 ---
-description: Daily report on GitHub API and AI token consumption by agentic workflows — with trending charts and cost analysis
+description: Daily report on GitHub REST API consumption by agentic workflows — with trending charts and quota analysis
 on:
   schedule: daily
   workflow_dispatch:
@@ -27,15 +27,14 @@ imports:
   - shared/reporting.md
 ---
 
-# GitHub API & AI Consumption Report Agent
+# GitHub API Consumption Report Agent
 
-You are an expert data analyst monitoring the GitHub API and AI-model consumption produced by every agentic workflow in this repository.
+You are an expert data analyst monitoring the GitHub REST API consumption produced by every agentic workflow in this repository.
 
 ## Mission
 
 Every day, analyse the **last 24 hours** of agentic workflow runs to understand:
-- **AI token & cost consumption** — per workflow, per engine, in aggregate
-- **GitHub REST API footprint** — actual quota consumed (`github_rate_limit_usage.core_consumed` from `run_summary.json`), per workflow
+- **GitHub REST API footprint** — actual quota consumed (`github_rate_limit_usage.core_consumed` from `run_summary.json`), per workflow and per engine
 - **GitHub safe-output writes** — issues, PRs, comments, and discussions created by safe-output tools
 - **Run health** — success rates, durations, engine distribution
 - **Trends** — 30-day rolling history stored in cache-memory, visualised with snazzy Python charts
@@ -85,12 +84,6 @@ For every run directory under `/tmp/gh-aw/aw-mcp/logs/`, extract from **both** `
   "conclusion": "success",
   "started_at": "2024-01-15T08:00:00Z",
   "completed_at": "2024-01-15T08:05:00Z",
-  "tokens": {
-    "input": 45000,
-    "output": 3200,
-    "total": 48200
-  },
-  "cost_usd": 0.48,
   "safe_outputs": {
     "issues_created": 1,
     "prs_created": 0,
@@ -120,13 +113,10 @@ Compute for today's dataset:
 | `successful_runs` | `conclusion == "success"` |
 | `failed_runs` | total − successful |
 | `success_rate_pct` | `successful / total * 100` |
-| `total_tokens` | sum of `tokens.total` |
-| `total_cost_usd` | sum of `cost_usd` |
-| `tokens_by_engine` | dict keyed by engine name |
-| `cost_by_engine` | dict keyed by engine name |
 | `github_api_calls` | sum of `github_rate_limit_usage.core_consumed` from all `run_summary.json` files (actual REST API quota consumed across all runs in the 24-hour period) |
 | `github_safe_output_calls` | sum of all safe-output write operations (`issues_created + prs_created + comments_added + discussions_created`) |
-| `github_api_by_workflow` | list of `{"workflow": name, "core_consumed": N, "turns": N, "engine": name}` sorted by `core_consumed` descending |
+| `github_api_by_workflow` | aggregate runs by workflow name: `{"workflow": name, "runs": N, "core_consumed": total, "avg_duration_s": avg, "engine": most_common_engine}` sorted by `runs` descending (used for "Top 5 by Run Count" table) |
+| `github_api_by_engine` | dict keyed by engine name: `{"claude": total_core_consumed, ...}` — total `core_consumed` for each engine across all runs in the 24h period; also compute per-engine `runs` and `success_rate_pct` for the Engine Breakdown table |
 | `avg_duration_s` | mean of `(completed_at − started_at)` in seconds |
 | `p95_duration_s` | 95th-percentile duration |
 
@@ -134,6 +124,26 @@ Save the aggregated day-summary to:
 
 ```
 /tmp/gh-aw/python/data/today.json
+```
+
+Example structure:
+
+```json
+{
+  "total_runs": 42,
+  "successful_runs": 40,
+  "failed_runs": 2,
+  "success_rate_pct": 95.2,
+  "github_api_calls": 4800,
+  "github_safe_output_calls": 12,
+  "github_api_by_engine": {"claude": 3200, "copilot": 1400, "codex": 200},
+  "github_api_by_workflow": [
+    {"workflow": "api-consumption-report", "runs": 3, "core_consumed": 3757, "avg_duration_s": 2580, "engine": "claude"},
+    {"workflow": "workflow-normalizer", "runs": 8, "core_consumed": 1200, "avg_duration_s": 420, "engine": "copilot"}
+  ],
+  "avg_duration_s": 310,
+  "p95_duration_s": 900
+}
 ```
 
 ---
@@ -156,12 +166,9 @@ Each line must be a single JSON object. Use `date` (YYYY-MM-DD) as the primary t
   "successful_runs": 298,
   "failed_runs": 14,
   "success_rate_pct": 95.5,
-  "total_tokens": 4250000,
-  "total_cost_usd": 42.50,
-  "tokens_by_engine": {"claude": 2800000, "copilot": 1200000, "codex": 250000},
-  "cost_by_engine": {"claude": 28.00, "copilot": 12.00, "codex": 2.50},
   "github_api_calls": 7200,
   "github_safe_output_calls": 87,
+  "github_api_by_engine": {"claude": 3800, "copilot": 2600, "codex": 800},
   "github_api_by_workflow": [
     {"workflow": "api-consumption-report", "core_consumed": 3757, "turns": 47, "engine": "claude"},
     {"workflow": "workflow-normalizer", "core_consumed": 3508, "turns": 30, "engine": "copilot"}
@@ -182,7 +189,7 @@ Also write a metadata file:
 ```json
 {
   "metric": "api-consumption",
-  "description": "Daily GitHub API and AI token consumption by agentic workflows",
+  "description": "Daily GitHub REST API consumption by agentic workflows",
   "started_tracking": "<date of earliest entry>",
   "last_updated": "<today>",
   "data_points": <count>,
@@ -198,21 +205,21 @@ Write a Python script to `/tmp/gh-aw/python/api_consumption_charts.py` and run i
 
 The script must create **5 charts**, all saved to `/tmp/gh-aw/python/charts/` at 300 DPI with a white background.
 
-### Chart 1 — Token Consumption Trend (`token_trend.png`)
+### Chart 1 — GitHub API Calls Trend (`api_calls_trend.png`)
 
-A stacked-area chart showing **daily total tokens** broken down by engine (Claude, Copilot, Codex, other) over the full history window.
-- x-axis: date, y-axis: tokens (formatted as "1.2M", "450K")
+A stacked-area chart showing **daily total GitHub REST API calls** broken down by engine (Claude, Copilot, Codex, other) over the full history window.
+- x-axis: date, y-axis: API calls (formatted as "1.2K", "450")
 - Use a 7-day rolling average overlay line in white with slight transparency
 - Color palette: Claude=`#FF6B35`, Copilot=`#0078D4`, Codex=`#7B2D8B`, other=`#6B7280`
 - Annotate today's total in the top-right corner
 
-### Chart 2 — Daily Cost Trend (`cost_trend.png`)
+### Chart 2 — GitHub API Calls by Workflow Trend (`workflow_api_trend.png`)
 
-A grouped bar chart of **daily cost in USD** per engine with a cumulative-total line on a secondary y-axis.
-- Show last 30 days
-- Add a horizontal dashed "30-day average" line
-- Format y-axis as `$0.00`
-- Mark the most expensive day with a red ▲ annotation
+A line chart showing **daily GitHub REST API calls** for the **top 5 workflows** (by total API calls over the last 30 days) over the last 30 days.
+- x-axis: date, y-axis: API calls per day
+- Each workflow is a separate coloured line
+- Add a horizontal dashed "30-day average" line for total calls
+- Title: "Top 5 Workflows — GitHub API Calls Trend (30 days)"
 
 ### Chart 3 — GitHub REST API Calls Heatmap (`api_heatmap.png`)
 
@@ -224,12 +231,12 @@ A calendar-style heatmap of **actual GitHub REST API calls** (`github_api_calls`
 
 If fewer than 14 history points exist, create a **bar chart by engine** of today's REST API consumption (total `core_consumed` grouped by engine name) as a fallback, providing a distinct view of which AI engines drive the most API traffic.
 
-### Chart 4 — Engine Breakdown Donut (`engine_donut.png`)
+### Chart 4 — Engine API Calls Donut (`engine_donut.png`)
 
-A donut chart showing the **30-day share of total tokens** by engine.
+A donut chart showing the **GitHub REST API calls by engine** over the last 24 hours.
 - Use the same engine color palette as Chart 1
-- Show both percentage and absolute token count in the legend
-- Center label: "Tokens\n30d"
+- Show both percentage and absolute API call count in the legend
+- Center label: "REST API\n24h"
 - Add a subtle shadow for depth
 
 ### Chart 5 — GitHub REST API Consumption by Workflow (`api_by_workflow.png`)
@@ -247,7 +254,7 @@ A horizontal bar chart showing **GitHub REST API consumption (core quota consume
 
 ```python
 #!/usr/bin/env python3
-"""GitHub API & AI Consumption Charts — api-consumption-report"""
+"""GitHub API Consumption Charts — api-consumption-report"""
 
 import json
 import os
@@ -312,12 +319,12 @@ Create a discussion with the following structure. Replace placeholders with real
 
 **Category**: `audits`
 
-**Title**: `📊 GitHub API & AI Consumption Report — {YYYY-MM-DD}`
+**Title**: `📊 GitHub API Consumption Report — {YYYY-MM-DD}`
 
 ---
 
 ```markdown
-# 📊 GitHub API & AI Consumption Report
+# 📊 GitHub API Consumption Report
 
 **Report Date**: {date} · **Repository**: ${{ github.repository }} · **Run**: [#{run_id}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
@@ -329,27 +336,25 @@ Create a discussion with the following structure. Replace placeholders with real
 |--------|-------|
 | 🤖 Total Runs | {total_runs} ({successful} ✅ / {failed} ❌) |
 | 🎯 Success Rate | {success_rate_pct}% |
-| 🧠 Total Tokens | {total_tokens:,} |
-| 💰 Total Cost | ${total_cost_usd:.2f} |
 | 🔗 GitHub REST API Calls | {github_api_calls} (core quota consumed — includes reads, writes, and all GitHub API operations) |
 | 📝 Safe-Output Writes | {github_safe_output_calls} (issues + PRs + comments + discussions created by safe-output tools) |
 | ⏱ Avg Duration | {avg_duration_s}s (p95: {p95_duration_s}s) |
 
 ---
 
-## 🧠 Token Consumption Trend (90 days)
+## 🔗 GitHub API Calls Trend (90 days)
 
-![Token Consumption Trend]({token_trend_url})
+![GitHub API Calls Trend]({api_calls_trend_url})
 
-{2–3 sentences: highlight the trend direction, peak days, and which engine dominates}
+{2–3 sentences: highlight the trend direction, peak days, and which engine drives the most API traffic}
 
 ---
 
-## 💰 Daily Cost Trend (30 days)
+## 🔗 GitHub API Calls by Workflow Trend (30 days)
 
-![Daily Cost Trend]({cost_trend_url})
+![GitHub API Calls by Workflow Trend]({workflow_api_trend_url})
 
-{2–3 sentences: note the most expensive day, cost-per-run improvement or degradation, and 30-day average vs. today}
+{2–3 sentences: note which workflows consistently consume the most API quota and any emerging patterns over the last 30 days}
 
 ---
 
@@ -361,11 +366,11 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ---
 
-## 🍩 Engine Token Share (30 days)
+## 🍩 Engine REST API Share (24h)
 
-![Engine Token Breakdown]({engine_donut_url})
+![Engine REST API Breakdown]({engine_donut_url})
 
-{2–3 sentences: describe engine distribution, shifts over time, and which engine is cheapest per call}
+{2–3 sentences: describe engine distribution of API calls, shifts over time, and which engine is most API-efficient per run}
 
 ---
 
@@ -377,34 +382,26 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ---
 
-## Top 5 Workflows by GitHub REST API Consumption (last 24h)
+## Top 5 Workflows by Run Count (last 24h)
 
-| Workflow | REST API Calls | Turns | Engine |
-|----------|----------------|-------|--------|
-{top5_api_rows}
+| Workflow | Runs | REST API Calls | Avg Duration | Engine |
+|----------|------|----------------|--------------|--------|
+{top5_rows}
 
 ---
 
 ## Engine Breakdown (last 24h)
 
-| Engine | Runs | Tokens | Cost |
-|--------|------|--------|------|
+| Engine | Runs | REST API Calls | Success Rate |
+|--------|------|----------------|--------------|
 {engine_rows}
-
----
-
-## Top 5 Workflows by Cost (last 24h)
-
-| Workflow | Runs | Tokens | Cost | GitHub REST API Calls |
-|----------|------|--------|------|----------------------|
-{top5_rows}
 
 ---
 
 ## Trending Indicators
 
-- **7-day token trend**: {↑ / ↓ / →} {pct}% vs. previous 7 days
-- **30-day cost trend**: {↑ / ↓ / →} {pct}% vs. prior 30 days
+- **7-day API trend**: {↑ / ↓ / →} {pct}% vs. previous 7 days
+- **30-day API trend**: {↑ / ↓ / →} {pct}% vs. prior 30 days
 - **GitHub REST API call rate**: {calls/day} over last 7 days (hourly limit: 15,000)
 
 ---
