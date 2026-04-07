@@ -3,6 +3,7 @@
 package gitutil
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -257,7 +258,7 @@ func TestReadFileFromHEAD(t *testing.T) {
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
-		content, err := ReadFileFromHEAD(gitRoot + "/go.mod")
+		content, err := ReadFileFromHEAD(filepath.Join(gitRoot, "go.mod"))
 		require.NoError(t, err, "go.mod should be readable from HEAD")
 		assert.NotEmpty(t, content, "go.mod content should not be empty")
 		assert.Contains(t, content, "module ", "go.mod should contain a module declaration")

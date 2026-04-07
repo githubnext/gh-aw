@@ -692,7 +692,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 		}
 	} else {
-		log.Printf("Lock file %q not found in HEAD commit (new workflow or not yet committed). Safe update enforcement will treat as empty manifest.", lockFile)
+		log.Printf("Lock file %s not found in HEAD commit (new workflow or not yet committed). Safe update enforcement will treat as empty manifest.", lockFile)
 	}
 
 	// Validate workflow data
