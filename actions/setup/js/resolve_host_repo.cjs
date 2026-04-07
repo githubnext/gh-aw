@@ -104,7 +104,16 @@ async function resolveFromReferencedWorkflows(currentRepo) {
 
     // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
     const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
-    const calleeRefSource = matchingEntry.sha ? "sha" : matchingEntry.ref ? "ref" : pathRefMatch ? "path" : "none";
+    let calleeRefSource;
+    if (matchingEntry.sha) {
+      calleeRefSource = "sha";
+    } else if (matchingEntry.ref) {
+      calleeRefSource = "ref";
+    } else if (pathRefMatch) {
+      calleeRefSource = "path";
+    } else {
+      calleeRefSource = "none";
+    }
     const calleeRef = matchingEntry.sha || matchingEntry.ref || (pathRefMatch ? pathRefMatch[1] : "");
     core.info(`Resolved callee repo from referenced_workflows: ${calleeRepo} @ ${calleeRef || "(default branch)"} (source: ${calleeRefSource})`);
     core.info(`  Referenced workflow path: ${matchingEntry.path}`);
