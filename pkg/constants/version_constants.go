@@ -58,7 +58,7 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 const AWFCliProxyMinVersion Version = "v0.25.14"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.15"
+const DefaultMCPGatewayVersion Version = "v0.2.16"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.70"
