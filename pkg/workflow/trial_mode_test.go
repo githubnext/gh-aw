@@ -61,7 +61,7 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Generate YAML content
-		lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+		lockContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Failed to generate YAML in normal mode: %v", err)
 		}
@@ -120,7 +120,7 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Generate YAML content
-		lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+		lockContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Failed to generate YAML in trial mode: %v", err)
 		}
@@ -301,7 +301,7 @@ This is a test workflow for trial mode compilation.
 			}
 
 			// Generate YAML content
-			lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			lockContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 			if err != nil {
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
