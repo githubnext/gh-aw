@@ -20,11 +20,7 @@ BatchOps is a pattern for processing large volumes of work items efficiently. In
 
 ## Batch Strategy 1: Chunked Processing
 
-Split work into fixed-size pages using `GITHUB_RUN_NUMBER` or timestamps. Each run processes one page, picking up the next slice automatically on the next scheduled run.
-
-**Best for:** Scheduled maintenance workflows that should run indefinitely, working through a large backlog a page at a time without manual intervention.
-
-**Caveats:** Items are not processed in priority order. Use a stable sort key (creation date, issue number) so pagination is deterministic.
+Split work into fixed-size pages using `GITHUB_RUN_NUMBER`. Each run processes one page, picking up the next slice on the next scheduled run. Items must have a stable sort key (creation date, issue number) so pagination is deterministic.
 
 ```aw wrap
 ---
@@ -59,28 +55,16 @@ steps:
 
 # Chunked Issue Processor
 
-You are processing a chunk of issues. This run covers offset ${{ steps.compute-page.outputs.page_offset }}
-with page size ${{ steps.compute-page.outputs.page_size }}.
+This run covers offset ${{ steps.compute-page.outputs.page_offset }} with page size ${{ steps.compute-page.outputs.page_size }}.
 
-## Instructions
-
-1. List issues sorted by creation date (oldest first), skipping the first
-   ${{ steps.compute-page.outputs.page_offset }} issues, and taking
-   ${{ steps.compute-page.outputs.page_size }} issues.
-2. For each issue in the chunk:
-   - Add label `stale` if last updated more than 90 days ago with no recent comments
-   - Add label `needs-triage` if it has no labels at all
-   - Post a comment if the issue is stale, letting the author know it will be closed in 14 days
-3. Summarize: how many issues were labeled, how many comments posted, any errors.
+1. List issues sorted by creation date (oldest first), skipping the first ${{ steps.compute-page.outputs.page_offset }} and taking ${{ steps.compute-page.outputs.page_size }}.
+2. For each issue: add `stale` if last updated > 90 days ago with no recent comments; add `needs-triage` if it has no labels; post a stale warning comment if applicable.
+3. Summarize: issues labeled, comments posted, any errors.
 ```
 
 ## Batch Strategy 2: Fan-Out with Matrix
 
-Use GitHub Actions matrix to run multiple batch workers in parallel, each responsible for a non-overlapping shard of the work.
-
-**Best for:** Time-sensitive bulk operations where you want all items processed in a single workflow run. Requires clear shard assignment so workers don't overlap.
-
-**Caveats:** Matrix jobs count against your GitHub Actions concurrency limits. Each shard runs as a separate job with its own token and API rate limit quota. Use shard index modulo to partition items without a coordination database.
+Use GitHub Actions matrix to run multiple batch workers in parallel, each responsible for a non-overlapping shard. Use `fail-fast: false` so one shard failure doesn't cancel the others. Each shard gets its own token and API rate limit quota.
 
 ```aw wrap
 ---
@@ -111,30 +95,16 @@ safe-outputs:
 
 # Matrix Batch Worker — Shard ${{ matrix.shard }} of ${{ inputs.total_shards }}
 
-You are shard number ${{ matrix.shard }} in a ${{ inputs.total_shards }}-shard batch job.
+Process only issues where `(issue_number % ${{ inputs.total_shards }}) == ${{ matrix.shard }}` — this ensures no two shards process the same issue.
 
-## Shard Assignment
-
-Process only issues where `(issue_number % ${{ inputs.total_shards }}) == ${{ matrix.shard }}`.
-This ensures no two shards process the same issue.
-
-## Instructions
-
-1. List all open issues (up to 500). Keep only those where `issue_number mod ${{ inputs.total_shards }} == ${{ matrix.shard }}`.
-2. For each assigned issue:
-   - Check if it is a duplicate (search for similar titles or content).
-   - Add label `reviewed` to indicate it has been processed in this batch.
-   - If a clear duplicate is found, add label `duplicate` and reference the original.
-3. Report: total issues in your shard, how many labeled, any failures.
+1. List all open issues (up to 500) and keep only those assigned to this shard.
+2. For each issue: check for duplicates (similar title/content); add label `reviewed`; if a duplicate is found, add `duplicate` and reference the original.
+3. Report: issues in this shard, how many labeled, any failures.
 ```
 
 ## Batch Strategy 3: Rate-Limit-Aware Batching
 
-Throttle API calls by processing items in small sub-batches with explicit pauses between them.
-
-**Best for:** Workflows that call external APIs with strict quotas (e.g., a third-party review service), or when you want to avoid consuming your entire GitHub API quota in one run.
-
-**Caveats:** Slower than unbounded processing but dramatically reduces rate-limit errors. Use [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for built-in throttling.
+Throttle API calls by processing items in small sub-batches with explicit pauses. Slower than unbounded processing but dramatically reduces rate-limit errors. Use [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for built-in throttling.
 
 ```aw wrap
 ---
@@ -165,32 +135,17 @@ safe-outputs:
 
 # Rate-Limited Batch Processor
 
-Process all open issues across the repository while respecting API rate limits.
+Process all open issues in sub-batches of ${{ inputs.batch_size }}, pausing ${{ inputs.pause_seconds }} seconds between batches.
 
-## Instructions
-
-Process issues in sub-batches of ${{ inputs.batch_size }} at a time:
-
-1. Fetch all open issue numbers (use pagination if needed).
-2. Split into sub-batches of size ${{ inputs.batch_size }}.
-3. For each sub-batch:
-   a. Process each issue: read its body, determine the correct label, add the label.
-   b. After processing the entire sub-batch, pause for ${{ inputs.pause_seconds }} seconds
-      before starting the next sub-batch. This avoids secondary rate-limit errors.
-4. If you encounter a rate-limit error (HTTP 429), pause for 60 seconds and retry
-   the current item once before marking it as failed.
-5. Report a final summary: total processed, total failed, total skipped.
-
-Keep a count of API calls and pause proactively when approaching limits.
+1. Fetch all open issue numbers (paginate if needed).
+2. For each sub-batch: read each issue body, determine the correct label, add the label, then pause before the next sub-batch.
+3. On HTTP 429: pause 60 seconds and retry once before marking the item as failed.
+4. Report: total processed, failed, skipped.
 ```
 
 ## Batch Strategy 4: Result Aggregation
 
-Collect results from multiple batch workers or runs and aggregate them into a single summary issue or discussion.
-
-**Best for:** Long-running batch campaigns where stakeholders need consolidated reporting, audit trails, or comparison across multiple runs.
-
-**Caveats:** Aggregation requires a stable identifier (issue number, discussion number) to append results to. Use [cache-memory](/gh-aw/reference/cache-memory/) to store intermediate results if runs span multiple days.
+Collect results from multiple batch workers or runs and aggregate them into a single summary issue. Use [cache-memory](/gh-aw/reference/cache-memory/) to store intermediate results when runs span multiple days.
 
 ```aw wrap
 ---
@@ -237,56 +192,25 @@ steps:
 
 # Batch Result Aggregator
 
-You are aggregating results from all batch processing runs into issue #${{ inputs.report_issue }}.
+Aggregate results from previous batch runs stored in `/tmp/gh-aw/cache-memory/batch-results/` into issue #${{ inputs.report_issue }}.
 
-## Aggregate Data
-
-The aggregated statistics are at `/tmp/gh-aw/cache-memory/aggregate.json`.
-Individual run result files are in `/tmp/gh-aw/cache-memory/batch-results/`.
-
-## Instructions
-
-1. Read `/tmp/gh-aw/cache-memory/aggregate.json` for totals.
-2. Read each individual result file to understand per-run breakdowns.
-3. Update issue #${{ inputs.report_issue }} body with a Markdown table:
-   - Summary row: total processed / failed / skipped across all runs
-   - Per-run breakdown table
-   - List of any errors or items requiring manual intervention
-4. Add a comment to issue #${{ inputs.report_issue }} with the final status:
-   "Batch complete ✅" if no failures, or "Batch complete with failures ⚠️" and a list of failed items.
-5. If there are failed items, create sub-issues for each so they can be retried.
+1. Read `/tmp/gh-aw/cache-memory/aggregate.json` for totals and each individual result file for per-run breakdowns.
+2. Update issue #${{ inputs.report_issue }} body with a Markdown table: summary row (processed/failed/skipped) plus per-run breakdown. List any errors requiring manual intervention.
+3. Add a comment: "Batch complete ✅" if no failures, or "Batch complete with failures ⚠️" with a list of failed items.
+4. For each failed item, create a sub-issue so it can be retried.
 ```
 
 ## Error Handling and Partial Failures
 
 Batch workflows must be resilient to individual item failures.
 
-### Retry Pattern
+**Retry pattern**: When using cache-memory queues, track `retry_count` per failed item. Retry items where `retry_count < 3`; after three failures move them to `permanently_failed` for human review. Increment the count and save the queue after each attempt.
 
-```aw wrap
----
-tools:
-  cache-memory: true
-  bash:
-    - "jq"
----
-
-# Retry Failed Items
-
-Load `/tmp/gh-aw/cache-memory/workqueue.json`. Focus only on items in `failed`
-where `retry_count < 3`. For each:
-1. Attempt to process the item again.
-2. On success: move to `completed`, remove from `failed`.
-3. On second failure: increment `retry_count`. Leave in `failed`.
-4. On third failure: move to `permanently_failed` for human review.
-5. Save the updated queue.
-```
-
-### Failure Isolation
+**Failure isolation**:
 
 - Use `fail-fast: false` in matrix jobs so one shard failure doesn't cancel others
 - Write per-item results before moving to the next item
-- Store errors with enough context to diagnose and retry without re-reading everything
+- Store errors with enough context to diagnose and retry
 
 ## Real-World Example: Updating Labels Across 100+ Issues
 
@@ -324,21 +248,12 @@ concurrency:
 
 # Label Migration: `bug` → `type:bug`
 
-Migrate all issues with the label `bug` to use `type:bug` instead.
+Migrate all issues with the label `bug` to use `type:bug`. List all issues (open and closed) with label `bug`, paginating to retrieve all of them.
 
-## Instructions
+- If `${{ inputs.dry_run }}` is `true`: report how many issues would be updated and add a preview comment. Make no changes.
+- If `${{ inputs.dry_run }}` is `false`: for each issue add `type:bug` then remove `bug`. Process in sub-batches of 20 with 15-second pauses. Track successes and failures.
 
-1. List all issues (open and closed) that have the label `bug`. Use pagination to
-   retrieve all of them — there may be more than 100.
-2. If `${{ inputs.dry_run }}` is `true`:
-   - Report how many issues would be updated but make no changes.
-   - Add a comment summarizing the planned migration.
-3. If `${{ inputs.dry_run }}` is `false`:
-   - For each issue: add label `type:bug`, then remove label `bug`.
-   - Process in sub-batches of 20 issues, pausing 15 seconds between batches.
-   - Track successes and failures.
-4. Add a final comment with the migration summary: total issues updated, any failures,
-   and a link to search for remaining `bug` labels to verify completeness.
+Add a final comment with totals and a search link to verify no `bug` labels remain.
 ```
 
 ## Related Pages
