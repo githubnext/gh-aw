@@ -24,6 +24,19 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 
+	// When using a custom image runner, ensure Node.js v24 is set up.
+	// Standard GitHub-hosted runners (ubuntu-*, windows-*) have Node.js pre-installed,
+	// but custom image runners (self-hosted, enterprise runners, non-standard labels) may not.
+	// Node.js is required for gh-aw scripts such as start_safe_outputs_server.sh and
+	// start_mcp_scripts_server.sh that invoke `node` directly.
+	if isCustomImageRunner(workflowData.RunsOn) {
+		runtimeSetupLog.Printf("Custom image runner detected (%q), ensuring Node.js v24 is set up", workflowData.RunsOn)
+		nodeRuntime := findRuntimeByID("node")
+		if nodeRuntime != nil {
+			updateRequiredRuntime(nodeRuntime, "", requirements)
+		}
+	}
+
 	// Apply runtime overrides from frontmatter
 	if workflowData.Runtimes != nil {
 		applyRuntimeOverrides(workflowData.Runtimes, requirements)
@@ -170,4 +183,37 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	if compareVersions(newVersion, existing.Version) > 0 {
 		existing.Version = newVersion
 	}
+}
+
+// isCustomImageRunner returns true if the runs-on configuration indicates a non-standard
+// GitHub-hosted runner (custom image, self-hosted runner, or runner group). Custom image
+// runners may not have Node.js pre-installed, so the compiler ensures Node.js v24 is set up.
+//
+// Standard GitHub-hosted runners (labels starting with "ubuntu-" or "windows-") have Node.js
+// pre-installed and do NOT require an explicit setup step from the runtime manager.
+//
+// The runsOn parameter is a YAML string in the form produced by extractTopLevelYAMLSection,
+// for example:
+//   - "runs-on: ubuntu-latest"       → standard runner → returns false
+//   - "runs-on: ubuntu-22.04"        → standard runner → returns false
+//   - "runs-on: self-hosted"         → custom runner   → returns true
+//   - "runs-on:\n- self-hosted\n..."  → array form      → returns true
+//   - "runs-on:\n  group: ..."        → object form     → returns true
+func isCustomImageRunner(runsOn string) bool {
+	if runsOn == "" {
+		// Empty means the default "ubuntu-latest" will be applied — not a custom runner.
+		return false
+	}
+
+	const keyPrefix = "runs-on: "
+	if value, ok := strings.CutPrefix(runsOn, keyPrefix); ok {
+		// Single-line value: extract the runner label and check against known standard prefixes.
+		value = strings.TrimSpace(value)
+		lower := strings.ToLower(value)
+		// Standard GitHub-hosted runners that ship with Node.js pre-installed.
+		return !strings.HasPrefix(lower, "ubuntu-") && !strings.HasPrefix(lower, "windows-")
+	}
+
+	// Multi-line value (array or object form) — always treat as custom image runner.
+	return true
 }
