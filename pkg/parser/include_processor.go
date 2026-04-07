@@ -119,8 +119,14 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	}
 	includeLog.Printf("Read %d bytes from included file: %s", len(content), filePath)
 
-	// Validate included file frontmatter based on file location
-	result, err := ExtractFrontmatterFromContent(string(content))
+	// Validate included file frontmatter based on file location.
+	// For builtin virtual files, use the process-level cache to avoid repeated YAML parsing.
+	var result *FrontmatterResult
+	if strings.HasPrefix(filePath, BuiltinPathPrefix) {
+		result, err = ExtractFrontmatterFromBuiltinFile(filePath, content)
+	} else {
+		result, err = ExtractFrontmatterFromContent(string(content))
+	}
 	if err != nil {
 		return "", fmt.Errorf("failed to extract frontmatter from included file %s: %w", filePath, err)
 	}

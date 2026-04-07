@@ -24,9 +24,10 @@ var githubAppPermissionsLog = newValidationLogger("github_app_permissions")
 //   - safe-outputs.github-app
 //   - the top-level github-app field (for the activation/pre-activation jobs)
 //
+// The caller must pass the pre-parsed permissions to avoid redundant YAML parsing.
 // Returns an error if GitHub App-only permissions are used without any GitHub App configured,
 // or if "write" level is requested for any GitHub App-only scope.
-func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
+func validateGitHubAppOnlyPermissions(workflowData *WorkflowData, permissions *Permissions) error {
 	githubAppPermissionsLog.Print("Starting GitHub App-only permissions validation")
 
 	if workflowData.Permissions == "" {
@@ -34,7 +35,6 @@ func validateGitHubAppOnlyPermissions(workflowData *WorkflowData) error {
 		return nil
 	}
 
-	permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
 	if permissions == nil {
 		githubAppPermissionsLog.Print("Could not parse permissions, validation passed")
 		return nil

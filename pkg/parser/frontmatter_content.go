@@ -88,6 +88,26 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}, nil
 }
 
+// ExtractFrontmatterFromBuiltinFile is a caching wrapper around ExtractFrontmatterFromContent
+// for builtin virtual files. Because builtin files are registered once at startup and never
+// change, the parsed FrontmatterResult is identical across calls. This function caches the
+// first parse result in builtinFrontmatterCache and returns the cached value on subsequent
+// calls, avoiding repeated YAML parsing for frequently imported engine definition files.
+//
+// IMPORTANT: The returned *FrontmatterResult must not be mutated by the caller.
+// Use ExtractFrontmatterFromContent directly when you need to modify the result.
+func ExtractFrontmatterFromBuiltinFile(path string, content []byte) (*FrontmatterResult, error) {
+	if cached, ok := GetBuiltinFrontmatterCache(path); ok {
+		return cached, nil
+	}
+	result, err := ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return nil, err
+	}
+	// SetBuiltinFrontmatterCache uses LoadOrStore so concurrent races are safe.
+	return SetBuiltinFrontmatterCache(path, result), nil
+}
+
 // ExtractMarkdownSection extracts a specific section from markdown content
 // Supports H1-H3 headers and proper nesting (matches bash implementation)
 func ExtractMarkdownSection(content, sectionName string) (string, error) {

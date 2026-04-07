@@ -16,8 +16,9 @@ var dangerousPermissionsLog = newValidationLogger("dangerous_permissions")
 // - Custom jobs (jobs defined in the jobs: section)
 // - Safe outputs jobs (jobs defined in safe-outputs.job section)
 //
+// The caller must pass the pre-parsed permissions to avoid redundant YAML parsing.
 // Returns an error if write permissions are found.
-func validateDangerousPermissions(workflowData *WorkflowData) error {
+func validateDangerousPermissions(workflowData *WorkflowData, permissions *Permissions) error {
 	dangerousPermissionsLog.Print("Starting dangerous permissions validation")
 
 	// Parse the top-level workflow permissions
@@ -26,7 +27,6 @@ func validateDangerousPermissions(workflowData *WorkflowData) error {
 		return nil
 	}
 
-	permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
 	if permissions == nil {
 		dangerousPermissionsLog.Print("Could not parse permissions, validation passed")
 		return nil

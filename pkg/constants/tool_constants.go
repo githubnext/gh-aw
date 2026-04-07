@@ -66,6 +66,16 @@ var AllowedExpressions = []string{
 	"github.workspace",
 } // needs., steps. already allowed
 
+// AllowedExpressionsSet is a pre-built set for O(1) membership checks.
+// Use this instead of slices.Contains(AllowedExpressions, expr) for performance.
+var AllowedExpressionsSet = func() map[string]struct{} {
+	s := make(map[string]struct{}, len(AllowedExpressions))
+	for _, e := range AllowedExpressions {
+		s[e] = struct{}{}
+	}
+	return s
+}()
+
 // DangerousPropertyNames contains JavaScript built-in property names that are blocked
 // in GitHub Actions expressions to prevent prototype pollution and traversal attacks.
 // This list matches the DANGEROUS_PROPS list in actions/setup/js/runtime_import.cjs
@@ -85,6 +95,16 @@ var DangerousPropertyNames = []string{
 	"valueOf",
 	"toLocaleString",
 }
+
+// DangerousPropertyNamesSet is a pre-built set for O(1) membership checks.
+// Use this instead of iterating DangerousPropertyNames for performance.
+var DangerousPropertyNamesSet = func() map[string]struct{} {
+	s := make(map[string]struct{}, len(DangerousPropertyNames))
+	for _, p := range DangerousPropertyNames {
+		s[p] = struct{}{}
+	}
+	return s
+}()
 
 // DefaultReadOnlyGitHubTools defines the default read-only GitHub MCP tools.
 // This list is shared by both local (Docker) and remote (hosted) modes.

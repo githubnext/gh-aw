@@ -51,6 +51,33 @@ func BuiltinVirtualFileExists(path string) bool {
 	return ok
 }
 
+// builtinFrontmatterCache caches the result of parsing frontmatter for builtin virtual files.
+// Builtin files are immutable (registered once at startup), so the parse result is stable
+// across the lifetime of the process. This avoids repeated YAML parsing for frequently
+// imported engine definition files (e.g. @builtin:engines/copilot.md).
+// The cache stores a deep-copied result so callers cannot mutate the cached data.
+var builtinFrontmatterCache sync.Map // map[string]*FrontmatterResult
+
+// GetBuiltinFrontmatterCache returns the cached FrontmatterResult for a builtin virtual file.
+// Returns (result, true) if cached, (nil, false) if not yet cached.
+// The returned result is a deep copy and safe to mutate.
+func GetBuiltinFrontmatterCache(path string) (*FrontmatterResult, bool) {
+	v, ok := builtinFrontmatterCache.Load(path)
+	if !ok {
+		return nil, false
+	}
+	return v.(*FrontmatterResult), true
+}
+
+// SetBuiltinFrontmatterCache stores a FrontmatterResult for a builtin virtual file.
+// The result is stored directly; callers must not mutate it after storing.
+// Returns the stored result (which may differ from the provided one if a concurrent
+// call already populated the cache — the winner's value is returned).
+func SetBuiltinFrontmatterCache(path string, result *FrontmatterResult) *FrontmatterResult {
+	actual, _ := builtinFrontmatterCache.LoadOrStore(path, result)
+	return actual.(*FrontmatterResult)
+}
+
 // BuiltinPathPrefix is the path prefix used for embedded builtin files.
 // Paths with this prefix bypass filesystem resolution and security checks.
 const BuiltinPathPrefix = "@builtin:"

@@ -192,7 +192,7 @@ func TestValidateGitHubAppOnlyPermissions(t *testing.T) {
 				ActivationGitHubApp: tt.activationApp,
 			}
 
-			err := validateGitHubAppOnlyPermissions(workflowData)
+			err := validateGitHubAppOnlyPermissions(workflowData, NewPermissionsParser(workflowData.Permissions).ToPermissions())
 
 			if tt.shouldError {
 				if err == nil {
