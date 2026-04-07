@@ -124,7 +124,7 @@ Compute for today's dataset:
 | `total_cost_usd` | sum of `cost_usd` |
 | `tokens_by_engine` | dict keyed by engine name |
 | `cost_by_engine` | dict keyed by engine name |
-| `github_api_calls` | sum of `github_rate_limit_usage.core_consumed` from `run_summary.json` (actual REST API quota consumed) |
+| `github_api_calls` | sum of `github_rate_limit_usage.core_consumed` from all `run_summary.json` files (actual REST API quota consumed across all runs in the 24-hour period) |
 | `github_safe_output_calls` | sum of all safe-output write operations (`issues_created + prs_created + comments_added + discussions_created`) |
 | `github_api_by_workflow` | list of `{"workflow": name, "core_consumed": N, "turns": N, "engine": name}` sorted by `core_consumed` descending |
 | `avg_duration_s` | mean of `(completed_at − started_at)` in seconds |
@@ -222,7 +222,7 @@ A calendar-style heatmap of **actual GitHub REST API calls** (`github_api_calls`
 - Title: "GitHub REST API Calls Heatmap (core quota consumed)"
 - Add a colorbar
 
-If fewer than 14 history points exist, create a **horizontal bar chart** of today's REST API consumption per workflow (`github_api_by_workflow`, top 10 entries) as a fallback.
+If fewer than 14 history points exist, create a **bar chart by engine** of today's REST API consumption (total `core_consumed` grouped by engine name) as a fallback, providing a distinct view of which AI engines drive the most API traffic.
 
 ### Chart 4 — Engine Breakdown Donut (`engine_donut.png`)
 
@@ -331,8 +331,8 @@ Create a discussion with the following structure. Replace placeholders with real
 | 🎯 Success Rate | {success_rate_pct}% |
 | 🧠 Total Tokens | {total_tokens:,} |
 | 💰 Total Cost | ${total_cost_usd:.2f} |
-| 🔗 GitHub REST API Calls | {github_api_calls} (core quota consumed) |
-| 📝 Safe-Output Writes | {github_safe_output_calls} (issues + PRs + comments + discussions) |
+| 🔗 GitHub REST API Calls | {github_api_calls} (core quota consumed — includes reads, writes, and all GitHub API operations) |
+| 📝 Safe-Output Writes | {github_safe_output_calls} (issues + PRs + comments + discussions created by safe-output tools) |
 | ⏱ Avg Duration | {avg_duration_s}s (p95: {p95_duration_s}s) |
 
 ---
