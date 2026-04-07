@@ -242,12 +242,14 @@ async function main(config = {}) {
   // (for cross-repository operations), otherwise falls back to the step-level github.
   const githubClient = await createAuthenticatedGitHubClient(config);
 
-  // Create a dedicated client for copilot assignment. Uses GH_AW_ASSIGN_TO_AGENT_TOKEN
-  // (the agent token preference chain) when available, otherwise falls back to step-level github.
-  const copilotClient = await createCopilotAssignmentClient(config);
-
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+
+  // Lazily-initialised client for copilot assignment (only allocated when needed).
+  // Uses GH_AW_ASSIGN_TO_AGENT_TOKEN (agent token preference chain) when available,
+  // otherwise falls back to the step-level github object.
+  /** @type {Object|null} */
+  let copilotClient = null;
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
@@ -603,6 +605,10 @@ async function main(config = {}) {
 
       // Assign copilot directly using agent helpers when enabled (similar to assign_to_agent.cjs pattern)
       if (hasCopilot && assignCopilot) {
+        // Lazily allocate the dedicated copilot client on first use
+        if (!copilotClient) {
+          copilotClient = await createCopilotAssignmentClient(config);
+        }
         core.info(`Assigning copilot coding agent to issue #${issue.number} in ${qualifiedItemRepo}...`);
         try {
           const agentId = await findAgent(repoParts.owner, repoParts.repo, "copilot", copilotClient);
