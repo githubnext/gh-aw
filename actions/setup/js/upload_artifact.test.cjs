@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,11 +10,11 @@ const __dirname = path.dirname(__filename);
 // Use RUNNER_TEMP as the base so paths match what upload_artifact.cjs computes at runtime.
 const RUNNER_TEMP = "/tmp";
 const STAGING_DIR = `${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
-const SLOT_BASE_DIR = `${RUNNER_TEMP}/gh-aw/upload-artifacts/`;
 const RESOLVER_FILE = `${RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
 
 describe("upload_artifact.cjs", () => {
   let mockCore;
+  let mockArtifactClient;
   let originalEnv;
 
   /**
@@ -29,7 +28,7 @@ describe("upload_artifact.cjs", () => {
   }
 
   /**
-   * Build a config object (replaces ENV vars in the old standalone approach).
+   * Build a config object.
    * @param {object} overrides
    */
   function buildConfig(overrides = {}) {
@@ -43,22 +42,22 @@ describe("upload_artifact.cjs", () => {
   }
 
   /**
-   * Run the handler against a list of messages using the new per-message pattern.
-   * Simulates what the handler manager does.
+   * Run the handler against a list of messages using the per-message handler pattern.
+   * Injects global.__createArtifactClient so tests never hit the real REST API.
    * @param {object} config
    * @param {object[]} messages
-   * @returns {Promise<object[]>} results from each message handler call
+   * @returns {Promise<object[]>}
    */
   async function runHandler(config, messages) {
     const scriptText = fs.readFileSync(path.join(__dirname, "upload_artifact.cjs"), "utf8");
     global.core = mockCore;
+    global.__createArtifactClient = () => mockArtifactClient;
     let handlerFn;
     await eval(`(async () => { ${scriptText}; handlerFn = await main(config); })()`);
     const results = [];
     for (const msg of messages) {
       const result = await handlerFn(msg, {}, new Map());
       results.push(result);
-      // Simulate handler manager calling setFailed on failure
       if (result && result.success === false && !result.skipped) {
         mockCore.setFailed(result.error);
       }
@@ -82,6 +81,10 @@ describe("upload_artifact.cjs", () => {
       },
     };
 
+    mockArtifactClient = {
+      uploadArtifact: vi.fn().mockResolvedValue({ id: 42, size: 100 }),
+    };
+
     originalEnv = { ...process.env };
 
     // Set RUNNER_TEMP so the script resolves paths to the same directories as the test helpers.
@@ -94,11 +97,6 @@ describe("upload_artifact.cjs", () => {
     }
     fs.mkdirSync(STAGING_DIR, { recursive: true });
 
-    // Clean slot dir
-    if (fs.existsSync(SLOT_BASE_DIR)) {
-      fs.rmSync(SLOT_BASE_DIR, { recursive: true });
-    }
-
     // Clean resolver file
     if (fs.existsSync(RESOLVER_FILE)) {
       fs.unlinkSync(RESOLVER_FILE);
@@ -107,22 +105,24 @@ describe("upload_artifact.cjs", () => {
 
   afterEach(() => {
     process.env = originalEnv;
+    delete global.__createArtifactClient;
   });
 
   describe("path-based upload", () => {
-    it("stages a single file and sets slot outputs", async () => {
+    it("uploads a single file via artifact client", async () => {
       writeStaging("report.json", '{"result": "ok"}');
 
-      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 14 }]);
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 14 }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_retention_days", "14");
+      expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+      const [name, files, rootDir, opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(name).toBe("report.json");
+      expect(files).toContain(path.join(STAGING_DIR, "report.json"));
+      expect(rootDir).toBe(STAGING_DIR);
+      expect(opts.retentionDays).toBe(14);
       expect(mockCore.setOutput).toHaveBeenCalledWith("upload_artifact_count", "1");
-
-      // Verify the file was staged into slot_0.
-      const slotFile = path.join(SLOT_BASE_DIR, "slot_0", "report.json");
-      expect(fs.existsSync(slotFile)).toBe(true);
     });
 
     it("clamps retention days to max-retention-days", async () => {
@@ -131,7 +131,8 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 999 }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_retention_days", "30");
+      const [, , , opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(opts.retentionDays).toBe(30);
     });
 
     it("uses default retention when retention_days is absent", async () => {
@@ -139,7 +140,8 @@ describe("upload_artifact.cjs", () => {
 
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_retention_days", "7");
+      const [, , , opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(opts.retentionDays).toBe(7);
     });
   });
 
@@ -150,38 +152,46 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", filters: { include: ["**/*.json"] } }]);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exactly one of 'path' or 'filters'"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when neither path nor filters are present", async () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", retention_days: 7 }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exactly one of 'path' or 'filters'"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when path traverses outside staging dir", async () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "../etc/passwd" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must not traverse outside staging directory"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when absolute path is provided", async () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "/etc/passwd" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be relative"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when path does not exist in staging dir", async () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "nonexistent.json" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("does not exist in staging directory"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when max-uploads is exceeded", async () => {
       writeStaging("a.json");
       writeStaging("b.json");
 
-      await runHandler(buildConfig({ "max-uploads": 1 }), [
+      const results = await runHandler(buildConfig({ "max-uploads": 1 }), [
         { type: "upload_artifact", path: "a.json" },
         { type: "upload_artifact", path: "b.json" },
       ]);
 
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(false);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exceeded max-uploads policy"));
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
     });
 
     it("fails when skip_archive is requested but not allowed", async () => {
@@ -190,6 +200,7 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip_archive=true is not permitted"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when skip_archive=true with multiple files", async () => {
@@ -199,6 +210,17 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", filters: { include: ["output/**"] }, skip_archive: true }]);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip_archive=true requires exactly one selected file"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("fails when upload client throws", async () => {
+      writeStaging("report.json");
+      mockArtifactClient.uploadArtifact.mockRejectedValue(new Error("network failure"));
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("network failure"));
     });
   });
 
@@ -206,10 +228,11 @@ describe("upload_artifact.cjs", () => {
     it("succeeds with skip_archive=true and a single file", async () => {
       writeStaging("app.bin", "binary data");
 
-      await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
+      const results = await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
+      expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
     });
   });
 
@@ -227,7 +250,9 @@ describe("upload_artifact.cjs", () => {
       ]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+      const [, files] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(files).toHaveLength(2);
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_file_count", "2");
     });
 
@@ -235,14 +260,14 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig({ "default-if-no-files": "ignore" }), [{ type: "upload_artifact", filters: { include: ["nonexistent/**"] } }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      // No slot output set since skipped
-      expect(mockCore.setOutput).not.toHaveBeenCalledWith("slot_0_enabled", "true");
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("fails when no files match and if-no-files=error (default)", async () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", filters: { include: ["nonexistent/**"] } }]);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("no files matched"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
   });
 
@@ -254,6 +279,8 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig({ "allowed-paths": ["dist/**"] }), [{ type: "upload_artifact", filters: { include: ["**"] } }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const [, files] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(files).toHaveLength(1);
       expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_file_count", "1");
     });
   });
@@ -271,30 +298,26 @@ describe("upload_artifact.cjs", () => {
   });
 
   describe("staged mode", () => {
-    it("skips file staging but sets outputs in staged mode", async () => {
+    it("skips upload client call in staged mode (env var)", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       writeStaging("report.json");
 
-      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
-
-      // In staged mode, files are NOT copied to the slot directory.
-      const slotFile = path.join(SLOT_BASE_DIR, "slot_0", "report.json");
-      expect(fs.existsSync(slotFile)).toBe(false);
+      expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", expect.stringMatching(/^tmp_artifact_[A-Z0-9]{26}$/));
     });
 
-    it("skips file staging when staged=true in config", async () => {
+    it("skips upload client call when staged=true in config", async () => {
       writeStaging("report.json");
 
-      await runHandler(buildConfig({ staged: true }), [{ type: "upload_artifact", path: "report.json" }]);
+      const results = await runHandler(buildConfig({ staged: true }), [{ type: "upload_artifact", path: "report.json" }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_enabled", "true");
-
-      const slotFile = path.join(SLOT_BASE_DIR, "slot_0", "report.json");
-      expect(fs.existsSync(slotFile)).toBe(false);
+      expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
   });
 
