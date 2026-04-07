@@ -32,6 +32,25 @@ func WithNoEmit(noEmit bool) CompilerOption {
 	return func(c *Compiler) { c.noEmit = noEmit }
 }
 
+// WithSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets
+// and unapproved action additions/removals relative to the previously recorded manifest).
+func WithSafeUpdate(safeUpdate bool) CompilerOption {
+	return func(c *Compiler) { c.safeUpdate = safeUpdate }
+}
+
+// WithPriorManifest registers a pre-cached manifest for a specific lock file.
+// When set, the compiler uses this manifest as the trusted baseline for safe update
+// enforcement instead of reading from git HEAD or the filesystem.  This is intended for
+// use by the MCP server, which collects manifests at startup before any agent interaction.
+func WithPriorManifest(lockFile string, manifest *GHAWManifest) CompilerOption {
+	return func(c *Compiler) {
+		if c.priorManifests == nil {
+			c.priorManifests = make(map[string]*GHAWManifest)
+		}
+		c.priorManifests[lockFile] = manifest
+	}
+}
+
 // WithFailFast configures whether to stop at first validation error
 func WithFailFast(failFast bool) CompilerOption {
 	return func(c *Compiler) { c.failFast = failFast }
@@ -52,40 +71,43 @@ type Compiler struct {
 	verbose                 bool
 	quiet                   bool // If true, suppress success messages (for interactive mode)
 	engineOverride          string
-	customOutput            string              // If set, output will be written to this path instead of default location
-	version                 string              // Version of the extension
-	skipValidation          bool                // If true, skip schema validation
-	noEmit                  bool                // If true, validate without generating lock files
-	strictMode              bool                // If true, enforce strict validation requirements
-	trialMode               bool                // If true, suppress safe outputs for trial mode execution
-	trialLogicalRepoSlug    string              // If set in trial mode, the logical repository to checkout
-	refreshStopTime         bool                // If true, regenerate stop-after times instead of preserving existing ones
-	forceRefreshActionPins  bool                // If true, clear action cache and resolve all actions from GitHub API
-	failFast                bool                // If true, stop at first validation error instead of collecting all errors
-	actionCacheCleared      bool                // Tracks if action cache has already been cleared (for forceRefreshActionPins)
-	markdownPath            string              // Path to the markdown file being compiled (for context in dynamic tool generation)
-	actionMode              ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
-	actionTag               string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
-	actionsRepo             string              // Override the external actions repository (default: github/gh-aw-actions)
-	jobManager              *JobManager         // Manages jobs and dependencies
-	engineRegistry          *EngineRegistry     // Registry of available agentic engines
-	engineCatalog           *EngineCatalog      // Catalog of engine definitions backed by the registry
-	fileTracker             FileTracker         // Optional file tracker for tracking created files
-	warningCount            int                 // Number of warnings encountered during compilation
-	stepOrderTracker        *StepOrderTracker   // Tracks step ordering for validation
-	actionCache             *ActionCache        // Shared cache for action pin resolutions across all workflows
-	actionResolver          *ActionResolver     // Shared resolver for action pins across all workflows
-	actionPinWarnings       map[string]bool     // Shared cache of already-warned action pin failures (key: "repo@version")
-	importCache             *parser.ImportCache // Shared cache for imported workflow files
-	workflowIdentifier      string              // Identifier for the current workflow being compiled (for schedule scattering)
-	scheduleWarnings        []string            // Accumulated schedule warnings for this compiler instance
-	repositorySlug          string              // Repository slug (owner/repo) used as seed for scattering
-	artifactManager         *ArtifactManager    // Tracks artifact uploads/downloads for validation
-	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
-	gitRoot                 string              // Git repository root directory (if set, used for action cache path)
-	contentOverride         string              // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
-	skipHeader              bool                // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
-	inlinePrompt            bool                // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
+	customOutput            string                   // If set, output will be written to this path instead of default location
+	version                 string                   // Version of the extension
+	skipValidation          bool                     // If true, skip schema validation
+	noEmit                  bool                     // If true, validate without generating lock files
+	strictMode              bool                     // If true, enforce strict validation requirements
+	safeUpdate              bool                     // If true, enforce safe update mode (reject newly introduced secrets)
+	trialMode               bool                     // If true, suppress safe outputs for trial mode execution
+	trialLogicalRepoSlug    string                   // If set in trial mode, the logical repository to checkout
+	refreshStopTime         bool                     // If true, regenerate stop-after times instead of preserving existing ones
+	forceRefreshActionPins  bool                     // If true, clear action cache and resolve all actions from GitHub API
+	failFast                bool                     // If true, stop at first validation error instead of collecting all errors
+	actionCacheCleared      bool                     // Tracks if action cache has already been cleared (for forceRefreshActionPins)
+	markdownPath            string                   // Path to the markdown file being compiled (for context in dynamic tool generation)
+	actionMode              ActionMode               // Mode for generating JavaScript steps (inline vs custom actions)
+	actionTag               string                   // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
+	actionsRepo             string                   // Override the external actions repository (default: github/gh-aw-actions)
+	jobManager              *JobManager              // Manages jobs and dependencies
+	engineRegistry          *EngineRegistry          // Registry of available agentic engines
+	engineCatalog           *EngineCatalog           // Catalog of engine definitions backed by the registry
+	fileTracker             FileTracker              // Optional file tracker for tracking created files
+	warningCount            int                      // Number of warnings encountered during compilation
+	stepOrderTracker        *StepOrderTracker        // Tracks step ordering for validation
+	actionCache             *ActionCache             // Shared cache for action pin resolutions across all workflows
+	actionResolver          *ActionResolver          // Shared resolver for action pins across all workflows
+	actionPinWarnings       map[string]bool          // Shared cache of already-warned action pin failures (key: "repo@version")
+	importCache             *parser.ImportCache      // Shared cache for imported workflow files
+	workflowIdentifier      string                   // Identifier for the current workflow being compiled (for schedule scattering)
+	scheduleWarnings        []string                 // Accumulated schedule warnings for this compiler instance
+	safeUpdateWarnings      []string                 // Accumulated safe update warnings (new secrets/actions requiring review)
+	repositorySlug          string                   // Repository slug (owner/repo) used as seed for scattering
+	artifactManager         *ArtifactManager         // Tracks artifact uploads/downloads for validation
+	scheduleFriendlyFormats map[int]string           // Maps schedule item index to friendly format string for current workflow
+	gitRoot                 string                   // Git repository root directory (if set, used for action cache path)
+	contentOverride         string                   // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
+	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
+	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
+	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -150,6 +172,14 @@ func (c *Compiler) SetQuiet(quiet bool) {
 // SetNoEmit configures whether to validate without generating lock files
 func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
+}
+
+// SetSafeUpdate configures whether to force-enable safe update mode via the CLI flag.
+// Safe update mode is normally equivalent to strict mode (active when strict mode is active).
+// This flag provides an additional override to enable safe update mode independently of
+// the strict mode setting.
+func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
+	c.safeUpdate = safeUpdate
 }
 
 // SetFileTracker sets the file tracker for tracking created files
@@ -251,6 +281,39 @@ func (c *Compiler) SetRepositorySlug(slug string) {
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance
 func (c *Compiler) GetScheduleWarnings() []string {
 	return c.scheduleWarnings
+}
+
+// AddSafeUpdateWarning appends a safe update warning to the compiler's accumulated list.
+// Callers should invoke this when a safe update violation is detected instead of
+// returning a compilation error, so that compilation still succeeds and the agent
+// receives actionable guidance.
+func (c *Compiler) AddSafeUpdateWarning(warning string) {
+	if c.safeUpdateWarnings == nil {
+		c.safeUpdateWarnings = []string{}
+	}
+	c.safeUpdateWarnings = append(c.safeUpdateWarnings, warning)
+}
+
+// GetSafeUpdateWarnings returns all accumulated safe update warnings for this compiler instance.
+func (c *Compiler) GetSafeUpdateWarnings() []string {
+	return c.safeUpdateWarnings
+}
+
+// SetPriorManifest registers a pre-cached manifest for a specific lock file path.
+// When set, the compiler uses this as the trusted baseline for safe update enforcement
+// instead of reading from git HEAD or the filesystem.  Intended for use by the MCP
+// server, which pre-captures manifests at startup before any agent can tamper with them.
+func (c *Compiler) SetPriorManifest(lockFile string, manifest *GHAWManifest) {
+	if c.priorManifests == nil {
+		c.priorManifests = make(map[string]*GHAWManifest)
+	}
+	c.priorManifests[lockFile] = manifest
+}
+
+// SetPriorManifests replaces the entire pre-cached manifest map.
+// Equivalent to calling SetPriorManifest for every entry in the map.
+func (c *Compiler) SetPriorManifests(manifests map[string]*GHAWManifest) {
+	c.priorManifests = manifests
 }
 
 // getSharedActionResolver returns the shared action resolver, initializing it on first use

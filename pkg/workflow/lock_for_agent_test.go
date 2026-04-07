@@ -51,7 +51,7 @@ Test workflow with lock-for-agent enabled.
 	}
 
 	// Generate YAML and verify it contains lock/unlock steps
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -127,7 +127,7 @@ Test workflow with lock-for-agent but no reaction.
 	}
 
 	// Generate YAML and verify it contains lock/unlock steps
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -198,7 +198,7 @@ Test workflow without lock-for-agent.
 	}
 
 	// Generate YAML and verify it does not contain lock/unlock steps
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -263,7 +263,7 @@ Test workflow without lock-for-agent and without reaction.
 	}
 
 	// Generate YAML and verify it does not contain lock/unlock steps
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -318,7 +318,7 @@ Test that lock-for-agent on issues doesn't break PR workflows.
 	}
 
 	// Generate YAML - should succeed without errors
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -369,7 +369,7 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 	}
 
 	// Generate YAML and verify it contains lock/unlock steps
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -468,7 +468,7 @@ Test that lock-for-agent is commented out in generated YAML.
 	}
 
 	// Generate YAML
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -537,7 +537,7 @@ Test that safe_outputs job depends on unlock job.
 	}
 
 	// Generate YAML
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

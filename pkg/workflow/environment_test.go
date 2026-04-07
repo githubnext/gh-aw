@@ -121,7 +121,7 @@ This is a test.`,
 			}
 
 			// Generate YAML and check if environment appears in the main job
-			yamlContent, err := compiler.generateYAML(workflowData, workflowFile)
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, workflowFile)
 			if err != nil {
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
@@ -209,7 +209,7 @@ This is a test.`
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
 
-	yamlContent, err := compiler.generateYAML(workflowData, workflowFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, workflowFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

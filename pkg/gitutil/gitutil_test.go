@@ -3,6 +3,7 @@
 package gitutil
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -248,5 +249,23 @@ func TestFindGitRoot(t *testing.T) {
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "FindGitRoot should succeed when running inside a git repository")
 		assert.NotEmpty(t, gitRoot, "FindGitRoot should return a non-empty path")
+	})
+}
+
+func TestReadFileFromHEAD(t *testing.T) {
+	t.Run("reads a committed file successfully", func(t *testing.T) {
+		// go.mod is always committed at the repo root, so it should be readable from HEAD.
+		gitRoot, err := FindGitRoot()
+		require.NoError(t, err, "must be inside a git repository")
+
+		content, err := ReadFileFromHEAD(filepath.Join(gitRoot, "go.mod"))
+		require.NoError(t, err, "go.mod should be readable from HEAD")
+		assert.NotEmpty(t, content, "go.mod content should not be empty")
+		assert.Contains(t, content, "module ", "go.mod should contain a module declaration")
+	})
+
+	t.Run("returns error for file not in HEAD", func(t *testing.T) {
+		_, err := ReadFileFromHEAD("/nonexistent/path/that/is/not/in/git/repo/file.yml")
+		assert.Error(t, err, "should fail for a file not tracked by git")
 	})
 }

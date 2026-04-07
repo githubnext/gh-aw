@@ -596,7 +596,7 @@ tools:
 			}
 
 			// Generate YAML
-			yamlContent, err := compiler.generateYAML(workflowData, testFile)
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 			if err != nil {
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}

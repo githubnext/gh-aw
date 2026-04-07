@@ -630,7 +630,7 @@ func TestGenerateAndValidateYAML(t *testing.T) {
 			compiler.stepOrderTracker = NewStepOrderTracker()
 			compiler.artifactManager = NewArtifactManager()
 
-			yamlContent, err := compiler.generateAndValidateYAML(tt.workflowData, markdownPath, lockFile)
+			yamlContent, _, _, err := compiler.generateAndValidateYAML(tt.workflowData, markdownPath, lockFile)
 
 			if tt.shouldError {
 				require.Error(t, err, "Expected YAML generation to fail")

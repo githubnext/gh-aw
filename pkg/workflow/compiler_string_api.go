@@ -42,7 +42,7 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 		return "", err
 	}
 
-	yamlContent, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
+	yamlContent, _, _, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {
 		return "", err
 	}

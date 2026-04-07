@@ -34,6 +34,18 @@ func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
 	return true
 }
 
+// effectiveSafeUpdate returns true when safe update mode should be enforced for
+// the given workflow. Safe update mode is equivalent to strict mode: it is
+// enabled whenever strict mode is active (CLI --strict flag, frontmatter
+// strict: true, or the default). It can also be force-enabled via the CLI
+// --safe-update flag independently of strict mode.
+func (c *Compiler) effectiveSafeUpdate(data *WorkflowData) bool {
+	if c.safeUpdate {
+		return true
+	}
+	return c.effectiveStrictMode(data.RawFrontmatter)
+}
+
 // buildJobsAndValidate builds all workflow jobs and validates their dependencies.
 // It resets the job manager, builds jobs from the workflow data, and performs
 // dependency and duplicate step validation.
@@ -101,6 +113,16 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		} else {
 			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
 		}
+	}
+
+	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
+	// The manifest records all secrets and external actions detected at compile time so
+	// that subsequent compilations can perform safe update enforcement.
+	manifest := NewGHAWManifest(secrets, actions)
+	if manifestJSON, err := manifest.ToJSON(); err == nil {
+		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
+	} else {
+		compilerYamlLog.Printf("Failed to serialize gh-aw-manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
 	}
 
 	// Add workflow header with logo and instructions
@@ -247,7 +269,7 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString(c.jobManager.RenderToYAML())
 }
 
-func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
+func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
 	// Compute frontmatter hash BEFORE building jobs so that the stable hash is
@@ -273,7 +295,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Build all jobs and validate dependencies
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
-		return "", fmt.Errorf("failed to build and validate jobs: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to build and validate jobs: %w", err)
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size.
@@ -291,6 +313,8 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	bodyContent := body.String()
 
 	// Collect secrets and external action references from the generated body.
+	// These are returned to the caller so they can be used for safe update enforcement
+	// without requiring a second scan of the full YAML content.
 	secrets := CollectSecretReferences(bodyContent)
 	actions := CollectActionReferences(bodyContent)
 
@@ -310,7 +334,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
-	return yamlContent, nil
+	return yamlContent, secrets, actions, nil
 }
 
 func splitContentIntoChunks(content string) []string {

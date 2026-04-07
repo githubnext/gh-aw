@@ -3,6 +3,7 @@ package gitutil
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -78,4 +79,52 @@ func FindGitRoot() (string, error) {
 	gitRoot := strings.TrimSpace(string(output))
 	log.Printf("Found git root: %s", gitRoot)
 	return gitRoot, nil
+}
+
+// ReadFileFromHEAD returns the content of filePath as recorded in the most recent
+// git commit (HEAD). This is used in safe update mode so that the manifest baseline
+// comes from the committed version of the lock file, not from the working-tree copy,
+// preventing a local agent from tampering with the file to bypass enforcement.
+//
+// filePath may be absolute or relative; it is resolved to an absolute path before
+// computing its path relative to the git root.
+//
+// Returns an error when:
+//   - the current directory is not inside a git repository
+//   - the file does not exist in HEAD (e.g. it has never been committed)
+//   - the git command fails for another reason
+func ReadFileFromHEAD(filePath string) (string, error) {
+	gitRoot, err := FindGitRoot()
+	if err != nil {
+		return "", fmt.Errorf("cannot read %q from git HEAD: %w", filePath, err)
+	}
+
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve absolute path for %q: %w", filePath, err)
+	}
+
+	// git show requires the path to be relative to the repository root and to use
+	// forward slashes even on Windows.
+	relPath, err := filepath.Rel(gitRoot, absPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot compute path of %q relative to git root %q: %w", absPath, gitRoot, err)
+	}
+
+	// Reject paths that escape the repository (e.g. "../secret").
+	if strings.HasPrefix(relPath, "..") {
+		return "", fmt.Errorf("path %q is outside the git repository root %q", filePath, gitRoot)
+	}
+
+	relPath = filepath.ToSlash(relPath)
+
+	log.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)
+
+	cmd := exec.Command("git", "show", "HEAD:"+relPath)
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("File %q not found in HEAD commit: %v", filePath, err)
+		return "", fmt.Errorf("file %q not found in HEAD commit: %w", filePath, err)
+	}
+	return string(output), nil
 }

@@ -369,7 +369,7 @@ func TestGenerateYAMLRefactored(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
 
-			result, err := compiler.generateYAML(tt.data, "test.md")
+			result, _, _, err := compiler.generateYAML(tt.data, "test.md")
 
 			if tt.shouldError && err == nil {
 				t.Errorf("generateYAML() expected error but got none")

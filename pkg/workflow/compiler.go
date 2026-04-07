@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"go.yaml.in/yaml/v3"
@@ -447,11 +448,12 @@ Ensure proper audience validation and trust policies are configured.`
 
 // generateAndValidateYAML generates GitHub Actions YAML and validates
 // the output size and format.
-func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownPath string, lockFile string) (string, error) {
-	// Generate the YAML content
-	yamlContent, err := c.generateYAML(workflowData, markdownPath)
+func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownPath string, lockFile string) (string, []string, []string, error) {
+	// Generate the YAML content along with the collected body secrets and action refs
+	// (returned to avoid a second scan of the full YAML in the caller for safe update enforcement).
+	yamlContent, bodySecrets, bodyActions, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
-		return "", formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
+		return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
 	}
 
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
@@ -465,7 +467,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
-		return "", formattedErr
+		return "", nil, nil, formattedErr
 	}
 
 	// Template injection validation and GitHub Actions schema validation both require a
@@ -504,7 +506,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 			}
-			return "", formattedErr
+			return "", nil, nil, formattedErr
 		}
 	}
 
@@ -537,7 +539,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
-			return "", formattedErr
+			return "", nil, nil, formattedErr
 		}
 
 		// Validate container images used in MCP configurations
@@ -552,26 +554,26 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Validate runtime packages (npx, uv)
 		log.Print("Validating runtime packages")
 		if err := c.validateRuntimePackages(workflowData); err != nil {
-			return "", formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
 		}
 
 		// Validate firewall configuration (log-level enum)
 		log.Print("Validating firewall configuration")
 		if err := c.validateFirewallConfig(workflowData); err != nil {
-			return "", formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
 		}
 
 		// Validate repository features (discussions, issues)
 		log.Print("Validating repository features")
 		if err := c.validateRepositoryFeatures(workflowData); err != nil {
-			return "", formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
 		}
 	} else if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
 	}
 
-	return yamlContent, nil
+	return yamlContent, bodySecrets, bodyActions, nil
 }
 
 // writeWorkflowOutput writes the compiled workflow to the lock file
@@ -674,6 +676,48 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
+	// Read the existing lock file to extract the previous gh-aw-manifest for safe update
+	// enforcement.
+	//
+	// Priority (highest to lowest):
+	//  1. Pre-cached manifest supplied by the caller (e.g. MCP server collected at startup
+	//     before any agent interaction, making it tamper-proof without requiring git access).
+	//  2. Content from the last git commit (HEAD) – prevents a local agent from modifying
+	//     the .lock.yml file on disk to forge an approved manifest.
+	//  3. Filesystem read – fallback for first-time compilations or non-git environments.
+	var oldManifest *GHAWManifest
+	if cached, ok := c.priorManifests[lockFile]; ok {
+		oldManifest = cached
+		secretCount := 0
+		if cached != nil {
+			secretCount = len(cached.Secrets)
+		}
+		log.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
+	} else if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
+		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
+			oldManifest = m
+			if oldManifest != nil {
+				log.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
+			}
+		} else {
+			log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+		}
+	} else {
+		log.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
+		if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
+			if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
+				oldManifest = m
+				if oldManifest != nil {
+					log.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
+				}
+			} else {
+				log.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
+			}
+		} else {
+			log.Printf("Lock file %s not found on filesystem either (new workflow or not yet written). Safe update enforcement will treat as empty manifest.", lockFile)
+		}
+	}
+
 	// Validate workflow data
 	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
 		return err
@@ -685,10 +729,27 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Note: compute-text functionality is now inlined directly in the task job
 	// instead of using a shared action file
 
-	// Generate and validate YAML
-	yamlContent, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
+	// Generate and validate YAML (also embeds the new gh-aw-manifest in the header).
+	// Returns the collected body secrets and action refs to avoid duplicate scans for
+	// safe update enforcement.
+	yamlContent, bodySecrets, bodyActions, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {
 		return err
+	}
+
+	// Enforce safe update mode: emit a warning prompt (not a hard error) when unapproved
+	// secrets or action changes are detected.  body* vars contain data collected from the
+	// workflow body only (not the header) to avoid matching the gh-aw-manifest JSON comment.
+	//
+	// Emitting a warning instead of failing allows compilation to succeed so that the lock
+	// file is written and the agent receives the actionable guidance embedded in the warning.
+	if c.effectiveSafeUpdate(workflowData) {
+		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions); enforceErr != nil {
+			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
+			c.AddSafeUpdateWarning(warningMsg)
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))
+			c.IncrementWarningCount()
+		}
 	}
 
 	// Write output

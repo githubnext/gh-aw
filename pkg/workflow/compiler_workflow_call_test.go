@@ -280,7 +280,7 @@ Create an issue and add a comment.
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "failed to parse workflow file")
 
-	yamlOutput, err := compiler.generateYAML(workflowData, testFile)
+	yamlOutput, _, _, err := compiler.generateYAML(workflowData, testFile)
 	require.NoError(t, err, "failed to generate YAML")
 
 	// Verify workflow_call outputs section is present
