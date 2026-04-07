@@ -8,9 +8,11 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
-const SLOT_BASE_DIR = "/tmp/gh-aw/upload-artifacts/";
-const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
+// Use RUNNER_TEMP as the base so paths match what upload_artifact.cjs computes at runtime.
+const RUNNER_TEMP = "/tmp";
+const STAGING_DIR = `${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
+const SLOT_BASE_DIR = `${RUNNER_TEMP}/gh-aw/upload-artifacts/`;
+const RESOLVER_FILE = `${RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
 
 describe("upload_artifact.cjs", () => {
   let mockCore;
@@ -62,6 +64,9 @@ describe("upload_artifact.cjs", () => {
     };
 
     originalEnv = { ...process.env };
+
+    // Set RUNNER_TEMP so the script resolves paths to the same directories as the test helpers.
+    process.env.RUNNER_TEMP = RUNNER_TEMP;
 
     // Set reasonable defaults
     process.env.GH_AW_ARTIFACT_MAX_UPLOADS = "3";

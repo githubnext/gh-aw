@@ -6,13 +6,13 @@
  *
  * Validates and stages artifact upload requests emitted by the model via the upload_artifact
  * safe output tool. The model must have already copied the files it wants to upload to
- * /tmp/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
+ * ${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
  *
  * This handler:
  * 1. Reads upload_artifact records from agent output.
  * 2. Validates each request against the workflow's policy configuration.
  * 3. Resolves the requested files (path or filter-based) from the staging directory.
- * 4. Copies approved files into per-slot directories under /tmp/gh-aw/upload-artifacts/slot_N/.
+ * 4. Copies approved files into per-slot directories under ${RUNNER_TEMP}/gh-aw/upload-artifacts/slot_N/.
  * 5. Sets step outputs so the wrapping job's actions/upload-artifact steps can run conditionally.
  * 6. Generates a temporary artifact ID for each slot.
  *
@@ -40,16 +40,16 @@ const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /** Staging directory where the model places files to be uploaded. */
-const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
+const STAGING_DIR = `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
 
 /** Base directory for per-slot artifact staging used by actions/upload-artifact. */
-const SLOT_BASE_DIR = "/tmp/gh-aw/upload-artifacts/";
+const SLOT_BASE_DIR = `${process.env.RUNNER_TEMP}/gh-aw/upload-artifacts/`;
 
 /** Prefix for temporary artifact IDs returned to the caller. */
 const TEMP_ID_PREFIX = "tmp_artifact_";
 
 /** Path where the resolver mapping (tmpId → artifact name) is written. */
-const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
+const RESOLVER_FILE = `${process.env.RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
 
 /**
  * Generate a temporary artifact ID.

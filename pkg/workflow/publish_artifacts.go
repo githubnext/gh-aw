@@ -25,10 +25,10 @@ const defaultArtifactMaxRetentionDays = 30
 const defaultArtifactMaxSizeBytes int64 = 104857600
 
 // artifactStagingDir is the path where the model stages files to be uploaded as artifacts.
-const artifactStagingDir = "/tmp/gh-aw/safeoutputs/upload-artifacts/"
+const artifactStagingDir = "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/"
 
 // artifactSlotDir is the per-slot directory used by the handler to organise staged files.
-const artifactSlotDir = "/tmp/gh-aw/upload-artifacts/"
+const artifactSlotDir = "${RUNNER_TEMP}/gh-aw/upload-artifacts/"
 
 // SafeOutputsUploadArtifactStagingArtifactName is the artifact that carries the staging directory
 // from the main agent job to the upload_artifact job.
