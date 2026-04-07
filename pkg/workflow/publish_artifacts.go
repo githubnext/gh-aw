@@ -25,10 +25,22 @@ const defaultArtifactMaxRetentionDays = 30
 const defaultArtifactMaxSizeBytes int64 = 104857600
 
 // artifactStagingDir is the path where the model stages files to be uploaded as artifacts.
+// Use the shell-variable form only inside `run:` blocks; for `with: path:` inputs use
+// artifactStagingDirExpr which uses the GitHub Actions expression syntax.
 const artifactStagingDir = "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/"
 
+// artifactStagingDirExpr is the GitHub Actions expression form of artifactStagingDir.
+// `actions/upload-artifact` and `actions/download-artifact` do not expand shell variables
+// in their `path:` inputs, so we must use ${{ runner.temp }} here.
+const artifactStagingDirExpr = "${{ runner.temp }}/gh-aw/safeoutputs/upload-artifacts/"
+
 // artifactSlotDir is the per-slot directory used by the handler to organise staged files.
+// Use the shell-variable form only inside `run:` blocks; for `with: path:` inputs use
+// artifactSlotDirExpr which uses the GitHub Actions expression syntax.
 const artifactSlotDir = "${RUNNER_TEMP}/gh-aw/upload-artifacts/"
+
+// artifactSlotDirExpr is the GitHub Actions expression form of artifactSlotDir.
+const artifactSlotDirExpr = "${{ runner.temp }}/gh-aw/upload-artifacts/"
 
 // SafeOutputsUploadArtifactStagingArtifactName is the artifact that carries the staging directory
 // from the main agent job to the upload_artifact job.
@@ -231,7 +243,7 @@ func (c *Compiler) buildUploadArtifactJob(data *WorkflowData, mainJobName string
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s\n", stagingArtifactName),
-		fmt.Sprintf("          path: %s\n", artifactStagingDir),
+		fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
 	)
 
 	// Build custom environment variables consumed by upload_artifact.cjs.
@@ -276,7 +288,7 @@ func (c *Compiler) buildUploadArtifactJob(data *WorkflowData, mainJobName string
 	// the Nth upload_artifact request was successfully validated and staged.
 	var postSteps []string
 	for i := range cfg.MaxUploads {
-		slotDir := fmt.Sprintf("%sslot_%d/", artifactSlotDir, i)
+		slotDir := fmt.Sprintf("%sslot_%d/", artifactSlotDirExpr, i)
 		postSteps = append(postSteps,
 			fmt.Sprintf("      - name: Upload artifact slot %d\n", i),
 			fmt.Sprintf("        if: steps.upload_artifacts.outputs.slot_%d_enabled == 'true'\n", i),
@@ -342,7 +354,7 @@ func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *Wo
 	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          name: %s%s\n", prefix, SafeOutputsUploadArtifactStagingArtifactName)
-	fmt.Fprintf(builder, "          path: %s\n", artifactStagingDir)
+	fmt.Fprintf(builder, "          path: %s\n", artifactStagingDirExpr)
 	builder.WriteString("          retention-days: 1\n")
 	builder.WriteString("          if-no-files-found: ignore\n")
 }

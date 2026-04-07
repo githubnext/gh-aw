@@ -274,7 +274,7 @@ func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {
 		generateSafeOutputsArtifactStagingUpload(&b, data)
 		result := b.String()
 		assert.Contains(t, result, "safe-outputs-upload-artifacts", "should reference staging artifact name")
-		assert.Contains(t, result, artifactStagingDir, "should reference staging directory")
+		assert.Contains(t, result, artifactStagingDirExpr, "should reference staging directory")
 		assert.Contains(t, result, "if: always()", "should have always() condition")
 	})
 
