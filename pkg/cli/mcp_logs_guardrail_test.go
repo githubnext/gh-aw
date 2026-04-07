@@ -10,7 +10,7 @@ import (
 )
 
 func TestBuildLogsFileResponse_WritesFile(t *testing.T) {
-	// buildLogsFileResponse always writes to a file and returns schema + file_path
+	// buildLogsFileResponse always writes to a file and returns file_path
 	output := `{"summary": {"total_runs": 1}, "runs": []}`
 
 	result := buildLogsFileResponse(output)
@@ -43,11 +43,6 @@ func TestBuildLogsFileResponse_WritesFile(t *testing.T) {
 	}
 	if string(data) != output {
 		t.Errorf("File content should match input: got %q, want %q", string(data), output)
-	}
-
-	// Verify schema is set
-	if len(response.Schema.Fields) == 0 {
-		t.Error("Response should include schema fields")
 	}
 
 	// Cleanup
@@ -128,59 +123,8 @@ func TestBuildLogsFileResponse_ResponseStructure(t *testing.T) {
 		t.Error("JSON should have file_path field")
 	}
 
-	if response.Schema.Type == "" {
-		t.Error("JSON should have schema.type field")
-	}
-
-	if len(response.Schema.Fields) == 0 {
-		t.Error("JSON should have schema.fields")
-	}
-
 	// Cleanup
 	_ = os.Remove(response.FilePath)
-}
-
-func TestGetLogsDataSchema(t *testing.T) {
-	schema := getLogsDataSchema()
-
-	// Verify basic schema structure
-	if schema.Type != "object" {
-		t.Errorf("Schema type should be 'object', got '%s'", schema.Type)
-	}
-
-	if schema.Description == "" {
-		t.Error("Schema should have a description")
-	}
-
-	// Verify expected fields are present
-	expectedFields := []string{
-		"summary",
-		"runs",
-		"tool_usage",
-		"errors_and_warnings",
-		"missing_tools",
-		"mcp_failures",
-		"access_log",
-		"firewall_log",
-		"continuation",
-		"logs_location",
-	}
-
-	for _, field := range expectedFields {
-		if _, ok := schema.Fields[field]; !ok {
-			t.Errorf("Schema should have field '%s'", field)
-		}
-	}
-
-	// Verify each field has type and description
-	for fieldName, field := range schema.Fields {
-		if field.Type == "" {
-			t.Errorf("Field '%s' should have a type", fieldName)
-		}
-		if field.Description == "" {
-			t.Errorf("Field '%s' should have a description", fieldName)
-		}
-	}
 }
 
 func TestEstimateTokens(t *testing.T) {

@@ -26,24 +26,10 @@ const (
 
 // MCPLogsGuardrailResponse represents the response returned by the logs tool.
 // The full data is always written to a file; this response provides the file
-// path and schema so the caller can read and interpret the data.
+// path so the caller can read the data.
 type MCPLogsGuardrailResponse struct {
-	Message  string         `json:"message"`
-	FilePath string         `json:"file_path,omitempty"`
-	Schema   LogsDataSchema `json:"schema"`
-}
-
-// LogsDataSchema describes the structure of the full logs output
-type LogsDataSchema struct {
-	Description string                 `json:"description"`
-	Type        string                 `json:"type"`
-	Fields      map[string]SchemaField `json:"fields"`
-}
-
-// SchemaField describes a field in the schema
-type SchemaField struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
+	Message  string `json:"message"`
+	FilePath string `json:"file_path,omitempty"`
 }
 
 // estimateTokens estimates the number of tokens in a string
@@ -83,7 +69,6 @@ func buildLogsFileResponse(outputStr string) string {
 	response := MCPLogsGuardrailResponse{
 		Message:  fmt.Sprintf("Logs data has been written to '%s'. Use the file_path to read the full data.", filePath),
 		FilePath: filePath,
-		Schema:   getLogsDataSchema(),
 	}
 
 	responseJSON, err := json.MarshalIndent(response, "", "  ")
@@ -95,65 +80,14 @@ func buildLogsFileResponse(outputStr string) string {
 	return string(responseJSON)
 }
 
-// buildLogsFileErrorResponse returns a JSON error response with schema when file writing fails.
+// buildLogsFileErrorResponse returns a JSON error response when file writing fails.
 func buildLogsFileErrorResponse(errMsg string) string {
 	response := MCPLogsGuardrailResponse{
 		Message: fmt.Sprintf("⚠️  %s. The logs data could not be saved to a file.", errMsg),
-		Schema:  getLogsDataSchema(),
 	}
 	responseJSON, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return fmt.Sprintf(`{"message":%q}`, errMsg)
 	}
 	return string(responseJSON)
-}
-
-// getLogsDataSchema returns the schema for LogsData
-func getLogsDataSchema() LogsDataSchema {
-	return LogsDataSchema{
-		Description: "Complete structured data for workflow logs",
-		Type:        "object",
-		Fields: map[string]SchemaField{
-			"summary": {
-				Type:        "object",
-				Description: "Aggregate metrics across all runs (total_runs, total_duration, total_tokens, total_cost, total_turns, total_errors, total_warnings, total_missing_tools)",
-			},
-			"runs": {
-				Type:        "array",
-				Description: "Array of workflow run data (database_id, workflow_name, agent, status, conclusion, classification, duration, token_usage, estimated_cost, turns, error_count, warning_count, missing_tool_count, created_at, url, logs_path, event, branch). classification is one of: risky, normal, baseline, unclassified.",
-			},
-			"tool_usage": {
-				Type:        "array",
-				Description: "Tool usage statistics (name, total_calls, runs, max_output_size, max_duration)",
-			},
-			"errors_and_warnings": {
-				Type:        "array",
-				Description: "Error and warning summaries (type, message, count, engine, run_id, run_url, workflow_name, pattern_id)",
-			},
-			"missing_tools": {
-				Type:        "array",
-				Description: "Missing tool reports (tool, count, workflows, first_reason, run_ids)",
-			},
-			"mcp_failures": {
-				Type:        "array",
-				Description: "MCP server failure summaries (server_name, count, workflows, run_ids)",
-			},
-			"access_log": {
-				Type:        "object",
-				Description: "Access log analysis (total_requests, allowed_count, blocked_count, allowed_domains, blocked_domains, by_workflow)",
-			},
-			"firewall_log": {
-				Type:        "object",
-				Description: "Firewall log analysis (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains, requests_by_domain, by_workflow)",
-			},
-			"continuation": {
-				Type:        "object",
-				Description: "Parameters to continue querying when timeout is reached (message, workflow_name, count, start_date, end_date, engine, branch, after_run_id, before_run_id, timeout)",
-			},
-			"logs_location": {
-				Type:        "string",
-				Description: "File system path where logs were downloaded",
-			},
-		},
-	}
 }
