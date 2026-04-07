@@ -11,18 +11,20 @@ let issuesToAssignCopilotGlobal = [];
 
 /**
  * Get the list of issues that need copilot assignment
- * @returns {Array<string>} Array of "repo:number" strings
+ * Returns a defensive copy so callers cannot accidentally mutate global state.
+ * @returns {Array<string>} Copy of the "repo:number" strings array
  */
 function getIssuesToAssignCopilot() {
-  return issuesToAssignCopilotGlobal;
+  return [...issuesToAssignCopilotGlobal];
 }
 
 /**
  * Reset the list of issues that need copilot assignment
- * Used for testing
+ * Mutates in-place so any reference obtained before the reset also observes the cleared state.
+ * Used for testing.
  */
 function resetIssuesToAssignCopilot() {
-  issuesToAssignCopilotGlobal = [];
+  issuesToAssignCopilotGlobal.length = 0;
 }
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
@@ -47,6 +49,29 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
+const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+
+/**
+ * Create a dedicated GitHub client for copilot assignment operations.
+ *
+ * Token precedence:
+ *   1. config["github-token"] — per-handler PAT configured in the workflow frontmatter
+ *   2. GH_AW_ASSIGN_TO_AGENT_TOKEN — agent token injected by the compiler as a step env var
+ *   3. global github — step-level token (fallback when no agent token is available)
+ *
+ * @param {Object} config - Handler configuration
+ * @returns {Promise<Object>} Authenticated GitHub client
+ */
+async function createCopilotAssignmentClient(config) {
+  const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  if (!token) {
+    core.debug("No dedicated agent token configured — using step-level github client for copilot assignment");
+    return github;
+  }
+  core.info("Using dedicated github client for copilot assignment");
+  const { getOctokit } = await import("@actions/github");
+  return getOctokit(token);
+}
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -216,6 +241,10 @@ async function main(config = {}) {
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
   const githubClient = await createAuthenticatedGitHubClient(config);
+
+  // Create a dedicated client for copilot assignment. Uses GH_AW_ASSIGN_TO_AGENT_TOKEN
+  // (the agent token preference chain) when available, otherwise falls back to step-level github.
+  const copilotClient = await createCopilotAssignmentClient(config);
 
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
@@ -572,10 +601,31 @@ async function main(config = {}) {
       temporaryIdMap.set(normalizedTempId, { repo: qualifiedItemRepo, number: issue.number });
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
 
-      // Track issue for copilot assignment if needed
+      // Assign copilot directly using agent helpers when enabled (similar to assign_to_agent.cjs pattern)
       if (hasCopilot && assignCopilot) {
-        issuesToAssignCopilotGlobal.push(`${qualifiedItemRepo}:${issue.number}`);
-        core.info(`Queued issue ${qualifiedItemRepo}#${issue.number} for copilot assignment`);
+        core.info(`Assigning copilot coding agent to issue #${issue.number} in ${qualifiedItemRepo}...`);
+        try {
+          const agentId = await findAgent(repoParts.owner, repoParts.repo, "copilot", copilotClient);
+          if (!agentId) {
+            core.warning(`copilot coding agent is not available for ${qualifiedItemRepo}`);
+          } else {
+            const issueDetails = await getIssueDetails(repoParts.owner, repoParts.repo, issue.number, copilotClient);
+            if (!issueDetails) {
+              core.warning(`Failed to get issue details for copilot assignment of issue #${issue.number}`);
+            } else if (issueDetails.currentAssignees.some(a => a.id === agentId)) {
+              core.info(`copilot is already assigned to issue #${issue.number}`);
+            } else {
+              const assigned = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, "copilot", null, null, null, null, null, null, copilotClient);
+              if (assigned) {
+                core.info(`Successfully assigned copilot coding agent to issue #${issue.number}`);
+              } else {
+                core.warning(`Failed to assign copilot to issue #${issue.number}`);
+              }
+            }
+          }
+        } catch (error) {
+          core.warning(`Failed to assign copilot to issue #${issue.number}: ${getErrorMessage(error)}`);
+        }
       }
 
       // Close older issues if enabled
