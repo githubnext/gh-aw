@@ -2262,6 +2262,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
+          safe-output-artifact-client: 'true'
       - name: Mask OTLP telemetry headers
         run: echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
       - name: Download agent output artifact
@@ -2310,14 +2311,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Upload artifact slot 0
-        if: steps.process_safe_outputs.outputs.slot_0_enabled == 'true'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: ${{ steps.process_safe_outputs.outputs.slot_0_name }}
-          path: ${{ runner.temp }}/gh-aw/upload-artifacts/slot_0/
-          retention-days: ${{ steps.process_safe_outputs.outputs.slot_0_retention_days }}
-          if-no-files-found: ignore
       - name: Upload Safe Output Items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
