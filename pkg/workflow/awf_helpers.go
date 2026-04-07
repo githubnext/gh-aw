@@ -242,6 +242,32 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--enable-api-proxy")
 	awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
 
+	// Enable CLI proxy sidecar when the cli-proxy feature flag is set.
+	// This gives the agent secure gh CLI access without exposing GITHUB_TOKEN
+	// in the agent container (firewall v0.25.14+).
+	if isFeatureEnabled(constants.CliProxyFeatureFlag, config.WorkflowData) {
+		awfArgs = append(awfArgs, "--enable-cli-proxy")
+		awfHelpersLog.Print("Added --enable-cli-proxy for gh CLI proxy sidecar")
+
+		// Allow write operations when cli-proxy-writable feature flag is also set
+		if isFeatureEnabled(constants.CliProxyWritableFeatureFlag, config.WorkflowData) {
+			awfArgs = append(awfArgs, "--cli-proxy-writable")
+			awfHelpersLog.Print("Added --cli-proxy-writable for write access via gh CLI proxy")
+		}
+
+		// Generate and pass the guard policy JSON for the cli-proxy.
+		// Reuses getDIFCProxyPolicyJSON() to build the static policy from tools.github config
+		// (min-integrity and repos fields), matching the DIFC proxy guard policy semantics.
+		if config.WorkflowData != nil {
+			githubTool := config.WorkflowData.Tools["github"]
+			policyJSON := getDIFCProxyPolicyJSON(githubTool)
+			if policyJSON != "" {
+				awfArgs = append(awfArgs, "--cli-proxy-policy", policyJSON)
+				awfHelpersLog.Print("Added --cli-proxy-policy with guard policy")
+			}
+		}
+	}
+
 	// Add custom API targets if configured in engine.env
 	// This allows AWF's credential isolation and firewall to work with custom endpoints
 	// (e.g., corporate LLM routers, Azure OpenAI, self-hosted APIs)
