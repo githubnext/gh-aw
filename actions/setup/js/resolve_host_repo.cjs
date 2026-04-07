@@ -60,7 +60,7 @@ async function resolveFromReferencedWorkflows(currentRepo) {
 
   const [runOwner, runRepo] = currentRepo.split("/");
   try {
-    core.info(`Checking for cross-org callee via referenced_workflows API (run ${runId})`);
+    core.info(`Checking for cross-org callee via referenced_workflows API (run ${runId}, repo ${currentRepo})`);
     const runResponse = await github.rest.actions.getWorkflowRun({
       owner: runOwner,
       repo: runRepo,
@@ -69,6 +69,9 @@ async function resolveFromReferencedWorkflows(currentRepo) {
 
     const referencedWorkflows = runResponse.data.referenced_workflows || [];
     core.info(`Found ${referencedWorkflows.length} referenced workflow(s) in run`);
+    for (const wf of referencedWorkflows) {
+      core.info(`  referenced workflow: path=${wf.path} sha=${wf.sha || "(none)"} ref=${wf.ref || "(none)"}`);
+    }
 
     // Collect all referenced workflows from a different repo than the caller.
     // In cross-org workflow_call, the callee (platform) repo is different from currentRepo.
@@ -81,6 +84,7 @@ async function resolveFromReferencedWorkflows(currentRepo) {
         crossRepoCandidates.push({ wf, repo: entryRepo });
       }
     }
+    core.info(`Found ${crossRepoCandidates.length} cross-repo candidate(s) (excluding current repo ${currentRepo})`);
 
     if (crossRepoCandidates.length === 0) {
       core.info("No cross-org callee found in referenced_workflows, using current repo");
@@ -100,8 +104,9 @@ async function resolveFromReferencedWorkflows(currentRepo) {
 
     // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
     const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
+    const calleeRefSource = matchingEntry.sha ? "sha" : matchingEntry.ref ? "ref" : pathRefMatch ? "path" : "none";
     const calleeRef = matchingEntry.sha || matchingEntry.ref || (pathRefMatch ? pathRefMatch[1] : "");
-    core.info(`Resolved callee repo from referenced_workflows: ${calleeRepo} @ ${calleeRef || "(default branch)"}`);
+    core.info(`Resolved callee repo from referenced_workflows: ${calleeRepo} @ ${calleeRef || "(default branch)"} (source: ${calleeRefSource})`);
     core.info(`  Referenced workflow path: ${matchingEntry.path}`);
     return { repo: calleeRepo, ref: calleeRef };
   } catch (error) {
@@ -118,10 +123,15 @@ async function main() {
   const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
   const currentRepo = process.env.GITHUB_REPOSITORY || "";
 
+  core.info(`GITHUB_WORKFLOW_REF: ${workflowRef || "(not set)"}`);
+  core.info(`GITHUB_REPOSITORY: ${currentRepo || "(not set)"}`);
+  core.info(`GITHUB_RUN_ID: ${process.env.GITHUB_RUN_ID || "(not set)"}`);
+
   // GITHUB_WORKFLOW_REF format: owner/repo/.github/workflows/file.yml@ref
   // The regex captures everything before the third slash segment (i.e., the owner/repo prefix).
   const repoMatch = workflowRef.match(REPO_PREFIX_RE);
   const workflowRepo = repoMatch ? repoMatch[1] : "";
+  core.info(`Parsed workflow repo from GITHUB_WORKFLOW_REF: ${workflowRepo || "(could not parse)"}`);
 
   // Fall back to currentRepo when GITHUB_WORKFLOW_REF cannot be parsed
   let targetRepo = workflowRepo || currentRepo;
@@ -138,6 +148,7 @@ async function main() {
   // would check out the wrong branch.
   const refMatch = workflowRef.match(/@(.+)$/);
   let targetRef = refMatch ? refMatch[1] : "";
+  core.info(`Parsed workflow ref from GITHUB_WORKFLOW_REF: ${targetRef || "(none — will use default branch)"}`);
 
   // Cross-org workflow_call detection: when GITHUB_WORKFLOW_REF points to the same repo as
   // GITHUB_REPOSITORY, it means GITHUB_WORKFLOW_REF is resolving to the caller's workflow
@@ -150,29 +161,35 @@ async function main() {
   // (e.g., "push", "issues"), NOT "workflow_call", so we cannot use event_name to detect
   // this scenario.
   if (workflowRepo && workflowRepo === currentRepo) {
+    core.info(`Cross-org workflow_call detected (workflowRepo === currentRepo = ${currentRepo}): falling back to referenced_workflows API`);
     const resolved = await resolveFromReferencedWorkflows(currentRepo);
     if (resolved) {
       targetRepo = resolved.repo;
       targetRef = resolved.ref || targetRef;
+    } else {
+      core.info("referenced_workflows lookup returned no result; keeping current repo as target");
     }
+  } else if (!workflowRepo) {
+    core.info("Could not parse workflowRepo from GITHUB_WORKFLOW_REF; falling back to GITHUB_REPOSITORY");
+  } else {
+    core.info(`Same-org cross-repo invocation: workflowRepo=${workflowRepo}, currentRepo=${currentRepo}`);
   }
 
-  core.info(`GITHUB_WORKFLOW_REF: ${workflowRef}`);
-  core.info(`GITHUB_REPOSITORY: ${currentRepo}`);
   core.info(`Resolved host repo for activation checkout: ${targetRepo}`);
-  core.info(`Resolved host ref for activation checkout: ${targetRef}`);
+  core.info(`Resolved host ref for activation checkout: ${targetRef || "(default branch)"}`);
 
   if (targetRepo !== currentRepo && targetRepo !== "") {
     core.info(`Cross-repo invocation detected: platform repo is "${targetRepo}", caller is "${currentRepo}"`);
     await core.summary.addRaw(`**Activation Checkout**: Checking out platform repo \`${targetRepo}\` @ \`${targetRef}\` (caller: \`${currentRepo}\`)`).write();
   } else {
-    core.info(`Same-repo invocation: checking out ${targetRepo} @ ${targetRef}`);
+    core.info(`Same-repo invocation: checking out ${targetRepo} @ ${targetRef || "(default branch)"}`);
   }
 
   // Compute the repository name (without owner prefix) for use cases that require
   // only the repo name, such as actions/create-github-app-token which expects
   // `repositories` to contain repo names only when `owner` is also provided.
   const targetRepoName = targetRepo.split("/").at(-1);
+  core.info(`target_repo=${targetRepo} target_repo_name=${targetRepoName} target_ref=${targetRef || "(default branch)"}`);
 
   core.setOutput("target_repo", targetRepo);
   core.setOutput("target_repo_name", targetRepoName);
