@@ -33,11 +33,11 @@ global.github = mockGithub;
 global.context = mockContext;
 
 /**
- * Creates a default mock response for getWorkflowRun with no referenced workflows.
+ * Sets up a one-time mock response for getWorkflowRun with no referenced workflows.
  * Used for same-repo and same-org cross-repo tests where the API should not change the result.
  */
 function mockNoReferencedWorkflows() {
-  mockGetWorkflowRun.mockResolvedValue({ data: { referenced_workflows: [] } });
+  mockGetWorkflowRun.mockResolvedValueOnce({ data: { referenced_workflows: [] } });
 }
 
 describe("resolve_host_repo.cjs", () => {
@@ -45,6 +45,10 @@ describe("resolve_host_repo.cjs", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset mock implementation to prevent leakage between tests.
+    // vi.clearAllMocks() clears call history but does not reset implementations
+    // set via mockResolvedValue(). mockReset() clears both.
+    mockGetWorkflowRun.mockReset();
     mockCore.summary.addRaw.mockReturnThis();
     mockCore.summary.write.mockResolvedValue(undefined);
 
@@ -273,7 +277,7 @@ describe("resolve_host_repo.cjs", () => {
       process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
       process.env.GITHUB_RUN_ID = "12345";
 
-      mockGetWorkflowRun.mockResolvedValue({
+      mockGetWorkflowRun.mockResolvedValueOnce({
         data: {
           referenced_workflows: [
             {
@@ -304,7 +308,7 @@ describe("resolve_host_repo.cjs", () => {
       process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
       process.env.GITHUB_RUN_ID = "12345";
 
-      mockGetWorkflowRun.mockResolvedValue({
+      mockGetWorkflowRun.mockResolvedValueOnce({
         data: {
           referenced_workflows: [
             {
@@ -327,7 +331,7 @@ describe("resolve_host_repo.cjs", () => {
       process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
       process.env.GITHUB_RUN_ID = "12345";
 
-      mockGetWorkflowRun.mockResolvedValue({
+      mockGetWorkflowRun.mockResolvedValueOnce({
         data: {
           referenced_workflows: [
             {
@@ -350,7 +354,7 @@ describe("resolve_host_repo.cjs", () => {
       process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
       process.env.GITHUB_RUN_ID = "12345";
 
-      mockGetWorkflowRun.mockResolvedValue({
+      mockGetWorkflowRun.mockResolvedValueOnce({
         data: {
           referenced_workflows: [
             {
@@ -375,7 +379,7 @@ describe("resolve_host_repo.cjs", () => {
       process.env.GITHUB_REPOSITORY = "my-org/my-repo";
       process.env.GITHUB_RUN_ID = "12345";
 
-      mockGetWorkflowRun.mockResolvedValue({ data: { referenced_workflows: [] } });
+      mockGetWorkflowRun.mockResolvedValueOnce({ data: { referenced_workflows: [] } });
 
       await main();
 
@@ -383,12 +387,42 @@ describe("resolve_host_repo.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No cross-org callee found in referenced_workflows"));
     });
 
+    it("should fall back to GITHUB_REPOSITORY when referenced_workflows has multiple cross-org entries (ambiguous)", async () => {
+      // Cannot safely select one callee when multiple cross-repo workflows are referenced.
+      process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
+      process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
+      process.env.GITHUB_RUN_ID = "12345";
+
+      mockGetWorkflowRun.mockResolvedValueOnce({
+        data: {
+          referenced_workflows: [
+            {
+              path: "platform-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main",
+              sha: "abc123",
+              ref: "refs/heads/main",
+            },
+            {
+              path: "other-org/other-repo/.github/workflows/other.lock.yml@refs/heads/main",
+              sha: "def456",
+              ref: "refs/heads/main",
+            },
+          ],
+        },
+      });
+
+      await main();
+
+      // Falls back to currentRepo since the result is ambiguous
+      expect(mockCore.setOutput).toHaveBeenCalledWith("target_repo", "caller-org/caller-repo");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Referenced workflows lookup is ambiguous"));
+    });
+
     it("should fall back gracefully when referenced_workflows API call fails", async () => {
       process.env.GITHUB_WORKFLOW_REF = "caller-org/caller-repo/.github/workflows/relay.yml@refs/heads/main";
       process.env.GITHUB_REPOSITORY = "caller-org/caller-repo";
       process.env.GITHUB_RUN_ID = "12345";
 
-      mockGetWorkflowRun.mockRejectedValue(new Error("API unavailable"));
+      mockGetWorkflowRun.mockRejectedValueOnce(new Error("API unavailable"));
 
       await main();
 

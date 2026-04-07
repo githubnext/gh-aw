@@ -34,7 +34,7 @@
  * GitHub Actions API (referenced_workflows), set/provided by the GitHub Actions runtime.
  * They are not derived from user-supplied input, so no allowlist check is required here.
  *
- * @safe-outputs-exempt SEC-005: values sourced from trusted runtime env vars only
+ * @safe-outputs-exempt SEC-005: values sourced from trusted GitHub Actions runtime env vars and referenced_workflows API only
  */
 
 // Matches the "owner/repo" prefix from a GitHub workflow path of the form "owner/repo/...".
@@ -70,33 +70,40 @@ async function resolveFromReferencedWorkflows(currentRepo) {
     const referencedWorkflows = runResponse.data.referenced_workflows || [];
     core.info(`Found ${referencedWorkflows.length} referenced workflow(s) in run`);
 
-    // Find the first referenced workflow from a different repo than the caller.
-    // In cross-org workflow_call, the callee (platform) repo is different from currentRepo
-    // (the caller's repo). For same-repo invocations there will be no cross-repo entry.
-    // Capture the repo from the path match so we don't run the regex twice.
-    let calleeRepo = "";
-    let matchingEntry = null;
+    // Collect all referenced workflows from a different repo than the caller.
+    // In cross-org workflow_call, the callee (platform) repo is different from currentRepo.
+    // If multiple cross-repo candidates are found we cannot safely pick one, so we bail out.
+    const crossRepoCandidates = [];
     for (const wf of referencedWorkflows) {
       const pathRepoMatch = wf.path.match(REPO_PREFIX_RE);
       const entryRepo = pathRepoMatch ? pathRepoMatch[1] : "";
       if (entryRepo && entryRepo !== currentRepo) {
-        matchingEntry = wf;
-        calleeRepo = entryRepo;
-        break;
+        crossRepoCandidates.push({ wf, repo: entryRepo });
       }
     }
 
-    if (matchingEntry) {
-      // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
-      const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
-      const calleeRef = matchingEntry.sha || matchingEntry.ref || (pathRefMatch ? pathRefMatch[1] : "");
-      core.info(`Resolved callee repo from referenced_workflows: ${calleeRepo} @ ${calleeRef || "(default branch)"}`);
-      core.info(`  Referenced workflow path: ${matchingEntry.path}`);
-      return { repo: calleeRepo, ref: calleeRef };
-    } else {
+    if (crossRepoCandidates.length === 0) {
       core.info("No cross-org callee found in referenced_workflows, using current repo");
       return null;
     }
+
+    if (crossRepoCandidates.length > 1) {
+      core.info(`Referenced workflows lookup is ambiguous; found ${crossRepoCandidates.length} cross-repo candidates, not selecting one`);
+      for (const candidate of crossRepoCandidates) {
+        core.info(`  Candidate referenced workflow path: ${candidate.wf.path}`);
+      }
+      return null;
+    }
+
+    const matchingEntry = crossRepoCandidates[0].wf;
+    const calleeRepo = crossRepoCandidates[0].repo;
+
+    // Prefer sha (immutable) over ref (branch/tag can drift) over path-parsed ref.
+    const pathRefMatch = matchingEntry.path.match(/@(.+)$/);
+    const calleeRef = matchingEntry.sha || matchingEntry.ref || (pathRefMatch ? pathRefMatch[1] : "");
+    core.info(`Resolved callee repo from referenced_workflows: ${calleeRepo} @ ${calleeRef || "(default branch)"}`);
+    core.info(`  Referenced workflow path: ${matchingEntry.path}`);
+    return { repo: calleeRepo, ref: calleeRef };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     core.info(`Could not fetch referenced_workflows from API: ${msg}, using current repo`);
