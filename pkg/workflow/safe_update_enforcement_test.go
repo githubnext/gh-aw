@@ -381,17 +381,19 @@ func TestCollectActionViolations(t *testing.T) {
 }
 
 func TestEffectiveSafeUpdate(t *testing.T) {
+	// effectiveSafeUpdate is equivalent to effectiveStrictMode:
+	// it returns true when the compiler safeUpdate flag is set, OR when strict
+	// mode is active (which defaults to true unless frontmatter sets strict: false).
 	tests := []struct {
 		name           string
 		compilerFlag   bool
 		rawFrontmatter map[string]any
-		features       map[string]any
 		want           bool
 	}{
 		{
-			name:         "compiler flag off, no frontmatter => false",
+			name:         "compiler flag off, no frontmatter => true (strict default)",
 			compilerFlag: false,
-			want:         false,
+			want:         true, // strict mode defaults to true, so safe update is enabled
 		},
 		{
 			name:         "compiler flag on => true",
@@ -399,47 +401,29 @@ func TestEffectiveSafeUpdate(t *testing.T) {
 			want:         true,
 		},
 		{
-			name:           "frontmatter safe-update true is ignored, compiler flag off => false",
+			name:           "frontmatter strict: false, compiler flag off => false",
 			compilerFlag:   false,
-			rawFrontmatter: map[string]any{"safe-update": true},
+			rawFrontmatter: map[string]any{"strict": false},
 			want:           false,
 		},
 		{
-			name:           "frontmatter safe-update true is ignored, compiler flag on => true",
+			name:           "frontmatter strict: false, compiler flag on => true",
 			compilerFlag:   true,
-			rawFrontmatter: map[string]any{"safe-update": true},
-			want:           true,
+			rawFrontmatter: map[string]any{"strict": false},
+			want:           true, // CLI flag overrides frontmatter
 		},
 		{
-			name:           "frontmatter safe-update false, compiler flag off => false",
+			name:           "frontmatter strict: true, compiler flag off => true",
 			compilerFlag:   false,
-			rawFrontmatter: map[string]any{"safe-update": false},
-			want:           false,
-		},
-		{
-			name:         "features safe-update true, compiler flag off => true",
-			compilerFlag: false,
-			features:     map[string]any{"safe-update": true},
-			want:         true,
-		},
-		{
-			name:         "features safe-update false, compiler flag off => false",
-			compilerFlag: false,
-			features:     map[string]any{"safe-update": false},
-			want:         false,
-		},
-		{
-			name:         "features safe-update true, compiler flag on => true",
-			compilerFlag: true,
-			features:     map[string]any{"safe-update": true},
-			want:         true,
+			rawFrontmatter: map[string]any{"strict": true},
+			want:           true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Compiler{safeUpdate: tt.compilerFlag}
-			data := &WorkflowData{RawFrontmatter: tt.rawFrontmatter, Features: tt.features}
+			data := &WorkflowData{RawFrontmatter: tt.rawFrontmatter}
 			got := c.effectiveSafeUpdate(data)
 			assert.Equal(t, tt.want, got, "effectiveSafeUpdate result")
 		})

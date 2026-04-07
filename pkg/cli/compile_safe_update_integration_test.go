@@ -236,26 +236,53 @@ func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 	t.Logf("Safe update correctly allowed GITHUB_TOKEN-only workflow.\nOutput:\n%s", outputStr)
 }
 
-// TestSafeUpdateNoFlagAllowsNewSecret verifies that without --safe-update the
-// compiler accepts a new secret freely (safe update enforcement is disabled by default).
+// safeUpdateWorkflowNonStrict is a minimal workflow that explicitly opts out of
+// strict mode.  Because safe update mode == strict mode, setting strict: false
+// also disables safe update enforcement, letting new secrets compile freely.
+const safeUpdateWorkflowNonStrict = `---
+name: Non Strict Workflow
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  secret-job:
+    runs-on: ubuntu-latest
+    needs: [activation]
+    env:
+      MY_API_SECRET: ${{ secrets.MY_API_SECRET }}
+    steps:
+      - run: echo "hello"
+---
+
+# Non Strict Workflow
+
+Workflow with strict: false, which also disables safe update enforcement.
+`
+
+// TestSafeUpdateNoFlagAllowsNewSecret verifies that when strict mode is disabled
+// (strict: false in frontmatter) safe update enforcement is also disabled — new
+// secrets compile without any safe-update warning.
 func TestSafeUpdateNoFlagAllowsNewSecret(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
 	workflowPath := filepath.Join(setup.workflowsDir, "no-safe-update.md")
-	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowNonStrict), 0o644),
 		"should write workflow file")
 
-	// No --safe-update flag; compilation should succeed even though a new secret is present.
+	// strict: false in frontmatter disables strict mode and therefore safe update mode.
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "compile without --safe-update should succeed regardless of new secrets\nOutput:\n%s", outputStr)
+	assert.NoError(t, err, "compile with strict: false should succeed without safe update warning\nOutput:\n%s", outputStr)
 	assert.False(t, strings.Contains(outputStr, "safe update mode"),
-		"output should not mention safe update mode when flag is not set")
-	t.Logf("Compilation without safe update flag succeeded as expected.\nOutput:\n%s", outputStr)
+		"output should not mention safe update mode when strict mode is disabled")
+	t.Logf("Compilation without safe update enforcement succeeded as expected.\nOutput:\n%s", outputStr)
 }
 
 // --- Transitive import tests -------------------------------------------------

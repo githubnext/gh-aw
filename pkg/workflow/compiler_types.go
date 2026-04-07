@@ -174,10 +174,10 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
-// SetSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets
-// and unapproved action additions/removals). Safe update mode can be enabled via the CLI flag,
-// the GH_AW_FEATURES=safe-update environment variable, or a workflow's features frontmatter.
-// The CLI flag is additive only — it enables safe update but cannot suppress a features flag.
+// SetSafeUpdate configures whether to force-enable safe update mode via the CLI flag.
+// Safe update mode is normally equivalent to strict mode (active when strict mode is active).
+// This flag provides an additional override to enable safe update mode independently of
+// the strict mode setting.
 func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
 	c.safeUpdate = safeUpdate
 }
