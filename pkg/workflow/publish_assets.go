@@ -106,7 +106,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		// Publish assets job doesn't need project support
 		// Publish assets job depends on the agent job; reuse its trace ID so all jobs share one OTLP trace
 		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, publishTraceID)...)
+		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, publishTraceID)...)
 	}
 
 	// Step 1: Checkout repository

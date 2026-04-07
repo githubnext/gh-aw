@@ -27,9 +27,6 @@ const defaultArtifactMaxSizeBytes int64 = 104857600
 // in their `path:` inputs, so we must use ${{ runner.temp }} here.
 const artifactStagingDirExpr = "${{ runner.temp }}/gh-aw/safeoutputs/upload-artifacts/"
 
-// artifactSlotDirExpr is the GitHub Actions expression form of the per-slot artifact directory.
-const artifactSlotDirExpr = "${{ runner.temp }}/gh-aw/upload-artifacts/"
-
 // SafeOutputsUploadArtifactStagingArtifactName is the artifact that carries the staging directory
 // from the main agent job to the upload_artifact job.
 const SafeOutputsUploadArtifactStagingArtifactName = "safe-outputs-upload-artifacts"

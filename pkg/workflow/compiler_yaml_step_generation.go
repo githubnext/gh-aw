@@ -111,10 +111,11 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 //   - setupActionRef: The action reference for setup action (e.g., "./actions/setup" or "github/gh-aw/actions/setup@sha")
 //   - destination: The destination path where files should be copied (e.g., SetupActionDestination)
 //   - enableCustomTokens: Whether to enable custom-token support (installs @actions/github so handler_auth.cjs can create per-handler Octokit clients)
+//   - enableArtifactClient: Whether to install @actions/artifact so upload_artifact.cjs can upload via REST API directly
 //   - traceID: Optional OTLP trace ID expression for cross-job span correlation (e.g., "${{ needs.activation.outputs.setup-trace-id }}"). Empty string means a new trace ID is generated.
 //
 // Returns a slice of strings representing the YAML lines for the setup step.
-func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableCustomTokens bool, traceID string) []string {
+func (c *Compiler) generateSetupStep(setupActionRef string, destination string, enableCustomTokens bool, enableArtifactClient bool, traceID string) []string {
 	// Script mode: run the setup.sh script directly
 	if c.actionMode.IsScript() {
 		lines := []string{
@@ -132,11 +133,14 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 		if enableCustomTokens {
 			lines = append(lines, "          INPUT_SAFE_OUTPUT_CUSTOM_TOKENS: 'true'\n")
 		}
+		if enableArtifactClient {
+			lines = append(lines, "          INPUT_SAFE_OUTPUT_ARTIFACT_CLIENT: 'true'\n")
+		}
 		return lines
 	}
 
 	// Dev/Release mode: use the setup action
-	compilerYamlStepGenerationLog.Printf("Generating setup step: ref=%s, destination=%s, customTokens=%t, traceID=%q", setupActionRef, destination, enableCustomTokens, traceID)
+	compilerYamlStepGenerationLog.Printf("Generating setup step: ref=%s, destination=%s, customTokens=%t, artifactClient=%t, traceID=%q", setupActionRef, destination, enableCustomTokens, enableArtifactClient, traceID)
 	lines := []string{
 		"      - name: Setup Scripts\n",
 		"        id: setup\n",
@@ -150,6 +154,9 @@ func (c *Compiler) generateSetupStep(setupActionRef string, destination string, 
 	}
 	if enableCustomTokens {
 		lines = append(lines, "          safe-output-custom-tokens: 'true'\n")
+	}
+	if enableArtifactClient {
+		lines = append(lines, "          safe-output-artifact-client: 'true'\n")
 	}
 	return lines
 }

@@ -4,18 +4,18 @@
 /**
  * upload_artifact handler
  *
- * Validates and stages artifact upload requests emitted by the model via the upload_artifact
- * safe output tool. The model must have already copied the files it wants to upload to
+ * Validates artifact upload requests emitted by the model via the upload_artifact safe output
+ * tool, then uploads the approved files directly via the @actions/artifact REST API client.
+ * The model must have already copied the files it wants to upload to
  * ${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
  *
  * This handler follows the per-message handler pattern used by the safe_outputs handler loop.
  * main(config) returns a per-message handler function that:
  * 1. Validates the request against the workflow's policy configuration.
  * 2. Resolves the requested files (path or filter-based) from the staging directory.
- * 3. Copies approved files into per-slot directories under ${RUNNER_TEMP}/gh-aw/upload-artifacts/slot_N/.
- * 4. Sets step outputs (slot_N_enabled, slot_N_name, etc.) so the wrapping job's
- *    actions/upload-artifact steps can run conditionally.
- * 5. Generates a temporary artifact ID for each slot.
+ * 3. Uploads the approved files directly via DefaultArtifactClient.uploadArtifact().
+ * 4. Sets step outputs (slot_N_tmp_id, upload_artifact_count) for downstream consumers.
+ * 5. Generates a temporary artifact ID for each upload and writes a resolver file.
  *
  * Configuration keys (passed via config parameter from handler manager):
  *   max-uploads           - Max number of upload_artifact calls allowed (default: 1)
@@ -28,21 +28,17 @@
  *   default-if-no-files   - "error" or "ignore" (default: "error")
  *   filters-include       - Array of default include glob patterns
  *   filters-exclude       - Array of default exclude glob patterns
- *   staged                - true for staged/dry-run mode
+ *   staged                - true for staged/dry-run mode (skips actual upload)
  */
 
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /** Staging directory where the model places files to be uploaded. */
 const STAGING_DIR = `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
-
-/** Base directory for per-slot artifact staging used by actions/upload-artifact. */
-const SLOT_BASE_DIR = `${process.env.RUNNER_TEMP}/gh-aw/upload-artifacts/`;
 
 /** Prefix for temporary artifact IDs returned to the caller. */
 const TEMP_ID_PREFIX = "tmp_artifact_";
@@ -251,22 +247,19 @@ function clampRetention(requested, defaultDays, maxDays) {
 }
 
 /**
- * Copy resolved files from STAGING_DIR into the per-slot directory.
- * @param {string[]} files - Relative paths from STAGING_DIR
- * @param {string} slotDir - Absolute target slot directory
+ * Create or return the @actions/artifact DefaultArtifactClient.
+ * global.__createArtifactClient can be set in tests to inject a mock client factory.
+ * @returns {{ uploadArtifact: (name: string, files: string[], rootDir: string, opts: object) => Promise<{id?: number, size?: number}> }}
  */
-function stageFilesToSlot(files, slotDir) {
-  fs.mkdirSync(slotDir, { recursive: true });
-  for (const relPath of files) {
-    const src = path.join(STAGING_DIR, relPath);
-    const dest = path.join(slotDir, relPath);
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.copyFileSync(src, dest);
+function getArtifactClient() {
+  if (typeof global.__createArtifactClient === "function") {
+    return global.__createArtifactClient();
   }
+  const { DefaultArtifactClient } = require("@actions/artifact");
+  return new DefaultArtifactClient();
 }
 
 /**
- * Main handler factory for upload_artifact.
  * Returns a per-message handler function that processes a single upload_artifact request.
  *
  * @param {Object} config - Handler configuration from the safe outputs config
@@ -368,18 +361,23 @@ async function main(config = {}) {
     core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
 
     if (!isStaged) {
-      // Stage files into the per-slot directory for the actions/upload-artifact step.
-      const slotDir = path.join(SLOT_BASE_DIR, `slot_${i}`);
-      stageFilesToSlot(files, slotDir);
-      core.info(`Staged ${files.length} file(s) to ${slotDir}`);
+      // Upload files directly via @actions/artifact REST API.
+      const absoluteFiles = files.map(f => path.join(STAGING_DIR, f));
+      const client = getArtifactClient();
+      try {
+        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, { retentionDays });
+        core.info(`Uploaded artifact "${artifactName}" (id=${uploadResult.id ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
+      } catch (err) {
+        return {
+          success: false,
+          error: `${ERR_VALIDATION}: upload_artifact: failed to upload artifact "${artifactName}": ${getErrorMessage(err)}`,
+        };
+      }
     } else {
-      core.info(`Staged mode: skipping file staging for slot ${i}`);
+      core.info(`Staged mode: skipping artifact upload for slot ${i}`);
     }
 
-    // Set step outputs for the conditional actions/upload-artifact steps in the safe_outputs job.
-    core.setOutput(`slot_${i}_enabled`, "true");
-    core.setOutput(`slot_${i}_name`, artifactName);
-    core.setOutput(`slot_${i}_retention_days`, String(retentionDays));
+    // Set step outputs so downstream jobs can reference the tmp ID.
     core.setOutput(`slot_${i}_tmp_id`, tmpId);
     core.setOutput(`slot_${i}_file_count`, String(files.length));
     core.setOutput(`slot_${i}_size_bytes`, String(totalSize));

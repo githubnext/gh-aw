@@ -10,6 +10,10 @@ inputs:
     description: 'Install @actions/github for handlers that use a per-handler github-token (creates Octokit via getOctokit)'
     required: false
     default: 'false'
+  safe-output-artifact-client:
+    description: 'Install @actions/artifact so upload_artifact.cjs can upload GitHub Actions artifacts via REST API directly'
+    required: false
+    default: 'false'
   job-name:
     description: 'Name of the job being set up. When OTEL_EXPORTER_OTLP_ENDPOINT is configured, a gh-aw.<job-name>.setup span is pushed to the OTLP endpoint.'
     required: false

@@ -51,9 +51,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Enable custom-tokens flag if any safe output uses a per-handler github-token
 		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
+		// Enable artifact client flag if upload-artifact safe output is configured
+		enableArtifactClient := data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil
 		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, safeOutputsTraceID)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, enableArtifactClient, safeOutputsTraceID)...)
 	}
 
 	// Mask OTLP telemetry headers immediately after setup so authentication tokens cannot
@@ -227,29 +229,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			outputs["create_agent_session_session_url"] = "${{ steps.process_safe_outputs.outputs.session_url }}"
 		}
 
-		// Export upload_artifact outputs and add conditional slot upload steps.
+		// Export upload_artifact outputs.
 		// The handler sets slot_N_* outputs on the process_safe_outputs step; we expose
 		// them as upload_artifact_slot_N_* job outputs for external consumers.
+		// The actual artifact uploads are performed directly by the JS handler via
+		// @actions/artifact REST API — no additional YAML steps are required.
 		if data.SafeOutputs.UploadArtifact != nil {
-			consolidatedSafeOutputsJobLog.Print("Adding upload_artifact slot upload steps")
+			consolidatedSafeOutputsJobLog.Print("Exposing upload_artifact outputs from handler manager")
 			cfg := data.SafeOutputs.UploadArtifact
 			outputs["upload_artifact_count"] = "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}"
 			for i := range cfg.MaxUploads {
 				outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
-			}
-			// Add one conditional actions/upload-artifact step per MaxUploads slot.
-			for i := range cfg.MaxUploads {
-				slotDir := fmt.Sprintf("%sslot_%d/", artifactSlotDirExpr, i)
-				steps = append(steps,
-					fmt.Sprintf("      - name: Upload artifact slot %d\n", i),
-					fmt.Sprintf("        if: steps.process_safe_outputs.outputs.slot_%d_enabled == 'true'\n", i),
-					fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
-					"        with:\n",
-					fmt.Sprintf("          name: ${{ steps.process_safe_outputs.outputs.slot_%d_name }}\n", i),
-					fmt.Sprintf("          path: %s\n", slotDir),
-					fmt.Sprintf("          retention-days: ${{ steps.process_safe_outputs.outputs.slot_%d_retention_days }}\n", i),
-					"          if-no-files-found: ignore\n",
-				)
 			}
 		}
 
@@ -383,7 +373,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			insertIndex += len(c.generateCheckoutActionsFolder(data))
 			// Use the same traceID as the real call so the line count matches exactly
 			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), countTraceID))
+			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID))
 		}
 
 		// Add artifact download steps count
