@@ -318,10 +318,11 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_discussion": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:title,body",
+		CustomValidation: "requiresOneOf:title,body,labels",
 		Fields: map[string]FieldValidation{
 			"title":             {Type: "string", Sanitize: true, MaxLength: 128},
 			"body":              {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"labels":            {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"discussion_number": {IssueOrPRNumber: true},
 			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
