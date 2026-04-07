@@ -65,6 +65,8 @@ func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
 
 // normalizeSecretName ensures a secret identifier is stored as a plain name
 // without the "secrets." prefix (e.g. "GITHUB_TOKEN" not "secrets.GITHUB_TOKEN").
+// If the input already carries the "secrets." prefix it is stripped; otherwise
+// the name is returned unchanged.
 func normalizeSecretName(name string) string {
 	return strings.TrimPrefix(name, "secrets.")
 }

@@ -23,7 +23,8 @@ const githubTokenSecret = "GITHUB_TOKEN"
 // on a first-time safe-update compilation.
 //
 // secretNames contains the raw names produced by CollectSecretReferences (i.e.
-// they may or may not carry the "secrets." prefix; both forms are handled).
+// they may or may not carry the "secrets." prefix; both forms are normalized
+// via normalizeSecretName before comparison).
 //
 // actionRefs contains the raw action reference strings produced by CollectActionReferences,
 // e.g. "actions/checkout@abc1234 # v4".
