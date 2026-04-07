@@ -90,7 +90,7 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 	configMap, ok := configData.(map[string]any)
 	if !ok {
 		// No config map (e.g. upload-artifact: true) – use defaults.
-		publishArtifactsLog.Print("Using default upload-artifact configuration")
+		publishArtifactsLog.Print("upload-artifact enabled with default configuration")
 		return config
 	}
 
