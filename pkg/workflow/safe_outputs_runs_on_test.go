@@ -409,7 +409,6 @@ safe-outputs:
 			name: "standard GitHub-hosted runner with assign-to-agent does NOT get extra Node.js setup",
 			frontmatter: `---
 on: push
-runs-on-slim: ubuntu-latest
 safe-outputs:
   assign-to-agent:
 ---

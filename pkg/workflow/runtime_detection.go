@@ -185,15 +185,19 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	}
 }
 
-// standardGitHubHostedRunners is the allowlist of known GitHub-hosted runner labels that
+// standardGitHubHostedRunners is the allowlist of known runner labels that
 // ship with Node.js pre-installed. Only exact labels (case-insensitive) listed here are
-// considered standard; everything else — including labels that happen to start with
-// "ubuntu-" (e.g. "ubuntu-slim") — is treated as a custom image runner.
+// considered standard; everything else is treated as a custom image runner.
+//
+// Note: "ubuntu-slim" is gh-aw's own default framework runner image and it has Node.js
+// pre-installed, so it is included in this allowlist alongside the official GitHub-hosted labels.
 //
 // Sources:
 //   - https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners
 //   - https://docs.github.com/en/actions/using-github-hosted-runners/using-larger-runners/about-larger-runners
 var standardGitHubHostedRunners = map[string]bool{
+	// gh-aw default framework runner (Node.js pre-installed)
+	"ubuntu-slim": true,
 	// Linux
 	"ubuntu-latest": true,
 	"ubuntu-24.04":  true,
@@ -214,17 +218,17 @@ var standardGitHubHostedRunners = map[string]bool{
 }
 
 // isCustomImageRunner returns true if the runs-on configuration indicates a non-standard
-// GitHub-hosted runner (custom image, self-hosted runner, or runner group). Custom image
-// runners may not have Node.js pre-installed, so the compiler ensures Node.js is set up.
+// runner (custom image, self-hosted runner, or runner group). Custom image runners may not
+// have Node.js pre-installed, so the compiler ensures Node.js is set up.
 //
 // Only the labels in standardGitHubHostedRunners are considered standard; everything else
-// (including "ubuntu-slim", which is gh-aw's own default framework runner image) is custom.
+// (e.g. "self-hosted", enterprise labels, GPU runner labels) is treated as custom.
 //
 // The runsOn parameter is a YAML string in the form produced by extractTopLevelYAMLSection,
 // for example:
 //   - "runs-on: ubuntu-latest"       → standard runner → returns false
 //   - "runs-on: ubuntu-22.04"        → standard runner → returns false
-//   - "runs-on: ubuntu-slim"         → custom runner   → returns true
+//   - "runs-on: ubuntu-slim"         → standard runner → returns false
 //   - "runs-on: self-hosted"         → custom runner   → returns true
 //   - "runs-on:\n- self-hosted\n..."  → array form      → returns true
 //   - "runs-on:\n  group: ..."        → object form     → returns true
