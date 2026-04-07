@@ -159,7 +159,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	// Set safe update flag: when enabled via CLI it combines with any frontmatter/feature-flag enabling
 	compiler.SetSafeUpdate(config.SafeUpdate)
 	if config.SafeUpdate {
-		compileCompilerSetupLog.Print("Safe update mode enabled: compilations introducing new restricted secrets or unapproved action additions/removals will be rejected")
+		compileCompilerSetupLog.Print("Safe update mode enabled: compilations introducing new restricted secrets or unapproved action additions/removals will emit a warning prompt requesting agent review and a PR security note")
 	}
 }
 

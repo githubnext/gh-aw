@@ -86,6 +86,7 @@ type Compiler struct {
 	importCache             *parser.ImportCache // Shared cache for imported workflow files
 	workflowIdentifier      string              // Identifier for the current workflow being compiled (for schedule scattering)
 	scheduleWarnings        []string            // Accumulated schedule warnings for this compiler instance
+	safeUpdateWarnings      []string            // Accumulated safe update warnings (new secrets/actions requiring review)
 	repositorySlug          string              // Repository slug (owner/repo) used as seed for scattering
 	artifactManager         *ArtifactManager    // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
@@ -266,6 +267,22 @@ func (c *Compiler) SetRepositorySlug(slug string) {
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance
 func (c *Compiler) GetScheduleWarnings() []string {
 	return c.scheduleWarnings
+}
+
+// AddSafeUpdateWarning appends a safe update warning to the compiler's accumulated list.
+// Callers should invoke this when a safe update violation is detected instead of
+// returning a compilation error, so that compilation still succeeds and the agent
+// receives actionable guidance.
+func (c *Compiler) AddSafeUpdateWarning(warning string) {
+	if c.safeUpdateWarnings == nil {
+		c.safeUpdateWarnings = []string{}
+	}
+	c.safeUpdateWarnings = append(c.safeUpdateWarnings, warning)
+}
+
+// GetSafeUpdateWarnings returns all accumulated safe update warnings for this compiler instance.
+func (c *Compiler) GetSafeUpdateWarnings() []string {
+	return c.safeUpdateWarnings
 }
 
 // getSharedActionResolver returns the shared action resolver, initializing it on first use

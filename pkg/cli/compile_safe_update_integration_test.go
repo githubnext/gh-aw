@@ -90,10 +90,11 @@ func manifestLockFileWithSecret(secretName string) string {
 	)
 }
 
-// TestSafeUpdateRejectsNewSecretOnFirstCompile verifies that --safe-update rejects
-// a first compilation that introduces a non-GITHUB_TOKEN secret when no lock file
-// (and therefore no prior manifest) exists yet.
-func TestSafeUpdateRejectsNewSecretOnFirstCompile(t *testing.T) {
+// TestSafeUpdateWarnOnNewSecretOnFirstCompile verifies that --safe-update emits a
+// warning (not an error) when a first compilation introduces a non-GITHUB_TOKEN
+// secret and no prior manifest exists.  The compilation must succeed and the lock
+// file must be written so that the agent receives the actionable warning.
+func TestSafeUpdateWarnsOnNewSecretOnFirstCompile(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -101,23 +102,28 @@ func TestSafeUpdateRejectsNewSecretOnFirstCompile(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
-	// Use release mode so the compiler reads the lock file from the filesystem
-	// (not from git HEAD), allowing us to control the manifest via file I/O.
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.Error(t, err, "compile should fail in safe update mode when a new secret is introduced")
-	assert.Contains(t, outputStr, "safe update mode", "error should mention safe update mode")
-	assert.Contains(t, outputStr, "MY_API_SECRET", "error should name the offending secret")
-	t.Logf("Safe update correctly rejected new secret.\nOutput:\n%s", outputStr)
+	// Compilation must succeed (warning, not error)
+	assert.NoError(t, err, "compile should succeed in safe update mode (violation emits warning, not error)\nOutput:\n%s", outputStr)
+	// Warning must reference the violation and request a security review
+	assert.Contains(t, outputStr, "safe update mode", "output should mention safe update mode")
+	assert.Contains(t, outputStr, "MY_API_SECRET", "warning should name the offending secret")
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED", "warning should request a security review")
+	// Lock file must still be written
+	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-secret.lock.yml")
+	_, statErr := os.Stat(lockFilePath)
+	assert.NoError(t, statErr, "lock file should be written even when a safe-update warning is emitted")
+	t.Logf("Safe update correctly emitted warning for new secret.\nOutput:\n%s", outputStr)
 }
 
-// TestSafeUpdateRejectsNewCustomActionOnFirstCompile verifies that --safe-update
-// rejects a first compilation that introduces a non-actions/* action reference when
-// no prior manifest exists.
-func TestSafeUpdateRejectsNewCustomActionOnFirstCompile(t *testing.T) {
+// TestSafeUpdateWarnOnNewCustomActionOnFirstCompile verifies that --safe-update emits
+// a warning (not an error) when a first compilation introduces a non-actions/* action
+// reference and no prior manifest exists.  Compilation must succeed.
+func TestSafeUpdateWarnsOnNewCustomActionOnFirstCompile(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -130,10 +136,17 @@ func TestSafeUpdateRejectsNewCustomActionOnFirstCompile(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.Error(t, err, "compile should fail in safe update mode when a new custom action is introduced")
-	assert.Contains(t, outputStr, "safe update mode", "error should mention safe update mode")
-	assert.Contains(t, outputStr, "my-org/custom-action", "error should name the offending action")
-	t.Logf("Safe update correctly rejected new custom action.\nOutput:\n%s", outputStr)
+	// Compilation must succeed (warning, not error)
+	assert.NoError(t, err, "compile should succeed in safe update mode (violation emits warning, not error)\nOutput:\n%s", outputStr)
+	// Warning must reference the violation and request a security review
+	assert.Contains(t, outputStr, "safe update mode", "output should mention safe update mode")
+	assert.Contains(t, outputStr, "my-org/custom-action", "warning should name the offending action")
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED", "warning should request a security review")
+	// Lock file must still be written
+	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-action.lock.yml")
+	_, statErr := os.Stat(lockFilePath)
+	assert.NoError(t, statErr, "lock file should be written even when a safe-update warning is emitted")
+	t.Logf("Safe update correctly emitted warning for new custom action.\nOutput:\n%s", outputStr)
 }
 
 // TestSafeUpdateAllowsKnownSecretWithPriorManifest verifies that --safe-update
@@ -375,10 +388,10 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 	}
 }
 
-// TestSafeUpdateRejectsNewSecretFromImport verifies that --safe-update rejects
-// a first compilation when the new secret is introduced via an imported workflow
-// rather than directly in the top-level workflow frontmatter.
-func TestSafeUpdateRejectsNewSecretFromImport(t *testing.T) {
+// TestSafeUpdateRejectsNewSecretFromImport verifies that --safe-update emits a warning
+// when the new secret is introduced via an imported workflow rather than directly in
+// the top-level workflow frontmatter.  Compilation must still succeed.
+func TestSafeUpdateWarnsOnNewSecretFromImport(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -394,13 +407,16 @@ func TestSafeUpdateRejectsNewSecretFromImport(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.Error(t, err,
-		"compile should fail when import introduces a new secret under --safe-update")
+	// Compilation must succeed (warning, not error)
+	assert.NoError(t, err,
+		"compile should succeed (violation emits warning, not error) when import introduces a new secret under --safe-update\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "safe update mode",
-		"error should mention safe update mode")
+		"warning should mention safe update mode")
 	assert.Contains(t, outputStr, "SHARED_API_KEY",
-		"error should name the secret that came from the import")
-	t.Logf("Safe update correctly rejected secret introduced via import.\nOutput:\n%s", outputStr)
+		"warning should name the secret that came from the import")
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"warning should request a security review")
+	t.Logf("Safe update correctly warned about secret introduced via import.\nOutput:\n%s", outputStr)
 }
 
 // TestSafeUpdateAllowsImportedSecretWithPriorManifest verifies that --safe-update
@@ -485,9 +501,9 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 }
 
 // TestSafeUpdateRejectsTransitivelyImportedSecretOnFirstCompile verifies that
-// --safe-update rejects a first compilation when the new secret is introduced
-// via a transitive import (A imports B, B imports C, C declares the secret).
-func TestSafeUpdateRejectsTransitivelyImportedSecretOnFirstCompile(t *testing.T) {
+// --safe-update emits a warning when the new secret is introduced via a transitive
+// import (A imports B, B imports C, C declares the secret).  Compilation must succeed.
+func TestSafeUpdateWarnsOnTransitivelyImportedSecretOnFirstCompile(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -504,11 +520,14 @@ func TestSafeUpdateRejectsTransitivelyImportedSecretOnFirstCompile(t *testing.T)
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.Error(t, err,
-		"compile should fail when a transitive import introduces a new secret under --safe-update")
+	// Compilation must succeed (warning, not error)
+	assert.NoError(t, err,
+		"compile should succeed (violation emits warning, not error) when a transitive import introduces a new secret under --safe-update\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "safe update mode",
-		"error should mention safe update mode")
+		"warning should mention safe update mode")
 	assert.Contains(t, outputStr, "DEEP_NESTED_SECRET",
-		"error should name the secret that came from the transitive import")
-	t.Logf("Safe update correctly rejected secret from transitive import.\nOutput:\n%s", outputStr)
+		"warning should name the secret that came from the transitive import")
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"warning should request a security review")
+	t.Logf("Safe update correctly warned about secret from transitive import.\nOutput:\n%s", outputStr)
 }

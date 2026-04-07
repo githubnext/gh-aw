@@ -145,7 +145,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 // offending secrets and actions and tells the user how to remediate.
 func buildSafeUpdateError(secretViolations, addedActions, removedActions []string) error {
 	var sb strings.Builder
-	sb.WriteString("safe update mode rejected compilation: unapproved changes were introduced\n")
+	sb.WriteString("safe update mode detected unapproved changes\n")
 
 	if len(secretViolations) > 0 {
 		sb.WriteString("\nNew restricted secret(s):\n  - ")
@@ -162,4 +162,24 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 
 	sb.WriteString("\n\nRemediation options:\n  1. Use an interactive agentic flow (e.g. Copilot CLI) to review and approve the changes.\n  2. Remove the --safe-update flag to allow the change.\n  3. Revert the unapproved changes from your workflow if they were added unintentionally.")
 	return fmt.Errorf("%s", sb.String())
+}
+
+// buildSafeUpdateWarningPrompt wraps the raw safe update violation message in a
+// structured prompt that:
+//   - Asks the calling agent to review each new secret / action for malicious use
+//   - Asks the agent to include a security review note in the pull request description
+//     so that human reviewers are aware of the changes
+func buildSafeUpdateWarningPrompt(violationMsg string) string {
+	var sb strings.Builder
+	sb.WriteString("⚠️  SECURITY REVIEW REQUIRED — safe update mode detected unapproved changes:\n\n")
+	sb.WriteString(violationMsg)
+	sb.WriteString("\n\n")
+	sb.WriteString("Action required for the calling agent:\n")
+	sb.WriteString("  1. Review every new secret and action listed above for potential malicious use\n")
+	sb.WriteString("     (e.g. credential exfiltration, supply-chain attacks, unexpected network access).\n")
+	sb.WriteString("  2. Add a security review note to the pull request description that:\n")
+	sb.WriteString("     - Lists the new secrets and actions introduced by this compilation.\n")
+	sb.WriteString("     - Confirms you have reviewed each one and explains why it is safe to add.\n")
+	sb.WriteString("     - Flags any item you cannot fully verify so a human reviewer can inspect it.\n")
+	return sb.String()
 }

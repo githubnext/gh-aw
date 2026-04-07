@@ -683,7 +683,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. 'github/gh-aw'). Bypasses git remote detection entirely. Use this when your git remote is not named 'origin' and you have multiple remotes configured")
-	compileCmd.Flags().Bool("safe-update", false, "Enforce safe update mode: reject compilations that introduce new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Enables safe update for this invocation; safe update can also be activated via GH_AW_FEATURES=safe-update or workflow frontmatter features")
+	compileCmd.Flags().Bool("safe-update", false, "Enable safe update mode: emit a warning prompt when compilations introduce new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Compilation succeeds but the warning instructs the agent to review each new secret/action for malicious use and add a security note to the pull request description. Can also be activated via GH_AW_FEATURES=safe-update or workflow frontmatter features (additive: setting this flag enables safe update even when frontmatter does not set it)")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 
 	// Register completions for compile command

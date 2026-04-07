@@ -681,39 +681,34 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Read the existing lock file to extract the previous gh-aw-manifest for safe update
 	// enforcement.
 	//
-	// In dev mode the lock file is read from the last git commit (HEAD) rather than the
-	// working tree. This prevents a local agent from modifying the .lock.yml file on disk
-	// before invoking the compiler to forge an approved manifest and bypass enforcement.
-	//
-	// In non-dev (release / action) modes the workflow is running inside a GitHub Actions
-	// runner whose working tree is already a trusted git checkout, so reading from the
-	// filesystem is sufficient and avoids any dependency on git availability.
+	// The lock file is always read from the last git commit (HEAD) rather than the working
+	// tree. This prevents an agent running locally or inside a CI job from modifying the
+	// .lock.yml file on disk before invoking the compiler to forge an approved manifest and
+	// bypass enforcement.  When git is unavailable or the file has never been committed the
+	// read falls back to the filesystem so that first-time compilations still work.
 	var oldManifest *GHAWManifest
-	if c.actionMode.IsDev() {
-		if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
-			if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
-				oldManifest = m
-				if oldManifest != nil {
-					log.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
-				}
-			} else {
-				log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+	if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
+		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
+			oldManifest = m
+			if oldManifest != nil {
+				log.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
 			}
 		} else {
-			log.Printf("Lock file %s not found in HEAD commit (new workflow or not yet committed). Safe update enforcement will treat as empty manifest.", lockFile)
+			log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 		}
 	} else {
-		if existingContent, readErr := os.ReadFile(lockFile); readErr == nil {
+		log.Printf("Lock file %s not found in HEAD commit (%v); falling back to filesystem read.", lockFile, readErr)
+		if existingContent, fsErr := os.ReadFile(lockFile); fsErr == nil {
 			if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
 				oldManifest = m
 				if oldManifest != nil {
-					log.Printf("Loaded existing gh-aw-manifest: %d secret(s)", len(oldManifest.Secrets))
+					log.Printf("Loaded gh-aw-manifest from filesystem: %d secret(s)", len(oldManifest.Secrets))
 				}
 			} else {
-				log.Printf("Failed to parse existing gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+				log.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
 			}
 		} else {
-			log.Printf("Lock file %s not found on filesystem (new workflow or not yet written). Safe update enforcement will treat as empty manifest.", lockFile)
+			log.Printf("Lock file %s not found on filesystem either (new workflow or not yet written). Safe update enforcement will treat as empty manifest.", lockFile)
 		}
 	}
 
@@ -736,12 +731,18 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return err
 	}
 
-	// Enforce safe update mode: reject compilations that introduce unapproved secrets or
-	// action changes. body* vars contain data collected from the workflow body only (not
-	// the header), which avoids matching against the gh-aw-manifest JSON comment itself.
+	// Enforce safe update mode: emit a warning prompt (not a hard error) when unapproved
+	// secrets or action changes are detected.  body* vars contain data collected from the
+	// workflow body only (not the header) to avoid matching the gh-aw-manifest JSON comment.
+	//
+	// Emitting a warning instead of failing allows compilation to succeed so that the lock
+	// file is written and the agent receives the actionable guidance embedded in the warning.
 	if c.effectiveSafeUpdate(workflowData) {
 		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions); enforceErr != nil {
-			return formatCompilerError(markdownPath, "error", enforceErr.Error(), enforceErr)
+			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
+			c.AddSafeUpdateWarning(warningMsg)
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))
+			c.IncrementWarningCount()
 		}
 	}
 
