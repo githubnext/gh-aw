@@ -130,3 +130,50 @@ func TestCopilotAssignmentEnvVarWithEmptyAssignees(t *testing.T) {
 
 	assert.NotContains(t, stepsStr, "GH_AW_ASSIGN_COPILOT", "Expected GH_AW_ASSIGN_COPILOT not to be set when assignees is empty")
 }
+
+// TestCopilotAssignmentEnvVarSetForCreatePullRequestWithCopilotAssignee verifies that
+// GH_AW_ASSIGN_COPILOT is set when copilot is in create-pull-request assignees.
+func TestCopilotAssignmentEnvVarSetForCreatePullRequestWithCopilotAssignee(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		Name: "Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Assignees:            []string{"copilot"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addAllSafeOutputConfigEnvVars(&steps, data)
+
+	stepsStr := strings.Join(steps, "")
+
+	assert.Contains(t, stepsStr, "GH_AW_ASSIGN_COPILOT", "Expected GH_AW_ASSIGN_COPILOT to be set when copilot is in create-pull-request assignees")
+	assert.Contains(t, stepsStr, `GH_AW_ASSIGN_COPILOT: "true"`, "Expected GH_AW_ASSIGN_COPILOT to be 'true'")
+}
+
+// TestCopilotAssignmentEnvVarNotSetForCreatePullRequestWithoutCopilotAssignee verifies that
+// GH_AW_ASSIGN_COPILOT is not set when copilot is absent from create-pull-request assignees.
+func TestCopilotAssignmentEnvVarNotSetForCreatePullRequestWithoutCopilotAssignee(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		Name: "Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				Assignees:            []string{"user1"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addAllSafeOutputConfigEnvVars(&steps, data)
+
+	stepsStr := strings.Join(steps, "")
+
+	assert.NotContains(t, stepsStr, "GH_AW_ASSIGN_COPILOT", "Expected GH_AW_ASSIGN_COPILOT not to be set when copilot is absent")
+}

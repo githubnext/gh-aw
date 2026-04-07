@@ -1437,3 +1437,157 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
   });
 });
+
+describe("create_pull_request - copilot assignee on fallback issues", () => {
+  let originalEnv;
+  let tempDir;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-copilot-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    // Push fails to trigger the fallback-issue path; issue creation succeeds
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockRejectedValue(Object.assign(new Error("Permission denied"), { status: 403 })),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          create: vi.fn().mockResolvedValue({ data: { number: 99, html_url: "https://github.com/test/issues/99" } }),
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+
+    global.context = {
+      eventName: "issues",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+      runId: "12345",
+    };
+
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "main", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should not call graphql for copilot assignment when GH_AW_ASSIGN_COPILOT is not set", async () => {
+    delete process.env.GH_AW_ASSIGN_COPILOT;
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["copilot"], allow_empty: true });
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    // No graphql calls for copilot assignment
+    expect(global.github.graphql).not.toHaveBeenCalled();
+  });
+
+  it("should not call graphql when copilot is not in assignees even if GH_AW_ASSIGN_COPILOT is true", async () => {
+    process.env.GH_AW_ASSIGN_COPILOT = "true";
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["user1"], allow_empty: true });
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(global.github.graphql).not.toHaveBeenCalled();
+  });
+
+  it("should strip copilot from REST assignees for fallback issue but assign via graphql when enabled", async () => {
+    process.env.GH_AW_ASSIGN_COPILOT = "true";
+
+    // Mock findAgent → getIssueDetails → assignAgentToIssue
+    global.github.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ id: "COPILOT_AGENT_ID", login: "copilot-swe-agent", __typename: "Bot" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "ISSUE_NODE_ID",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" },
+      });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["copilot", "user1"], allow_empty: true });
+    await handler({ title: "Test PR", body: "Test body" }, {});
+
+    // Copilot should NOT appear in the REST issue creation payload
+    const issueCall = global.github.rest.issues.create.mock.calls[0][0];
+    expect(issueCall.assignees).not.toContain("copilot");
+    expect(issueCall.assignees).toContain("user1");
+
+    // Graphql should be called for copilot assignment
+    expect(global.github.graphql).toHaveBeenCalledTimes(3);
+  });
+
+  it("should warn but not fail when copilot agent is not available for fallback issue", async () => {
+    process.env.GH_AW_ASSIGN_COPILOT = "true";
+
+    // findAgent returns no agent
+    global.github.graphql.mockResolvedValueOnce({
+      repository: { suggestedActors: { nodes: [] } },
+    });
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ assignees: ["copilot"], allow_empty: true });
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    // Issue creation should still succeed
+    expect(result.success).toBe(true);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("copilot coding agent is not available"));
+  });
+});

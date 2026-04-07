@@ -307,10 +307,11 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	}
 
 	// Add GH_AW_ASSIGN_TO_AGENT_TOKEN when assign-to-agent is configured OR when create-issue
-	// is configured with copilot in assignees. Both handlers create a dedicated Octokit using
-	// this token (agent token preference chain), which is required because the Copilot assignment
-	// API only accepts PATs (not GitHub App tokens). This env var is evaluated as a GitHub Actions
-	// expression, so it resolves to the actual token value before the step runs.
+	// or create-pull-request is configured with copilot in assignees. All handlers create a
+	// dedicated Octokit using this token (agent token preference chain), which is required
+	// because the Copilot assignment API only accepts PATs (not GitHub App tokens). This env
+	// var is evaluated as a GitHub Actions expression, so it resolves to the actual token value
+	// before the step runs.
 	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
 		agentTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.AssignToAgent.GitHubToken)
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
@@ -321,6 +322,11 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
 		steps = append(steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN: %s\n", agentTokenStr))
 		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for create-issue copilot assignment handler")
+	} else if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil && hasCopilotAssignee(data.SafeOutputs.CreatePullRequests.Assignees) {
+		agentTokenStr := getEffectiveCopilotCodingAgentGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken)
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+		steps = append(steps, fmt.Sprintf("          GH_AW_ASSIGN_TO_AGENT_TOKEN: %s\n", agentTokenStr))
+		consolidatedSafeOutputsStepsLog.Print("Added GH_AW_ASSIGN_TO_AGENT_TOKEN env var for create-pull-request copilot assignment handler")
 	}
 
 	// Add GH_AW_AGENT_SESSION_TOKEN when create-agent-session is configured.
