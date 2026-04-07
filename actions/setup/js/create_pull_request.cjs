@@ -112,13 +112,13 @@ function sanitizeFallbackAssignees(assignees) {
  * Creates a fallback GitHub issue, retrying without assignees if the API rejects them.
  * This ensures fallback issue creation remains reliable even if an assignee username
  * is invalid or the repository does not have that collaborator.
- * @param {import('@octokit/rest').Octokit} githubClient - Authenticated GitHub client
+ * @param {object} githubClient - Authenticated GitHub client
  * @param {{owner: string, repo: string}} repoParts - Repository owner and name
  * @param {string} title - Issue title
  * @param {string} body - Issue body
  * @param {string[]} labels - Issue labels
  * @param {string[] | null} assignees - Sanitized assignees (null = omit field)
- * @returns {Promise<import('@octokit/rest').Octokit['rest']['issues']['create'] extends (...args: any[]) => Promise<infer R> ? R : never>}
+ * @returns {Promise<any>}
  */
 async function createFallbackIssue(githubClient, repoParts, title, body, labels, assignees) {
   const payload = {

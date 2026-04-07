@@ -44,7 +44,7 @@ async function main(config = {}) {
   /**
    * Process a single create_agent_session message.
    * @param {Object} message - The agent output message
-   * @returns {Promise<{success: boolean, number?: string, url?: string, error?: string}>}
+   * @returns {Promise<{success: boolean, number?: string, url?: string, error?: string, skipped?: boolean}>}
    */
   return async function handleMessage(message) {
     const taskDescription = message.body;
