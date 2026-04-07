@@ -86,8 +86,8 @@ func CollectActionReferences(yamlContent string) []string {
 
 	for line := range strings.SplitSeq(yamlContent, "\n") {
 		// Quick check: line must contain "uses:" to avoid scanning every character
-		usesIdx := strings.Index(line, "uses:")
-		if usesIdx == -1 {
+		prefix, afterUses, found := strings.Cut(line, "uses:")
+		if !found {
 			continue
 		}
 
@@ -100,14 +100,13 @@ func CollectActionReferences(yamlContent string) []string {
 		// The prefix before "uses:" must be either:
 		//   - Only whitespace           (plain key-value: "    uses: action")
 		//   - "-" with leading spaces   (list item:       "    - uses: action")
-		prefix := line[:usesIdx]
 		trimmedPrefix := strings.TrimSpace(prefix)
 		if trimmedPrefix != "" && trimmedPrefix != "-" {
 			continue
 		}
 
 		// Extract the action reference: everything after "uses:" trimmed
-		rest := strings.TrimSpace(line[usesIdx+5:]) // 5 == len("uses:")
+		rest := strings.TrimSpace(afterUses)
 		if rest == "" {
 			continue
 		}
