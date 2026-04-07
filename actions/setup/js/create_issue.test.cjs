@@ -272,13 +272,18 @@ describe("create_issue", () => {
       expect(getIssuesToAssignCopilot().length).toBe(lengthBefore);
     });
 
-    it("resetIssuesToAssignCopilot clears state visible through held references", () => {
-      // Get a copy, then reset, verify the copy is unaffected (reset is in-place but copy was made)
+    it("resetIssuesToAssignCopilot clears internal state but does not affect held snapshots", () => {
       const snapshot = getIssuesToAssignCopilot();
+
+      // Make the held copy observably different from internal state
+      snapshot.push("external:999");
+
       resetIssuesToAssignCopilot();
-      // The copy we hold is independent; the in-place reset empties the internal array
+
+      // Fresh reads reflect cleared internal state
       expect(getIssuesToAssignCopilot()).toHaveLength(0);
-      expect(snapshot).toHaveLength(0);
+      // Previously returned snapshots remain unchanged because getter returns a copy
+      expect(snapshot).toEqual(expect.arrayContaining(["external:999"]));
     });
   });
 

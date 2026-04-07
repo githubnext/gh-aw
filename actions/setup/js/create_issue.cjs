@@ -2,16 +2,20 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Module-level storage for issues that need copilot assignment
- * This is populated by the create_issue handler when GH_AW_ASSIGN_COPILOT is true
- * and consumed by the handler manager to set the issues_to_assign_copilot output
+ * Module-level storage retained for backward compatibility with the
+ * `assign_copilot_to_created_issues` step. The create_issue handler now assigns
+ * copilot inline immediately after issue creation (via assign_agent_helpers.cjs),
+ * so this list is never populated during normal operation and the downstream step
+ * is a no-op. It is exposed via getIssuesToAssignCopilot/resetIssuesToAssignCopilot
+ * for unit tests.
  * @type {Array<string>}
  */
 let issuesToAssignCopilotGlobal = [];
 
 /**
- * Get the list of issues that need copilot assignment
+ * Get the list of issues that need copilot assignment.
  * Returns a defensive copy so callers cannot accidentally mutate global state.
+ * In practice this list is always empty because assignment is now done inline.
  * @returns {Array<string>} Copy of the "repo:number" strings array
  */
 function getIssuesToAssignCopilot() {
@@ -19,9 +23,9 @@ function getIssuesToAssignCopilot() {
 }
 
 /**
- * Reset the list of issues that need copilot assignment
- * Mutates in-place so any reference obtained before the reset also observes the cleared state.
- * Used for testing.
+ * Reset the list of issues that need copilot assignment.
+ * Clears the internal array in-place. Previously returned snapshots (copies)
+ * are not affected. Used for testing.
  */
 function resetIssuesToAssignCopilot() {
   issuesToAssignCopilotGlobal.length = 0;

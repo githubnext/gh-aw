@@ -11,6 +11,33 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+// assertTokenInProcessSafeOutputsEnv verifies that a given environment variable name
+// appears inside the env block of the process_safe_outputs step. This is more precise
+// than a plain strings.Contains on the full lock file, which can produce false positives
+// if the name appears in another context (e.g. a downstream step).
+func assertTokenInProcessSafeOutputsEnv(t *testing.T, lockContent, tokenName string) {
+	t.Helper()
+
+	stepStart := strings.Index(lockContent, "id: process_safe_outputs")
+	if stepStart == -1 {
+		t.Fatal("Expected process_safe_outputs step in generated lock file")
+	}
+
+	// Trim to just the content of this step (stop at the next top-level list item "-").
+	stepContent := lockContent[stepStart:]
+	if nextStep := strings.Index(stepContent, "\n      - "); nextStep != -1 {
+		stepContent = stepContent[:nextStep]
+	}
+
+	if !strings.Contains(stepContent, "env:") {
+		t.Fatalf("Expected env: block in process_safe_outputs step for %s", tokenName)
+	}
+
+	if !strings.Contains(stepContent, tokenName) {
+		t.Errorf("Expected %s in env block of process_safe_outputs step", tokenName)
+	}
+}
+
 func TestOutputIssueJobGenerationWithCopilotAssigneeAddsAgentToken(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "output-issue-copilot-assignee-token")
@@ -53,11 +80,9 @@ so create_issue can assign directly without a separate step.
 
 	lockContent := string(content)
 
-	// Verify GH_AW_ASSIGN_TO_AGENT_TOKEN is set in process_safe_outputs step so
-	// create_issue.cjs can assign copilot directly using the agent token.
-	if !strings.Contains(lockContent, "GH_AW_ASSIGN_TO_AGENT_TOKEN") {
-		t.Error("Expected GH_AW_ASSIGN_TO_AGENT_TOKEN in process_safe_outputs step for direct copilot assignment")
-	}
+	// Verify GH_AW_ASSIGN_TO_AGENT_TOKEN is set in the env block of the
+	// process_safe_outputs step so create_issue.cjs can assign copilot directly.
+	assertTokenInProcessSafeOutputsEnv(t, lockContent, "GH_AW_ASSIGN_TO_AGENT_TOKEN")
 }
 
 func TestOutputPRJobGenerationWithCopilotAssigneeAddsAgentToken(t *testing.T) {
@@ -100,16 +125,13 @@ so create_pull_request can assign copilot to fallback issues directly.
 
 	lockContent := string(content)
 
-	// Verify GH_AW_ASSIGN_TO_AGENT_TOKEN is set so create_pull_request.cjs can assign
-	// copilot to fallback issues using the agent token (required for the Copilot assignment API).
-	if !strings.Contains(lockContent, "GH_AW_ASSIGN_TO_AGENT_TOKEN") {
-		t.Error("Expected GH_AW_ASSIGN_TO_AGENT_TOKEN in process_safe_outputs step for create-pull-request copilot assignment")
-	}
+	// Verify GH_AW_ASSIGN_TO_AGENT_TOKEN is set in the env block of the
+	// process_safe_outputs step so create_pull_request.cjs can assign
+	// copilot to fallback issues using the agent token.
+	assertTokenInProcessSafeOutputsEnv(t, lockContent, "GH_AW_ASSIGN_TO_AGENT_TOKEN")
 
-	// Verify GH_AW_ASSIGN_COPILOT is also set.
-	if !strings.Contains(lockContent, "GH_AW_ASSIGN_COPILOT") {
-		t.Error("Expected GH_AW_ASSIGN_COPILOT in process_safe_outputs step for create-pull-request copilot assignment")
-	}
+	// Verify GH_AW_ASSIGN_COPILOT is also set in the same env block.
+	assertTokenInProcessSafeOutputsEnv(t, lockContent, "GH_AW_ASSIGN_COPILOT")
 }
 
 func TestOutputConfigParsing(t *testing.T) {
