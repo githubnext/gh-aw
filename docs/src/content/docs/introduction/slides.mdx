@@ -5,74 +5,13 @@ sidebar:
   order: 4
 ---
 
+import { LinkButton } from '@astrojs/starlight/components';
+
 View the GitHub Agentic Workflows presentation slides to learn about the evolution from CI/CD to Continuous AI, how agentic workflows enable AI automation in natural language, security features, and real-world examples.
 
-<div class="slides-gallery">
-  <div class="slides-gallery-item">
-    <a href={`${import.meta.env.BASE_URL}slides/20260407%20-%20GitHub%20Agentic%20Workflows.pdf`} aria-label="Open the April 7, 2026 PDF deck in the browser">
-      <img
-        src={`${import.meta.env.BASE_URL}slides/20260407-thumb.png`}
-        alt="First slide preview for the April 7, 2026 PDF deck"
-        class="slides-gallery-image"
-      />
-    </a>
-  </div>
-  <div class="slides-gallery-item">
-    <a href={`${import.meta.env.BASE_URL}slides/20260224%20-%20GitHub%20Agentic%20Workflows.pdf`} aria-label="Open the February 24, 2026 PDF deck in the browser">
-      <img
-        src={`${import.meta.env.BASE_URL}slides/20260224-thumb.png`}
-        alt="First slide preview for the February 24, 2026 PDF deck"
-        class="slides-gallery-image"
-      />
-    </a>
-  </div>
-  <div class="slides-gallery-item">
-    <a href={`${import.meta.env.BASE_URL}slides/`} aria-label="Open the interactive HTML deck in the browser">
-      <img
-        src={`${import.meta.env.BASE_URL}slides/index-thumb.png`}
-        alt="First slide preview for the interactive HTML deck"
-        class="slides-gallery-image"
-      />
-    </a>
-  </div>
-</div>
-
-<style is:inline>{`
-  .slides-gallery {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    margin: 1.5rem 0 2rem;
-    align-items: start;
-  }
-
-  .slides-gallery-item {
-    display: block;
-    align-self: start;
-  }
-
-  .slides-gallery-item > a {
-    display: block;
-    line-height: 0;
-    background: var(--sl-color-bg);
-    border-radius: 0.75rem;
-  }
-
-  .slides-gallery-image {
-    display: block;
-    width: 100%;
-    border-radius: 0.75rem;
-    border: 1px solid var(--sl-color-gray-5);
-    overflow: hidden;
-    vertical-align: middle;
-  }
-
-  @media (max-width: 900px) {
-    .slides-gallery {
-      grid-template-columns: 1fr;
-    }
-  }
-`}</style>
+<LinkButton href={`${import.meta.env.BASE_URL}slides/20260407%20-%20GitHub%20Agentic%20Workflows.pdf`} variant="secondary" icon="external">April 7, 2026 PDF</LinkButton>
+<LinkButton href={`${import.meta.env.BASE_URL}slides/20260224%20-%20GitHub%20Agentic%20Workflows.pdf`} variant="secondary" icon="external">February 24, 2026 PDF</LinkButton>
+<LinkButton href={`${import.meta.env.BASE_URL}slides/`} variant="secondary" icon="external">Interactive HTML</LinkButton>
 
 ## Walkthroughs
 
