@@ -40,6 +40,16 @@ When problems are detected, create detailed GitHub issues with reproduction step
 **Run ID**: ${{ github.run_id }}
 **Timeout**: 60 minutes
 
+## Token Efficiency Rules
+
+**MANDATORY**: Follow these rules on every tool call to keep token consumption under control.
+
+- **`logs` calls**: Always pass `count: 3` and `max_tokens: 3000`. Never call `logs` without these limits.
+- **`audit` calls**: Always pass `max_tokens: 5000`. Prefer auditing 1–2 representative runs rather than every run found.
+- **`compile` calls**: Always pass `max_tokens: 5000`. Use targeted compilation of 3 representative workflows instead of bulk compilation when the goal is validation.
+- **Parallel batching**: Combine independent tool calls into a single turn whenever possible (e.g. run 2–3 targeted compiles in parallel rather than sequentially).
+- **Skip redundant variants**: If a test variant (e.g. a second date-range filter) would produce essentially the same signal as one already run, skip it and document the skip reason.
+
 ## Available Tools
 
 ### Agentic Workflows MCP Server
@@ -100,7 +110,7 @@ Document your selections and rationale.
 Test downloading logs from the last 24 hours:
 
 ```
-Use the agentic-workflows "logs" tool to download logs from the last 24 hours (start-date: "-1d")
+Use the agentic-workflows "logs" tool to download logs from the last 24 hours (start-date: "-1d", count: 3, max_tokens: 3000)
 ```
 
 **Validation checks**:
@@ -320,16 +330,19 @@ Create a summary:
 
 ## Phase 4: Test `gh aw compile` Command
 
-### 4.1 Compile All Workflows
+### 4.1 Compile Sample Workflows
 
-Test bulk compilation:
+Test compilation with a targeted sample of representative workflows instead of bulk compiling all workflows. This keeps output tokens bounded.
 
 ```
-Use the agentic-workflows "compile" tool without specifying a workflow (compiles all)
+Select 3 representative workflows from Phase 1.2 (one simple, one complex, one with imports).
+Use the agentic-workflows "compile" tool for each individually (max_tokens: 5000 per call).
+After the targeted tests, run one bulk compile (no workflow-name specified) with max_tokens: 5000
+to verify overall compilation health.
 ```
 
 **Validation checks**:
-- ✅ All workflows compile successfully
+- ✅ Representative workflows compile successfully
 - ✅ Lock files (.lock.yml) are generated
 - ✅ No compilation errors
 - ✅ Performance is reasonable (time taken)
