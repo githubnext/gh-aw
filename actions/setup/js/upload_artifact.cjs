@@ -319,7 +319,7 @@ async function main() {
 
   // Enforce max-uploads policy.
   if (uploadRequests.length > maxUploads) {
-    core.setFailed(`${ERR_VALIDATION}: upload_artifact: ${uploadRequests.length} requests exceed max-uploads policy (${maxUploads}). ` + `Reduce the number of upload_artifact calls or raise max-uploads in workflow configuration.`);
+    core.setFailed(`${ERR_VALIDATION}: upload_artifact: ${uploadRequests.length} requests exceed max-uploads policy (${maxUploads}). Reduce the number of upload_artifact calls or raise max-uploads in workflow configuration.`);
     return;
   }
 
@@ -340,7 +340,7 @@ async function main() {
     // Resolve skip_archive.
     const skipArchive = typeof request.skip_archive === "boolean" ? request.skip_archive : defaultSkipArchive;
     if (skipArchive && !allowSkipArchive) {
-      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: skip_archive=true is not permitted. ` + `Enable it with allow.skip-archive: true in workflow configuration.`);
+      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: skip_archive=true is not permitted. Enable it with allow.skip-archive: true in workflow configuration.`);
       return;
     }
 
@@ -356,7 +356,7 @@ async function main() {
         core.warning(`upload_artifact request ${i + 1}: no files matched, skipping (if-no-files=ignore)`);
         continue;
       } else {
-        core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: no files matched the selection criteria. ` + `Check allowed-paths, filters, or use defaults.if-no-files: ignore to skip empty uploads.`);
+        core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: no files matched the selection criteria. Check allowed-paths, filters, or use defaults.if-no-files: ignore to skip empty uploads.`);
         return;
       }
     }
@@ -371,7 +371,7 @@ async function main() {
     // Validate total size.
     const totalSize = computeTotalSize(files);
     if (totalSize > maxSizeBytes) {
-      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: total file size ${totalSize} bytes exceeds ` + `max-size-bytes limit of ${maxSizeBytes} bytes.`);
+      core.setFailed(`${ERR_VALIDATION}: upload_artifact request ${i + 1}: total file size ${totalSize} bytes exceeds max-size-bytes limit of ${maxSizeBytes} bytes.`);
       return;
     }
 
@@ -383,7 +383,7 @@ async function main() {
     const tmpId = generateTemporaryArtifactId();
     resolver[tmpId] = artifactName;
 
-    core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, ` + `retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
+    core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
 
     if (!isStaged) {
       // Stage files into the per-slot directory for the actions/upload-artifact step.
