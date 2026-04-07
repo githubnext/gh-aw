@@ -863,6 +863,7 @@ jobs:
     needs: safe_outputs
     if: needs.safe_outputs.outputs.call_workflow_name == 'smoke-workflow-call'
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write
