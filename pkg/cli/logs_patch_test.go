@@ -86,7 +86,7 @@ func TestLogsCommandHelp(t *testing.T) {
 
 	// Verify the help text mentions all expected artifacts
 	expectedArtifacts := []string{
-		"aw_info.json",
+		"Workflow metadata",
 		"safe_output.jsonl",
 		"aw-{branch}.patch",
 	}
