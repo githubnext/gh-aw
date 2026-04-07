@@ -13,6 +13,9 @@ Here are some pointers to get you started in using this tool.
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
+> [!NOTE]
+> The Team and the Agents are in Spring Break. Expect delays.
+
 ## Contents
 
 - [Quick Start](#quick-start)
@@ -20,7 +23,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - [Guardrails](#guardrails)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
-- [🌍 Community Contributions](#-community-contributions)
+- [Community Contributions](#-community-contributions)
 - [Share Feedback](#share-feedback)
 - [Peli's Agent Factory](#pelis-agent-factory)
 - [Related Projects](#related-projects)
