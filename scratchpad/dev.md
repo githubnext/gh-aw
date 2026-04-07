@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.3
-**Last Updated**: 2026-04-05
+**Version**: 5.4
+**Last Updated**: 2026-04-07
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2172,6 +2172,7 @@ GitHub API rate-limit data is logged to a JSONL file during workflow execution, 
 - `gh-aw.github.rate_limit.limit`
 - `gh-aw.github.rate_limit.used`
 - `gh-aw.github.rate_limit.resource`
+- `gh-aw.github.rate_limit.reset` — ISO 8601 timestamp when the rate-limit window resets
 
 See `scratchpad/github-rate-limit-observability.md` for full details including debugging with `jq`.
 
@@ -2747,6 +2748,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.4 (2026-04-07): Added `gh-aw.github.rate_limit.reset` OTLP span attribute to GitHub API Rate Limit Observability section (from PR #25061: ISO 8601 reset timestamp now included in conclusion spans). Coverage: 73 spec files (no new spec files).
 - v5.3 (2026-04-05): Added GitHub API Rate Limit Observability subsection to MCP Integration (from PR #24694: `github_rate_limit_logger.cjs`, `GithubRateLimitsFilename` constant, artifact upload paths, OTLP span enrichment). Created new spec file `scratchpad/github-rate-limit-observability.md`. Added 1 new Related Documentation link. Coverage: 73 spec files (1 new).
 - v5.2 (2026-04-04): Added Secrets in Custom Steps Validation subsection to Compiler Validation (from PR #24450: `pkg/workflow/strict_mode_steps_validation.go`). Documents `validateStepsSecrets()` behavior in strict vs. non-strict mode, `secrets.GITHUB_TOKEN` exemption, and migration guidance. Coverage: 72 spec files (no new spec files; new Go implementation only).
 - v5.1 (2026-04-03): Maintenance tone scan — 0 tone issues found across 3 previously uncovered spec files. Added 3 new Related Documentation links: `agent-sessions.md` (terminology migration plan), `safe-output-handlers-refactoring.md` (handler factory pattern status), `serena-tools-analysis.md` (Serena tool usage statistics). Coverage: 72 spec files (3 new).
