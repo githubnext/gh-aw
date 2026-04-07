@@ -172,13 +172,16 @@ func BuildStandardNpmEngineInstallSteps(
 	}
 
 	// Add npm package installation steps (includes Node.js setup)
+	// Always pass false for runInstallScripts: engine CLI installs must never run
+	// pre/post install scripts regardless of the workflow's run-install-scripts setting.
+	// This is a supply chain security requirement for the engine binary itself.
 	return GenerateNpmInstallSteps(
 		packageName,
 		version,
 		stepName,
 		cacheKeyPrefix,
-		true, // Include Node.js setup
-		workflowData.RunInstallScripts,
+		true,  // Include Node.js setup
+		false, // Always disable scripts for engine CLI installs
 	)
 }
 

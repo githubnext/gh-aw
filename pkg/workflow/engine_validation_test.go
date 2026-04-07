@@ -212,3 +212,79 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 		}
 	})
 }
+
+// TestValidateEngineVersion tests the validateEngineVersion function
+func TestValidateEngineVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		engineCfg   *EngineConfig
+		strictMode  bool
+		expectWarn  bool
+		expectError bool
+	}{
+		{
+			name:        "no engine config",
+			engineCfg:   nil,
+			expectWarn:  false,
+			expectError: false,
+		},
+		{
+			name:        "empty version",
+			engineCfg:   &EngineConfig{Version: ""},
+			expectWarn:  false,
+			expectError: false,
+		},
+		{
+			name:        "pinned version",
+			engineCfg:   &EngineConfig{Version: "2.1.92"},
+			expectWarn:  false,
+			expectError: false,
+		},
+		{
+			name:        "latest version non-strict",
+			engineCfg:   &EngineConfig{Version: "latest"},
+			strictMode:  false,
+			expectWarn:  true,
+			expectError: false,
+		},
+		{
+			name:        "LATEST uppercase non-strict",
+			engineCfg:   &EngineConfig{Version: "LATEST"},
+			strictMode:  false,
+			expectWarn:  true,
+			expectError: false,
+		},
+		{
+			name:        "latest version strict mode",
+			engineCfg:   &EngineConfig{Version: "latest"},
+			strictMode:  true,
+			expectWarn:  false,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.strictMode = tt.strictMode
+
+			workflowData := &WorkflowData{
+				EngineConfig: tt.engineCfg,
+			}
+
+			err := compiler.validateEngineVersion(workflowData)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				} else if !strings.Contains(err.Error(), "strict mode") {
+					t.Errorf("Expected strict mode error, got: %s", err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
+}

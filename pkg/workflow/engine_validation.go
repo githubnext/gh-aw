@@ -36,13 +36,44 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 var engineValidationLog = newValidationLogger("engine")
+
+// validateEngineVersion warns (non-strict) or errors (strict) when the workflow
+// explicitly pins the engine CLI to "latest". Unpinned "latest" versions change
+// unpredictably and undermine supply chain security guarantees.
+func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Version == "" {
+		// No explicit version set; the compiler uses its own pinned default.
+		return nil
+	}
+
+	if !strings.EqualFold(workflowData.EngineConfig.Version, "latest") {
+		return nil
+	}
+
+	engineValidationLog.Print("engine.version: latest detected")
+
+	warningMsg := "engine.version: latest is set – the engine CLI will be installed without a pinned version. " +
+		"This is a supply chain security risk: unpinned 'latest' versions can change unexpectedly " +
+		"and may introduce vulnerabilities or breaking changes. " +
+		"Pin the engine version to a specific version for reproducibility and security."
+
+	if c.strictMode {
+		return fmt.Errorf("strict mode: %s", warningMsg)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	c.IncrementWarningCount()
+	return nil
+}
 
 // validateEngineInlineDefinition validates an inline engine definition parsed from
 // engine.runtime + optional engine.provider in the workflow frontmatter.
