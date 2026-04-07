@@ -13,7 +13,7 @@ import (
 type execCmdFunc func(ctx context.Context, args ...string) *exec.Cmd
 
 // createMCPServer creates and configures the MCP server with all tools
-func createMCPServer(cmdPath string, actor string, validateActor bool) *mcp.Server {
+func createMCPServer(cmdPath string, actor string, validateActor bool, manifestCacheFile string) *mcp.Server {
 	// Helper function to execute command with proper path
 	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		if cmdPath != "" {
@@ -56,7 +56,7 @@ func createMCPServer(cmdPath string, actor string, validateActor bool) *mcp.Serv
 	// Register read-only tools
 	registerStatusTool(server)
 
-	if err := registerCompileTool(server, execCmd); err != nil {
+	if err := registerCompileTool(server, execCmd, manifestCacheFile); err != nil {
 		return server
 	}
 

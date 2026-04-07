@@ -675,13 +675,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Read the existing lock file to extract the previous gh-aw-manifest for safe update
 	// enforcement.
 	//
-	// The lock file is always read from the last git commit (HEAD) rather than the working
-	// tree. This prevents an agent running locally or inside a CI job from modifying the
-	// .lock.yml file on disk before invoking the compiler to forge an approved manifest and
-	// bypass enforcement.  When git is unavailable or the file has never been committed the
-	// read falls back to the filesystem so that first-time compilations still work.
+	// Priority (highest to lowest):
+	//  1. Pre-cached manifest supplied by the caller (e.g. MCP server collected at startup
+	//     before any agent interaction, making it tamper-proof without requiring git access).
+	//  2. Content from the last git commit (HEAD) – prevents a local agent from modifying
+	//     the .lock.yml file on disk to forge an approved manifest.
+	//  3. Filesystem read – fallback for first-time compilations or non-git environments.
 	var oldManifest *GHAWManifest
-	if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
+	if cached, ok := c.priorManifests[lockFile]; ok {
+		oldManifest = cached
+		secretCount := 0
+		if cached != nil {
+			secretCount = len(cached.Secrets)
+		}
+		log.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
+	} else if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
 		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
 			oldManifest = m
 			if oldManifest != nil {

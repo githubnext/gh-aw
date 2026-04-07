@@ -69,8 +69,12 @@ Returns a JSON array where each element has the following structure:
 }
 
 // registerCompileTool registers the compile tool with the MCP server.
+// manifestCacheFile is the path to a temp JSON file containing pre-cached gh-aw-manifests
+// collected at server startup; it is passed to each compile subprocess via
+// --prior-manifest-file so the compiler uses tamper-proof manifests for safe update
+// enforcement.  An empty string disables this feature.
 // Returns an error if schema generation fails, which causes the server to stop registering tools.
-func registerCompileTool(server *mcp.Server, execCmd execCmdFunc) error {
+func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error {
 	type compileArgs struct {
 		Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
 		Strict     bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
@@ -176,6 +180,12 @@ Returns JSON array with validation results for each workflow:
 		}
 
 		cmdArgs = append(cmdArgs, args.Workflows...)
+
+		// Pass the pre-cached manifest file when available so the compiler uses
+		// the tamper-proof manifest baseline captured at server startup.
+		if manifestCacheFile != "" {
+			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
+		}
 
 		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v",
 			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint)

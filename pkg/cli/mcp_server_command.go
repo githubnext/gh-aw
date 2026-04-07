@@ -153,8 +153,30 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Configuration validation warning: %v", err)))
 	}
 
+	// Pre-cache lock-file manifests at startup, before any agent can modify the working tree.
+	// The cache is serialised to a temp file so that each compile subprocess invocation
+	// can reference it via --prior-manifest-file.
+	manifestCacheFile := ""
+	manifestCache := CollectLockFileManifests("")
+	if len(manifestCache) > 0 {
+		cacheFile, err := WritePriorManifestFile(manifestCache)
+		if err != nil {
+			mcpLog.Printf("Failed to write manifest cache file: %v (safe update will fall back to git HEAD / filesystem)", err)
+		} else {
+			manifestCacheFile = cacheFile
+			mcpLog.Printf("Manifest cache written to %s (%d entries)", cacheFile, len(manifestCache))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Pre-cached %d workflow manifest(s) for safe update enforcement", len(manifestCache))))
+			// Clean up the temp file when the server exits
+			defer func() {
+				if removeErr := os.Remove(cacheFile); removeErr != nil && !os.IsNotExist(removeErr) {
+					mcpLog.Printf("Failed to remove manifest cache file %s: %v", cacheFile, removeErr)
+				}
+			}()
+		}
+	}
+
 	// Create the server configuration
-	server := createMCPServer(cmdPath, actor, validateActor)
+	server := createMCPServer(cmdPath, actor, validateActor, manifestCacheFile)
 
 	if port > 0 {
 		// Run HTTP server with SSE transport

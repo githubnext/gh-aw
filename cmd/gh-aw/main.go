@@ -283,6 +283,7 @@ Examples:
 		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
 		safeUpdate, _ := cmd.Flags().GetBool("safe-update")
+		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
@@ -337,6 +338,7 @@ Examples:
 			FailFast:               failFast,
 			ScheduleSeed:           scheduleSeed,
 			SafeUpdate:             safeUpdate,
+			PriorManifestFile:      priorManifestFile,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			// Return error as-is without additional formatting
@@ -684,6 +686,11 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. 'github/gh-aw'). Bypasses git remote detection entirely. Use this when your git remote is not named 'origin' and you have multiple remotes configured")
 	compileCmd.Flags().Bool("safe-update", false, "Enable safe update mode: emit a warning prompt when compilations introduce new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Compilation succeeds but the warning instructs the agent to review each new secret/action for malicious use and add a security note to the pull request description. Can also be activated via GH_AW_FEATURES=safe-update or workflow frontmatter features (additive: setting this flag enables safe update even when frontmatter does not set it)")
+	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
+	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
+		// Non-fatal: flag is registered even if MarkHidden fails
+		_ = err
+	}
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 
 	// Register completions for compile command
