@@ -369,8 +369,10 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 
 	assert.Contains(t, string(lockContent), "SHARED_API_KEY",
 		"manifest should include the secret from the imported shared config")
-	t.Logf("Manifest correctly includes imported secret.\nLock file header:\n%s",
-		strings.Split(string(lockContent), "\n")[1])
+	lines := strings.Split(string(lockContent), "\n")
+	if len(lines) > 1 {
+		t.Logf("Manifest correctly includes imported secret.\nLock file header:\n%s", lines[1])
+	}
 }
 
 // TestSafeUpdateRejectsNewSecretFromImport verifies that --safe-update rejects
@@ -476,8 +478,10 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 
 	assert.Contains(t, string(lockContent), "DEEP_NESTED_SECRET",
 		"manifest should include the secret from the transitively imported (level-3) shared config")
-	t.Logf("Manifest correctly includes transitively imported secret.\nLock file header:\n%s",
-		strings.Split(string(lockContent), "\n")[1])
+	lines := strings.Split(string(lockContent), "\n")
+	if len(lines) > 1 {
+		t.Logf("Manifest correctly includes transitively imported secret.\nLock file header:\n%s", lines[1])
+	}
 }
 
 // TestSafeUpdateRejectsTransitivelyImportedSecretOnFirstCompile verifies that
