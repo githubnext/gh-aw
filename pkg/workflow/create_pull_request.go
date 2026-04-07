@@ -21,7 +21,7 @@ type CreatePullRequestsConfig struct {
 	Labels                         []string `yaml:"labels,omitempty"`
 	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request
-	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to the fallback issue when protected-files: fallback-to-issue triggers
+	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to any fallback issue created by create-pull-request
 	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty                     *string  `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)

@@ -5811,17 +5811,17 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "description": "Single username to assign to the fallback issue when protected-files: fallback-to-issue triggers."
+                      "description": "Single username to assign to a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures."
                     },
                     {
                       "type": "array",
-                      "description": "List of usernames to assign to the fallback issue when protected-files: fallback-to-issue triggers.",
+                      "description": "List of usernames to assign to a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures.",
                       "items": {
                         "type": "string"
                       }
                     }
                   ],
-                  "description": "Optional assignee(s) for the fallback issue created when protected-files: fallback-to-issue triggers. Accepts either a single string or an array of usernames."
+                  "description": "Optional assignee(s) for a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures. Accepts either a single string or an array of usernames."
                 },
                 "draft": {
                   "allOf": [
