@@ -24,13 +24,13 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromMCPConfigs(workflowData.ParsedTools, requirements)
 	}
 
-	// When using a custom image runner, ensure Node.js v24 is set up.
+	// When using a custom image runner, ensure Node.js is set up.
 	// Standard GitHub-hosted runners (ubuntu-*, windows-*) have Node.js pre-installed,
 	// but custom image runners (self-hosted, enterprise runners, non-standard labels) may not.
 	// Node.js is required for gh-aw scripts such as start_safe_outputs_server.sh and
 	// start_mcp_scripts_server.sh that invoke `node` directly.
 	if isCustomImageRunner(workflowData.RunsOn) {
-		runtimeSetupLog.Printf("Custom image runner detected (%q), ensuring Node.js v24 is set up", workflowData.RunsOn)
+		runtimeSetupLog.Printf("Custom image runner detected (%q), ensuring Node.js is set up", workflowData.RunsOn)
 		nodeRuntime := findRuntimeByID("node")
 		if nodeRuntime != nil {
 			updateRequiredRuntime(nodeRuntime, "", requirements)
@@ -185,17 +185,46 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	}
 }
 
+// standardGitHubHostedRunners is the allowlist of known GitHub-hosted runner labels that
+// ship with Node.js pre-installed. Only exact labels (case-insensitive) listed here are
+// considered standard; everything else — including labels that happen to start with
+// "ubuntu-" (e.g. "ubuntu-slim") — is treated as a custom image runner.
+//
+// Sources:
+//   - https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners
+//   - https://docs.github.com/en/actions/using-github-hosted-runners/using-larger-runners/about-larger-runners
+var standardGitHubHostedRunners = map[string]bool{
+	// Linux
+	"ubuntu-latest": true,
+	"ubuntu-24.04":  true,
+	"ubuntu-22.04":  true,
+	"ubuntu-20.04":  true,
+	// Linux ARM
+	"ubuntu-latest-arm": true,
+	"ubuntu-24.04-arm":  true,
+	"ubuntu-22.04-arm":  true,
+	// Windows
+	"windows-latest": true,
+	"windows-2025":   true,
+	"windows-2022":   true,
+	"windows-2019":   true,
+	// Windows ARM
+	"windows-latest-arm": true,
+	"windows-11-arm":     true,
+}
+
 // isCustomImageRunner returns true if the runs-on configuration indicates a non-standard
 // GitHub-hosted runner (custom image, self-hosted runner, or runner group). Custom image
-// runners may not have Node.js pre-installed, so the compiler ensures Node.js v24 is set up.
+// runners may not have Node.js pre-installed, so the compiler ensures Node.js is set up.
 //
-// Standard GitHub-hosted runners (labels starting with "ubuntu-" or "windows-") have Node.js
-// pre-installed and do NOT require an explicit setup step from the runtime manager.
+// Only the labels in standardGitHubHostedRunners are considered standard; everything else
+// (including "ubuntu-slim", which is gh-aw's own default framework runner image) is custom.
 //
 // The runsOn parameter is a YAML string in the form produced by extractTopLevelYAMLSection,
 // for example:
 //   - "runs-on: ubuntu-latest"       → standard runner → returns false
 //   - "runs-on: ubuntu-22.04"        → standard runner → returns false
+//   - "runs-on: ubuntu-slim"         → custom runner   → returns true
 //   - "runs-on: self-hosted"         → custom runner   → returns true
 //   - "runs-on:\n- self-hosted\n..."  → array form      → returns true
 //   - "runs-on:\n  group: ..."        → object form     → returns true
@@ -207,11 +236,9 @@ func isCustomImageRunner(runsOn string) bool {
 
 	const keyPrefix = "runs-on: "
 	if value, ok := strings.CutPrefix(runsOn, keyPrefix); ok {
-		// Single-line value: extract the runner label and check against known standard prefixes.
-		value = strings.TrimSpace(value)
-		lower := strings.ToLower(value)
-		// Standard GitHub-hosted runners that ship with Node.js pre-installed.
-		return !strings.HasPrefix(lower, "ubuntu-") && !strings.HasPrefix(lower, "windows-")
+		// Single-line value: check the label against the known-standard allowlist.
+		value = strings.TrimSpace(strings.ToLower(value))
+		return !standardGitHubHostedRunners[value]
 	}
 
 	// Multi-line value (array or object form) — always treat as custom image runner.

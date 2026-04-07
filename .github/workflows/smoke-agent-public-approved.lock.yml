@@ -1340,6 +1340,11 @@ jobs:
           sparse-checkout: |
             actions
           persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Setup Scripts
         id: setup
         uses: ./actions/setup

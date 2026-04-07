@@ -911,9 +911,9 @@ func TestIsCustomImageRunner(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "ubuntu-slim is standard",
+			name:     "ubuntu-slim is custom",
 			runsOn:   "runs-on: ubuntu-slim",
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "ubuntu prefix case-insensitive",

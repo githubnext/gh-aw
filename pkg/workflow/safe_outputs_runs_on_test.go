@@ -406,9 +406,10 @@ safe-outputs:
 			expectNodeSetup: true,
 		},
 		{
-			name: "standard runner with assign-to-agent does NOT get extra Node.js setup",
+			name: "standard GitHub-hosted runner with assign-to-agent does NOT get extra Node.js setup",
 			frontmatter: `---
 on: push
+runs-on-slim: ubuntu-latest
 safe-outputs:
   assign-to-agent:
 ---

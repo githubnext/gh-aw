@@ -389,13 +389,14 @@ steps:
 	}
 }
 
-// TestCustomImageRunnerNodeSetupIntegration verifies that Node.js v24 is automatically
+// TestCustomImageRunnerNodeSetupIntegration verifies that Node.js is automatically
 // set up in the agent job when a custom image runner is specified.
 func TestCustomImageRunnerNodeSetupIntegration(t *testing.T) {
 	tests := []struct {
-		name             string
-		workflowMarkdown string
-		expectNodeSetup  bool
+		name              string
+		workflowMarkdown  string
+		expectNodeSetup   bool
+		expectNodeVersion string // if non-empty, assert this node-version appears in the setup step
 	}{
 		{
 			name: "self-hosted runner gets Node.js setup",
@@ -452,7 +453,8 @@ runtimes:
 ---
 
 # Test workflow`,
-			expectNodeSetup: true,
+			expectNodeSetup:   true,
+			expectNodeVersion: "22",
 		},
 	}
 
@@ -488,6 +490,11 @@ runtimes:
 
 			if tt.expectNodeSetup {
 				assert.True(t, hasNodeSetup, "Expected Node.js setup step in agent job for custom runner.\nAgent job:\n%s", agentJobSection)
+				// If a specific node version is expected, verify it appears in the setup step.
+				if tt.expectNodeVersion != "" {
+					assert.Contains(t, agentJobSection, "node-version: '"+tt.expectNodeVersion+"'",
+						"Expected node-version '%s' in Setup Node.js step.\nAgent job:\n%s", tt.expectNodeVersion, agentJobSection)
+				}
 			} else {
 				assert.False(t, hasNodeSetup, "Did not expect Node.js setup step from runtime manager in agent job for standard runner.\nAgent job:\n%s", agentJobSection)
 			}
