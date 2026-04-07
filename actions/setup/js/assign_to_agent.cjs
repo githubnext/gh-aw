@@ -55,20 +55,22 @@ async function createAssignToAgentGitHubClient(config) {
  */
 async function main(config = {}) {
   // Detect standalone mode (called without config, e.g. from tests or legacy usage).
-  // In this mode we read config from environment variables and process items directly
-  // from GH_AW_AGENT_OUTPUT, matching the old standalone-step behaviour.
+  // The handler manager always supplies at least some config keys (e.g. from
+  // GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG), so an empty object signals a direct call.
+  // In standalone mode we read config from environment variables and process items
+  // directly from GH_AW_AGENT_OUTPUT, matching the old standalone-step behaviour.
   const isStandaloneCall = Object.keys(config).length === 0;
   if (isStandaloneCall) {
     config = {};
-    if (process.env.GH_AW_AGENT_DEFAULT) config.name = process.env.GH_AW_AGENT_DEFAULT;
-    if (process.env.GH_AW_AGENT_MAX_COUNT) config.max = process.env.GH_AW_AGENT_MAX_COUNT;
-    if (process.env.GH_AW_AGENT_TARGET) config.target = process.env.GH_AW_AGENT_TARGET;
-    if (process.env.GH_AW_AGENT_ALLOWED) config.allowed = process.env.GH_AW_AGENT_ALLOWED;
-    if (process.env.GH_AW_AGENT_IGNORE_IF_ERROR) config["ignore-if-error"] = process.env.GH_AW_AGENT_IGNORE_IF_ERROR;
-    if (process.env.GH_AW_AGENT_PULL_REQUEST_REPO) config["pull-request-repo"] = process.env.GH_AW_AGENT_PULL_REQUEST_REPO;
-    if (process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS) config["allowed-pull-request-repos"] = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS;
-    if (process.env.GH_AW_AGENT_BASE_BRANCH) config["base-branch"] = process.env.GH_AW_AGENT_BASE_BRANCH;
-    if (process.env.GH_AW_ALLOWED_REPOS) config.allowed_repos = process.env.GH_AW_ALLOWED_REPOS;
+    if (process.env.GH_AW_AGENT_DEFAULT?.trim()) config.name = process.env.GH_AW_AGENT_DEFAULT.trim();
+    if (process.env.GH_AW_AGENT_MAX_COUNT?.trim()) config.max = process.env.GH_AW_AGENT_MAX_COUNT.trim();
+    if (process.env.GH_AW_AGENT_TARGET?.trim()) config.target = process.env.GH_AW_AGENT_TARGET.trim();
+    if (process.env.GH_AW_AGENT_ALLOWED?.trim()) config.allowed = process.env.GH_AW_AGENT_ALLOWED.trim();
+    if (process.env.GH_AW_AGENT_IGNORE_IF_ERROR?.trim()) config["ignore-if-error"] = process.env.GH_AW_AGENT_IGNORE_IF_ERROR.trim();
+    if (process.env.GH_AW_AGENT_PULL_REQUEST_REPO?.trim()) config["pull-request-repo"] = process.env.GH_AW_AGENT_PULL_REQUEST_REPO.trim();
+    if (process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim()) config["allowed-pull-request-repos"] = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS.trim();
+    if (process.env.GH_AW_AGENT_BASE_BRANCH?.trim()) config["base-branch"] = process.env.GH_AW_AGENT_BASE_BRANCH.trim();
+    if (process.env.GH_AW_ALLOWED_REPOS?.trim()) config.allowed_repos = process.env.GH_AW_ALLOWED_REPOS.trim();
   }
 
   // Parse configuration (replaces env vars from the old standalone step)
@@ -454,7 +456,9 @@ async function main(config = {}) {
         core.warning(`Found ${assignToAgentItems.length} agent assignments, but max is ${maxCount}. Extra assignments will be skipped.`);
       }
 
-      // Load temporary ID map from env var for temp-ID resolution across items
+      // Load temporary ID map from env var for temp-ID resolution across items.
+      // resolvedTemporaryIds ({}) is empty because in standalone mode there is only one
+      // handler — no cross-handler resolutions from previous steps are available.
       const tempIdMap = loadTemporaryIdMap();
       for (const item of assignToAgentItems) {
         await handler(item, {}, tempIdMap);
