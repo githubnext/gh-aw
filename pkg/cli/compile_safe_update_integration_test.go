@@ -98,7 +98,7 @@ func TestSafeUpdateRejectsNewSecretOnFirstCompile(t *testing.T) {
 	defer setup.cleanup()
 
 	workflowPath := filepath.Join(setup.workflowsDir, "safe-update-secret.md")
-	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0644),
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
 	// Use release mode so the compiler reads the lock file from the filesystem
@@ -122,7 +122,7 @@ func TestSafeUpdateRejectsNewCustomActionOnFirstCompile(t *testing.T) {
 	defer setup.cleanup()
 
 	workflowPath := filepath.Join(setup.workflowsDir, "safe-update-action.md")
-	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithCustomAction), 0644),
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithCustomAction), 0o644),
 		"should write workflow file")
 
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
@@ -144,14 +144,14 @@ func TestSafeUpdateAllowsKnownSecretWithPriorManifest(t *testing.T) {
 	defer setup.cleanup()
 
 	workflowPath := filepath.Join(setup.workflowsDir, "safe-update-known-secret.md")
-	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0644),
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
 	// Pre-create a lock file whose gh-aw-manifest already records MY_API_SECRET.
 	// In release mode the compiler reads the manifest from the filesystem, so this
 	// simulates a workflow that was previously compiled and approved.
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-known-secret.lock.yml")
-	require.NoError(t, os.WriteFile(lockFilePath, []byte(manifestLockFileWithSecret("MY_API_SECRET")), 0644),
+	require.NoError(t, os.WriteFile(lockFilePath, []byte(manifestLockFileWithSecret("MY_API_SECRET")), 0o644),
 		"should write pre-existing lock file with manifest")
 
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
@@ -171,7 +171,7 @@ func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 	defer setup.cleanup()
 
 	workflowPath := filepath.Join(setup.workflowsDir, "safe-update-basic.md")
-	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowBasic), 0644),
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowBasic), 0o644),
 		"should write workflow file")
 
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
@@ -201,7 +201,7 @@ func TestSafeUpdateNoFlagAllowsNewSecret(t *testing.T) {
 	defer setup.cleanup()
 
 	workflowPath := filepath.Join(setup.workflowsDir, "no-safe-update.md")
-	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0644),
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
 	// No --safe-update flag; compilation should succeed even though a new secret is present.
