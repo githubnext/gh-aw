@@ -95,6 +95,9 @@ func computeEnabledToolNames(data *WorkflowData) map[string]bool {
 	if data.SafeOutputs.UploadAssets != nil {
 		enabledTools["upload_asset"] = true
 	}
+	if data.SafeOutputs.UploadArtifact != nil {
+		enabledTools["upload_artifact"] = true
+	}
 	if data.SafeOutputs.MissingTool != nil {
 		enabledTools["missing_tool"] = true
 	}

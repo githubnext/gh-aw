@@ -80,10 +80,10 @@ const HANDLER_MAP = {
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
  *
- * Standalone types: upload_asset, noop
+ * Standalone types: upload_asset, upload_artifact, noop
  *   - Have dedicated processing steps with specialized logic
  */
-const STANDALONE_STEP_TYPES = new Set(["upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["upload_asset", "upload_artifact", "noop"]);
 
 /**
  * Code-push safe output types that must succeed before remaining outputs are processed.

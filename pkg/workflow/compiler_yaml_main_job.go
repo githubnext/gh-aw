@@ -513,6 +513,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This creates a separate artifact for assets that will be downloaded by upload_assets job
 	generateSafeOutputsAssetsArtifactUpload(yaml, data)
 
+	// Add safe-outputs upload-artifact staging upload (after agent execution)
+	// This creates a separate artifact for files the model staged for artifact upload,
+	// to be downloaded and processed by the upload_artifact job
+	generateSafeOutputsArtifactStagingUpload(yaml, data)
+
 	// Collect git patch path if safe-outputs with PR operations is configured
 	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
 	// The patch is now generated when create_pull_request or push_to_pull_request_branch

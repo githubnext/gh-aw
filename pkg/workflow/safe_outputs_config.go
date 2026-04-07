@@ -269,6 +269,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
+			// Handle upload-artifact
+			uploadArtifactConfig := c.parseUploadArtifactConfig(outputMap)
+			if uploadArtifactConfig != nil {
+				config.UploadArtifact = uploadArtifactConfig
+			}
+
 			// Handle update-release
 			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
 			if updateReleaseConfig != nil {

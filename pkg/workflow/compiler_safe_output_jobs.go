@@ -89,6 +89,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Printf("Added separate upload_assets job")
 	}
 
+	// Build upload_artifact job as a separate job if configured.
+	// This is separate from the consolidated safe_outputs job because it needs to:
+	// 1. Download the staging artifact produced by the main job
+	// 2. Validate and filter the requested files
+	// 3. Upload each approved set of files as a proper GitHub Actions artifact
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil {
+		compilerSafeOutputJobsLog.Print("Building separate upload_artifact job")
+		uploadArtifactJob, err := c.buildUploadArtifactJob(data, jobName, threatDetectionEnabled)
+		if err != nil {
+			return fmt.Errorf("failed to build upload_artifact job: %w", err)
+		}
+		if err := c.jobManager.AddJob(uploadArtifactJob); err != nil {
+			return fmt.Errorf("failed to add upload_artifact job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, uploadArtifactJob.Name)
+		compilerSafeOutputJobsLog.Printf("Added separate upload_artifact job")
+	}
+
 	// Build upload_code_scanning_sarif job as a separate job if create-code-scanning-alert is configured.
 	// This job runs after safe_outputs and only when the safe_outputs job exported a SARIF file.
 	// It is separate to avoid the checkout step (needed to restore HEAD to github.sha) from
