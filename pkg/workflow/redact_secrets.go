@@ -91,8 +91,9 @@ func CollectActionReferences(yamlContent string) []string {
 			continue
 		}
 
-		// Must have some leading whitespace — not a bare top-level YAML key
-		if usesIdx == 0 {
+		// Must start with whitespace — rejects bare top-level keys ("uses: action")
+		// or top-level list items like "- uses: action".
+		if line == "" || (line[0] != ' ' && line[0] != '\t') {
 			continue
 		}
 
