@@ -12,8 +12,8 @@ import (
 
 var safeUpdateManifestLog = logger.New("workflow:safe_update_manifest")
 
-// ghawManifestPattern matches a "# GHAW manifest: {...}" line in a lock file header.
-var ghawManifestPattern = regexp.MustCompile(`#\s*GHAW manifest:\s*(\{.+\})`)
+// ghawManifestPattern matches a "# gh-aw-manifest: {...}" line in a lock file header.
+var ghawManifestPattern = regexp.MustCompile(`#\s*gh-aw-manifest:\s*(\{.+\})`)
 
 // currentGHAWManifestVersion is the current schema version for the GHAW manifest header.
 const currentGHAWManifestVersion = 1
@@ -25,7 +25,7 @@ type GHAWManifestAction struct {
 	Version string `json:"version,omitempty"`
 }
 
-// GHAWManifest is the single-line JSON payload embedded as a "# GHAW manifest: ..."
+// GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
 // comment in generated lock files. It records the secrets and external actions that
 // were detected at the time the lock file was last compiled so that subsequent
 // compilations can detect newly introduced secrets when safe update mode is enabled.
@@ -132,12 +132,12 @@ func parseActionRefs(refs []string) []GHAWManifestAction {
 func (m *GHAWManifest) ToJSON() (string, error) {
 	data, err := json.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize GHAW manifest: %w", err)
+		return "", fmt.Errorf("failed to serialize gh-aw-manifest: %w", err)
 	}
 	return string(data), nil
 }
 
-// ExtractGHAWManifestFromLockFile parses the GHAW manifest from a lock file's
+// ExtractGHAWManifestFromLockFile parses the gh-aw-manifest from a lock file's
 // comment header. Returns nil (with no error) when no manifest line is present,
 // which is the normal state for lock files generated before this feature was
 // introduced.
@@ -148,9 +148,9 @@ func ExtractGHAWManifestFromLockFile(content string) (*GHAWManifest, error) {
 	}
 	var m GHAWManifest
 	if err := json.Unmarshal([]byte(matches[1]), &m); err != nil {
-		return nil, fmt.Errorf("failed to parse GHAW manifest JSON: %w", err)
+		return nil, fmt.Errorf("failed to parse gh-aw-manifest JSON: %w", err)
 	}
-	safeUpdateManifestLog.Printf("Extracted GHAW manifest: version=%d secrets=%d actions=%d",
+	safeUpdateManifestLog.Printf("Extracted gh-aw-manifest: version=%d secrets=%d actions=%d",
 		m.Version, len(m.Secrets), len(m.Actions))
 	return &m, nil
 }

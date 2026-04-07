@@ -159,7 +159,7 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 }
 
 // SetSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets).
-// When enabled via the CLI it takes precedence over the frontmatter safe-update field.
+// Safe update mode can only be enabled via the CLI; frontmatter cannot enable it.
 func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
 	c.safeUpdate = safeUpdate
 }

@@ -131,27 +131,26 @@ func TestEffectiveSafeUpdate(t *testing.T) {
 			want:         false,
 		},
 		{
-			name:           "compiler flag on => true (overrides frontmatter)",
-			compilerFlag:   true,
-			rawFrontmatter: map[string]any{"safe-update": false},
-			want:           true,
+			name:         "compiler flag on => true",
+			compilerFlag: true,
+			want:         true,
 		},
 		{
-			name:           "frontmatter true, no compiler flag => true",
+			name:           "frontmatter safe-update true is ignored, compiler flag off => false",
 			compilerFlag:   false,
+			rawFrontmatter: map[string]any{"safe-update": true},
+			want:           false,
+		},
+		{
+			name:           "frontmatter safe-update true is ignored, compiler flag on => true",
+			compilerFlag:   true,
 			rawFrontmatter: map[string]any{"safe-update": true},
 			want:           true,
 		},
 		{
-			name:           "frontmatter false, no compiler flag => false",
+			name:           "frontmatter safe-update false, compiler flag off => false",
 			compilerFlag:   false,
 			rawFrontmatter: map[string]any{"safe-update": false},
-			want:           false,
-		},
-		{
-			name:           "frontmatter non-bool is ignored => false",
-			compilerFlag:   false,
-			rawFrontmatter: map[string]any{"safe-update": "yes"},
 			want:           false,
 		},
 	}

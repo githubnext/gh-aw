@@ -69,7 +69,7 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string) error {
 func buildSafeUpdateError(violations []string) error {
 	offending := strings.Join(violations, "\n  - ")
 	return fmt.Errorf(
-		"safe update mode rejected compilation: new restricted secret(s) were introduced\n\nOffending secret(s):\n  - %s\n\nRemediation options:\n  1. Use an interactive agentic flow (e.g. Copilot CLI) to review and approve the new secret.\n  2. Remove the --safe-update flag (or set safe-update: false in frontmatter) to allow the change.\n  3. Remove the new secret reference from your workflow if it was added unintentionally.",
+		"safe update mode rejected compilation: new restricted secret(s) were introduced\n\nOffending secret(s):\n  - %s\n\nRemediation options:\n  1. Use an interactive agentic flow (e.g. Copilot CLI) to review and approve the new secret.\n  2. Remove the --safe-update flag to allow the change.\n  3. Remove the new secret reference from your workflow if it was added unintentionally.",
 		offending,
 	)
 }

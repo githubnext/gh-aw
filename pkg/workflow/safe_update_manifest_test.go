@@ -128,25 +128,25 @@ func TestExtractGHAWManifestFromLockFile(t *testing.T) {
 		},
 		{
 			name:        "manifest extracted successfully",
-			content:     `# GHAW manifest: {"version":1,"secrets":["secrets.GITHUB_TOKEN"],"actions":[]}`,
+			content:     `# gh-aw-manifest: {"version":1,"secrets":["secrets.GITHUB_TOKEN"],"actions":[]}`,
 			wantVersion: 1,
 			wantSecrets: []string{"secrets.GITHUB_TOKEN"},
 		},
 		{
 			name:        "manifest with leading spaces in comment",
-			content:     `#  GHAW manifest: {"version":1,"secrets":[],"actions":[]}`,
+			content:     `#  gh-aw-manifest: {"version":1,"secrets":[],"actions":[]}`,
 			wantVersion: 1,
 			wantSecrets: []string{},
 		},
 		{
 			name:    "invalid JSON returns error",
-			content: "# GHAW manifest: {invalid json}",
+			content: "# gh-aw-manifest: {invalid json}",
 			wantErr: true,
 		},
 		{
 			name: "manifest embedded in multi-line header",
 			content: `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc"}
-# GHAW manifest: {"version":1,"secrets":["secrets.FOO"],"actions":[]}
+# gh-aw-manifest: {"version":1,"secrets":["secrets.FOO"],"actions":[]}
 name: my-workflow`,
 			wantVersion: 1,
 			wantSecrets: []string{"secrets.FOO"},

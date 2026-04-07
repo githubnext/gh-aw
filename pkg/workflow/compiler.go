@@ -678,16 +678,16 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
 	// Read the existing lock file before generating new content so we can extract
-	// the previous GHAW manifest for safe update enforcement.
+	// the previous gh-aw-manifest for safe update enforcement.
 	var oldManifest *GHAWManifest
 	if existingContent, readErr := os.ReadFile(lockFile); readErr == nil {
 		if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
 			oldManifest = m
 			if oldManifest != nil {
-				log.Printf("Loaded existing GHAW manifest: %d secret(s)", len(oldManifest.Secrets))
+				log.Printf("Loaded existing gh-aw-manifest: %d secret(s)", len(oldManifest.Secrets))
 			}
 		} else {
-			log.Printf("Failed to parse existing GHAW manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+			log.Printf("Failed to parse existing gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 		}
 	}
 
@@ -702,7 +702,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Note: compute-text functionality is now inlined directly in the task job
 	// instead of using a shared action file
 
-	// Generate and validate YAML (also embeds the new GHAW manifest in the header).
+	// Generate and validate YAML (also embeds the new gh-aw-manifest in the header).
 	// Returns the collected body secrets to avoid a duplicate scan for safe update enforcement.
 	yamlContent, bodySecrets, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {
@@ -711,7 +711,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	// Enforce safe update mode: reject compilations that introduce new restricted secrets.
 	// bodySecrets contains secrets collected from the workflow body only (not the header),
-	// which avoids matching secrets that appear in the GHAW manifest JSON comment itself.
+	// which avoids matching secrets that appear in the gh-aw-manifest JSON comment itself.
 	if c.effectiveSafeUpdate(workflowData) {
 		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets); enforceErr != nil {
 			return formatCompilerError(markdownPath, "error", enforceErr.Error(), enforceErr)

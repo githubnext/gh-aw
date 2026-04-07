@@ -35,21 +35,11 @@ func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
 }
 
 // effectiveSafeUpdate returns true when safe update mode should be enforced for
-// the given workflow. Priority:
-//
-//  1. CLI flag (c.safeUpdate) – always overrides frontmatter.
-//  2. Frontmatter field "safe-update" (bool).
-//  3. Default: false (safe update is opt-in).
-func (c *Compiler) effectiveSafeUpdate(data *WorkflowData) bool {
-	if c.safeUpdate {
-		return true
-	}
-	if val, exists := data.RawFrontmatter["safe-update"]; exists {
-		if b, ok := val.(bool); ok {
-			return b
-		}
-	}
-	return false
+// the given workflow. Safe update mode can only be enabled via the CLI --safe-update
+// flag; frontmatter cannot enable it (only the CLI can, to prevent agents from
+// disabling or circumventing the protection by modifying the workflow file).
+func (c *Compiler) effectiveSafeUpdate(_ *WorkflowData) bool {
+	return c.safeUpdate
 }
 
 // buildJobsAndValidate builds all workflow jobs and validates their dependencies.
@@ -121,14 +111,14 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		}
 	}
 
-	// Embed the GHAW manifest immediately after gh-aw-metadata for easy machine parsing.
+	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
 	// The manifest records all secrets and external actions detected at compile time so
 	// that subsequent compilations can perform safe update enforcement.
 	manifest := NewGHAWManifest(secrets, actions)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
-		fmt.Fprintf(yaml, "# GHAW manifest: %s\n", manifestJSON)
+		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {
-		compilerYamlLog.Printf("Failed to serialize GHAW manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
+		compilerYamlLog.Printf("Failed to serialize gh-aw-manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
 	}
 
 	// Add workflow header with logo and instructions
