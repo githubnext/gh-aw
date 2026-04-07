@@ -879,4 +879,99 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		assert.Contains(t, argsStr, "merged", "Policy JSON should contain the min-integrity value")
 		assert.Contains(t, argsStr, "owner/*", "Policy JSON should contain the allowed-repos value")
 	})
+
+	t.Run("skips all cli-proxy flags when AWF version is too old", func(t *testing.T) {
+		// Simulate a workflow that pins an AWF version older than v0.25.14
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: "v0.25.13", // older than AWFCliProxyMinVersion
+				},
+			},
+			Features: map[string]any{
+				"cli-proxy":          true,
+				"cli-proxy-writable": true,
+			},
+			Tools: map[string]any{
+				"github": map[string]any{
+					"min-integrity": "approved",
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include --enable-cli-proxy for AWF < v0.25.14")
+		assert.NotContains(t, argsStr, "--cli-proxy-writable", "Should not include --cli-proxy-writable for AWF < v0.25.14")
+		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include --cli-proxy-policy for AWF < v0.25.14")
+	})
+}
+
+// TestAWFSupportsCliProxy tests the awfSupportsCliProxy version gate function.
+func TestAWFSupportsCliProxy(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config returns true (uses default version)",
+			firewallConfig: nil,
+			want:           true,
+		},
+		{
+			name:           "empty version returns true (uses default version)",
+			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "latest returns true",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.14 supports --enable-cli-proxy (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.25.14"},
+			want:           true,
+		},
+		{
+			name:           "v0.26.0 supports --enable-cli-proxy",
+			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.13 does not support --enable-cli-proxy",
+			firewallConfig: &FirewallConfig{Version: "v0.25.13"},
+			want:           false,
+		},
+		{
+			name:           "v0.25.3 does not support --enable-cli-proxy",
+			firewallConfig: &FirewallConfig{Version: "v0.25.3"},
+			want:           false,
+		},
+		{
+			name:           "v0.1.0 does not support --enable-cli-proxy",
+			firewallConfig: &FirewallConfig{Version: "v0.1.0"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsCliProxy(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsCliProxy result")
+		})
+	}
 }

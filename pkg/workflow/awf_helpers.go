@@ -246,25 +246,29 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// This gives the agent secure gh CLI access without exposing GITHUB_TOKEN
 	// in the agent container (firewall v0.25.14+).
 	if isFeatureEnabled(constants.CliProxyFeatureFlag, config.WorkflowData) {
-		awfArgs = append(awfArgs, "--enable-cli-proxy")
-		awfHelpersLog.Print("Added --enable-cli-proxy for gh CLI proxy sidecar")
+		if awfSupportsCliProxy(firewallConfig) {
+			awfArgs = append(awfArgs, "--enable-cli-proxy")
+			awfHelpersLog.Print("Added --enable-cli-proxy for gh CLI proxy sidecar")
 
-		// Allow write operations when cli-proxy-writable feature flag is also set
-		if isFeatureEnabled(constants.CliProxyWritableFeatureFlag, config.WorkflowData) {
-			awfArgs = append(awfArgs, "--cli-proxy-writable")
-			awfHelpersLog.Print("Added --cli-proxy-writable for write access via gh CLI proxy")
-		}
-
-		// Generate and pass the guard policy JSON for the cli-proxy.
-		// Reuses getDIFCProxyPolicyJSON() to build the static policy from tools.github config
-		// (min-integrity and repos fields), matching the DIFC proxy guard policy semantics.
-		if config.WorkflowData != nil {
-			githubTool := config.WorkflowData.Tools["github"]
-			policyJSON := getDIFCProxyPolicyJSON(githubTool)
-			if policyJSON != "" {
-				awfArgs = append(awfArgs, "--cli-proxy-policy", policyJSON)
-				awfHelpersLog.Print("Added --cli-proxy-policy with guard policy")
+			// Allow write operations when cli-proxy-writable feature flag is also set
+			if isFeatureEnabled(constants.CliProxyWritableFeatureFlag, config.WorkflowData) {
+				awfArgs = append(awfArgs, "--cli-proxy-writable")
+				awfHelpersLog.Print("Added --cli-proxy-writable for write access via gh CLI proxy")
 			}
+
+			// Generate and pass the guard policy JSON for the cli-proxy.
+			// Reuses getDIFCProxyPolicyJSON() to build the static policy from tools.github config
+			// (min-integrity and repos fields), matching the DIFC proxy guard policy semantics.
+			if config.WorkflowData != nil {
+				githubTool := config.WorkflowData.Tools["github"]
+				policyJSON := getDIFCProxyPolicyJSON(githubTool)
+				if policyJSON != "" {
+					awfArgs = append(awfArgs, "--cli-proxy-policy", policyJSON)
+					awfHelpersLog.Print("Added --cli-proxy-policy with guard policy")
+				}
+			}
+		} else {
+			awfHelpersLog.Printf("Skipping --enable-cli-proxy: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
 		}
 	}
 
@@ -604,5 +608,36 @@ func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
 
 	// Normalise the v-prefix for compareVersions.
 	minVersion := string(constants.AWFExcludeEnvMinVersion)
+	return compareVersions(versionStr, minVersion) >= 0
+}
+
+// awfSupportsCliProxy returns true when the effective AWF version supports --enable-cli-proxy.
+//
+// The --enable-cli-proxy flag was introduced in AWF v0.25.14. Any workflow that pins an explicit
+// version older than v0.25.14 must not emit --enable-cli-proxy or the run will fail at startup.
+//
+// Special cases:
+//   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
+//     which is always ≥ AWFCliProxyMinVersion → returns true.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ AWFCliProxyMinVersion: returns true.
+//   - Any semver string < AWFCliProxyMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func awfSupportsCliProxy(firewallConfig *FirewallConfig) bool {
+	var versionStr string
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		versionStr = firewallConfig.Version
+	} else {
+		// No override → use the default, which is always ≥ the minimum.
+		return true
+	}
+
+	// "latest" means the newest release — always supports the flag.
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	// Normalise the v-prefix for compareVersions.
+	minVersion := string(constants.AWFCliProxyMinVersion)
 	return compareVersions(versionStr, minVersion) >= 0
 }
