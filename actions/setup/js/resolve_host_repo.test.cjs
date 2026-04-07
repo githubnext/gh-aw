@@ -36,7 +36,7 @@ global.context = mockContext;
  * Sets up a one-time mock response for getWorkflowRun with no referenced workflows.
  * Used for same-repo and same-org cross-repo tests where the API should not change the result.
  */
-function mockNoReferencedWorkflows() {
+function mockNoReferencedWorkflowsOnce() {
   mockGetWorkflowRun.mockResolvedValueOnce({ data: { referenced_workflows: [] } });
 }
 
@@ -45,9 +45,9 @@ describe("resolve_host_repo.cjs", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    // Reset mock implementation to prevent leakage between tests.
-    // vi.clearAllMocks() clears call history but does not reset implementations
-    // set via mockResolvedValue(). mockReset() clears both.
+    // Defensive reset of mock implementation as a safety measure.
+    // All tests use *Once variants, but mockReset() ensures no state leaks
+    // if a test adds a persistent mock or if a future test omits the Once variant.
     mockGetWorkflowRun.mockReset();
     mockCore.summary.addRaw.mockReturnThis();
     mockCore.summary.write.mockResolvedValue(undefined);
@@ -88,7 +88,7 @@ describe("resolve_host_repo.cjs", () => {
   it("should output the current repo when same-repo invocation", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
     process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
-    mockNoReferencedWorkflows();
+    mockNoReferencedWorkflowsOnce();
 
     await main();
 
@@ -99,7 +99,7 @@ describe("resolve_host_repo.cjs", () => {
   it("should not write step summary for same-repo invocations", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
     process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
-    mockNoReferencedWorkflows();
+    mockNoReferencedWorkflowsOnce();
 
     await main();
 
@@ -243,7 +243,7 @@ describe("resolve_host_repo.cjs", () => {
   it("should output target_repo_name when same-repo invocation", async () => {
     process.env.GITHUB_WORKFLOW_REF = "my-org/platform-repo/.github/workflows/gateway.lock.yml@refs/heads/main";
     process.env.GITHUB_REPOSITORY = "my-org/platform-repo";
-    mockNoReferencedWorkflows();
+    mockNoReferencedWorkflowsOnce();
 
     await main();
 
