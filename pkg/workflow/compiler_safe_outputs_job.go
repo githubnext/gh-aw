@@ -51,6 +51,20 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Enable custom-tokens flag if any safe output uses a per-handler github-token
 		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
+
+		// When custom tokens are enabled and the safe_outputs job runs on a custom image runner,
+		// emit a Node.js setup step before actions/setup.
+		// setup.sh runs `npm install @actions/github` when custom tokens are enabled,
+		// so Node.js must be available on PATH. Standard GitHub-hosted runners (ubuntu-*, windows-*)
+		// already have Node.js pre-installed; custom runners may not.
+		if enableCustomTokens && isCustomImageRunner(c.formatFrameworkJobRunsOn(data)) {
+			consolidatedSafeOutputsJobLog.Printf("Custom image runner detected with custom tokens enabled — adding Node.js setup step before actions/setup")
+			nodeStep := GenerateNodeJsSetupStep()
+			for _, line := range nodeStep {
+				steps = append(steps, line+"\n")
+			}
+		}
+
 		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, safeOutputsTraceID)...)
