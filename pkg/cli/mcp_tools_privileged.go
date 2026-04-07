@@ -59,8 +59,10 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		},
 		Description: `Download and analyze workflow logs.
 
-Returns a file path to a JSON file with workflow run data and metrics. The data is always written
-to a file to avoid large inline payloads. Use the returned file_path to read the full data.
+In the normal case, returns a file path to a JSON file with workflow run data and metrics.
+The data is written to a file to avoid large inline payloads. Use the returned file_path
+to read the full data. In rare error cases (e.g., invalid workflow name), a JSON error
+response is returned inline instead.
 
 If the command times out before fetching all available logs, a "continuation" field will be present
 in the JSON data with updated parameters to continue fetching more data.

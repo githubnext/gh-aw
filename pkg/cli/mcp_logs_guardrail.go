@@ -39,15 +39,26 @@ func estimateTokens(text string) int {
 }
 
 // buildLogsFileResponse writes the logs JSON output to a content-addressed cache
-// file and returns a JSON response containing the file path and schema.
+// file and returns a JSON response containing the file path.
 // The file is named by the SHA256 hash of its content so that identical results
 // are deduplicated — if the file already exists it is not rewritten.
 // The cache directory is kept separate from the artifact download directory so
 // these summary files are never included in artifact uploads.
 func buildLogsFileResponse(outputStr string) string {
-	if err := os.MkdirAll(mcpLogsCacheDir, 0755); err != nil {
-		mcpLogsGuardrailLog.Printf("Failed to create logs cache directory: %v", err)
-		return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache directory: %v", err))
+	// Verify or create the cache directory. Use Lstat to detect symlinks and
+	// refuse to follow them, hardening against symlink-based directory attacks.
+	if info, err := os.Lstat(mcpLogsCacheDir); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return buildLogsFileErrorResponse(fmt.Sprintf("logs cache path %q is a symlink; refusing to use it", mcpLogsCacheDir))
+		}
+	} else if os.IsNotExist(err) {
+		if mkErr := os.Mkdir(mcpLogsCacheDir, 0700); mkErr != nil && !os.IsExist(mkErr) {
+			mcpLogsGuardrailLog.Printf("Failed to create logs cache directory: %v", mkErr)
+			return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache directory: %v", mkErr))
+		}
+	} else {
+		mcpLogsGuardrailLog.Printf("Failed to stat logs cache directory: %v", err)
+		return buildLogsFileErrorResponse(fmt.Sprintf("failed to access logs cache directory: %v", err))
 	}
 
 	// Use SHA256 of content as filename for content-addressed deduplication.
@@ -56,14 +67,30 @@ func buildLogsFileResponse(outputStr string) string {
 	filePath := filepath.Join(mcpLogsCacheDir, fileName)
 
 	// Skip writing if a file with identical content already exists.
-	if _, err := os.Stat(filePath); err == nil {
+	if _, err := os.Lstat(filePath); err == nil {
 		mcpLogsGuardrailLog.Printf("Logs data already cached at: %s", filePath)
-	} else {
-		if err := os.WriteFile(filePath, []byte(outputStr), 0600); err != nil {
-			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", err)
-			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", err))
+	} else if os.IsNotExist(err) {
+		// Write with O_EXCL to avoid following symlinks or races.
+		f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		if err != nil {
+			mcpLogsGuardrailLog.Printf("Failed to create logs cache file: %v", err)
+			return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache file: %v", err))
+		}
+		_, writeErr := f.WriteString(outputStr)
+		closeErr := f.Close()
+		if writeErr != nil || closeErr != nil {
+			_ = os.Remove(filePath)
+			errMsg := writeErr
+			if errMsg == nil {
+				errMsg = closeErr
+			}
+			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", errMsg)
+			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", errMsg))
 		}
 		mcpLogsGuardrailLog.Printf("Logs data written to file: %s (%d bytes)", filePath, len(outputStr))
+	} else {
+		mcpLogsGuardrailLog.Printf("Failed to stat logs cache file: %v", err)
+		return buildLogsFileErrorResponse(fmt.Sprintf("failed to access logs cache file: %v", err))
 	}
 
 	response := MCPLogsGuardrailResponse{
