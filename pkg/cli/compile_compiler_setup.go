@@ -156,10 +156,11 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 		compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
 	}
 
-	// Set safe update flag: when enabled via CLI it combines with any frontmatter/feature-flag enabling
+	// Set safe update flag: when set via CLI it force-enables safe update enforcement
+	// independently of the workflow's strict mode setting.
 	compiler.SetSafeUpdate(config.SafeUpdate)
 	if config.SafeUpdate {
-		compileCompilerSetupLog.Print("Safe update mode enabled: compilations introducing new restricted secrets or unapproved action additions/removals will emit a warning prompt requesting agent review and a PR security note")
+		compileCompilerSetupLog.Print("Safe update mode force-enabled via --safe-update flag: compilations introducing new restricted secrets or unapproved action additions/removals will emit a warning prompt requesting agent review and a PR security note")
 	}
 
 	// Load pre-cached manifests from file (written by MCP server at startup).
