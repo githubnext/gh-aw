@@ -98,7 +98,12 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 // IMPORTANT: The returned *FrontmatterResult is a shared, read-only reference.
 // Callers MUST NOT mutate the result or any of its fields (Frontmatter map, slices, etc.).
 // Use ExtractFrontmatterFromContent directly when you need a mutable copy.
+//
+// path must start with BuiltinPathPrefix ("@builtin:"); an error is returned otherwise.
 func ExtractFrontmatterFromBuiltinFile(path string, content []byte) (*FrontmatterResult, error) {
+	if !strings.HasPrefix(path, BuiltinPathPrefix) {
+		return nil, fmt.Errorf("ExtractFrontmatterFromBuiltinFile: path %q does not start with %q", path, BuiltinPathPrefix)
+	}
 	if cached, ok := GetBuiltinFrontmatterCache(path); ok {
 		return cached, nil
 	}

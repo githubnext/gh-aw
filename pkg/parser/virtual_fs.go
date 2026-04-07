@@ -55,7 +55,8 @@ func BuiltinVirtualFileExists(path string) bool {
 // Builtin files are immutable (registered once at startup), so the parse result is stable
 // across the lifetime of the process. This avoids repeated YAML parsing for frequently
 // imported engine definition files (e.g. @builtin:engines/copilot.md).
-// The cache stores a deep-copied result so callers cannot mutate the cached data.
+// Cached values are shared read-only *FrontmatterResult references; callers must not mutate
+// the cached result or any contained maps/slices.
 var builtinFrontmatterCache sync.Map // map[string]*FrontmatterResult
 
 // GetBuiltinFrontmatterCache returns the cached FrontmatterResult for a builtin virtual file.
