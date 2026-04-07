@@ -11,7 +11,7 @@ import (
 func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trial <workflow-spec>...",
-		Short: "Trial one or more agentic workflows as if they were running in a repository",
+		Short: "Run one or more agentic workflows in trial mode against a simulated repository",
 		Long: `Trial one or more agentic workflows as if they were running in a repository.
 
 This command creates a temporary private repository in your GitHub space, installs the specified

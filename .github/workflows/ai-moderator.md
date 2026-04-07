@@ -33,6 +33,7 @@ tools:
     mode: local
     read-only: true
     toolsets: [default]
+    min-integrity: none
 permissions:
   contents: read
   issues: read

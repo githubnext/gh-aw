@@ -18,7 +18,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var artifactSetLog = logger.New("cli:logs_artifact_set")
 
 // ArtifactSet is a named group of related artifacts that can be downloaded together.
 // Using a named set allows callers to request only the artifacts they need for a
@@ -86,6 +89,7 @@ func ValidArtifactSetNames() []string {
 // ValidateArtifactSets checks that every entry in sets is a known ArtifactSet name.
 // Returns an error listing any unrecognized names.
 func ValidateArtifactSets(sets []string) error {
+	artifactSetLog.Printf("Validating %d artifact set(s): %s", len(sets), strings.Join(sets, ", "))
 	var unknown []string
 	for _, s := range sets {
 		if _, ok := artifactSetArtifacts[ArtifactSet(s)]; !ok {
@@ -93,10 +97,12 @@ func ValidateArtifactSets(sets []string) error {
 		}
 	}
 	if len(unknown) > 0 {
+		artifactSetLog.Printf("Unknown artifact set(s) rejected: %s", strings.Join(unknown, ", "))
 		return fmt.Errorf("unknown artifact set(s): %s; valid sets are: %s",
 			strings.Join(unknown, ", "),
 			strings.Join(ValidArtifactSetNames(), ", "))
 	}
+	artifactSetLog.Print("All artifact sets are valid")
 	return nil
 }
 
@@ -105,12 +111,14 @@ func ValidateArtifactSets(sets []string) error {
 // ArtifactSetAll, returns nil (meaning: download every artifact – no filter applied).
 func ResolveArtifactFilter(sets []string) []string {
 	if len(sets) == 0 {
+		artifactSetLog.Print("No artifact sets specified, downloading all artifacts")
 		return nil
 	}
 
 	// If "all" appears anywhere, disable filtering entirely.
 	for _, s := range sets {
 		if ArtifactSet(s) == ArtifactSetAll {
+			artifactSetLog.Print("Artifact set 'all' specified, downloading all artifacts")
 			return nil
 		}
 	}
@@ -125,6 +133,7 @@ func ResolveArtifactFilter(sets []string) []string {
 			}
 		}
 	}
+	artifactSetLog.Printf("Resolved artifact filter: sets=%v -> artifacts=%v", sets, names)
 	return names
 }
 
@@ -191,6 +200,11 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 		if !found {
 			missing = append(missing, f)
 		}
+	}
+	if len(missing) > 0 {
+		artifactSetLog.Printf("Missing artifact entries in %s: %v", outputDir, missing)
+	} else {
+		artifactSetLog.Printf("All %d artifact filter entries present in %s", len(filter), outputDir)
 	}
 	return missing
 }

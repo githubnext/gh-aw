@@ -20,12 +20,11 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		compilerSafeOutputsEnvLog.Print("Added staged flag")
 	}
 
-	// Check if copilot is in create-issue assignees - if so, output issues for assign_to_agent job
-	if data.SafeOutputs.CreateIssues != nil {
-		if hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees) {
-			*steps = append(*steps, "          GH_AW_ASSIGN_COPILOT: \"true\"\n")
-			compilerSafeOutputsEnvLog.Print("Copilot assignment requested - will output issues_to_assign_copilot")
-		}
+	// Check if copilot is in create-issue or create-pull-request assignees - enables inline copilot assignment
+	if (data.SafeOutputs.CreateIssues != nil && hasCopilotAssignee(data.SafeOutputs.CreateIssues.Assignees)) ||
+		(data.SafeOutputs.CreatePullRequests != nil && hasCopilotAssignee(data.SafeOutputs.CreatePullRequests.Assignees)) {
+		*steps = append(*steps, "          GH_AW_ASSIGN_COPILOT: \"true\"\n")
+		compilerSafeOutputsEnvLog.Print("Copilot assignment requested - enabled for create-issue or create-pull-request fallback issues")
 	}
 
 	// Note: All handler configuration is read from the config.json file at runtime.

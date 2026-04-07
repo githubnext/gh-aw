@@ -250,9 +250,105 @@ engine:
 
 Custom weights are embedded in the compiled workflow YAML and read by `gh aw logs` and `gh aw audit` when analyzing runs.
 
+## Timeout Configuration
+
+Repositories with long build or test cycles require careful timeout tuning at multiple levels. This section documents the timeout knobs available for each engine.
+
+### Job-Level Timeout (`timeout-minutes`)
+
+`timeout-minutes` sets the maximum wall-clock time for the entire agent job. This is the primary knob for repositories with long build times. The default is 20 minutes.
+
+```yaml wrap
+timeout-minutes: 60   # allow up to 60 minutes for the agent job
+```
+
+See [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) in the Sandbox reference for recommended values and concrete examples, including a 30-minute C++ workflow.
+
+### Per-Tool-Call Timeout (`tools.timeout`)
+
+`tools.timeout` limits how long any single tool invocation may run, in seconds. Useful when individual `bash` commands (builds, test suites) take longer than an engine's default:
+
+```yaml wrap
+tools:
+  timeout: 300   # 5 minutes per tool call
+```
+
+| Engine | Default tool timeout |
+|--------|----------------------|
+| Copilot | not enforced by gh-aw (engine-managed) |
+| Claude | 60 s |
+| Codex | 120 s |
+| Gemini | not enforced by gh-aw (engine-managed) |
+
+See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for full documentation including `tools.startup-timeout`.
+
+### Per-Engine Timeout Controls
+
+#### Copilot
+
+Copilot does not expose a per-turn wall-clock time limit directly. Use `max-continuations` to control how many sequential agent runs are allowed in autopilot mode, and `timeout-minutes` for the overall job budget:
+
+```yaml wrap
+engine:
+  id: copilot
+max-continuations: 3   # up to 3 consecutive autopilot runs
+timeout-minutes: 60
+```
+
+#### Claude
+
+Claude supports `max-turns` to cap the number of AI iterations per run. Set it together with `tools.timeout` to control both breadth (number of turns) and depth (time per tool call):
+
+```yaml wrap
+engine:
+  id: claude
+max-turns: 20          # maximum number of agentic iterations
+tools:
+  timeout: 600         # 10 minutes per bash/tool call
+timeout-minutes: 60
+```
+
+The `CLAUDE_CODE_MAX_TURNS` environment variable is a Claude Code CLI equivalent of `max-turns`. When `max-turns` is set in frontmatter, gh-aw passes it to the Claude CLI automatically — you do not need to set this env var separately.
+
+#### Codex
+
+Codex does not support `max-turns`. Use `tools.timeout` and `timeout-minutes` to control execution budgets:
+
+```yaml wrap
+engine:
+  id: codex
+tools:
+  timeout: 300         # 5 minutes per tool call
+timeout-minutes: 60
+```
+
+#### Gemini
+
+Gemini does not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
+
+```yaml wrap
+engine:
+  id: gemini
+tools:
+  timeout: 300
+timeout-minutes: 60
+```
+
+### Summary Table
+
+| Timeout knob | Copilot | Claude | Codex | Gemini | Notes |
+|---|:---:|:---:|:---:|:---:|---|
+| `timeout-minutes` | ✅ | ✅ | ✅ | ✅ | Job-level wall clock |
+| `tools.timeout` | ✅ | ✅ | ✅ | ✅ | Per tool-call limit (seconds) |
+| `tools.startup-timeout` | ✅ | ✅ | ✅ | ✅ | MCP server startup limit |
+| `max-turns` | ❌ | ✅ | ❌ | ❌ | Iteration budget (Claude only) |
+| `max-continuations` | ✅ | ❌ | ❌ | ❌ | Autopilot run budget (Copilot only) |
+
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
 - [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
 - [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
+- [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
+- [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/) - Fast hardware for long-running workflows

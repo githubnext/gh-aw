@@ -182,6 +182,14 @@ const (
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	CopilotCLIModelEnvVar = "COPILOT_MODEL"
 
+	// CopilotCLIIntegrationIDEnvVar is the native environment variable name supported by the Copilot CLI
+	// for identifying the calling integration. This tells the Copilot CLI that it is being invoked
+	// by agentic workflows.
+	CopilotCLIIntegrationIDEnvVar = "GITHUB_COPILOT_INTEGRATION_ID"
+
+	// CopilotCLIIntegrationIDValue is the value of the integration ID for agentic workflows.
+	CopilotCLIIntegrationIDValue = "agentic-workflows"
+
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"

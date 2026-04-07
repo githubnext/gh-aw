@@ -30,10 +30,35 @@ const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_ASSIGNEES } = r
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
+
+/**
+ * Creates an authenticated GitHub client for copilot assignment on fallback issues.
+ * Prefers the agent-specific token (GH_AW_ASSIGN_TO_AGENT_TOKEN) because the Copilot
+ * assignment API requires a PAT rather than a GitHub App token.
+ *
+ * Token priority:
+ *   1. config["github-token"] — explicit per-handler override
+ *   2. GH_AW_ASSIGN_TO_AGENT_TOKEN — injected by the compiler when copilot is in assignees
+ *   3. global github — step-level token (fallback when no agent token is available)
+ *
+ * @param {Object} config - Handler configuration
+ * @returns {Promise<Object>} Authenticated GitHub client
+ */
+async function createCopilotAssignmentClient(config) {
+  const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  if (!token) {
+    core.debug("No dedicated agent token configured — using step-level github client for copilot assignment");
+    return github;
+  }
+  core.info("Using dedicated github client for copilot assignment");
+  const { getOctokit } = await import("@actions/github");
+  return getOctokit(token);
+}
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
@@ -214,7 +239,9 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
-  const configAssignees = sanitizeFallbackAssignees(config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : []);
+  const rawAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
+  const hasCopilotInAssignees = rawAssignees.some(a => a.toLowerCase() === "copilot");
+  const configAssignees = sanitizeFallbackAssignees(rawAssignees);
   const draftDefault = parseBoolTemplatable(config.draft, true);
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
@@ -225,6 +252,68 @@ async function main(config = {}) {
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+
+  // Check if copilot assignment is enabled for fallback issues
+  const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+
+  // Lazily-initialised client for copilot assignment (only allocated when needed).
+  // Uses GH_AW_ASSIGN_TO_AGENT_TOKEN (agent token preference chain) when available,
+  // otherwise falls back to the step-level github object.
+  /** @type {Object|null} */
+  let copilotClient = null;
+
+  /**
+   * Assigns copilot to a fallback issue using agent helpers, if copilot was requested
+   * in the assignees config and the GH_AW_ASSIGN_COPILOT env var is set.
+   * A no-op when either condition is false. The copilotClient is initialised lazily
+   * on the first call and reused for subsequent issues.
+   * @param {string} owner - Repository owner
+   * @param {string} repo - Repository name
+   * @param {number} issueNumber - Fallback issue number
+   */
+  async function assignCopilotToFallbackIssueIfEnabled(owner, repo, issueNumber) {
+    if (!hasCopilotInAssignees || !assignCopilot) return;
+    if (!copilotClient) {
+      copilotClient = await createCopilotAssignmentClient(config);
+    }
+    core.info(`Assigning copilot coding agent to fallback issue #${issueNumber} in ${owner}/${repo}...`);
+    try {
+      const agentId = await findAgent(owner, repo, "copilot", copilotClient);
+      if (!agentId) {
+        core.warning(`copilot coding agent is not available for ${owner}/${repo}`);
+        return;
+      }
+      const issueDetails = await getIssueDetails(owner, repo, issueNumber, copilotClient);
+      if (!issueDetails) {
+        core.warning(`Failed to get issue details for copilot assignment of fallback issue #${issueNumber}`);
+        return;
+      }
+      if (issueDetails.currentAssignees.some(a => a.id === agentId)) {
+        core.info(`copilot is already assigned to fallback issue #${issueNumber}`);
+        return;
+      }
+      const assigned = await assignAgentToIssue(
+        issueDetails.issueId,
+        agentId,
+        issueDetails.currentAssignees,
+        "copilot",
+        null, // allowedAgents — not restricted for fallback issues
+        null, // pullRequestRepoId — not applicable (issue, not PR)
+        null, // model — not applicable
+        null, // customAgent — not applicable
+        null, // customInstructions — not applicable
+        null, // baseBranch — not applicable
+        copilotClient
+      );
+      if (assigned) {
+        core.info(`Successfully assigned copilot coding agent to fallback issue #${issueNumber}`);
+      } else {
+        core.warning(`Failed to assign copilot to fallback issue #${issueNumber}`);
+      }
+    } catch (error) {
+      core.warning(`Failed to assign copilot to fallback issue #${issueNumber}: ${getErrorMessage(error)}`);
+    }
+  }
 
   // Base branch from config (if set) - validated at factory level if explicit
   // Dynamic base branch resolution happens per-message after resolving the actual target repo
@@ -872,6 +961,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
           const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
           await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
           return {
@@ -1112,6 +1202,7 @@ ${patchPreview}`;
               const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
 
               core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+              await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
 
               // Update the activation comment with issue link (if a comment was created)
               //
@@ -1284,6 +1375,7 @@ ${patchPreview}`;
         const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
 
         core.info(`Created protected-file-protection review issue #${issue.number}: ${issue.html_url}`);
+        await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
 
         await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
@@ -1478,6 +1570,7 @@ ${patchPreview}`;
           const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
 
           core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+          await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
 
           await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
 
@@ -1543,6 +1636,7 @@ ${patchPreview}`;
         const { data: issue } = await createFallbackIssue(githubClient, repoParts, title, fallbackBody, mergeFallbackIssueLabels(labels), configAssignees);
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+        await assignCopilotToFallbackIssueIfEnabled(repoParts.owner, repoParts.repo, issue.number);
 
         // Update the activation comment with issue link (if a comment was created)
         // NOTE: we pass 'github' (global octokit) instead of githubClient (repo-scoped octokit) because the issue is created

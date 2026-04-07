@@ -53,6 +53,7 @@ describe("create_issue", () => {
       info: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),
+      debug: vi.fn(),
       setOutput: vi.fn(),
     };
 
@@ -223,15 +224,66 @@ describe("create_issue", () => {
       expect(call.assignees).toContain("user2");
     });
 
-    it("should track copilot assignment when enabled", async () => {
+    it("should assign copilot directly when enabled", async () => {
       process.env.GH_AW_ASSIGN_COPILOT = "true";
+
+      // Mock findAgent
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            suggestedActors: {
+              nodes: [{ id: "COPILOT_AGENT_ID", login: "copilot-swe-agent", __typename: "Bot" }],
+            },
+          },
+        })
+        // Mock getIssueDetails
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              id: "ISSUE_NODE_ID",
+              assignees: { nodes: [] },
+            },
+          },
+        })
+        // Mock assignAgentToIssue mutation
+        .mockResolvedValueOnce({
+          replaceActorsForAssignable: { __typename: "ReplaceActorsForAssignablePayload" },
+        });
+
       const handler = await main({
         assignees: ["copilot"],
       });
       await handler({ title: "Test" });
 
-      const issuesToAssign = getIssuesToAssignCopilot();
-      expect(issuesToAssign).toContain("test-owner/test-repo:123");
+      // Verify graphql was called three times (findAgent, getIssueDetails, assignAgentToIssue)
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
+      // Global queue should remain empty (assignment done directly, not queued)
+      expect(getIssuesToAssignCopilot()).toHaveLength(0);
+    });
+  });
+
+  describe("global state safety", () => {
+    it("getIssuesToAssignCopilot returns a copy, not the live reference", () => {
+      const snapshot = getIssuesToAssignCopilot();
+      const lengthBefore = snapshot.length;
+
+      // Mutating the returned copy must NOT affect internal state
+      snapshot.push("external:999");
+      expect(getIssuesToAssignCopilot().length).toBe(lengthBefore);
+    });
+
+    it("resetIssuesToAssignCopilot clears internal state but does not affect held snapshots", () => {
+      const snapshot = getIssuesToAssignCopilot();
+
+      // Make the held copy observably different from internal state
+      snapshot.push("external:999");
+
+      resetIssuesToAssignCopilot();
+
+      // Fresh reads reflect cleared internal state
+      expect(getIssuesToAssignCopilot()).toHaveLength(0);
+      // Previously returned snapshots remain unchanged because getter returns a copy
+      expect(snapshot).toEqual(expect.arrayContaining(["external:999"]));
     });
   });
 

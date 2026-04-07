@@ -59,7 +59,22 @@ if [ ! -w "${RUNNER_TEMP}" ]; then
   exit 1
 fi
 
-debug_log "Using RUNNER_TEMP: ${RUNNER_TEMP} (writable: yes)"
+# Detect tree collision: RUNNER_TEMP must not resolve to /tmp.
+# gh-aw mounts ${RUNNER_TEMP}/gh-aw read-only (setup tree) and /tmp/gh-aw read-write
+# (runtime tree). When RUNNER_TEMP=/tmp both paths collapse into /tmp/gh-aw, giving
+# the agent write access to compiled scripts, prompts, and MCP configs that must stay
+# immutable. Fail fast here rather than silently running with a broken security boundary.
+RESOLVED_RUNNER_TEMP="$(cd "${RUNNER_TEMP}" && pwd -P)"
+if [ -z "${RESOLVED_RUNNER_TEMP}" ]; then
+  echo "::error::Failed to resolve canonical path for RUNNER_TEMP: ${RUNNER_TEMP}"
+  exit 1
+fi
+if [ "${RESOLVED_RUNNER_TEMP%/}" = "/tmp" ]; then
+  echo "::error::RUNNER_TEMP resolves to /tmp, which conflicts with gh-aw's runtime tree (/tmp/gh-aw). Please configure your self-hosted runner with a different temp directory to maintain security isolation. See: https://docs.github.com/en/actions/hosting-your-own-runners"
+  exit 1
+fi
+
+debug_log "Using RUNNER_TEMP: ${RUNNER_TEMP} (resolved: ${RESOLVED_RUNNER_TEMP}, writable: yes)"
 
 # Get destination from input or use default
 DESTINATION="${INPUT_DESTINATION:-${GH_AW_ROOT}/actions}"

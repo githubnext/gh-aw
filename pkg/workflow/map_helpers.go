@@ -16,16 +16,18 @@
 //
 // # Key Functions
 //
-// Type Conversion:
+// Type Conversion (delegated to pkg/typeutil for general-purpose reuse):
 //   - parseIntValue() - Strictly parse numeric types to int; returns (value, ok). Use when
 //     the caller needs to distinguish "missing/invalid" from a zero value, or when string
-//     inputs are not expected (e.g. YAML config field parsing).
-//   - safeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
-//   - safeUintToInt() - Convert uint to int, returning 0 on overflow (thin wrapper around safeUint64ToInt)
+//     inputs are not expected (e.g. YAML config field parsing). Delegates to typeutil.ParseIntValue.
+//   - safeUint64ToInt() - Convert uint64 to int, returning 0 on overflow. Delegates to typeutil.SafeUint64ToInt.
+//   - safeUintToInt() - Convert uint to int, returning 0 on overflow. Delegates to typeutil.SafeUintToInt.
 //   - ConvertToInt() - Leniently convert any value (int/int64/float64/string) to int, returning 0
 //     on failure. Use when the input may come from heterogeneous sources such as JSON metrics,
 //     log parsing, or user-provided strings where a zero default on failure is acceptable.
-//   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64
+//     Delegates to typeutil.ConvertToInt.
+//   - ConvertToFloat() - Safely convert any value (float64/int/int64/string) to float64.
+//     Delegates to typeutil.ConvertToFloat.
 //
 // Map Operations:
 //   - excludeMapKeys() - Create new map excluding specified keys
@@ -37,14 +39,10 @@
 package workflow
 
 import (
-	"math"
 	"sort"
-	"strconv"
 
-	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
-
-var mapHelpersLog = logger.New("workflow:map_helpers")
 
 // parseIntValue strictly parses numeric types to int, returning (value, true) on success
 // and (0, false) for any unrecognized or non-numeric type.
@@ -55,43 +53,17 @@ var mapHelpersLog = logger.New("workflow:map_helpers")
 //
 // For lenient conversion that also handles string inputs and returns 0 on failure, use
 // ConvertToInt instead.
-func parseIntValue(value any) (int, bool) {
-	switch v := value.(type) {
-	case int:
-		return v, true
-	case int64:
-		return int(v), true
-	case uint64:
-		// Check for overflow before converting uint64 to int
-		const maxInt = int(^uint(0) >> 1)
-		if v > uint64(maxInt) {
-			mapHelpersLog.Printf("uint64 value %d exceeds max int value, returning 0", v)
-			return 0, false
-		}
-		return int(v), true
-	case float64:
-		intVal := int(v)
-		// Warn if truncation occurs (value has fractional part)
-		if v != float64(intVal) {
-			mapHelpersLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
-		}
-		return intVal, true
-	default:
-		return 0, false
-	}
-}
+//
+// This is a package-private alias for typeutil.ParseIntValue.
+func parseIntValue(value any) (int, bool) { return typeutil.ParseIntValue(value) }
 
-// safeUint64ToInt safely converts uint64 to int, returning 0 if overflow would occur
-func safeUint64ToInt(u uint64) int {
-	if u > math.MaxInt {
-		return 0 // Return 0 (engine default) if value would overflow
-	}
-	return int(u)
-}
+// safeUint64ToInt safely converts uint64 to int, returning 0 if overflow would occur.
+// This is a package-private alias for typeutil.SafeUint64ToInt.
+func safeUint64ToInt(u uint64) int { return typeutil.SafeUint64ToInt(u) }
 
 // safeUintToInt safely converts uint to int, returning 0 if overflow would occur.
-// This is a thin wrapper around safeUint64ToInt that widens the uint argument first.
-func safeUintToInt(u uint) int { return safeUint64ToInt(uint64(u)) }
+// This is a package-private alias for typeutil.SafeUintToInt.
+func safeUintToInt(u uint) int { return typeutil.SafeUintToInt(u) }
 
 // excludeMapKeys creates a new map excluding the specified keys
 func excludeMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
@@ -129,40 +101,16 @@ func sortedMapKeys(m map[string]string) []string {
 //
 // For strict numeric-only parsing where the caller must distinguish missing/invalid
 // values from zero, use parseIntValue instead.
-func ConvertToInt(val any) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		intVal := int(v)
-		// Warn if truncation occurs (value has fractional part)
-		if v != float64(intVal) {
-			mapHelpersLog.Printf("Float value %.2f truncated to integer %d", v, intVal)
-		}
-		return intVal
-	case string:
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
-	}
-	return 0
-}
+//
+// This is a workflow-package alias for typeutil.ConvertToInt. For new code outside
+// this package, prefer using typeutil.ConvertToInt directly.
+func ConvertToInt(val any) int { return typeutil.ConvertToInt(val) }
 
-// ConvertToFloat safely converts any to float64
-func ConvertToFloat(val any) float64 {
-	switch v := val.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case string:
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return 0
-}
+// ConvertToFloat safely converts any value to float64, returning 0 on failure.
+//
+// Supported input types: float64, int, int64, and string (parsed via strconv.ParseFloat).
+// Returns 0 for any other type or for strings that cannot be parsed as a float.
+//
+// This is a workflow-package alias for typeutil.ConvertToFloat. For new code outside
+// this package, prefer using typeutil.ConvertToFloat directly.
+func ConvertToFloat(val any) float64 { return typeutil.ConvertToFloat(val) }

@@ -32,16 +32,16 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "latest"
+const DefaultClaudeCodeVersion Version = "2.1.92"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
-const DefaultCopilotVersion Version = "latest"
+const DefaultCopilotVersion Version = "1.0.20"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "latest"
+const DefaultCodexVersion Version = "0.118.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "latest"
+const DefaultGeminiVersion Version = "0.36.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
@@ -58,7 +58,7 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 const AWFCliProxyMinVersion Version = "v0.25.14"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.15"
+const DefaultMCPGatewayVersion Version = "v0.2.16"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.70"

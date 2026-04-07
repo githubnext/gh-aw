@@ -126,7 +126,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 		// Build the missing_tool processing step (without artifact downloads - already added above)
 		missingToolSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Record Missing Tool",
+			StepName:      "Record missing tool",
 			StepID:        "missing_tool",
 			MainJobName:   mainJobName,
 			CustomEnvVars: missingToolEnvVars,
@@ -166,7 +166,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 		// Build the report_incomplete processing step (without artifact downloads - already added above)
 		reportIncompleteSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Record Incomplete",
+			StepName:      "Record incomplete",
 			StepID:        "report_incomplete",
 			MainJobName:   mainJobName,
 			CustomEnvVars: reportIncompleteEnvVars,
@@ -316,7 +316,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// (such as the GitHub App token minting step) has failed. The handler uses the default
 	// GITHUB_TOKEN and does not depend on the app-minted token.
 	agentFailureSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-		StepName:      "Handle Agent Failure",
+		StepName:      "Handle agent failure",
 		StepID:        "handle_agent_failure",
 		MainJobName:   mainJobName,
 		CustomEnvVars: agentFailureEnvVars,
