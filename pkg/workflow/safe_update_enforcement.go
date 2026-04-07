@@ -14,6 +14,19 @@ var safeUpdateLog = logger.New("workflow:safe_update")
 // Stored without the "secrets." prefix to match manifest storage format.
 const githubTokenSecret = "GITHUB_TOKEN"
 
+// ghAwInternalSecrets lists secrets that are automatically injected by the gh-aw
+// compiler as part of standard tool and engine configurations (e.g. GitHub MCP server,
+// Copilot engine). These are infrastructure secrets managed by gh-aw itself, not
+// user- or AI-authored content, so they are always permitted in safe update mode.
+var ghAwInternalSecrets = map[string]bool{
+	"GH_AW_GITHUB_TOKEN":            true,
+	"GH_AW_GITHUB_MCP_SERVER_TOKEN": true,
+	"GH_AW_AGENT_TOKEN":             true,
+	"GH_AW_CI_TRIGGER_TOKEN":        true,
+	"GH_AW_PROJECT_GITHUB_TOKEN":    true,
+	"COPILOT_GITHUB_TOKEN":          true,
+}
+
 // EnforceSafeUpdate validates that no new restricted secrets or unapproved action
 // changes have been introduced compared to those recorded in the existing manifest.
 //
@@ -65,7 +78,8 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 }
 
 // collectSecretViolations returns the normalized secret names that are new (not in the
-// previous manifest) and are not the always-allowed GITHUB_TOKEN.
+// previous manifest) and are not among the always-allowed secrets (GITHUB_TOKEN and
+// gh-aw-internal secrets automatically injected by the compiler).
 func collectSecretViolations(manifest *GHAWManifest, secretNames []string) []string {
 	known := make(map[string]bool, len(manifest.Secrets))
 	for _, s := range manifest.Secrets {
@@ -76,6 +90,9 @@ func collectSecretViolations(manifest *GHAWManifest, secretNames []string) []str
 	for _, name := range secretNames {
 		full := normalizeSecretName(name)
 		if full == githubTokenSecret {
+			continue
+		}
+		if ghAwInternalSecrets[full] {
 			continue
 		}
 		if known[full] {
