@@ -678,21 +678,41 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
-	// Read the existing lock file from the last git commit (not the working tree) so
-	// that safe update enforcement uses an authoritative baseline that cannot be
-	// tampered with by locally modifying the lock file before invoking the compiler.
+	// Read the existing lock file to extract the previous gh-aw-manifest for safe update
+	// enforcement.
+	//
+	// In dev mode the lock file is read from the last git commit (HEAD) rather than the
+	// working tree. This prevents a local agent from modifying the .lock.yml file on disk
+	// before invoking the compiler to forge an approved manifest and bypass enforcement.
+	//
+	// In non-dev (release / action) modes the workflow is running inside a GitHub Actions
+	// runner whose working tree is already a trusted git checkout, so reading from the
+	// filesystem is sufficient and avoids any dependency on git availability.
 	var oldManifest *GHAWManifest
-	if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
-		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
-			oldManifest = m
-			if oldManifest != nil {
-				log.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
+	if c.actionMode.IsDev() {
+		if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
+			if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
+				oldManifest = m
+				if oldManifest != nil {
+					log.Printf("Loaded committed gh-aw-manifest from HEAD: %d secret(s)", len(oldManifest.Secrets))
+				}
+			} else {
+				log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 			}
 		} else {
-			log.Printf("Failed to parse committed gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+			log.Printf("Lock file %s not found in HEAD commit (new workflow or not yet committed). Safe update enforcement will treat as empty manifest.", lockFile)
 		}
 	} else {
-		log.Printf("Lock file %s not found in HEAD commit (new workflow or not yet committed). Safe update enforcement will treat as empty manifest.", lockFile)
+		if existingContent, readErr := os.ReadFile(lockFile); readErr == nil {
+			if m, parseErr := ExtractGHAWManifestFromLockFile(string(existingContent)); parseErr == nil {
+				oldManifest = m
+				if oldManifest != nil {
+					log.Printf("Loaded existing gh-aw-manifest: %d secret(s)", len(oldManifest.Secrets))
+				}
+			} else {
+				log.Printf("Failed to parse existing gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
+			}
+		}
 	}
 
 	// Validate workflow data
