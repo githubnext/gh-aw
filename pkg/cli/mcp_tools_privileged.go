@@ -29,7 +29,6 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		AfterRunID        int64    `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID       int64    `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 		Timeout           int      `json:"timeout,omitempty" jsonschema:"Maximum time in minutes to spend downloading logs (default: 1 for MCP server)"`
-		MaxTokens         int      `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
 		Artifacts         []string `json:"artifacts,omitempty" jsonschema:"Artifact sets to download (default: all). Valid sets: all, activation, agent, detection, firewall, github-api, mcp"`
 	}
 
@@ -46,9 +45,6 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 	if err := AddSchemaDefault(logsSchema, "timeout", 1); err != nil {
 		mcpLog.Printf("Failed to add default for timeout: %v", err)
 	}
-	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
-		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
-	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "logs",
@@ -59,15 +55,15 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 		},
 		Description: `Download and analyze workflow logs.
 
-Returns JSON with workflow run data and metrics. If the command times out before fetching all available logs, 
-a "continuation" field will be present in the response with updated parameters to continue fetching more data.
+Returns a file path to a JSON file with workflow run data and metrics. The data is always written
+to a file to avoid large inline payloads. Use the returned file_path to read the full data.
+
+If the command times out before fetching all available logs, a "continuation" field will be present
+in the JSON data with updated parameters to continue fetching more data.
 Check for the presence of the continuation field to determine if there are more logs available.
 
-The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching from where 
-the previous request stopped due to timeout.
-
-⚠️  Output Size Guardrail: If the output exceeds the token limit (default: 12000 tokens), the tool will 
-return a schema description instead of the full output. Adjust the 'max_tokens' parameter to control this behavior.`,
+The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching
+from where the previous request stopped due to timeout.`,
 		InputSchema: logsSchema,
 		Icons: []mcp.Icon{
 			{Source: "📜"},
@@ -213,8 +209,8 @@ return a schema description instead of the full output. Adjust the 'max_tokens' 
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to download workflow logs: "+mainMsg, errorData)
 		}
 
-		// Check output size and apply guardrail if needed
-		finalOutput, _ := checkLogsOutputSize(outputStr, args.MaxTokens)
+		// Always write output to a file and return schema + file path
+		finalOutput := buildLogsFileResponse(outputStr)
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{

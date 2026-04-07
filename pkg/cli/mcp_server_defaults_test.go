@@ -52,12 +52,11 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		}
 	})
 
-	t.Run("logs tool has count, timeout, and max_tokens defaults", func(t *testing.T) {
+	t.Run("logs tool has count and timeout defaults", func(t *testing.T) {
 		type logsArgs struct {
 			WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
 			Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
 			Timeout      int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs"`
-			MaxTokens    int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail"`
 		}
 
 		schema, err := GenerateSchema[logsArgs]()
@@ -71,9 +70,6 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		}
 		if err := AddSchemaDefault(schema, "timeout", 50); err != nil {
 			t.Fatalf("Failed to add timeout default: %v", err)
-		}
-		if err := AddSchemaDefault(schema, "max_tokens", 12000); err != nil {
-			t.Fatalf("Failed to add max_tokens default: %v", err)
 		}
 
 		// Verify count default
@@ -106,22 +102,6 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 		}
 		if timeoutDefault != 50 {
 			t.Errorf("Expected timeout default to be 50, got %v", timeoutDefault)
-		}
-
-		// Verify max_tokens default
-		maxTokensProp, ok := schema.Properties["max_tokens"]
-		if !ok {
-			t.Fatal("Expected 'max_tokens' property to exist")
-		}
-		if len(maxTokensProp.Default) == 0 {
-			t.Error("Expected 'max_tokens' property to have a default value")
-		}
-		var maxTokensDefault int
-		if err := json.Unmarshal(maxTokensProp.Default, &maxTokensDefault); err != nil {
-			t.Fatalf("Failed to unmarshal max_tokens default: %v", err)
-		}
-		if maxTokensDefault != 12000 {
-			t.Errorf("Expected max_tokens default to be 12000, got %v", maxTokensDefault)
 		}
 	})
 

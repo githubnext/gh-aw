@@ -3,6 +3,9 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -10,21 +13,21 @@ import (
 var mcpLogsGuardrailLog = logger.New("cli:mcp_logs_guardrail")
 
 const (
-	// DefaultMaxMCPLogsOutputTokens is the default maximum number of tokens for MCP logs output
-	// before triggering the guardrail (12000 tokens)
-	DefaultMaxMCPLogsOutputTokens = 12000
-
 	// CharsPerToken is the approximate number of characters per token
 	// Using OpenAI's rule of thumb: ~4 characters per token
 	CharsPerToken = 4
+
+	// mcpLogsOutputDir is the directory where MCP logs data files are written
+	mcpLogsOutputDir = "/tmp/gh-aw/aw-mcp/logs"
 )
 
-// MCPLogsGuardrailResponse represents the response when output is too large
+// MCPLogsGuardrailResponse represents the response returned by the logs tool.
+// The full data is always written to a file; this response provides the file
+// path and schema so the caller can read and interpret the data.
 type MCPLogsGuardrailResponse struct {
-	Message         string         `json:"message"`
-	OutputTokens    int            `json:"output_tokens"`
-	OutputSizeLimit int            `json:"output_size_limit"`
-	Schema          LogsDataSchema `json:"schema"`
+	Message  string         `json:"message"`
+	FilePath string         `json:"file_path,omitempty"`
+	Schema   LogsDataSchema `json:"schema"`
 }
 
 // LogsDataSchema describes the structure of the full logs output
@@ -46,51 +49,52 @@ func estimateTokens(text string) int {
 	return len(text) / CharsPerToken
 }
 
-// checkLogsOutputSize checks if the logs output exceeds the token limit
-// and returns a guardrail response if it does
-func checkLogsOutputSize(outputStr string, maxTokens int) (string, bool) {
-	if maxTokens == 0 {
-		maxTokens = DefaultMaxMCPLogsOutputTokens
+// buildLogsFileResponse writes the logs JSON output to a temp file and returns
+// a JSON response containing the file path and schema. This is always called —
+// the full data is never returned inline to avoid overwhelming MCP clients with
+// large payloads.
+func buildLogsFileResponse(outputStr string) string {
+	if err := os.MkdirAll(mcpLogsOutputDir, 0755); err != nil {
+		mcpLogsGuardrailLog.Printf("Failed to create logs output directory: %v", err)
+		return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs directory: %v", err))
 	}
 
-	outputTokens := estimateTokens(outputStr)
-	mcpLogsGuardrailLog.Printf("Checking logs output size: tokens=%d, limit=%d", outputTokens, maxTokens)
+	fileName := fmt.Sprintf("logs-data-%d.json", time.Now().UnixNano())
+	filePath := filepath.Join(mcpLogsOutputDir, fileName)
 
-	if outputTokens <= maxTokens {
-		mcpLogsGuardrailLog.Print("Output size within limits")
-		return outputStr, false
+	if err := os.WriteFile(filePath, []byte(outputStr), 0600); err != nil {
+		mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", err)
+		return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", err))
 	}
 
-	mcpLogsGuardrailLog.Printf("Output exceeds limit, generating guardrail response")
+	mcpLogsGuardrailLog.Printf("Logs data written to file: %s (%d bytes)", filePath, len(outputStr))
 
-	// Generate guardrail response
-	guardrail := MCPLogsGuardrailResponse{
-		Message: fmt.Sprintf(
-			"⚠️  Output size (%d tokens) exceeds the limit (%d tokens). "+
-				"To reduce output size, increase the 'max_tokens' parameter or narrow your query with filters like workflow_name, start_date, end_date, or count.",
-			outputTokens,
-			maxTokens,
-		),
-		OutputTokens:    outputTokens,
-		OutputSizeLimit: maxTokens,
-		Schema:          getLogsDataSchema(),
+	response := MCPLogsGuardrailResponse{
+		Message:  fmt.Sprintf("Logs data has been written to '%s'. Use the file_path to read the full data.", filePath),
+		FilePath: filePath,
+		Schema:   getLogsDataSchema(),
 	}
 
-	// Marshal to JSON
-	guardrailJSON, err := json.MarshalIndent(guardrail, "", "  ")
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
-		mcpLogsGuardrailLog.Printf("Failed to marshal guardrail response: %v", err)
-		// Fallback to simple text message if JSON marshaling fails
-		return fmt.Sprintf(
-			"Output size (%d tokens) exceeds the limit (%d tokens). "+
-				"Please increase the 'max_tokens' parameter or narrow your query.",
-			outputTokens,
-			maxTokens,
-		), true
+		mcpLogsGuardrailLog.Printf("Failed to marshal logs file response: %v", err)
+		return fmt.Sprintf(`{"message":"Logs data written to file","file_path":%q}`, filePath)
 	}
 
-	mcpLogsGuardrailLog.Print("Generated guardrail response")
-	return string(guardrailJSON), true
+	return string(responseJSON)
+}
+
+// buildLogsFileErrorResponse returns a JSON error response with schema when file writing fails.
+func buildLogsFileErrorResponse(errMsg string) string {
+	response := MCPLogsGuardrailResponse{
+		Message: fmt.Sprintf("⚠️  %s. The logs data could not be saved to a file.", errMsg),
+		Schema:  getLogsDataSchema(),
+	}
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return fmt.Sprintf(`{"message":%q}`, errMsg)
+	}
+	return string(responseJSON)
 }
 
 // getLogsDataSchema returns the schema for LogsData
