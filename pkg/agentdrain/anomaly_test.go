@@ -38,6 +38,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			wantLowSimilarity: false,
 			wantRareCluster:   true,
 			wantScore:         0.65,
+			wantReason:        "new log template discovered; rare cluster (few observations)",
 		},
 		{
 			// isNew=false, size=5 > rareThreshold=2 → not rare; similarity=0.2 < threshold=0.4 → LowSimilarity.
@@ -53,6 +54,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			wantLowSimilarity: true,
 			wantRareCluster:   false,
 			wantScore:         0.35,
+			wantReason:        "low similarity to known template",
 		},
 		{
 			// isNew=false, size=1 ≤ rareThreshold=2 → RareCluster; similarity=0.9 ≥ threshold → not low.
@@ -68,6 +70,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			wantLowSimilarity: false,
 			wantRareCluster:   true,
 			wantScore:         0.15,
+			wantReason:        "rare cluster (few observations)",
 		},
 		{
 			// isNew=false, size=100 > rareThreshold=2, similarity=0.9 ≥ threshold → no anomalies.
@@ -113,6 +116,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			wantLowSimilarity: true,
 			wantRareCluster:   false,
 			wantScore:         0.35,
+			wantReason:        "low similarity to known template",
 		},
 		{
 			// Combined: isNew=false, size=1 ≤ 2 → RareCluster; similarity=0.2 < 0.4 → LowSimilarity.
@@ -128,6 +132,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			wantLowSimilarity: true,
 			wantRareCluster:   true,
 			wantScore:         0.5,
+			wantReason:        "low similarity to known template; rare cluster (few observations)",
 		},
 		{
 			// nil cluster: the rare-cluster check is guarded; RareCluster must stay false.
@@ -158,6 +163,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			wantLowSimilarity: false,
 			wantRareCluster:   true,
 			wantScore:         0.65,
+			wantReason:        "new log template discovered; rare cluster (few observations)",
 		},
 	}
 
@@ -173,9 +179,86 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 			assert.Equal(t, tt.wantLowSimilarity, report.LowSimilarity, "LowSimilarity mismatch")
 			assert.Equal(t, tt.wantRareCluster, report.RareCluster, "RareCluster mismatch")
 			assert.InDelta(t, tt.wantScore, report.AnomalyScore, 1e-9, "AnomalyScore mismatch")
-			if tt.wantReason != "" {
-				assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
+			assert.Equal(t, tt.wantReason, report.Reason, "Reason mismatch")
+		})
+	}
+}
+
+func TestBuildReason(t *testing.T) {
+	tests := []struct {
+		name          string
+		isNewTemplate bool
+		lowSimilarity bool
+		rareCluster   bool
+		wantReason    string
+	}{
+		{
+			name:          "no flags set",
+			isNewTemplate: false,
+			lowSimilarity: false,
+			rareCluster:   false,
+			wantReason:    "no anomaly detected",
+		},
+		{
+			name:          "new template only",
+			isNewTemplate: true,
+			lowSimilarity: false,
+			rareCluster:   false,
+			wantReason:    "new log template discovered",
+		},
+		{
+			name:          "low similarity only",
+			isNewTemplate: false,
+			lowSimilarity: true,
+			rareCluster:   false,
+			wantReason:    "low similarity to known template",
+		},
+		{
+			name:          "rare cluster only",
+			isNewTemplate: false,
+			lowSimilarity: false,
+			rareCluster:   true,
+			wantReason:    "rare cluster (few observations)",
+		},
+		{
+			name:          "new template and low similarity",
+			isNewTemplate: true,
+			lowSimilarity: true,
+			rareCluster:   false,
+			wantReason:    "new log template discovered; low similarity to known template",
+		},
+		{
+			name:          "new template and rare cluster",
+			isNewTemplate: true,
+			lowSimilarity: false,
+			rareCluster:   true,
+			wantReason:    "new log template discovered; rare cluster (few observations)",
+		},
+		{
+			name:          "low similarity and rare cluster",
+			isNewTemplate: false,
+			lowSimilarity: true,
+			rareCluster:   true,
+			wantReason:    "low similarity to known template; rare cluster (few observations)",
+		},
+		{
+			name:          "all flags set",
+			isNewTemplate: true,
+			lowSimilarity: true,
+			rareCluster:   true,
+			wantReason:    "new log template discovered; low similarity to known template; rare cluster (few observations)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &AnomalyReport{
+				IsNewTemplate: tt.isNewTemplate,
+				LowSimilarity: tt.lowSimilarity,
+				RareCluster:   tt.rareCluster,
 			}
+			got := buildReason(r)
+			assert.Equal(t, tt.wantReason, got, "buildReason mismatch")
 		})
 	}
 }
@@ -186,22 +269,39 @@ func TestAnalyzeEvent(t *testing.T) {
 	require.NoError(t, err, "NewMiner should succeed")
 	require.NotNil(t, m, "NewMiner should return a non-nil miner")
 
-	evt := AgentEvent{
+	evtPlan := AgentEvent{
 		Stage:  "plan",
 		Fields: map[string]string{"action": "start", "model": "gpt-4"},
 	}
+	evtFinish := AgentEvent{
+		Stage:  "finish",
+		Fields: map[string]string{"status": "ok"},
+	}
 
-	// First occurrence → new template.
-	result, report, err := m.AnalyzeEvent(evt)
-	require.NoError(t, err, "AnalyzeEvent should not fail on first event")
-	require.NotNil(t, result, "AnalyzeEvent should return a non-nil result on first event")
-	require.NotNil(t, report, "AnalyzeEvent should return a non-nil report on first event")
-	assert.True(t, report.IsNewTemplate, "first event should be detected as a new template")
+	t.Run("first occurrence is flagged as new template", func(t *testing.T) {
+		result, report, err := m.AnalyzeEvent(evtPlan)
+		require.NoError(t, err, "AnalyzeEvent should not fail on first event")
+		require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		assert.True(t, report.IsNewTemplate, "first event should be detected as a new template")
+		assert.True(t, report.NewClusterCreated, "first event should create a new cluster")
+	})
 
-	// Second occurrence of the same event → not new.
-	result2, report2, err := m.AnalyzeEvent(evt)
-	require.NoError(t, err, "AnalyzeEvent should not fail on second identical event")
-	require.NotNil(t, result2, "AnalyzeEvent should return a non-nil result on second event")
-	require.NotNil(t, report2, "AnalyzeEvent should return a non-nil report on second event")
-	assert.False(t, report2.IsNewTemplate, "second identical event should not be detected as a new template")
+	t.Run("second identical occurrence is not flagged as new", func(t *testing.T) {
+		result, report, err := m.AnalyzeEvent(evtPlan)
+		require.NoError(t, err, "AnalyzeEvent should not fail on second identical event")
+		require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		assert.False(t, report.IsNewTemplate, "second identical event should not be detected as a new template")
+		assert.False(t, report.NewClusterCreated, "second identical event should not create a new cluster")
+	})
+
+	t.Run("distinct event creates its own new template", func(t *testing.T) {
+		result, report, err := m.AnalyzeEvent(evtFinish)
+		require.NoError(t, err, "AnalyzeEvent should not fail for a distinct event")
+		require.NotNil(t, result, "AnalyzeEvent should return a non-nil result")
+		require.NotNil(t, report, "AnalyzeEvent should return a non-nil report")
+		assert.True(t, report.IsNewTemplate, "a distinct event should be detected as a new template")
+		assert.True(t, report.NewClusterCreated, "a distinct event should create a new cluster")
+	})
 }
