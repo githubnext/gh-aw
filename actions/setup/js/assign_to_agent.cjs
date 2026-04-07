@@ -5,8 +5,7 @@ const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget, isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { isTemporaryId, normalizeTemporaryId, resolveRepoIssueTarget, loadTemporaryIdMap } = require("./temporary_id.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { isTemporaryId, normalizeTemporaryId, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
@@ -54,34 +53,10 @@ async function createAssignToAgentGitHubClient(config) {
  * @returns {Promise<Function>} Message processor function
  */
 async function main(config = {}) {
-  // Detect standalone mode (called without config, e.g. from tests or legacy usage).
-  // The handler manager always supplies at least some config keys (e.g. from
-  // GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG), so an empty object signals a direct call.
-  // In standalone mode we read config from environment variables and process items
-  // directly from GH_AW_AGENT_OUTPUT, matching the old standalone-step behaviour.
-  const isStandaloneCall = Object.keys(config).length === 0;
-  if (isStandaloneCall) {
-    config = {};
-    if (process.env.GH_AW_AGENT_DEFAULT?.trim()) config.name = process.env.GH_AW_AGENT_DEFAULT.trim();
-    if (process.env.GH_AW_AGENT_MAX_COUNT?.trim()) config.max = process.env.GH_AW_AGENT_MAX_COUNT.trim();
-    if (process.env.GH_AW_AGENT_TARGET?.trim()) config.target = process.env.GH_AW_AGENT_TARGET.trim();
-    if (process.env.GH_AW_AGENT_ALLOWED?.trim()) config.allowed = process.env.GH_AW_AGENT_ALLOWED.trim();
-    if (process.env.GH_AW_AGENT_IGNORE_IF_ERROR?.trim()) config["ignore-if-error"] = process.env.GH_AW_AGENT_IGNORE_IF_ERROR.trim();
-    if (process.env.GH_AW_AGENT_PULL_REQUEST_REPO?.trim()) config["pull-request-repo"] = process.env.GH_AW_AGENT_PULL_REQUEST_REPO.trim();
-    if (process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim()) config["allowed-pull-request-repos"] = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS.trim();
-    if (process.env.GH_AW_AGENT_BASE_BRANCH?.trim()) config["base-branch"] = process.env.GH_AW_AGENT_BASE_BRANCH.trim();
-    if (process.env.GH_AW_ALLOWED_REPOS?.trim()) config.allowed_repos = process.env.GH_AW_ALLOWED_REPOS.trim();
-  }
-
   // Parse configuration (replaces env vars from the old standalone step)
   const maxCount = parseInt(String(config.max ?? "1"), 10);
   if (isNaN(maxCount) || maxCount < 1) {
-    const errMsg = `Invalid max value: ${config.max}. Must be a positive integer`;
-    if (isStandaloneCall) {
-      core.setFailed(errMsg);
-      return async () => ({ success: false });
-    }
-    throw new Error(errMsg);
+    throw new Error(`Invalid max value: ${config.max}. Must be a positive integer`);
   }
   const defaultAgent = String(config.name ?? "copilot").trim();
   const defaultModel = config.model ? String(config.model).trim() : null;
@@ -113,7 +88,7 @@ async function main(config = {}) {
   if (configuredBaseBranch) core.info(`Configured base branch: ${configuredBaseBranch}`);
   core.info(`Target configuration: ${targetConfig}`);
   core.info(`Max count: ${maxCount}`);
-  if (ignoreIfError) core.info("Ignore-if-error mode enabled: Will not fail if agent assignment encounters errors");
+  if (ignoreIfError) core.info("Ignore-if-error mode enabled: Will not fail if agent assignment encounters auth errors");
   if (allowedAgents) core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
@@ -166,7 +141,7 @@ async function main(config = {}) {
    * @param {Map<string, {repo: string, number: number}>} temporaryIdMap - Live temp ID map
    * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, deferred?: boolean}>}
    */
-  const handler = async function handleMessage(message, resolvedTemporaryIds, temporaryIdMap) {
+  return async function handleMessage(message, resolvedTemporaryIds, temporaryIdMap) {
     // Handle staged mode — emit preview and skip actual assignment
     if (isStaged) {
       await generateStagedPreview({
@@ -436,50 +411,6 @@ async function main(config = {}) {
       return { success: false, error: errorMessage };
     }
   };
-
-  // Standalone mode: process items from GH_AW_AGENT_OUTPUT and handle all lifecycle steps.
-  // This preserves backward compatibility with tests and legacy callers that call main() without config.
-  if (isStandaloneCall) {
-    try {
-      const agentOutput = loadAgentOutput();
-      if (!agentOutput.success) {
-        return handler;
-      }
-
-      const assignToAgentItems = agentOutput.items.filter(item => item.type === "assign_to_agent");
-      if (assignToAgentItems.length === 0) {
-        core.info("No assign_to_agent items found in agent output");
-        return handler;
-      }
-
-      if (assignToAgentItems.length > maxCount) {
-        core.warning(`Found ${assignToAgentItems.length} agent assignments, but max is ${maxCount}. Extra assignments will be skipped.`);
-      }
-
-      // Load temporary ID map from env var for temp-ID resolution across items.
-      // resolvedTemporaryIds ({}) is empty because in standalone mode there is only one
-      // handler — no cross-handler resolutions from previous steps are available.
-      const tempIdMap = loadTemporaryIdMap();
-      for (const item of assignToAgentItems) {
-        await handler(item, {}, tempIdMap);
-      }
-
-      await writeAssignToAgentSummary();
-
-      core.setOutput("assigned", getAssignToAgentAssigned());
-      core.setOutput("assignment_errors", getAssignToAgentErrors());
-      core.setOutput("assignment_error_count", String(getAssignToAgentErrorCount()));
-
-      const errorCount = getAssignToAgentErrorCount();
-      if (errorCount > 0) {
-        core.setFailed(`Failed to assign ${errorCount} agent(s)`);
-      }
-    } catch (error) {
-      core.setFailed(getErrorMessage(error));
-    }
-  }
-
-  return handler;
 }
 
 /**
