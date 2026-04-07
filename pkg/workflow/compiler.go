@@ -712,6 +712,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			} else {
 				log.Printf("Failed to parse existing gh-aw-manifest: %v. Safe update enforcement will proceed without baseline comparison (all secrets will be considered new).", parseErr)
 			}
+		} else {
+			log.Printf("Lock file %s not found on filesystem (new workflow or not yet written). Safe update enforcement will treat as empty manifest.", lockFile)
 		}
 	}
 
