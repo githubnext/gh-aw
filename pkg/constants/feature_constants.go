@@ -38,17 +38,4 @@ const (
 	//	features:
 	//	  cli-proxy: true
 	CliProxyFeatureFlag FeatureFlag = "cli-proxy"
-	// CliProxyWritableFeatureFlag enables write operations on the AWF CLI proxy sidecar.
-	// By default, the CLI proxy sidecar is read-only. When this flag is enabled,
-	// --cli-proxy-writable is injected into the AWF command, allowing write operations
-	// such as creating issues or merging PRs via gh CLI.
-	//
-	// Requires CliProxyFeatureFlag to also be enabled.
-	//
-	// Workflow frontmatter usage:
-	//
-	//	features:
-	//	  cli-proxy: true
-	//	  cli-proxy-writable: true
-	CliProxyWritableFeatureFlag FeatureFlag = "cli-proxy-writable"
 )

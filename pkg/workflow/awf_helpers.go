@@ -250,12 +250,6 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			awfArgs = append(awfArgs, "--enable-cli-proxy")
 			awfHelpersLog.Print("Added --enable-cli-proxy for gh CLI proxy sidecar")
 
-			// Allow write operations when cli-proxy-writable feature flag is also set
-			if isFeatureEnabled(constants.CliProxyWritableFeatureFlag, config.WorkflowData) {
-				awfArgs = append(awfArgs, "--cli-proxy-writable")
-				awfHelpersLog.Print("Added --cli-proxy-writable for write access via gh CLI proxy")
-			}
-
 			// Generate and pass the guard policy JSON for the cli-proxy.
 			// Reuses getDIFCProxyPolicyJSON() to build the static policy from tools.github config
 			// (min-integrity and repos fields), matching the DIFC proxy guard policy semantics.

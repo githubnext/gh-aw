@@ -730,8 +730,8 @@ func TestAWFSupportsExcludeEnv(t *testing.T) {
 	}
 }
 
-// TestBuildAWFArgsCliProxy tests that BuildAWFArgs correctly injects --enable-cli-proxy,
-// --cli-proxy-writable, and --cli-proxy-policy based on the cli-proxy feature flags.
+// TestBuildAWFArgsCliProxy tests that BuildAWFArgs correctly injects --enable-cli-proxy
+// and --cli-proxy-policy based on the cli-proxy feature flag.
 func TestBuildAWFArgsCliProxy(t *testing.T) {
 	baseWorkflow := func(features map[string]any, tools map[string]any) *WorkflowData {
 		return &WorkflowData{
@@ -758,7 +758,6 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include --enable-cli-proxy when feature flag is absent")
-		assert.NotContains(t, argsStr, "--cli-proxy-writable", "Should not include --cli-proxy-writable when feature flag is absent")
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include --cli-proxy-policy when feature flag is absent")
 	})
 
@@ -776,42 +775,6 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		assert.Contains(t, argsStr, "--enable-cli-proxy", "Should include --enable-cli-proxy when cli-proxy feature flag is enabled")
-		assert.NotContains(t, argsStr, "--cli-proxy-writable", "Should not include --cli-proxy-writable when cli-proxy-writable feature flag is absent")
-	})
-
-	t.Run("includes --cli-proxy-writable when cli-proxy-writable feature flag is enabled", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true, "cli-proxy-writable": true},
-				nil,
-			),
-			AllowedDomains: "github.com",
-		}
-
-		args := BuildAWFArgs(config)
-		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--enable-cli-proxy", "Should include --enable-cli-proxy")
-		assert.Contains(t, argsStr, "--cli-proxy-writable", "Should include --cli-proxy-writable when feature flag is enabled")
-	})
-
-	t.Run("does not include --cli-proxy-writable without --enable-cli-proxy", func(t *testing.T) {
-		// cli-proxy-writable alone (without cli-proxy) should not inject any cli-proxy flags
-		config := AWFCommandConfig{
-			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy-writable": true},
-				nil,
-			),
-			AllowedDomains: "github.com",
-		}
-
-		args := BuildAWFArgs(config)
-		argsStr := strings.Join(args, " ")
-
-		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include --enable-cli-proxy when cli-proxy flag is absent")
-		assert.NotContains(t, argsStr, "--cli-proxy-writable", "Should not include --cli-proxy-writable when cli-proxy flag is absent")
 	})
 
 	t.Run("includes --cli-proxy-policy with guard policy when tools.github has min-integrity", func(t *testing.T) {
@@ -894,8 +857,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 				},
 			},
 			Features: map[string]any{
-				"cli-proxy":          true,
-				"cli-proxy-writable": true,
+				"cli-proxy": true,
 			},
 			Tools: map[string]any{
 				"github": map[string]any{
@@ -914,7 +876,6 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include --enable-cli-proxy for AWF < v0.25.14")
-		assert.NotContains(t, argsStr, "--cli-proxy-writable", "Should not include --cli-proxy-writable for AWF < v0.25.14")
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include --cli-proxy-policy for AWF < v0.25.14")
 	})
 }
