@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDetectRuntimeFromCommand(t *testing.T) {
@@ -953,9 +955,7 @@ func TestIsCustomImageRunner(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isCustomImageRunner(tt.runsOn)
-			if result != tt.expected {
-				t.Errorf("isCustomImageRunner(%q) = %v, want %v", tt.runsOn, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "isCustomImageRunner(%q)", tt.runsOn)
 		})
 	}
 }
@@ -1026,9 +1026,7 @@ func TestDetectRuntimeRequirements_CustomImageRunner(t *testing.T) {
 				}
 			}
 
-			if hasNode != tt.expectNode {
-				t.Errorf("%s: hasNode=%v, want %v (runsOn=%q)", tt.description, hasNode, tt.expectNode, tt.runsOn)
-			}
+			assert.Equal(t, tt.expectNode, hasNode, tt.description)
 
 			// When node IS expected, verify there is exactly one node requirement (no duplicates)
 			if tt.expectNode {
@@ -1038,9 +1036,7 @@ func TestDetectRuntimeRequirements_CustomImageRunner(t *testing.T) {
 						nodeCount++
 					}
 				}
-				if nodeCount != 1 {
-					t.Errorf("Expected exactly 1 node requirement, got %d", nodeCount)
-				}
+				assert.Equal(t, 1, nodeCount, "Should have exactly one node requirement")
 			}
 		})
 	}

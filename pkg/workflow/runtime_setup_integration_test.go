@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -484,10 +486,10 @@ runtimes:
 			hasNodeSetup := strings.Contains(agentJobSection, "Setup Node.js") &&
 				strings.Contains(agentJobSection, "actions/setup-node@")
 
-			if tt.expectNodeSetup && !hasNodeSetup {
-				t.Errorf("Expected Node.js setup step in agent job for custom runner, but not found.\nAgent job:\n%s", agentJobSection)
-			} else if !tt.expectNodeSetup && hasNodeSetup {
-				t.Errorf("Did not expect Node.js setup step from runtime manager in agent job for standard runner, but found one.\nAgent job:\n%s", agentJobSection)
+			if tt.expectNodeSetup {
+				assert.True(t, hasNodeSetup, "Expected Node.js setup step in agent job for custom runner.\nAgent job:\n%s", agentJobSection)
+			} else {
+				assert.False(t, hasNodeSetup, "Did not expect Node.js setup step from runtime manager in agent job for standard runner.\nAgent job:\n%s", agentJobSection)
 			}
 		})
 	}
