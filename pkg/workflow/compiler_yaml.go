@@ -276,15 +276,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		return "", fmt.Errorf("failed to build and validate jobs: %w", err)
 	}
 
-	// Pre-allocate builder capacity based on estimated workflow size
-	// Average workflow generates ~200KB, allocate 256KB to minimize reallocations
+	// Pre-allocate builder capacity based on estimated workflow size.
+	// Most workflows are in the 32–160 KB range; 64 KB avoids the first reallocation
+	// in the common case while keeping memory waste low for small workflows.
+	const initialBuilderCapacity = 64 * 1024
 	var yaml strings.Builder
-	yaml.Grow(256 * 1024)
+	yaml.Grow(initialBuilderCapacity)
 
 	// Generate workflow body first so we can collect secrets and custom actions
 	// for inclusion in the header comment.
 	var body strings.Builder
-	body.Grow(256 * 1024)
+	body.Grow(initialBuilderCapacity)
 	c.generateWorkflowBody(&body, data)
 	bodyContent := body.String()
 
