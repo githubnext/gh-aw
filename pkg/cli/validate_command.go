@@ -79,7 +79,7 @@ Examples:
 	cmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	cmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	cmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
-	cmd.Flags().Bool("stats", false, "Display statistics table sorted by file size (shows jobs, steps, scripts, and shells)")
+	cmd.Flags().Bool("stats", false, "Display statistics table sorted by workflow file size (shows jobs, steps, scripts, and shells)")
 	cmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 
 	// Register completions
