@@ -8,7 +8,7 @@ import (
 )
 
 func TestActivationOutputsCodemod(t *testing.T) {
-	codemod := newActivationOutputsCodemod()
+	codemod := getActivationOutputsCodemod()
 
 	tests := []struct {
 		name        string
@@ -198,7 +198,7 @@ Some other content: "${{ github.event.issue.number }}"
 }
 
 func TestActivationOutputsCodemodMetadata(t *testing.T) {
-	codemod := newActivationOutputsCodemod()
+	codemod := getActivationOutputsCodemod()
 
 	assert.Equal(t, "activation-outputs-to-sanitized-step", codemod.ID)
 	assert.Equal(t, "Transform activation outputs to sanitized step", codemod.Name)

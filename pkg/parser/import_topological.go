@@ -28,7 +28,8 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		allImportsSet[imp] = true
 	}
 
-	// Extract dependencies for each import by reading and parsing each file
+	// Extract dependencies for each import by reading and parsing each file.
+	// Builtin virtual files use the process-level frontmatter cache to avoid repeated YAML parsing.
 	for _, importPath := range imports {
 		// Resolve the import path to get the full path
 		var filePath string
@@ -46,7 +47,8 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 			continue
 		}
 
-		// Read and parse the file to extract its imports
+		// Read and parse the file to extract its imports.
+		// Use the builtin cache for builtin virtual files to avoid redundant YAML parsing.
 		content, err := readFileFunc(fullPath)
 		if err != nil {
 			importLog.Printf("Failed to read file %s during topological sort: %v", fullPath, err)
@@ -54,7 +56,12 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 			continue
 		}
 
-		result, err := ExtractFrontmatterFromContent(string(content))
+		var result *FrontmatterResult
+		if strings.HasPrefix(fullPath, BuiltinPathPrefix) {
+			result, err = ExtractFrontmatterFromBuiltinFile(fullPath, content)
+		} else {
+			result, err = ExtractFrontmatterFromContent(string(content))
+		}
 		if err != nil {
 			importLog.Printf("Failed to extract frontmatter from %s during topological sort: %v", fullPath, err)
 			dependencies[importPath] = []string{}

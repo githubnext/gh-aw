@@ -138,15 +138,20 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		}
 	}
 
+	// Parse permissions once for all permission-related validation checks below.
+	// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix).
+	// Parsing once here avoids redundant YAML parsing in each validator.
+	workflowPermissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+
 	// Validate dangerous permissions
 	log.Printf("Validating dangerous permissions")
-	if err := validateDangerousPermissions(workflowData); err != nil {
+	if err := validateDangerousPermissions(workflowData, workflowPermissions); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
 	// Validate GitHub App-only permissions require a GitHub App to be configured
 	log.Printf("Validating GitHub App-only permissions")
-	if err := validateGitHubAppOnlyPermissions(workflowData); err != nil {
+	if err := validateGitHubAppOnlyPermissions(workflowData, workflowPermissions); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
@@ -319,10 +324,9 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return err
 	}
 
-	// Parse permissions once for reuse in the three validation checks below.
-	// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix).
-	// Always produces a non-nil *Permissions (ToPermissions never returns nil).
-	cachedPermissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+	// Reuse the permissions parsed earlier (workflowPermissions) for all subsequent checks.
+	// This avoids an additional NewPermissionsParser call here.
+	cachedPermissions := workflowPermissions
 
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")

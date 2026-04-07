@@ -374,3 +374,127 @@ func TestCollectPromptSections_GitHubMCPAndSafeOutputsConsistency(t *testing.T) 
 		}
 	})
 }
+
+// TestCollectPromptSections_CliProxy tests that when the cli-proxy feature flag is
+// enabled, the cli-proxy prompt is used instead of the GitHub MCP tools prompt,
+// and that the GitHub MCP server guidance is never injected.
+func TestCollectPromptSections_CliProxy(t *testing.T) {
+	t.Run("cli-proxy enabled without safe-outputs uses cli_proxy_prompt", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			Features:    map[string]any{"cli-proxy": true},
+			SafeOutputs: nil,
+		}
+
+		sections := compiler.collectPromptSections(data)
+		require.NotEmpty(t, sections, "Should collect sections")
+
+		// Should include cli-proxy prompt
+		var cliProxySection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && sections[i].Content == cliProxyPromptFile {
+				cliProxySection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, cliProxySection, "Should include cli_proxy_prompt.md when cli-proxy is enabled")
+
+		// Should NOT include GitHub MCP tools prompt
+		for _, section := range sections {
+			assert.NotEqual(t, githubMCPToolsPromptFile, section.Content,
+				"Should not include github_mcp_tools_prompt.md when cli-proxy is enabled")
+			assert.NotEqual(t, githubMCPToolsWithSafeOutputsPromptFile, section.Content,
+				"Should not include github_mcp_tools_with_safeoutputs_prompt.md when cli-proxy is enabled")
+		}
+	})
+
+	t.Run("cli-proxy enabled with safe-outputs uses cli_proxy_with_safeoutputs_prompt", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			Features:    map[string]any{"cli-proxy": true},
+			SafeOutputs: &SafeOutputsConfig{
+				MissingData: &MissingDataConfig{},
+				NoOp:        &NoOpConfig{},
+			},
+		}
+
+		sections := compiler.collectPromptSections(data)
+		require.NotEmpty(t, sections, "Should collect sections")
+
+		// Should include the with-safeoutputs cli-proxy prompt
+		var cliProxySection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && sections[i].Content == cliProxyWithSafeOutputsPromptFile {
+				cliProxySection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, cliProxySection, "Should include cli_proxy_with_safeoutputs_prompt.md when cli-proxy and safe-outputs are both enabled")
+
+		// Should NOT include GitHub MCP tools prompt
+		for _, section := range sections {
+			assert.NotEqual(t, githubMCPToolsPromptFile, section.Content,
+				"Should not include github_mcp_tools_prompt.md when cli-proxy is enabled")
+			assert.NotEqual(t, githubMCPToolsWithSafeOutputsPromptFile, section.Content,
+				"Should not include github_mcp_tools_with_safeoutputs_prompt.md when cli-proxy is enabled")
+		}
+	})
+
+	t.Run("cli-proxy enabled without github tool still adds cli-proxy prompt", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{}),
+			Features:    map[string]any{"cli-proxy": true},
+			SafeOutputs: nil,
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		// Should include cli-proxy prompt even without github tool configured
+		var cliProxySection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && sections[i].Content == cliProxyPromptFile {
+				cliProxySection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, cliProxySection, "Should include cli_proxy_prompt.md when cli-proxy is enabled regardless of tools.github")
+	})
+
+	t.Run("cli-proxy disabled uses GitHub MCP tools prompt when github tool is enabled", func(t *testing.T) {
+		compiler := &Compiler{}
+
+		data := &WorkflowData{
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			Features:    nil,
+			SafeOutputs: nil,
+		}
+
+		sections := compiler.collectPromptSections(data)
+
+		// Should include the standard GitHub MCP tools prompt
+		var githubMCPSection *PromptSection
+		for i := range sections {
+			if sections[i].IsFile && strings.Contains(sections[i].Content, "github_mcp_tools") {
+				githubMCPSection = &sections[i]
+				break
+			}
+		}
+		require.NotNil(t, githubMCPSection, "Should include github_mcp_tools file when cli-proxy is not enabled")
+		assert.Equal(t, githubMCPToolsPromptFile, githubMCPSection.Content,
+			"Should use the standard github_mcp_tools_prompt when cli-proxy is not enabled")
+
+		// Should NOT include cli-proxy prompt
+		for _, section := range sections {
+			assert.NotEqual(t, cliProxyPromptFile, section.Content,
+				"Should not include cli_proxy_prompt.md when cli-proxy is not enabled")
+			assert.NotEqual(t, cliProxyWithSafeOutputsPromptFile, section.Content,
+				"Should not include cli_proxy_with_safeoutputs_prompt.md when cli-proxy is not enabled")
+		}
+	})
+}

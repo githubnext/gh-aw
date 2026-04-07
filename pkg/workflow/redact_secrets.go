@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -11,13 +10,12 @@ import (
 
 var secretMaskingLog = logger.New("workflow:secret_masking")
 
-// secretReferencePattern matches ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
-var secretReferencePattern = regexp.MustCompile(`secrets\.([A-Z][A-Z0-9_]*)`)
+// secretsPrefix is the literal string used to locate secret references.
+// Pattern (informational): `secrets\.([A-Z][A-Z0-9_]*)`
+const secretsPrefix = "secrets."
 
-// actionReferencePattern matches "uses: <action-ref>" lines in YAML, including
-// both key-value format ("uses: ref") and list-item format ("- uses: ref").
-// Captures the action reference (group 1) and optional inline comment tag (group 2).
-var actionReferencePattern = regexp.MustCompile(`(?m)^\s+(?:-\s+)?uses:\s+(\S+)(?:\s+#\s*(.+?))?$`)
+// actionReferencePattern is replaced by a fast string scan in CollectActionReferences.
+// Pattern (informational): `(?m)^\s+(?:-\s+)?uses:\s+(\S+)(?:\s+#\s*(.+?))?$`
 
 // escapeSingleQuote escapes single quotes and backslashes in a string to prevent injection
 // when embedding data in single-quoted YAML strings
@@ -34,13 +32,34 @@ func CollectSecretReferences(yamlContent string) []string {
 	secretMaskingLog.Printf("Scanning workflow YAML (%d bytes) for secret references", len(yamlContent))
 	secretsMap := make(map[string]bool)
 
-	// Pattern to match ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
-	// This matches both with and without the ${{ }} wrapper
-	matches := secretReferencePattern.FindAllStringSubmatch(yamlContent, -1)
-	for _, match := range matches {
-		if len(match) > 1 {
-			secretsMap[match[1]] = true
+	// Walk through the content looking for every occurrence of "secrets."
+	// followed by an uppercase identifier [A-Z][A-Z0-9_]*.
+	rest := yamlContent
+	for {
+		idx := strings.Index(rest, secretsPrefix)
+		if idx == -1 {
+			break
 		}
+		// Advance past "secrets."
+		rest = rest[idx+len(secretsPrefix):]
+
+		// First character of the name must be an uppercase letter
+		if len(rest) == 0 || rest[0] < 'A' || rest[0] > 'Z' {
+			continue
+		}
+
+		// Consume [A-Z0-9_]* for the rest of the name
+		end := 1
+		for end < len(rest) {
+			c := rest[end]
+			if (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' {
+				end++
+			} else {
+				break
+			}
+		}
+		secretsMap[rest[:end]] = true
+		rest = rest[end:]
 	}
 
 	// Convert map to sorted slice for consistent ordering
@@ -65,16 +84,56 @@ func CollectActionReferences(yamlContent string) []string {
 	secretMaskingLog.Printf("Scanning workflow YAML (%d bytes) for action references", len(yamlContent))
 	actionsMap := make(map[string]bool)
 
-	matches := actionReferencePattern.FindAllStringSubmatch(yamlContent, -1)
-	for _, match := range matches {
-		ref := match[1]
-		// Skip local actions and reusable workflow calls (e.g. "./actions/setup")
+	for line := range strings.SplitSeq(yamlContent, "\n") {
+		// Quick check: line must contain "uses:" to avoid scanning every character
+		usesIdx := strings.Index(line, "uses:")
+		if usesIdx == -1 {
+			continue
+		}
+
+		// Must start with whitespace — rejects bare top-level keys ("uses: action")
+		// or top-level list items like "- uses: action".
+		if line == "" || (line[0] != ' ' && line[0] != '\t') {
+			continue
+		}
+
+		// The prefix before "uses:" must be either:
+		//   - Only whitespace           (plain key-value: "    uses: action")
+		//   - "-" with leading spaces   (list item:       "    - uses: action")
+		prefix := line[:usesIdx]
+		trimmedPrefix := strings.TrimSpace(prefix)
+		if trimmedPrefix != "" && trimmedPrefix != "-" {
+			continue
+		}
+
+		// Extract the action reference: everything after "uses:" trimmed
+		rest := strings.TrimSpace(line[usesIdx+5:]) // 5 == len("uses:")
+		if rest == "" {
+			continue
+		}
+
+		// The action ref is the first whitespace-delimited token; anything after
+		// optional whitespace + "#" is treated as the inline tag comment.
+		spaceIdx := strings.IndexByte(rest, ' ')
+		var ref, comment string
+		if spaceIdx == -1 {
+			ref = rest
+		} else {
+			ref = rest[:spaceIdx]
+			afterRef := strings.TrimSpace(rest[spaceIdx:])
+			if strings.HasPrefix(afterRef, "#") {
+				comment = strings.TrimSpace(afterRef[1:])
+			}
+		}
+
+		// Skip local actions (e.g. "./actions/setup", "./.github/workflows/...")
 		if strings.HasPrefix(ref, "./") {
 			continue
 		}
+
 		entry := ref
-		if len(match) > 2 && strings.TrimSpace(match[2]) != "" {
-			entry = ref + " # " + strings.TrimSpace(match[2])
+		if comment != "" {
+			entry = ref + " # " + comment
 		}
 		actionsMap[entry] = true
 	}

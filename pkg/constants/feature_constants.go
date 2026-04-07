@@ -27,4 +27,15 @@ const (
 	// by default when guard policies are configured. Set tools.github.integrity-proxy: false
 	// to disable it. The codemod "features-difc-proxy-to-tools-github" migrates this flag.
 	DIFCProxyFeatureFlag FeatureFlag = "difc-proxy"
+	// CliProxyFeatureFlag enables the AWF CLI proxy sidecar.
+	// When enabled, the compiler injects --enable-cli-proxy into the AWF command,
+	// giving the agent secure gh CLI access without exposing GITHUB_TOKEN.
+	// The token is held in an mcpg DIFC proxy inside the sidecar, enforcing
+	// guard policies and audit logging.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  cli-proxy: true
+	CliProxyFeatureFlag FeatureFlag = "cli-proxy"
 )

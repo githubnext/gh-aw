@@ -100,7 +100,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			err := validateDangerousPermissions(workflowData)
+			err := validateDangerousPermissions(workflowData, NewPermissionsParser(workflowData.Permissions).ToPermissions())
 
 			if tt.shouldError {
 				if err == nil {

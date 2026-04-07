@@ -95,6 +95,7 @@ The artifact has a 1-day retention period.
 | `gh-aw.github.rate_limit.limit` | Total API call quota |
 | `gh-aw.github.rate_limit.used` | API calls consumed |
 | `gh-aw.github.rate_limit.resource` | Resource category (e.g. `core`) |
+| `gh-aw.github.rate_limit.reset` | ISO 8601 timestamp when the rate-limit window resets |
 
 This makes rate-limit headroom at job conclusion time visible in any connected OTLP collector
 or tracing UI without requiring artifact inspection.

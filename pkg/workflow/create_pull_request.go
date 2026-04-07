@@ -21,6 +21,7 @@ type CreatePullRequestsConfig struct {
 	Labels                         []string `yaml:"labels,omitempty"`
 	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request
+	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to any fallback issue created by create-pull-request
 	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty                     *string  `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
@@ -61,6 +62,14 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 				// Convert single string to array
 				configData["reviewers"] = []string{reviewerStr}
 				createPRLog.Printf("Converted single reviewer string to array before unmarshaling")
+			}
+		}
+		// Pre-process the assignees field to convert single string to array BEFORE unmarshaling
+		if assignees, exists := configData["assignees"]; exists {
+			if assigneeStr, ok := assignees.(string); ok {
+				// Convert single string to array
+				configData["assignees"] = []string{assigneeStr}
+				createPRLog.Printf("Converted single assignee string to array before unmarshaling")
 			}
 		}
 	}

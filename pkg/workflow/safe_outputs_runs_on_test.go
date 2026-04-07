@@ -368,3 +368,127 @@ func TestFormatFrameworkJobRunsOn(t *testing.T) {
 		})
 	}
 }
+
+// TestSafeOutputsCustomRunnerNodeSetup tests that Node.js v24 is emitted before
+// actions/setup in the safe_outputs job when custom tokens are needed and a custom
+// image runner is configured. setup.sh runs `npm install @actions/github` when
+// safe-output-custom-tokens is enabled, so Node.js must be on PATH.
+func TestSafeOutputsCustomRunnerNodeSetup(t *testing.T) {
+	tests := []struct {
+		name            string
+		frontmatter     string
+		expectNodeSetup bool
+	}{
+		{
+			name: "custom runner with assign-to-agent (needs @actions/github) gets Node.js setup",
+			frontmatter: `---
+on: push
+runs-on-slim: self-hosted
+safe-outputs:
+  assign-to-agent:
+---
+
+# Test Workflow`,
+			expectNodeSetup: true,
+		},
+		{
+			name: "custom runner with per-handler github-token gets Node.js setup",
+			frontmatter: `---
+on: push
+runs-on-slim: enterprise-runner
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+    github-token: "${{ secrets.MY_TOKEN }}"
+---
+
+# Test Workflow`,
+			expectNodeSetup: true,
+		},
+		{
+			name: "standard GitHub-hosted runner with assign-to-agent does NOT get extra Node.js setup",
+			frontmatter: `---
+on: push
+safe-outputs:
+  assign-to-agent:
+---
+
+# Test Workflow`,
+			expectNodeSetup: false,
+		},
+		{
+			name: "custom runner without custom tokens does NOT get Node.js setup",
+			frontmatter: `---
+on: push
+runs-on: self-hosted
+safe-outputs:
+  create-issue:
+    title-prefix: "[ai] "
+---
+
+# Test Workflow`,
+			expectNodeSetup: false,
+		},
+		{
+			name: "safe-outputs runs-on override (custom) with assign-to-agent gets Node.js setup",
+			frontmatter: `---
+on: push
+safe-outputs:
+  runs-on: enterprise-runner
+  assign-to-agent:
+---
+
+# Test Workflow`,
+			expectNodeSetup: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "safe-outputs-node-setup-test")
+			testFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := filepath.Join(tmpDir, "test.lock.yml")
+			yamlContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			yamlStr := string(yamlContent)
+
+			safeOutputsSection := extractJobSection(yamlStr, "safe_outputs")
+
+			// Find the position of Node.js setup and actions/setup within the safe_outputs job
+			nodeSetupIdx := strings.Index(safeOutputsSection, "Setup Node.js")
+			actionSetupIdx := strings.Index(safeOutputsSection, "Setup Scripts")
+
+			if tt.expectNodeSetup {
+				if nodeSetupIdx == -1 {
+					t.Errorf("Expected 'Setup Node.js' in safe_outputs job, but not found.\nJob section:\n%s", safeOutputsSection)
+					return
+				}
+				if !strings.Contains(safeOutputsSection, "actions/setup-node@") {
+					t.Errorf("Expected 'actions/setup-node@' in safe_outputs job, but not found.\nJob section:\n%s", safeOutputsSection)
+					return
+				}
+				// Node.js setup must come BEFORE actions/setup
+				if nodeSetupIdx > actionSetupIdx {
+					t.Errorf("Node.js setup step must appear before Setup Scripts step in safe_outputs job.\nnodeSetupIdx=%d actionSetupIdx=%d\nJob section:\n%s", nodeSetupIdx, actionSetupIdx, safeOutputsSection)
+				}
+			} else {
+				// On a standard runner or without custom tokens, we should NOT add an extra Node.js setup
+				// (the agent job may still have one, but the safe_outputs job should not)
+				if nodeSetupIdx != -1 {
+					t.Errorf("Did not expect 'Setup Node.js' in safe_outputs job, but found one.\nJob section:\n%s", safeOutputsSection)
+				}
+			}
+		})
+	}
+}

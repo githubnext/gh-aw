@@ -293,8 +293,14 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			return nil, fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
 		}
 
-		// Extract frontmatter from imported file to discover nested imports
-		result, err := ExtractFrontmatterFromContent(string(content))
+		// Extract frontmatter from imported file to discover nested imports.
+		// Use the process-level cache for builtin virtual files to avoid repeated YAML parsing.
+		var result *FrontmatterResult
+		if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) {
+			result, err = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
+		} else {
+			result, err = ExtractFrontmatterFromContent(string(content))
+		}
 		if err != nil {
 			// If frontmatter extraction fails, continue with other processing
 			log.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)

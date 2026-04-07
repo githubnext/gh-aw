@@ -170,15 +170,13 @@ func validateExpressionForDangerousProps(expression string) error {
 			continue
 		}
 
-		for _, dangerousProp := range constants.DangerousPropertyNames {
-			if part == dangerousProp {
-				return NewValidationError(
-					"expressions",
-					fmt.Sprintf("dangerous property name %q found in expression", dangerousProp),
-					fmt.Sprintf("expression %q contains the dangerous property name %q", expression, dangerousProp),
-					fmt.Sprintf("Remove the dangerous property %q from the expression. Property names like constructor, __proto__, prototype, and similar JavaScript built-ins are blocked to prevent prototype pollution attacks. See PR #14826 for more details.", dangerousProp),
-				)
-			}
+		if _, isDangerous := constants.DangerousPropertyNamesSet[part]; isDangerous {
+			return NewValidationError(
+				"expressions",
+				fmt.Sprintf("dangerous property name %q found in expression", part),
+				fmt.Sprintf("expression %q contains the dangerous property name %q", expression, part),
+				fmt.Sprintf("Remove the dangerous property %q from the expression. Property names like constructor, __proto__, prototype, and similar JavaScript built-ins are blocked to prevent prototype pollution attacks. See PR #14826 for more details.", part),
+			)
 		}
 	}
 
@@ -216,7 +214,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		allowed = true
 	} else if opts.EnvRe.MatchString(expression) {
 		allowed = true
-	} else if slices.Contains(constants.AllowedExpressions, expression) {
+	} else if _, ok := constants.AllowedExpressionsSet[expression]; ok {
 		allowed = true
 	}
 
@@ -274,7 +272,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 						propertyAllowed = true
 					} else if opts.EnvRe.MatchString(property) {
 						propertyAllowed = true
-					} else if slices.Contains(constants.AllowedExpressions, property) {
+					} else if _, ok := constants.AllowedExpressionsSet[property]; ok {
 						propertyAllowed = true
 					}
 

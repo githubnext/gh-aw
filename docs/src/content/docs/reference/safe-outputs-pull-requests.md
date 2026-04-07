@@ -21,6 +21,7 @@ safe-outputs:
     title-prefix: "[ai] "         # prefix for titles
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
+    assignees: [user1]            # assignees for fallback issues (including protected-files and PR creation failure fallbacks)
     draft: true                   # create as draft — enforced as policy (default: true)
     max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after 14 days (same-repo only)

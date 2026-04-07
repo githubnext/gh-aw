@@ -721,6 +721,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     if (lastRateLimit.resource) {
       attributes.push(buildAttr("gh-aw.github.rate_limit.resource", String(lastRateLimit.resource)));
     }
+    if (lastRateLimit.reset) {
+      attributes.push(buildAttr("gh-aw.github.rate_limit.reset", String(lastRateLimit.reset)));
+    }
   }
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];

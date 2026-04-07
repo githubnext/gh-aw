@@ -1830,6 +1830,7 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.github.rate_limit.limit"]).toBe(5000);
       expect(attrs["gh-aw.github.rate_limit.used"]).toBe(177);
       expect(attrs["gh-aw.github.rate_limit.resource"]).toBe("core");
+      expect(attrs["gh-aw.github.rate_limit.reset"]).toBe("2026-04-05T09:30:00.000Z");
     });
 
     it("uses the last entry when the file contains multiple lines", async () => {
@@ -1873,6 +1874,30 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.github.rate_limit.limit");
       expect(keys).not.toContain("gh-aw.github.rate_limit.used");
       expect(keys).not.toContain("gh-aw.github.rate_limit.resource");
+      expect(keys).not.toContain("gh-aw.github.rate_limit.reset");
+    });
+
+    it("omits reset attribute when entry has no reset field", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const entry = { resource: "core", limit: 5000, remaining: 4823, used: 177 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === GITHUB_RATE_LIMITS_JSONL_PATH) {
+          return JSON.stringify(entry) + "\n";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.github.rate_limit.remaining"]).toBe(4823);
+      expect(Object.keys(attrs)).not.toContain("gh-aw.github.rate_limit.reset");
     });
 
     it("omits rate-limit attributes when the file contains only invalid JSON", async () => {

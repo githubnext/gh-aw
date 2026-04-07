@@ -91,6 +91,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		if toolValue == false {
 			continue
 		}
+		// When cli-proxy is enabled, agents use the pre-authenticated gh CLI for GitHub
+		// reads instead of the GitHub MCP server. Skip so it is not configured with the gateway.
+		if toolName == "github" && isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) {
+			mcpSetupGeneratorLog.Print("Skipping GitHub MCP server registration: cli-proxy feature flag is enabled")
+			continue
+		}
 		// Standard MCP tools
 		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)

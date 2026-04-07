@@ -433,33 +433,22 @@ This workflow has custom permissions that should override defaults.
 		}
 	}
 
-	// Verify that default permissions that are not overridden are NOT present
-	// since custom permissions completely replace defaults
-	lockContentStr := string(lockContent)
+	// Verify that default permissions that are not overridden are NOT present in the agent job
+	// since custom permissions completely replace defaults.
+	// Note: we check the agent job's permissions map directly (not the full lock file) because
+	// other jobs like the activation job legitimately include permissions like "actions: read".
 	defaultOnlyPermissions := []string{
-		"pull-requests: read",
-		"discussions: read",
-		"deployments: read",
-		"actions: read",
-		"checks: read",
-		"statuses: read",
+		"pull-requests",
+		"discussions",
+		"deployments",
+		"actions",
+		"checks",
+		"statuses",
 	}
 
 	for _, defaultPerm := range defaultOnlyPermissions {
-		if strings.Contains(lockContentStr, defaultPerm) {
-			// Find the line containing the unexpected permission for context
-			lines := strings.Split(lockContentStr, "\n")
-			var contextLines []string
-			for i, line := range lines {
-				if strings.Contains(line, defaultPerm) {
-					start := max(0, i-3)
-					end := min(len(lines), i+4)
-					contextLines = append(contextLines, fmt.Sprintf("Lines %d-%d:", start+1, end))
-					contextLines = append(contextLines, lines[start:end]...)
-					break
-				}
-			}
-			t.Errorf("Default permission '%s' should not be present when custom permissions are specified.\nContext:\n%s", defaultPerm, strings.Join(contextLines, "\n"))
+		if val, exists := permissionsMap[defaultPerm]; exists {
+			t.Errorf("Default permission '%s' should not be present in the agent job when custom permissions are specified, got: %v", defaultPerm, val)
 		}
 	}
 }

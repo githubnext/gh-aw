@@ -496,6 +496,7 @@ The YAML frontmatter supports these fields:
       - `compile` - Compile markdown workflows to YAML
       - `logs` - Download and analyze workflow run logs
       - `audit` - Investigate workflow run failures and generate reports
+      - `checks` - Classify CI check state for a pull request (returns normalized verdict: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`)
     - **Use case**: Enable AI agents to analyze GitHub Actions traces and improve workflows based on execution history
     - **Example**: Configure with `agentic-workflows: true` or `agentic-workflows:` (no additional configuration needed)
   - `edit:` - File editing tools (required to write to files in the repository)

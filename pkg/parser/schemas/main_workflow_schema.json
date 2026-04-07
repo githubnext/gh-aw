@@ -2542,12 +2542,11 @@
       "examples": ["self-hosted", "ubuntu-latest", "ubuntu-22.04"]
     },
     "timeout-minutes": {
-      "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted. Maximum is 360 minutes (6 hours), matching the GitHub-hosted runner limit enforced at schema validation time. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
+      "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted. Custom runners support longer timeouts beyond the GitHub-hosted runner limit. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for reusable workflow_call workflows.",
       "oneOf": [
         {
           "type": "integer",
           "minimum": 1,
-          "maximum": 360,
           "examples": [5, 10, 30]
         },
         {
@@ -5607,6 +5606,22 @@
                     }
                   ],
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
+                },
+                "assignees": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single username to assign to a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of usernames to assign to a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional assignee(s) for a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures. Accepts either a single string or an array of usernames."
                 },
                 "draft": {
                   "allOf": [

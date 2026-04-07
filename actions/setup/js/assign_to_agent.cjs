@@ -197,7 +197,7 @@ async function main(config = {}) {
       const normalized = normalizeTemporaryId(String(message.issue_number));
       if (!temporaryIdMap.has(normalized)) {
         core.info(`Deferring assign_to_agent — temporary ID ${message.issue_number} not yet resolved`);
-        return { deferred: true };
+        return { success: false, deferred: true };
       }
     }
 
@@ -242,7 +242,7 @@ async function main(config = {}) {
         const defaultPullRequestRepo = pullRequestRepoConfig || defaultTargetRepo;
         const pullRequestRepoValidation = validateRepo(itemPullRequestRepo, defaultPullRequestRepo, allowedPullRequestRepos);
         if (!pullRequestRepoValidation.valid) {
-          const error = pullRequestRepoValidation.error;
+          const error = pullRequestRepoValidation.error ?? "Repository validation failed";
           core.error(`E004: ${error}`);
           _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
           return { success: false, error };

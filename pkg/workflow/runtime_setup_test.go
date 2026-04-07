@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDetectRuntimeFromCommand(t *testing.T) {
@@ -876,6 +878,165 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 				if !strings.Contains(allSteps, content) {
 					t.Errorf("Expected steps to contain %q\nGot:\n%s", content, allSteps)
 				}
+			}
+		})
+	}
+}
+
+// TestIsCustomImageRunner tests detection of non-standard GitHub-hosted runners
+func TestIsCustomImageRunner(t *testing.T) {
+	tests := []struct {
+		name     string
+		runsOn   string
+		expected bool
+	}{
+		{
+			name:     "empty runs-on (default ubuntu-latest applies)",
+			runsOn:   "",
+			expected: false,
+		},
+		{
+			name:     "ubuntu-latest is standard",
+			runsOn:   "runs-on: ubuntu-latest",
+			expected: false,
+		},
+		{
+			name:     "ubuntu-22.04 is standard",
+			runsOn:   "runs-on: ubuntu-22.04",
+			expected: false,
+		},
+		{
+			name:     "ubuntu-24.04 is standard",
+			runsOn:   "runs-on: ubuntu-24.04",
+			expected: false,
+		},
+		{
+			name:     "ubuntu-slim is standard",
+			runsOn:   "runs-on: ubuntu-slim",
+			expected: false,
+		},
+		{
+			name:     "ubuntu prefix case-insensitive",
+			runsOn:   "runs-on: Ubuntu-latest",
+			expected: false,
+		},
+		{
+			name:     "windows-latest is standard",
+			runsOn:   "runs-on: windows-latest",
+			expected: false,
+		},
+		{
+			name:     "windows-2022 is standard",
+			runsOn:   "runs-on: windows-2022",
+			expected: false,
+		},
+		{
+			name:     "self-hosted is custom",
+			runsOn:   "runs-on: self-hosted",
+			expected: true,
+		},
+		{
+			name:     "custom label is custom",
+			runsOn:   "runs-on: my-company-runner",
+			expected: true,
+		},
+		{
+			name:     "array form is custom",
+			runsOn:   "runs-on:\n- self-hosted\n- linux\n",
+			expected: true,
+		},
+		{
+			name:     "object form (group/labels) is custom",
+			runsOn:   "runs-on:\n  group: larger-runners\n  labels:\n  - ubuntu-latest-8-cores\n",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCustomImageRunner(tt.runsOn)
+			assert.Equal(t, tt.expected, result, "isCustomImageRunner(%q)", tt.runsOn)
+		})
+	}
+}
+
+// TestDetectRuntimeRequirements_CustomImageRunner tests that Node.js v24 is automatically
+// added as a runtime requirement when a custom image runner is specified.
+func TestDetectRuntimeRequirements_CustomImageRunner(t *testing.T) {
+	tests := []struct {
+		name        string
+		runsOn      string
+		customSteps string
+		expectNode  bool
+		description string
+	}{
+		{
+			name:        "custom runner adds node requirement",
+			runsOn:      "runs-on: self-hosted",
+			expectNode:  true,
+			description: "self-hosted runner should trigger Node.js setup",
+		},
+		{
+			name:        "standard ubuntu runner does not add node",
+			runsOn:      "runs-on: ubuntu-latest",
+			expectNode:  false,
+			description: "ubuntu-latest has Node.js pre-installed, no setup needed",
+		},
+		{
+			name:        "empty runs-on (default ubuntu) does not add node",
+			runsOn:      "",
+			expectNode:  false,
+			description: "default ubuntu runner has Node.js pre-installed",
+		},
+		{
+			name:        "custom label runner adds node requirement",
+			runsOn:      "runs-on: enterprise-runner",
+			expectNode:  true,
+			description: "custom enterprise runner should trigger Node.js setup",
+		},
+		{
+			name:        "custom runner with existing npm step does not duplicate node",
+			runsOn:      "runs-on: self-hosted",
+			customSteps: "- name: Install\n  run: npm install\n",
+			expectNode:  true,
+			description: "node requirement from both npm command and custom runner — single entry expected",
+		},
+		{
+			name:        "array runs-on adds node requirement",
+			runsOn:      "runs-on:\n- self-hosted\n- linux\n",
+			expectNode:  true,
+			description: "array form runner should trigger Node.js setup",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				RunsOn:      tt.runsOn,
+				CustomSteps: tt.customSteps,
+			}
+
+			requirements := DetectRuntimeRequirements(data)
+
+			hasNode := false
+			for _, req := range requirements {
+				if req.Runtime != nil && req.Runtime.ID == "node" {
+					hasNode = true
+					break
+				}
+			}
+
+			assert.Equal(t, tt.expectNode, hasNode, tt.description)
+
+			// When node IS expected, verify there is exactly one node requirement (no duplicates)
+			if tt.expectNode {
+				nodeCount := 0
+				for _, req := range requirements {
+					if req.Runtime != nil && req.Runtime.ID == "node" {
+						nodeCount++
+					}
+				}
+				assert.Equal(t, 1, nodeCount, "Should have exactly one node requirement")
 			}
 		})
 	}

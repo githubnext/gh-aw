@@ -4,204 +4,127 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 )
 
-func TestCheckLogsOutputSize_SmallOutput(t *testing.T) {
-	// Create a small output (less than default token limit)
-	smallOutput := `{"summary": {"total_runs": 1}, "runs": []}`
+func TestBuildLogsFileResponse_WritesFile(t *testing.T) {
+	// buildLogsFileResponse always writes to a file and returns file_path
+	output := `{"summary": {"total_runs": 1}, "runs": []}`
 
-	result, triggered := checkLogsOutputSize(smallOutput, 0)
+	result := buildLogsFileResponse(output)
 
-	if triggered {
-		t.Error("Guardrail should not be triggered for small output")
+	// Verify the result is valid JSON
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
 	}
 
-	if result != smallOutput {
-		t.Error("Output should be unchanged for small output")
+	// Verify message is set
+	if response.Message == "" {
+		t.Error("Response should have a message")
 	}
+
+	// Verify file_path is set
+	if response.FilePath == "" {
+		t.Error("Response should have a file_path")
+	}
+
+	// Verify the file is in the cache directory (not the artifact directory)
+	if !strings.HasPrefix(response.FilePath, mcpLogsCacheDir) {
+		t.Errorf("File should be in cache dir %q, got %q", mcpLogsCacheDir, response.FilePath)
+	}
+
+	// Verify the file was actually created and contains the output
+	data, err := os.ReadFile(response.FilePath)
+	if err != nil {
+		t.Fatalf("File should exist at file_path: %v", err)
+	}
+	if string(data) != output {
+		t.Errorf("File content should match input: got %q, want %q", string(data), output)
+	}
+
+	// Cleanup
+	_ = os.Remove(response.FilePath)
 }
 
-func TestCheckLogsOutputSize_LargeOutput(t *testing.T) {
-	// Create a large output (more than default token limit)
-	// Default is 12000 tokens, which is ~48000 characters
-	// Use 50000 to be safely over the limit
+func TestBuildLogsFileResponse_ContentDeduplication(t *testing.T) {
+	// Same content should yield the same file path (content-addressed)
+	output := `{"summary": {"total_runs": 5}, "runs": []}`
+
+	result1 := buildLogsFileResponse(output)
+	result2 := buildLogsFileResponse(output)
+
+	var r1, r2 MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result1), &r1); err != nil {
+		t.Fatalf("First response should be valid JSON: %v", err)
+	}
+	if err := json.Unmarshal([]byte(result2), &r2); err != nil {
+		t.Fatalf("Second response should be valid JSON: %v", err)
+	}
+
+	if r1.FilePath != r2.FilePath {
+		t.Errorf("Identical content should produce the same file path: got %q and %q", r1.FilePath, r2.FilePath)
+	}
+
+	// Verify the file exists only once (not duplicated)
+	if _, err := os.Stat(r1.FilePath); os.IsNotExist(err) {
+		t.Errorf("Cached file should exist at %q", r1.FilePath)
+	}
+
+	// Cleanup
+	_ = os.Remove(r1.FilePath)
+}
+
+func TestBuildLogsFileResponse_LargeOutput(t *testing.T) {
+	// buildLogsFileResponse should always write to file regardless of output size
 	largeOutput := strings.Repeat("x", 50000)
 
-	result, triggered := checkLogsOutputSize(largeOutput, 0)
+	result := buildLogsFileResponse(largeOutput)
 
-	if !triggered {
-		t.Error("Guardrail should be triggered for large output")
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
 	}
 
-	if result == largeOutput {
-		t.Error("Output should be replaced with guardrail response for large output")
+	if response.FilePath == "" {
+		t.Error("Large output should also produce a file_path")
 	}
 
-	// Verify the result contains a valid JSON guardrail response
-	var guardrail MCPLogsGuardrailResponse
-	if err := json.Unmarshal([]byte(result), &guardrail); err != nil {
-		t.Errorf("Guardrail response should be valid JSON: %v", err)
+	// Verify the file contains the large output
+	data, err := os.ReadFile(response.FilePath)
+	if err != nil {
+		t.Fatalf("File should exist at file_path: %v", err)
+	}
+	if len(data) != len(largeOutput) {
+		t.Errorf("File size mismatch: got %d, want %d", len(data), len(largeOutput))
 	}
 
-	// Verify guardrail response structure
-	if guardrail.Message == "" {
-		t.Error("Guardrail response should have a message")
-	}
-
-	expectedTokens := estimateTokens(largeOutput)
-	if guardrail.OutputTokens != expectedTokens {
-		t.Errorf("Guardrail should report correct output tokens: expected %d, got %d", expectedTokens, guardrail.OutputTokens)
-	}
-
-	if guardrail.OutputSizeLimit != DefaultMaxMCPLogsOutputTokens {
-		t.Errorf("Guardrail should report correct limit: expected %d, got %d", DefaultMaxMCPLogsOutputTokens, guardrail.OutputSizeLimit)
-	}
-
-	if len(guardrail.Schema.Fields) == 0 {
-		t.Error("Guardrail response should have schema fields")
-	}
+	// Cleanup
+	_ = os.Remove(response.FilePath)
 }
 
-func TestCheckLogsOutputSize_ExactLimit(t *testing.T) {
-	// Create output exactly at the limit
-	// 12000 tokens = 48000 characters
-	exactOutput := strings.Repeat("x", 48000)
+func TestBuildLogsFileResponse_ResponseStructure(t *testing.T) {
+	output := `{"summary": {"total_runs": 2}}`
 
-	result, triggered := checkLogsOutputSize(exactOutput, 0)
+	result := buildLogsFileResponse(output)
 
-	if triggered {
-		t.Error("Guardrail should not be triggered for output at exact limit")
-	}
-
-	if result != exactOutput {
-		t.Error("Output should be unchanged for output at exact limit")
-	}
-}
-
-func TestCheckLogsOutputSize_JustOverLimit(t *testing.T) {
-	// Create output just over the limit (12000 tokens + 1 token)
-	// 12001 tokens = 48004+ characters
-	overOutput := strings.Repeat("x", 48005)
-
-	_, triggered := checkLogsOutputSize(overOutput, 0)
-
-	if !triggered {
-		t.Error("Guardrail should be triggered for output just over limit")
-	}
-}
-
-func TestCheckLogsOutputSize_CustomLimit(t *testing.T) {
-	// Test with custom token limit
-	customLimit := 100
-	// 100 tokens = 400 characters, so use 500 to exceed
-	largeOutput := strings.Repeat("x", 500)
-
-	result, triggered := checkLogsOutputSize(largeOutput, customLimit)
-
-	if !triggered {
-		t.Error("Guardrail should be triggered when exceeding custom limit")
-	}
-
-	var guardrail MCPLogsGuardrailResponse
-	if err := json.Unmarshal([]byte(result), &guardrail); err != nil {
-		t.Errorf("Guardrail response should be valid JSON: %v", err)
-	}
-
-	if guardrail.OutputSizeLimit != customLimit {
-		t.Errorf("Guardrail should report custom limit: expected %d, got %d", customLimit, guardrail.OutputSizeLimit)
-	}
-}
-
-func TestGetLogsDataSchema(t *testing.T) {
-	schema := getLogsDataSchema()
-
-	// Verify basic schema structure
-	if schema.Type != "object" {
-		t.Errorf("Schema type should be 'object', got '%s'", schema.Type)
-	}
-
-	if schema.Description == "" {
-		t.Error("Schema should have a description")
-	}
-
-	// Verify expected fields are present
-	expectedFields := []string{
-		"summary",
-		"runs",
-		"tool_usage",
-		"errors_and_warnings",
-		"missing_tools",
-		"mcp_failures",
-		"access_log",
-		"firewall_log",
-		"continuation",
-		"logs_location",
-	}
-
-	for _, field := range expectedFields {
-		if _, ok := schema.Fields[field]; !ok {
-			t.Errorf("Schema should have field '%s'", field)
-		}
-	}
-
-	// Verify each field has type and description
-	for fieldName, field := range schema.Fields {
-		if field.Type == "" {
-			t.Errorf("Field '%s' should have a type", fieldName)
-		}
-		if field.Description == "" {
-			t.Errorf("Field '%s' should have a description", fieldName)
-		}
-	}
-}
-
-func TestGuardrailResponseJSON(t *testing.T) {
-	// Create a large output to trigger guardrail
-	// Default limit is 12000 tokens = 48000 characters
-	largeOutput := strings.Repeat("x", 96000)
-
-	result, triggered := checkLogsOutputSize(largeOutput, 0)
-
-	if !triggered {
-		t.Fatal("Guardrail should be triggered")
-	}
-
-	// Parse the JSON response
-	var guardrail MCPLogsGuardrailResponse
-	if err := json.Unmarshal([]byte(result), &guardrail); err != nil {
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
 		t.Fatalf("Should return valid JSON: %v", err)
 	}
 
-	// Verify the JSON structure is complete and valid
-	if guardrail.Message == "" {
+	if response.Message == "" {
 		t.Error("JSON should have message field")
 	}
 
-	if guardrail.OutputTokens == 0 {
-		t.Error("JSON should have output_tokens field")
+	if response.FilePath == "" {
+		t.Error("JSON should have file_path field")
 	}
 
-	if guardrail.OutputSizeLimit == 0 {
-		t.Error("JSON should have output_size_limit field")
-	}
-
-	if guardrail.Schema.Type == "" {
-		t.Error("JSON should have schema.type field")
-	}
-
-	if len(guardrail.Schema.Fields) == 0 {
-		t.Error("JSON should have schema.fields")
-	}
-}
-
-func TestDefaultMaxTokensConstant(t *testing.T) {
-	// Verify the constant is set to expected value (12000 tokens)
-	expected := 12000
-	if DefaultMaxMCPLogsOutputTokens != expected {
-		t.Errorf("DefaultMaxMCPLogsOutputTokens should be %d tokens, got %d", expected, DefaultMaxMCPLogsOutputTokens)
-	}
+	// Cleanup
+	_ = os.Remove(response.FilePath)
 }
 
 func TestEstimateTokens(t *testing.T) {

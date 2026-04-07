@@ -77,7 +77,7 @@ function getPullRequestNumber(messageItem, context) {
  * @param {import("@actions/github-script").AsyncFunctionArguments["github"]} github
  * @param {string} owner
  * @param {string} repo
- * @param {string|undefined} configuredBaseBranch - explicitly configured base branch (may be undefined)
+ * @param {string|null|undefined} configuredBaseBranch - explicitly configured base branch (may be null or undefined)
  * @returns {Promise<{repoId: string, effectiveBaseBranch: string|null, resolvedDefaultBranch: string|null}>}
  */
 async function resolvePullRequestRepo(github, owner, repo, configuredBaseBranch) {

@@ -30,14 +30,8 @@ func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Clus
 	report := &AnomalyReport{
 		IsNewTemplate:     isNew,
 		NewClusterCreated: isNew,
-	}
-
-	if !isNew {
-		report.LowSimilarity = result.Similarity < d.threshold
-	}
-
-	if cluster != nil {
-		report.RareCluster = cluster.Size <= d.rareThreshold
+		LowSimilarity:     !isNew && result.Similarity < d.threshold,
+		RareCluster:       cluster != nil && cluster.Size <= d.rareThreshold,
 	}
 
 	// Weighted anomaly score.

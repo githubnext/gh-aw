@@ -8,8 +8,8 @@ import (
 
 var activationOutputsCodemodLog = logger.New("cli:codemod_activation_outputs")
 
-// newActivationOutputsCodemod creates a codemod for transforming needs.activation.outputs.* to steps.sanitized.outputs.*
-func newActivationOutputsCodemod() Codemod {
+// getActivationOutputsCodemod creates a codemod for transforming needs.activation.outputs.* to steps.sanitized.outputs.*
+func getActivationOutputsCodemod() Codemod {
 	return Codemod{
 		ID:           "activation-outputs-to-sanitized-step",
 		Name:         "Transform activation outputs to sanitized step",
