@@ -31,6 +31,11 @@ func TestBuildLogsFileResponse_WritesFile(t *testing.T) {
 		t.Error("Response should have a file_path")
 	}
 
+	// Verify the file is in the cache directory (not the artifact directory)
+	if !strings.HasPrefix(response.FilePath, mcpLogsCacheDir) {
+		t.Errorf("File should be in cache dir %q, got %q", mcpLogsCacheDir, response.FilePath)
+	}
+
 	// Verify the file was actually created and contains the output
 	data, err := os.ReadFile(response.FilePath)
 	if err != nil {
@@ -47,6 +52,34 @@ func TestBuildLogsFileResponse_WritesFile(t *testing.T) {
 
 	// Cleanup
 	_ = os.Remove(response.FilePath)
+}
+
+func TestBuildLogsFileResponse_ContentDeduplication(t *testing.T) {
+	// Same content should yield the same file path (content-addressed)
+	output := `{"summary": {"total_runs": 5}, "runs": []}`
+
+	result1 := buildLogsFileResponse(output)
+	result2 := buildLogsFileResponse(output)
+
+	var r1, r2 MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result1), &r1); err != nil {
+		t.Fatalf("First response should be valid JSON: %v", err)
+	}
+	if err := json.Unmarshal([]byte(result2), &r2); err != nil {
+		t.Fatalf("Second response should be valid JSON: %v", err)
+	}
+
+	if r1.FilePath != r2.FilePath {
+		t.Errorf("Identical content should produce the same file path: got %q and %q", r1.FilePath, r2.FilePath)
+	}
+
+	// Verify the file exists only once (not duplicated)
+	if _, err := os.Stat(r1.FilePath); os.IsNotExist(err) {
+		t.Errorf("Cached file should exist at %q", r1.FilePath)
+	}
+
+	// Cleanup
+	_ = os.Remove(r1.FilePath)
 }
 
 func TestBuildLogsFileResponse_LargeOutput(t *testing.T) {
