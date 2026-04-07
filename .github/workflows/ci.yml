@@ -177,6 +177,9 @@ jobs:
           - name: "CLI Compile & Poutine"
             packages: "./pkg/cli"
             pattern: "^TestCompile[^W]|TestPoutine"  # Exclude TestCompileWorkflows to avoid duplicates
+          - name: "CLI Safe Update"
+            packages: "./pkg/cli"
+            pattern: "^TestSafeUpdate"
           - name: "CLI MCP Connectivity"
             packages: "./pkg/cli"
             pattern: "TestMCPInspectPlaywright|TestMCPGateway"
@@ -213,7 +216,7 @@ jobs:
           - name: "CLI Completion & Other"  # Remaining catch-all (reduced from original)
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
-            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild|TestDockerImage"
+            skip_pattern: "^TestCompile[^W]|TestPoutine|TestSafeUpdate|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild|TestDockerImage"
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
