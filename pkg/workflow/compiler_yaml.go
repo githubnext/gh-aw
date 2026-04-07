@@ -265,7 +265,7 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString(c.jobManager.RenderToYAML())
 }
 
-func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, error) {
+func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
 	// Compute frontmatter hash BEFORE building jobs so that the stable hash is
@@ -291,7 +291,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Build all jobs and validate dependencies
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
-		return "", nil, fmt.Errorf("failed to build and validate jobs: %w", err)
+		return "", nil, nil, fmt.Errorf("failed to build and validate jobs: %w", err)
 	}
 
 	// Pre-allocate builder capacity based on estimated workflow size
@@ -328,7 +328,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
-	return yamlContent, secrets, nil
+	return yamlContent, secrets, actions, nil
 }
 
 func splitContentIntoChunks(content string) []string {

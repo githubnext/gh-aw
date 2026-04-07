@@ -449,12 +449,12 @@ Ensure proper audience validation and trust policies are configured.`
 
 // generateAndValidateYAML generates GitHub Actions YAML and validates
 // the output size and format.
-func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownPath string, lockFile string) (string, []string, error) {
-	// Generate the YAML content along with the collected body secrets (returned to avoid
-	// a second scan of the full YAML in the caller for safe update enforcement).
-	yamlContent, bodySecrets, err := c.generateYAML(workflowData, markdownPath)
+func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownPath string, lockFile string) (string, []string, []string, error) {
+	// Generate the YAML content along with the collected body secrets and action refs
+	// (returned to avoid a second scan of the full YAML in the caller for safe update enforcement).
+	yamlContent, bodySecrets, bodyActions, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
-		return "", nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
+		return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
 	}
 
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
@@ -468,7 +468,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
-		return "", nil, formattedErr
+		return "", nil, nil, formattedErr
 	}
 
 	// Template injection validation and GitHub Actions schema validation both require a
@@ -507,7 +507,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 			}
-			return "", nil, formattedErr
+			return "", nil, nil, formattedErr
 		}
 	}
 
@@ -540,7 +540,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
-			return "", nil, formattedErr
+			return "", nil, nil, formattedErr
 		}
 
 		// Validate container images used in MCP configurations
@@ -555,26 +555,26 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Validate runtime packages (npx, uv)
 		log.Print("Validating runtime packages")
 		if err := c.validateRuntimePackages(workflowData); err != nil {
-			return "", nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err), err)
 		}
 
 		// Validate firewall configuration (log-level enum)
 		log.Print("Validating firewall configuration")
 		if err := c.validateFirewallConfig(workflowData); err != nil {
-			return "", nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err), err)
 		}
 
 		// Validate repository features (discussions, issues)
 		log.Print("Validating repository features")
 		if err := c.validateRepositoryFeatures(workflowData); err != nil {
-			return "", nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
+			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
 		}
 	} else if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
 	}
 
-	return yamlContent, bodySecrets, nil
+	return yamlContent, bodySecrets, bodyActions, nil
 }
 
 // writeWorkflowOutput writes the compiled workflow to the lock file
@@ -703,17 +703,18 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// instead of using a shared action file
 
 	// Generate and validate YAML (also embeds the new gh-aw-manifest in the header).
-	// Returns the collected body secrets to avoid a duplicate scan for safe update enforcement.
-	yamlContent, bodySecrets, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
+	// Returns the collected body secrets and action refs to avoid duplicate scans for
+	// safe update enforcement.
+	yamlContent, bodySecrets, bodyActions, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {
 		return err
 	}
 
-	// Enforce safe update mode: reject compilations that introduce new restricted secrets.
-	// bodySecrets contains secrets collected from the workflow body only (not the header),
-	// which avoids matching secrets that appear in the gh-aw-manifest JSON comment itself.
+	// Enforce safe update mode: reject compilations that introduce unapproved secrets or
+	// action changes. body* vars contain data collected from the workflow body only (not
+	// the header), which avoids matching against the gh-aw-manifest JSON comment itself.
 	if c.effectiveSafeUpdate(workflowData) {
-		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets); enforceErr != nil {
+		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions); enforceErr != nil {
 			return formatCompilerError(markdownPath, "error", enforceErr.Error(), enforceErr)
 		}
 	}

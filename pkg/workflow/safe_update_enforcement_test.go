@@ -14,6 +14,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 		name        string
 		manifest    *GHAWManifest
 		secretNames []string
+		actionRefs  []string
 		wantErr     bool
 		wantErrMsgs []string
 	}{
@@ -21,24 +22,28 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			name:        "nil manifest skips enforcement (first compile)",
 			manifest:    nil,
 			secretNames: []string{"MY_SECRET"},
+			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
 			wantErr:     false,
 		},
 		{
-			name:        "empty secrets with existing manifest passes",
-			manifest:    &GHAWManifest{Version: 1, Secrets: []string{}},
+			name:        "empty secrets and actions with existing manifest passes",
+			manifest:    &GHAWManifest{Version: 1, Secrets: []string{}, Actions: []GHAWManifestAction{}},
 			secretNames: []string{},
+			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
 			name:        "GITHUB_TOKEN always allowed even when not in manifest",
-			manifest:    &GHAWManifest{Version: 1, Secrets: []string{}},
+			manifest:    &GHAWManifest{Version: 1, Secrets: []string{}, Actions: []GHAWManifestAction{}},
 			secretNames: []string{"GITHUB_TOKEN"},
+			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
 			name:        "GITHUB_TOKEN with secrets. prefix always allowed",
-			manifest:    &GHAWManifest{Version: 1, Secrets: []string{}},
+			manifest:    &GHAWManifest{Version: 1, Secrets: []string{}, Actions: []GHAWManifestAction{}},
 			secretNames: []string{"secrets.GITHUB_TOKEN"},
+			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
@@ -46,8 +51,10 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			manifest: &GHAWManifest{
 				Version: 1,
 				Secrets: []string{"secrets.MY_SECRET"},
+				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"MY_SECRET"},
+			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
@@ -55,8 +62,10 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			manifest: &GHAWManifest{
 				Version: 1,
 				Secrets: []string{"secrets.EXISTING_SECRET"},
+				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"EXISTING_SECRET", "NEW_SECRET"},
+			actionRefs:  []string{},
 			wantErr:     true,
 			wantErrMsgs: []string{"secrets.NEW_SECRET", "safe update mode"},
 		},
@@ -65,8 +74,10 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			manifest: &GHAWManifest{
 				Version: 1,
 				Secrets: []string{},
+				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"SECRET_A", "SECRET_B"},
+			actionRefs:  []string{},
 			wantErr:     true,
 			wantErrMsgs: []string{"secrets.SECRET_A", "secrets.SECRET_B"},
 		},
@@ -75,8 +86,10 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			manifest: &GHAWManifest{
 				Version: 1,
 				Secrets: []string{"secrets.MY_SECRET"},
+				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"GITHUB_TOKEN", "MY_SECRET"},
+			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
@@ -84,16 +97,92 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			manifest: &GHAWManifest{
 				Version: 1,
 				Secrets: []string{},
+				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"SOME_SECRET"},
+			actionRefs:  []string{},
 			wantErr:     true,
 			wantErrMsgs: []string{"secrets.SOME_SECRET"},
+		},
+		// Action enforcement tests.
+		{
+			name: "known action passes",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{{Repo: "my-org/my-action", SHA: "abc1234", Version: "v1"}},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
+			wantErr:     false,
+		},
+		{
+			name: "known action with different SHA (pin update) passes",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{{Repo: "my-org/my-action", SHA: "abc1234", Version: "v1"}},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"my-org/my-action@def5678 # v2"},
+			wantErr:     false,
+		},
+		{
+			name: "new unapproved action causes failure",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"actions/checkout@abc1234 # v4", "evil-org/steal-secrets@deadbeef # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"evil-org/steal-secrets", "safe update mode", "New unapproved action"},
+		},
+		{
+			name: "removed previously-approved action causes failure",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{
+					{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"},
+					{Repo: "actions/setup-node", SHA: "def5678", Version: "v3"},
+				},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"actions/checkout@abc1234 # v4"},
+			wantErr:     true,
+			wantErrMsgs: []string{"actions/setup-node", "Previously-approved action"},
+		},
+		{
+			name: "both added and removed actions reported together",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"evil-org/bad-action@deadbeef # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"evil-org/bad-action", "actions/checkout"},
+		},
+		{
+			name: "new secret and new action both reported in one error",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{},
+			},
+			secretNames: []string{"NEW_SECRET"},
+			actionRefs:  []string{"new-org/new-action@abc # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"secrets.NEW_SECRET", "new-org/new-action"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnforceSafeUpdate(tt.manifest, tt.secretNames)
+			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs)
 			if tt.wantErr {
 				require.Error(t, err, "expected safe update enforcement error")
 				for _, msg := range tt.wantErrMsgs {
@@ -107,15 +196,100 @@ func TestEnforceSafeUpdate(t *testing.T) {
 }
 
 func TestBuildSafeUpdateError(t *testing.T) {
-	violations := []string{"secrets.NEW_SECRET", "secrets.ANOTHER_SECRET"}
-	err := buildSafeUpdateError(violations)
-	require.Error(t, err, "should return an error")
+	t.Run("secrets only", func(t *testing.T) {
+		violations := []string{"secrets.NEW_SECRET", "secrets.ANOTHER_SECRET"}
+		err := buildSafeUpdateError(violations, nil, nil)
+		require.Error(t, err, "should return an error")
 
-	msg := err.Error()
-	assert.Contains(t, msg, "safe update mode", "error message")
-	assert.Contains(t, msg, "secrets.NEW_SECRET", "violation in message")
-	assert.Contains(t, msg, "secrets.ANOTHER_SECRET", "violation in message")
-	assert.Contains(t, msg, "interactive agentic flow", "remediation guidance")
+		msg := err.Error()
+		assert.Contains(t, msg, "safe update mode", "error message")
+		assert.Contains(t, msg, "secrets.NEW_SECRET", "violation in message")
+		assert.Contains(t, msg, "secrets.ANOTHER_SECRET", "violation in message")
+		assert.Contains(t, msg, "interactive agentic flow", "remediation guidance")
+	})
+
+	t.Run("added actions only", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, []string{"evil-org/bad-action"}, nil)
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "evil-org/bad-action", "action in message")
+		assert.Contains(t, msg, "New unapproved action", "section header in message")
+	})
+
+	t.Run("removed actions only", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, nil, []string{"actions/setup-node"})
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "actions/setup-node", "action in message")
+		assert.Contains(t, msg, "Previously-approved action", "section header in message")
+	})
+
+	t.Run("mixed violations", func(t *testing.T) {
+		err := buildSafeUpdateError(
+			[]string{"secrets.MY_SECRET"},
+			[]string{"evil-org/bad-action"},
+			[]string{"actions/checkout"},
+		)
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "secrets.MY_SECRET", "secret in message")
+		assert.Contains(t, msg, "evil-org/bad-action", "added action in message")
+		assert.Contains(t, msg, "actions/checkout", "removed action in message")
+	})
+}
+
+func TestCollectActionViolations(t *testing.T) {
+	tests := []struct {
+		name        string
+		manifest    *GHAWManifest
+		actionRefs  []string
+		wantAdded   []string
+		wantRemoved []string
+	}{
+		{
+			name:        "no changes passes",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc"}}},
+			actionRefs:  []string{"actions/checkout@abc # v4"},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name:        "SHA change on same repo passes",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc"}}},
+			actionRefs:  []string{"actions/checkout@def # v5"},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name:        "new repo is an addition",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc"}}},
+			actionRefs:  []string{"actions/checkout@abc", "new-org/new-action@xyz"},
+			wantAdded:   []string{"new-org/new-action"},
+			wantRemoved: nil,
+		},
+		{
+			name:        "missing repo is a removal",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc"}, {Repo: "actions/setup-node", SHA: "def"}}},
+			actionRefs:  []string{"actions/checkout@abc"},
+			wantAdded:   nil,
+			wantRemoved: []string{"actions/setup-node"},
+		},
+		{
+			name:        "empty manifest with no new actions passes",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{}},
+			actionRefs:  []string{},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			added, removed := collectActionViolations(tt.manifest, tt.actionRefs)
+			assert.Equal(t, tt.wantAdded, added, "added actions")
+			assert.Equal(t, tt.wantRemoved, removed, "removed actions")
+		})
+	}
 }
 
 func TestEffectiveSafeUpdate(t *testing.T) {
