@@ -59,26 +59,17 @@ engine:
 
 By default, workflows install the latest available version of each engine CLI. To pin to a specific version, set `version` to the desired release:
 
+| Engine | `id` | Example `version` |
+|--------|------|-------------------|
+| GitHub Copilot CLI | `copilot` | `"0.0.422"` |
+| Claude Code | `claude` | `"2.1.70"` |
+| Codex | `codex` | `"0.111.0"` |
+| Gemini CLI | `gemini` | `"0.31.0"` |
+
 ```yaml wrap
-# Pin Copilot CLI to a specific release
 engine:
   id: copilot
   version: "0.0.422"
-
-# Pin Claude Code to a specific release
-engine:
-  id: claude
-  version: "2.1.70"
-
-# Pin Codex to a specific release
-engine:
-  id: codex
-  version: "0.111.0"
-
-# Pin Gemini CLI to a specific release
-engine:
-  id: gemini
-  version: "0.31.0"
 ```
 
 Pinning is useful when you need reproducible builds or want to avoid breakage from a new CLI release while testing. Remember to update the pinned version periodically to pick up bug fixes and new features.
@@ -102,17 +93,15 @@ engine:
 
 ### Copilot Custom Configuration
 
-For the Copilot engine, you can specify a specialized prompt to be used whenever the coding agent is invoked. This is called a "custom agent" in Copilot vocabulary. You specify this using the `agent` field. This references a file located in the `.github/agents/` directory:
+Use `agent` to reference a custom agent file in `.github/agents/` (omit the `.agent.md` extension):
 
 ```yaml wrap
 engine:
   id: copilot
-  agent: technical-doc-writer
+  agent: technical-doc-writer  # .github/agents/technical-doc-writer.agent.md
 ```
 
-The `agent` field value should match the agent file name without the `.agent.md` extension. For example, `agent: technical-doc-writer` references `.github/agents/technical-doc-writer.agent.md`.
-
-See [Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) for details on creating and configuring custom agents.
+See [Copilot Agent Files](/gh-aw/reference/copilot-custom-agents/) for details.
 
 ### Engine Environment Variables
 
@@ -134,17 +123,6 @@ Environment variables can also be defined at workflow, job, step, and other scop
 The `api-target` field specifies a custom API endpoint hostname for the agentic engine. Use this when running workflows against GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or any custom AI endpoint.
 
 For a complete setup and debugging walkthrough for GHE Cloud with data residency, see [Debugging GHE Cloud with Data Residency](/gh-aw/troubleshooting/debug-ghe/).
-
-```yaml wrap
-engine:
-  id: copilot
-  api-target: api.acme.ghe.com
-network:
-  allowed:
-    - defaults
-    - acme.ghe.com
-    - api.acme.ghe.com
-```
 
 The value must be a hostname only — no protocol or path (e.g., `api.acme.ghe.com`, not `https://api.acme.ghe.com/v1`). The field works with any engine.
 
