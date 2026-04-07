@@ -918,7 +918,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
-      - name: Record Missing Tool
+      - name: Record missing tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -932,7 +932,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/missing_tool.cjs');
             await main();
-      - name: Record Incomplete
+      - name: Record incomplete
         id: report_incomplete
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -946,7 +946,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/report_incomplete_handler.cjs');
             await main();
-      - name: Handle Agent Failure
+      - name: Handle agent failure
         id: handle_agent_failure
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
