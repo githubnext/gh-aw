@@ -46,7 +46,7 @@ This is a test workflow to verify git configuration is included.
 	}
 
 	// Generate YAML content
-	lockContent, err := compiler.generateYAML(workflowData, testFile)
+	lockContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -148,7 +148,7 @@ This is a test workflow to verify git credentials cleaner is included.
 	}
 
 	// Generate YAML content
-	lockContent, err := compiler.generateYAML(workflowData, testFile)
+	lockContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -251,7 +251,7 @@ This workflow uses API tools only and does not need the repository to be checked
 		t.Fatalf("Failed to parse workflow file: %v", err)
 	}
 
-	lockContent, err := compiler.generateYAML(workflowData, testFile)
+	lockContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

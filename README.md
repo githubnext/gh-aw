@@ -107,6 +107,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bbonafed
 
+- #24918 _(direct issue)_
+- #24896 _(direct issue)_
 - #24323 _(direct issue)_
 - #23900 _(direct issue)_
 - #23724 _(direct issue)_
@@ -627,6 +629,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18468 _(direct issue)_
 
+### @seangibeault
+
+- #24905 _(direct issue)_
+
 ### @srgibbs99
 
 - #22939 _(direct issue)_
@@ -752,12 +758,17 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #15510 _(direct issue)_
 
+### @wtgodbe
+
+- #24921 _(direct issue)_
+
 ### @yaananth
 
 - #24125 _(direct issue)_
 
 ### @yskopets
 
+- #24897 _(direct issue)_
 - #24573 _(direct issue)_
 - #23914 _(direct issue)_
 

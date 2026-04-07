@@ -20,7 +20,7 @@ func TestASCIILogoAlignment(t *testing.T) {
 	}
 
 	// Generate YAML
-	yaml, err := compiler.generateYAML(data, "test.md")
+	yaml, _, _, err := compiler.generateYAML(data, "test.md")
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

@@ -155,6 +155,21 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	if config.ForceRefreshActionPins {
 		compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
 	}
+
+	// Set safe update flag: when set via CLI it force-enables safe update enforcement
+	// independently of the workflow's strict mode setting.
+	compiler.SetSafeUpdate(config.SafeUpdate)
+	if config.SafeUpdate {
+		compileCompilerSetupLog.Print("Safe update mode force-enabled via --safe-update flag: compilations introducing new restricted secrets or unapproved action additions/removals will emit a warning prompt requesting agent review and a PR security note")
+	}
+
+	// Load pre-cached manifests from file (written by MCP server at startup).
+	// These take precedence over git HEAD / filesystem reads for safe update enforcement.
+	if config.PriorManifestFile != "" {
+		if err := loadPriorManifestFile(compiler, config.PriorManifestFile); err != nil {
+			compileCompilerSetupLog.Printf("Failed to load prior manifest file %s: %v (safe update will fall back to git HEAD / filesystem)", config.PriorManifestFile, err)
+		}
+	}
 }
 
 // setupActionMode configures the action script inlining mode
@@ -224,4 +239,39 @@ func setupRepositoryContext(compiler *workflow.Compiler, config CompileConfig) {
 	} else {
 		compileCompilerSetupLog.Print("No repository slug found")
 	}
+}
+
+// loadPriorManifestFile reads a JSON file containing pre-cached manifests and
+// registers each entry with the compiler.  The file must contain a JSON object
+// mapping lock-file paths to serialised GHAWManifest objects, as written by
+// writePriorManifestFile in the MCP server startup path.
+func loadPriorManifestFile(compiler *workflow.Compiler, filePath string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("read prior manifest file: %w", err)
+	}
+
+	var raw map[string]*json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("unmarshal prior manifest file: %w", err)
+	}
+
+	manifests := make(map[string]*workflow.GHAWManifest, len(raw))
+	for lockFile, msg := range raw {
+		if msg == nil {
+			// nil entry means "treat as empty manifest" (new workflow with no prior lock file)
+			manifests[lockFile] = nil
+			continue
+		}
+		var m workflow.GHAWManifest
+		if err := json.Unmarshal(*msg, &m); err != nil {
+			compileCompilerSetupLog.Printf("Skipping malformed manifest for %s: %v", lockFile, err)
+			continue
+		}
+		manifests[lockFile] = &m
+	}
+
+	compiler.SetPriorManifests(manifests)
+	compileCompilerSetupLog.Printf("Loaded %d pre-cached manifest(s) from %s", len(manifests), filePath)
+	return nil
 }

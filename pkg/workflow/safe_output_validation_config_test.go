@@ -168,11 +168,32 @@ func TestFieldValidationMarshaling(t *testing.T) {
 	}
 }
 
+func TestUpdateDiscussionValidationConfig(t *testing.T) {
+	// Verify update_discussion accepts label-only updates (regression test for
+	// https://github.com/github/gh-aw/issues/24979 where label-only updates were
+	// rejected with "requires at least one of: 'title', 'body' fields").
+	config, ok := ValidationConfig["update_discussion"]
+	if !ok {
+		t.Fatal("update_discussion not found in ValidationConfig")
+	}
+
+	// customValidation must include labels so label-only messages pass
+	if config.CustomValidation != "requiresOneOf:title,body,labels" {
+		t.Errorf("update_discussion customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,labels")
+	}
+
+	// labels field must be defined so label values are validated
+	if _, ok := config.Fields["labels"]; !ok {
+		t.Error("update_discussion Fields is missing the 'labels' field")
+	}
+}
+
 func TestValidationConfigConsistency(t *testing.T) {
 	// Verify that all types with customValidation have valid validation rules
 	validCustomValidations := map[string]bool{
 		"requiresOneOf:status,title,body":        true,
 		"requiresOneOf:title,body":               true,
+		"requiresOneOf:title,body,labels":        true,
 		"requiresOneOf:issue_number,pull_number": true,
 		"startLineLessOrEqualLine":               true,
 		"parentAndSubDifferent":                  true,

@@ -59,7 +59,7 @@ This workflow tests that MCP server env vars are sorted alphabetically.
 		t.Fatalf("Failed to parse workflow file: %v", err)
 	}
 
-	yamlContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -340,7 +340,7 @@ Test workflow.
 				t.Fatalf("Failed to parse workflow file: %v", err)
 			}
 
-			yamlContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
 			if err != nil {
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}

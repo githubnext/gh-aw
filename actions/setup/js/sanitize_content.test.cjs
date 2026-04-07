@@ -701,6 +701,36 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("std::vector::push_back");
       expect(result).toBe("std::vector::push_back");
     });
+
+    it("should redact javascript: URLs with percent-encoded colon (%3A)", () => {
+      const result = sanitizeContent("[click](javascript%3Aalert(1))");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("javascript%3A");
+    });
+
+    it("should redact vbscript: URLs with percent-encoded colon (%3A)", () => {
+      const result = sanitizeContent("[x](vbscript%3Amsgbox(1))");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("vbscript%3A");
+    });
+
+    it("should redact data: URLs with percent-encoded colon (%3A)", () => {
+      const result = sanitizeContent("[x](data%3Atext/html,<h1>hi</h1>)");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("data%3A");
+    });
+
+    it("should redact javascript: URLs with double-encoded colon (%253A)", () => {
+      const result = sanitizeContent("[click](javascript%253Aalert(1))");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("javascript%253A");
+    });
+
+    it("should redact javascript: URLs with triple-encoded colon (%25253A)", () => {
+      const result = sanitizeContent("[click](javascript%25253Aalert(1))");
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("javascript%25253A");
+    });
   });
 
   describe("URL domain filtering", () => {

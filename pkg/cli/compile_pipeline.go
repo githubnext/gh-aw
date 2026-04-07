@@ -164,6 +164,9 @@ func compileSpecificFiles(
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
 
+	// Display safe update warnings (emitted as prompts for the calling agent)
+	displaySafeUpdateWarnings(compiler, config.JSONOutput)
+
 	// Post-processing
 	if err := runPostProcessing(compiler, workflowDataList, config, compiledCount); err != nil {
 		return workflowDataList, err
@@ -317,6 +320,9 @@ func compileAllFilesInDirectory(
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
 
+	// Display safe update warnings (emitted as prompts for the calling agent)
+	displaySafeUpdateWarnings(compiler, config.JSONOutput)
+
 	if config.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
 	}
@@ -391,6 +397,20 @@ func displayScheduleWarnings(compiler *workflow.Compiler, jsonOutput bool) {
 		for _, warning := range scheduleWarnings {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
 		}
+	}
+}
+
+// displaySafeUpdateWarnings displays any safe update warning prompts accumulated by the
+// compiler.  Each entry is a structured message that instructs the calling agent to:
+//   - Review new secrets/actions for malicious use
+//   - Add a security review note to the pull request description
+func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
+	warnings := compiler.GetSafeUpdateWarnings()
+	if len(warnings) == 0 || jsonOutput {
+		return
+	}
+	for _, w := range warnings {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
 	}
 }
 

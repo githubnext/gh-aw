@@ -201,6 +201,10 @@ An option on `create-pull-request` safe outputs that omits the random hex salt s
 
 A safe output capability for replying to existing review comments on pull requests. Allows the AI agent to respond to reviewer feedback, answer questions, or acknowledge inline review comments by their numeric comment ID. Supports an optional `footer` field (`always`, `none`, or `if-body`) to control AI attribution. Configured via `reply-to-pull-request-review-comment:` in `safe-outputs`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
+### Report Incomplete (`report_incomplete`)
+
+A mandatory safe output signal that agents emit when a task cannot be completed due to an infrastructure or tool failure — for example, an MCP server crash, missing authentication, or an inaccessible repository. Unlike `noop` (which signals no action was needed), `report_incomplete` indicates an active failure that prevented the task from running. The safe-outputs handler activates failure handling regardless of agent exit code. Accepts a required `reason` field (max 1024 characters) and an optional `details` field for extended diagnostic context.
+
 ### Set Issue Type (`set-issue-type:`)
 
 A safe output capability for setting or clearing the GitHub issue type on existing issues. The agent calls `set_issue_type` to assign a named type (e.g., `Bug`, `Feature`) to an issue. An `allowed` list restricts which types the agent may set; omitting it permits any type. Passing an empty string clears the current type. Supports cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-type:` in `safe-outputs`.
@@ -286,6 +290,10 @@ Optional workflow metadata for categorization and organization. Enables filterin
 ### Network Permissions
 
 Controls over external domains and services a workflow can access. Configured via `network:` section with options: `defaults` (common infrastructure), custom allow-lists, or `{}` (no access).
+
+### Observability (`observability.otlp`)
+
+A frontmatter field that enables distributed tracing for workflow runs via OpenTelemetry. Configured under `observability.otlp`, it exports structured spans to any OTLP-compatible backend (such as Honeycomb, Grafana Tempo, or Sentry). Every job emits setup and conclusion spans; cross-job trace correlation is wired automatically using a single trace ID from the activation job. Sensitive values in span attributes are automatically redacted before export. The MCP Gateway also receives OpenTelemetry configuration derived from `observability.otlp`, correlating MCP tool-call traces under the workflow root trace.
 
 ### Stop After
 

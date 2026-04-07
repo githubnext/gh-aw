@@ -54,7 +54,7 @@ This workflow should generate add_reaction job with comment outputs.
 	}
 
 	// Generate YAML
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -129,7 +129,7 @@ This workflow should generate add_reaction job with GH_AW_WORKFLOW_NAME environm
 	}
 
 	// Generate YAML
-	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

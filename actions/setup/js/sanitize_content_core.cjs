@@ -176,12 +176,33 @@ function sanitizeDomainName(domain) {
  * @returns {string} The string with non-https protocols redacted
  */
 function sanitizeUrlProtocols(s) {
+  // Normalize percent-encoded colons before applying the protocol blocklist.
+  // This prevents bypasses via javascript%3Aalert(1) (single-encoded),
+  // javascript%253Aalert(1) (double-encoded), or deeper nesting.
+  // Strategy: iteratively decode %25 -> % (up to 4 passes, which handles
+  // encodings up to 5 levels deep) until stable, then decode %3A -> :
+  // so the blocklist regex always sees literal colons.
+  let normalized = s;
+  // Iteratively decode %25XX (percent-encoded percent signs) one level at a
+  // time. 4 passes handles up to 5 encoding levels, which is far beyond the
+  // 1-2 levels a browser uses during URL parsing. Any input requiring more
+  // passes almost certainly has no browser-decoded equivalent that would
+  // produce a dangerous protocol. The early-exit break keeps this O(n) for
+  // typical non-malicious input.
+  for (let i = 0; i < 4; i++) {
+    // Replace %25XX (percent-encoded percent sign) with %XX one level at a time.
+    const next = normalized.replace(/%25([0-9A-Fa-f]{2})/gi, "%$1");
+    if (next === normalized) break;
+    normalized = next;
+  }
+  normalized = normalized.replace(/%3[Aa]/gi, ":"); // decode %3A -> :
+
   // Match common non-https protocols
   // This regex matches: protocol://domain or protocol:path or incomplete protocol://
   // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
   // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
   // Note: No word boundary check to catch protocols even when preceded by word characters
-  return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+  return normalized.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
     // Extract domain for http/ftp/file/ssh/git protocols
     if (domain) {
       const domainLower = domain.toLowerCase();
