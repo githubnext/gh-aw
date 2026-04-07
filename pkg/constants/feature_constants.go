@@ -27,4 +27,9 @@ const (
 	// by default when guard policies are configured. Set tools.github.integrity-proxy: false
 	// to disable it. The codemod "features-difc-proxy-to-tools-github" migrates this flag.
 	DIFCProxyFeatureFlag FeatureFlag = "difc-proxy"
+	// SafeUpdateFeatureFlag is the feature flag name for enabling safe update mode.
+	// When enabled, the compiler rejects compilations that introduce new non-GITHUB_TOKEN
+	// secrets or unapproved action changes. Can be enabled via the --safe-update CLI flag,
+	// the GH_AW_FEATURES environment variable, or the workflow frontmatter features section.
+	SafeUpdateFeatureFlag FeatureFlag = "safe-update"
 )

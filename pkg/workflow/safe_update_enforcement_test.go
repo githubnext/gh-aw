@@ -169,25 +169,25 @@ func TestEnforceSafeUpdate(t *testing.T) {
 				Secrets: []string{},
 				Actions: []GHAWManifestAction{
 					{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"},
-					{Repo: "actions/setup-node", SHA: "def5678", Version: "v3"},
+					{Repo: "my-org/setup-tool", SHA: "def5678", Version: "v3"},
 				},
 			},
 			secretNames: []string{},
 			actionRefs:  []string{"actions/checkout@abc1234 # v4"},
 			wantErr:     true,
-			wantErrMsgs: []string{"actions/setup-node", "Previously-approved action"},
+			wantErrMsgs: []string{"my-org/setup-tool", "Previously-approved action"},
 		},
 		{
 			name: "both added and removed actions reported together",
 			manifest: &GHAWManifest{
 				Version: 1,
 				Secrets: []string{},
-				Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}},
+				Actions: []GHAWManifestAction{{Repo: "my-org/approved-action", SHA: "abc1234", Version: "v4"}},
 			},
 			secretNames: []string{},
 			actionRefs:  []string{"evil-org/bad-action@deadbeef # v1"},
 			wantErr:     true,
-			wantErrMsgs: []string{"evil-org/bad-action", "actions/checkout"},
+			wantErrMsgs: []string{"evil-org/bad-action", "my-org/approved-action"},
 		},
 		{
 			name: "new secret and new action both reported in one error",
@@ -200,6 +200,48 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			actionRefs:  []string{"new-org/new-action@abc # v1"},
 			wantErr:     true,
 			wantErrMsgs: []string{"secrets.NEW_SECRET", "new-org/new-action"},
+		},
+		// actions/ org exemption tests.
+		{
+			name:        "nil manifest: new actions/checkout is allowed on first compile",
+			manifest:    nil,
+			secretNames: []string{},
+			actionRefs:  []string{"actions/checkout@abc1234 # v4"},
+			wantErr:     false,
+		},
+		{
+			name: "new actions/ action (not in manifest) is always allowed",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"actions/setup-node@abc1234 # v4"},
+			wantErr:     false,
+		},
+		{
+			name: "removal of actions/ action from manifest is not flagged",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{},
+			wantErr:     false,
+		},
+		{
+			name: "actions/ action allowed alongside non-actions/ violation",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"actions/checkout@abc1234 # v4", "evil-org/bad-action@deadbeef # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"evil-org/bad-action"},
 		},
 	}
 
@@ -292,16 +334,39 @@ func TestCollectActionViolations(t *testing.T) {
 		},
 		{
 			name:        "missing repo is a removal",
-			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc"}, {Repo: "actions/setup-node", SHA: "def"}}},
-			actionRefs:  []string{"actions/checkout@abc"},
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "my-org/custom-action", SHA: "abc"}, {Repo: "my-org/setup-tool", SHA: "def"}}},
+			actionRefs:  []string{"my-org/custom-action@abc"},
 			wantAdded:   nil,
-			wantRemoved: []string{"actions/setup-node"},
+			wantRemoved: []string{"my-org/setup-tool"},
 		},
 		{
 			name:        "empty manifest with no new actions passes",
 			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{}},
 			actionRefs:  []string{},
 			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name:        "new actions/ action is not an addition violation",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{}},
+			actionRefs:  []string{"actions/checkout@abc1234 # v4"},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name:        "removal of actions/ action from manifest is not a removal violation",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"}}},
+			actionRefs:  []string{},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name: "actions/ action not flagged, non-actions/ action is flagged",
+			manifest: &GHAWManifest{Actions: []GHAWManifestAction{
+				{Repo: "actions/checkout", SHA: "abc1234", Version: "v4"},
+			}},
+			actionRefs:  []string{"actions/setup-node@def5678 # v4", "evil-org/bad-action@deadbeef # v1"},
+			wantAdded:   []string{"evil-org/bad-action"},
 			wantRemoved: nil,
 		},
 	}
@@ -320,6 +385,7 @@ func TestEffectiveSafeUpdate(t *testing.T) {
 		name           string
 		compilerFlag   bool
 		rawFrontmatter map[string]any
+		features       map[string]any
 		want           bool
 	}{
 		{
@@ -350,12 +416,30 @@ func TestEffectiveSafeUpdate(t *testing.T) {
 			rawFrontmatter: map[string]any{"safe-update": false},
 			want:           false,
 		},
+		{
+			name:         "features safe-update true, compiler flag off => true",
+			compilerFlag: false,
+			features:     map[string]any{"safe-update": true},
+			want:         true,
+		},
+		{
+			name:         "features safe-update false, compiler flag off => false",
+			compilerFlag: false,
+			features:     map[string]any{"safe-update": false},
+			want:         false,
+		},
+		{
+			name:         "features safe-update true, compiler flag on => true",
+			compilerFlag: true,
+			features:     map[string]any{"safe-update": true},
+			want:         true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Compiler{safeUpdate: tt.compilerFlag}
-			data := &WorkflowData{RawFrontmatter: tt.rawFrontmatter}
+			data := &WorkflowData{RawFrontmatter: tt.rawFrontmatter, Features: tt.features}
 			got := c.effectiveSafeUpdate(data)
 			assert.Equal(t, tt.want, got, "effectiveSafeUpdate result")
 		})

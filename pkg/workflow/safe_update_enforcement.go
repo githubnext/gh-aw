@@ -85,10 +85,21 @@ func collectSecretViolations(manifest *GHAWManifest, secretNames []string) []str
 	return violations
 }
 
+// githubActionsOrg is the owner whose actions are always trusted and never flagged
+// as unapproved additions, regardless of what was recorded in the manifest.
+const githubActionsOrg = "actions"
+
+// isActionsOrgRepo reports whether a repo string belongs to the trusted "actions" org
+// (i.e. has the form "actions/<name>").
+func isActionsOrgRepo(repo string) bool {
+	return strings.HasPrefix(repo, githubActionsOrg+"/")
+}
+
 // collectActionViolations compares the new action refs against the previous manifest
 // and returns two sorted slices: repos that were added and repos that were removed.
 // The comparison uses the action repo as the key, so SHA/version changes to an
 // already-approved repo are not flagged.
+// Actions belonging to the "actions/" GitHub org are always trusted and never flagged.
 func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added []string, removed []string) {
 	// Build known repo set from previous manifest.
 	knownRepos := make(map[string]bool, len(manifest.Actions))
@@ -104,14 +115,22 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 	}
 
 	// Find additions: repos present in the new compilation but absent from the manifest.
+	// Actions from the trusted "actions/" org are always allowed and never flagged.
 	for repo := range newRepos {
+		if isActionsOrgRepo(repo) {
+			continue
+		}
 		if !knownRepos[repo] {
 			added = append(added, repo)
 		}
 	}
 
 	// Find removals: repos present in the previous manifest but absent from the new compilation.
+	// Actions from the trusted "actions/" org are always allowed, so their removal is not flagged.
 	for repo := range knownRepos {
+		if isActionsOrgRepo(repo) {
+			continue
+		}
 		if !newRepos[repo] {
 			removed = append(removed, repo)
 		}

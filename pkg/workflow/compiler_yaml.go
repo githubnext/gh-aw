@@ -35,11 +35,17 @@ func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
 }
 
 // effectiveSafeUpdate returns true when safe update mode should be enforced for
-// the given workflow. Safe update mode can only be enabled via the CLI --safe-update
-// flag; frontmatter cannot enable it (only the CLI can, to prevent agents from
-// disabling or circumventing the protection by modifying the workflow file).
-func (c *Compiler) effectiveSafeUpdate(_ *WorkflowData) bool {
-	return c.safeUpdate
+// the given workflow. Safe update mode can be enabled via:
+//   - The CLI --safe-update flag (highest priority)
+//   - The GH_AW_FEATURES=safe-update environment variable
+//   - The workflow frontmatter features section (features: safe-update: true)
+//
+// Frontmatter cannot DISABLE safe update mode when the CLI flag is set.
+func (c *Compiler) effectiveSafeUpdate(data *WorkflowData) bool {
+	if c.safeUpdate {
+		return true
+	}
+	return isFeatureEnabled(constants.SafeUpdateFeatureFlag, data)
 }
 
 // buildJobsAndValidate builds all workflow jobs and validates their dependencies.
