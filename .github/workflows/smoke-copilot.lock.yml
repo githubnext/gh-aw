@@ -2406,8 +2406,6 @@ jobs:
       - agent
     if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'upload_artifact')
     runs-on: ubuntu-slim
-    permissions:
-      actions: write
     timeout-minutes: 10
     outputs:
       artifact_count: ${{ steps.upload_artifacts.outputs.artifact_count }}

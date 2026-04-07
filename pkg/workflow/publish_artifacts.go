@@ -314,7 +314,7 @@ func (c *Compiler) buildUploadArtifactJob(data *WorkflowData, mainJobName string
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        "",
-		Permissions:   NewPermissionsActionsWrite(),
+		Permissions:   NewPermissions(),
 		Outputs:       outputs,
 		Condition:     jobCondition,
 		PreSteps:      preSteps,
