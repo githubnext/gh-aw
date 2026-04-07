@@ -224,7 +224,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		}
 	}
 
-	// 9b. GitHub tool-use guidance: directs the model to the correct mechanism for
+	// 10. GitHub tool-use guidance: directs the model to the correct mechanism for
 	// GitHub reads (and writes when safe-outputs is also enabled).
 	// When cli-proxy is enabled, the agent uses the pre-authenticated gh CLI for reads
 	// instead of a GitHub MCP server (which is not registered). Otherwise, the GitHub
@@ -255,7 +255,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 10. PR context (if comment-related triggers and checkout is needed)
+	// 11. PR context (if comment-related triggers and checkout is needed)
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	permParser := NewPermissionsParser(data.Permissions)
