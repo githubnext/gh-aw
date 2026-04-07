@@ -6,7 +6,7 @@
     "@actions/github-script": "github:actions/github-script",
     "@actions/glob": "^0.6.1",
     "@actions/io": "^3.0.2",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "@vitest/coverage-v8": "^4.1.2",
     "@vitest/ui": "^4.1.2",
     "minimatch": ">=3.1.3",
