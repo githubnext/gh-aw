@@ -19,10 +19,33 @@ func TestEnforceSafeUpdate(t *testing.T) {
 		wantErrMsgs []string
 	}{
 		{
-			name:        "nil manifest skips enforcement (first compile)",
+			name:        "nil manifest (no lock file) blocks secrets on first compile",
 			manifest:    nil,
 			secretNames: []string{"MY_SECRET"},
+			actionRefs:  []string{},
+			wantErr:     true,
+			wantErrMsgs: []string{"secrets.MY_SECRET", "safe update mode"},
+		},
+		{
+			name:        "nil manifest (no lock file) blocks custom actions on first compile",
+			manifest:    nil,
+			secretNames: []string{},
 			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"my-org/my-action", "safe update mode"},
+		},
+		{
+			name:        "nil manifest (no lock file) allows GITHUB_TOKEN on first compile",
+			manifest:    nil,
+			secretNames: []string{"GITHUB_TOKEN"},
+			actionRefs:  []string{},
+			wantErr:     false,
+		},
+		{
+			name:        "nil manifest (no lock file) with no secrets or actions passes",
+			manifest:    nil,
+			secretNames: []string{},
+			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{

@@ -17,8 +17,9 @@ const githubTokenSecret = "secrets.GITHUB_TOKEN"
 // changes have been introduced compared to those recorded in the existing manifest.
 //
 // manifest is the gh-aw-manifest extracted from the current lock file before
-// recompilation; it may be nil when no lock file (and therefore no previous
-// manifest) exists yet, in which case enforcement is skipped.
+// recompilation. When nil (no lock file exists yet), it is treated as an empty
+// manifest so that all non-GITHUB_TOKEN secrets and all custom actions are rejected
+// on a first-time safe-update compilation.
 //
 // secretNames contains the raw names produced by CollectSecretReferences (i.e.
 // WITHOUT the "secrets." prefix, e.g. "GITHUB_TOKEN").
@@ -29,9 +30,11 @@ const githubTokenSecret = "secrets.GITHUB_TOKEN"
 // Returns a structured, actionable error when violations are found.
 func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string) error {
 	if manifest == nil {
-		// No prior manifest – this is a first-time compilation; nothing to enforce.
-		safeUpdateLog.Print("No existing manifest found; skipping safe update enforcement")
-		return nil
+		// No prior lock file – treat as an empty manifest so safe-update enforcement
+		// blocks any secrets (other than GITHUB_TOKEN) and any custom actions on the
+		// first compilation, matching the principle of least privilege.
+		safeUpdateLog.Print("No existing manifest found; treating as empty manifest for safe update enforcement")
+		manifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 	}
 
 	secretViolations := collectSecretViolations(manifest, secretNames)
