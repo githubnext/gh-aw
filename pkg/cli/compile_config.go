@@ -28,7 +28,7 @@ type CompileConfig struct {
 	Stats                  bool     // Display statistics table sorted by file size
 	FailFast               bool     // Stop at first error instead of collecting all errors
 	ScheduleSeed           string   // Override repository slug used for fuzzy schedule scattering (e.g. owner/repo)
-	SafeUpdate             bool     // Enforce safe update mode: reject compilations that introduce new restricted secrets
+	SafeUpdate             bool     // Enforce safe update mode: reject compilations that introduce new restricted secrets or unapproved action additions/removals
 }
 
 // WorkflowFailure represents a failed workflow with its error count

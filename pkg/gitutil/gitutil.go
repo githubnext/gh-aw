@@ -110,6 +110,12 @@ func ReadFileFromHEAD(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot compute path of %q relative to git root %q: %w", absPath, gitRoot, err)
 	}
+
+	// Reject paths that escape the repository (e.g. "../secret").
+	if strings.HasPrefix(relPath, "..") {
+		return "", fmt.Errorf("path %q is outside the git repository root %q", filePath, gitRoot)
+	}
+
 	relPath = filepath.ToSlash(relPath)
 
 	log.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)

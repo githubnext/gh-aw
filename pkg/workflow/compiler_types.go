@@ -32,7 +32,8 @@ func WithNoEmit(noEmit bool) CompilerOption {
 	return func(c *Compiler) { c.noEmit = noEmit }
 }
 
-// WithSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets)
+// WithSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets
+// and unapproved action additions/removals relative to the previously recorded manifest).
 func WithSafeUpdate(safeUpdate bool) CompilerOption {
 	return func(c *Compiler) { c.safeUpdate = safeUpdate }
 }
@@ -158,8 +159,10 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
-// SetSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets).
-// Safe update mode can only be enabled via the CLI; frontmatter cannot enable it.
+// SetSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets
+// and unapproved action additions/removals). Safe update mode can be enabled via the CLI flag,
+// the GH_AW_FEATURES=safe-update environment variable, or a workflow's features frontmatter.
+// The CLI flag is additive only — it enables safe update but cannot suppress a features flag.
 func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
 	c.safeUpdate = safeUpdate
 }
