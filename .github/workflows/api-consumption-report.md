@@ -34,9 +34,9 @@ You are an expert data analyst monitoring the GitHub REST API consumption produc
 ## Mission
 
 Every day, analyse the **last 24 hours** of agentic workflow runs to understand:
-- **GitHub REST API footprint** — actual quota consumed (`github_rate_limit_usage.core_consumed` from `run_summary.json`), per workflow and per engine
+- **GitHub REST API footprint** — actual quota consumed (`github_rate_limit_usage.core_consumed` from `run_summary.json`), ranked by workflow
 - **GitHub safe-output writes** — issues, PRs, comments, and discussions created by safe-output tools
-- **Run health** — success rates, durations, engine distribution
+- **Run health** — success rates and durations
 - **Trends** — 30-day rolling history stored in cache-memory, visualised with snazzy Python charts
 
 ## Current Context
@@ -115,8 +115,7 @@ Compute for today's dataset:
 | `success_rate_pct` | `successful / total * 100` |
 | `github_api_calls` | sum of `github_rate_limit_usage.core_consumed` from all `run_summary.json` files (actual REST API quota consumed across all runs in the 24-hour period) |
 | `github_safe_output_calls` | sum of all safe-output write operations (`issues_created + prs_created + comments_added + discussions_created`) |
-| `github_api_by_workflow` | aggregate runs by workflow name: `{"workflow": name, "runs": N, "core_consumed": total, "avg_duration_s": avg, "engine": most_common_engine}` sorted by `runs` descending (used for "Top 5 by Run Count" table) |
-| `github_api_by_engine` | dict keyed by engine name: `{"claude": total_core_consumed, ...}` — total `core_consumed` for each engine across all runs in the 24h period; also compute per-engine `runs` and `success_rate_pct` for the Engine Breakdown table |
+| `github_api_by_workflow` | aggregate runs by workflow name: `{"workflow": name, "runs": N, "core_consumed": total, "avg_duration_s": avg}` sorted by `core_consumed` descending — highest API burner first |
 | `avg_duration_s` | mean of `(completed_at − started_at)` in seconds |
 | `p95_duration_s` | 95th-percentile duration |
 
@@ -136,10 +135,9 @@ Example structure:
   "success_rate_pct": 95.2,
   "github_api_calls": 4800,
   "github_safe_output_calls": 12,
-  "github_api_by_engine": {"claude": 3200, "copilot": 1400, "codex": 200},
   "github_api_by_workflow": [
-    {"workflow": "api-consumption-report", "runs": 3, "core_consumed": 3757, "avg_duration_s": 2580, "engine": "claude"},
-    {"workflow": "workflow-normalizer", "runs": 8, "core_consumed": 1200, "avg_duration_s": 420, "engine": "copilot"}
+    {"workflow": "api-consumption-report", "runs": 3, "core_consumed": 3757, "avg_duration_s": 2580},
+    {"workflow": "workflow-normalizer", "runs": 8, "core_consumed": 1200, "avg_duration_s": 420}
   ],
   "avg_duration_s": 310,
   "p95_duration_s": 900
@@ -168,10 +166,9 @@ Each line must be a single JSON object. Use `date` (YYYY-MM-DD) as the primary t
   "success_rate_pct": 95.5,
   "github_api_calls": 7200,
   "github_safe_output_calls": 87,
-  "github_api_by_engine": {"claude": 3800, "copilot": 2600, "codex": 800},
   "github_api_by_workflow": [
-    {"workflow": "api-consumption-report", "core_consumed": 3757, "turns": 47, "engine": "claude"},
-    {"workflow": "workflow-normalizer", "core_consumed": 3508, "turns": 30, "engine": "copilot"}
+    {"workflow": "api-consumption-report", "runs": 3, "core_consumed": 3757, "avg_duration_s": 2580},
+    {"workflow": "workflow-normalizer", "runs": 8, "core_consumed": 3508, "avg_duration_s": 420}
   ],
   "avg_duration_s": 180,
   "p95_duration_s": 420
@@ -207,10 +204,10 @@ The script must create **5 charts**, all saved to `/tmp/gh-aw/python/charts/` at
 
 ### Chart 1 — GitHub API Calls Trend (`api_calls_trend.png`)
 
-A stacked-area chart showing **daily total GitHub REST API calls** broken down by engine (Claude, Copilot, Codex, other) over the full history window.
+A filled-area chart showing **daily total GitHub REST API calls** over the full history window.
 - x-axis: date, y-axis: API calls (formatted as "1.2K", "450")
-- Use a 7-day rolling average overlay line in white with slight transparency
-- Color palette: Claude=`#FF6B35`, Copilot=`#0078D4`, Codex=`#7B2D8B`, other=`#6B7280`
+- Use a 7-day rolling average overlay line in a contrasting color
+- Fill area under the curve in `#0078D4` with 40% opacity
 - Annotate today's total in the top-right corner
 
 ### Chart 2 — GitHub API Calls by Workflow Trend (`workflow_api_trend.png`)
@@ -229,26 +226,25 @@ A calendar-style heatmap of **actual GitHub REST API calls** (`github_api_calls`
 - Title: "GitHub REST API Calls Heatmap (core quota consumed)"
 - Add a colorbar
 
-If fewer than 14 history points exist, create a **bar chart by engine** of today's REST API consumption (total `core_consumed` grouped by engine name) as a fallback, providing a distinct view of which AI engines drive the most API traffic.
+If fewer than 14 history points exist, create a **bar chart of today's top workflows** by REST API consumption as a fallback.
 
-### Chart 4 — Engine API Calls Donut (`engine_donut.png`)
+### Chart 4 — Top API Burners Donut (`api_burners_donut.png`)
 
-A donut chart showing the **GitHub REST API calls by engine** over the last 24 hours.
-- Use the same engine color palette as Chart 1
-- Show both percentage and absolute API call count in the legend
+A donut chart showing the **share of total GitHub REST API calls** for the top 10 workflows in the last 24 hours; remaining workflows grouped as "other".
+- Show both percentage and absolute call count in the legend
 - Center label: "REST API\n24h"
+- Use a qualitative colormap (e.g. `tab10`) to distinguish workflows
 - Add a subtle shadow for depth
 
 ### Chart 5 — GitHub REST API Consumption by Workflow (`api_by_workflow.png`)
 
 A horizontal bar chart showing **GitHub REST API consumption (core quota consumed)** for the top 10 workflows in the last 24 hours.
 - Bars sorted by `core_consumed` descending (highest consumer at top)
-- Each bar colored by engine using the ENGINE_COLORS palette
+- Bars colored using a blue gradient (`Blues` palette) — darkest for highest consumer
 - Add a vertical dashed reference line at `x = 15000` labelled "Hourly limit (15k)" in red
 - x-axis: "GitHub REST API Calls (core quota consumed)"
-- y-axis: workflow names (trimmed to 30 chars)
+- y-axis: workflow names (trimmed to 30 chars), each bar labelled with the exact call count
 - Title: "GitHub REST API Consumption by Workflow (last 24h)"
-- Legend showing engine colour mapping
 
 ### Python script structure
 
@@ -272,13 +268,6 @@ CHARTS = Path("/tmp/gh-aw/python/charts")
 DATA = Path("/tmp/gh-aw/python/data")
 CACHE = Path("/tmp/gh-aw/cache-memory/trending/api-consumption")
 CHARTS.mkdir(parents=True, exist_ok=True)
-
-ENGINE_COLORS = {
-    "claude": "#FF6B35",
-    "copilot": "#0078D4",
-    "codex": "#7B2D8B",
-    "other": "#6B7280",
-}
 
 # --- load history ---
 history_file = CACHE / "history.jsonl"
@@ -346,7 +335,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ![GitHub API Calls Trend]({api_calls_trend_url})
 
-{2–3 sentences: highlight the trend direction, peak days, and which engine drives the most API traffic}
+{2–3 sentences: highlight the trend direction, peak days, and any notable spikes in total REST API consumption}
 
 ---
 
@@ -366,11 +355,11 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ---
 
-## 🍩 Engine REST API Share (24h)
+## 🍩 Top API Burners (24h)
 
-![Engine REST API Breakdown]({engine_donut_url})
+![Top API Burners]({api_burners_donut_url})
 
-{2–3 sentences: describe engine distribution of API calls, shifts over time, and which engine is most API-efficient per run}
+{2–3 sentences: describe which workflows dominate API consumption, their share of the total, and any concentration risk}
 
 ---
 
@@ -382,19 +371,11 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ---
 
-## Top 5 Workflows by Run Count (last 24h)
+## Top 10 Workflows by REST API Consumption (last 24h)
 
-| Workflow | Runs | REST API Calls | Avg Duration | Engine |
-|----------|------|----------------|--------------|--------|
-{top5_rows}
-
----
-
-## Engine Breakdown (last 24h)
-
-| Engine | Runs | REST API Calls | Success Rate |
-|--------|------|----------------|--------------|
-{engine_rows}
+| Workflow | REST API Calls | Runs | Avg Duration |
+|----------|----------------|------|--------------|
+{top10_rows}
 
 ---
 
