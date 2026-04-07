@@ -219,13 +219,11 @@ func (c *Compiler) buildUploadArtifactJob(data *WorkflowData, mainJobName string
 		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, publishTraceID)...)
 	}
 
-	// Download agent output artifact (to read upload_artifact requests).
+	// Download the staging artifact that contains the files staged by the model.
+	// The agent output artifact (carrying upload_artifact NDJSON records) is NOT added here
+	// because buildCustomActionStep / buildGitHubScriptStep already prepends that step
+	// automatically to every safe-output job.
 	artifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
-	preSteps = append(preSteps,
-		buildAgentOutputDownloadSteps(artifactPrefix)...,
-	)
-
-	// Download the staging artifact that holds the files the model wants to upload.
 	stagingArtifactName := artifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
 	preSteps = append(preSteps,
 		"      - name: Download upload-artifact staging\n",
@@ -316,7 +314,7 @@ func (c *Compiler) buildUploadArtifactJob(data *WorkflowData, mainJobName string
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        "",
-		Permissions:   NewPermissions(),
+		Permissions:   NewPermissionsActionsWrite(),
 		Outputs:       outputs,
 		Condition:     jobCondition,
 		PreSteps:      preSteps,
