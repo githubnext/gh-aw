@@ -60,7 +60,10 @@ var builtinFrontmatterCache sync.Map // map[string]*FrontmatterResult
 
 // GetBuiltinFrontmatterCache returns the cached FrontmatterResult for a builtin virtual file.
 // Returns (result, true) if cached, (nil, false) if not yet cached.
-// The returned result is a deep copy and safe to mutate.
+//
+// IMPORTANT: The returned *FrontmatterResult is a shared, read-only reference.
+// Callers MUST NOT mutate the result or any of its fields (Frontmatter map, slices, etc.).
+// Use ExtractFrontmatterFromContent directly when you need a mutable copy.
 func GetBuiltinFrontmatterCache(path string) (*FrontmatterResult, bool) {
 	v, ok := builtinFrontmatterCache.Load(path)
 	if !ok {
@@ -70,9 +73,9 @@ func GetBuiltinFrontmatterCache(path string) (*FrontmatterResult, bool) {
 }
 
 // SetBuiltinFrontmatterCache stores a FrontmatterResult for a builtin virtual file.
-// The result is stored directly; callers must not mutate it after storing.
-// Returns the stored result (which may differ from the provided one if a concurrent
-// call already populated the cache — the winner's value is returned).
+// The stored result becomes shared and read-only — callers MUST NOT mutate it
+// (or its contained maps/slices) after this call.
+// Uses LoadOrStore so concurrent races are safe; the winning value is returned.
 func SetBuiltinFrontmatterCache(path string, result *FrontmatterResult) *FrontmatterResult {
 	actual, _ := builtinFrontmatterCache.LoadOrStore(path, result)
 	return actual.(*FrontmatterResult)

@@ -91,11 +91,13 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 // ExtractFrontmatterFromBuiltinFile is a caching wrapper around ExtractFrontmatterFromContent
 // for builtin virtual files. Because builtin files are registered once at startup and never
 // change, the parsed FrontmatterResult is identical across calls. This function caches the
-// first parse result in builtinFrontmatterCache and returns the cached value on subsequent
-// calls, avoiding repeated YAML parsing for frequently imported engine definition files.
+// first parse result in builtinFrontmatterCache and returns the cached (shared) value on
+// subsequent calls, avoiding repeated YAML parsing for frequently imported engine definition
+// files.
 //
-// IMPORTANT: The returned *FrontmatterResult must not be mutated by the caller.
-// Use ExtractFrontmatterFromContent directly when you need to modify the result.
+// IMPORTANT: The returned *FrontmatterResult is a shared, read-only reference.
+// Callers MUST NOT mutate the result or any of its fields (Frontmatter map, slices, etc.).
+// Use ExtractFrontmatterFromContent directly when you need a mutable copy.
 func ExtractFrontmatterFromBuiltinFile(path string, content []byte) (*FrontmatterResult, error) {
 	if cached, ok := GetBuiltinFrontmatterCache(path); ok {
 		return cached, nil
