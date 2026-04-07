@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -679,7 +680,8 @@ func formatCountChange(count1, count2 int) string {
 // It first tries to load from a cached RunSummary (which includes MCP tool usage and run
 // metrics); otherwise it downloads artifacts and analyzes firewall logs, returning a partial
 // summary with only FirewallAnalysis populated.
-func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname string, verbose bool) (*RunSummary, error) {
+// artifactFilter restricts which artifacts are downloaded; nil means download all.
+func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname string, verbose bool, artifactFilter []string) (*RunSummary, error) {
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
 	if absDir, err := filepath.Abs(runOutputDir); err == nil {
 		runOutputDir = absDir
@@ -692,16 +694,21 @@ func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname 
 	}
 
 	// Download artifacts if needed
-	if err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname); err != nil {
+	if err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			return nil, fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
 		}
 	}
 
-	// Analyze firewall logs and return a partial summary
-	analysis, err := analyzeFirewallLogs(runOutputDir, verbose)
-	if err != nil {
-		return nil, fmt.Errorf("failed to analyze firewall logs for run %d: %w", runID, err)
+	// Analyze firewall logs only when firewall-audit-logs was included in the filter.
+	// Skip silently when the artifact was intentionally excluded to avoid spurious warnings.
+	var analysis *FirewallAnalysis
+	if artifactMatchesFilter(constants.FirewallAuditArtifactName, artifactFilter) {
+		var err error
+		analysis, err = analyzeFirewallLogs(runOutputDir, verbose)
+		if err != nil {
+			return nil, fmt.Errorf("failed to analyze firewall logs for run %d: %w", runID, err)
+		}
 	}
 
 	// Analyze GitHub API rate limit consumption

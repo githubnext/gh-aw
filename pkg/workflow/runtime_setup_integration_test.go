@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -384,5 +386,118 @@ steps:
 	verifyIndex := indexInNonCommentLines(lockContent, "Verify uv")
 	if pythonIndex > verifyIndex || uvIndex > verifyIndex {
 		t.Error("Setup steps should come before 'Verify uv' step")
+	}
+}
+
+// TestCustomImageRunnerNodeSetupIntegration verifies that Node.js is automatically
+// set up in the agent job when a custom image runner is specified.
+func TestCustomImageRunnerNodeSetupIntegration(t *testing.T) {
+	tests := []struct {
+		name              string
+		workflowMarkdown  string
+		expectNodeSetup   bool
+		expectNodeVersion string // if non-empty, assert this node-version appears in the setup step
+	}{
+		{
+			name: "self-hosted runner gets Node.js setup",
+			workflowMarkdown: `---
+on: push
+engine: copilot
+runs-on: self-hosted
+---
+
+# Test workflow`,
+			expectNodeSetup: true,
+		},
+		{
+			name: "custom enterprise runner gets Node.js setup",
+			workflowMarkdown: `---
+on: push
+engine: copilot
+runs-on: enterprise-custom-runner
+---
+
+# Test workflow`,
+			expectNodeSetup: true,
+		},
+		{
+			name: "ubuntu-latest does not get extra Node.js setup from runtime manager",
+			workflowMarkdown: `---
+on: push
+engine: copilot
+runs-on: ubuntu-latest
+---
+
+# Test workflow`,
+			expectNodeSetup: false,
+		},
+		{
+			name: "default runner (no runs-on) does not get extra Node.js setup",
+			workflowMarkdown: `---
+on: push
+engine: copilot
+---
+
+# Test workflow`,
+			expectNodeSetup: false,
+		},
+		{
+			name: "custom runner with node version override uses overridden version",
+			workflowMarkdown: `---
+on: push
+engine: copilot
+runs-on: self-hosted
+runtimes:
+  node:
+    version: '22'
+---
+
+# Test workflow`,
+			expectNodeSetup:   true,
+			expectNodeVersion: "22",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-custom-runner-*")
+			testFile := tmpDir + "/test-workflow.md"
+
+			if err := os.WriteFile(testFile, []byte(tt.workflowMarkdown), 0644); err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Compilation failed: %v", err)
+			}
+
+			lockFile := stringutil.MarkdownToLockFile(testFile)
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			lockContent := string(content)
+
+			// For the agent job, check whether a Setup Node.js step appears
+			// from the runtime manager (before engine installation steps).
+			// The Copilot engine uses a binary installer (no npm), so any
+			// "Setup Node.js" step in the agent job comes from the runtime manager.
+			agentJobSection := extractJobSection(lockContent, "agent")
+
+			hasNodeSetup := strings.Contains(agentJobSection, "Setup Node.js") &&
+				strings.Contains(agentJobSection, "actions/setup-node@")
+
+			if tt.expectNodeSetup {
+				assert.True(t, hasNodeSetup, "Expected Node.js setup step in agent job for custom runner.\nAgent job:\n%s", agentJobSection)
+				// If a specific node version is expected, verify it appears in the setup step.
+				if tt.expectNodeVersion != "" {
+					assert.Contains(t, agentJobSection, "node-version: '"+tt.expectNodeVersion+"'",
+						"Expected node-version '%s' in Setup Node.js step.\nAgent job:\n%s", tt.expectNodeVersion, agentJobSection)
+				}
+			} else {
+				assert.False(t, hasNodeSetup, "Did not expect Node.js setup step from runtime manager in agent job for standard runner.\nAgent job:\n%s", agentJobSection)
+			}
+		})
 	}
 }

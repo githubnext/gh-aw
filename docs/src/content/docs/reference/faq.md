@@ -405,7 +405,30 @@ See [Footer Control](/gh-aw/reference/footers/) for complete documentation inclu
 
 This happens because workflows configured as required status checks run in a restricted context without access to the repository file system, so runtime imports cannot be resolved.
 
-The fix is to enable `inlined-imports: true` in your workflow frontmatter so the compiler bundles all imported content into the compiled `.lock.yml` at compile time. See [Using Imports in Repository Rulesets](/gh-aw/reference/imports/#using-imports-in-repository-rulesets-inlined-imports-true) for the full details.
+The fix is to enable `inlined-imports: true` in your workflow frontmatter so the compiler bundles all imported content into the compiled `.lock.yml` at compile time. See [Self-Contained Lock Files](/gh-aw/reference/imports/#self-contained-lock-files-inlined-imports-true) for the full details.
+
+### My cross-organization `workflow_call` fails with a repository checkout error
+
+When a trigger file in one organization calls an agentic workflow in a **different organization**, the activation job attempts to check out the platform repo's `.github` folder using the caller's `GITHUB_TOKEN`. That token is scoped to the caller's organization and cannot access a private repository in another organization, producing an error such as:
+
+```
+fatal: repository 'https://github.com/other-org/platform-repo/' not found
+```
+
+The fix is to enable `inlined-imports: true` on the **platform workflow** (the callee). This embeds all imported content into the compiled `.lock.yml` at compile time, eliminating the cross-organization checkout entirely:
+
+```yaml
+---
+on:
+  workflow_call:
+engine: copilot
+inlined-imports: true
+imports:
+  - shared/common-tools.md
+---
+```
+
+See [Cross-Organization `workflow_call`](/gh-aw/reference/imports/#cross-organization-workflow_call) for the full details.
 
 ### My workflow checkout is very slow because my repository is a large monorepo. How can I speed it up?
 

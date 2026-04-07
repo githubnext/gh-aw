@@ -70,6 +70,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			format, _ := cmd.Flags().GetString("format")
 			repoFlag, _ := cmd.Flags().GetString("repo")
+			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 
 			var owner, repo, hostname string
 			if repoFlag != "" {
@@ -81,7 +82,7 @@ Examples:
 				repo = parts[1]
 			}
 
-			return RunAuditDiff(cmd.Context(), baseRunID, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, format)
+			return RunAuditDiff(cmd.Context(), baseRunID, compareRunIDs, owner, repo, hostname, outputDir, verbose, jsonOutput, format, artifacts)
 		},
 	}
 
@@ -89,14 +90,27 @@ Examples:
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
 	cmd.Flags().String("format", "pretty", "Output format: pretty, markdown")
+	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 
 	return cmd
 }
 
 // RunAuditDiff compares behavior between a base workflow run and one or more comparison runs.
 // The base run is the reference point; each comparison run is diffed against it independently.
-func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, owner, repo, hostname, outputDir string, verbose, jsonOutput bool, format string) error {
+func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, owner, repo, hostname, outputDir string, verbose, jsonOutput bool, format string, artifactSets []string) error {
 	auditDiffLog.Printf("Starting audit diff: base=%d, compare=%v", baseRunID, compareRunIDs)
+
+	// Validate and resolve artifact sets into a concrete filter.
+	if err := ValidateArtifactSets(artifactSets); err != nil {
+		return err
+	}
+	artifactFilter := ResolveArtifactFilter(artifactSets)
+	if len(artifactFilter) > 0 {
+		auditDiffLog.Printf("Artifact filter active: %v", artifactFilter)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Artifact filter: downloading only "+strings.Join(artifactFilter, ", ")))
+		}
+	}
 
 	// Auto-detect GHES host from git remote if hostname is not provided
 	if hostname == "" {
@@ -122,7 +136,7 @@ func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, o
 
 	// Load base run summary once (shared across all comparisons)
 	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for base run %d...", baseRunID)))
-	baseSummary, err := loadRunSummaryForDiff(baseRunID, outputDir, owner, repo, hostname, verbose)
+	baseSummary, err := loadRunSummaryForDiff(baseRunID, outputDir, owner, repo, hostname, verbose, artifactFilter)
 	if err != nil {
 		return fmt.Errorf("failed to load data for base run %d: %w", baseRunID, err)
 	}
@@ -139,7 +153,7 @@ func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, o
 		}
 
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", compareRunID)))
-		compareSummary, err := loadRunSummaryForDiff(compareRunID, outputDir, owner, repo, hostname, verbose)
+		compareSummary, err := loadRunSummaryForDiff(compareRunID, outputDir, owner, repo, hostname, verbose, artifactFilter)
 		if err != nil {
 			return fmt.Errorf("failed to load data for run %d: %w", compareRunID, err)
 		}

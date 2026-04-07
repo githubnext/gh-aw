@@ -144,11 +144,6 @@ func RenderJSONMCPConfig(
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			options.Renderers.RenderPlaywright(&configBuilder, playwrightTool, isLast)
-		case "qmd":
-			qmdTool := tools["qmd"]
-			if options.Renderers.RenderQmd != nil {
-				options.Renderers.RenderQmd(&configBuilder, qmdTool, isLast, workflowData)
-			}
 		case "cache-memory":
 			options.Renderers.RenderCacheMemory(&configBuilder, isLast, workflowData)
 		case "agentic-workflows":

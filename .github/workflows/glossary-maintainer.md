@@ -27,17 +27,6 @@ imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
   - shared/mcp/serena-go.md
-  - uses: shared/qmd.md
-    with:
-      runs-on: aw-gpu-runner-T4
-      gpu: true
-      checkouts:
-        - name: gh-aw
-          pattern: "**/*.{md,mdx}"
-          ignore:
-            - ".git/**"
-            - "node_modules/**"
-          context: "gh-aw project documentation, agent definitions, and workflow authoring instructions"
 
 safe-outputs:
   create-pull-request:
@@ -74,9 +63,9 @@ Keep the glossary up-to-date by:
 
 ## Available Tools
 
-### `search` (QMD — use this first)
+### `search`
 
-Use the `search` tool to find relevant documentation with natural language queries — it queries a local vector database of project docs, agent definitions, and workflow files.
+Use the `search` tool to find relevant documentation with natural language queries — it queries the repository's documentation files using text search.
 
 **Always use `search` first** when you need to find, verify, or search documentation:
 - Before writing new glossary entries — check whether documentation already exists for the term
@@ -87,7 +76,7 @@ Use the `search` tool to find relevant documentation with natural language queri
 Example queries:
 - `search("safe-outputs create-pull-request options")`
 - `search("engine configuration copilot")`
-- `search("qmd documentation search tool")`
+- `search("cache-memory persistent storage")`
 
 Always read the returned file paths to get full content — `search` returns paths, not content.
 
@@ -164,7 +153,7 @@ cat docs/src/content/docs/reference/glossary.md
 **For each candidate term, use `search` to find documentation that describes it** — this provides authoritative context for writing accurate definitions and reveals whether any documentation page already explains the term:
 - e.g., `search("safe-outputs create-pull-request")` to find pages describing that feature
 - e.g., `search("engine configuration copilot")` to find all documentation on engines
-- e.g., `search("qmd documentation search tool")` to find documentation on the search tool itself
+- e.g., `search("cache-memory persistent storage")` to find documentation on memory tools
 - Read the returned file paths for full context before writing definitions
 
 **Check for:**

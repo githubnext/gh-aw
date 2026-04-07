@@ -58,7 +58,6 @@ func (m MCPServerID) String() string {
 // Job name constants for GitHub Actions workflow jobs
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
-const IndexingJobName JobName = "indexing"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
 const SafeOutputsJobName JobName = "safe_outputs"

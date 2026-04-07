@@ -72,6 +72,12 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Extract tools from the main file
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 
+	// Validate that the tools: section only contains known built-in tool names.
+	// Custom MCP servers must be placed under mcp-servers: instead.
+	if err := ValidateToolsSection(topTools); err != nil {
+		return nil, err
+	}
+
 	// Extract mcp-servers from the main file and merge them into tools
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
 
@@ -175,7 +181,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		}
 	}
 
-	// Validate MCP configurations
+	// Validate MCP configurations for entries coming from mcp-servers
 	orchestratorToolsLog.Printf("Validating MCP configurations")
 	if err := ValidateMCPConfigs(tools); err != nil {
 		orchestratorToolsLog.Printf("MCP configuration validation failed: %v", err)

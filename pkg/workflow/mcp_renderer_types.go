@@ -34,7 +34,6 @@ type RenderCustomMCPToolConfigHandler func(yaml *strings.Builder, toolName strin
 type MCPToolRenderers struct {
 	RenderGitHub           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData)
 	RenderPlaywright       func(yaml *strings.Builder, playwrightTool any, isLast bool)
-	RenderQmd              func(yaml *strings.Builder, qmdTool any, isLast bool, workflowData *WorkflowData)
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)

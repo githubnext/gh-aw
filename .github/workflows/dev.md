@@ -15,21 +15,6 @@ permissions:
   issues: read
   pull-requests: read
 
-imports:
-  - uses: shared/qmd.md
-    with:
-      runs-on: aw-gpu-runner-T4
-      gpu: true
-      checkouts:
-        - name: docs
-          pattern: "docs/src/**/*.{md,mdx}"
-          context: "gh-aw project documentation"
-      searches:
-        - name: issues
-          type: issues
-          max: 500
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
 safe-outputs:
   create-issue:
     expires: 7d
@@ -44,9 +29,9 @@ Generate a daily status report for the gh-aw project, focusing on documentation 
 
 **Requirements:**
 
-1. **Find documentation problems reported in issues**: Use the `qmd` search tool to query the indexed issues collection for issues that mention documentation bugs, unclear instructions, missing documentation, or incorrect documentation. Look for patterns like "docs", "documentation", "unclear", "wrong", "missing", "broken", "outdated".
+1. **Find documentation problems reported in issues**: Search GitHub issues for mentions of documentation bugs, unclear instructions, missing documentation, or incorrect documentation. Look for patterns like "docs", "documentation", "unclear", "wrong", "missing", "broken", "outdated".
 
-2. **Cross-reference with current documentation**: For each documentation problem found in issues, use the `qmd` search tool to query the indexed docs collection to find the relevant documentation section that the issue is referencing or that could answer the question raised.
+2. **Cross-reference with current documentation**: For each documentation problem found in issues, search the repository documentation to find the relevant section that the issue is referencing or that could answer the question raised.
 
 3. **Compile a report** summarizing:
    - Issues that report documentation problems (with issue numbers and titles)

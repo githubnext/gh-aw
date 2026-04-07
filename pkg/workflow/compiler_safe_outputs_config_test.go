@@ -727,6 +727,21 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			checkJSON:    true,
 			expectedKeys: []string{"missing_data"},
 		},
+		{
+			name: "report_incomplete config",
+			safeOutputs: &SafeOutputsConfig{
+				ReportIncomplete: &ReportIncompleteConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("5"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"report_incomplete"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -903,6 +918,51 @@ func TestHandlerConfigReviewers(t *testing.T) {
 				assert.Equal(t, "user1", reviewerSlice[0])
 				assert.Equal(t, "user2", reviewerSlice[1])
 				assert.Equal(t, "copilot", reviewerSlice[2])
+			}
+		}
+	}
+}
+
+// TestHandlerConfigAssignees tests assignees configuration in create_pull_request
+func TestHandlerConfigAssignees(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				Assignees: []string{"user1", "user2"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	// Extract and validate JSON
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				prConfig, ok := config["create_pull_request"]
+				require.True(t, ok, "Should have create_pull_request handler")
+
+				assignees, ok := prConfig["assignees"]
+				require.True(t, ok, "Should have assignees field")
+
+				assigneeSlice, ok := assignees.([]any)
+				require.True(t, ok, "Assignees should be an array")
+				assert.Len(t, assigneeSlice, 2, "Should have 2 assignees")
+				assert.Equal(t, "user1", assigneeSlice[0])
+				assert.Equal(t, "user2", assigneeSlice[1])
 			}
 		}
 	}

@@ -14,11 +14,6 @@ package workflow
 // URL derived from GITHUB_SERVER_URL, not GH_HOST, so they bypass the proxy even when it
 // is running. Only gh CLI calls that honour GH_HOST are actually filtered.
 //
-// Note: qmd indexing GitHub API calls are made via actions/github-script (@actions/github
-// Octokit). The proxy sets GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS in
-// addition to GH_HOST, so it intercepts Octokit calls as well. Proxy wrapping is therefore
-// also injected around qmd indexing steps when DIFC guards are configured.
-//
 // The proxy uses the same container image as the MCP gateway (gh-aw-mcpg)
 // but runs in "proxy" mode with --guards-mode filter (graceful degradation)
 // and --tls (required by the gh CLI HTTPS-only constraint).
@@ -37,10 +32,10 @@ package workflow
 //     even if earlier steps failed (if: always(), continue-on-error: true)
 //
 // Proxy lifecycle within the indexing job:
-//  1. Start proxy — before qmd index-building steps
-//  2. qmd steps run with all proxy env vars set (GH_HOST, GITHUB_API_URL, GITHUB_GRAPHQL_URL,
+//  1. Start proxy — before index-building steps
+//  2. Steps run with all proxy env vars set (GH_HOST, GITHUB_API_URL, GITHUB_GRAPHQL_URL,
 //     NODE_EXTRA_CA_CERTS); Octokit calls in actions/github-script are intercepted
-//  3. Stop proxy — after qmd steps; always runs (if: always(), continue-on-error: true)
+//  3. Stop proxy — after steps; always runs (if: always(), continue-on-error: true)
 //
 // Guard policy note:
 //
@@ -323,16 +318,6 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n")
-}
-
-// buildStopDIFCProxyStepYAML returns the YAML for the "Stop DIFC proxy" step as a string.
-// The step runs even if earlier steps failed to ensure cleanup of container and CA cert.
-// Used by the indexing job which manages steps as []string.
-func buildStopDIFCProxyStepYAML() string {
-	return "      - name: Stop DIFC proxy\n" +
-		"        if: always()\n" +
-		"        continue-on-error: true\n" +
-		"        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n"
 }
 
 // difcProxyLogPaths returns the artifact paths for DIFC proxy logs.

@@ -150,9 +150,6 @@ func buildStandardJSONMCPRenderers(
 		RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
 			createRenderer(isLast).RenderPlaywrightMCP(yaml, playwrightTool)
 		},
-		RenderQmd: func(yaml *strings.Builder, qmdTool any, isLast bool, workflowData *WorkflowData) {
-			createRenderer(isLast).RenderQmdMCP(yaml, qmdTool, workflowData)
-		},
 		RenderCacheMemory: noOpCacheMemoryRenderer,
 		RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {
 			createRenderer(isLast).RenderAgenticWorkflowsMCP(yaml)

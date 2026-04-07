@@ -458,11 +458,6 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"github": map[string]any{
 					"allowed": []any{"list_issues"},
 				},
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"ls", "cat"},
-					},
-				},
 			},
 			wantErr: false,
 		},
@@ -595,6 +590,111 @@ func TestValidateMCPConfigs(t *testing.T) {
 			if tt.wantErr && err != nil && tt.errMsg != "" {
 				if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("ValidateMCPConfigs() error = %v, expected to contain %v", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateToolsSection(t *testing.T) {
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "nil tools",
+			tools:   nil,
+			wantErr: false,
+		},
+		{
+			name:    "empty tools",
+			tools:   map[string]any{},
+			wantErr: false,
+		},
+		{
+			name: "built-in tools only - no error",
+			tools: map[string]any{
+				"github":     map[string]any{"mode": "local"},
+				"playwright": map[string]any{"version": "v1.41.0"},
+				"bash":       []any{"echo", "ls"},
+				"web-fetch":  nil,
+			},
+			wantErr: false,
+		},
+		{
+			name: "unknown tool name with version-only config",
+			tools: map[string]any{
+				"nonexistent-tool-xyz": map[string]any{"version": "1.0"},
+			},
+			wantErr:     true,
+			errContains: "tools.nonexistent-tool-xyz: unknown tool name",
+		},
+		{
+			name: "typo of built-in tool name",
+			tools: map[string]any{
+				"playwrigjht": map[string]any{"version": "v1.41.0"},
+			},
+			wantErr:     true,
+			errContains: "tools.playwrigjht: unknown tool name",
+		},
+		{
+			// Custom MCP servers with command/url/container belong under mcp-servers, not tools
+			name: "custom MCP server in tools section is an error",
+			tools: map[string]any{
+				"my-mcp-server": map[string]any{
+					"command": "node",
+					"args":    []any{"server.js"},
+				},
+			},
+			wantErr:     true,
+			errContains: "tools.my-mcp-server: unknown tool name",
+		},
+		{
+			name: "unknown tool with allowed-only config",
+			tools: map[string]any{
+				"unknown-tool": map[string]any{
+					"allowed": []any{"some-tool"},
+				},
+			},
+			wantErr:     true,
+			errContains: "tools.unknown-tool: unknown tool name",
+		},
+		{
+			name: "unknown tool with nil value",
+			tools: map[string]any{
+				"bad-tool": nil,
+			},
+			wantErr:     true,
+			errContains: "tools.bad-tool: unknown tool name",
+		},
+		{
+			// Error message should direct users to mcp-servers:
+			name: "error message references mcp-servers",
+			tools: map[string]any{
+				"my-custom-server": map[string]any{"command": "npx my-tool"},
+			},
+			wantErr:     true,
+			errContains: "mcp-servers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateToolsSection(tt.tools)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ValidateToolsSection() expected an error, got nil")
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ValidateToolsSection() error = %q, expected to contain %q", err.Error(), tt.errContains)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("ValidateToolsSection() unexpected error: %v", err)
 				}
 			}
 		})

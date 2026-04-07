@@ -69,6 +69,10 @@ func createMCPServer(cmdPath string, actor string, validateActor bool) *mcp.Serv
 		return server
 	}
 
+	if err := registerAuditDiffTool(server, execCmd, actor, validateActor); err != nil {
+		return server
+	}
+
 	// Register remaining read-only tools
 	registerChecksTool(server)
 	registerMCPInspectTool(server, execCmd)

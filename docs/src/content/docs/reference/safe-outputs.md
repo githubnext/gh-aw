@@ -689,6 +689,7 @@ safe-outputs:
     title-prefix: "[ai] "
     labels: [automation]
     reviewers: [user1, copilot]
+    assignees: [user1]            # assignees for fallback issues created when PR creation cannot proceed (including protected-files fallback)
     protected-files: fallback-to-issue  # create review issue if protected files modified, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
 ```
 

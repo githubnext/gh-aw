@@ -1,206 +1,125 @@
 ---
 title: QMD Documentation Search
-description: Build a local vector search index over documentation files and expose it as an MCP tool so agents can find relevant docs without contents:read permission in the agent job.
+description: Configure vector similarity search over documentation files using the qmd tool in agentic workflows.
 sidebar:
-  order: 730
+  order: 820
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+QMD Documentation Search provides vector similarity search over documentation files. It runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query.
 
-<Aside type="caution" title="Experimental">
-  The `qmd` tool is experimental and its API may change without notice.
-</Aside>
+The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via GitHub Actions cache, so the agent job does not need `contents: read` permission.
 
-The `qmd:` tool integrates [tobi/qmd](https://github.com/tobi/qmd) as a built-in MCP server that performs **vector similarity search** over documentation files. The search index is built in a dedicated `indexing` job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`.
+:::caution[Experimental]
+QMD Documentation Search is an experimental feature. The API may change in future releases.
+:::
 
-## How it works
-
-1. **Indexing job** — installs `@tobilu/qmd`, registers documentation collections from configured checkouts and/or GitHub searches, builds the vector index, and saves it to `actions/cache`.
-2. **Agent job** — restores the qmd cache (index and models) and starts qmd as an MCP server (`qmd mcp --http`). The agent can call the `search` tool to find relevant documentation files by natural language query.
-
-The embedding models used to build and query the index are automatically cached in both jobs via `actions/cache` (keyed by OS at `~/.cache/qmd/models/`), so models are only downloaded once per runner OS.
-
-## Quick start
+## Basic Configuration
 
 ```aw wrap
 ---
 tools:
   qmd:
     checkouts:
-      - name: docs
-        pattern: "docs/**/*.md"
+      - pattern: "docs/**/*.md"
 ---
 ```
 
-This indexes all markdown files under `docs/` and `.github/` in the current repository.
+## Configuration Options
 
-## Configuration
+### `checkouts`
 
-### Checkouts form
+A list of named documentation collections built from checked-out repositories. Each entry specifies which files to index from the current repository or a different repository.
 
-Index files from one or more named collections, each with an optional repository checkout:
-
-```yaml wrap
+```aw wrap
+---
 tools:
   qmd:
     checkouts:
-      - name: current-docs
-        pattern: "docs/**/*.md"
-        context: "Project documentation"
-      - name: other-repo-docs
-        pattern: "docs/**/*.md"
-        context: "Documentation for owner/other-repo"
-        checkout:
-          repository: owner/other-repo
-          ref: main
-          path: ./other-repo       # optional; defaults to /tmp/gh-aw/qmd-checkout-<name>
+      - pattern: "docs/**/*.md"
+      - pattern: "README.md"
+---
 ```
 
-Each `checkout:` entry accepts the same options as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field: `repository`, `ref`, `path`, `token`, `fetch-depth`, `sparse-checkout`, `submodules`, and `lfs`.
+Each checkout entry can optionally specify its own checkout configuration to target a different repository.
 
-The optional `context:` field provides additional hints to the agent about the collection's content (e.g. product area, audience, or version).
+### `searches`
 
-The optional `ignore:` field specifies glob patterns for files to exclude from the collection:
+A list of GitHub code search queries whose results are downloaded and added to the qmd index.
 
-```yaml wrap
-tools:
-  qmd:
-    checkouts:
-      - name: docs
-        pattern: "**/*.md"
-        ignore:
-          - "**/node_modules/**"
-          - "**/*.test.md"
-```
-
-### Searches form
-
-Download files returned by GitHub code search and add them to the index:
-
-```yaml wrap
+```aw wrap
+---
 tools:
   qmd:
     searches:
-      - query: "repo:owner/repo language:Markdown path:docs/"
-        min: 1     # fail the activation job if fewer results (default: 0)
-        max: 30    # download at most this many files (default: 30)
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      - query: "repo:github/gh-aw language:markdown"
+---
 ```
 
-Each search entry runs `gh search code <query>` in the activation job, downloads every matching file via the GitHub API, and registers the result as a separate qmd collection named `search-0`, `search-1`, etc.
+### `cache-key`
 
-Use `github-app:` instead of `github-token:` for cross-organization access:
+A GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (`checkouts`/`searches`), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.
 
-```yaml wrap
+```aw wrap
+---
 tools:
   qmd:
-    searches:
-      - query: "org:myorg language:Markdown path:docs/"
-        github-app:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    cache-key: "qmd-docs-${{ github.repository }}"
+---
 ```
 
-### Cache key
+### `gpu`
 
-Persist the index in GitHub Actions cache to speed up subsequent runs. On a cache hit all indexing steps are skipped automatically:
+Enable GPU acceleration for the embedding model (`node-llama-cpp`). Defaults to `false`: `NODE_LLAMA_CPP_GPU=false` is injected into the indexing step so GPU probing is skipped on CPU-only runners. Set to `true` only when the indexing runner has a GPU.
 
-```yaml wrap
+```aw wrap
+---
 tools:
   qmd:
-    checkouts:
-      - name: docs
-        pattern: "docs/**/*.md"
-    cache-key: "qmd-index-${{ hashFiles('docs/**') }}"
+    gpu: true
+    runs-on: gpu-runner
+---
 ```
 
-#### Read-only mode
+### `runs-on`
 
-When `cache-key` is set without any indexing sources (`checkouts` or `searches`), the tool operates in **read-only mode**: the activation job restores the index from cache (failing silently if the cache does not exist yet) and skips all Node.js, npm, and qmd build steps entirely. This is useful for maintaining a shared, pre-built documentation database:
+Override the runner image for the qmd indexing job. Defaults to the same runner as the agent job. Use this when the indexing job requires a different runner (e.g. a GPU runner).
 
-```yaml wrap
+```aw wrap
+---
 tools:
   qmd:
-    cache-key: "qmd-index-v1"
+    runs-on: ubuntu-latest
+---
 ```
 
-### Combined form
+## Example: Index Documentation from Multiple Sources
 
-All sources can be combined in a single configuration:
-
-```yaml wrap
+```aw wrap
+---
 tools:
   qmd:
     checkouts:
-      - name: local-docs
-        pattern: "docs/**/*.md"
-        context: "Project documentation"
-      - name: sdk-docs
-        pattern: "{README.md,docs/**/*.md}"
-        context: "SDK reference"
-        checkout:
-          repository: owner/sdk
-          path: ./sdk
-    searches:
-      - query: "org:myorg language:Markdown path:wiki/"
-        max: 50
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-    cache-key: "qmd-index-${{ hashFiles('docs/**') }}"
+      - pattern: "docs/**/*.md"
+      - pattern: "*.md"
+    cache-key: "qmd-docs-${{ github.repository }}-${{ github.run_id }}"
+---
 ```
 
-## Configuration reference
+## Example: Read-Only Mode with Pre-Built Index
 
-### `qmd:` fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `checkouts` | `QmdDocCollection[]` | No | Named collections, each with optional per-collection checkout. |
-| `searches` | `QmdSearchEntry[]` | No | GitHub code search queries whose results are downloaded and indexed. |
-| `cache-key` | `string` | No | GitHub Actions cache key for persisting the index across runs. When set without sources, enables read-only mode. |
-
-### `QmdDocCollection` fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | `string` | No | Collection identifier (defaults to `"docs-<index>"`). |
-| `pattern` | `string` | No | Glob pattern for files to include (defaults to `**/*.md`). |
-| `ignore` | `string[]` | No | List of glob patterns for files to exclude from the collection. |
-| `context` | `string` | No | Optional context hint for the agent about this collection's content (e.g. `"GitHub Actions documentation"`). |
-| `checkout` | `CheckoutConfig` | No | Repository checkout options — same syntax as the top-level [`checkout:`](/gh-aw/reference/frontmatter/#repository-checkout-checkout) field. Defaults to the current repository. |
-
-### `QmdSearchEntry` fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `query` | `string` | Yes | GitHub code search query string (e.g., `"repo:owner/repo language:Markdown"`). |
-| `min` | `int` | No | Minimum number of results required; fails the activation job if not met (default: `0`). |
-| `max` | `int` | No | Maximum number of files to download (default: `30`). |
-| `github-token` | `string` | No | GitHub token for authenticated search (e.g., `${{ secrets.GITHUB_TOKEN }}`). |
-| `github-app` | `GitHubAppConfig` | No | GitHub App credentials for cross-organization access. |
-
-## Permissions
-
-The `qmd` tool does **not** require `contents: read` in the agent job. All file access happens in the activation job, which already has that permission.
-
-```yaml wrap
-# No extra permissions needed for the agent job
-permissions:
-  contents: read   # activation job only — already present by default
+```aw wrap
+---
+tools:
+  qmd:
+    cache-key: "qmd-docs-my-project"
+---
 ```
 
-## Agent usage
-
-When qmd is active, the agent's system prompt instructs it to use the `search` tool before falling back to file listing or `bash`. Example queries:
-
-- `"how to configure MCP servers"` — finds docs about MCP setup
-- `"safe-outputs create-pull-request options"` — finds safe-output option reference
-- `"permissions frontmatter field"` — finds permission configuration docs
-
-The tool returns file paths ranked by relevance. Use standard file reading to fetch full content.
+In read-only mode, the index is restored from cache and no indexing steps are run. This is useful when the index is built separately and shared across workflows.
 
 ## Related Documentation
 
-- [Tools](/gh-aw/reference/tools/) - Overview of all built-in tools
-- [Frontmatter](/gh-aw/reference/frontmatter/#repository-checkout-checkout) - Top-level checkout configuration
-- [Permissions](/gh-aw/reference/permissions/) - GitHub Actions permission configuration
-- [Dependabot](/gh-aw/reference/dependabot/) - Automatic dependency updates (tracks `@tobilu/qmd` version)
+- [Tools](/gh-aw/reference/tools/) - Overview of all available tools and configuration
+- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
+- [Cache Memory](/gh-aw/reference/cache-memory/) - Persistent memory across workflow runs
+- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API operations

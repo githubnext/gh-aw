@@ -792,11 +792,11 @@ func TestDependencyGraph_TopologicalConsistencyContract(t *testing.T) {
 imports:
   - a-child.md
 tools:
-  tool-z: {}
+  playwright:
 ---`,
 				"a-child.md": `---
 tools:
-  tool-a: {}
+  bash:
 ---`,
 			},
 			topImports: []string{"z-parent.md"},
@@ -810,17 +810,17 @@ tools:
 imports:
   - b-mid.md
 tools:
-  tool-c: {}
+  github:
 ---`,
 				"b-mid.md": `---
 imports:
   - a-leaf.md
 tools:
-  tool-b: {}
+  edit:
 ---`,
 				"a-leaf.md": `---
 tools:
-  tool-a: {}
+  bash:
 ---`,
 			},
 			topImports: []string{"c-root.md"},
@@ -834,17 +834,17 @@ tools:
 imports:
   - a-shared.md
 tools:
-  tool-z: {}
+  playwright:
 ---`,
 				"y-right.md": `---
 imports:
   - a-shared.md
 tools:
-  tool-y: {}
+  web-fetch:
 ---`,
 				"a-shared.md": `---
 tools:
-  tool-shared: {}
+  web-search:
 ---`,
 			},
 			topImports: []string{"z-left.md", "y-right.md"},

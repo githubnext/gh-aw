@@ -149,6 +149,7 @@ Examples:
 			filteredIntegrity, _ := cmd.Flags().GetBool("filtered-integrity")
 			train, _ := cmd.Flags().GetBool("train")
 			format, _ := cmd.Flags().GetString("format")
+			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -183,7 +184,7 @@ Examples:
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v", workflowName, count, engine, train)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format)
+			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts)
 		},
 	}
 
@@ -210,6 +211,7 @@ Examples:
 	logsCmd.Flags().Bool("train", false, "Train drain3 log template weights from downloaded runs and write drain3_weights.json to the output directory")
 	logsCmd.Flags().String("format", "", "Output format for cross-run audit report: markdown, pretty (generates security audit report instead of default metrics table)")
 	logsCmd.Flags().Int("last", 0, "Alias for --count: number of recent runs to analyze when generating a cross-run report")
+	logsCmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

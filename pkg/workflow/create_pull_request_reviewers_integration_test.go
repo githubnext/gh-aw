@@ -194,3 +194,114 @@ Create a pull request without reviewers.
 		t.Error("Did not expect gh pr edit with --add-reviewer when no reviewers configured")
 	}
 }
+
+// TestCreatePullRequestWorkflowCompilationWithAssignees tests end-to-end workflow compilation with assignees
+func TestCreatePullRequestWorkflowCompilationWithAssignees(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "assignees-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[ci] "
+    reviewers: [user1]
+    assignees: [user1, user2]
+    protected-files: fallback-to-issue
+---
+
+# Test Workflow
+
+Create a pull request with assignees for fallback issues.
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-assignees.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	outputFile := filepath.Join(tmpDir, "test-assignees.lock.yml")
+	compiledBytes, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled output: %v", err)
+	}
+
+	compiledContent := string(compiledBytes)
+
+	if !strings.Contains(compiledContent, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
+	}
+	// Verify assignees are present in the handler config
+	if !strings.Contains(compiledContent, "user1") || !strings.Contains(compiledContent, "user2") {
+		t.Error("Expected assignees to be referenced in compiled workflow")
+	}
+	if !strings.Contains(compiledContent, `"assignees"`) {
+		t.Error("Expected assignees key in compiled safe outputs config")
+	}
+}
+
+// TestCreatePullRequestWorkflowCompilationWithSingleStringAssignee tests workflow with a single string assignee
+func TestCreatePullRequestWorkflowCompilationWithSingleStringAssignee(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "single-assignee-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  pull-requests: read
+engine: copilot
+safe-outputs:
+  create-pull-request:
+    assignees: single-assignee
+---
+
+# Test Workflow
+
+Create a pull request with a single string assignee.
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-single-assignee.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	outputFile := filepath.Join(tmpDir, "test-single-assignee.lock.yml")
+	compiledBytes, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled output: %v", err)
+	}
+
+	compiledContent := string(compiledBytes)
+
+	if !strings.Contains(compiledContent, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
+	}
+	if !strings.Contains(compiledContent, "single-assignee") {
+		t.Error("Expected single-assignee reference in compiled workflow")
+	}
+}

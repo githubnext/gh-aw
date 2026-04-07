@@ -441,7 +441,6 @@ type WorkflowData struct {
 	RateLimit                   *RateLimitConfig          // rate limiting configuration for workflow triggers
 	CacheMemoryConfig           *CacheMemoryConfig        // parsed cache-memory configuration
 	RepoMemoryConfig            *RepoMemoryConfig         // parsed repo-memory configuration
-	QmdConfig                   *QmdToolConfig            // parsed qmd tool configuration (docs globs)
 	Runtimes                    map[string]any            // runtime version overrides from frontmatter
 	ToolsTimeout                string                    // timeout for tool/MCP operations: numeric string (seconds) or GitHub Actions expression (empty = use engine default)
 	ToolsStartupTimeout         string                    // timeout for MCP server startup: numeric string (seconds) or GitHub Actions expression (empty = use engine default)

@@ -8,7 +8,8 @@
 //
 // # Validation Functions
 //
-//   - ValidateMCPConfigs() - Validates all MCP configurations in tools section
+//   - ValidateMCPConfigs() - Validates MCP server configurations (from mcp-servers) in the merged tools map
+//   - ValidateToolsSection() - Validates the tools: frontmatter section only allows built-in tool names
 //   - validateStringProperty() - Validates that a property is a string type
 //   - validateMCPRequirements() - Validates type-specific MCP requirements
 //
@@ -55,58 +56,109 @@ import (
 
 var mcpValidationLog = newValidationLogger("mcp_config")
 
-// ValidateMCPConfigs validates all MCP configurations in the tools section using JSON schema
+// builtInToolNames is the canonical set of recognized built-in tool names for the tools: section.
+// Any key in tools: that is not in this set is a compile error.
+// Custom MCP servers must be placed under mcp-servers: instead.
+var builtInToolNames = map[string]bool{
+	"github":            true,
+	"playwright":        true,
+	"agentic-workflows": true,
+	"cache-memory":      true,
+	"repo-memory":       true,
+	"bash":              true,
+	"edit":              true,
+	"web-fetch":         true,
+	"web-search":        true,
+	"safety-prompt":     true,
+	"timeout":           true,
+	"startup-timeout":   true,
+}
+
+// builtInToolNamesForError is the sorted, comma-separated list of built-in tool names
+// used in error messages, derived once from builtInToolNames.
+var builtInToolNamesForError = func() string {
+	names := make([]string, 0, len(builtInToolNames))
+	for name := range builtInToolNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}()
+
+// ValidateMCPConfigs validates all MCP configurations in the tools section using JSON schema.
+// It validates MCP server entries (from mcp-servers, merged into tools) but does not check
+// for unknown tool names — that is done earlier by ValidateToolsSection.
 func ValidateMCPConfigs(tools map[string]any) error {
 	mcpValidationLog.Printf("Validating MCP configurations for %d tools", len(tools))
 
-	// List of built-in tools that have their own validation logic
-	// These tools should not be validated as custom MCP servers
-	builtInTools := map[string]bool{
-		"github":            true,
-		"playwright":        true,
-		"qmd":               true,
-		"agentic-workflows": true,
-		"cache-memory":      true,
-		"repo-memory":       true,
-		"bash":              true,
-		"edit":              true,
-		"web-fetch":         true,
-		"web-search":        true,
-		"safety-prompt":     true,
-		"timeout":           true,
-		"startup-timeout":   true,
+	// Collect and sort tool names for deterministic error messages
+	toolNames := make([]string, 0, len(tools))
+	for name := range tools {
+		toolNames = append(toolNames, name)
 	}
+	sort.Strings(toolNames)
 
-	for toolName, toolConfig := range tools {
+	for _, toolName := range toolNames {
+		toolConfig := tools[toolName]
+
 		// Skip built-in tools - they have their own schema validation
-		if builtInTools[toolName] {
+		if builtInToolNames[toolName] {
 			mcpValidationLog.Printf("Skipping MCP validation for built-in tool: %s", toolName)
 			continue
 		}
 
-		if config, ok := toolConfig.(map[string]any); ok {
-			// Extract raw MCP configuration (without transformation)
-			mcpConfig, err := getRawMCPConfig(config)
-			if err != nil {
-				mcpValidationLog.Printf("Invalid MCP configuration for tool %s: %v", toolName, err)
-				return fmt.Errorf("tool '%s' has invalid MCP configuration: %w", toolName, err)
-			}
+		config, ok := toolConfig.(map[string]any)
+		if !ok {
+			// Non-map configs for custom MCP servers (from mcp-servers section) are skipped here
+			continue
+		}
 
-			// Skip validation if no MCP configuration found
-			if len(mcpConfig) == 0 {
-				continue
-			}
+		// Extract raw MCP configuration (without transformation)
+		mcpConfig, err := getRawMCPConfig(config)
+		if err != nil {
+			mcpValidationLog.Printf("Invalid MCP configuration for tool %s: %v", toolName, err)
+			return fmt.Errorf("tool '%s' has invalid MCP configuration: %w", toolName, err)
+		}
 
-			mcpValidationLog.Printf("Validating MCP requirements for tool: %s", toolName)
+		// Skip validation if no MCP configuration found
+		if len(mcpConfig) == 0 {
+			continue
+		}
 
-			// Validate MCP configuration requirements (before transformation)
-			if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
-				return err
-			}
+		mcpValidationLog.Printf("Validating MCP requirements for tool: %s", toolName)
+
+		// Validate MCP configuration requirements (before transformation)
+		if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
+			return err
 		}
 	}
 
 	mcpValidationLog.Print("MCP configuration validation completed successfully")
+	return nil
+}
+
+// ValidateToolsSection validates that all entries in the user-facing tools: frontmatter section
+// are recognized built-in tool names. Custom MCP servers must be placed under mcp-servers: instead.
+// This is called on topTools (before merging with mcp-servers) to give accurate user-facing errors.
+func ValidateToolsSection(tools map[string]any) error {
+	if len(tools) == 0 {
+		return nil
+	}
+
+	// Collect and sort names for deterministic error messages
+	toolNames := make([]string, 0, len(tools))
+	for name := range tools {
+		toolNames = append(toolNames, name)
+	}
+	sort.Strings(toolNames)
+
+	for _, toolName := range toolNames {
+		if !builtInToolNames[toolName] {
+			mcpValidationLog.Printf("Unknown tool in tools section: %s", toolName)
+			return fmt.Errorf("tools.%s: unknown tool name. The 'tools' section only accepts built-in tool names.\n\nValid built-in tools: %s.\n\nIf '%s' is a custom MCP server, define it under 'mcp-servers' instead:\nmcp-servers:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nSee: %s", toolName, builtInToolNamesForError, toolName, toolName, constants.DocsToolsURL)
+		}
+	}
+
 	return nil
 }
 

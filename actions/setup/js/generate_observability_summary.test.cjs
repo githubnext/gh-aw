@@ -66,7 +66,30 @@ describe("generate_observability_summary.cjs", () => {
     expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to workflow_call_id when otel_trace_id is absent", async () => {
+  it("uses GITHUB_AW_OTEL_TRACE_ID env var when set (root-level workflow)", async () => {
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "deadbeef01234567deadbeef01234567";
+    fs.writeFileSync(
+      "/tmp/gh-aw/aw_info.json",
+      JSON.stringify({
+        workflow_name: "daily-workflow",
+        engine_id: "copilot",
+        staged: false,
+        firewall_enabled: false,
+        context: { workflow_call_id: "12345678901-1" },
+      })
+    );
+
+    await module.main(mockCore);
+
+    delete process.env.GITHUB_AW_OTEL_TRACE_ID;
+
+    expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).toContain("- **trace id**: deadbeef01234567deadbeef01234567");
+    expect(summary).not.toContain("12345678901-1");
+  });
+
+  it("does not show workflow_call_id as trace id when no OTLP trace ID is available", async () => {
     fs.writeFileSync(
       "/tmp/gh-aw/aw_info.json",
       JSON.stringify({
@@ -82,7 +105,8 @@ describe("generate_observability_summary.cjs", () => {
 
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     const summary = mockCore.summary.addRaw.mock.calls[0][0];
-    expect(summary).toContain("- **trace id**: 12345678901-1");
+    expect(summary).not.toContain("trace id");
+    expect(summary).not.toContain("12345678901-1");
   });
 
   it("always generates summary regardless of env vars", async () => {

@@ -340,10 +340,6 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 							allowedTools = append(allowedTools, "mcp__github__"+defaultTool)
 						}
 					}
-				} else if toolName == "qmd" {
-					// qmd uses non-standard config shapes (not standard MCP type/url/command fields),
-					// so hasMCPConfig returns false. Add the server wildcard so Claude can use all tools.
-					allowedTools = append(allowedTools, "mcp__"+toolName)
 				} else if toolName == "playwright" || isCustomMCP {
 					// Handle playwright and custom MCP tools with generic parsing
 					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {

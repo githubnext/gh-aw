@@ -85,6 +85,13 @@ The activation job references text output: "${{ steps.sanitized.outputs.text }}"
 		t.Error("Activation job should have contents: read permission for GitHub API access")
 	}
 
+	// Test 3b: Verify activation job has actions: read permission for the hash check API step.
+	// check_workflow_timestamp_api.cjs calls github.rest.actions.getWorkflowRun() which
+	// requires actions: read. Stale check is enabled by default, so this must be present.
+	if !strings.Contains(activationJobSection, "actions: read") {
+		t.Error("Activation job should have actions: read permission for check_workflow_timestamp_api.cjs")
+	}
+
 	// Test 4: Verify no separate add_reaction job exists
 	if strings.Contains(lockContentStr, "add_reaction:") {
 		t.Error("Expected no separate add_reaction job - reaction should be in activation job")

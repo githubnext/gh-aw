@@ -432,6 +432,7 @@ tools:
   github:
     mode: remote
     toolsets: [repos, issues]
+mcp-servers:
   tavily:
     type: http
     url: "https://mcp.tavily.com/mcp/"
@@ -486,6 +487,7 @@ tools:
   github:
     mode: remote
     toolsets: [repos]
+mcp-servers:
   tavily:
     type: http
     url: "https://mcp.tavily.com/mcp/"

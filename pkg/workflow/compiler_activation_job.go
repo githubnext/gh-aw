@@ -487,10 +487,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// That job packs the bundle and uploads it as an artifact; the agent job then
 	// depends on the apm job to download and restore it.
 
-	// qmd indexing is handled by the separate "indexing" job that depends on activation.
-	// That job builds the index and saves/restores it via the GitHub Actions cache, and the agent job
-	// restores the index using actions/cache/restore.
-
 	// Upload aw_info.json and prompt.txt as the activation artifact for the agent job to download.
 	// In workflow_call context the artifact is prefixed to avoid name clashes when multiple callers
 	// invoke the same reusable workflow within the same parent workflow run.
@@ -513,6 +509,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Also add issues:write permission if lock-for-agent is enabled (for locking issues)
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead, // Always needed for GitHub API access to check file commits
+	}
+
+	// Add actions:read permission when the hash check API step is emitted.
+	// check_workflow_timestamp_api.cjs calls github.rest.actions.getWorkflowRun() which
+	// requires the actions:read scope. GitHub Actions enforces explicit permissions when
+	// any permissions block is present, so we must add it explicitly.
+	if !data.StaleCheckDisabled {
+		permsMap[PermissionActions] = PermissionRead
 	}
 
 	if hasReaction {

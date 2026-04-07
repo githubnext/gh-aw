@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
@@ -175,12 +174,6 @@ func (c *Compiler) collectNpmDependencies(workflowDataList []*WorkflowData) []Np
 		for _, pkg := range packages {
 			dep := parseNpmPackage(pkg)
 			depMap[dep.Name] = dep.Version
-		}
-
-		// Track qmd builtin package version when qmd tool is configured
-		if workflowData.QmdConfig != nil {
-			depMap["@tobilu/qmd"] = string(constants.DefaultQmdVersion)
-			dependabotLog.Print("Added @tobilu/qmd builtin package to npm dependencies")
 		}
 	}
 

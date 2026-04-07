@@ -128,9 +128,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 	if val, exists := toolsMap["playwright"]; exists {
 		tools.Playwright = parsePlaywrightTool(val)
 	}
-	if val, exists := toolsMap["qmd"]; exists {
-		tools.Qmd = parseQmdTool(val)
-	}
 	if val, exists := toolsMap["agentic-workflows"]; exists {
 		tools.AgenticWorkflows = parseAgenticWorkflowsTool(val)
 	}
@@ -155,7 +152,6 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"web-search":        true,
 		"edit":              true,
 		"playwright":        true,
-		"qmd":               true,
 		"agentic-workflows": true,
 		"cache-memory":      true,
 		"repo-memory":       true,
@@ -172,7 +168,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		}
 	}
 
-	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, qmd=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, tools.Qmd != nil, customCount)
+	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
 	return tools
 }
 
@@ -423,188 +419,6 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	}
 
 	return &PlaywrightToolConfig{}
-}
-
-// isUnexpandedImportInput reports whether s is an unexpanded import-schema placeholder
-// of the form "${{ github.aw.import-inputs.<key> }}" that was left as a literal string
-// because the caller did not supply the optional input. It returns false for any other
-// value, including legitimate GitHub Actions expressions like "${{ hashFiles('...') }}".
-func isUnexpandedImportInput(s string) bool {
-	return strings.Contains(s, "github.aw.import-inputs.")
-}
-
-// parseQmdTool converts raw qmd tool configuration to QmdToolConfig.
-// Supported fields:
-//
-//   - checkouts: list of named collections (with optional checkout per entry)
-//   - searches:  list of GitHub search queries
-//   - cache-key: optional GitHub Actions cache key
-//   - gpu:       enable GPU acceleration for node-llama-cpp (default: false)
-//   - runs-on:   override runner image for the indexing job
-func parseQmdTool(val any) *QmdToolConfig {
-	if val == nil {
-		toolsParserLog.Print("qmd tool enabled with empty configuration")
-		return &QmdToolConfig{}
-	}
-
-	if configMap, ok := val.(map[string]any); ok {
-		config := &QmdToolConfig{}
-
-		// Handle cache-key field. Skip values that are unexpanded import-schema placeholders
-		// (exactly "${{ github.aw.import-inputs.cache-key }}") left as literal strings when
-		// the caller does not supply the optional input. Legitimate GitHub Actions expressions
-		// such as "qmd-${{ hashFiles('docs/**') }}" are kept as-is.
-		if cacheKey, ok := configMap["cache-key"].(string); ok && cacheKey != "" && !isUnexpandedImportInput(cacheKey) {
-			config.CacheKey = cacheKey
-			toolsParserLog.Printf("qmd tool cache-key: %s", cacheKey)
-		}
-
-		// Handle gpu field (defaults to false — GPU disabled by default)
-		if gpuVal, exists := configMap["gpu"]; exists {
-			if gpuBool, ok := gpuVal.(bool); ok {
-				config.GPU = gpuBool
-				toolsParserLog.Printf("qmd tool gpu: %v", gpuBool)
-			}
-		}
-
-		// Handle runs-on field (override runner image for the indexing job). Skip values that
-		// are unexpanded import-schema placeholders. Legitimate GitHub Actions expressions are
-		// kept as-is.
-		if runsOnVal, exists := configMap["runs-on"]; exists {
-			if runsOnStr, ok := runsOnVal.(string); ok && runsOnStr != "" && !isUnexpandedImportInput(runsOnStr) {
-				config.RunsOn = runsOnStr
-				toolsParserLog.Printf("qmd tool runs-on: %s", runsOnStr)
-			}
-		}
-
-		// Handle checkouts field
-		if checkoutsValue, ok := configMap["checkouts"]; ok {
-			if arr, ok := checkoutsValue.([]any); ok {
-				config.Checkouts = make([]*QmdDocCollection, 0, len(arr))
-				for i, item := range arr {
-					itemMap, ok := item.(map[string]any)
-					if !ok {
-						continue
-					}
-					col := parseQmdDocCollection(itemMap, i)
-					config.Checkouts = append(config.Checkouts, col)
-				}
-				toolsParserLog.Printf("qmd tool parsed %d checkouts", len(config.Checkouts))
-			}
-		}
-
-		// Handle searches field
-		if searchesValue, ok := configMap["searches"]; ok {
-			if arr, ok := searchesValue.([]any); ok {
-				config.Searches = make([]*QmdSearchEntry, 0, len(arr))
-				for _, item := range arr {
-					itemMap, ok := item.(map[string]any)
-					if !ok {
-						continue
-					}
-					entry := parseQmdSearchEntry(itemMap)
-					config.Searches = append(config.Searches, entry)
-				}
-				toolsParserLog.Printf("qmd tool parsed %d searches", len(config.Searches))
-			}
-		}
-
-		return config
-	}
-
-	return &QmdToolConfig{}
-}
-
-// parseQmdDocCollection converts a raw map to a QmdDocCollection.
-// The index parameter is used to generate a default name when none is provided.
-func parseQmdDocCollection(m map[string]any, index int) *QmdDocCollection {
-	col := &QmdDocCollection{}
-
-	if name, ok := m["name"].(string); ok && name != "" {
-		col.Name = name
-	} else {
-		col.Name = fmt.Sprintf("docs-%d", index)
-	}
-
-	if pattern, ok := m["pattern"].(string); ok {
-		col.Pattern = pattern
-	}
-
-	if ignoreValue, ok := m["ignore"]; ok {
-		if arr, ok := ignoreValue.([]any); ok {
-			col.Ignore = make([]string, 0, len(arr))
-			for _, item := range arr {
-				if str, ok := item.(string); ok {
-					col.Ignore = append(col.Ignore, str)
-				}
-			}
-		} else if arr, ok := ignoreValue.([]string); ok {
-			col.Ignore = arr
-		}
-	}
-
-	if context, ok := m["context"].(string); ok {
-		col.Context = context
-	}
-
-	if checkoutValue, ok := m["checkout"]; ok {
-		if checkoutMap, ok := checkoutValue.(map[string]any); ok {
-			if cfg, err := checkoutConfigFromMap(checkoutMap); err == nil {
-				col.Checkout = cfg
-			} else {
-				toolsParserLog.Printf("qmd collection %q: ignoring invalid checkout config: %v", col.Name, err)
-			}
-		}
-	}
-
-	return col
-}
-
-// parseQmdSearchEntry converts a raw map to a QmdSearchEntry.
-func parseQmdSearchEntry(m map[string]any) *QmdSearchEntry {
-	entry := &QmdSearchEntry{}
-
-	if n, ok := m["name"].(string); ok {
-		entry.Name = n
-	}
-	if t, ok := m["type"].(string); ok {
-		entry.Type = t
-	}
-	if q, ok := m["query"].(string); ok {
-		entry.Query = q
-	}
-	entry.Min = parseYAMLInt(m["min"])
-	entry.Max = parseYAMLInt(m["max"])
-
-	if token, ok := m["github-token"].(string); ok {
-		entry.GitHubToken = token
-	}
-
-	if appMap, ok := m["github-app"].(map[string]any); ok {
-		entry.GitHubApp = parseAppConfig(appMap)
-	}
-
-	return entry
-}
-
-// parseYAMLInt converts a YAML-unmarshaled numeric value to int.
-// goccy/go-yaml unmarshals integers as uint64; standard yaml/v3 uses int.
-// float64 is also handled for completeness.
-func parseYAMLInt(v any) int {
-	if v == nil {
-		return 0
-	}
-	switch n := v.(type) {
-	case int:
-		return n
-	case int64:
-		return int(n)
-	case uint64:
-		return int(n)
-	case float64:
-		return int(n)
-	}
-	return 0
 }
 
 // parseWebFetchTool converts raw web-fetch tool configuration

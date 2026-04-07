@@ -61,6 +61,7 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 		false,                             // filteredIntegrity
 		false,                             // train
 		"",                                // format
+		nil,                               // artifactSets
 	)
 
 	// Close writers first
@@ -184,6 +185,7 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 		false, // filteredIntegrity
 		false, // train
 		"",    // format
+		nil,   // artifactSets
 	)
 
 	// Close the writer

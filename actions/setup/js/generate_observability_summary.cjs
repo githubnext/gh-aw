@@ -60,7 +60,11 @@ function collectObservabilityData() {
   const agentOutput = readJSONIfExists(AGENT_OUTPUT_PATH) || { items: [], errors: [] };
   const items = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
-  const traceId = awInfo.context ? awInfo.context.otel_trace_id || awInfo.context.workflow_call_id || "" : "";
+  // Prefer GITHUB_AW_OTEL_TRACE_ID (written to GITHUB_ENV by action_setup_otlp.cjs)
+  // so the summary always shows the trace ID that is actually present in the OTLP backend.
+  // Fall back to context.otel_trace_id for cross-workflow traces propagated from a parent.
+  // Do NOT fall back to workflow_call_id — it is not a valid OTLP trace ID.
+  const traceId = process.env.GITHUB_AW_OTEL_TRACE_ID || (awInfo.context ? awInfo.context.otel_trace_id || "" : "");
 
   return {
     workflowName: awInfo.workflow_name || "",

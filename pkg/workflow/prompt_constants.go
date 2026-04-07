@@ -13,7 +13,6 @@ const (
 	prContextPushToPRBranchGuidanceFile     = "pr_context_push_to_pr_branch_guidance.md"
 	tempFolderPromptFile                    = "temp_folder_prompt.md"
 	playwrightPromptFile                    = "playwright_prompt.md"
-	qmdPromptFile                           = "qmd_prompt.md"
 	markdownPromptFile                      = "markdown.md"
 	xpiaPromptFile                          = "xpia.md"
 	cacheMemoryPromptFile                   = "cache_memory_prompt.md"
@@ -27,6 +26,8 @@ const (
 	agenticWorkflowsGuideFile               = "agentic_workflows_guide.md"
 	githubMCPToolsPromptFile                = "github_mcp_tools_prompt.md"
 	githubMCPToolsWithSafeOutputsPromptFile = "github_mcp_tools_with_safeoutputs_prompt.md"
+	cliProxyPromptFile                      = "cli_proxy_prompt.md"
+	cliProxyWithSafeOutputsPromptFile       = "cli_proxy_with_safeoutputs_prompt.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions

@@ -3809,100 +3809,6 @@
           ],
           "examples": [true, null]
         },
-        "qmd": {
-          "description": "qmd documentation search tool (https://github.com/tobi/qmd). Builds a local vector search index in a dedicated indexing job and shares it with the agent job via GitHub Actions cache. The agent job mounts a search MCP server over the pre-built index and does not need contents:read permission.",
-          "type": "object",
-          "properties": {
-            "checkouts": {
-              "type": "array",
-              "description": "List of named documentation collections built from checked-out repositories. Each entry can optionally specify its own checkout configuration to target a different repository.",
-              "items": {
-                "$ref": "#/$defs/qmdCollection"
-              },
-              "minItems": 1
-            },
-            "searches": {
-              "type": "array",
-              "description": "List of GitHub search queries whose results are downloaded and added to the qmd index.",
-              "items": {
-                "$ref": "#/$defs/qmdSearchEntry"
-              },
-              "minItems": 1
-            },
-            "cache-key": {
-              "type": "string",
-              "description": "GitHub Actions cache key used to persist the qmd index across workflow runs. When set without any indexing sources (checkouts/searches), qmd operates in read-only mode: the index is restored from cache and all indexing steps are skipped.",
-              "examples": ["qmd-index-${{ hashFiles('docs/**') }}", "qmd-index-v1"]
-            },
-            "gpu": {
-              "type": "boolean",
-              "description": "Enable GPU acceleration for the embedding model (node-llama-cpp). Defaults to false: NODE_LLAMA_CPP_GPU=false is injected into the indexing step so GPU probing is skipped on CPU-only runners. Set to true only when the indexing runner has a GPU.",
-              "default": false
-            },
-            "runs-on": {
-              "type": "string",
-              "description": "Override the runner image for the qmd indexing job. Defaults to the same runner as the agent job. Use this when the indexing job requires a different runner (e.g. a GPU runner).",
-              "examples": ["ubuntu-latest", "ubuntu-latest-gpu", "self-hosted"]
-            }
-          },
-          "additionalProperties": false,
-          "examples": [
-            {
-              "checkouts": [
-                {
-                  "name": "current-docs",
-                  "pattern": "docs/**/*.md"
-                },
-                {
-                  "name": "other-docs",
-                  "pattern": "docs/**/*.md",
-                  "context": "Documentation for owner/other-repo",
-                  "checkout": {
-                    "repository": "owner/other-repo",
-                    "path": "./other-repo"
-                  }
-                }
-              ]
-            },
-            {
-              "searches": [
-                {
-                  "query": "repo:owner/repo language:Markdown path:docs/",
-                  "min": 1,
-                  "max": 30,
-                  "github-token": "${{ secrets.GITHUB_TOKEN }}"
-                }
-              ]
-            },
-            {
-              "checkouts": [
-                {
-                  "name": "local-docs",
-                  "pattern": "docs/**/*.md"
-                }
-              ],
-              "searches": [
-                {
-                  "query": "org:myorg language:Markdown",
-                  "max": 50,
-                  "github-token": "${{ secrets.GITHUB_TOKEN }}"
-                }
-              ]
-            },
-            {
-              "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
-            },
-            {
-              "checkouts": [
-                {
-                  "name": "docs",
-                  "pattern": "docs/**/*.md"
-                }
-              ],
-              "cache-key": "qmd-index-${{ hashFiles('docs/**') }}"
-            }
-          ]
-        },
         "cache-memory": {
           "description": "Cache memory MCP configuration for persistent memory storage",
           "oneOf": [
@@ -4289,112 +4195,7 @@
           ]
         }
       },
-      "additionalProperties": {
-        "oneOf": [
-          {
-            "type": "string",
-            "description": "Simple tool string for basic tool configuration"
-          },
-          {
-            "type": "boolean",
-            "description": "Boolean flag to enable or disable a tool (e.g., safety-prompt: true)"
-          },
-          {
-            "type": "object",
-            "description": "MCP server configuration object",
-            "properties": {
-              "command": {
-                "type": "string",
-                "description": "Command to execute for stdio MCP server"
-              },
-              "args": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Arguments for the command"
-              },
-              "env": {
-                "type": "object",
-                "patternProperties": {
-                  "^[A-Za-z_][A-Za-z0-9_]*$": {
-                    "type": "string"
-                  }
-                },
-                "description": "Environment variables"
-              },
-              "type": {
-                "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP connection type. Use 'stdio' for command-based or container-based servers, 'http' for HTTP-based servers. 'local' is an alias for 'stdio' and is normalized during parsing."
-              },
-              "version": {
-                "type": ["string", "number"],
-                "description": "Version of the MCP server"
-              },
-              "toolsets": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Toolsets to enable"
-              },
-              "id": {
-                "type": "string",
-                "description": "URL for HTTP mode MCP servers"
-              },
-              "headers": {
-                "type": "object",
-                "patternProperties": {
-                  "^[A-Za-z0-9_-]+$": {
-                    "type": "string"
-                  }
-                },
-                "description": "HTTP headers for HTTP mode"
-              },
-              "container": {
-                "type": "string",
-                "description": "Container image for the MCP server"
-              },
-              "entrypointArgs": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Arguments passed to container entrypoint"
-              },
-              "registry": {
-                "type": "string",
-                "description": "URI to installation location from MCP registry",
-                "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown", "https://registry.npmjs.org/@my/tool"]
-              },
-              "allowed": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
-                "examples": [["*"], ["store_memory", "retrieve_memory"], ["create-issue", "add-comment"]]
-              },
-              "entrypoint": {
-                "type": "string",
-                "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
-                "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
-              },
-              "mounts": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "pattern": "^[^:]+:[^:]+:(ro|rw)$"
-                },
-                "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
-                "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
-              }
-            },
-            "additionalProperties": true
-          }
-        ]
-      }
+      "additionalProperties": false
     },
     "command": {
       "type": "string",
@@ -5806,6 +5607,22 @@
                     }
                   ],
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
+                },
+                "assignees": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single username to assign to a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of usernames to assign to a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional assignee(s) for a fallback issue created when pull request creation cannot proceed, including protected-files fallback-to-issue and pull request creation or push failures. Accepts either a single string or an array of usernames."
                 },
                 "draft": {
                   "allOf": [
@@ -10010,80 +9827,6 @@
           ],
           "description": "Additional Git refs to fetch after the checkout. Supported values: \"*\" (all branches), \"refs/pulls/open/*\" (all open pull-request refs), branch names (e.g. \"main\"), or glob patterns (e.g. \"feature/*\").",
           "examples": [["*"], ["refs/pulls/open/*"], ["main", "feature/my-branch"], ["feature/*"]]
-        }
-      }
-    },
-    "qmdCollection": {
-      "type": "object",
-      "description": "A named documentation collection for the qmd tool, built from a checked-out repository. Each collection can optionally target a different repository via its own checkout configuration.",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Collection identifier used in the qmd index. Defaults to 'docs-<index>' for multiple collections."
-        },
-        "pattern": {
-          "type": "string",
-          "description": "Glob pattern for documentation files to include in this collection.",
-          "examples": ["docs/**/*.md", "**/*.md"]
-        },
-        "ignore": {
-          "type": "array",
-          "description": "List of glob patterns for files to exclude from this collection.",
-          "items": {
-            "type": "string"
-          },
-          "examples": [["**/node_modules/**", "**/*.test.md"]]
-        },
-        "context": {
-          "type": "string",
-          "description": "Optional context injected into the qmd collection, providing the agent with additional hints about the content (e.g. 'GitHub Actions documentation')."
-        },
-        "checkout": {
-          "$ref": "#/$defs/checkoutConfig",
-          "description": "Optional checkout configuration for this collection. When set, the specified repository is checked out and its files are indexed. Defaults to the current repository if not set."
-        }
-      }
-    },
-    "qmdSearchEntry": {
-      "type": "object",
-      "description": "A GitHub search entry for the qmd tool. Supports code search (type: code, default) and GitHub issue list (type: issues). Results are downloaded and indexed as qmd collections.",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Optional name for the qmd collection. Defaults to \"search-{index}\" when not set."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["code", "issues"],
-          "default": "code",
-          "description": "Search backend type. \"code\" (default) uses gh search code to find repository files. \"issues\" uses gh issue list to fetch open GitHub issues and index them as markdown files."
-        },
-        "query": {
-          "type": "string",
-          "description": "For type \"code\": GitHub code search query string. For type \"issues\": repository slug (\"owner/repo\"); defaults to the current repository when empty.",
-          "examples": ["repo:owner/repo language:Markdown path:docs/", "org:myorg language:Markdown", "owner/repo"]
-        },
-        "min": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Minimum number of results required. If fewer results are returned the activation job fails."
-        },
-        "max": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 30,
-          "description": "Maximum number of search results to download. Defaults to 30."
-        },
-        "github-token": {
-          "type": "string",
-          "description": "GitHub token used to authenticate the search API request. Mutually exclusive with github-app.",
-          "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.MY_PAT }}"]
-        },
-        "github-app": {
-          "$ref": "#/$defs/github_app",
-          "description": "GitHub App configuration used to mint a token for the search API request. Mutually exclusive with github-token."
         }
       }
     },
