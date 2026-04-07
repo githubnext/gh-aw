@@ -27,6 +27,17 @@
  *   GITHUB_AW_OTEL_TRACE_ID       – parent trace ID (set by action_setup_otlp.cjs)
  *   GITHUB_AW_OTEL_PARENT_SPAN_ID – parent span ID (set by action_setup_otlp.cjs)
  *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (no-op when not set)
+ *
+ * Runtime files read (optional):
+ *   /tmp/gh-aw/github_rate_limits.jsonl – GitHub API rate-limit log written by
+ *                                          github_rate_limit_logger.cjs; the last
+ *                                          entry is read and its fields are included
+ *                                          in the span as:
+ *                                            gh-aw.github.rate_limit.remaining
+ *                                            gh-aw.github.rate_limit.limit
+ *                                            gh-aw.github.rate_limit.used
+ *                                            gh-aw.github.rate_limit.resource
+ *                                            gh-aw.github.rate_limit.reset
  */
 
 const sendOtlpSpan = require("./send_otlp_span.cjs");
