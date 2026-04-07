@@ -28,10 +28,10 @@ func TestParseIntValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, ok := ParseIntValue(tt.value)
 			if ok != tt.ok {
-				t.Errorf("ParseIntValue() ok = %v, want %v", ok, tt.ok)
+				t.Errorf("ParseIntValue(%v) ok = %v, want %v for test case %q", tt.value, ok, tt.ok, tt.name)
 			}
 			if result != tt.expected {
-				t.Errorf("ParseIntValue() result = %v, want %v", result, tt.expected)
+				t.Errorf("ParseIntValue(%v) result = %v, want %v for test case %q", tt.value, result, tt.expected, tt.name)
 			}
 		})
 	}
