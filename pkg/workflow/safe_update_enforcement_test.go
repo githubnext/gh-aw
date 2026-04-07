@@ -24,7 +24,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			secretNames: []string{"MY_SECRET"},
 			actionRefs:  []string{},
 			wantErr:     true,
-			wantErrMsgs: []string{"secrets.MY_SECRET", "safe update mode"},
+			wantErrMsgs: []string{"MY_SECRET", "safe update mode"},
 		},
 		{
 			name:        "nil manifest (no lock file) blocks custom actions on first compile",
@@ -73,7 +73,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			name: "known secret passes",
 			manifest: &GHAWManifest{
 				Version: 1,
-				Secrets: []string{"secrets.MY_SECRET"},
+				Secrets: []string{"MY_SECRET"},
 				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"MY_SECRET"},
@@ -84,13 +84,13 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			name: "new restricted secret causes failure",
 			manifest: &GHAWManifest{
 				Version: 1,
-				Secrets: []string{"secrets.EXISTING_SECRET"},
+				Secrets: []string{"EXISTING_SECRET"},
 				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"EXISTING_SECRET", "NEW_SECRET"},
 			actionRefs:  []string{},
 			wantErr:     true,
-			wantErrMsgs: []string{"secrets.NEW_SECRET", "safe update mode"},
+			wantErrMsgs: []string{"NEW_SECRET", "safe update mode"},
 		},
 		{
 			name: "multiple new secrets listed in error",
@@ -102,13 +102,13 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			secretNames: []string{"SECRET_A", "SECRET_B"},
 			actionRefs:  []string{},
 			wantErr:     true,
-			wantErrMsgs: []string{"secrets.SECRET_A", "secrets.SECRET_B"},
+			wantErrMsgs: []string{"SECRET_A", "SECRET_B"},
 		},
 		{
 			name: "GITHUB_TOKEN plus known secret passes",
 			manifest: &GHAWManifest{
 				Version: 1,
-				Secrets: []string{"secrets.MY_SECRET"},
+				Secrets: []string{"MY_SECRET"},
 				Actions: []GHAWManifestAction{},
 			},
 			secretNames: []string{"GITHUB_TOKEN", "MY_SECRET"},
@@ -125,7 +125,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			secretNames: []string{"SOME_SECRET"},
 			actionRefs:  []string{},
 			wantErr:     true,
-			wantErrMsgs: []string{"secrets.SOME_SECRET"},
+			wantErrMsgs: []string{"SOME_SECRET"},
 		},
 		// Action enforcement tests.
 		{
@@ -199,7 +199,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			secretNames: []string{"NEW_SECRET"},
 			actionRefs:  []string{"new-org/new-action@abc # v1"},
 			wantErr:     true,
-			wantErrMsgs: []string{"secrets.NEW_SECRET", "new-org/new-action"},
+			wantErrMsgs: []string{"NEW_SECRET", "new-org/new-action"},
 		},
 		// actions/ org exemption tests.
 		{
@@ -262,14 +262,14 @@ func TestEnforceSafeUpdate(t *testing.T) {
 
 func TestBuildSafeUpdateError(t *testing.T) {
 	t.Run("secrets only", func(t *testing.T) {
-		violations := []string{"secrets.NEW_SECRET", "secrets.ANOTHER_SECRET"}
+		violations := []string{"NEW_SECRET", "ANOTHER_SECRET"}
 		err := buildSafeUpdateError(violations, nil, nil)
 		require.Error(t, err, "should return an error")
 
 		msg := err.Error()
 		assert.Contains(t, msg, "safe update mode", "error message")
-		assert.Contains(t, msg, "secrets.NEW_SECRET", "violation in message")
-		assert.Contains(t, msg, "secrets.ANOTHER_SECRET", "violation in message")
+		assert.Contains(t, msg, "NEW_SECRET", "violation in message")
+		assert.Contains(t, msg, "ANOTHER_SECRET", "violation in message")
 		assert.Contains(t, msg, "interactive agentic flow", "remediation guidance")
 	})
 
@@ -291,13 +291,13 @@ func TestBuildSafeUpdateError(t *testing.T) {
 
 	t.Run("mixed violations", func(t *testing.T) {
 		err := buildSafeUpdateError(
-			[]string{"secrets.MY_SECRET"},
+			[]string{"MY_SECRET"},
 			[]string{"evil-org/bad-action"},
 			[]string{"actions/checkout"},
 		)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
-		assert.Contains(t, msg, "secrets.MY_SECRET", "secret in message")
+		assert.Contains(t, msg, "MY_SECRET", "secret in message")
 		assert.Contains(t, msg, "evil-org/bad-action", "added action in message")
 		assert.Contains(t, msg, "actions/checkout", "removed action in message")
 	})

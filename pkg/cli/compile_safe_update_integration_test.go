@@ -79,12 +79,12 @@ Test workflow that uses only GITHUB_TOKEN.
 `
 
 // manifestWithAPISecret is a minimal lock file content containing a gh-aw-manifest
-// that pre-approves secrets.MY_API_SECRET.  Writing this to the lock file path
+// that pre-approves MY_API_SECRET.  Writing this to the lock file path
 // before compilation simulates a workflow that was previously compiled and approved.
 func manifestLockFileWithSecret(secretName string) string {
 	return fmt.Sprintf(
 		"# gh-aw-metadata: {\"schema_version\":\"v3\",\"frontmatter_hash\":\"abc\",\"agent_id\":\"copilot\"}\n"+
-			"# gh-aw-manifest: {\"version\":1,\"secrets\":[\"secrets.%s\",\"secrets.GITHUB_TOKEN\"],\"actions\":[]}\n"+
+			"# gh-aw-manifest: {\"version\":1,\"secrets\":[\"%s\",\"GITHUB_TOKEN\"],\"actions\":[]}\n"+
 			"name: placeholder\n",
 		secretName,
 	)
@@ -307,7 +307,7 @@ mcp-servers:
 `
 
 // safeUpdateWorkflowWithImport is a workflow that imports safeUpdateSharedMCPConfig.
-// After compilation the manifest should include secrets.SHARED_API_KEY even though
+// After compilation the manifest should include SHARED_API_KEY even though
 // the secret is declared in the imported file, not the top-level workflow.
 const safeUpdateWorkflowWithImport = `---
 name: Safe Update Import Test
@@ -348,7 +348,7 @@ mcp-servers:
 `
 
 // safeUpdateWorkflowWithTransitiveImport is a workflow that imports level2,
-// which imports level3.  The manifest must include secrets.DEEP_NESTED_SECRET.
+// which imports level3.  The manifest must include DEEP_NESTED_SECRET.
 const safeUpdateWorkflowWithTransitiveImport = `---
 name: Safe Update Transitive Import Test
 on:

@@ -26,22 +26,22 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantSecrets: []string{},
 		},
 		{
-			name:        "secrets normalised to secrets.NAME form",
+			name:        "secrets prefix stripped to plain name",
 			secretNames: []string{"GITHUB_TOKEN", "MY_SECRET"},
 			wantVersion: 1,
-			wantSecrets: []string{"secrets.GITHUB_TOKEN", "secrets.MY_SECRET"},
+			wantSecrets: []string{"GITHUB_TOKEN", "MY_SECRET"},
 		},
 		{
-			name:        "secrets already in secrets.NAME form are not doubled",
+			name:        "secrets.NAME prefix is stripped on input",
 			secretNames: []string{"secrets.GITHUB_TOKEN", "GITHUB_TOKEN"},
 			wantVersion: 1,
-			wantSecrets: []string{"secrets.GITHUB_TOKEN"},
+			wantSecrets: []string{"GITHUB_TOKEN"},
 		},
 		{
 			name:        "secrets are sorted and deduplicated",
 			secretNames: []string{"Z_SECRET", "A_SECRET", "Z_SECRET"},
 			wantVersion: 1,
-			wantSecrets: []string{"secrets.A_SECRET", "secrets.Z_SECRET"},
+			wantSecrets: []string{"A_SECRET", "Z_SECRET"},
 		},
 		{
 			name: "action refs with SHA and comment",
@@ -96,7 +96,7 @@ func TestNewGHAWManifest(t *testing.T) {
 func TestGHAWManifestToJSON(t *testing.T) {
 	m := &GHAWManifest{
 		Version: 1,
-		Secrets: []string{"secrets.GITHUB_TOKEN", "secrets.MY_SECRET"},
+		Secrets: []string{"GITHUB_TOKEN", "MY_SECRET"},
 		Actions: []GHAWManifestAction{
 			{Repo: "actions/checkout", SHA: "abc123", Version: "v4"},
 		},
@@ -105,8 +105,8 @@ func TestGHAWManifestToJSON(t *testing.T) {
 	json, err := m.ToJSON()
 	require.NoError(t, err, "ToJSON should not fail")
 	assert.Contains(t, json, `"version":1`, "version in JSON")
-	assert.Contains(t, json, `"secrets.GITHUB_TOKEN"`, "GITHUB_TOKEN in JSON")
-	assert.Contains(t, json, `"secrets.MY_SECRET"`, "MY_SECRET in JSON")
+	assert.Contains(t, json, `"GITHUB_TOKEN"`, "GITHUB_TOKEN in JSON")
+	assert.Contains(t, json, `"MY_SECRET"`, "MY_SECRET in JSON")
 	assert.Contains(t, json, `"actions/checkout"`, "action repo in JSON")
 	assert.Contains(t, json, `"abc123"`, "action SHA in JSON")
 	assert.Contains(t, json, `"v4"`, "action version in JSON")
@@ -128,9 +128,9 @@ func TestExtractGHAWManifestFromLockFile(t *testing.T) {
 		},
 		{
 			name:        "manifest extracted successfully",
-			content:     `# gh-aw-manifest: {"version":1,"secrets":["secrets.GITHUB_TOKEN"],"actions":[]}`,
+			content:     `# gh-aw-manifest: {"version":1,"secrets":["GITHUB_TOKEN"],"actions":[]}`,
 			wantVersion: 1,
-			wantSecrets: []string{"secrets.GITHUB_TOKEN"},
+			wantSecrets: []string{"GITHUB_TOKEN"},
 		},
 		{
 			name:        "manifest with leading spaces in comment",
@@ -146,10 +146,10 @@ func TestExtractGHAWManifestFromLockFile(t *testing.T) {
 		{
 			name: "manifest embedded in multi-line header",
 			content: `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc"}
-# gh-aw-manifest: {"version":1,"secrets":["secrets.FOO"],"actions":[]}
+# gh-aw-manifest: {"version":1,"secrets":["FOO"],"actions":[]}
 name: my-workflow`,
 			wantVersion: 1,
-			wantSecrets: []string{"secrets.FOO"},
+			wantSecrets: []string{"FOO"},
 		},
 	}
 
@@ -177,10 +177,10 @@ func TestNormalizeSecretName(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"GITHUB_TOKEN", "secrets.GITHUB_TOKEN"},
-		{"secrets.GITHUB_TOKEN", "secrets.GITHUB_TOKEN"},
-		{"MY_SECRET", "secrets.MY_SECRET"},
-		{"secrets.MY_SECRET", "secrets.MY_SECRET"},
+		{"GITHUB_TOKEN", "GITHUB_TOKEN"},
+		{"secrets.GITHUB_TOKEN", "GITHUB_TOKEN"},
+		{"MY_SECRET", "MY_SECRET"},
+		{"secrets.MY_SECRET", "MY_SECRET"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {

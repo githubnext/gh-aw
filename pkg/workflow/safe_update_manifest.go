@@ -38,7 +38,8 @@ type GHAWManifest struct {
 // NewGHAWManifest builds a GHAWManifest from the raw secret names and action reference
 // strings produced by CollectSecretReferences and CollectActionReferences.
 //
-// secretNames entries are plain names without the "secrets." prefix (e.g. "GITHUB_TOKEN").
+// secretNames entries may include or omit the "secrets." prefix; the prefix is always
+// stripped before storage so the manifest contains plain names (e.g. "GITHUB_TOKEN").
 // actionRefs entries follow the format produced by CollectActionReferences, e.g.
 //
 //	"actions/checkout@abc1234 # v4"
@@ -62,12 +63,10 @@ func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
 	}
 }
 
-// normalizeSecretName ensures a secret identifier is in "secrets.NAME" form.
+// normalizeSecretName ensures a secret identifier is stored as a plain name
+// without the "secrets." prefix (e.g. "GITHUB_TOKEN" not "secrets.GITHUB_TOKEN").
 func normalizeSecretName(name string) string {
-	if strings.HasPrefix(name, "secrets.") {
-		return name
-	}
-	return "secrets." + name
+	return strings.TrimPrefix(name, "secrets.")
 }
 
 // parseActionRefs converts the action reference strings returned by

@@ -11,7 +11,8 @@ import (
 var safeUpdateLog = logger.New("workflow:safe_update")
 
 // githubTokenSecret is the one secret that is always permitted in safe update mode.
-const githubTokenSecret = "secrets.GITHUB_TOKEN"
+// Stored without the "secrets." prefix to match manifest storage format.
+const githubTokenSecret = "GITHUB_TOKEN"
 
 // EnforceSafeUpdate validates that no new restricted secrets or unapproved action
 // changes have been introduced compared to those recorded in the existing manifest.
@@ -22,7 +23,7 @@ const githubTokenSecret = "secrets.GITHUB_TOKEN"
 // on a first-time safe-update compilation.
 //
 // secretNames contains the raw names produced by CollectSecretReferences (i.e.
-// WITHOUT the "secrets." prefix, e.g. "GITHUB_TOKEN").
+// they may or may not carry the "secrets." prefix; both forms are handled).
 //
 // actionRefs contains the raw action reference strings produced by CollectActionReferences,
 // e.g. "actions/checkout@abc1234 # v4".
