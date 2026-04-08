@@ -161,12 +161,24 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below).
 	// The --add-dir "${GITHUB_WORKSPACE}" and --prompt args are appended raw (not through
 	// shellJoinArgs) because they contain shell variable references that must expand at runtime.
+	//
+	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
+	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
+	driverScriptName := e.GetDriverScriptName()
+	var execPrefix string
+	if driverScriptName != "" {
+		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} expands in the shell context.
+		execPrefix = fmt.Sprintf(`node %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
+	} else {
+		execPrefix = commandName
+	}
+
 	if sandboxEnabled {
 		// Sandbox mode: add workspace dir and inline prompt (read inside AWF container)
-		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, commandName, shellJoinArgs(copilotArgs))
+		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, execPrefix, shellJoinArgs(copilotArgs))
 	} else {
 		// Non-sandbox mode: prompt is read from a shell variable set earlier in the script
-		copilotCommand = fmt.Sprintf(`%s %s --prompt "$COPILOT_CLI_INSTRUCTION"`, commandName, shellJoinArgs(copilotArgs))
+		copilotCommand = fmt.Sprintf(`%s %s --prompt "$COPILOT_CLI_INSTRUCTION"`, execPrefix, shellJoinArgs(copilotArgs))
 	}
 
 	// Conditionally wrap with sandbox (AWF only)
