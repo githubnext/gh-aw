@@ -2,7 +2,7 @@
 safe-outputs:
   upload-artifact:
     max-uploads: 3
-    default-retention-days: 7
+    default-retention-days: 30
     max-retention-days: 30
     allow:
       skip-archive: true
@@ -49,7 +49,7 @@ Then call the tool:
 ## Configuration defaults
 
 - `max-uploads`: 3 uploads per run
-- `default-retention-days`: 7 days
+- `default-retention-days`: 30 days
 - `max-retention-days`: 30 days
 - `allow.skip-archive`: true (single-file uploads can skip zip archiving)
 

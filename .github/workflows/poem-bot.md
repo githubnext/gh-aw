@@ -125,8 +125,10 @@ safe-outputs:
   create-agent-session:
     base: main
 
-  # Upload assets
-  upload-asset:
+  # Upload artifacts (30-day retention)
+  upload-artifact:
+    default-retention-days: 30
+    max-retention-days: 30
 
   # Missing tool reporting
   missing-tool:
