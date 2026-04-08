@@ -181,9 +181,9 @@ See [Reactions](/gh-aw/reference/frontmatter/) for available reactions and detai
 
 ## Slash Commands in SideRepoOps
 
-Slash commands depend on GitHub Actions events (`issue_comment`, `issues`, `pull_request`, etc.) being delivered to the repository **where the workflow file lives**. When using the [SideRepoOps](/gh-aw/patterns/side-repo-ops/) pattern — where workflows live in a separate side repository — events from the main repository are never delivered there. **Slash command triggers cannot be used directly in a SideRepoOps workflow.**
+GitHub Actions only delivers events to the repository where they occur. With [SideRepoOps](/gh-aw/patterns/side-repo-ops/) — where workflows live in a separate side repository — events from the main repository are never delivered there. **Slash command triggers cannot be used directly in a SideRepoOps workflow.**
 
-The recommended solution is a **bridge pattern**: keep a thin relay workflow in the main repository to receive the slash command and forward it to the side repository via `workflow_dispatch`. The side repository workflow then performs the actual AI work.
+The recommended solution is a **bridge pattern**: a thin relay workflow in the main repository receives the slash command and forwards it to the side repository via `workflow_dispatch`.
 
 See [Slash Commands in SideRepoOps](/gh-aw/patterns/side-repo-ops/#slash-commands) for a full walkthrough with examples and trade-offs.
 
@@ -192,5 +192,5 @@ See [Slash Commands in SideRepoOps](/gh-aw/patterns/side-repo-ops/#slash-command
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
-- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Running workflows from a separate repository (see [Slash Commands in SideRepoOps](/gh-aw/patterns/side-repo-ops/#slash-commands))
+- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Running workflows from a separate repository
 - [ChatOps](/gh-aw/patterns/chat-ops/) - Interactive automation with slash commands

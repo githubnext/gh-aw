@@ -330,10 +330,7 @@ This prevents GitHub from auto-linking issue numbers and creating timeline entri
 
 ## Slash Commands
 
-Slash commands (e.g. `/review`, `/deploy`) rely on GitHub Actions events — `issue_comment`, `issues`, `pull_request`, etc. — firing in the repository **where the workflow file lives**. In SideRepoOps, workflows live in the side repository, so events from the main repository never reach them. This means you **cannot use `slash_command:` triggers directly in a SideRepoOps workflow**.
-
-> [!NOTE]
-> This is a fundamental GitHub Actions constraint, not a limitation of gh-aw. GitHub only delivers webhook events to workflows in the repository where the event occurred.
+GitHub Actions only delivers webhook events to workflows in the repository where the event occurred. Since SideRepoOps workflows live in a side repository, events from the main repository never reach them — **`slash_command:` triggers cannot be used directly in a SideRepoOps workflow**.
 
 ### Recommended Bridge Pattern
 
@@ -403,8 +400,6 @@ Context from the triggering comment: "{{inputs.comment_body}}"
 Analyze the code changes and post a detailed review comment on the pull request.
 ```
 
-The relay workflow in the main repo is deliberately minimal — it contains no AI logic and just forwards the event. All automation stays in the side repository.
-
 ### Trade-offs
 
 | Approach | Isolation | Simplicity | Event Access |
@@ -412,12 +407,6 @@ The relay workflow in the main repo is deliberately minimal — it contains no A
 | **Slash command directly in main repo** | Low — workflow lives in main repo | High — no relay needed | Full — all events available |
 | **Bridge pattern (relay + side repo)** | High — AI logic stays in side repo | Medium — two workflows to maintain | Good — relay passes relevant context |
 | **Scheduled polling instead** | High — no main repo changes needed | High — single workflow in side repo | Limited — no real-time response |
-
-**When to choose each approach:**
-
-- **Slash command in main repo** — acceptable when you're comfortable with the workflow living alongside your code and don't need the isolation SideRepoOps provides
-- **Bridge pattern** — best when you want slash command interactivity but need to keep AI logic out of the main repository; trade-off is a thin relay workflow in the main repo
-- **Scheduled polling** — simplest SideRepoOps approach; use when real-time command response isn't required (e.g., nightly triage instead of on-demand `/triage`)
 
 > [!TIP]
 > If you only need a few slash commands, keep them in the main repository and use SideRepoOps only for scheduled and `workflow_dispatch` workflows. This gives you the best of both worlds with minimal complexity.
