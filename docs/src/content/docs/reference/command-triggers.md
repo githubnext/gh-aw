@@ -179,8 +179,18 @@ on:
 
 See [Reactions](/gh-aw/reference/frontmatter/) for available reactions and detailed behavior.
 
+## Slash Commands in SideRepoOps
+
+Slash commands depend on GitHub Actions events (`issue_comment`, `issues`, `pull_request`, etc.) being delivered to the repository **where the workflow file lives**. When using the [SideRepoOps](/gh-aw/patterns/side-repo-ops/) pattern — where workflows live in a separate side repository — events from the main repository are never delivered there. **Slash command triggers cannot be used directly in a SideRepoOps workflow.**
+
+The recommended solution is a **bridge pattern**: keep a thin relay workflow in the main repository to receive the slash command and forward it to the side repository via `workflow_dispatch`. The side repository workflow then performs the actual AI work.
+
+See [Slash Commands in SideRepoOps](/gh-aw/patterns/side-repo-ops/#slash-commands) for a full walkthrough with examples and trade-offs.
+
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
+- [SideRepoOps](/gh-aw/patterns/side-repo-ops/) - Running workflows from a separate repository (see [Slash Commands in SideRepoOps](/gh-aw/patterns/side-repo-ops/#slash-commands))
+- [ChatOps](/gh-aw/patterns/chat-ops/) - Interactive automation with slash commands
