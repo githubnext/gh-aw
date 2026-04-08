@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -166,7 +165,12 @@ func validateRepoConfigJSON(data []byte, filePath string) error {
 //
 //   - empty / nil  → defaultRunsOn is returned
 //   - single label → the label string (e.g. "ubuntu-latest")
-//   - multiple labels → inline YAML sequence, e.g. ["self-hosted", "linux"]
+//   - multiple labels → JSON-encoded flow sequence, e.g. ["self-hosted","linux"]
+//
+// For multi-label values json.Marshal is used so that any characters that are
+// special in YAML or JSON (quotes, backslashes, …) are properly escaped.
+// The schema already forbids newlines and control characters, providing a
+// defence-in-depth against YAML injection.
 func FormatRunsOn(runsOn RunsOnValue, defaultRunsOn string) string {
 	if len(runsOn) == 0 {
 		return defaultRunsOn
@@ -177,17 +181,12 @@ func FormatRunsOn(runsOn RunsOnValue, defaultRunsOn string) string {
 		}
 		return runsOn[0]
 	}
-	// Multiple labels → inline YAML sequence notation: ["a", "b", "c"]
-	var sb strings.Builder
-	sb.WriteString("[")
-	for i, s := range runsOn {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(`"`)
-		sb.WriteString(s)
-		sb.WriteString(`"`)
+	// Multiple labels: use json.Marshal to produce a properly-escaped YAML
+	// flow sequence.  A JSON array is valid YAML flow sequence notation.
+	encoded, err := json.Marshal([]string(runsOn))
+	if err != nil {
+		// []string marshalling never fails; fall back to the default just in case.
+		return defaultRunsOn
 	}
-	sb.WriteString("]")
-	return sb.String()
+	return string(encoded)
 }

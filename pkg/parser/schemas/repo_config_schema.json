@@ -26,6 +26,7 @@
                 {
                   "type": "string",
                   "minLength": 1,
+                  "pattern": "^[^\\r\\n\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]+$",
                   "description": "A single runner label for maintenance workflow jobs.",
                   "examples": ["ubuntu-latest", "ubuntu-slim", "self-hosted"]
                 },
@@ -33,7 +34,8 @@
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "pattern": "^[^\\r\\n\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]+$"
                   },
                   "minItems": 1,
                   "description": "An array of runner labels for maintenance workflow jobs.",

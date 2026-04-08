@@ -699,7 +699,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
 		yaml := string(content)
-		if !strings.Contains(yaml, `runs-on: ["self-hosted", "linux"]`) {
+		if !strings.Contains(yaml, `runs-on: ["self-hosted","linux"]`) {
 			t.Errorf("Expected array runs-on in generated workflow, got:\n%s", yaml)
 		}
 	})
@@ -730,6 +730,29 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 		}
 		if _, statErr := os.Stat(filepath.Join(tmpDir, "agentics-maintenance.yml")); !os.IsNotExist(statErr) {
 			t.Errorf("Expected no maintenance workflow to be generated when disabled")
+		}
+	})
+
+	t.Run("maintenance disabled with expires emits warning (no error)", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Workflow with expires configured – maintenance is disabled in aw.json.
+		list := []*WorkflowData{
+			{
+				Name: "my-workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{Expires: 48},
+				},
+			},
+		}
+		cfg := &RepoConfig{MaintenanceDisabled: true}
+		// The function must succeed (no error), even though a warning is printed.
+		err := GenerateMaintenanceWorkflow(list, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
+		if err != nil {
+			t.Fatalf("Expected no error when maintenance is disabled with expires, got: %v", err)
+		}
+		// The maintenance workflow must not be generated.
+		if _, statErr := os.Stat(filepath.Join(tmpDir, "agentics-maintenance.yml")); !os.IsNotExist(statErr) {
+			t.Errorf("Expected no maintenance workflow file when maintenance is disabled")
 		}
 	})
 }

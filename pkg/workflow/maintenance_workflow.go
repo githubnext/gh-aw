@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -118,6 +119,23 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// Respect explicit opt-out from aw.json: maintenance: false
 	if repoConfig != nil && repoConfig.MaintenanceDisabled {
 		maintenanceLog.Print("Maintenance disabled via repo config, skipping generation")
+
+		// Warn if any workflow uses expires — those features rely on maintenance
+		// and will silently become no-ops when it is disabled.
+		for _, workflowData := range workflowDataList {
+			if workflowData.SafeOutputs == nil {
+				continue
+			}
+			usesExpires := (workflowData.SafeOutputs.CreateDiscussions != nil && workflowData.SafeOutputs.CreateDiscussions.Expires > 0) ||
+				(workflowData.SafeOutputs.CreateIssues != nil && workflowData.SafeOutputs.CreateIssues.Expires > 0) ||
+				(workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.Expires > 0)
+			if usesExpires {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Workflow '%s' uses the 'expires' field but maintenance is disabled in aw.json. "+
+						"Expiration will not run until maintenance is re-enabled.", workflowData.Name)))
+			}
+		}
+
 		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
 		if _, err := os.Stat(maintenanceFile); err == nil {
 			maintenanceLog.Printf("Deleting existing maintenance workflow: %s", maintenanceFile)

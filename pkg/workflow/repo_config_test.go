@@ -111,7 +111,7 @@ func TestFormatRunsOn(t *testing.T) {
 		{"empty string element uses default", RunsOnValue{""}, def},
 		{"single label", RunsOnValue{"custom-runner"}, "custom-runner"},
 		{"single self-hosted label", RunsOnValue{"self-hosted"}, "self-hosted"},
-		{"multi-label array", RunsOnValue{"self-hosted", "linux"}, `["self-hosted", "linux"]`},
+		{"multi-label array", RunsOnValue{"self-hosted", "linux"}, `["self-hosted","linux"]`},
 	}
 
 	for _, tt := range tests {
