@@ -134,6 +134,7 @@ func querySecurityAdvisories(depVersions map[string]string, verbose bool) ([]Sec
 	// GitHub Security Advisory API endpoint
 	url := "https://api.github.com/advisories?ecosystem=go&per_page=100"
 
+	depsSecurityLog.Printf("Querying GitHub Security Advisory API: url=%s, dep_count=%d", url, len(depVersions))
 	client := &http.Client{Timeout: 30 * time.Second}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -190,6 +191,7 @@ func querySecurityAdvisories(depVersions map[string]string, verbose bool) ([]Sec
 						adv.PatchedVers = []string{vuln.FirstPatchedVersion}
 					}
 
+					depsSecurityLog.Printf("Advisory matched dependency: package=%s, version=%s, severity=%s, id=%s", vuln.Package.Name, currentVersion, apiAdv.Severity, apiAdv.GHSAID)
 					matchingAdvisories = append(matchingAdvisories, adv)
 
 					if verbose {

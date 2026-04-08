@@ -271,6 +271,7 @@ func findMatchingRule(entry AuditLogEntry, rules []PolicyRule) *PolicyRule {
 	if isEntryAllowed(entry) {
 		expectedAction = "allow"
 	}
+	firewallPolicyLog.Printf("Finding matching rule for host=%s, expected_action=%s, rules=%d", entry.Host, expectedAction, len(rules))
 
 	for i := range rules {
 		rule := &rules[i]
@@ -283,6 +284,7 @@ func findMatchingRule(entry AuditLogEntry, rules []PolicyRule) *PolicyRule {
 		// aclName "all" is a catch-all rule (typically the default deny)
 		if rule.ACLName == "all" {
 			if rule.Action == expectedAction {
+				firewallPolicyLog.Printf("Matched catch-all rule (action=%s) for host=%s", rule.Action, entry.Host)
 				return rule
 			}
 			continue
@@ -291,10 +293,12 @@ func findMatchingRule(entry AuditLogEntry, rules []PolicyRule) *PolicyRule {
 		// Domain match
 		if domainMatchesRule(entry.Host, *rule) {
 			if rule.Action == expectedAction {
+				firewallPolicyLog.Printf("Matched rule %s (action=%s) for host=%s", rule.ACLName, rule.Action, entry.Host)
 				return rule
 			}
 		}
 	}
+	firewallPolicyLog.Printf("No matching rule found for host=%s", entry.Host)
 	return nil
 }
 
