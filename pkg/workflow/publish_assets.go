@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var publishAssetsLog = logger.New("workflow:publish_assets")
@@ -49,7 +50,7 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 			// Parse max-size
 			if maxSize, exists := configMap["max-size"]; exists {
-				if maxSizeInt, ok := parseIntValue(maxSize); ok && maxSizeInt > 0 {
+				if maxSizeInt, ok := typeutil.ParseIntValue(maxSize); ok && maxSizeInt > 0 {
 					config.MaxSizeKB = maxSizeInt
 				}
 			}

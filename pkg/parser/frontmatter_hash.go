@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var frontmatterHashLog = logger.New("parser:frontmatter_hash")
@@ -21,14 +22,7 @@ var frontmatterHashLog = logger.New("parser:frontmatter_hash")
 // parseBoolFromFrontmatter extracts a boolean value from a frontmatter map.
 // Returns false if the key is absent, the map is nil, or the value is not a bool.
 func parseBoolFromFrontmatter(m map[string]any, key string) bool {
-	if m == nil {
-		return false
-	}
-	if v, ok := m[key]; ok {
-		b, _ := v.(bool)
-		return b
-	}
-	return false
+	return typeutil.ParseBool(m, key)
 }
 
 // FileReader is a function type that reads file content

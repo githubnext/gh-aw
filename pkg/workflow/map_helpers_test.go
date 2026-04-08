@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 func TestParseIntValue(t *testing.T) {
@@ -59,12 +61,12 @@ func TestParseIntValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, ok := parseIntValue(tt.value)
+			result, ok := typeutil.ParseIntValue(tt.value)
 			if ok != tt.ok {
-				t.Errorf("parseIntValue() ok = %v, want %v", ok, tt.ok)
+				t.Errorf("typeutil.ParseIntValue() ok = %v, want %v", ok, tt.ok)
 			}
 			if result != tt.expected {
-				t.Errorf("parseIntValue() result = %v, want %v", result, tt.expected)
+				t.Errorf("typeutil.ParseIntValue() result = %v, want %v", result, tt.expected)
 			}
 		})
 	}
@@ -130,12 +132,12 @@ func TestParseIntValueTruncation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, ok := parseIntValue(tt.value)
+			result, ok := typeutil.ParseIntValue(tt.value)
 			if !ok {
-				t.Errorf("parseIntValue() should return ok=true for float64")
+				t.Errorf("typeutil.ParseIntValue() should return ok=true for float64")
 			}
 			if result != tt.expected {
-				t.Errorf("parseIntValue(%v) = %v, want %v", tt.value, result, tt.expected)
+				t.Errorf("typeutil.ParseIntValue(%v) = %v, want %v", tt.value, result, tt.expected)
 			}
 			// Note: We can't directly test if warning was logged, but we verify the conversion is correct
 		})
@@ -287,9 +289,9 @@ func TestSafeUint64ToInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := safeUint64ToInt(tt.value)
+			result := typeutil.SafeUint64ToInt(tt.value)
 			if result != tt.expected {
-				t.Errorf("safeUint64ToInt(%d) = %d, want %d", tt.value, result, tt.expected)
+				t.Errorf("typeutil.SafeUint64ToInt(%d) = %d, want %d", tt.value, result, tt.expected)
 			}
 		})
 	}

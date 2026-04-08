@@ -5,6 +5,8 @@ package workflow
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 func TestExtractJSONMetrics(t *testing.T) {
@@ -428,9 +430,9 @@ func TestConvertToInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ConvertToInt(tt.val)
+			result := typeutil.ConvertToInt(tt.val)
 			if result != tt.expected {
-				t.Errorf("ConvertToInt(%v) = %d, want %d", tt.val, result, tt.expected)
+				t.Errorf("typeutil.ConvertToInt(%v) = %d, want %d", tt.val, result, tt.expected)
 			}
 		})
 	}
@@ -506,9 +508,9 @@ func TestConvertToFloat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ConvertToFloat(tt.val)
+			result := typeutil.ConvertToFloat(tt.val)
 			if result != tt.expected {
-				t.Errorf("ConvertToFloat(%v) = %f, want %f", tt.val, result, tt.expected)
+				t.Errorf("typeutil.ConvertToFloat(%v) = %f, want %f", tt.val, result, tt.expected)
 			}
 		})
 	}
@@ -806,7 +808,7 @@ func TestFinalizeToolCallsAndSequence(t *testing.T) {
 	}
 }
 
-// TestConvertToIntTruncation tests float truncation scenarios in ConvertToInt
+// TestConvertToIntTruncation tests float truncation scenarios in typeutil.ConvertToInt
 func TestConvertToIntTruncation(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -878,9 +880,9 @@ func TestConvertToIntTruncation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ConvertToInt(tt.val)
+			result := typeutil.ConvertToInt(tt.val)
 			if result != tt.expected {
-				t.Errorf("ConvertToInt(%v) = %v, want %v", tt.val, result, tt.expected)
+				t.Errorf("typeutil.ConvertToInt(%v) = %v, want %v", tt.val, result, tt.expected)
 			}
 			// Note: We can't directly test if warning was logged, but we verify the conversion is correct
 		})

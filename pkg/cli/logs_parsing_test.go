@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -165,7 +166,7 @@ func TestConvertToInt(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := workflow.ConvertToInt(tt.value)
+		result := typeutil.ConvertToInt(tt.value)
 		if result != tt.expected {
 			t.Errorf("ConvertToInt(%v) = %d, expected %d", tt.value, result, tt.expected)
 		}
@@ -186,7 +187,7 @@ func TestConvertToFloat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := workflow.ConvertToFloat(tt.value)
+		result := typeutil.ConvertToFloat(tt.value)
 		if result != tt.expected {
 			t.Errorf("ConvertToFloat(%v) = %f, expected %f", tt.value, result, tt.expected)
 		}

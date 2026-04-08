@@ -247,7 +247,12 @@ func (g *DependencyGraph) resolveImportPath(importPath string, baseDir string) s
 
 	// If that fails, try resolving with parser's cache-aware resolution
 	// Note: We create a minimal cache here just for resolution
-	importCache := parser.NewImportCache(g.findGitRoot())
+	gitRoot, err := findGitRootForPath(g.workflowsDir)
+	if err != nil {
+		depGraphLog.Printf("Failed to find git root, using fallback: %v", err)
+		gitRoot = g.workflowsDir
+	}
+	importCache := parser.NewImportCache(gitRoot)
 	fullPath, err := parser.ResolveIncludePath(importPath, baseDir, importCache)
 	if err != nil {
 		depGraphLog.Printf("Failed to resolve import path %s: %v", importPath, err)
@@ -256,29 +261,6 @@ func (g *DependencyGraph) resolveImportPath(importPath string, baseDir string) s
 
 	depGraphLog.Printf("Resolved import %s to %s", importPath, fullPath)
 	return fullPath
-}
-
-// findGitRoot finds the git repository root
-func (g *DependencyGraph) findGitRoot() string {
-	depGraphLog.Printf("Finding git root starting from: %s", g.workflowsDir)
-	// Start from workflows directory and walk up
-	dir := g.workflowsDir
-	for {
-		gitDir := filepath.Join(dir, ".git")
-		if _, err := os.Stat(gitDir); err == nil {
-			depGraphLog.Printf("Found git root at: %s", dir)
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// Reached filesystem root
-			depGraphLog.Printf("Reached filesystem root, no .git directory found")
-			break
-		}
-		dir = parent
-	}
-	depGraphLog.Printf("Using fallback git root: %s", g.workflowsDir)
-	return g.workflowsDir // Fallback to workflows dir
 }
 
 // GetAffectedWorkflows returns the list of workflows that need to be recompiled

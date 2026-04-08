@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var publishArtifactsLog = logger.New("workflow:publish_artifacts")
@@ -93,28 +94,28 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 
 	// Parse max-uploads.
 	if maxUploads, exists := configMap["max-uploads"]; exists {
-		if v, ok := parseIntValue(maxUploads); ok && v > 0 {
+		if v, ok := typeutil.ParseIntValue(maxUploads); ok && v > 0 {
 			config.MaxUploads = v
 		}
 	}
 
 	// Parse default-retention-days.
 	if retDays, exists := configMap["default-retention-days"]; exists {
-		if v, ok := parseIntValue(retDays); ok && v > 0 {
+		if v, ok := typeutil.ParseIntValue(retDays); ok && v > 0 {
 			config.DefaultRetentionDays = v
 		}
 	}
 
 	// Parse max-retention-days.
 	if maxRetDays, exists := configMap["max-retention-days"]; exists {
-		if v, ok := parseIntValue(maxRetDays); ok && v > 0 {
+		if v, ok := typeutil.ParseIntValue(maxRetDays); ok && v > 0 {
 			config.MaxRetentionDays = v
 		}
 	}
 
 	// Parse max-size-bytes.
 	if maxBytes, exists := configMap["max-size-bytes"]; exists {
-		if v, ok := parseIntValue(maxBytes); ok && v > 0 {
+		if v, ok := typeutil.ParseIntValue(maxBytes); ok && v > 0 {
 			config.MaxSizeBytes = int64(v)
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var frontmatterMetadataLog = logger.New("workflow:frontmatter_extraction_metadata")
@@ -172,9 +173,9 @@ func (c *Compiler) extractToolsTimeout(tools map[string]any) (string, error) {
 		case int64:
 			timeout = int(v)
 		case uint:
-			timeout = safeUintToInt(v) // Safe conversion to prevent overflow (alert #418)
+			timeout = typeutil.SafeUintToInt(v) // Safe conversion to prevent overflow (alert #418)
 		case uint64:
-			timeout = safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #416)
+			timeout = typeutil.SafeUint64ToInt(v) // Safe conversion to prevent overflow (alert #416)
 		case float64:
 			timeout = int(v)
 		default:
@@ -221,9 +222,9 @@ func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) (string, err
 		case int64:
 			timeout = int(v)
 		case uint:
-			timeout = safeUintToInt(v) // Safe conversion to prevent overflow (alert #417)
+			timeout = typeutil.SafeUintToInt(v) // Safe conversion to prevent overflow (alert #417)
 		case uint64:
-			timeout = safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #415)
+			timeout = typeutil.SafeUint64ToInt(v) // Safe conversion to prevent overflow (alert #415)
 		case float64:
 			timeout = int(v)
 		default:

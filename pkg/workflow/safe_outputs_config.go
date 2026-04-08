@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var safeOutputsConfigLog = logger.New("workflow:safe_outputs_config")
@@ -626,8 +627,8 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 				config.Max = &v
 			}
 		default:
-			// Convert integer/float64/etc to string via parseIntValue
-			if maxInt, ok := parseIntValue(max); ok {
+			// Convert integer/float64/etc to string via typeutil.ParseIntValue
+			if maxInt, ok := typeutil.ParseIntValue(max); ok {
 				safeOutputsConfigLog.Printf("Parsed max as integer: %d", maxInt)
 				s := defaultIntStr(maxInt)
 				config.Max = s

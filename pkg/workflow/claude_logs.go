@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var claudeLogsLog = logger.New("workflow:claude_logs")
@@ -106,7 +107,7 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 
 	// Extract total_cost_usd directly
 	if totalCost, exists := jsonData["total_cost_usd"]; exists {
-		if cost := ConvertToFloat(totalCost); cost > 0 {
+		if cost := typeutil.ConvertToFloat(totalCost); cost > 0 {
 			metrics.EstimatedCost = cost
 		}
 	}
@@ -114,10 +115,10 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 	// Extract usage information with all token types
 	if usage, exists := jsonData["usage"]; exists {
 		if usageMap, ok := usage.(map[string]any); ok {
-			inputTokens := ConvertToInt(usageMap["input_tokens"])
-			outputTokens := ConvertToInt(usageMap["output_tokens"])
-			cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
-			cacheReadTokens := ConvertToInt(usageMap["cache_read_input_tokens"])
+			inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
+			outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
+			cacheCreationTokens := typeutil.ConvertToInt(usageMap["cache_creation_input_tokens"])
+			cacheReadTokens := typeutil.ConvertToInt(usageMap["cache_read_input_tokens"])
 
 			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
 			if totalTokens > 0 {
@@ -128,7 +129,7 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 
 	// Extract number of turns
 	if numTurns, exists := jsonData["num_turns"]; exists {
-		if turns := ConvertToInt(numTurns); turns > 0 {
+		if turns := typeutil.ConvertToInt(numTurns); turns > 0 {
 			metrics.Turns = turns
 		}
 	}
@@ -241,7 +242,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			if typeStr, ok := entryType.(string); ok && typeStr == "result" {
 				// Found the result payload, extract cost and token data
 				if totalCost, exists := entry["total_cost_usd"]; exists {
-					if cost := ConvertToFloat(totalCost); cost > 0 {
+					if cost := typeutil.ConvertToFloat(totalCost); cost > 0 {
 						metrics.EstimatedCost = cost
 					}
 				}
@@ -249,10 +250,10 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				// Extract usage information with all token types
 				if usage, exists := entry["usage"]; exists {
 					if usageMap, ok := usage.(map[string]any); ok {
-						inputTokens := ConvertToInt(usageMap["input_tokens"])
-						outputTokens := ConvertToInt(usageMap["output_tokens"])
-						cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
-						cacheReadTokens := ConvertToInt(usageMap["cache_read_input_tokens"])
+						inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
+						outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
+						cacheCreationTokens := typeutil.ConvertToInt(usageMap["cache_creation_input_tokens"])
+						cacheReadTokens := typeutil.ConvertToInt(usageMap["cache_read_input_tokens"])
 
 						totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
 						if totalTokens > 0 {
@@ -263,7 +264,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 				// Extract number of turns
 				if numTurns, exists := entry["num_turns"]; exists {
-					if turns := ConvertToInt(numTurns); turns > 0 {
+					if turns := typeutil.ConvertToInt(numTurns); turns > 0 {
 						metrics.Turns = turns
 					}
 				}

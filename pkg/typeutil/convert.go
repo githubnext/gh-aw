@@ -11,6 +11,9 @@
 //     the caller needs to distinguish "missing/invalid" from a zero value, or when string
 //     inputs are not expected (e.g. YAML config field parsing).
 //
+// Bool Extraction:
+//   - ParseBool() - Extract a bool from map[string]any by key; returns false on missing, nil map, or non-bool.
+//
 // Safe Conversions (return 0 on overflow or invalid input):
 //   - SafeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
 //   - SafeUintToInt() - Convert uint to int, returning 0 on overflow
@@ -108,6 +111,19 @@ func ConvertToInt(val any) int {
 		}
 	}
 	return 0
+}
+
+// ParseBool extracts a boolean value from a map[string]any by key.
+// Returns false if the map is nil, the key is absent, or the value is not a bool.
+func ParseBool(m map[string]any, key string) bool {
+	if m == nil {
+		return false
+	}
+	if v, ok := m[key]; ok {
+		b, _ := v.(bool)
+		return b
+	}
+	return false
 }
 
 // ConvertToFloat safely converts any value to float64, returning 0 on failure.
