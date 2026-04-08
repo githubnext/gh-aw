@@ -514,7 +514,6 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 		name         string
 		otlpEndpoint string
 		otlpHeaders  string
-		wantPreamble bool
 		wantHeaders  bool
 		wantEndpoint bool
 	}{
@@ -522,7 +521,6 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 			name:         "OTLP endpoint only (no headers)",
 			otlpEndpoint: "https://otel.example.com:4318",
 			otlpHeaders:  "",
-			wantPreamble: false,
 			wantHeaders:  false,
 			wantEndpoint: true,
 		},
@@ -530,7 +528,6 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 			name:         "OTLP endpoint and headers",
 			otlpEndpoint: "https://otel.example.com:4318",
 			otlpHeaders:  "Authorization=Bearer token123",
-			wantPreamble: true,
 			wantHeaders:  true,
 			wantEndpoint: true,
 		},
@@ -538,7 +535,6 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 			name:         "no OTLP config",
 			otlpEndpoint: "",
 			otlpHeaders:  "",
-			wantPreamble: false,
 			wantHeaders:  false,
 			wantEndpoint: false,
 		},
@@ -577,19 +573,16 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 
 			result := output.String()
 
-			// Verify preamble (JSON-escape bash lines) is present iff headers are configured
-			hasPreamble := strings.Contains(result, "_GH_AW_OTLP_HEADERS_ESC=")
-			if hasPreamble != tt.wantPreamble {
-				t.Errorf("preamble presence = %v, want %v\noutput:\n%s", hasPreamble, tt.wantPreamble, result)
-			}
-
-			// Verify no old JSON object conversion preamble is emitted
+			// Verify no node/bash preamble for header conversion is emitted
 			if strings.Contains(result, "_GH_AW_OTLP_HEADERS_JSON") {
 				t.Error("output must not contain old _GH_AW_OTLP_HEADERS_JSON preamble")
 			}
+			if strings.Contains(result, "_GH_AW_OTLP_HEADERS_ESC") {
+				t.Error("output must not contain _GH_AW_OTLP_HEADERS_ESC preamble")
+			}
 
-			// Verify headers string (escaped variable reference) is present iff configured
-			hasHeaders := strings.Contains(result, `"headers": "${_GH_AW_OTLP_HEADERS_ESC}"`)
+			// Verify headers field (raw env var passthrough) is present iff configured
+			hasHeaders := strings.Contains(result, `"headers": "${OTEL_EXPORTER_OTLP_HEADERS}"`)
 			if hasHeaders != tt.wantHeaders {
 				t.Errorf("headers field presence = %v, want %v\noutput:\n%s", hasHeaders, tt.wantHeaders, result)
 			}
@@ -600,13 +593,6 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 			}
 			if !tt.wantEndpoint && strings.Contains(result, `"opentelemetry"`) {
 				t.Errorf("expected no opentelemetry section when no endpoint configured\noutput:\n%s", result)
-			}
-
-			// Verify the bash escape lines are correct when preamble is emitted
-			if tt.wantPreamble {
-				if !strings.Contains(result, `_GH_AW_OTLP_HEADERS_ESC="${OTEL_EXPORTER_OTLP_HEADERS//`) {
-					t.Errorf("expected bash backslash-escape line in preamble\noutput:\n%s", result)
-				}
 			}
 		})
 	}

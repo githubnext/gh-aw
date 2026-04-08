@@ -191,17 +191,16 @@ func RenderJSONMCPConfig(
 		// When OTLP tracing is configured, add the opentelemetry section directly to the
 		// gateway config. The endpoint is written as a literal value (including GitHub Actions
 		// expressions such as ${{ secrets.X }} which GH Actions expands at runtime).
-		// Headers are emitted as a JSON string via ${_GH_AW_OTLP_HEADERS_ESC}, which is a
-		// JSON-safe version of OTEL_EXPORTER_OTLP_HEADERS set by the preamble below the heredoc.
+		// Headers are emitted as a JSON string via ${OTEL_EXPORTER_OTLP_HEADERS}, which bash
+		// expands at runtime from the job-level env var injected by injectOTLPConfig.
 		// traceId and spanId use ${VARIABLE_NAME} expressions expanded by bash from GITHUB_ENV.
 		// Per MCP Gateway Specification §4.1.3.6 and the opentelemetryConfig schema.
 		if options.GatewayConfig.OTLPEndpoint != "" {
 			configBuilder.WriteString(",\n              \"opentelemetry\": {\n")
 			fmt.Fprintf(&configBuilder, "                \"endpoint\": %q,\n", options.GatewayConfig.OTLPEndpoint)
 			if options.GatewayConfig.OTLPHeaders != "" {
-				// Use the JSON-escaped variable set by the preamble below so that any
-				// quotes or backslashes in the headers value produce valid JSON.
-				configBuilder.WriteString("                \"headers\": \"${_GH_AW_OTLP_HEADERS_ESC}\",\n")
+				// Pass the headers string through as-is; the gateway schema requires a string value.
+				configBuilder.WriteString("                \"headers\": \"${OTEL_EXPORTER_OTLP_HEADERS}\",\n")
 			}
 			configBuilder.WriteString("                \"traceId\": \"${GITHUB_AW_OTEL_TRACE_ID}\",\n")
 			configBuilder.WriteString("                \"spanId\": \"${GITHUB_AW_OTEL_PARENT_SPAN_ID}\"\n")
@@ -219,15 +218,6 @@ func RenderJSONMCPConfig(
 	generatedConfig := configBuilder.String()
 
 	delimiter := GenerateHeredocDelimiterFromSeed("MCP_CONFIG", workflowData.FrontmatterHash)
-	// When OTLP headers are configured, emit a preamble that JSON-escapes
-	// OTEL_EXPORTER_OTLP_HEADERS into _GH_AW_OTLP_HEADERS_ESC. This ensures the
-	// gateway config JSON remains valid if the headers value contains quotes or backslashes.
-	// Backslashes are escaped first (\ → \\), then double quotes (" → \").
-	if options.GatewayConfig != nil && options.GatewayConfig.OTLPEndpoint != "" && options.GatewayConfig.OTLPHeaders != "" {
-		yaml.WriteString("          # JSON-escape OTLP headers for gateway config (handles quotes and backslashes)\n")
-		yaml.WriteString("          _GH_AW_OTLP_HEADERS_ESC=\"${OTEL_EXPORTER_OTLP_HEADERS//\\\\/\\\\\\\\}\"\n")
-		yaml.WriteString("          _GH_AW_OTLP_HEADERS_ESC=\"${_GH_AW_OTLP_HEADERS_ESC//\\\"/\\\\\\\"}\"\n")
-	}
 	// Write the configuration to the YAML output
 	yaml.WriteString("          cat << " + delimiter + " | bash \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh\"\n")
 	yaml.WriteString(generatedConfig)
