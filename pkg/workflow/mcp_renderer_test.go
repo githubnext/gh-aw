@@ -508,3 +508,92 @@ func TestOptionCombinations(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
+	tests := []struct {
+		name         string
+		otlpEndpoint string
+		otlpHeaders  string
+		wantHeaders  bool
+		wantEndpoint bool
+	}{
+		{
+			name:         "OTLP endpoint only (no headers)",
+			otlpEndpoint: "https://otel.example.com:4318",
+			otlpHeaders:  "",
+			wantHeaders:  false,
+			wantEndpoint: true,
+		},
+		{
+			name:         "OTLP endpoint and headers",
+			otlpEndpoint: "https://otel.example.com:4318",
+			otlpHeaders:  "Authorization=Bearer token123",
+			wantHeaders:  true,
+			wantEndpoint: true,
+		},
+		{
+			name:         "no OTLP config",
+			otlpEndpoint: "",
+			otlpHeaders:  "",
+			wantHeaders:  false,
+			wantEndpoint: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gatewayConfig := &MCPGatewayRuntimeConfig{
+				Domain:       "localhost",
+				APIKey:       "test-api-key",
+				OTLPEndpoint: tt.otlpEndpoint,
+				OTLPHeaders:  tt.otlpHeaders,
+			}
+
+			workflowData := &WorkflowData{
+				Name:            "test-workflow",
+				FrontmatterHash: "abc123",
+			}
+
+			var output strings.Builder
+			err := RenderJSONMCPConfig(
+				&output,
+				map[string]any{},
+				[]string{},
+				workflowData,
+				JSONMCPConfigOptions{
+					ConfigPath:    "/tmp/test/mcp-servers.json",
+					GatewayConfig: gatewayConfig,
+					Renderers:     MCPToolRenderers{},
+				},
+			)
+
+			if err != nil {
+				t.Fatalf("RenderJSONMCPConfig returned error: %v", err)
+			}
+
+			result := output.String()
+
+			// Verify no node/bash preamble for header conversion is emitted
+			if strings.Contains(result, "_GH_AW_OTLP_HEADERS_JSON") {
+				t.Error("output must not contain old _GH_AW_OTLP_HEADERS_JSON preamble")
+			}
+			if strings.Contains(result, "_GH_AW_OTLP_HEADERS_ESC") {
+				t.Error("output must not contain _GH_AW_OTLP_HEADERS_ESC preamble")
+			}
+
+			// Verify headers field (raw env var passthrough) is present iff configured
+			hasHeaders := strings.Contains(result, `"headers": "${OTEL_EXPORTER_OTLP_HEADERS}"`)
+			if hasHeaders != tt.wantHeaders {
+				t.Errorf("headers field presence = %v, want %v\noutput:\n%s", hasHeaders, tt.wantHeaders, result)
+			}
+
+			// Verify endpoint is present iff configured
+			if tt.wantEndpoint && !strings.Contains(result, `"endpoint": "https://otel.example.com:4318"`) {
+				t.Errorf("expected endpoint in output\noutput:\n%s", result)
+			}
+			if !tt.wantEndpoint && strings.Contains(result, `"opentelemetry"`) {
+				t.Errorf("expected no opentelemetry section when no endpoint configured\noutput:\n%s", result)
+			}
+		})
+	}
+}

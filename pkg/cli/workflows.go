@@ -242,8 +242,11 @@ func suggestWorkflowNames(target string) []string {
 	// Normalize target: strip .md extension and get basename if it's a path
 	normalizedTarget := strings.TrimSuffix(filepath.Base(target), ".md")
 
+	workflowsLog.Printf("Suggesting workflow names for %q (available: %d)", normalizedTarget, len(availableNames))
 	// Use the existing FindClosestMatches function from parser package
-	return parser.FindClosestMatches(normalizedTarget, availableNames, 3)
+	suggestions := parser.FindClosestMatches(normalizedTarget, availableNames, 3)
+	workflowsLog.Printf("Found %d suggestion(s) for %q: %v", len(suggestions), normalizedTarget, suggestions)
+	return suggestions
 }
 
 // isWorkflowFile returns true if the file should be treated as a workflow file.
@@ -266,6 +269,8 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 		workflowsDir = getWorkflowsDir()
 	}
 
+	workflowsLog.Printf("Scanning for markdown workflow files in: %s", workflowsDir)
+
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("no %s directory found", workflowsDir)
 	}
@@ -279,6 +284,7 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 	// Filter out README.md files
 	mdFiles = filterWorkflowFiles(mdFiles)
 
+	workflowsLog.Printf("Found %d markdown workflow file(s) in %s", len(mdFiles), workflowsDir)
 	return mdFiles, nil
 }
 
