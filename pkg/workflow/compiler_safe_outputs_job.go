@@ -252,7 +252,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			consolidatedSafeOutputsJobLog.Print("Exposing upload_artifact outputs from handler manager")
 			cfg := data.SafeOutputs.UploadArtifact
 			outputs["upload_artifact_count"] = "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}"
-			for i := 0; i < cfg.MaxUploads; i++ {
+			for i := range cfg.MaxUploads {
 				outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
 			}
 		}
