@@ -32,34 +32,6 @@ timeout-minutes: 45
 strict: true
 imports:
   - shared/reporting.md
-jobs:
-  runner_guard:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
-        with:
-          persist-credentials: false
-      - name: Run runner-guard scan
-        run: |
-          docker run --rm \
-            -v "$(pwd):/workdir" \
-            -w /workdir \
-            ghcr.io/vigilant-llc/runner-guard:v3.0.1 \
-            scan . --format json > /tmp/runner-guard-results.json 2>/tmp/runner-guard-stderr.log || true
-          # If output is empty or not valid JSON, write empty result
-          if ! python3 -c "import json,sys; json.load(open('/tmp/runner-guard-results.json'))" 2>/dev/null; then
-            echo '{"findings":[],"stderr":"'"$(cat /tmp/runner-guard-stderr.log | head -20 | tr '"' "'")"'"}' > /tmp/runner-guard-results.json
-          fi
-      - name: Upload runner-guard results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: runner-guard-results
-          path: /tmp/runner-guard-results.json
-          retention-days: 1
 steps:
   - name: Install gh-aw CLI
     env:
@@ -118,11 +90,6 @@ steps:
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"
-  - name: Download runner-guard results
-    uses: actions/download-artifact@v8.0.1
-    with:
-      name: runner-guard-results
-      path: /tmp/gh-aw/
 ---
 
 # Static Analysis Report
@@ -431,10 +398,10 @@ Issues created: [list of issue links for Critical/High findings, or "none"]
 
 ### Phase 6: Analyze Runner-Guard Findings
 
-Runner-guard has performed source-to-sink vulnerability scanning on the repository's GitHub Actions workflows. The results are available at `/tmp/gh-aw/runner-guard-results.json`.
+Runner-guard has performed source-to-sink vulnerability scanning as part of the compile step. The results are included in the compilation output at `/tmp/gh-aw/compile-output.txt`.
 
 1. **Read Runner-Guard Output**:
-   Read the file `/tmp/gh-aw/runner-guard-results.json` which contains findings from runner-guard's taint analysis (detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
+   Parse the runner-guard findings from `/tmp/gh-aw/compile-output.txt` — runner-guard findings are included alongside zizmor, poutine, and actionlint results (detection rules covering fork checkout exploits, expression injection, secret exfiltration, unpinned actions, AI config injection, and supply chain steganography).
 
 2. **Analyze Findings**:
    - Parse the JSON to extract findings
