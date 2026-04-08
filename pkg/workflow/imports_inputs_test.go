@@ -104,6 +104,107 @@ This workflow tests import with inputs.
 	}
 }
 
+// TestImportInputsForwardedToNestedImports tests that ${{ github.aw.import-inputs.* }}
+// expressions in the imports: section of a shared workflow are resolved before nested
+// imports are processed. This enables multi-level workflow composition where a shared
+// workflow can forward its own inputs to the workflows it depends on.
+func TestImportInputsForwardedToNestedImports(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-inputs-forwarding-*")
+
+	sharedDir := filepath.Join(tempDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	// Create the leaf shared workflow that accepts a branch-name input
+	leafPath := filepath.Join(sharedDir, "repo-memory.md")
+	leafContent := `---
+import-schema:
+  branch-name:
+    type: string
+    required: true
+    description: "Branch name for storage"
+tools:
+  bash:
+    - "git *"
+---
+
+Store data in branch ${{ github.aw.import-inputs.branch-name }}.
+`
+	if err := os.WriteFile(leafPath, []byte(leafContent), 0644); err != nil {
+		t.Fatalf("Failed to write leaf file: %v", err)
+	}
+
+	// Create the intermediate shared workflow that accepts branch-name and forwards it
+	// to the leaf workflow via an expression in its own imports: section
+	intermediatePath := filepath.Join(sharedDir, "daily-report.md")
+	intermediateContent := `---
+import-schema:
+  branch-name:
+    type: string
+    required: true
+    description: "Branch name for repo-memory storage"
+
+imports:
+  - uses: shared/repo-memory.md
+    with:
+      branch-name: ${{ github.aw.import-inputs.branch-name }}
+---
+
+Daily report workflow.
+`
+	if err := os.WriteFile(intermediatePath, []byte(intermediateContent), 0644); err != nil {
+		t.Fatalf("Failed to write intermediate file: %v", err)
+	}
+
+	// Create the consuming workflow that imports the intermediate workflow with a concrete value
+	workflowPath := filepath.Join(tempDir, "consumer.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - uses: shared/daily-report.md
+    with:
+      branch-name: "memory/my-workflow"
+---
+
+Consumer workflow.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write consumer workflow: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockContent := string(lockFileContent)
+
+	// The leaf workflow's tools (bash) should be merged
+	if !strings.Contains(lockContent, "git *") {
+		t.Error("Expected lock file to contain bash tool from leaf workflow (git *)")
+	}
+
+	// The substituted branch-name value should appear in the compiled output
+	if !strings.Contains(lockContent, "memory/my-workflow") {
+		t.Error("Expected compiled workflow to contain forwarded branch-name value 'memory/my-workflow'")
+	}
+
+	// No unresolved import-inputs expressions should remain
+	if strings.Contains(lockContent, "github.aw.import-inputs.branch-name") {
+		t.Error("Generated workflow should not contain unsubstituted github.aw.import-inputs.branch-name expression")
+	}
+}
+
 // TestImportWithInputsStringFormat tests that string import format still works
 func TestImportWithInputsStringFormat(t *testing.T) {
 	// Create a temporary directory for test files

@@ -293,13 +293,29 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			return nil, fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
 		}
 
-		// Extract frontmatter from imported file to discover nested imports.
+		// Extract frontmatter from the imported file's original content.
 		// Use the process-level cache for builtin virtual files to avoid repeated YAML parsing.
 		var result *FrontmatterResult
 		if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) {
 			result, err = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
 		} else {
 			result, err = ExtractFrontmatterFromContent(string(content))
+		}
+
+		// When the import provides 'with' inputs, apply expression substitution before
+		// discovering nested imports. This resolves ${{ github.aw.import-inputs.* }}
+		// expressions that appear in the 'with' values of nested imports, enabling
+		// multi-level workflow composition.
+		// We reuse the already-parsed frontmatter to extract import-schema defaults,
+		// avoiding a second YAML parse inside applyImportSchemaDefaults.
+		if err == nil && result != nil && len(item.inputs) > 0 {
+			inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(result.Frontmatter, item.inputs)
+			substituted := substituteImportInputsInContent(string(content), inputsWithDefaults)
+			// Re-parse the substituted content so that nested-import discovery sees
+			// the resolved 'with' values instead of literal expression strings.
+			if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
+				result = reparse
+			}
 		}
 		if err != nil {
 			// If frontmatter extraction fails, continue with other processing

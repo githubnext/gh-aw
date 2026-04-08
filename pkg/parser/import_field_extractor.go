@@ -661,7 +661,16 @@ func applyImportSchemaDefaults(rawContent string, inputs map[string]any) map[str
 	if err != nil {
 		return inputs
 	}
-	rawSchema, ok := parsed.Frontmatter["import-schema"]
+	return applyImportSchemaDefaultsFromFrontmatter(parsed.Frontmatter, inputs)
+}
+
+// applyImportSchemaDefaultsFromFrontmatter applies import-schema defaults from an
+// already-parsed frontmatter map, avoiding a redundant YAML parse when the caller
+// has already extracted the frontmatter. Returns a copy of inputs augmented with
+// default values for any schema parameters declared with a "default" field but not
+// present in the provided inputs map. Parameters already in inputs are left unchanged.
+func applyImportSchemaDefaultsFromFrontmatter(frontmatter map[string]any, inputs map[string]any) map[string]any {
+	rawSchema, ok := frontmatter["import-schema"]
 	if !ok {
 		return inputs
 	}
