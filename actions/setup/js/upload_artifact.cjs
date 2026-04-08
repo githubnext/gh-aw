@@ -18,17 +18,15 @@
  * 5. Generates a temporary artifact ID for each upload and writes a resolver file.
  *
  * Configuration keys (passed via config parameter from handler manager):
- *   max-uploads           - Max number of upload_artifact calls allowed (default: 1)
- *   default-retention-days - Default retention period (default: 7)
- *   max-retention-days    - Maximum retention cap (default: 30)
- *   max-size-bytes        - Maximum total bytes per upload (default: 100 MB)
- *   allowed-paths         - Array of allowed path glob patterns
- *   allow-skip-archive    - true if skip_archive is permitted
- *   default-skip-archive  - true if skip_archive defaults to true
- *   default-if-no-files   - "error" or "ignore" (default: "error")
- *   filters-include       - Array of default include glob patterns
- *   filters-exclude       - Array of default exclude glob patterns
- *   staged                - true for staged/dry-run mode (skips actual upload)
+ *   max-uploads       - Max number of upload_artifact calls allowed (default: 1)
+ *   retention-days    - Fixed retention period in days (default: 30); agent cannot override
+ *   skip-archive      - Fixed skip-archive flag (default: false); agent cannot override
+ *   max-size-bytes    - Maximum total bytes per upload (default: 100 MB)
+ *   allowed-paths     - Array of allowed path glob patterns
+ *   default-if-no-files - "error" or "ignore" (default: "error")
+ *   filters-include   - Array of default include glob patterns
+ *   filters-exclude   - Array of default exclude glob patterns
+ *   staged            - true for staged/dry-run mode (skips actual upload)
  */
 
 const fs = require("fs");
@@ -191,7 +189,7 @@ function resolveFiles(request, allowedPaths, defaultInclude, defaultExclude) {
 function validateSkipArchive(skipArchive, files) {
   if (!skipArchive) return null;
   if (files.length !== 1) {
-    return `skip_archive=true requires exactly one selected file, but ${files.length} files matched`;
+    return `skip-archive requires exactly one selected file, but ${files.length} files matched`;
   }
   return null;
 }
@@ -232,18 +230,6 @@ function deriveArtifactName(request, slotIndex) {
 }
 
 /**
- * Clamp a retention value between 1 and the policy maximum.
- * @param {number|undefined} requested
- * @param {number} defaultDays
- * @param {number} maxDays
- * @returns {number}
- */
-function clampRetention(requested, defaultDays, maxDays) {
-  if (typeof requested !== "number" || requested < 1) return defaultDays;
-  return Math.min(requested, maxDays);
-}
-
-/**
  * Create or return the @actions/artifact DefaultArtifactClient.
  * global.__createArtifactClient can be set in tests to inject a mock client factory.
  * Uses dynamic import() because @actions/artifact v2+ is an ES module.
@@ -265,18 +251,17 @@ async function getArtifactClient() {
  */
 async function main(config = {}) {
   const maxUploads = typeof config["max-uploads"] === "number" ? config["max-uploads"] : 1;
-  const defaultRetentionDays = typeof config["default-retention-days"] === "number" ? config["default-retention-days"] : 7;
-  const maxRetentionDays = typeof config["max-retention-days"] === "number" ? config["max-retention-days"] : 30;
+  // retention-days and skip-archive are fixed workflow configuration; the agent cannot override them.
+  const retentionDays = typeof config["retention-days"] === "number" ? config["retention-days"] : 30;
+  const skipArchive = config["skip-archive"] === true;
   const maxSizeBytes = typeof config["max-size-bytes"] === "number" ? config["max-size-bytes"] : 104857600;
-  const allowSkipArchive = config["allow-skip-archive"] === true;
-  const defaultSkipArchive = config["default-skip-archive"] === true;
   const defaultIfNoFiles = typeof config["default-if-no-files"] === "string" ? config["default-if-no-files"] : "error";
   const allowedPaths = Array.isArray(config["allowed-paths"]) ? config["allowed-paths"] : [];
   const filtersInclude = Array.isArray(config["filters-include"]) ? config["filters-include"] : [];
   const filtersExclude = Array.isArray(config["filters-exclude"]) ? config["filters-exclude"] : [];
   const isStaged = config["staged"] === true || process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  core.info(`upload_artifact handler: max_uploads=${maxUploads}, default_retention=${defaultRetentionDays}, max_retention=${maxRetentionDays}`);
+  core.info(`upload_artifact handler: max_uploads=${maxUploads}, retention_days=${retentionDays}, skip_archive=${skipArchive}`);
   core.info(`Allowed paths: ${allowedPaths.length > 0 ? allowedPaths.join(", ") : "(none – all staging files allowed)"}`);
 
   // Slot index tracks which slot each successful request maps to.
@@ -307,15 +292,6 @@ async function main(config = {}) {
 
     const i = slotIndex;
 
-    // Resolve skip_archive.
-    const skipArchive = typeof message.skip_archive === "boolean" ? message.skip_archive : defaultSkipArchive;
-    if (skipArchive && !allowSkipArchive) {
-      return {
-        success: false,
-        error: `${ERR_VALIDATION}: upload_artifact: skip_archive=true is not permitted. Enable it with allow.skip-archive: true in workflow configuration.`,
-      };
-    }
-
     // Resolve files.
     const { files, error: resolveError } = resolveFiles(message, allowedPaths, filtersInclude, filtersExclude);
     if (resolveError) {
@@ -333,7 +309,7 @@ async function main(config = {}) {
       };
     }
 
-    // Validate skip_archive file-count constraint.
+    // Validate skip-archive file-count constraint.
     const skipArchiveError = validateSkipArchive(skipArchive, files);
     if (skipArchiveError) {
       return { success: false, error: `${ERR_VALIDATION}: upload_artifact: ${skipArchiveError}` };
@@ -348,9 +324,6 @@ async function main(config = {}) {
       };
     }
 
-    // Compute retention days.
-    const retentionDays = clampRetention(typeof message.retention_days === "number" ? message.retention_days : undefined, defaultRetentionDays, maxRetentionDays);
-
     // Derive artifact name and generate temporary ID.
     const artifactName = deriveArtifactName(message, i);
     const tmpId = generateTemporaryArtifactId();
@@ -363,7 +336,7 @@ async function main(config = {}) {
       const absoluteFiles = files.map(f => path.join(STAGING_DIR, f));
       const client = await getArtifactClient();
       try {
-        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, { retentionDays });
+        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, { retentionDays, compressionLevel: skipArchive ? 0 : undefined });
         core.info(`Uploaded artifact "${artifactName}" (id=${uploadResult.id ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
       } catch (err) {
         return {

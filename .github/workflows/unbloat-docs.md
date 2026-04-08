@@ -82,8 +82,8 @@ safe-outputs:
   add-comment:
     max: 1
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
+    skip-archive: true
   messages:
     footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."
@@ -321,7 +321,7 @@ ls -lh /tmp/gh-aw/mcp-logs/playwright/
    mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
    cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    ```
-2. Call the `upload_artifact` safe-output tool for each file with `retention_days: 30`
+2. Call the `upload_artifact` safe-output tool for each file
 3. Record the returned `aw_*` ID for each screenshot to include in the PR description
 
 #### Report Blocked Domains

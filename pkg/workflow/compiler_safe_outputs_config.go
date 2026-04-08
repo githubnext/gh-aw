@@ -777,8 +777,8 @@ var handlerRegistry = map[string]handlerBuilder{
 		b := newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddIfPositive("max-uploads", c.MaxUploads).
-			AddIfPositive("default-retention-days", c.DefaultRetentionDays).
-			AddIfPositive("max-retention-days", c.MaxRetentionDays).
+			AddTemplatableInt("retention-days", c.RetentionDays).
+			AddTemplatableBool("skip-archive", c.SkipArchive).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged)
 		if c.MaxSizeBytes > 0 {
@@ -787,13 +787,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		if len(c.AllowedPaths) > 0 {
 			b = b.AddStringSlice("allowed-paths", c.AllowedPaths)
 		}
-		if c.Allow != nil && c.Allow.SkipArchive {
-			b = b.AddIfTrue("allow-skip-archive", true)
-		}
 		if c.Defaults != nil {
-			if c.Defaults.SkipArchive {
-				b = b.AddIfTrue("default-skip-archive", true)
-			}
 			if c.Defaults.IfNoFiles != "" {
 				b = b.AddIfNotEmpty("default-if-no-files", c.Defaults.IfNoFiles)
 			}

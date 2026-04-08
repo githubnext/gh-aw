@@ -17,8 +17,8 @@ tools:
     toolsets: [default, discussions]
 safe-outputs:
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
+    skip-archive: true
 timeout-minutes: 30
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -372,7 +372,7 @@ Stage and upload all three charts as artifacts with 30-day retention:
    cp /tmp/gh-aw/python/charts/resolution_metrics.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    cp /tmp/gh-aw/python/charts/velocity_metrics.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    ```
-2. Call the `upload_artifact` safe-output tool for each chart with `retention_days: 30`
+2. Call the `upload_artifact` safe-output tool for each chart
 3. Record the returned `aw_*` IDs for each chart
 
 ## Phase 5: Close Previous Discussions

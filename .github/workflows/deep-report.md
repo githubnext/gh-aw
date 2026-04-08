@@ -27,8 +27,7 @@ network:
 
 safe-outputs:
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
   create-discussion:
     category: "reports"
     max: 1

@@ -37,8 +37,7 @@ safe-outputs:
     reviewers: copilot
     draft: false
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
   messages:
     footer: "> 📝 *Documentation by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}..."

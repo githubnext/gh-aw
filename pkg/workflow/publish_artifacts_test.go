@@ -33,31 +33,55 @@ func TestParseUploadArtifactConfig(t *testing.T) {
 			name:  "upload-artifact true uses defaults",
 			input: map[string]any{"upload-artifact": true},
 			expected: &UploadArtifactConfig{
-				MaxUploads:           defaultArtifactMaxUploads,
-				DefaultRetentionDays: defaultArtifactRetentionDays,
-				MaxRetentionDays:     defaultArtifactMaxRetentionDays,
-				MaxSizeBytes:         defaultArtifactMaxSizeBytes,
+				MaxUploads:   defaultArtifactMaxUploads,
+				MaxSizeBytes: defaultArtifactMaxSizeBytes,
 			},
 		},
 		{
-			name: "upload-artifact with custom values",
+			name: "upload-artifact with retention-days and skip-archive",
 			input: map[string]any{
 				"upload-artifact": map[string]any{
-					"max-uploads":            3,
-					"default-retention-days": 14,
-					"max-retention-days":     60,
-					"max-size-bytes":         52428800,
-					"allowed-paths":          []any{"dist/**", "reports/**"},
-					"github-token":           "${{ secrets.MY_TOKEN }}",
+					"max-uploads":    3,
+					"retention-days": 30,
+					"skip-archive":   true,
+					"max-size-bytes": 52428800,
+					"github-token":   "${{ secrets.MY_TOKEN }}",
 				},
 			},
 			expected: &UploadArtifactConfig{
 				MaxUploads:           3,
-				DefaultRetentionDays: 14,
-				MaxRetentionDays:     60,
+				RetentionDays:        strPtr("30"),
+				SkipArchive:          strPtr("true"),
 				MaxSizeBytes:         52428800,
-				AllowedPaths:         []string{"dist/**", "reports/**"},
 				BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.MY_TOKEN }}"},
+			},
+		},
+		{
+			name: "upload-artifact with templated retention-days and skip-archive",
+			input: map[string]any{
+				"upload-artifact": map[string]any{
+					"retention-days": "${{ inputs.retention }}",
+					"skip-archive":   "${{ inputs.skip }}",
+				},
+			},
+			expected: &UploadArtifactConfig{
+				MaxUploads:    defaultArtifactMaxUploads,
+				MaxSizeBytes:  defaultArtifactMaxSizeBytes,
+				RetentionDays: strPtr("${{ inputs.retention }}"),
+				SkipArchive:   strPtr("${{ inputs.skip }}"),
+			},
+		},
+		{
+			name: "upload-artifact with allowed-paths",
+			input: map[string]any{
+				"upload-artifact": map[string]any{
+					"allowed-paths": []any{"dist/**", "reports/**"},
+				},
+			},
+			expected: &UploadArtifactConfig{
+				MaxUploads:   defaultArtifactMaxUploads,
+				MaxSizeBytes: defaultArtifactMaxSizeBytes,
+				AllowedPaths: []string{"dist/**", "reports/**"},
 			},
 		},
 		{
@@ -71,10 +95,8 @@ func TestParseUploadArtifactConfig(t *testing.T) {
 				},
 			},
 			expected: &UploadArtifactConfig{
-				MaxUploads:           defaultArtifactMaxUploads,
-				DefaultRetentionDays: defaultArtifactRetentionDays,
-				MaxRetentionDays:     defaultArtifactMaxRetentionDays,
-				MaxSizeBytes:         defaultArtifactMaxSizeBytes,
+				MaxUploads:   defaultArtifactMaxUploads,
+				MaxSizeBytes: defaultArtifactMaxSizeBytes,
 				Filters: &ArtifactFiltersConfig{
 					Include: []string{"reports/**/*.json"},
 					Exclude: []string{"**/*.env", "**/*.pem"},
@@ -82,29 +104,19 @@ func TestParseUploadArtifactConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "upload-artifact with defaults and allow",
+			name: "upload-artifact with defaults if-no-files",
 			input: map[string]any{
 				"upload-artifact": map[string]any{
 					"defaults": map[string]any{
-						"skip-archive": false,
-						"if-no-files":  "ignore",
-					},
-					"allow": map[string]any{
-						"skip-archive": true,
+						"if-no-files": "ignore",
 					},
 				},
 			},
 			expected: &UploadArtifactConfig{
-				MaxUploads:           defaultArtifactMaxUploads,
-				DefaultRetentionDays: defaultArtifactRetentionDays,
-				MaxRetentionDays:     defaultArtifactMaxRetentionDays,
-				MaxSizeBytes:         defaultArtifactMaxSizeBytes,
+				MaxUploads:   defaultArtifactMaxUploads,
+				MaxSizeBytes: defaultArtifactMaxSizeBytes,
 				Defaults: &ArtifactDefaultsConfig{
-					SkipArchive: false,
-					IfNoFiles:   "ignore",
-				},
-				Allow: &ArtifactAllowConfig{
-					SkipArchive: true,
+					IfNoFiles: "ignore",
 				},
 			},
 		},
@@ -117,8 +129,6 @@ func TestParseUploadArtifactConfig(t *testing.T) {
 			},
 			expected: &UploadArtifactConfig{
 				MaxUploads:           defaultArtifactMaxUploads,
-				DefaultRetentionDays: defaultArtifactRetentionDays,
-				MaxRetentionDays:     defaultArtifactMaxRetentionDays,
 				MaxSizeBytes:         defaultArtifactMaxSizeBytes,
 				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
 			},
@@ -136,11 +146,23 @@ func TestParseUploadArtifactConfig(t *testing.T) {
 
 			require.NotNil(t, result, "expected non-nil result")
 			assert.Equal(t, tt.expected.MaxUploads, result.MaxUploads, "MaxUploads mismatch")
-			assert.Equal(t, tt.expected.DefaultRetentionDays, result.DefaultRetentionDays, "DefaultRetentionDays mismatch")
-			assert.Equal(t, tt.expected.MaxRetentionDays, result.MaxRetentionDays, "MaxRetentionDays mismatch")
 			assert.Equal(t, tt.expected.MaxSizeBytes, result.MaxSizeBytes, "MaxSizeBytes mismatch")
 			assert.Equal(t, tt.expected.AllowedPaths, result.AllowedPaths, "AllowedPaths mismatch")
 			assert.Equal(t, tt.expected.GitHubToken, result.GitHubToken, "GitHubToken mismatch")
+
+			if tt.expected.RetentionDays == nil {
+				assert.Nil(t, result.RetentionDays, "RetentionDays should be nil")
+			} else {
+				require.NotNil(t, result.RetentionDays, "RetentionDays should not be nil")
+				assert.Equal(t, *tt.expected.RetentionDays, *result.RetentionDays, "RetentionDays value mismatch")
+			}
+
+			if tt.expected.SkipArchive == nil {
+				assert.Nil(t, result.SkipArchive, "SkipArchive should be nil")
+			} else {
+				require.NotNil(t, result.SkipArchive, "SkipArchive should not be nil")
+				assert.Equal(t, *tt.expected.SkipArchive, *result.SkipArchive, "SkipArchive value mismatch")
+			}
 
 			if tt.expected.Max == nil {
 				assert.Nil(t, result.Max, "Max should be nil")
@@ -161,15 +183,7 @@ func TestParseUploadArtifactConfig(t *testing.T) {
 				assert.Nil(t, result.Defaults, "Defaults should be nil")
 			} else {
 				require.NotNil(t, result.Defaults, "Defaults should not be nil")
-				assert.Equal(t, tt.expected.Defaults.SkipArchive, result.Defaults.SkipArchive, "Defaults.SkipArchive mismatch")
 				assert.Equal(t, tt.expected.Defaults.IfNoFiles, result.Defaults.IfNoFiles, "Defaults.IfNoFiles mismatch")
-			}
-
-			if tt.expected.Allow == nil {
-				assert.Nil(t, result.Allow, "Allow should be nil")
-			} else {
-				require.NotNil(t, result.Allow, "Allow should not be nil")
-				assert.Equal(t, tt.expected.Allow.SkipArchive, result.Allow.SkipArchive, "Allow.SkipArchive mismatch")
 			}
 		})
 	}

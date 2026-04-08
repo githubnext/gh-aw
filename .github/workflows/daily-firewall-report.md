@@ -19,8 +19,8 @@ timeout-minutes: 45
 
 safe-outputs:
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
+    skip-archive: true
 tools:
   agentic-workflows:
   github:
@@ -109,7 +109,7 @@ Generate exactly **2 high-quality trend charts**:
    cp /tmp/gh-aw/python/charts/firewall_trends.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    cp /tmp/gh-aw/python/charts/blocked_domains.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    ```
-2. Call the `upload_artifact` safe-output tool for each chart with `retention_days: 30`
+2. Call the `upload_artifact` safe-output tool for each chart
 3. Record the returned `aw_*` IDs
 
 **Phase 5: Embed Charts in Discussion**

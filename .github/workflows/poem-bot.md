@@ -127,8 +127,7 @@ safe-outputs:
 
   # Upload artifacts (30-day retention)
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
 
   # Missing tool reporting
   missing-tool:

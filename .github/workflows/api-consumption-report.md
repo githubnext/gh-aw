@@ -17,10 +17,8 @@ tools:
 safe-outputs:
   upload-artifact:
     max-uploads: 5
-    default-retention-days: 30
-    max-retention-days: 30
-    allow:
-      skip-archive: true
+    retention-days: 30
+    skip-archive: true
 timeout-minutes: 45
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -303,7 +301,7 @@ Use `sns.set_theme(style="darkgrid")` for a professional dark-grid look and `plt
 
 ## Step 5 — Upload Charts as Artifacts
 
-Stage each successfully generated chart from `/tmp/gh-aw/python/charts/*.png` into `/tmp/gh-aw/safeoutputs/upload-artifacts/`, then call the `upload_artifact` safe-output tool for each chart with `retention_days: 30` and `skip_archive: true`. Collect and record the returned `aw_*` ID for each chart.
+Stage each successfully generated chart from `/tmp/gh-aw/python/charts/*.png` into `/tmp/gh-aw/safeoutputs/upload-artifacts/`, then call the `upload_artifact` safe-output tool for each chart. Collect and record the returned `aw_*` ID for each chart.
 
 ---
 

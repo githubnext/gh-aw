@@ -2,10 +2,8 @@
 safe-outputs:
   upload-artifact:
     max-uploads: 3
-    default-retention-days: 30
-    max-retention-days: 30
-    allow:
-      skip-archive: true
+    retention-days: 30
+    skip-archive: true
 ---
 
 <!--
@@ -43,15 +41,14 @@ cp dist/report.json /tmp/gh-aw/safeoutputs/upload-artifacts/report.json
 Then call the tool:
 
 ```json
-{ "type": "upload_artifact", "path": "report.json", "retention_days": 7 }
+{ "type": "upload_artifact", "path": "report.json" }
 ```
 
 ## Configuration defaults
 
 - `max-uploads`: 3 uploads per run
-- `default-retention-days`: 30 days
-- `max-retention-days`: 30 days
-- `allow.skip-archive`: true (single-file uploads can skip zip archiving)
+- `retention-days`: 30 days (fixed; the agent cannot override this value)
+- `skip-archive`: true (single-file uploads skip zip archiving; fixed)
 
 Override any of these by defining `upload-artifact` directly in your workflow's
 `safe-outputs` section (the top-level definition takes precedence over the import).

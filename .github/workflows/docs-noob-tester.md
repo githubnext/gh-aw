@@ -21,8 +21,8 @@ tools:
     - "*"
 safe-outputs:
   upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+    retention-days: 30
+    skip-archive: true
 network:
   allowed:
     - defaults
@@ -176,7 +176,7 @@ For each confusing or broken area:
   mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
   cp /tmp/gh-aw/screenshots/<filename>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
   ```
-  Then call the `upload_artifact` safe-output tool with `path: "<filename>.png"` and `retention_days: 30`.
+  Then call the `upload_artifact` safe-output tool with `path: "<filename>.png"`.
   Record the returned `aw_*` ID.
 
 ## Step 5: Create Discussion Report
