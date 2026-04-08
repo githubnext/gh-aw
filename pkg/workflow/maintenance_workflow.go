@@ -109,9 +109,32 @@ func generateMaintenanceCron(minExpiresDays int) (string, string) {
 }
 
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
-// if any workflows use the expires field for discussions or issues
-func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool) error {
+// if any workflows use the expires field for discussions or issues.
+// When repoConfig is non-nil and repoConfig.MaintenanceDisabled is true the
+// maintenance workflow is deleted and the function returns immediately.
+func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, actionTag string, verbose bool, repoConfig *RepoConfig) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
+
+	// Respect explicit opt-out from aw.json: maintenance: false
+	if repoConfig != nil && repoConfig.MaintenanceDisabled {
+		maintenanceLog.Print("Maintenance disabled via repo config, skipping generation")
+		maintenanceFile := filepath.Join(workflowDir, "agentics-maintenance.yml")
+		if _, err := os.Stat(maintenanceFile); err == nil {
+			maintenanceLog.Printf("Deleting existing maintenance workflow: %s", maintenanceFile)
+			if err := os.Remove(maintenanceFile); err != nil {
+				return fmt.Errorf("failed to delete maintenance workflow: %w", err)
+			}
+		}
+		return nil
+	}
+
+	// Determine the runs-on value to use for all maintenance jobs.
+	const defaultRunsOn = "ubuntu-slim"
+	var configuredRunsOn any
+	if repoConfig != nil && repoConfig.Maintenance != nil {
+		configuredRunsOn = repoConfig.Maintenance.RunsOn
+	}
+	runsOnValue := FormatRunsOn(configuredRunsOn, defaultRunsOn)
 
 	// Check if any workflow uses expires field for discussions, issues, or pull requests
 	// and track the minimum expires value to determine schedule frequency
@@ -232,7 +255,7 @@ permissions: {}
 jobs:
   close-expired-entities:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     permissions:
       discussions: write
       issues: write
@@ -305,7 +328,7 @@ jobs:
 	yaml.WriteString(`
   run_operation:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     permissions:
       actions: write
       contents: write
@@ -353,7 +376,7 @@ jobs:
 	yaml.WriteString(`
   apply_safe_outputs:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     permissions:
       actions: read
       contents: write
@@ -401,7 +424,7 @@ jobs:
 	yaml.WriteString(`
   create_labels:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     permissions:
       contents: read
       issues: write
@@ -450,7 +473,7 @@ jobs:
 		yaml.WriteString(`
   compile-workflows:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     permissions:
       contents: read
       issues: write
@@ -487,7 +510,7 @@ jobs:
 
   zizmor-scan:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     needs: compile-workflows
     permissions:
       contents: read
@@ -511,7 +534,7 @@ jobs:
 
   secret-validation:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ` + runsOnValue + `
     permissions:
       contents: read
     steps:

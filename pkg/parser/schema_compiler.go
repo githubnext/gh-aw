@@ -25,17 +25,23 @@ var mainWorkflowSchema string
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
 
+//go:embed schemas/repo_config_schema.json
+var RepoConfigSchema string
+
 // validateWithSchema validates frontmatter against a JSON schema
 // Cached compiled schemas to avoid recompiling on every validation
 var (
 	mainWorkflowSchemaOnce sync.Once
 	mcpConfigSchemaOnce    sync.Once
+	repoConfigSchemaOnce   sync.Once
 
 	compiledMainWorkflowSchema *jsonschema.Schema
 	compiledMcpConfigSchema    *jsonschema.Schema
+	compiledRepoConfigSchema   *jsonschema.Schema
 
 	mainWorkflowSchemaError error
 	mcpConfigSchemaError    error
+	repoConfigSchemaError   error
 
 	// Cached parsed schema documents (as any) for suggestion generation.
 	// Parsing the large JSON schema on every error call is expensive; these caches
@@ -63,6 +69,14 @@ func getCompiledMcpConfigSchema() (*jsonschema.Schema, error) {
 		compiledMcpConfigSchema, mcpConfigSchemaError = compileSchema(mcpConfigSchema, "http://contoso.com/mcp-config-schema.json")
 	})
 	return compiledMcpConfigSchema, mcpConfigSchemaError
+}
+
+// GetCompiledRepoConfigSchema returns the compiled repo config schema, compiling it once and caching
+func GetCompiledRepoConfigSchema() (*jsonschema.Schema, error) {
+	repoConfigSchemaOnce.Do(func() {
+		compiledRepoConfigSchema, repoConfigSchemaError = compileSchema(RepoConfigSchema, "http://contoso.com/repo-config-schema.json")
+	})
+	return compiledRepoConfigSchema, repoConfigSchemaError
 }
 
 // getParsedSchemaDoc returns the parsed (any) representation of a known schema JSON string.
@@ -189,6 +203,9 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	case mcpConfigSchema:
 		schemaCompilerLog.Print("Using cached MCP config schema")
 		schema, err = getCompiledMcpConfigSchema()
+	case RepoConfigSchema:
+		schemaCompilerLog.Print("Using cached repo config schema")
+		schema, err = GetCompiledRepoConfigSchema()
 	default:
 		// Fallback for unknown schemas (shouldn't happen in normal operation)
 		// Compile the schema on-the-fly

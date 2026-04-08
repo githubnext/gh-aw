@@ -64,12 +64,23 @@ func generateMaintenanceWorkflowWrapper(
 	compiler *workflow.Compiler,
 	workflowDataList []*workflow.WorkflowData,
 	workflowsDir string,
+	gitRoot string,
 	verbose bool,
 	strict bool,
 ) error {
 	compilePostProcessingLog.Print("Generating maintenance workflow")
 
-	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose); err != nil {
+	// Load repo-level configuration (optional file).
+	repoConfig, err := workflow.LoadRepoConfig(gitRoot)
+	if err != nil {
+		if strict {
+			return fmt.Errorf("failed to load repo config: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to load repo config: %v", err)))
+		repoConfig = nil
+	}
+
+	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), compiler.GetActionTag(), verbose, repoConfig); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 		}
