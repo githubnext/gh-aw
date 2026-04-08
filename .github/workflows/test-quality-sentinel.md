@@ -67,8 +67,8 @@ Use the GitHub tools to get the PR diff:
 
 Then identify all **new and modified test files** in the diff:
 
-- **Go** *(analyzed)*: files ending in `_test.go` with `func Test*` functions
-- **JavaScript/TypeScript** *(analyzed)*: files matching `*.test.{js,ts,cjs,mjs}`, `*.spec.{js,ts}`, or inside `__tests__/`
+- **Go** *(analyzed)*: files ending in `_test.go` with `func Test*` functions; both `//go:build !integration` (unit) and `//go:build integration` files are analyzed
+- **JavaScript** *(analyzed)*: the primary format is `*.test.cjs` (co-located with source in `actions/setup/js/`); also `*.test.js` (scripts); test framework is **vitest** (not jest)
 - **Other languages** *(detected but not scored)*: Python (`test_*.py`, `*_test.py`), Rust (`#[test]` blocks). Note their presence in the report but exclude them from scoring.
 
 If **no test files were added or modified**, call `noop`:
@@ -94,8 +94,19 @@ Use bash tools to help parse the diff if needed:
 # For Go: find Test* function definitions in the diff
 git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | grep -E "^\+func Test"
 
-# For JavaScript/TypeScript: find test() / it() / describe() in the diff
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.js' '*.test.ts' '*.test.cjs' '*.spec.js' '*.spec.ts' | grep -E "^\+(test|it|describe)\("
+# For JavaScript (.test.cjs is the primary format; .test.js used in scripts/)
+git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.cjs' '*.test.js' | grep -E "^\+(it|test|describe)\("
+```
+
+Also check for missing build tags in new Go test files — every `*_test.go` file must begin with either `//go:build !integration` (for unit tests) or `//go:build integration` (for integration tests):
+
+```bash
+# List any newly added Go test files that are missing the mandatory build tag
+git diff ${{ github.event.pull_request.base.sha }}...HEAD --diff-filter=A --name-only | grep '_test\.go$' | while read f; do
+  if ! head -1 "$f" | grep -qE '^//go:build'; then
+    echo "MISSING BUILD TAG: $f"
+  fi
+done
 ```
 
 ## Step 3: AST-Assisted Structural Analysis
@@ -104,52 +115,58 @@ For each changed test file, run structural checks using available tools.
 
 ### 3a. Go — `Test*` functions
 
-Analyze Go test functions using grep and awk on the diff:
+Analyze Go test functions using grep and awk on the diff. This codebase uses **both** stdlib assertions (`t.Errorf`, `t.Fatalf`, `t.Error`) **and** testify (`assert.*`, `require.*`). The project guideline is **no mock libraries** — tests must interact with real components; any use of `gomock`, `testify/mock`, or `EXPECT()` in Go is itself a red flag.
 
 ```bash
-# Count assertions, error checks, and mock calls per Test* function
+# Count assertions, error checks, table-driven subtests, and any forbidden mock calls per Test* function
 git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | awk '
 /^\+func Test/ {
-  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
-  match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; mocks=0
+  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks
+  match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; table_driven=0; forbidden_mocks=0
 }
 test_name && /^\+.*(assert\.|require\.)/ { assertions++ }
-test_name && /^\+.*(t\.Error|t\.Errorf|t\.Fatal|t\.Fatalf|assert\.Error|require\.Error)/ { errors++ }
-test_name && /^\+.*(\.EXPECT\(\)|gomock\.|testify\/mock|\.On\(|\.Return\()/ { mocks++ }
-test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
-END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
+test_name && /^\+.*t\.(Error|Errorf|Fatal|Fatalf)\(/ { assertions++; errors++ }
+test_name && /^\+.*(assert\.Error|require\.Error|assert\.NoError|require\.NoError)/ { errors++ }
+test_name && /^\+.*t\.Run\(/ { table_driven++ }
+test_name && /^\+.*(gomock\.|testify\/mock|\.EXPECT\(\)|\.On\(|\.Return\()/ { forbidden_mocks++ }
+test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks; test_name="" }
+END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "table_driven=" table_driven, "forbidden_mocks=" forbidden_mocks }
 '
 ```
 
-Key signals for Go tests:
-- **Assertions**: calls to `assert.*` or `require.*` (testify), or `t.Error*` / `t.Fatal*`
-- **Error coverage**: calls checking `err != nil`, `assert.Error`, `require.Error`, or test functions named with "Error" / "Invalid" / "Edge"
-- **Mocking**: use of `gomock`, `testify/mock` (`On()`, `Return()`, `EXPECT()`), or interface-based stubs
-- **Table-driven tests**: `t.Run()` calls with a test-case slice — these are generally high value; credit them as covering multiple scenarios
+Key signals for Go tests in this codebase:
+- **Assertions (accepted forms)**:
+  - testify: `assert.Equal`, `assert.NoError`, `assert.Error`, `require.Equal`, `require.NoError`, etc.
+  - stdlib: `t.Errorf(...)`, `t.Fatalf(...)`, `t.Error(...)`
+- **Error coverage**: `assert.Error` / `require.Error`, `assert.NoError` / `require.NoError`, `t.Fatalf` / `t.Errorf` explicitly checking error returns
+- **Table-driven tests**: `t.Run()` over a `tests []struct{...}` slice — the preferred pattern in this codebase; a single table-driven test covers all its sub-cases, so credit all included error / edge-case rows
+- **Assertion messages**: guidelines require a descriptive message argument on every assertion call — e.g. `assert.Equal(t, expected, actual, "descriptive context")` not bare `assert.Equal(t, expected, actual)`
+- **Forbidden**: any use of `gomock`, `testify/mock`, `.EXPECT()`, `.On()`, `.Return()` in Go tests violates the project's "no mocks" guideline; flag immediately
 
-### 3b. JavaScript / TypeScript — `test()` / `it()` blocks
+### 3b. JavaScript — vitest `test()` / `it()` blocks
 
-Analyze JS/TS test blocks using grep:
+This codebase uses **vitest** (not jest). Mock helpers come from vitest: `vi.fn()`, `vi.spyOn()`, `vi.mock()`. Primary test file extension is `.test.cjs`; scripts tests use `.test.js`.
 
 ```bash
-# Count expect() assertions and mock calls per test block
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.js' '*.test.ts' '*.test.cjs' '*.spec.js' '*.spec.ts' | awk '
-/^\+(test|it)\(/ {
+# Count expect() assertions, error matchers, and vi.* mock calls per test block
+git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.cjs' '*.test.js' | awk '
+/^\+(it|test)\(/ {
   if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
-  match($0, /(test|it)\(['"'"'"]([^'"'"'"]+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
+  match($0, /(it|test)\(["'"'"']([^"'"'"']+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
 }
 test_name && /^\+.*expect\(/ { assertions++ }
-test_name && /^\+.*(toThrow|rejects|\.error|Error)/ { errors++ }
-test_name && /^\+.*(jest\.mock|jest\.spyOn|\.mockReturnValue|\.mockImplementation|sinon\.)/ { mocks++ }
+test_name && /^\+.*(\.toThrow|\.rejects|\.toThrowError)/ { errors++ }
+test_name && /^\+.*(vi\.mock|vi\.spyOn|vi\.fn)/ { mocks++ }
 test_name && /^\+\}\)/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
 END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
 '
 ```
 
-Key signals for JavaScript/TypeScript tests:
-- **Assertions**: `expect(...)` calls with matchers (`.toBe`, `.toEqual`, `.toMatchObject`, etc.)
-- **Error coverage**: `.toThrow()`, `.rejects`, assertions containing "Error" or "throws"
-- **Mocking**: `jest.mock()`, `jest.spyOn()`, `.mockReturnValue()`, `.mockImplementation()`, `sinon.*`
+Key signals for JavaScript tests in this codebase:
+- **Assertions**: `expect(...)` calls with vitest matchers (`.toBe`, `.toEqual`, `.toMatchObject`, `.toContain`, `.toBeNull`, etc.)
+- **Error coverage**: `.toThrow()`, `.toThrowError()`, `.rejects`, or assertions on error-shaped return values
+- **Mocking (vitest)**: `vi.mock(module)` for module-level stubs, `vi.spyOn(obj, 'method')` for method observation, `vi.fn()` for standalone stub functions; `vi.clearAllMocks()` / `beforeEach`+`vi.clearAllMocks()` for cleanup
+- **Legitimate mocking targets**: external I/O (`fs`, `path`), GitHub Actions runtime (`global.core`, `process.stderr`), and HTTP clients are acceptable mock targets. Flag only when mocking internal business-logic functions that have no external side-effects.
 
 ## Step 4: AI Quality Review of Each Test
 
@@ -182,11 +199,14 @@ Classify as:
 
 Mark a test as **suspicious** if it shows any of these patterns:
 
-1. **Mock-heavy with no behavior assertion**: Uses `jest.mock()` / `jest.spyOn()` (JavaScript) or `gomock` / `testify/mock` (Go) extensively but only asserts that internal functions were called — not that observable outputs are correct
-2. **Happy-path only**: No error cases, no edge cases (empty inputs, nil/None, boundary values, invalid inputs)
-3. **Test inflation**: The test file grew proportionally faster than the production code file it covers (ratio > 2:1 lines added in test vs. production)
-4. **Duplicated assertions**: Identical assertion patterns repeated across multiple test functions with only minor variations in constants (suggesting copy-paste test generation)
-5. **No assertions**: A test function with zero assert/expect/check calls (only calls functions and discards results)
+1. **Mock-heavy with no behavior assertion** (JavaScript): Uses `vi.mock()` / `vi.spyOn()` extensively but only asserts that internal functions were called — not that observable outputs are correct. Note: mocking external I/O (`fs`, `process.stderr`, `global.core`) is legitimate; flag only when mocking internal business-logic functions.
+2. **Mock libraries in Go** *(coding-guideline violation)*: Any use of `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` in a Go test file. The project guideline is "no mocks or test suites — test real component interactions." This is a hard red flag regardless of whether the mock has a behavioral assertion.
+3. **Missing build tag in Go test file** *(coding-guideline violation)*: Every `*_test.go` file must begin on line 1 with either `//go:build !integration` (unit tests) or `//go:build integration` (integration tests). Files added without this tag violate the required convention.
+4. **Happy-path only**: No error cases, no edge cases (empty inputs, nil values, boundary values, invalid inputs)
+5. **Test inflation**: The test file grew proportionally faster than the production code file it covers (ratio > 2:1 lines added in test vs. production)
+6. **Duplicated assertions**: Identical assertion patterns repeated across multiple test functions with only minor variations in constants (suggesting copy-paste test generation)
+7. **No assertions**: A test function with zero assert/expect/check calls (only calls functions and discards results)
+8. **Missing assertion messages in Go** *(guideline violation)*: Go tests must always pass a descriptive message to assertion calls. Flag tests that use bare `assert.Equal(t, want, got)` or `t.Errorf("expected %v")` without enough context for a reader to understand what failed.
 
 ## Step 5: Count Lines in Test Files vs. Production Files
 
@@ -198,12 +218,11 @@ git diff ${{ github.event.pull_request.base.sha }}...HEAD --stat | grep -E "test
 git diff ${{ github.event.pull_request.base.sha }}...HEAD --numstat
 ```
 
-For each **Go and JavaScript/TypeScript** test file, find the corresponding production file and compare the ratio of lines added:
+For each **Go and JavaScript** test file, find the corresponding production file and compare the ratio of lines added:
 
 - `foo_test.go` → `foo.go`
-- `foo.test.ts` → `foo.ts`
-- `foo.test.js` → `foo.js`
-- `foo.test.cjs` → `foo.cjs`
+- `foo.test.cjs` → `foo.cjs` (primary in `actions/setup/js/`)
+- `foo.test.js` → `foo.js` (used in `scripts/`)
 
 If the ratio of new lines added to the test file vs. the production file exceeds 2:1, flag it as potential **test inflation**.
 
@@ -242,12 +261,20 @@ score = max(0, min(100, score))
 
 ### Failure Condition
 
-**Fail the check** if more than 30% of new tests are classified as **implementation tests** (low-value). This means:
+**Fail the check** if either of the following is true:
+
+1. More than 30% of new tests are classified as **implementation tests** (low-value):
 
 ```
 low_value_ratio = (implementation_tests / total_new_tests)
 fail_check = low_value_ratio > 0.30
 ```
+
+2. Any **coding-guideline violation** is detected:
+   - A Go test file uses `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` (mock libraries are prohibited)
+   - A new Go test file is missing the required `//go:build !integration` or `//go:build integration` build tag on line 1
+
+Guideline violations always trigger `REQUEST_CHANGES` regardless of the quality score.
 
 ## Step 7: Post PR Comment with Results
 
@@ -270,6 +297,7 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 | Tests with error/edge cases | {EDGE_COUNT} ({EDGE_PCT}%) |
 | Duplicate test clusters | {DUP_COUNT} |
 | Test inflation detected | {YES/NO} |
+| 🚨 Coding-guideline violations | {VIOLATIONS} (Go mock libraries / missing build tags / no assertion messages) |
 
 ---
 
@@ -304,11 +332,11 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 ### Language Support
 
 Tests analyzed:
-- 🐹 Go (`*_test.go`): {GO_COUNT} tests
-- 🟨 JavaScript/TypeScript (`*.test.*`, `*.spec.*`): {JS_COUNT} tests
+- 🐹 Go (`*_test.go`): {GO_COUNT} tests — unit (`//go:build !integration`) and integration (`//go:build integration`)
+- 🟨 JavaScript (`*.test.cjs`, `*.test.js`): {JS_COUNT} tests (vitest)
 
 {If other languages detected:}
-> ℹ️ Tests in other languages were found but are outside the current analysis scope (Go and JavaScript/TypeScript supported).
+> ℹ️ Tests in other languages were found but are outside the current analysis scope (Go and JavaScript supported).
 
 ---
 
@@ -346,7 +374,7 @@ Tests analyzed:
 
 After posting the comment, submit a pull request review based on the verdict:
 
-**If check PASSES** (≤ 30% implementation tests):
+**If check PASSES** (≤ 30% implementation tests AND no coding-guideline violations):
 
 ```json
 {
@@ -355,12 +383,21 @@ After posting the comment, submit a pull request review based on the verdict:
 }
 ```
 
-**If check FAILS** (> 30% implementation tests):
+**If check FAILS due to implementation-test ratio** (> 30% implementation tests):
 
 ```json
 {
   "event": "REQUEST_CHANGES",
   "body": "❌ Test Quality Sentinel: {SCORE}/100. {IMPL_PCT}% of new tests are classified as low-value implementation tests, exceeding the 30% threshold. Please review the flagged tests in the comment above and improve their behavioral coverage."
+}
+```
+
+**If check FAILS due to coding-guideline violation** (mock library in Go, or missing build tag):
+
+```json
+{
+  "event": "REQUEST_CHANGES",
+  "body": "❌ Test Quality Sentinel: Coding-guideline violation detected. {VIOLATION_SUMMARY} Please review the flagged files in the comment above."
 }
 ```
 
@@ -376,13 +413,16 @@ After posting the comment, submit a pull request review based on the verdict:
 
 ### Analysis Scope
 - **Focus only on new and changed tests** — do not analyze unchanged test files
-- **Support Go (`*_test.go`) and JavaScript/TypeScript (`*.test.*`, `*.spec.*`)** as primary targets; note other languages but don't score them
-- **Be fair** — some mocking is legitimate (e.g., mocking network calls, file I/O, external APIs). Flag only mocking of internal business logic functions.
-- **Context-sensitive** — a test in a `unit/` directory is expected to mock more than one in `integration/`
+- **Support Go (`*_test.go`) and JavaScript (`*.test.cjs`, `*.test.js`)** as primary targets; note other languages but don't score them
+- **Go uses no mock libraries** — the project guideline is "no mocks or test suites — test real component interactions". Any appearance of `gomock`, `testify/mock`, `.EXPECT()`, or `.On()` in a Go test is a hard red flag.
+- **JavaScript uses vitest** — mocking primitives are `vi.fn()`, `vi.spyOn()`, `vi.mock()`. Mocking external I/O (`fs`, `process.stderr`, `global.core`) is acceptable; flag only when business-logic functions are mocked without any behavioral assertion on outputs.
+- **Context-sensitive** — a test inside `integration/` is expected to exercise more real dependencies than a unit test
 
 ### Calibration
-- **Generous for edge case credit**: If a test has even one error path (`assert.Error`/`require.Error` in Go, `.toThrow()`/`.rejects` in JavaScript, or an assertion on an error return value), count it as having edge case coverage
-- **Credit table-driven tests**: A Go test using `t.Run()` over a slice of cases counts as covering multiple scenarios; give it full credit for each case that includes an error scenario
+- **Generous for edge case credit**: If a Go test has even one `assert.Error`/`require.Error`, `t.Fatalf` on an error return, or an `expectError: true` table row, count it as having edge case coverage. For JavaScript, `.toThrow()`, `.toThrowError()`, or `.rejects` qualifies.
+- **Table-driven tests**: A Go test using `t.Run()` over a slice of cases is the preferred pattern. Count each table row as a separate scenario. Give full credit for each row that includes an error/edge case (e.g., `expectError: true`, empty/nil input cases). A single table-driven `TestFoo` that includes 10 rows with both happy-path and error cases is better than 10 separate single-case tests.
+- **`require` vs `assert` discipline**: The guideline is `require.*` for setup assertions that must pass before the test continues, `assert.*` for validations. A test that uses only `t.Fatal` / `require` for non-critical checks (stopping at first failure) is not itself a red flag, but note it in the report.
+- **Assertion messages**: Every testify/stdlib assertion in this codebase should have a descriptive message argument. Flag assertions written without a message (e.g., `assert.Equal(t, a, b)` vs `assert.Equal(t, a, b, "context")`).
 - **Strict for behavioral credit**: Only classify as "design test" if the assertion verifies something a *user* of the function/module would care about
 - **Duplicate detection**: Only flag duplicates if 3+ test functions share the same assertion pattern with trivially different constants
 
