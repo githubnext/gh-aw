@@ -131,9 +131,10 @@ Returns JSON array with validation results for each workflow:
 		}
 
 		// dockerUnavailableWarning is set when Docker is not accessible but the compile
-		// should still proceed without the static-analysis tools.  After a successful
-		// compile the warning is appended to every workflow result so the caller
-		// knows linting was skipped — without marking valid workflows as invalid.
+		// should still proceed without the static-analysis tools.  After the compile
+		// attempt, the warning is appended to workflow results in the JSON output so
+		// the caller knows linting was skipped, while preserving each workflow's
+		// valid/invalid status.
 		var dockerUnavailableWarning string
 
 		// Check if any static analysis tools are requested that require Docker images
