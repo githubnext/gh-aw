@@ -579,10 +579,12 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 	return names
 }
 
-// addCliProxyGHTokenToEnv adds GH_TOKEN to the step environment when the cli-proxy
-// feature is enabled and the AWF sandbox is active. The token is needed by the
-// difc-proxy running on the host (started via start_cli_proxy.sh). AWF reads it
-// from the step env and the cli-proxy sidecar uses it for upstream API authentication.
+// addCliProxyGHTokenToEnv adds GH_TOKEN to the AWF step environment when the
+// cli-proxy feature is enabled. The token is NOT used by AWF or its cli-proxy
+// sidecar directly — the host difc-proxy (started by start_cli_proxy.sh) already
+// has it. However, --env-all passes all step env vars into the agent container,
+// so we explicitly set GH_TOKEN here to ensure --exclude-env GH_TOKEN can
+// reliably strip it regardless of how the token enters the environment.
 // The token is excluded from the agent container via --exclude-env GH_TOKEN, so only
 // inject it when the effective AWF version supports both cli-proxy flags and
 // --exclude-env.
@@ -640,7 +642,7 @@ func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
 //
 // Special cases:
 //   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
-//     which is always ≥ AWFCliProxyMinVersion → returns true.
+//     and compare against AWFCliProxyMinVersion.
 //   - "latest": always returns true (latest is always a new release).
 //   - Any semver string ≥ AWFCliProxyMinVersion: returns true.
 //   - Any semver string < AWFCliProxyMinVersion: returns false.
@@ -650,8 +652,8 @@ func awfSupportsCliProxy(firewallConfig *FirewallConfig) bool {
 	if firewallConfig != nil && firewallConfig.Version != "" {
 		versionStr = firewallConfig.Version
 	} else {
-		// No override → use the default, which is always ≥ the minimum.
-		return true
+		// No override → use the default version for comparison.
+		versionStr = string(constants.DefaultFirewallVersion)
 	}
 
 	// "latest" means the newest release — always supports the flag.

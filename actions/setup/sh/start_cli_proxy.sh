@@ -33,9 +33,9 @@ docker rm -f awmg-cli-proxy 2>/dev/null || true
 echo "Starting CLI proxy container: $CONTAINER_IMAGE"
 
 # Build docker run command arguments
-POLICY_ARGS=""
+POLICY_ARGS=()
 if [ -n "$POLICY" ]; then
-  POLICY_ARGS="--policy $POLICY"
+  POLICY_ARGS=(--policy "$POLICY")
 fi
 
 docker run -d --name awmg-cli-proxy --network host \
@@ -45,7 +45,7 @@ docker run -d --name awmg-cli-proxy --network host \
   -v "$TLS_DIR:$TLS_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
   "$CONTAINER_IMAGE" proxy \
-    $POLICY_ARGS \
+    "${POLICY_ARGS[@]}" \
     --listen 0.0.0.0:18443 \
     --log-dir "$MCP_LOG_DIR" \
     --tls --tls-dir "$TLS_DIR" \

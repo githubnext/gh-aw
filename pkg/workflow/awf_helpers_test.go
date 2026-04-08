@@ -766,10 +766,16 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 	t.Run("includes --difc-proxy-host and --difc-proxy-ca-cert when cli-proxy is enabled", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true},
-				nil,
-			),
+			WorkflowData: &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+				},
+				Features: map[string]any{"cli-proxy": true},
+			},
 			AllowedDomains: "github.com",
 		}
 
@@ -787,14 +793,21 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 	t.Run("does not include deprecated flags even with guard policy configured", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true},
-				map[string]any{
+			WorkflowData: &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+				},
+				Features: map[string]any{"cli-proxy": true},
+				Tools: map[string]any{
 					"github": map[string]any{
 						"min-integrity": "approved",
 					},
 				},
-			),
+			},
 			AllowedDomains: "github.com",
 		}
 
@@ -853,14 +866,14 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 		want           bool
 	}{
 		{
-			name:           "nil firewall config returns true (uses default version)",
+			name:           "nil firewall config returns false (default version below minimum)",
 			firewallConfig: nil,
-			want:           true,
+			want:           false,
 		},
 		{
-			name:           "empty version returns true (uses default version)",
+			name:           "empty version returns false (default version below minimum)",
 			firewallConfig: &FirewallConfig{},
-			want:           true,
+			want:           false,
 		},
 		{
 			name:           "latest returns true",
