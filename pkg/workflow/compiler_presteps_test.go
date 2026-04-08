@@ -28,7 +28,7 @@ tools:
 pre-steps:
   - name: Mint short-lived token
     id: mint
-    uses: some-org/token-minting-action@v1
+    uses: some-org/token-minting-action@a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
     with:
       scope: target-org/target-repo
 steps:
@@ -131,7 +131,7 @@ permissions:
 pre-steps:
   - name: Mint token
     id: mint
-    uses: some-org/token-action@v1
+    uses: some-org/token-action@b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2
     with:
       scope: target-org/target-repo
 checkout:
