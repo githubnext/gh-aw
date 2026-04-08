@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.4
-**Last Updated**: 2026-04-07
+**Version**: 5.5
+**Last Updated**: 2026-04-08
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1915,6 +1915,50 @@ Enable debug logging to trace transformations:
 DEBUG=workflow:expression_extraction gh aw compile workflow.md
 ```
 
+### WorkQueueOps Pattern
+
+WorkQueueOps processes a backlog of work items incrementally — surviving interruptions, rate limits, and multi-day horizons. Use it when operations are idempotent and progress visibility matters. Four queue strategies are available:
+
+| Strategy | Backend | Best For |
+|----------|---------|----------|
+| Issue Checklist | GitHub issue checkboxes | Small batches (< 100 items), human-readable |
+| Sub-Issues | Sub-issues of a parent tracking issue | Hundreds of items with per-item discussion threads |
+| Cache-Memory | JSON file in `/tmp/gh-aw/cache-memory/` | Large queues, multi-day horizons, programmatic items |
+| Discussion Queue | GitHub Discussion unresolved replies | Community-sourced queues, async collaboration |
+
+**Idempotency requirements**: All WorkQueueOps workflows must be idempotent. Use `concurrency.group` with `cancel-in-progress: false` to prevent parallel runs processing the same item. Check current state before acting (label present? comment exists?).
+
+**Concurrency control**: Set `concurrency.group` scoped to the queue identifier (e.g., `workqueue-${{ inputs.queue_issue }}`).
+
+**Cache-memory filename convention**: Use filesystem-safe timestamps (`YYYY-MM-DD-HH-MM-SS-sss`, no colons) in filenames.
+
+See `docs/src/content/docs/patterns/workqueue-ops.md` for complete examples.
+
+### BatchOps Pattern
+
+BatchOps processes large volumes of independent work items efficiently by splitting work into chunks and parallelizing where possible. Use it when items are independent and throughput matters over ordering.
+
+**When to use BatchOps vs WorkQueueOps**:
+
+| Scenario | Pattern |
+|----------|---------|
+| < 50 items, order matters | WorkQueueOps |
+| 50–500 items, order doesn't matter | BatchOps (chunked) |
+| > 500 items, high parallelism safe | BatchOps (matrix fan-out) |
+| Items have dependencies | WorkQueueOps |
+| Strict rate limits | BatchOps (rate-limit-aware) |
+
+Four batch strategies are available:
+
+- **Chunked processing**: Split by `GITHUB_RUN_NUMBER` page offset; each scheduled run processes one page with a stable sort key
+- **Fan-out with matrix**: Use GitHub Actions `matrix` to run parallel shards; assign items by `issue_number % total_shards`; set `fail-fast: false`
+- **Rate-limit-aware**: Process items in sub-batches with explicit pauses; on HTTP 429 pause 60 seconds and retry once
+- **Result aggregation**: Collect results from multiple runs via cache-memory; aggregate into a summary issue
+
+**Error handling**: Track `retry_count` per failed item; after 3 failures move to `permanently_failed` for human review. Write per-item results before advancing to the next item.
+
+See `docs/src/content/docs/patterns/batch-ops.md` for complete examples.
+
 ---
 
 ## MCP Integration
@@ -2737,6 +2781,8 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Safe Output Handler Factory Pattern](./safe-output-handlers-refactoring.md) - Refactoring status for all 11 safe output handlers to the handler factory pattern (`main(config)` returns a message handler function): per-handler status, testing strategy, and handler manager compatibility
 - [Serena Tools Statistical Analysis](./serena-tools-analysis.md) - Deep statistical analysis of Serena MCP tool usage in workflow run 21560089409: tool adoption rates (26% of registered tools used), call distributions, and unused tool identification
 - [GitHub API Rate Limit Observability](./github-rate-limit-observability.md) - JSONL artifact logging and OTLP span enrichment for GitHub API rate-limit visibility: `github_rate_limit_logger.cjs` helper, three usage patterns, artifact upload paths, and `jq` debugging commands
+- [WorkQueueOps Design Pattern](../docs/src/content/docs/patterns/workqueue-ops.md) - Four queue strategies (issue checklist, sub-issues, cache-memory, discussion-based) for incremental backlog processing: idempotency requirements, concurrency control, and retry budgets
+- [BatchOps Design Pattern](../docs/src/content/docs/patterns/batch-ops.md) - Four batch strategies (chunked, matrix fan-out, rate-limit-aware, result aggregation) for high-volume parallel processing: shard assignment, partial failure handling, and real-world label migration example
 
 ### External References
 
@@ -2748,6 +2794,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.5 (2026-04-08): Added WorkQueueOps and BatchOps design pattern subsections to Workflow Patterns (from PR #25178: four queue strategies — issue checklist, sub-issues, cache-memory, discussion-based; four batch strategies — chunked, matrix fan-out, rate-limit-aware, result aggregation). Added 2 new Related Documentation links for `docs/src/content/docs/patterns/workqueue-ops.md` and `batch-ops.md`. Coverage: 75 spec files (2 new pattern docs).
 - v5.4 (2026-04-07): Added `gh-aw.github.rate_limit.reset` OTLP span attribute to GitHub API Rate Limit Observability section (from PR #25061: ISO 8601 reset timestamp now included in conclusion spans). Coverage: 73 spec files (no new spec files).
 - v5.3 (2026-04-05): Added GitHub API Rate Limit Observability subsection to MCP Integration (from PR #24694: `github_rate_limit_logger.cjs`, `GithubRateLimitsFilename` constant, artifact upload paths, OTLP span enrichment). Created new spec file `scratchpad/github-rate-limit-observability.md`. Added 1 new Related Documentation link. Coverage: 73 spec files (1 new).
 - v5.2 (2026-04-04): Added Secrets in Custom Steps Validation subsection to Compiler Validation (from PR #24450: `pkg/workflow/strict_mode_steps_validation.go`). Documents `validateStepsSecrets()` behavior in strict vs. non-strict mode, `secrets.GITHUB_TOKEN` exemption, and migration guidance. Coverage: 72 spec files (no new spec files; new Go implementation only).
