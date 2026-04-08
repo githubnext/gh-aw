@@ -508,3 +508,106 @@ func TestOptionCombinations(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
+	tests := []struct {
+		name         string
+		otlpEndpoint string
+		otlpHeaders  string
+		wantPreamble bool
+		wantHeaders  bool
+		wantEndpoint bool
+	}{
+		{
+			name:         "OTLP endpoint only (no headers)",
+			otlpEndpoint: "https://otel.example.com:4318",
+			otlpHeaders:  "",
+			wantPreamble: false,
+			wantHeaders:  false,
+			wantEndpoint: true,
+		},
+		{
+			name:         "OTLP endpoint and headers",
+			otlpEndpoint: "https://otel.example.com:4318",
+			otlpHeaders:  "Authorization=Bearer token123",
+			wantPreamble: true,
+			wantHeaders:  true,
+			wantEndpoint: true,
+		},
+		{
+			name:         "no OTLP config",
+			otlpEndpoint: "",
+			otlpHeaders:  "",
+			wantPreamble: false,
+			wantHeaders:  false,
+			wantEndpoint: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gatewayConfig := &MCPGatewayRuntimeConfig{
+				Domain:       "localhost",
+				APIKey:       "test-api-key",
+				OTLPEndpoint: tt.otlpEndpoint,
+				OTLPHeaders:  tt.otlpHeaders,
+			}
+
+			workflowData := &WorkflowData{
+				Name:            "test-workflow",
+				FrontmatterHash: "abc123",
+			}
+
+			var output strings.Builder
+			err := RenderJSONMCPConfig(
+				&output,
+				map[string]any{},
+				[]string{},
+				workflowData,
+				JSONMCPConfigOptions{
+					ConfigPath:    "/tmp/test/mcp-servers.json",
+					GatewayConfig: gatewayConfig,
+					Renderers:     MCPToolRenderers{},
+				},
+			)
+
+			if err != nil {
+				t.Fatalf("RenderJSONMCPConfig returned error: %v", err)
+			}
+
+			result := output.String()
+
+			// Verify preamble (JSON-escape bash lines) is present iff headers are configured
+			hasPreamble := strings.Contains(result, "_GH_AW_OTLP_HEADERS_ESC=")
+			if hasPreamble != tt.wantPreamble {
+				t.Errorf("preamble presence = %v, want %v\noutput:\n%s", hasPreamble, tt.wantPreamble, result)
+			}
+
+			// Verify no old JSON object conversion preamble is emitted
+			if strings.Contains(result, "_GH_AW_OTLP_HEADERS_JSON") {
+				t.Error("output must not contain old _GH_AW_OTLP_HEADERS_JSON preamble")
+			}
+
+			// Verify headers string (escaped variable reference) is present iff configured
+			hasHeaders := strings.Contains(result, `"headers": "${_GH_AW_OTLP_HEADERS_ESC}"`)
+			if hasHeaders != tt.wantHeaders {
+				t.Errorf("headers field presence = %v, want %v\noutput:\n%s", hasHeaders, tt.wantHeaders, result)
+			}
+
+			// Verify endpoint is present iff configured
+			if tt.wantEndpoint && !strings.Contains(result, `"endpoint": "https://otel.example.com:4318"`) {
+				t.Errorf("expected endpoint in output\noutput:\n%s", result)
+			}
+			if !tt.wantEndpoint && strings.Contains(result, `"opentelemetry"`) {
+				t.Errorf("expected no opentelemetry section when no endpoint configured\noutput:\n%s", result)
+			}
+
+			// Verify the bash escape lines are correct when preamble is emitted
+			if tt.wantPreamble {
+				if !strings.Contains(result, `_GH_AW_OTLP_HEADERS_ESC="${OTEL_EXPORTER_OTLP_HEADERS//`) {
+					t.Errorf("expected bash backslash-escape line in preamble\noutput:\n%s", result)
+				}
+			}
+		})
+	}
+}

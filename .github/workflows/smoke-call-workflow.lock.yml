@@ -619,6 +619,9 @@ jobs:
           GH_AW_MCP_CONFIG_352dfb826ac44cd8_EOF
           
           # Generate JSON config for MCP gateway
+          # JSON-escape OTLP headers for gateway config (handles quotes and backslashes)
+          _GH_AW_OTLP_HEADERS_ESC="${OTEL_EXPORTER_OTLP_HEADERS//\\/\\\\}"
+          _GH_AW_OTLP_HEADERS_ESC="${_GH_AW_OTLP_HEADERS_ESC//\"/\\\"}"
           cat << GH_AW_MCP_CONFIG_352dfb826ac44cd8_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
@@ -659,7 +662,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
               "opentelemetry": {
                 "endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
-                "headers": "${OTEL_EXPORTER_OTLP_HEADERS}",
+                "headers": "${_GH_AW_OTLP_HEADERS_ESC}",
                 "traceId": "${GITHUB_AW_OTEL_TRACE_ID}",
                 "spanId": "${GITHUB_AW_OTEL_PARENT_SPAN_ID}"
               }
