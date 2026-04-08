@@ -7508,19 +7508,31 @@
                   "maximum": 20,
                   "default": 1
                 },
-                "default-retention-days": {
-                  "type": "integer",
-                  "description": "Default artifact retention period in days (default: 7)",
-                  "minimum": 1,
-                  "maximum": 90,
-                  "default": 7
+                "retention-days": {
+                  "description": "Artifact retention period in days (fixed; the agent cannot override this value). Supports integer or GitHub Actions expression (e.g. '${{ inputs.retention-days }}').",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 90
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$"
+                    }
+                  ]
                 },
-                "max-retention-days": {
-                  "type": "integer",
-                  "description": "Maximum retention cap in days; model requests are clamped to this value (default: 30)",
-                  "minimum": 1,
-                  "maximum": 90,
-                  "default": 30
+                "skip-archive": {
+                  "description": "Upload files directly without zip archiving (fixed; the agent cannot override this value). Only valid for single-file uploads. Supports boolean or GitHub Actions expression (e.g. '${{ inputs.skip-archive }}').",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$"
+                    }
+                  ]
                 },
                 "max-size-bytes": {
                   "type": "integer",
@@ -7556,28 +7568,11 @@
                   "type": "object",
                   "description": "Default values injected when the model omits a field",
                   "properties": {
-                    "skip-archive": {
-                      "type": "boolean",
-                      "description": "Default value for skip_archive (default: false)",
-                      "default": false
-                    },
                     "if-no-files": {
                       "type": "string",
                       "description": "Behaviour when no files match: 'error' (default) or 'ignore'",
                       "enum": ["error", "ignore"],
                       "default": "error"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "allow": {
-                  "type": "object",
-                  "description": "Opt-in behaviours that must be explicitly enabled by the workflow author",
-                  "properties": {
-                    "skip-archive": {
-                      "type": "boolean",
-                      "description": "Allow the model to set skip_archive: true (uploads the file directly without archiving)",
-                      "default": false
                     }
                   },
                   "additionalProperties": false

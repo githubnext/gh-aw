@@ -475,6 +475,9 @@ func runPostProcessing(
 	// to check for expires fields, so we skip it when compiling specific files to avoid
 	// unnecessary parsing and warnings from unrelated workflows
 
+	// Prune stale gh-aw-actions entries before saving
+	pruneStaleActionCacheEntries(compiler, actionCache)
+
 	// Save action cache (errors are logged but non-fatal)
 	_ = saveActionCache(actionCache, config.Verbose)
 
@@ -517,10 +520,33 @@ func runPostProcessingForDirectory(
 		}
 	}
 
+	// Prune stale gh-aw-actions entries before saving
+	pruneStaleActionCacheEntries(compiler, actionCache)
+
 	// Save action cache (errors are logged but non-fatal)
 	_ = saveActionCache(actionCache, config.Verbose)
 
 	return nil
+}
+
+// pruneStaleActionCacheEntries removes stale gh-aw-actions entries from the
+// action cache whose version does not match the compiler's current version.
+// This prevents actions-lock.json from accumulating entries for old compiler
+// releases that are no longer referenced by any compiled workflow.
+func pruneStaleActionCacheEntries(compiler *workflow.Compiler, actionCache *workflow.ActionCache) {
+	if actionCache == nil {
+		return
+	}
+
+	// Determine the effective version: actionTag takes precedence when explicitly
+	// set (e.g., via --action-tag for testing against a specific release), otherwise
+	// fall back to the compiler's built-in version from the binary.
+	version := compiler.GetActionTag()
+	if version == "" {
+		version = compiler.GetVersion()
+	}
+
+	actionCache.PruneStaleGHAWEntries(version, compiler.EffectiveActionsRepo())
 }
 
 // outputResults outputs compilation results in the requested format

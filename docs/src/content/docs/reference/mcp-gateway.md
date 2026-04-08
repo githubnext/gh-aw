@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.12.0  
+**Version**: 1.13.0  
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -458,33 +458,12 @@ The optional `opentelemetry` object in the gateway configuration enables the gat
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `endpoint` | string | Yes (when `opentelemetry` is present) | OTLP/HTTP endpoint URL for the OpenTelemetry collector (e.g., `https://collector.example.com:4318/v1/traces`). MUST use HTTPS. Supports variable expressions. |
-| `headers` | object \| string | No | Additional HTTP headers sent with every export request to the collector endpoint. Commonly used for authentication (e.g., `Authorization: "Bearer ${OTEL_TOKEN}"`). Accepts either an **object** mapping header names to string values, or a **multi-line string** where each line uses `name=value` syntax. Values MAY contain variable expressions. See Section 4.1.3.6.1 for details. |
+| `headers` | string | No | Additional HTTP headers sent with every export request to the collector endpoint. Provided as a raw string of headers exactly as supplied by the user. Commonly used for authentication (e.g., `Authorization=Bearer ${OTEL_TOKEN}`). Values MAY contain variable expressions. |
 | `traceId` | string | No | Parent trace ID for context propagation. When set, the gateway attaches all emitted spans as children of this trace, enabling correlation with an existing distributed trace. MUST be a 32-character lowercase hex string (128-bit W3C trace ID format). Supports variable expressions. |
 | `spanId` | string | No | Parent span ID for context propagation. When set together with `traceId`, the gateway sets this span as the direct parent of its root span. MUST be a 16-character lowercase hex string (64-bit W3C span ID format). Ignored when `traceId` is not set. Supports variable expressions. |
 | `serviceName` | string | No | Logical service name reported in the `service.name` resource attribute of all emitted spans. Identifies the gateway in the tracing backend. Defaults to `"mcp-gateway"` when not specified. |
 
-**Configuration Example (object form)**:
-
-```json
-{
-  "gateway": {
-    "port": 8080,
-    "domain": "localhost",
-    "apiKey": "${MCP_GATEWAY_API_KEY}",
-    "opentelemetry": {
-      "endpoint": "https://collector.example.com:4318/v1/traces",
-      "headers": {
-        "Authorization": "Bearer ${OTEL_TOKEN}"
-      },
-      "traceId": "${PARENT_TRACE_ID}",
-      "spanId": "${PARENT_SPAN_ID}",
-      "serviceName": "my-mcp-gateway"
-    }
-  }
-}
-```
-
-**Configuration Example (string form)**:
+**Configuration Example**:
 
 ```json
 {
@@ -530,48 +509,9 @@ The gateway MUST NOT fail to start if the OpenTelemetry collector endpoint is un
 - `spanId`, when provided, MUST be a 16-character lowercase hex string
 - `spanId` SHOULD only be set when `traceId` is also set; if `spanId` is provided without `traceId` the gateway SHOULD log a warning and ignore `spanId`
 - Export failures MUST NOT propagate errors to MCP clients
-- When `headers` is provided as a string, the gateway MUST parse it as described in Section 4.1.3.6.1
+- `headers` MUST be a string when provided; object form is not supported
 
-**Compliance Test**: T-OTEL-001 through T-OTEL-012 (Section 10.1.10)
-
-##### 4.1.3.6.1 Headers String Format
-
-The `headers` field in the `opentelemetry` configuration MAY be specified as a multi-line string using HTTP header-like `name=value` syntax as an alternative to the object form.
-
-**Parsing Rules**:
-
-The implementation MUST apply the following rules when parsing a `headers` string:
-
-1. Split the string into lines using newline (`\n`) and/or carriage-return-newline (`\r\n`) as line separators
-2. For each line, locate the first `=` character; the text before it is the header name and the text after it is the header value
-3. Trim leading and trailing ASCII whitespace from both the header name and the header value
-4. Lines that do not contain an `=` character MUST be ignored
-5. Lines where the trimmed header name is empty MUST be ignored
-6. Variable expressions (`${VARIABLE_NAME}`) in values MUST be expanded in the same manner as object-form values
-
-**Examples**:
-
-The following string form:
-
-```
-Authorization=Bearer ${OTEL_TOKEN}
-X-Custom-Header=value
-```
-
-is semantically equivalent to the object form:
-
-```json
-{
-  "Authorization": "Bearer ${OTEL_TOKEN}",
-  "X-Custom-Header": "value"
-}
-```
-
-**Notes**:
-
-- Header names are case-sensitive in the string form; implementations SHOULD preserve the casing as provided
-- Values may contain additional `=` characters; only the first `=` on each line acts as the name/value separator
-- Duplicate header names within a single string: the last occurrence MUST take precedence
+**Compliance Test**: T-OTEL-001 through T-OTEL-010 (Section 10.1.10)
 
 #### 4.1.3a Top-Level Configuration Fields
 
@@ -1513,13 +1453,11 @@ A conforming implementation MUST pass the following test categories:
 - **T-OTEL-003**: Reject `opentelemetry` configuration with missing `endpoint` field
 - **T-OTEL-004**: Reject `opentelemetry` configuration with a non-HTTPS endpoint
 - **T-OTEL-005**: Span emitted for each MCP tool invocation with required attributes (`mcp.server`, `mcp.method`, `mcp.tool`, `http.status_code`)
-- **T-OTEL-006**: Configured `headers` (object form) are sent with every OTLP export request
+- **T-OTEL-006**: Configured `headers` string is passed through as-is and sent with every OTLP export request
 - **T-OTEL-007**: W3C `traceparent` context propagated when both `traceId` and `spanId` are configured
 - **T-OTEL-008**: Gateway generates random `spanId` in `traceparent` when only `traceId` is provided
 - **T-OTEL-009**: Export failure does not affect MCP request processing or gateway availability
 - **T-OTEL-010**: `serviceName` is reflected in `service.name` resource attribute of emitted spans
-- **T-OTEL-011**: Configured `headers` (string form) are correctly parsed and sent with every OTLP export request
-- **T-OTEL-012**: Lines without `=` in string-form `headers` are ignored; lines with empty trimmed name are ignored; duplicate header names use the last occurrence
 
 ### 10.2 Compliance Checklist
 
@@ -1707,9 +1645,7 @@ The `registry` field documents the MCP server's installation location in an MCP 
     "apiKey": "${MCP_GATEWAY_API_KEY}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
-      "headers": {
-        "Authorization": "Bearer ${OTEL_TOKEN}"
-      },
+      "headers": "Authorization=Bearer ${OTEL_TOKEN}",
       "serviceName": "my-workflow-gateway"
     }
   }
@@ -1736,9 +1672,7 @@ The following example propagates an existing distributed trace into the gateway,
     "apiKey": "${MCP_GATEWAY_API_KEY}",
     "opentelemetry": {
       "endpoint": "https://collector.example.com:4318/v1/traces",
-      "headers": {
-        "Authorization": "Bearer ${OTEL_TOKEN}"
-      },
+      "headers": "Authorization=Bearer ${OTEL_TOKEN}",
       "traceId": "${PARENT_TRACE_ID}",
       "spanId": "${PARENT_SPAN_ID}",
       "serviceName": "my-workflow-gateway"
@@ -1875,6 +1809,15 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.13.0 (Draft)
+
+- **Breaking**: `headers` field in `opentelemetry` configuration is now exclusively a string; object form is no longer supported (Section 4.1.3.6)
+  - The value MUST be a raw string provided by the user and passed through without parsing
+  - Removed Section 4.1.3.6.1 (Headers String Format) — no parsing rules apply; the string is used as-is
+- **Removed**: Compliance tests T-OTEL-011 and T-OTEL-012 (string-form parsing); replaced T-OTEL-006 with a string pass-through test
+- **Updated**: JSON Schema `opentelemetryConfig.headers` changed from `oneOf [object, string]` to `string` only
+- **Updated**: Appendix A.6 and A.7 examples to use string form for `headers`
 
 ### Version 1.12.0 (Draft)
 

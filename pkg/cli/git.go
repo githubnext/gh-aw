@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -86,11 +87,25 @@ func parseGitHubRepoSlugFromURL(url string) string {
 // Supports HTTPS (https://host[:port]/path), HTTP (http://host[:port]/path), and SSH (git@host[:port]:path or ssh://git@host[:port]/path) formats.
 // Returns the host portion as "host[:port]" when parsed, or "github.com" as the default if the URL cannot be parsed.
 func extractHostFromRemoteURL(remoteURL string) string {
-	// HTTPS / HTTP format: https://host/path or http://host/path
+	// HTTPS / HTTP format: https://[userinfo@]host/path or http://[userinfo@]host/path
+	// Use net/url.Parse to correctly handle all userinfo variants (user@, user:pass@,
+	// and passwords containing '@') and to extract the bare host without credentials.
 	for _, scheme := range []string{"https://", "http://"} {
-		if after, ok := strings.CutPrefix(remoteURL, scheme); ok {
+		if strings.HasPrefix(remoteURL, scheme) {
+			if u, err := url.Parse(remoteURL); err == nil && u.Host != "" {
+				return u.Host
+			}
+			// Fallback: strip scheme and any userinfo manually.
+			after := remoteURL[len(scheme):]
 			if host, _, found := strings.Cut(after, "/"); found {
+				// Strip optional userinfo (everything up to and including the last '@').
+				if idx := strings.LastIndex(host, "@"); idx >= 0 {
+					host = host[idx+1:]
+				}
 				return host
+			}
+			if idx := strings.LastIndex(after, "@"); idx >= 0 {
+				return after[idx+1:]
 			}
 			return after
 		}

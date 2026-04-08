@@ -51,10 +51,8 @@ safe-outputs:
     allowed-domains: [default-safe-outputs]
     upload-artifact:
       max-uploads: 1
-      default-retention-days: 1
-      max-retention-days: 1
-      allow:
-        skip-archive: true
+      retention-days: 1
+      skip-archive: true
     add-comment:
       allowed-repos: ["github/gh-aw"]
       hide-older-comments: true
@@ -146,7 +144,7 @@ strict: false
    - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
    - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, playful comment stating that the smoke test agent was here
 9. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
-10. **Upload gh-aw binary as artifact**: After a successful build, use bash to copy the `./gh-aw` binary into the staging directory (`mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts && cp ./gh-aw $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw`), then call the `upload_artifact` safe-output tool with `path: "gh-aw"`, `retention_days: 1`, and `skip_archive: true`. The `upload_artifact` tool is available and configured in this workflow run — use it directly, do NOT use `missing_tool` for it. Mark this test as ❌ if the build in step 9 failed.
+10. **Upload gh-aw binary as artifact**: After a successful build, use bash to copy the `./gh-aw` binary into the staging directory (`mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts && cp ./gh-aw /tmp/gh-aw/safeoutputs/upload-artifacts/gh-aw`), then call the `upload_artifact` safe-output tool with `path: "gh-aw"`. The `upload_artifact` tool is available and configured in this workflow run — use it directly, do NOT use `missing_tool` for it. Mark this test as ❌ if the build in step 9 failed.
 11. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
 12. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
 13. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. To test `reply_to_pull_request_review_comment`: use the `pull_request_read` tool (with `method: "get_review_comments"` and `pullNumber: ${{ github.event.pull_request.number }}`) to fetch the PR's existing review comments, then reply to the most recent one using `reply_to_pull_request_review_comment` with its actual numeric `id` as the `comment_id`. Note: `create_pull_request_review_comment` does not return a `comment_id` — you must fetch existing comment IDs from the GitHub API. If the PR has no existing review comments, skip the reply sub-test.

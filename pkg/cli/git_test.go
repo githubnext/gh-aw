@@ -461,6 +461,26 @@ func TestExtractHostFromRemoteURL(t *testing.T) {
 		expected string
 	}{
 		{
+			name:     "HTTPS with embedded username (Windows-style)",
+			url:      "https://bryanknox@github.com/owner/repo.git",
+			expected: "github.com",
+		},
+		{
+			name:     "HTTPS with embedded username on GHES",
+			url:      "https://user@ghes.example.com/org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "HTTP with embedded username",
+			url:      "http://user@ghes.example.com/org/repo.git",
+			expected: "ghes.example.com",
+		},
+		{
+			name:     "HTTPS with embedded username and password",
+			url:      "https://user:pass@github.com/owner/repo.git",
+			expected: "github.com",
+		},
+		{
 			name:     "public GitHub HTTPS",
 			url:      "https://github.com/owner/repo.git",
 			expected: "github.com",

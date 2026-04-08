@@ -619,11 +619,6 @@ jobs:
           GH_AW_MCP_CONFIG_352dfb826ac44cd8_EOF
           
           # Generate JSON config for MCP gateway
-          # Convert OTLP headers (key=value,...) to JSON object for gateway config
-          _GH_AW_OTLP_HEADERS_JSON="{}"
-          if [ -n "${OTEL_EXPORTER_OTLP_HEADERS:-}" ]; then
-            _GH_AW_OTLP_HEADERS_JSON=$(node -e 'const h=process.env["OTEL_EXPORTER_OTLP_HEADERS"]||"";const o={};h.split(",").forEach(function(p){const i=p.indexOf("=");if(i>0)o[p.slice(0,i).trim()]=p.slice(i+1).trim();});console.log(JSON.stringify(o));' 2>/dev/null || echo "{}")
-          fi
           cat << GH_AW_MCP_CONFIG_352dfb826ac44cd8_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
@@ -664,7 +659,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
               "opentelemetry": {
                 "endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
-                "headers": ${_GH_AW_OTLP_HEADERS_JSON},
+                "headers": "${OTEL_EXPORTER_OTLP_HEADERS}",
                 "traceId": "${GITHUB_AW_OTEL_TRACE_ID}",
                 "spanId": "${GITHUB_AW_OTEL_PARENT_SPAN_ID}"
               }
@@ -1267,11 +1262,11 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Upload Safe Output Items
+      - name: Upload Safe Outputs Items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: safe-output-items
+          name: safe-outputs-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 

@@ -179,3 +179,6 @@ test-script-mode.lock.yml
 .github/workflows/test-metrics-patterns.lock.yml
 .github/workflows/test-*.md
 .github/workflows/test-*.lock.yml
+# Exception: test-quality-sentinel is a production workflow, not a test artifact
+!.github/workflows/test-quality-sentinel.md
+!.github/workflows/test-quality-sentinel.lock.yml

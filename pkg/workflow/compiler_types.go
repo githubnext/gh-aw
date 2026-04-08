@@ -247,6 +247,12 @@ func (c *Compiler) effectiveActionsRepo() string {
 	return GitHubActionsOrgRepo
 }
 
+// EffectiveActionsRepo returns the actions repository used for action mode references.
+// Returns the override if set, otherwise returns the default GitHubActionsOrgRepo.
+func (c *Compiler) EffectiveActionsRepo() string {
+	return c.effectiveActionsRepo()
+}
+
 // GetVersion returns the version string used by the compiler
 func (c *Compiler) GetVersion() string {
 	return c.version

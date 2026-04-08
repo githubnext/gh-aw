@@ -612,3 +612,110 @@ func TestActionCacheInputs(t *testing.T) {
 		t.Error("Expected created entry to have the given inputs")
 	}
 }
+
+// TestPruneStaleGHAWEntries tests that stale gh-aw-actions entries are pruned
+func TestPruneStaleGHAWEntries(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Set up a scenario that mirrors the bug:
+	// - An old setup action entry from a previous compiler version
+	// - A current setup action entry from the current compiler version
+	// - A non-gh-aw-actions entry that should be preserved
+	cache.Set("github/gh-aw-actions/setup", "v0.67.1", "sha_old")
+	cache.Set("github/gh-aw-actions/setup", "v0.67.3", "sha_new")
+	cache.Set("actions/checkout", "v5", "sha_checkout")
+
+	if len(cache.Entries) != 3 {
+		t.Fatalf("Expected 3 entries before pruning, got %d", len(cache.Entries))
+	}
+
+	// Prune stale entries for version v0.67.3
+	cache.PruneStaleGHAWEntries("v0.67.3", "github/gh-aw-actions")
+
+	// Should have 2 entries: current setup + checkout
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries after pruning, got %d", len(cache.Entries))
+	}
+
+	// The old setup entry should be gone
+	if _, exists := cache.Entries["github/gh-aw-actions/setup@v0.67.1"]; exists {
+		t.Error("Expected stale setup@v0.67.1 to be pruned")
+	}
+
+	// The current setup entry should remain
+	if _, exists := cache.Entries["github/gh-aw-actions/setup@v0.67.3"]; !exists {
+		t.Error("Expected current setup@v0.67.3 to remain")
+	}
+
+	// Non-gh-aw-actions entries should remain
+	if _, exists := cache.Entries["actions/checkout@v5"]; !exists {
+		t.Error("Expected actions/checkout@v5 to remain")
+	}
+}
+
+// TestPruneStaleGHAWEntriesMultipleActions tests pruning with multiple gh-aw-actions
+func TestPruneStaleGHAWEntriesMultipleActions(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Multiple gh-aw-actions at the old version, plus one at the current version
+	cache.Set("github/gh-aw-actions/setup", "v0.67.1", "sha1")
+	cache.Set("github/gh-aw-actions/setup", "v0.67.3", "sha2")
+	cache.Set("github/gh-aw-actions/create-issue", "v0.67.1", "sha3")
+	cache.Set("github/gh-aw-actions/create-issue", "v0.67.3", "sha4")
+	cache.Set("actions/checkout", "v5", "sha5")
+
+	cache.PruneStaleGHAWEntries("v0.67.3", "github/gh-aw-actions")
+
+	// Should keep only the v0.67.3 entries + checkout
+	if len(cache.Entries) != 3 {
+		t.Errorf("Expected 3 entries after pruning, got %d", len(cache.Entries))
+	}
+
+	if _, exists := cache.Entries["github/gh-aw-actions/setup@v0.67.1"]; exists {
+		t.Error("Expected stale setup@v0.67.1 to be pruned")
+	}
+	if _, exists := cache.Entries["github/gh-aw-actions/create-issue@v0.67.1"]; exists {
+		t.Error("Expected stale create-issue@v0.67.1 to be pruned")
+	}
+}
+
+// TestPruneStaleGHAWEntriesNoOp tests that pruning is a no-op for non-release or empty versions
+func TestPruneStaleGHAWEntriesNoOp(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	cache.Set("github/gh-aw-actions/setup", "v0.67.1", "sha1")
+	cache.Set("actions/checkout", "v5", "sha2")
+
+	// Should be a no-op for "dev" version (not a release)
+	cache.PruneStaleGHAWEntries("dev", "github/gh-aw-actions")
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (no pruning for dev), got %d", len(cache.Entries))
+	}
+
+	// Should be a no-op for empty version
+	cache.PruneStaleGHAWEntries("", "github/gh-aw-actions")
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (no pruning for empty version), got %d", len(cache.Entries))
+	}
+
+	// Should be a no-op for empty prefix
+	cache.PruneStaleGHAWEntries("v0.67.3", "")
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (no pruning for empty prefix), got %d", len(cache.Entries))
+	}
+
+	// Should be a no-op for dirty dev builds (e.g., "abc123-dirty")
+	cache.PruneStaleGHAWEntries("abc123-dirty", "github/gh-aw-actions")
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (no pruning for dirty build), got %d", len(cache.Entries))
+	}
+
+	// Should be a no-op for dirty release builds (e.g., "v0.67.3-dirty")
+	cache.PruneStaleGHAWEntries("v0.67.3-dirty", "github/gh-aw-actions")
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (no pruning for dirty release build), got %d", len(cache.Entries))
+	}
+}

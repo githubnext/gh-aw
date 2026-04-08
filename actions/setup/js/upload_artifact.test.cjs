@@ -7,10 +7,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use RUNNER_TEMP as the base so paths match what upload_artifact.cjs computes at runtime.
-const RUNNER_TEMP = "/tmp";
-const STAGING_DIR = `${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
-const RESOLVER_FILE = `${RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
+// Paths match what upload_artifact.cjs computes at runtime (uses /tmp/gh-aw/ base).
+const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
+const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
 
 describe("upload_artifact.cjs", () => {
   let mockCore;
@@ -34,8 +33,7 @@ describe("upload_artifact.cjs", () => {
   function buildConfig(overrides = {}) {
     return {
       "max-uploads": 3,
-      "default-retention-days": 7,
-      "max-retention-days": 30,
+      "retention-days": 30,
       "max-size-bytes": 104857600,
       ...overrides,
     };
@@ -87,8 +85,6 @@ describe("upload_artifact.cjs", () => {
 
     originalEnv = { ...process.env };
 
-    // Set RUNNER_TEMP so the script resolves paths to the same directories as the test helpers.
-    process.env.RUNNER_TEMP = RUNNER_TEMP;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
 
     // Ensure staging dir exists and is clean
@@ -109,10 +105,10 @@ describe("upload_artifact.cjs", () => {
   });
 
   describe("path-based upload", () => {
-    it("uploads a single file via artifact client", async () => {
+    it("uploads a single file using config retention days", async () => {
       writeStaging("report.json", '{"result": "ok"}');
 
-      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 14 }]);
+      const results = await runHandler(buildConfig({ "retention-days": 14 }), [{ type: "upload_artifact", path: "report.json" }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(results[0].success).toBe(true);
@@ -125,23 +121,24 @@ describe("upload_artifact.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("upload_artifact_count", "1");
     });
 
-    it("clamps retention days to max-retention-days", async () => {
+    it("uses default retention of 30 when retention-days not in config", async () => {
       writeStaging("report.json");
 
-      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", retention_days: 999 }]);
+      // Omit retention-days from config to test default
+      await runHandler({ "max-uploads": 1, "max-size-bytes": 104857600 }, [{ type: "upload_artifact", path: "report.json" }]);
 
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
       const [, , , opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
       expect(opts.retentionDays).toBe(30);
     });
 
-    it("uses default retention when retention_days is absent", async () => {
+    it("ignores retention_days in the message (agent cannot override)", async () => {
       writeStaging("report.json");
 
-      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+      // Even if the agent sends retention_days: 999, the config value (14) should be used.
+      await runHandler(buildConfig({ "retention-days": 14 }), [{ type: "upload_artifact", path: "report.json", retention_days: 999 }]);
 
       const [, , , opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
-      expect(opts.retentionDays).toBe(7);
+      expect(opts.retentionDays).toBe(14);
     });
   });
 
@@ -156,7 +153,7 @@ describe("upload_artifact.cjs", () => {
     });
 
     it("fails when neither path nor filters are present", async () => {
-      await runHandler(buildConfig(), [{ type: "upload_artifact", retention_days: 7 }]);
+      await runHandler(buildConfig(), [{ type: "upload_artifact" }]);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("exactly one of 'path' or 'filters'"));
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
@@ -194,22 +191,13 @@ describe("upload_artifact.cjs", () => {
       expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
     });
 
-    it("fails when skip_archive is requested but not allowed", async () => {
-      writeStaging("app.bin");
-
-      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
-
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip_archive=true is not permitted"));
-      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
-    });
-
-    it("fails when skip_archive=true with multiple files", async () => {
+    it("fails when skip-archive=true in config with multiple files", async () => {
       writeStaging("output/a.json");
       writeStaging("output/b.json");
 
-      await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", filters: { include: ["output/**"] }, skip_archive: true }]);
+      await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", filters: { include: ["output/**"] } }]);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip_archive=true requires exactly one selected file"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("skip-archive requires exactly one selected file"));
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
@@ -224,14 +212,26 @@ describe("upload_artifact.cjs", () => {
     });
   });
 
-  describe("skip_archive allowed", () => {
-    it("succeeds with skip_archive=true and a single file", async () => {
+  describe("skip-archive from config", () => {
+    it("succeeds with skip-archive=true in config and a single file", async () => {
       writeStaging("app.bin", "binary data");
 
-      const results = await runHandler(buildConfig({ "allow-skip-archive": true }), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "app.bin" }]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+    });
+
+    it("ignores skip_archive in the message (agent cannot override)", async () => {
+      writeStaging("app.bin", "binary data");
+
+      // Config has skip-archive: false; agent sends skip_archive: true — config wins
+      const results = await runHandler(buildConfig({ "skip-archive": false }), [{ type: "upload_artifact", path: "app.bin", skip_archive: true }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(results[0].success).toBe(true);
+      // No skip-archive error since config says false (so no single-file constraint check triggers)
       expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
     });
   });
@@ -307,7 +307,7 @@ describe("upload_artifact.cjs", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(results[0].success).toBe(true);
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", expect.stringMatching(/^tmp_artifact_[A-Z0-9]{26}$/));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", expect.stringMatching(/^aw_[A-Za-z0-9]{8}$/));
     });
 
     it("skips upload client call when staged=true in config", async () => {
@@ -331,7 +331,7 @@ describe("upload_artifact.cjs", () => {
       const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
       const keys = Object.keys(resolver);
       expect(keys.length).toBe(1);
-      expect(keys[0]).toMatch(/^tmp_artifact_[A-Z0-9]{26}$/);
+      expect(keys[0]).toMatch(/^aw_[A-Za-z0-9]{8}$/);
     });
   });
 });

@@ -20,7 +20,9 @@ tools:
   bash:
     - "*"
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    retention-days: 30
+    skip-archive: true
 network:
   allowed:
     - defaults
@@ -167,8 +169,15 @@ As you navigate, specifically look for:
 
 For each confusing or broken area:
 - Take a screenshot showing the issue
-- Name the screenshot descriptively (e.g., "confusing-quick-start-step-3.png")
+- Save it to a descriptive filename (e.g., "confusing-quick-start-step-3.png") in `/tmp/gh-aw/screenshots/`
 - Note the page URL and specific section
+- Stage and upload the screenshot:
+  ```bash
+  mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
+  cp /tmp/gh-aw/screenshots/<filename>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+  ```
+  Then call the `upload_artifact` safe-output tool with `path: "<filename>.png"`.
+  Record the returned `aw_*` ID.
 
 ## Step 5: Create Discussion Report
 
@@ -194,7 +203,10 @@ Create a GitHub discussion titled "📚 Documentation Noob Test Report - [Date]"
 - Longer-term documentation improvements
 
 ### Screenshots
-[Embed all relevant screenshots showing issues or confusing areas]
+For each uploaded screenshot, include its `aw_*` ID and a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) where reviewers can download them. Format:
+```
+📎 **[filename.png]** — artifact `aw_XXXXXXXX` (download from workflow run artifacts)
+```
 
 Label the discussion with: `documentation`, `user-experience`, `automated-testing`
 
