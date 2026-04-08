@@ -172,7 +172,8 @@ function runProcess(command, args, attempt) {
 
     child.on("error", err => {
       const durationMs = Date.now() - startTime;
-      const errno = /** @type {NodeJS.ErrnoException} */ err;
+      // prettier-ignore
+      const errno = /** @type {NodeJS.ErrnoException} */ (err);
       const errCode = errno.code ?? "unknown";
       const errSyscall = errno.syscall ?? "unknown";
       log(`attempt ${attempt + 1}: failed to start process '${command}': ${err.message}` + ` (code=${errCode} syscall=${errSyscall})`);
