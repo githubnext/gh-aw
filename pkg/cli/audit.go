@@ -636,6 +636,7 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 
 // extractStepOutput extracts the output of a specific step from job logs
 func extractStepOutput(jobLog string, stepNumber int) (string, error) {
+	auditLog.Printf("Extracting output for step %d from job logs (%d bytes)", stepNumber, len(jobLog))
 	lines := strings.Split(jobLog, "\n")
 	var stepOutput []string
 	inStep := false
@@ -662,14 +663,17 @@ func extractStepOutput(jobLog string, stepNumber int) (string, error) {
 	}
 
 	if len(stepOutput) == 0 {
+		auditLog.Printf("Step %d not found in job logs (scanned %d lines)", stepNumber, len(lines))
 		return "", fmt.Errorf("step %d not found in job logs", stepNumber)
 	}
 
+	auditLog.Printf("Extracted %d lines for step %d", len(stepOutput), stepNumber)
 	return strings.Join(stepOutput, "\n"), nil
 }
 
 // findFirstFailingStep finds the first step that failed in the job logs
 func findFirstFailingStep(jobLog string) (int, string) {
+	auditLog.Printf("Searching for first failing step in job logs (%d bytes)", len(jobLog))
 	lines := strings.Split(jobLog, "\n")
 	var stepOutput []string
 	inStep := false
@@ -700,9 +704,11 @@ func findFirstFailingStep(jobLog string) (int, string) {
 	}
 
 	if foundFailure && len(stepOutput) > 0 {
+		auditLog.Printf("Found failing step %d with %d lines of output", currentStep, len(stepOutput))
 		return currentStep, strings.Join(stepOutput, "\n")
 	}
 
+	auditLog.Print("No failing step found in job logs")
 	return 0, ""
 }
 
