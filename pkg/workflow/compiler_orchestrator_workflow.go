@@ -147,6 +147,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge custom steps with imported steps
 	c.processAndMergeSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
 
+	// Process and merge pre-steps
+	c.processAndMergePreSteps(result.Frontmatter, workflowData)
+
 	// Process and merge post-steps
 	c.processAndMergePostSteps(result.Frontmatter, workflowData)
 
@@ -489,6 +492,45 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 		if err == nil {
 			// Remove quotes from uses values with version comments
 			workflowData.CustomSteps = unquoteUsesWithComments(string(stepsYAML))
+		}
+	}
+}
+
+// processAndMergePreSteps handles the processing of pre-steps with action pinning.
+// Pre-steps run at the very beginning of the agent job, before checkout and any other
+// built-in steps, allowing users to mint tokens or perform other setup that must happen
+// before the repository is checked out.
+func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowData *WorkflowData) {
+	orchestratorWorkflowLog.Print("Processing pre-steps")
+
+	workflowData.PreSteps = c.extractTopLevelYAMLSection(frontmatter, "pre-steps")
+
+	// Apply action pinning to pre-steps if any
+	if workflowData.PreSteps != "" {
+		var preStepsWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(workflowData.PreSteps), &preStepsWrapper); err == nil {
+			if preStepsVal, hasPreSteps := preStepsWrapper["pre-steps"]; hasPreSteps {
+				if preSteps, ok := preStepsVal.([]any); ok {
+					// Convert to typed steps for action pinning
+					typedPreSteps, err := SliceToSteps(preSteps)
+					if err != nil {
+						orchestratorWorkflowLog.Printf("Failed to convert pre-steps to typed steps: %v", err)
+					} else {
+						// Apply action pinning to pre-steps using type-safe version
+						typedPreSteps = ApplyActionPinsToTypedSteps(typedPreSteps, workflowData)
+						// Convert back to []any for YAML marshaling
+						preSteps = StepsToSlice(typedPreSteps)
+					}
+
+					// Convert back to YAML with "pre-steps:" wrapper
+					stepsWrapper := map[string]any{"pre-steps": preSteps}
+					stepsYAML, err := yaml.Marshal(stepsWrapper)
+					if err == nil {
+						// Remove quotes from uses values with version comments
+						workflowData.PreSteps = unquoteUsesWithComments(string(stepsYAML))
+					}
+				}
+			}
 		}
 	}
 }

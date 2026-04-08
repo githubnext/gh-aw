@@ -603,6 +603,31 @@ func writePromptBashStep(yaml *strings.Builder, name, script string) {
 	fmt.Fprintf(yaml, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/%s\n", script)
 }
 
+func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {
+	if data.PreSteps != "" {
+		// Remove "pre-steps:" line and adjust indentation, similar to PostSteps processing
+		lines := strings.Split(data.PreSteps, "\n")
+		if len(lines) > 1 {
+			for _, line := range lines[1:] {
+				// Trim trailing whitespace
+				trimmed := strings.TrimRight(line, " ")
+				// Skip empty lines
+				if strings.TrimSpace(trimmed) == "" {
+					yaml.WriteString("\n")
+					continue
+				}
+				// Steps need 6-space indentation (      - name:)
+				// Nested properties need 8-space indentation (        run:)
+				if strings.HasPrefix(line, "  ") {
+					yaml.WriteString("        " + line[2:] + "\n")
+				} else {
+					yaml.WriteString("      " + line + "\n")
+				}
+			}
+		}
+	}
+}
+
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {
 		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
