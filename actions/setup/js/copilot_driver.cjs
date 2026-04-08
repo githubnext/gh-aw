@@ -3,10 +3,20 @@
 /**
  * Copilot CLI Driver with Retry Logic
  *
- * Wraps the Copilot CLI command with retry logic for transient CAPIError 400 errors.
- * Passes all arguments to the copilot subprocess, transparently forwarding stdin/stdout/stderr.
- * On a transient CAPIError 400 (which may occur mid-session), retries with --resume flag
- * using exponential backoff so that the session can continue from where it left off.
+ * Wraps the Copilot CLI command with retry logic for failures that occur after the session
+ * has been partially executed.  Passes all arguments to the copilot subprocess, transparently
+ * forwarding stdin/stdout/stderr.
+ *
+ * Retry policy:
+ *   - If the process produced any output (hasOutput) and exits with a non-zero code, the
+ *     session is considered partially executed.  The driver retries with --resume so the
+ *     Copilot CLI can continue from where it left off.
+ *   - CAPIError 400 is a well-known transient failure mode and is logged explicitly, but
+ *     any partial-execution failure is retried — not just CAPIError 400.
+ *   - If the process produced no output (failed to start / auth error before any work), the
+ *     driver does not retry because there is nothing to resume.
+ *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
+ *   - Maximum 3 retry attempts after the initial run.
  *
  * Usage: node copilot_driver.cjs <command> [args...]
  * Example: node copilot_driver.cjs copilot --add-dir /tmp/ --prompt "..."
@@ -141,7 +151,7 @@ function runProcess(command, args, attempt) {
 }
 
 /**
- * Main entry point: run copilot with retry logic for transient CAPIError 400 errors.
+ * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
   const [, , command, ...args] = process.argv;
@@ -177,23 +187,23 @@ async function main() {
       process.exit(0);
     }
 
-    // Determine whether to retry
+    // Determine whether to retry.
+    // Retry whenever the session was partially executed (hasOutput), using --resume so that
+    // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
+    // transient case, but any partial-execution failure is eligible for a resume retry.
     const isCAPIError = isTransientCAPIError(result.output);
     log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
 
-    // Check if this is a transient CAPIError 400 that occurred after the session started
-    // (hasOutput indicates the CLI ran for a while before failing, making it worth retrying)
-    if (attempt < MAX_RETRIES && result.hasOutput && isCAPIError) {
-      log(`attempt ${attempt + 1}: detected transient CAPIError 400 — will retry with --resume (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+    if (attempt < MAX_RETRIES && result.hasOutput) {
+      const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
+      log(`attempt ${attempt + 1}: ${reason} — will retry with --resume (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 
     if (attempt >= MAX_RETRIES) {
       log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
-    } else if (!result.hasOutput) {
-      log(`attempt ${attempt + 1}: no output produced — not retrying (process may have failed to start)`);
     } else {
-      log(`attempt ${attempt + 1}: error is not a transient CAPIError 400 — not retrying`);
+      log(`attempt ${attempt + 1}: no output produced — not retrying (process may have failed to start)`);
     }
 
     // Non-retryable error or retries exhausted — propagate exit code

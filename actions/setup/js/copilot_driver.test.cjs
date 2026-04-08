@@ -34,6 +34,59 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
+  describe("retry policy: resume on partial execution", () => {
+    // Inline the same retry-eligibility logic as the driver for unit testing.
+    // The driver retries whenever the session produced output (hasOutput), regardless
+    // of the specific error type.  CAPIError 400 is just the well-known case.
+    const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @returns {boolean}
+     */
+    function shouldRetry(result, attempt) {
+      if (result.exitCode === 0) return false;
+      return attempt < MAX_RETRIES && result.hasOutput;
+    }
+
+    /**
+     * @param {string} output
+     * @returns {"CAPIError 400 (transient)" | "partial execution"}
+     */
+    function retryReason(output) {
+      return CAPI_ERROR_400_PATTERN.test(output) ? "CAPIError 400 (transient)" : "partial execution";
+    }
+
+    it("retries on CAPIError 400 after partial output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      expect(shouldRetry(result, 0)).toBe(true);
+      expect(retryReason(result.output)).toBe("CAPIError 400 (transient)");
+    });
+
+    it("retries on any other non-zero exit when session produced output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: connection reset by peer" };
+      expect(shouldRetry(result, 0)).toBe(true);
+      expect(retryReason(result.output)).toBe("partial execution");
+    });
+
+    it("does not retry when no output was produced (process failed to start)", () => {
+      const result = { exitCode: 1, hasOutput: false, output: "" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry after retries are exhausted", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      expect(shouldRetry(result, MAX_RETRIES)).toBe(false);
+    });
+
+    it("does not retry on success", () => {
+      const result = { exitCode: 0, hasOutput: true, output: "Done." };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+  });
+
   describe("retry configuration", () => {
     it("has sensible default values", () => {
       // These match the constants in copilot_driver.cjs
