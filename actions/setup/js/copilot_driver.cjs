@@ -29,6 +29,17 @@ const MAX_DELAY_MS = 60000;
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
 /**
+ * Emit a timestamped diagnostic log line to stderr.
+ * All driver messages are prefixed with "[copilot-driver]" so they are easy to
+ * grep out of the combined agent-stdio.log.
+ * @param {string} message
+ */
+function log(message) {
+  const ts = new Date().toISOString();
+  process.stderr.write(`[copilot-driver] ${ts} ${message}\n`);
+}
+
+/**
  * Determines if the collected output contains a transient CAPIError 400
  * @param {string} output - Collected stdout+stderr from the process
  * @returns {boolean}
@@ -47,27 +58,53 @@ function sleep(ms) {
 }
 
 /**
+ * Format elapsed milliseconds as a human-readable string (e.g. "3m 12s").
+ * @param {number} ms
+ * @returns {string}
+ */
+function formatDuration(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+/**
  * Run a command with the given arguments, transparently forwarding stdin/stdout/stderr.
  * Also collects output for error pattern detection.
  *
  * @param {string} command - The executable to run
  * @param {string[]} args - Arguments to pass to the command
- * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean}>}
+ * @param {number} attempt - Current attempt index (0-based), used for logging
+ * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-function runProcess(command, args) {
+function runProcess(command, args, attempt) {
   return new Promise(resolve => {
+    const startTime = Date.now();
+    // Redact --prompt value from logs to avoid leaking prompt content
+    const safeArgs = args.map((arg, i) => (args[i - 1] === "--prompt" ? "<redacted>" : arg));
+    log(`attempt ${attempt + 1}: spawning: ${command} ${safeArgs.join(" ")}`);
+
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
       env: process.env,
     });
 
+    log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);
+
     let collectedOutput = "";
     let hasOutput = false;
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
 
     child.stdout.on(
       "data",
       /** @param {Buffer} data */ data => {
         hasOutput = true;
+        stdoutBytes += data.length;
         collectedOutput += data.toString();
         process.stdout.write(data);
       }
@@ -77,25 +114,27 @@ function runProcess(command, args) {
       "data",
       /** @param {Buffer} data */ data => {
         hasOutput = true;
+        stderrBytes += data.length;
         collectedOutput += data.toString();
         process.stderr.write(data);
       }
     );
 
-    child.on("exit", code => {
-      resolve({
-        exitCode: code ?? 1,
-        output: collectedOutput,
-        hasOutput,
-      });
+    child.on("exit", (code, signal) => {
+      const durationMs = Date.now() - startTime;
+      const exitCode = code ?? 1;
+      log(`attempt ${attempt + 1}: process exited` + ` exitCode=${exitCode}` + (signal ? ` signal=${signal}` : "") + ` duration=${formatDuration(durationMs)}` + ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}`);
+      resolve({ exitCode, output: collectedOutput, hasOutput, durationMs });
     });
 
     child.on("error", err => {
-      process.stderr.write(`copilot-driver: Failed to start process '${command}': ${err.message}\n`);
+      const durationMs = Date.now() - startTime;
+      log(`attempt ${attempt + 1}: failed to start process '${command}': ${err.message}`);
       resolve({
         exitCode: 1,
         output: collectedOutput,
         hasOutput,
+        durationMs,
       });
     });
   });
@@ -112,42 +151,60 @@ async function main() {
     process.exit(1);
   }
 
+  log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS} backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}`);
+
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
+  const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Add --resume flag on retries so the copilot session resumes from where it left off
     const currentArgs = attempt > 0 ? [...args, "--resume"] : args;
 
     if (attempt > 0) {
-      process.stderr.write(`copilot-driver: Retry attempt ${attempt}/${MAX_RETRIES} with --resume after ${delay}ms delay...\n`);
+      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --resume`);
       await sleep(delay);
       delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
+      log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
     }
 
-    const result = await runProcess(command, currentArgs);
+    const result = await runProcess(command, currentArgs, attempt);
     lastExitCode = result.exitCode;
 
     // Success — exit immediately
     if (result.exitCode === 0) {
+      log(`success on attempt ${attempt + 1}: totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
       process.exit(0);
     }
 
+    // Determine whether to retry
+    const isCAPIError = isTransientCAPIError(result.output);
+    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+
     // Check if this is a transient CAPIError 400 that occurred after the session started
     // (hasOutput indicates the CLI ran for a while before failing, making it worth retrying)
-    if (attempt < MAX_RETRIES && result.hasOutput && isTransientCAPIError(result.output)) {
-      process.stderr.write(`copilot-driver: Detected transient CAPIError 400 on attempt ${attempt + 1}/${MAX_RETRIES + 1}. Will retry with --resume.\n`);
+    if (attempt < MAX_RETRIES && result.hasOutput && isCAPIError) {
+      log(`attempt ${attempt + 1}: detected transient CAPIError 400 — will retry with --resume (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
+    }
+
+    if (attempt >= MAX_RETRIES) {
+      log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
+    } else if (!result.hasOutput) {
+      log(`attempt ${attempt + 1}: no output produced — not retrying (process may have failed to start)`);
+    } else {
+      log(`attempt ${attempt + 1}: error is not a transient CAPIError 400 — not retrying`);
     }
 
     // Non-retryable error or retries exhausted — propagate exit code
     break;
   }
 
+  log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);
 }
 
 main().catch(err => {
-  process.stderr.write(`copilot-driver: Unexpected error: ${err.message}\n`);
+  log(`unexpected error: ${err.message}`);
   process.exit(1);
 });

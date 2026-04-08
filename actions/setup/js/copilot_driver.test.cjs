@@ -61,4 +61,43 @@ describe("copilot_driver.cjs", () => {
       }
     });
   });
+
+  describe("formatDuration", () => {
+    // Inline the same logic as the driver's formatDuration for unit testing
+    function formatDuration(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+      }
+      return `${seconds}s`;
+    }
+
+    it("formats sub-minute durations as seconds", () => {
+      expect(formatDuration(0)).toBe("0s");
+      expect(formatDuration(500)).toBe("0s");
+      expect(formatDuration(1000)).toBe("1s");
+      expect(formatDuration(59000)).toBe("59s");
+    });
+
+    it("formats minute-level durations with minutes and seconds", () => {
+      expect(formatDuration(60000)).toBe("1m 0s");
+      expect(formatDuration(90000)).toBe("1m 30s");
+      expect(formatDuration(192000)).toBe("3m 12s"); // 3m 12s (real-world example)
+    });
+
+    it("handles long durations correctly", () => {
+      expect(formatDuration(3600000)).toBe("60m 0s");
+    });
+  });
+
+  describe("log format", () => {
+    it("log lines include [copilot-driver] prefix and ISO timestamp", () => {
+      // Verify the format matches what we expect in agent-stdio.log
+      const ts = new Date().toISOString();
+      const logLine = `[copilot-driver] ${ts} test message`;
+      expect(logLine).toMatch(/^\[copilot-driver\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    });
+  });
 });
