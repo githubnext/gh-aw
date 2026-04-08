@@ -456,8 +456,8 @@ func (c *ActionCache) PruneStaleGHAWEntries(currentVersion string, actionsRepoPr
 	if currentVersion == "" || actionsRepoPrefix == "" {
 		return
 	}
-	// Only prune for release versions (e.g., "v0.67.3"), not dev/dirty builds
-	if !strings.HasPrefix(currentVersion, "v") {
+	// Only prune for clean release versions (e.g., "v0.67.3"), not dev/dirty builds
+	if !strings.HasPrefix(currentVersion, "v") || strings.Contains(currentVersion, "-") {
 		return
 	}
 

@@ -538,7 +538,9 @@ func pruneStaleActionCacheEntries(compiler *workflow.Compiler, actionCache *work
 		return
 	}
 
-	// Determine the effective version: use actionTag if set, otherwise compiler version
+	// Determine the effective version: actionTag takes precedence when explicitly
+	// set (e.g., via --action-tag for testing against a specific release), otherwise
+	// fall back to the compiler's built-in version from the binary.
 	version := compiler.GetActionTag()
 	if version == "" {
 		version = compiler.GetVersion()

@@ -712,4 +712,10 @@ func TestPruneStaleGHAWEntriesNoOp(t *testing.T) {
 	if len(cache.Entries) != 2 {
 		t.Errorf("Expected 2 entries (no pruning for dirty build), got %d", len(cache.Entries))
 	}
+
+	// Should be a no-op for dirty release builds (e.g., "v0.67.3-dirty")
+	cache.PruneStaleGHAWEntries("v0.67.3-dirty", "github/gh-aw-actions")
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries (no pruning for dirty release build), got %d", len(cache.Entries))
+	}
 }
