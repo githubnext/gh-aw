@@ -62,7 +62,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	}
 
 	// Build the Docker command
-	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:v3.0.1 scan <path> --format json
+	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:latest scan <path> --format json
 	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path.
 	// exec.Command with separate args (not shell execution) prevents command injection.
 	cmd := exec.Command(

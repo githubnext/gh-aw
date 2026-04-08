@@ -32,7 +32,7 @@ const (
 	ZizmorImage      = "ghcr.io/zizmorcore/zizmor:latest"
 	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
 	ActionlintImage  = "rhysd/actionlint:latest"
-	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:v3.0.1"
+	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
 )
 
 // dockerPullState tracks the state of docker pull operations

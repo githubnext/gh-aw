@@ -58,7 +58,7 @@ steps:
       
       # Pull runner-guard Docker image
       echo "Pulling runner-guard image..."
-      docker pull ghcr.io/vigilant-llc/runner-guard:v3.0.1
+      docker pull ghcr.io/vigilant-llc/runner-guard:latest
       
       echo "All static analysis Docker images pulled successfully"
   - name: Verify static analysis tools
@@ -76,7 +76,7 @@ steps:
       
       # Verify runner-guard
       echo "Testing runner-guard..."
-      docker run --rm ghcr.io/vigilant-llc/runner-guard:v3.0.1 --version || echo "Warning: runner-guard version check failed"
+      docker run --rm ghcr.io/vigilant-llc/runner-guard:latest --version || echo "Warning: runner-guard version check failed"
       
       echo "Static analysis tools verification complete"
   - name: Run compile with security tools
