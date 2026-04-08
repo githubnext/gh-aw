@@ -22,8 +22,7 @@ tools:
     - "awk:*"
     - "sed:*"
     - "echo:*"
-    - "python3:*"
-    - "rustfmt:*"
+    - "node:*"
 safe-outputs:
   add-comment:
     max: 1
@@ -68,9 +67,9 @@ Use the GitHub tools to get the PR diff:
 
 Then identify all **new and modified test files** in the diff:
 
-- **Python (pytest)** *(analyzed)*: files matching `test_*.py`, `*_test.py`, or files containing `def test_`
-- **Rust** *(analyzed)*: files containing `#[test]` or `#[cfg(test)]` blocks, typically in `src/` or `tests/`
-- **Other languages** *(detected but not scored)*: Go (`*_test.go`), JavaScript/TypeScript (`*.test.{js,ts,jsx,tsx}`, `*.spec.{js,ts,jsx,tsx}`, `__tests__/`). Note their presence in the report but exclude them from scoring.
+- **Go** *(analyzed)*: files ending in `_test.go` with `func Test*` functions
+- **JavaScript/TypeScript** *(analyzed)*: files matching `*.test.{js,ts,cjs,mjs}`, `*.spec.{js,ts}`, or inside `__tests__/`
+- **Other languages** *(detected but not scored)*: Python (`test_*.py`, `*_test.py`), Rust (`#[test]` blocks). Note their presence in the report but exclude them from scoring.
 
 If **no test files were added or modified**, call `noop`:
 
@@ -92,96 +91,65 @@ For each test, collect:
 Use bash tools to help parse the diff if needed:
 
 ```bash
-# For Python: find test function definitions in the diff
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.py' | grep -E "^\+.*def test_"
+# For Go: find Test* function definitions in the diff
+git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | grep -E "^\+func Test"
 
-# For Rust: find #[test] annotated functions in the diff
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.rs' | grep -B1 "^\+.*fn test_\|^\+.*#\[test\]"
+# For JavaScript/TypeScript: find test() / it() / describe() in the diff
+git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.js' '*.test.ts' '*.test.cjs' '*.spec.js' '*.spec.ts' | grep -E "^\+(test|it|describe)\("
 ```
 
 ## Step 3: AST-Assisted Structural Analysis
 
 For each changed test file, run structural checks using available tools.
 
-### 3a. Python — pytest tests
+### 3a. Go — `Test*` functions
+
+Analyze Go test functions using grep and awk on the diff:
 
 ```bash
-# Count assertions vs total lines in test functions
-python3 - << 'EOF'
-import ast, sys
-
-def analyze_python_tests(filepath):
-    with open(filepath) as f:
-        src = f.read()
-    try:
-        tree = ast.parse(src)
-    except SyntaxError:
-        return []
-    results = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
-            body_lines = (node.end_lineno or node.lineno) - node.lineno + 1
-            assertions = sum(
-                1 for n in ast.walk(node)
-                if isinstance(n, ast.Call) and (
-                    (isinstance(n.func, ast.Attribute) and n.func.attr.startswith("assert"))
-                    or (isinstance(n.func, ast.Name) and n.func.id.startswith("assert"))
-                )
-            )
-            mocks = sum(
-                1 for n in ast.walk(node)
-                if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                and n.func.attr in ("patch", "Mock", "MagicMock", "mock_open", "patch_object")
-            )
-            raises_checks = sum(
-                1 for n in ast.walk(node)
-                if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                and "raises" in n.func.attr
-            )
-            results.append({
-                "name": node.name,
-                "line": node.lineno,
-                "body_lines": body_lines,
-                "assertions": assertions,
-                "mocks": mocks,
-                "raises_checks": raises_checks,
-            })
-    return results
-
-import json, os
-for path in sys.argv[1:]:
-    if os.path.isfile(path):
-        print(json.dumps({"file": path, "tests": analyze_python_tests(path)}))
-EOF
-```
-
-Provide the relevant test file paths as arguments.
-
-### 3b. Rust — `#[test]` blocks
-
-Analyze Rust test blocks using grep:
-
-```bash
-# Count assertions and expect() calls per test function
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.rs' | awk '
-/^\+.*#\[test\]/ { in_test=1; test_name=""; assertions=0; panics=0 }
-in_test && /^\+.*fn test_/ { match($0, /fn (test_[^(]+)/, arr); test_name=arr[1] }
-in_test && /^\+.*(assert!|assert_eq!|assert_ne!|assert_matches!)/ { assertions++ }
-in_test && /^\+.*(unwrap\(\)|expect\(|panic!)/ { panics++ }
-in_test && /^\+\}/ { if (test_name) print test_name, "assertions=" assertions, "panics=" panics; in_test=0 }
-'
-```
-
-### 3c. Go — Test* functions
-
-```bash
+# Count assertions, error checks, and mock calls per Test* function
 git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | awk '
-/^\+func Test/ { in_test=1; match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0 }
-in_test && /^\+.*(assert\.|require\.|t\.Error|t\.Fatal|t\.Log)/ { assertions++ }
-in_test && /^\+.*t\.Error|t\.Fatal/ { errors++ }
-in_test && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors; in_test=0 }
+/^\+func Test/ {
+  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
+  match($0, /func (Test[^(]+)/, arr); test_name=arr[1]; assertions=0; errors=0; mocks=0
+}
+test_name && /^\+.*(assert\.|require\.)/ { assertions++ }
+test_name && /^\+.*(t\.Error|t\.Errorf|t\.Fatal|t\.Fatalf|assert\.Error|require\.Error)/ { errors++ }
+test_name && /^\+.*(\.EXPECT\(\)|gomock\.|testify\/mock|\.On\(|\.Return\()/ { mocks++ }
+test_name && /^\+\}$/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
+END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
 '
 ```
+
+Key signals for Go tests:
+- **Assertions**: calls to `assert.*` or `require.*` (testify), or `t.Error*` / `t.Fatal*`
+- **Error coverage**: calls checking `err != nil`, `assert.Error`, `require.Error`, or test functions named with "Error" / "Invalid" / "Edge"
+- **Mocking**: use of `gomock`, `testify/mock` (`On()`, `Return()`, `EXPECT()`), or interface-based stubs
+- **Table-driven tests**: `t.Run()` calls with a test-case slice — these are generally high value; credit them as covering multiple scenarios
+
+### 3b. JavaScript / TypeScript — `test()` / `it()` blocks
+
+Analyze JS/TS test blocks using grep:
+
+```bash
+# Count expect() assertions and mock calls per test block
+git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.test.js' '*.test.ts' '*.test.cjs' '*.spec.js' '*.spec.ts' | awk '
+/^\+(test|it)\(/ {
+  if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks
+  match($0, /(test|it)\(['"'"'"]([^'"'"'"]+)/, arr); test_name=arr[2]; assertions=0; errors=0; mocks=0
+}
+test_name && /^\+.*expect\(/ { assertions++ }
+test_name && /^\+.*(toThrow|rejects|\.error|Error)/ { errors++ }
+test_name && /^\+.*(jest\.mock|jest\.spyOn|\.mockReturnValue|\.mockImplementation|sinon\.)/ { mocks++ }
+test_name && /^\+\}\)/ { print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks; test_name="" }
+END { if (test_name) print test_name, "assertions=" assertions, "errors=" errors, "mocks=" mocks }
+'
+```
+
+Key signals for JavaScript/TypeScript tests:
+- **Assertions**: `expect(...)` calls with matchers (`.toBe`, `.toEqual`, `.toMatchObject`, etc.)
+- **Error coverage**: `.toThrow()`, `.rejects`, assertions containing "Error" or "throws"
+- **Mocking**: `jest.mock()`, `jest.spyOn()`, `.mockReturnValue()`, `.mockImplementation()`, `sinon.*`
 
 ## Step 4: AI Quality Review of Each Test
 
@@ -214,7 +182,7 @@ Classify as:
 
 Mark a test as **suspicious** if it shows any of these patterns:
 
-1. **Mock-heavy with no behavior assertion**: Uses `patch()`, `Mock()`, or `mock_open()` (Python), or `mockall` crates (Rust) extensively but only asserts that internal functions were called — not that observable outputs are correct
+1. **Mock-heavy with no behavior assertion**: Uses `jest.mock()` / `jest.spyOn()` (JavaScript) or `gomock` / `testify/mock` (Go) extensively but only asserts that internal functions were called — not that observable outputs are correct
 2. **Happy-path only**: No error cases, no edge cases (empty inputs, nil/None, boundary values, invalid inputs)
 3. **Test inflation**: The test file grew proportionally faster than the production code file it covers (ratio > 2:1 lines added in test vs. production)
 4. **Duplicated assertions**: Identical assertion patterns repeated across multiple test functions with only minor variations in constants (suggesting copy-paste test generation)
@@ -230,11 +198,12 @@ git diff ${{ github.event.pull_request.base.sha }}...HEAD --stat | grep -E "test
 git diff ${{ github.event.pull_request.base.sha }}...HEAD --numstat
 ```
 
-For each **Python and Rust** test file, find the corresponding production file and compare the ratio of lines added:
+For each **Go and JavaScript/TypeScript** test file, find the corresponding production file and compare the ratio of lines added:
 
-- `test_foo.py` → `foo.py`
-- `foo_test.py` → `foo.py`
-- Rust `#[cfg(test)]` blocks → compare test lines vs. non-test lines within the same file
+- `foo_test.go` → `foo.go`
+- `foo.test.ts` → `foo.ts`
+- `foo.test.js` → `foo.js`
+- `foo.test.cjs` → `foo.cjs`
 
 If the ratio of new lines added to the test file vs. the production file exceeds 2:1, flag it as potential **test inflation**.
 
@@ -310,8 +279,8 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 
 | Test | File | Classification | Issues Detected |
 |------|------|----------------|----------------|
-| `test_foo_returns_none` | `tests/test_foo.py:42` | ⚠️ Implementation | No error case; mocks internal `_helper` |
-| `test_bar_happy_path` | `tests/test_bar.py:18` | ✅ Design | Verifies observable output |
+| `TestProcessData_MockCalls` | `pkg/processor/processor_test.go:42` | ⚠️ Implementation | No error case; only asserts mock was called |
+| `TestBarHappyPath` | `pkg/bar/bar_test.go:18` | ✅ Design | Verifies observable output |
 
 ---
 
@@ -335,11 +304,11 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 ### Language Support
 
 Tests analyzed:
-- 🐍 Python (pytest): {PYTHON_COUNT} tests
-- 🦀 Rust (#[test]): {RUST_COUNT} tests
+- 🐹 Go (`*_test.go`): {GO_COUNT} tests
+- 🟨 JavaScript/TypeScript (`*.test.*`, `*.spec.*`): {JS_COUNT} tests
 
 {If other languages detected:}
-> ℹ️ Tests in other languages were found but are outside the current analysis scope (Python and Rust supported).
+> ℹ️ Tests in other languages were found but are outside the current analysis scope (Go and JavaScript/TypeScript supported).
 
 ---
 
@@ -407,12 +376,13 @@ After posting the comment, submit a pull request review based on the verdict:
 
 ### Analysis Scope
 - **Focus only on new and changed tests** — do not analyze unchanged test files
-- **Support Python (pytest) and Rust (#[test])** as primary targets; note other languages but don't score them
-- **Be fair** — some mocking is legitimate (e.g., mocking network calls, file I/O). Flag only mocking of internal business logic functions.
-- **Context-sensitive** — a test in `tests/unit/` is expected to mock more than one in `tests/integration/`
+- **Support Go (`*_test.go`) and JavaScript/TypeScript (`*.test.*`, `*.spec.*`)** as primary targets; note other languages but don't score them
+- **Be fair** — some mocking is legitimate (e.g., mocking network calls, file I/O, external APIs). Flag only mocking of internal business logic functions.
+- **Context-sensitive** — a test in a `unit/` directory is expected to mock more than one in `integration/`
 
 ### Calibration
-- **Generous for edge case credit**: If a test has even one error path (`pytest.raises`, `#[should_panic]`, or an assertion on an error return value), count it as having edge case coverage
+- **Generous for edge case credit**: If a test has even one error path (`assert.Error`/`require.Error` in Go, `.toThrow()`/`.rejects` in JavaScript, or an assertion on an error return value), count it as having edge case coverage
+- **Credit table-driven tests**: A Go test using `t.Run()` over a slice of cases counts as covering multiple scenarios; give it full credit for each case that includes an error scenario
 - **Strict for behavioral credit**: Only classify as "design test" if the assertion verifies something a *user* of the function/module would care about
 - **Duplicate detection**: Only flag duplicates if 3+ test functions share the same assertion pattern with trivially different constants
 
