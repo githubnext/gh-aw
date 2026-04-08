@@ -1,6 +1,6 @@
 ---
 name: Refactoring Cadence
-description: Tracks repository code health over time using file length, cyclomatic complexity, file growth, and TODO/FIXME/HACK churn metrics. Automatically opens a refactoring issue when the health score drops below a configurable threshold.
+description: Tracks repository code health over time using file length, cyclomatic complexity, file growth, and TODO/FIXME/HACK churn metrics — optimized for Go and JavaScript codebases. Automatically opens a refactoring issue when the health score drops below a configurable threshold.
 on:
   schedule: "daily on weekdays"
   workflow_dispatch:
@@ -61,7 +61,7 @@ cat .refactoring-cadence.yml 2>/dev/null || echo "No .refactoring-cadence.yml fo
 | Max avg cyclomatic complexity | 10 | `max_avg_complexity` |
 | File growth alert (%) | 20 | `file_growth_pct` |
 | TODO churn alert (net adds) | 5 | `todo_churn_limit` |
-| File extensions to analyze | go,py,rs,js,ts,cjs | `extensions` |
+| File extensions to analyze | go,js,cjs | `extensions` |
 
 ## Step 2: Load Previous Baseline from Cache Memory
 
@@ -82,8 +82,9 @@ Compute the four health metrics for all source files matching the configured ext
 Count lines in each source file and compute the average:
 
 ```bash
-# Find all relevant source files (excluding vendor, test files, generated)
-find . -type f \( -name "*.go" -o -name "*.py" -o -name "*.rs" -o -name "*.js" -o -name "*.ts" -o -name "*.cjs" \) \
+# Find all relevant source files — Go and JavaScript are primary targets
+# (add *.py, *.rs, *.ts to the pattern if the repo uses those languages too)
+find . -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) \
   ! -path "*/vendor/*" ! -path "*/node_modules/*" ! -path "*/.git/*" \
   ! -name "*_test.go" ! -name "*.lock.yml" ! -name "*.pb.go" \
   | xargs wc -l 2>/dev/null | awk '$2 != "total" {sum+=$1; count++} END {if(count>0) print sum/count; else print 0}'
@@ -93,29 +94,7 @@ Record: `avg_file_length` (float), `file_count` (int)
 
 ### Metric 2: Average Cyclomatic Complexity
 
-**Python files** — use `radon` if available, otherwise approximate with `grep`:
-
-```bash
-# Install radon if not present
-pip install radon --quiet 2>/dev/null || true
-
-# Compute average complexity per function across all Python files
-PY_FILES=$(find . -name "*.py" ! -path "*/vendor/*" ! -path "*/node_modules/*" ! -path "*/.git/*" 2>/dev/null)
-if [ -n "$PY_FILES" ]; then
-  echo "$PY_FILES" | xargs radon cc -s -a 2>/dev/null | grep "Average complexity:" | awk '{sum+=$NF; count++} END {if(count>0) print sum/count; else print 0}'
-fi
-```
-
-**Rust files** — use `cargo clippy` complexity warnings as a proxy:
-
-```bash
-# Run cargo clippy if Cargo.toml exists
-if [ -f "Cargo.toml" ]; then
-  cargo clippy --quiet 2>&1 | grep -c "warning\[" || echo 0
-fi
-```
-
-**Go files** — use `gocyclo` if available, otherwise approximate complexity by counting branch points per function:
+**Go files (primary)** — use `gocyclo` for accurate cyclomatic complexity:
 
 ```bash
 # Install gocyclo if not present
@@ -124,28 +103,74 @@ go install github.com/fzipp/gocyclo/cmd/gocyclo@latest 2>/dev/null || true
 # Compute average cyclomatic complexity across all Go functions
 GO_FILES=$(find . -name "*.go" ! -path "*/vendor/*" ! -name "*_test.go" ! -path "*/.git/*" 2>/dev/null)
 if [ -n "$GO_FILES" ] && command -v gocyclo >/dev/null 2>&1; then
-  gocyclo -avg . 2>/dev/null | grep "^Average" | awk '{print $NF}'
+  GO_AVG=$(gocyclo -avg . 2>/dev/null | grep "^Average" | awk '{print $NF}')
+  echo "go:${GO_AVG:-0}"
 elif [ -n "$GO_FILES" ]; then
-  # Fallback: count branch keywords (if, for, switch, case, &&, ||) per function
+  # Fallback: count branch keywords per function
   FUNC_COUNT=$(echo "$GO_FILES" | xargs grep -cE "^func |^\tfunc " 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
   BRANCH_COUNT=$(echo "$GO_FILES" | xargs grep -cE "^\s*(if |for |case )" 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
   if [ "${FUNC_COUNT:-0}" -gt 0 ]; then
-    echo "scale=2; $BRANCH_COUNT / $FUNC_COUNT" | bc
+    GO_AVG=$(echo "scale=2; $BRANCH_COUNT / $FUNC_COUNT" | bc)
+    echo "go:${GO_AVG}"
   else
-    echo 0
+    echo "go:0"
   fi
 fi
 ```
 
-Combine into a single `avg_complexity` value (average across languages, weighted by function count where available).
+**JavaScript / CommonJS files (primary)** — approximate complexity by counting branch points per function using `grep`:
+
+```bash
+# Count functions (declarations, arrow functions assigned to const, module.exports methods)
+JS_FILES=$(find . -name "*.js" -o -name "*.cjs" \
+  | grep -v "node_modules" | grep -v ".git")
+if [ -n "$JS_FILES" ]; then
+  # Count function declarations and arrow functions
+  FUNC_COUNT=$(echo "$JS_FILES" | xargs grep -cE \
+    "(^|\s)(function\s+\w+|const\s+\w+\s*=\s*(\([^)]*\)|[a-z_]\w*)\s*=>|async\s+function\s+\w+)" \
+    2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+  # Count branch points: if, for, while, switch, &&, ||, ??
+  BRANCH_COUNT=$(echo "$JS_FILES" | xargs grep -cE \
+    "^\s*(if\s*\(|for\s*\(|while\s*\(|switch\s*\()" \
+    2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
+  if [ "${FUNC_COUNT:-0}" -gt 0 ]; then
+    JS_AVG=$(echo "scale=2; $BRANCH_COUNT / $FUNC_COUNT" | bc)
+    echo "js:${JS_AVG}"
+  else
+    echo "js:0"
+  fi
+fi
+```
+
+**Python files (optional)** — use `radon` if the repo contains Python:
+
+```bash
+PY_FILES=$(find . -name "*.py" ! -path "*/vendor/*" ! -path "*/.git/*" 2>/dev/null)
+if [ -n "$PY_FILES" ]; then
+  pip install radon --quiet 2>/dev/null || true
+  echo "$PY_FILES" | xargs radon cc -s -a 2>/dev/null \
+    | grep "Average complexity:" | awk '{sum+=$NF; count++} END {if(count>0) print "py:" sum/count; else print "py:0"}'
+fi
+```
+
+**Rust files (optional)** — use `cargo clippy` if a `Cargo.toml` exists:
+
+```bash
+if [ -f "Cargo.toml" ]; then
+  CLIPPY_WARNINGS=$(cargo clippy --quiet 2>&1 | grep -c "warning\[" || echo 0)
+  echo "rust_clippy_warnings:${CLIPPY_WARNINGS}"
+fi
+```
+
+Combine language scores into a single `avg_complexity` value (weighted average across Go and JavaScript function counts; include Python if present).
 
 ### Metric 3: File Growth (>20% since last baseline)
 
 Compare current file sizes to the baseline to find files that have grown more than the configured threshold:
 
 ```bash
-# Get current line counts for all source files
-find . -type f \( -name "*.go" -o -name "*.py" -o -name "*.rs" -o -name "*.js" -o -name "*.ts" -o -name "*.cjs" \) \
+# Get current line counts for all source files — Go and JavaScript primary
+find . -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) \
   ! -path "*/vendor/*" ! -path "*/node_modules/*" ! -path "*/.git/*" \
   ! -name "*_test.go" ! -name "*.lock.yml" ! -name "*.pb.go" \
   | sort | while read f; do
@@ -165,8 +190,8 @@ Record: `files_grown` (list of file paths + growth %)
 Count TODO, FIXME, and HACK comments currently in the codebase vs. the baseline:
 
 ```bash
-# Count all TODO/FIXME/HACK comments in source files
-find . -type f \( -name "*.go" -o -name "*.py" -o -name "*.rs" -o -name "*.js" -o -name "*.ts" -o -name "*.cjs" \) \
+# Count all TODO/FIXME/HACK comments in Go and JavaScript source files
+find . -type f \( -name "*.go" -o -name "*.js" -o -name "*.cjs" \) \
   ! -path "*/vendor/*" ! -path "*/node_modules/*" ! -path "*/.git/*" \
   ! -name "*.lock.yml" \
   | xargs grep -cE "(TODO|FIXME|HACK)[ :(]" 2>/dev/null \
@@ -227,14 +252,17 @@ For each degraded file:
 - Run `git log --oneline -10 -- <file>` to show recent commit history
 - Identify contributors and recent changes
 
-For Python files with high complexity:
+For Go files with high complexity — get the top offending functions:
 ```bash
-radon cc -s <file> | head -30
+gocyclo -top 10 . 2>/dev/null || grep -n "^func " <file> | head -20
 ```
 
-For Rust with clippy warnings:
+For JavaScript/CommonJS files — identify large functions and high branch counts:
 ```bash
-cargo clippy 2>&1 | head -50
+# Show function declaration lines for a given .js/.cjs file
+grep -n "function\|=>" <file> | head -30
+# Count branch keywords per file as a proxy for complexity
+grep -c "if\s*(\\|for\s*(\\|while\s*(\\" <file>
 ```
 
 ## Step 7: Create the Refactoring Issue
@@ -334,7 +362,7 @@ The `file_sizes` map records the line count of every analyzed file at this point
 
 - **First run**: If no baseline exists, compute metrics, store them as the new baseline, and call `noop`. Never open an issue on the first run.
 - **No source files**: If no matching source files are found (e.g., an empty or docs-only repo), call `noop` with an explanation.
-- **Tool availability**: If `radon` cannot be installed or `cargo` is not available, skip that language's complexity metric gracefully and note it in the issue body.
+- **Tool availability**: If `gocyclo` cannot be installed, fall back to the branch-count approximation. Python/Rust analysis is optional and skipped gracefully if the repo doesn't use those languages.
 - **Always call a safe-output tool**: Either `create-issue` (when health drops) or `noop` (otherwise). Failing to call any safe-output tool is the most common cause of workflow failures.
 
 ```json
