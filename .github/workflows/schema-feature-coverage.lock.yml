@@ -113,7 +113,7 @@ jobs:
             await main(core, context);
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         id: validate-secret
-        run: ${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -153,7 +153,7 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         # poutine:ignore untrusted_checkout_exec
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
           cat << 'GH_AW_PROMPT_1826a2a99f7d6263_EOF'
           <system>
@@ -257,12 +257,12 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh"
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -326,9 +326,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
       - name: Create gh-aw temp directory
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Configure Git credentials
@@ -366,7 +366,7 @@ jobs:
       - name: Install Codex CLI
         run: npm install --ignore-scripts -g @openai/codex@0.118.0
       - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.16
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -378,13 +378,13 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16 ghcr.io/github/gh-aw-mcpg:v0.2.16 node:lts-alpine
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16 ghcr.io/github/gh-aw-mcpg:v0.2.16 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_e9b19a187b0e78af_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_e9b19a187b0e78af_EOF'
           {"create_pull_request":{"expires":168,"labels":["automation","schema-coverage"],"max":10,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[schema-coverage] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_e9b19a187b0e78af_EOF
       - name: Write Safe Outputs Tools
@@ -554,7 +554,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
           
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
@@ -612,7 +612,7 @@ jobs:
           GH_AW_MCP_CONFIG_79d8d57369ee664c_EOF
           
           # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_79d8d57369ee664c_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_79d8d57369ee664c_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "github": {
@@ -660,7 +660,7 @@ jobs:
           path: /tmp/gh-aw
       - name: Clean git credentials
         continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
       - name: Execute Codex CLI
         id: agentic_execution
         run: |
@@ -707,7 +707,7 @@ jobs:
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+          bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -726,7 +726,7 @@ jobs:
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Append agent step summary
         if: always()
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh"
       - name: Copy Safe Outputs
         if: always()
         env:
@@ -1001,7 +1001,7 @@ jobs:
           persist-credentials: false
       # --- Threat Detection ---
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16
       - name: Check if detection needed
         id: detection_guard
         if: always()
@@ -1062,7 +1062,7 @@ jobs:
       - name: Install Codex CLI
         run: npm install --ignore-scripts -g @openai/codex@0.118.0
       - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.16
       - name: Execute Codex CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution

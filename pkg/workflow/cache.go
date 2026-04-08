@@ -409,7 +409,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if useBackwardCompatiblePaths {
 			// For single default cache, use the original directory for backward compatibility
 			builder.WriteString("      - name: Create cache-memory directory\n")
-			builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh\n")
+			builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh\"\n")
 		} else {
 			fmt.Fprintf(builder, "      - name: Create cache-memory directory (%s)\n", cache.ID)
 			builder.WriteString("        run: |\n")
@@ -521,7 +521,7 @@ func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemory
 	builder.WriteString("        env:\n")
 	fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
 	fmt.Fprintf(builder, "          GH_AW_MIN_INTEGRITY: %s\n", integrityLevel)
-	builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\n")
+	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\"\n")
 }
 
 // generateCacheMemoryGitCommitSteps emits post-agent steps that commit agent-written changes
@@ -558,7 +558,7 @@ func generateCacheMemoryGitCommitSteps(builder *strings.Builder, data *WorkflowD
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        env:\n")
 		fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
-		builder.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh\n")
+		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh\"\n")
 	}
 }
 

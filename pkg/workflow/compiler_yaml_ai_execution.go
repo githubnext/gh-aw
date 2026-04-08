@@ -144,7 +144,7 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
 
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh \"$GATEWAY_PID\"\n")
+	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh\" \"$GATEWAY_PID\"\n")
 }
 
 // generateAgentOutputPlaceholderStep generates a step that writes a minimal {"items":[]}
@@ -172,7 +172,7 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Append agent step summary\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh\n")
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh\"\n")
 }
 
 // generateTokenUsageSummary generates a step that parses the firewall proxy's

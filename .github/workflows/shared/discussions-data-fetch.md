@@ -21,7 +21,7 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO_OWNER: ${{ github.repository_owner }}
-      REPO_NAME: ${{ github.event.repository.name }}
+      REPO_NAME: ${GITHUB_REPOSITORY#*/}
     run: |
       # Create output directories
       mkdir -p /tmp/gh-aw/discussions-data

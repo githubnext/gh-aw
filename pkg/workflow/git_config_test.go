@@ -203,7 +203,7 @@ func TestGitCredentialsCleanerStepsHelper(t *testing.T) {
 	expectedContents := []string{
 		"Clean git credentials",
 		"continue-on-error: true",
-		"run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh",
+		"run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"",
 	}
 
 	fullContent := strings.Join(steps, "")
@@ -265,7 +265,7 @@ This workflow uses API tools only and does not need the repository to be checked
 	// The "Clean git credentials" step should still be present (resilient, continue-on-error).
 	// Assert that the cleaner step block itself contains both the name and continue-on-error
 	// to avoid false positives from other steps that also use continue-on-error.
-	const cleanerStepBlock = "- name: Clean git credentials\n        continue-on-error: true\n        run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
+	const cleanerStepBlock = "- name: Clean git credentials\n        continue-on-error: true\n        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\""
 	if !strings.Contains(lockContent, cleanerStepBlock) {
 		t.Error("Expected 'Clean git credentials' step with 'continue-on-error: true' to be present when checkout: false")
 	}

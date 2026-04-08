@@ -600,7 +600,7 @@ func writePromptBashStep(yaml *strings.Builder, name, script string) {
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
-	fmt.Fprintf(yaml, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/%s\n", script)
+	fmt.Fprintf(yaml, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/%s\"\n", script)
 }
 
 func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {

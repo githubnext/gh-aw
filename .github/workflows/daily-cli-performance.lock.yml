@@ -186,7 +186,7 @@ jobs:
           GH_AW_WIKI_NOTE: ${{ '' }}
         # poutine:ignore untrusted_checkout_exec
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
           cat << 'GH_AW_PROMPT_f03f34c772ef5145_EOF'
           <system>
@@ -304,12 +304,12 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh"
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -376,9 +376,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
       # Repo memory git-based storage configuration from frontmatter processed below
@@ -390,7 +390,7 @@ jobs:
           TARGET_REPO: ${{ github.repository }}
           MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           CREATE_ORPHAN: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -419,11 +419,11 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh 1.0.21
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.21
         env:
           GH_HOST: github.com
       - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.16
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -435,13 +435,13 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16 ghcr.io/github/gh-aw-mcpg:v0.2.16 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16 ghcr.io/github/gh-aw-mcpg:v0.2.16 ghcr.io/github/github-mcp-server:v0.32.0 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_969b4c011faa90b8_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_969b4c011faa90b8_EOF'
           {"add_comment":{"max":5},"create_issue":{"expires":48,"group":true,"labels":["performance","automation","cookie"],"max":3,"title_prefix":"[performance] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":131072,"max_patch_size":10240}]},"report_incomplete":{}}
           GH_AW_SAFE_OUTPUTS_CONFIG_969b4c011faa90b8_EOF
       - name: Write Safe Outputs Tools
@@ -627,12 +627,12 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
           
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           
       - name: Write MCP Scripts Config
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/mcp-scripts/logs
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json << 'GH_AW_MCP_SCRIPTS_TOOLS_5d19fc88280e6234_EOF'
+          mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_5d19fc88280e6234_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -677,7 +677,7 @@ jobs:
             ]
           }
           GH_AW_MCP_SCRIPTS_TOOLS_5d19fc88280e6234_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs << 'GH_AW_MCP_SCRIPTS_SERVER_124be5f8aac3f3e6_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_124be5f8aac3f3e6_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -692,11 +692,11 @@ jobs:
               process.exit(1);
             });
           GH_AW_MCP_SCRIPTS_SERVER_124be5f8aac3f3e6_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs
+          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh << 'GH_AW_MCP_SCRIPTS_SH_GO_b8bc2d81aca76663_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_b8bc2d81aca76663_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: go
           # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -708,8 +708,8 @@ jobs:
           
           
           GH_AW_MCP_SCRIPTS_SH_GO_b8bc2d81aca76663_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh
-          cat > ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh << 'GH_AW_MCP_SCRIPTS_SH_MAKE_327fb7f034e6b4f4_EOF'
+          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh"
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_327fb7f034e6b4f4_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: make
           # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -720,7 +720,7 @@ jobs:
           make $INPUT_ARGS
           
           GH_AW_MCP_SCRIPTS_SH_MAKE_327fb7f034e6b4f4_EOF
-          chmod +x ${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh
+          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh"
           
       - name: Generate MCP Scripts Server Config
         id: mcp-scripts-config
@@ -752,7 +752,7 @@ jobs:
           export GH_AW_MCP_SCRIPTS_PORT
           export GH_AW_MCP_SCRIPTS_API_KEY
           
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh"
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
@@ -789,7 +789,7 @@ jobs:
           if [ -n "${OTEL_EXPORTER_OTLP_HEADERS:-}" ]; then
             _GH_AW_OTLP_HEADERS_JSON=$(node -e 'const h=process.env["OTEL_EXPORTER_OTLP_HEADERS"]||"";const o={};h.split(",").forEach(function(p){const i=p.indexOf("=");if(i>0)o[p.slice(0,i).trim()]=p.slice(i+1).trim();});console.log(JSON.stringify(o));' 2>/dev/null || echo "{}")
           fi
-          cat << GH_AW_MCP_CONFIG_5da341d6f3c42525_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_5da341d6f3c42525_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "github": {
@@ -858,7 +858,7 @@ jobs:
           path: /tmp/gh-aw
       - name: Clean git credentials
         continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -897,7 +897,7 @@ jobs:
         id: detect-inference-error
         if: always()
         continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -914,7 +914,7 @@ jobs:
       - name: Copy Copilot session state files to logs
         if: always()
         continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh"
       - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
@@ -923,7 +923,7 @@ jobs:
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+          bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -941,7 +941,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Append agent step summary
         if: always()
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh"
       - name: Copy Safe Outputs
         if: always()
         env:
@@ -1254,7 +1254,7 @@ jobs:
           persist-credentials: false
       # --- Threat Detection ---
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16
       - name: Check if detection needed
         id: detection_guard
         if: always()
@@ -1308,11 +1308,11 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install GitHub Copilot CLI
-        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh 1.0.21
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.21
         env:
           GH_HOST: github.com
       - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.16
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution

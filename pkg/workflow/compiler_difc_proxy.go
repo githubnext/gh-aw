@@ -242,7 +242,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	fmt.Fprintf(&sb, "          DIFC_PROXY_POLICY: '%s'\n", policyJSON)
 	fmt.Fprintf(&sb, "          DIFC_PROXY_IMAGE: '%s'\n", containerImage)
 	sb.WriteString("        run: |\n")
-	sb.WriteString("          bash ${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh\n")
+	sb.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh\"\n")
 	return sb.String()
 }
 
@@ -317,7 +317,7 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("      - name: Stop DIFC proxy\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\n")
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\"\n")
 }
 
 // difcProxyLogPaths returns the artifact paths for DIFC proxy logs.

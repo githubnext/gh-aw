@@ -423,7 +423,7 @@ func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
 	step = append(step, "        id: detect-inference-error")
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh")
+	step = append(step, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh\"")
 
 	return GitHubActionStep(step)
 }
@@ -450,7 +450,7 @@ func generateCopilotSessionFileCopyStep() GitHubActionStep {
 	step = append(step, "      - name: Copy Copilot session state files to logs")
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: bash ${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh")
+	step = append(step, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh\"")
 
 	return GitHubActionStep(step)
 }
