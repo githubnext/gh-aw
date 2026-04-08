@@ -1,6 +1,6 @@
 ---
 name: Architecture Guardian
-description: Daily analysis of commits from the last 24 hours to detect code structure violations such as large files, oversized functions, high export counts, and circular dependencies
+description: Daily analysis of commits from the last 24 hours to detect code structure violations in Go and JavaScript files, such as large files, oversized functions, high export counts, and import cycles
 on:
   schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
@@ -25,7 +25,6 @@ tools:
     - "awk:*"
     - "sed:*"
     - "sort:*"
-    - "python3:*"
   edit:
 safe-outputs:
   create-issue:
@@ -85,16 +84,16 @@ git log --since="24 hours ago" --oneline --name-only
 Collect the unique set of changed source files:
 
 ```bash
-git log --since="24 hours ago" --name-only --pretty=format: | sort -u | grep -E '\.(py|rs)$'
+git log --since="24 hours ago" --name-only --pretty=format: | sort -u | grep -E '\.(go|js|cjs|mjs)$'
 ```
 
-If no Python or Rust files were changed in the last 24 hours, call the `noop` tool and stop:
+If no Go or JavaScript files were changed in the last 24 hours, call the `noop` tool and stop:
 
 ```json
-{"noop": {"message": "No Python or Rust source files changed in the last 24 hours. Architecture scan skipped."}}
+{"noop": {"message": "No Go or JavaScript source files changed in the last 24 hours. Architecture scan skipped."}}
 ```
 
-Exclude generated files, test fixtures, and vendor directories (e.g., `node_modules/`, `target/`, `.git/`).
+Exclude generated files, test fixtures, and vendor directories (e.g., `node_modules/`, `vendor/`, `.git/`, `*_test.go`).
 
 ## Step 3: Run Structural Analysis
 
@@ -112,158 +111,79 @@ Classify:
 - Lines > `thresholds.file_lines_blocker` (default 1000) → **BLOCKER**
 - Lines > `thresholds.file_lines_warning` (default 500) → **WARNING**
 
-### Check 2: Function/Method Size (Python)
+### Check 2: Function Size (Go)
 
-Use a Python script to parse function sizes:
+Find Go function declarations and estimate sizes by counting lines between consecutive `func` markers:
 
 ```bash
-python3 - <<'PYEOF'
-import ast, sys, os
-
-def analyze_functions(filepath):
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-            source = f.read()
-        tree = ast.parse(source, filename=filepath)
-    except SyntaxError as e:
-        print(f"PARSE_ERROR:{filepath}:{e}", flush=True)
-        return
-
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            start = node.lineno
-            end = node.end_lineno if hasattr(node, 'end_lineno') else node.lineno
-            length = end - start + 1
-            print(f"FUNC:{filepath}:{node.name}:{start}:{length}", flush=True)
-
-for path in sys.argv[1:]:
-    analyze_functions(path)
-PYEOF
+# List all func declaration line numbers in a Go file
+grep -n "^func " <file>
 ```
 
-Alternatively, approximate with grep:
+Use the line numbers to estimate each function's length. For a more precise count, use `awk`:
 
 ```bash
-# Approximate Python function line counts
-grep -n "^def \|^    def \|^async def \|^    async def " <file>
+awk '/^func /{if(start>0) print name, NR-start; name=$0; start=NR} END{if(start>0) print name, NR-start+1}' <file>
 ```
 
 Functions exceeding `thresholds.function_lines` (default 80) → **WARNING**
 
-### Check 3: Function/Method Size (Rust)
+### Check 3: Function Size (JavaScript / CommonJS)
 
-Approximate Rust function sizes using line counting between `fn` keywords:
+Approximate function sizes in `.js` / `.cjs` / `.mjs` files using grep:
 
 ```bash
-grep -n "^\s*pub fn \|^\s*fn \|^\s*pub async fn \|^\s*async fn " <file>
+# List function declaration line numbers
+grep -n "^function \|^const .* = function\|^const .* = (" <file>
 ```
 
-Count lines between consecutive function definitions to estimate function length. Functions exceeding `thresholds.function_lines` (default 80) → **WARNING**
+Count lines between consecutive function declarations to estimate length. Functions exceeding `thresholds.function_lines` (default 80) → **WARNING**
 
-### Check 4: High Public Export Count (Python)
+### Check 4: High Public Export Count (Go)
 
-Count public exports (non-underscore names) in Python files:
+In Go, exported identifiers start with an uppercase letter. Count exported top-level functions, types, variables, and constants:
 
 ```bash
-python3 - <<'PYEOF'
-import ast, sys
+# Count exported top-level declarations in a Go file
+grep -c "^func [A-Z]\|^type [A-Z]\|^var [A-Z]\|^const [A-Z]" <file>
 
-def count_exports(filepath):
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-            source = f.read()
-        tree = ast.parse(source, filename=filepath)
-    except SyntaxError:
-        return
+# List them for reporting
+grep -n "^func [A-Z]\|^type [A-Z]\|^var [A-Z]\|^const [A-Z]" <file>
+```
 
-    exports = []
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            if not node.name.startswith('_'):
-                exports.append(node.name)
+For JavaScript files, count module-level exports:
 
-    count = len(exports)
-    if count > 0:
-        print(f"EXPORTS:{filepath}:{count}:{','.join(exports[:20])}", flush=True)
+```bash
+# CommonJS
+grep -c "^module\.exports\|^exports\." <file>
 
-for path in sys.argv[1:]:
-    count_exports(path)
-PYEOF
+# ES modules
+grep -c "^export " <file>
 ```
 
 Files with more than `thresholds.max_exports` (default 10) public names → **INFO**
 
-### Check 5: Circular Imports / Dependency Cycles (Python)
+### Check 5: Import Cycles (Go)
 
-Detect circular imports using a simple reachability analysis:
+Go's toolchain detects import cycles at build time. Use `go list` to surface any cycles across all packages:
 
 ```bash
-python3 - <<'PYEOF'
-import ast, sys, os
-from collections import defaultdict, deque
+go list ./... 2>&1 | grep -i "import cycle\|cycle not allowed"
+```
 
-def find_imports(filepath, root):
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-            source = f.read()
-        tree = ast.parse(source, filename=filepath)
-    except Exception:
-        return []
+Alternatively, use `go build` which also reports cycles:
 
-    imports = []
-    pkg = os.path.dirname(os.path.relpath(filepath, root))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            parts = node.module.split('.')
-            candidate = os.path.join(root, *parts) + '.py'
-            if os.path.exists(candidate):
-                imports.append(os.path.relpath(candidate, root))
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                parts = alias.name.split('.')
-                candidate = os.path.join(root, *parts) + '.py'
-                if os.path.exists(candidate):
-                    imports.append(os.path.relpath(candidate, root))
-    return imports
+```bash
+go build ./... 2>&1 | grep -i "import cycle\|cycle not allowed"
+```
 
-root = sys.argv[1] if len(sys.argv) > 1 else '.'
-files = [os.path.relpath(p, root) for p in sys.argv[2:]]
+Any output from these commands indicates a circular import dependency → **BLOCKER**
 
-graph = defaultdict(list)
-for f in files:
-    abs_path = os.path.join(root, f)
-    for dep in find_imports(abs_path, root):
-        graph[f].append(dep)
+For JavaScript files, detect circular `require()` chains by grepping for cross-file imports and checking for mutual dependencies:
 
-def find_cycle(start, graph):
-    visited = set()
-    path = []
-    def dfs(node):
-        if node in path:
-            idx = path.index(node)
-            return path[idx:]
-        if node in visited:
-            return None
-        visited.add(node)
-        path.append(node)
-        for nbr in graph.get(node, []):
-            result = dfs(nbr)
-            if result:
-                return result
-        path.pop()
-        return None
-    return dfs(start)
-
-seen_cycles = set()
-for f in files:
-    cycle = find_cycle(f, graph)
-    if cycle:
-        key = frozenset(cycle)
-        if key not in seen_cycles:
-            seen_cycles.add(key)
-            print(f"CYCLE:{' -> '.join(cycle + [cycle[0]])}", flush=True)
-
-PYEOF
+```bash
+# Find all require() calls pointing to local modules
+grep -rn "require('\.\./\|\./" --include="*.js" --include="*.cjs" <dir>
 ```
 
 Circular dependency cycles → **BLOCKER**
@@ -273,7 +193,7 @@ Circular dependency cycles → **BLOCKER**
 Group all findings into three severity tiers:
 
 ### BLOCKER (critical — must be addressed promptly)
-- Circular import / dependency cycles between modules
+- Circular import / dependency cycles between Go packages
 - Files exceeding 1000 lines (configurable)
 
 ### WARNING (should be addressed soon)
@@ -287,9 +207,9 @@ Group all findings into three severity tiers:
 
 For each **BLOCKER** and **WARNING** violation, generate a concise refactoring suggestion that explains:
 
-1. **What the violation is** — e.g., "`src/utils.py` has 1,247 lines"
+1. **What the violation is** — e.g., "`pkg/workflow/compiler.go` has 1,247 lines"
 2. **Why it's a problem** — e.g., "Large files are harder to navigate, review, and maintain"
-3. **A concrete plan to fix it** — e.g., "Extract the `DataProcessor` class into `src/data_processor.py` and move the `FileUtils` helpers into `src/file_utils.py`"
+3. **A concrete plan to fix it** — e.g., "Extract the expression-extraction logic into `pkg/workflow/expression_extraction.go` and move YAML helpers into `pkg/workflow/compiler_yaml.go`"
 
 Use your knowledge of software architecture best practices. Be specific and actionable.
 
@@ -335,7 +255,7 @@ Create an issue with a structured report. Only create ONE issue (the `max: 1` li
 
 #### [Violation Title]
 
-**File**: `path/to/file.py`
+**File**: `path/to/file.go`
 **Commit**: [sha] — [commit message]
 **Issue**: [Description of the problem]
 **Why it matters**: [Explanation]
@@ -349,7 +269,7 @@ Create an issue with a structured report. Only create ONE issue (the `max: 1` li
 
 #### [Violation Title]
 
-**File**: `path/to/file.py` | **Function**: `function_name` | **Lines**: N
+**File**: `path/to/file.go` | **Function**: `FunctionName` | **Lines**: N
 **Commit**: [sha] — [commit message]
 **Issue**: [Description]
 **Suggested fix**: [Concrete refactoring plan]
@@ -360,7 +280,7 @@ Create an issue with a structured report. Only create ONE issue (the `max: 1` li
 
 > Informational findings. Consider addressing in future refactoring.
 
-- `path/to/file.py`: N public exports — consider splitting into focused modules
+- `path/to/file.go`: N exported identifiers — consider splitting into focused packages or sub-packages
 
 ---
 
