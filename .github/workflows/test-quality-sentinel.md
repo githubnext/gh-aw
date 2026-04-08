@@ -68,10 +68,9 @@ Use the GitHub tools to get the PR diff:
 
 Then identify all **new and modified test files** in the diff:
 
-- **Python (pytest)**: files matching `test_*.py`, `*_test.py`, or files containing `def test_`
-- **Rust**: files containing `#[test]` or `#[cfg(test)]` blocks, typically in `src/` or `tests/`
-- **Go**: files ending in `_test.go`
-- **JavaScript/TypeScript**: files matching `*.test.{js,ts,jsx,tsx}`, `*.spec.{js,ts,jsx,tsx}`, or inside `__tests__/`
+- **Python (pytest)** *(analyzed)*: files matching `test_*.py`, `*_test.py`, or files containing `def test_`
+- **Rust** *(analyzed)*: files containing `#[test]` or `#[cfg(test)]` blocks, typically in `src/` or `tests/`
+- **Other languages** *(detected but not scored)*: Go (`*_test.go`), JavaScript/TypeScript (`*.test.{js,ts,jsx,tsx}`, `*.spec.{js,ts,jsx,tsx}`, `__tests__/`). Note their presence in the report but exclude them from scoring.
 
 If **no test files were added or modified**, call `noop`:
 
@@ -98,9 +97,6 @@ git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.py' | grep -E "^
 
 # For Rust: find #[test] annotated functions in the diff
 git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*.rs' | grep -B1 "^\+.*fn test_\|^\+.*#\[test\]"
-
-# For Go: find Test* functions in the diff
-git diff ${{ github.event.pull_request.base.sha }}...HEAD -- '*_test.go' | grep -E "^\+func Test"
 ```
 
 ## Step 3: AST-Assisted Structural Analysis
@@ -218,7 +214,7 @@ Classify as:
 
 Mark a test as **suspicious** if it shows any of these patterns:
 
-1. **Mock-heavy with no behavior assertion**: Uses `patch()`, `Mock()`, or `mock_open()` (Python), `mockery` / `testify/mock` (Go) extensively but only asserts that internal functions were called — not that observable outputs are correct
+1. **Mock-heavy with no behavior assertion**: Uses `patch()`, `Mock()`, or `mock_open()` (Python), or `mockall` crates (Rust) extensively but only asserts that internal functions were called — not that observable outputs are correct
 2. **Happy-path only**: No error cases, no edge cases (empty inputs, nil/None, boundary values, invalid inputs)
 3. **Test inflation**: The test file grew proportionally faster than the production code file it covers (ratio > 2:1 lines added in test vs. production)
 4. **Duplicated assertions**: Identical assertion patterns repeated across multiple test functions with only minor variations in constants (suggesting copy-paste test generation)
@@ -234,12 +230,11 @@ git diff ${{ github.event.pull_request.base.sha }}...HEAD --stat | grep -E "test
 git diff ${{ github.event.pull_request.base.sha }}...HEAD --numstat
 ```
 
-For each test file, find the corresponding production file and compare the ratio of lines added:
+For each **Python and Rust** test file, find the corresponding production file and compare the ratio of lines added:
 
 - `test_foo.py` → `foo.py`
-- `foo_test.go` → `foo.go`
-- `foo.test.ts` → `foo.ts`
-- Rust `#[cfg(test)]` blocks → compare within the same file
+- `foo_test.py` → `foo.py`
+- Rust `#[cfg(test)]` blocks → compare test lines vs. non-test lines within the same file
 
 If the ratio of new lines added to the test file vs. the production file exceeds 2:1, flag it as potential **test inflation**.
 
@@ -262,6 +257,7 @@ Compute the **Test Quality Score** (0–100) using this rubric:
 behavioral_ratio = (design_tests / total_new_tests) * 40
 edge_case_ratio  = (tests_with_edge_cases / total_new_tests) * 30
 duplication_penalty = min(duplicate_clusters * 5, 20)
+# Binary penalty: deduct all 10 points if ANY test file has a >2:1 inflation ratio
 inflation_penalty = 10 if any test file shows inflation ratio > 2:1 else 0
 
 score = behavioral_ratio + edge_case_ratio + (20 - duplication_penalty) + (10 - inflation_penalty)
@@ -416,11 +412,13 @@ After posting the comment, submit a pull request review based on the verdict:
 - **Context-sensitive** — a test in `tests/unit/` is expected to mock more than one in `tests/integration/`
 
 ### Calibration
-- **Generous for edge case credit**: If a test has even one error path (`pytest.raises`, `#[should_panic]`, `t.Errorf` for invalid input), count it as having edge case coverage
+- **Generous for edge case credit**: If a test has even one error path (`pytest.raises`, `#[should_panic]`, or an assertion on an error return value), count it as having edge case coverage
 - **Strict for behavioral credit**: Only classify as "design test" if the assertion verifies something a *user* of the function/module would care about
 - **Duplicate detection**: Only flag duplicates if 3+ test functions share the same assertion pattern with trivially different constants
 
 ### Token Budget
-- Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones, and flag that sampling was applied.
+- Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones. When sampling is applied:
+  1. In **Step 2**, collect the first 50 newly added test functions (not modified), then stop collecting.
+  2. In the PR comment (Step 7), add a note such as: "⚠️ Sampling applied — analyzed the first 50 of N test functions. Prioritized newly added tests."
 - Keep individual test analysis concise — 2–3 sentences per test in the flagged section.
 - Use `<details>` tags for per-test tables with more than 10 rows.
