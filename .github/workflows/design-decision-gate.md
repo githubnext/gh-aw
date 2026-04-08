@@ -32,6 +32,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed the design decision gate check."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during design decision gate check."
 timeout-minutes: 15
+imports:
+  - ../agents/adr-writer.agent.md
 tools:
   github:
     toolsets: [default, repos]
