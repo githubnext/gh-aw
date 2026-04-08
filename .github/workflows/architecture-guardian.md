@@ -1,21 +1,22 @@
 ---
 name: Architecture Guardian
-description: Enforces code structure discipline by scanning for large files, oversized functions, high export counts, and circular dependencies on every PR and push to main
+description: Daily analysis of commits from the last 24 hours to detect code structure violations such as large files, oversized functions, high export counts, and circular dependencies
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
+  schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
   workflow_dispatch:
+  skip-if-match: 'is:issue is:open in:title "[architecture-guardian]"'
 permissions:
   contents: read
-  pull-requests: read
+  actions: read
 engine: copilot
+tracker-id: architecture-guardian
 tools:
   github:
-    toolsets: [repos, pull_requests]
+    toolsets: [repos]
   bash:
+    - "git log:*"
+    - "git diff:*"
+    - "git show:*"
     - "find:*"
     - "wc:*"
     - "grep:*"
@@ -25,17 +26,18 @@ tools:
     - "sed:*"
     - "sort:*"
     - "python3:*"
-    - "node:*"
   edit:
-  web-fetch:
 safe-outputs:
-  submit-pull-request-review:
-    max: 1
-  add-comment:
+  create-issue:
+    expires: 2d
+    title-prefix: "[architecture-guardian] "
+    labels: [architecture, automated-analysis, cookie]
+    assignees: copilot
     max: 1
   noop:
   messages:
     footer: "> 🏛️ *Architecture report by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
+    footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"
     run-started: "🏛️ Architecture Guardian online! [{workflow_name}]({run_url}) is scanning code structure on this {event_type}..."
     run-success: "✅ Architecture scan complete! [{workflow_name}]({run_url}) has reviewed code structure. Report delivered! 📋"
     run-failure: "🏛️ Architecture scan failed! [{workflow_name}]({run_url}) {status}. Structure status unknown..."
@@ -43,17 +45,15 @@ timeout-minutes: 20
 features:
   copilot-requests: true
 ---
-
 # Architecture Guardian
 
-You are the Architecture Guardian, a code quality agent that enforces structural discipline in the codebase. Your mission is to prevent "spaghetti code" by detecting structural violations before they accumulate.
+You are the Architecture Guardian, a code quality agent that enforces structural discipline in the codebase. Your mission is to prevent "spaghetti code" by detecting structural violations in commits landed in the last 24 hours before they accumulate.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Event**: ${{ github.event_name }}
+- **Analysis Period**: Last 24 hours
 - **Run ID**: ${{ github.run_id }}
-- **PR Number**: ${{ github.event.pull_request.number }}
 
 ## Step 1: Load Configuration
 
@@ -74,30 +74,27 @@ cat .architecture.yml 2>/dev/null || echo "No .architecture.yml found, using def
 
 Parse the YAML values if the file exists. Fall back to defaults for any missing key.
 
-## Step 2: Identify Files to Analyze
+## Step 2: Identify Files Changed in the Last 24 Hours
 
-Determine which files to scan based on the event type:
+Use git to find commits from the last 24 hours and the files they touched:
 
-### For Pull Requests
-
-Fetch the list of changed files in this PR using the GitHub tools (`pull_request_read` with method `get_files`). Focus on source files in the PR diff.
-
-Alternatively, use git:
 ```bash
-git fetch origin ${{ github.event.pull_request.base.sha }} 2>/dev/null || true
-git diff --name-only ${{ github.event.pull_request.base.sha }}...HEAD 2>/dev/null || git diff --name-only HEAD~1 2>/dev/null || true
+git log --since="24 hours ago" --oneline --name-only
 ```
 
-### For Push to Main
+Collect the unique set of changed source files:
 
-Scan all source files in the repository:
 ```bash
-git diff --name-only HEAD~1 2>/dev/null || find . -type f \( -name "*.py" -o -name "*.rs" \) ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./target/*" | head -200
+git log --since="24 hours ago" --name-only --pretty=format: | sort -u | grep -E '\.(py|rs)$'
 ```
 
-Filter to supported languages:
-- **Python**: `*.py` files
-- **Rust**: `*.rs` files
+If no Python or Rust files were changed in the last 24 hours, call the `noop` tool and stop:
+
+```json
+{"noop": {"message": "No Python or Rust source files changed in the last 24 hours. Architecture scan skipped."}}
+```
+
+Exclude generated files, test fixtures, and vendor directories (e.g., `node_modules/`, `target/`, `.git/`).
 
 ## Step 3: Run Structural Analysis
 
@@ -275,11 +272,11 @@ Circular dependency cycles → **BLOCKER**
 
 Group all findings into three severity tiers:
 
-### BLOCKER (fails the PR check)
+### BLOCKER (critical — must be addressed promptly)
 - Circular import / dependency cycles between modules
 - Files exceeding 1000 lines (configurable)
 
-### WARNING (allows merge but posts warning)
+### WARNING (should be addressed soon)
 - Files exceeding 500 lines (configurable)
 - Functions/methods exceeding 80 lines (configurable)
 
@@ -305,23 +302,24 @@ For **INFO** violations, provide a brief note about the high export count and su
 Call the `noop` safe-output tool:
 
 ```json
-{"noop": {"message": "No architecture violations found. All files are within configured thresholds."}}
+{"noop": {"message": "No architecture violations found in the last 24 hours. All changed files are within configured thresholds."}}
 ```
 
-### If violations are found on a Pull Request
+### If violations are found
 
-Submit a pull request review with a structured comment. Use `submit-pull-request-review` with event type:
-- `REQUEST_CHANGES` if there are any **BLOCKER** violations
-- `COMMENT` if there are only **WARNING** or **INFO** violations
+Create an issue with a structured report. Only create ONE issue (the `max: 1` limit applies and an existing open issue skips the run via `skip-if-match`).
 
-**Review body format**:
+**Issue title**: Architecture Violations Detected — [DATE]
+
+**Issue body format**:
 
 ```markdown
-## 🏛️ Architecture Guardian Report
-
-> Automated architecture scan for this pull request.
-
 ### Summary
+
+- **Analysis Period**: Last 24 hours
+- **Files Analyzed**: [NUMBER]
+- **Total Violations**: [NUMBER]
+- **Date**: [DATE]
 
 | Severity | Count |
 |----------|-------|
@@ -333,11 +331,12 @@ Submit a pull request review with a structured comment. Use `submit-pull-request
 
 ### 🚨 BLOCKER Violations
 
-> These violations **must be resolved** before merging.
+> These violations indicate serious structural problems that require prompt attention.
 
 #### [Violation Title]
 
 **File**: `path/to/file.py`
+**Commit**: [sha] — [commit message]
 **Issue**: [Description of the problem]
 **Why it matters**: [Explanation]
 **Suggested fix**: [Concrete refactoring plan]
@@ -346,11 +345,12 @@ Submit a pull request review with a structured comment. Use `submit-pull-request
 
 ### ⚠️ WARNING Violations
 
-> These violations are strongly recommended to fix, but will not block the merge.
+> These violations should be addressed soon to prevent further structural debt.
 
 #### [Violation Title]
 
 **File**: `path/to/file.py` | **Function**: `function_name` | **Lines**: N
+**Commit**: [sha] — [commit message]
 **Issue**: [Description]
 **Suggested fix**: [Concrete refactoring plan]
 
@@ -372,19 +372,15 @@ Thresholds from `.architecture.yml` (or defaults):
 - Function size: N lines
 - Max public exports: N
 
+### Action Checklist
+
+- [ ] Review all BLOCKER violations and plan refactoring
+- [ ] Address WARNING violations in upcoming PRs
+- [ ] Consider splitting INFO modules if they grow further
+- [ ] Close this issue once all violations are resolved
+
 > 🏛️ *To configure thresholds, add a `.architecture.yml` file to the repository root.*
 ```
-
-### If violations are found on a Push to Main
-
-Post a comment to the last commit or create a summary using `add-comment`.
-
-## Step 7: Fail if BLOCKER Violations Exist
-
-After posting the report:
-
-- If there are **BLOCKER** violations AND this is a pull request: submit the review with `REQUEST_CHANGES` event — this marks the PR check as requiring changes.
-- If there are **no** BLOCKER violations: submit as `COMMENT` or call `noop`.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
 
