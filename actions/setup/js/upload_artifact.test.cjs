@@ -7,10 +7,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use RUNNER_TEMP as the base so paths match what upload_artifact.cjs computes at runtime.
-const RUNNER_TEMP = "/tmp";
-const STAGING_DIR = `${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
-const RESOLVER_FILE = `${RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
+// Paths match what upload_artifact.cjs computes at runtime (uses /tmp/gh-aw/ base).
+const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
+const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
 
 describe("upload_artifact.cjs", () => {
   let mockCore;
@@ -87,8 +86,6 @@ describe("upload_artifact.cjs", () => {
 
     originalEnv = { ...process.env };
 
-    // Set RUNNER_TEMP so the script resolves paths to the same directories as the test helpers.
-    process.env.RUNNER_TEMP = RUNNER_TEMP;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
 
     // Ensure staging dir exists and is clean
@@ -307,7 +304,7 @@ describe("upload_artifact.cjs", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(results[0].success).toBe(true);
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
-      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", expect.stringMatching(/^tmp_artifact_[A-Z0-9]{26}$/));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", expect.stringMatching(/^aw_[A-Za-z0-9]{8}$/));
     });
 
     it("skips upload client call when staged=true in config", async () => {
@@ -331,7 +328,7 @@ describe("upload_artifact.cjs", () => {
       const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
       const keys = Object.keys(resolver);
       expect(keys.length).toBe(1);
-      expect(keys[0]).toMatch(/^tmp_artifact_[A-Z0-9]{26}$/);
+      expect(keys[0]).toMatch(/^aw_[A-Za-z0-9]{8}$/);
     });
   });
 });

@@ -7,7 +7,7 @@
  * Validates artifact upload requests emitted by the model via the upload_artifact safe output
  * tool, then uploads the approved files directly via the @actions/artifact REST API client.
  * The model must have already copied the files it wants to upload to
- * ${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
+ * /tmp/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
  *
  * This handler follows the per-message handler pattern used by the safe_outputs handler loop.
  * main(config) returns a per-message handler function that:
@@ -38,23 +38,20 @@ const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /** Staging directory where the model places files to be uploaded. */
-const STAGING_DIR = `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts/`;
-
-/** Prefix for temporary artifact IDs returned to the caller. */
-const TEMP_ID_PREFIX = "tmp_artifact_";
+const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
 
 /** Path where the resolver mapping (tmpId → artifact name) is written. */
-const RESOLVER_FILE = `${process.env.RUNNER_TEMP}/gh-aw/artifact-resolver.json`;
+const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
 
 /**
- * Generate a temporary artifact ID.
- * Format: tmp_artifact_<26 uppercase alphanumeric characters>
+ * Generate a temporary artifact ID using the same aw_ prefix format as other safe outputs.
+ * Format: aw_<8 alphanumeric characters (A-Za-z0-9)>
  * @returns {string}
  */
 function generateTemporaryArtifactId() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let id = TEMP_ID_PREFIX;
-  for (let i = 0; i < 26; i++) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "aw_";
+  for (let i = 0; i < 8; i++) {
     id += chars[Math.floor(Math.random() * chars.length)];
   }
   return id;

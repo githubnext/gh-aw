@@ -368,12 +368,12 @@ print("Velocity metrics chart saved!")
 Stage and upload all three charts as artifacts with 30-day retention:
 1. Copy charts to the upload staging directory:
    ```bash
-   cp /tmp/gh-aw/python/charts/activity_overview.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-   cp /tmp/gh-aw/python/charts/resolution_metrics.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-   cp /tmp/gh-aw/python/charts/velocity_metrics.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
+   cp /tmp/gh-aw/python/charts/activity_overview.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/resolution_metrics.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/velocity_metrics.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    ```
 2. Call the `upload_artifact` safe-output tool for each chart with `retention_days: 30`
-3. Record the returned `tmp_artifact_*` IDs for each chart
+3. Record the returned `aw_*` IDs for each chart
 
 ## Phase 5: Close Previous Discussions
 
@@ -412,7 +412,7 @@ Create a new discussion with the comprehensive performance report.
 
 ### 📈 Activity Overview
 
-📎 **Chart: Activity Overview** — artifact `<tmp_artifact_ID_1>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+📎 **Chart: Activity Overview** — artifact `<aw_ID_1>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
 [Brief 2-3 sentence analysis of activity distribution across PRs, issues, and discussions]
 
@@ -421,13 +421,13 @@ Create a new discussion with the comprehensive performance report.
 
 #### 🎯 Resolution Metrics
 
-📎 **Chart: Resolution Metrics** — artifact `<tmp_artifact_ID_2>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+📎 **Chart: Resolution Metrics** — artifact `<aw_ID_2>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
 [Analysis of PR merge rates and issue resolution rates]
 
 #### ⚡ Velocity Metrics
 
-📎 **Chart: Velocity Metrics** — artifact `<tmp_artifact_ID_3>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+📎 **Chart: Velocity Metrics** — artifact `<aw_ID_3>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
 [Analysis of response times, contributor activity, and discussion engagement]
 

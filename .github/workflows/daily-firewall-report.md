@@ -106,11 +106,11 @@ Generate exactly **2 high-quality trend charts**:
 
 1. Stage both charts into the upload directory:
    ```bash
-   cp /tmp/gh-aw/python/charts/firewall_trends.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-   cp /tmp/gh-aw/python/charts/blocked_domains.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
+   cp /tmp/gh-aw/python/charts/firewall_trends.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/blocked_domains.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    ```
 2. Call the `upload_artifact` safe-output tool for each chart with `retention_days: 30`
-3. Record the returned `tmp_artifact_*` IDs
+3. Record the returned `aw_*` IDs
 
 **Phase 5: Embed Charts in Discussion**
 
@@ -121,13 +121,13 @@ Include the charts in your firewall report with this structure:
 
 ### Request Patterns
 
-📎 **Chart: Firewall Request Trends** — artifact `<tmp_artifact_ID_1>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+📎 **Chart: Firewall Request Trends** — artifact `<aw_ID_1>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
 [Brief 2-3 sentence analysis of firewall activity trends, noting increases in blocked traffic or changes in patterns]
 
 ### Top Blocked Domains
 
-📎 **Chart: Blocked Domains Frequency** — artifact `<tmp_artifact_ID_2>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+📎 **Chart: Blocked Domains Frequency** — artifact `<aw_ID_2>` available in the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
 [Brief 2-3 sentence analysis of frequently blocked domains, identifying potential security concerns or overly restrictive rules]
 ```

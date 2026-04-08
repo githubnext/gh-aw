@@ -318,11 +318,11 @@ ls -lh /tmp/gh-aw/mcp-logs/playwright/
 
 1. Stage each screenshot file to the artifact upload directory:
    ```bash
-   mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts"
-   cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
+   mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
+   cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
    ```
 2. Call the `upload_artifact` safe-output tool for each file with `retention_days: 30`
-3. Record the returned `tmp_artifact_*` ID for each screenshot to include in the PR description
+3. Record the returned `aw_*` ID for each screenshot to include in the PR description
 
 #### Report Blocked Domains
 
@@ -346,7 +346,7 @@ After improving ONE file:
 1. Verify your changes preserve all essential information
 2. Update cache memory with the cleaned file
 3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
-4. Stage and upload the screenshots as artifacts (see "Upload Screenshots" section above) and collect the `tmp_artifact_*` IDs
+4. Stage and upload the screenshots as artifacts (see "Upload Screenshots" section above) and collect the `aw_*` IDs
 5. Create a pull request with your improvements
    - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
    - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
@@ -355,7 +355,7 @@ After improving ONE file:
    - What types of bloat you removed
    - Estimated word count or line reduction
    - Summary of changes made
-   - **Screenshots**: List the `tmp_artifact_*` IDs and a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) where reviewers can download the before/after screenshots
+   - **Screenshots**: List the `aw_*` IDs and a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) where reviewers can download the before/after screenshots
    - **Blocked Domains (if any)**: List any CSS/font/resource domains that were blocked during screenshot capture
 
 ## Example Improvements

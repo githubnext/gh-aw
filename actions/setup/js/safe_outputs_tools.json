@@ -851,13 +851,13 @@
   },
   {
     "name": "upload_artifact",
-    "description": "Upload files as a run-scoped GitHub Actions artifact. The model must first copy files to $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ then request upload using this tool. Returns a temporary artifact ID that can be resolved to a download URL by an authorised step. Exactly one of path or filters must be present.",
+    "description": "Upload files as a run-scoped GitHub Actions artifact. The model must first copy files to /tmp/gh-aw/safeoutputs/upload-artifacts/ then request upload using this tool. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorised step. Exactly one of path or filters must be present.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "path": {
           "type": "string",
-          "description": "Path to the file or directory to upload, relative to $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ (e.g., \"report.json\" or \"dist/\"). Required unless filters is provided."
+          "description": "Path to the file or directory to upload, relative to /tmp/gh-aw/safeoutputs/upload-artifacts/ (e.g., \"report.json\" or \"dist/\"). Required unless filters is provided."
         },
         "filters": {
           "type": "object",
