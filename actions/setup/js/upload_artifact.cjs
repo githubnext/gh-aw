@@ -249,13 +249,14 @@ function clampRetention(requested, defaultDays, maxDays) {
 /**
  * Create or return the @actions/artifact DefaultArtifactClient.
  * global.__createArtifactClient can be set in tests to inject a mock client factory.
- * @returns {{ uploadArtifact: (name: string, files: string[], rootDir: string, opts: object) => Promise<{id?: number, size?: number}> }}
+ * Uses dynamic import() because @actions/artifact v2+ is an ES module.
+ * @returns {Promise<{ uploadArtifact: (name: string, files: string[], rootDir: string, opts: object) => Promise<{id?: number, size?: number}> }>}
  */
-function getArtifactClient() {
+async function getArtifactClient() {
   if (typeof global.__createArtifactClient === "function") {
     return global.__createArtifactClient();
   }
-  const { DefaultArtifactClient } = require("@actions/artifact");
+  const { DefaultArtifactClient } = await import("@actions/artifact");
   return new DefaultArtifactClient();
 }
 
@@ -363,7 +364,7 @@ async function main(config = {}) {
     if (!isStaged) {
       // Upload files directly via @actions/artifact REST API.
       const absoluteFiles = files.map(f => path.join(STAGING_DIR, f));
-      const client = getArtifactClient();
+      const client = await getArtifactClient();
       try {
         const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, { retentionDays });
         core.info(`Uploaded artifact "${artifactName}" (id=${uploadResult.id ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
