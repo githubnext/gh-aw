@@ -27,6 +27,9 @@ MCP_LOG_DIR=/tmp/gh-aw/mcp-logs
 
 mkdir -p "$TLS_DIR" "$MCP_LOG_DIR"
 
+# Remove any leftover container from a prior run (e.g., cancelled job on a self-hosted runner)
+docker rm -f awmg-cli-proxy 2>/dev/null || true
+
 echo "Starting CLI proxy container: $CONTAINER_IMAGE"
 
 # Build docker run command arguments

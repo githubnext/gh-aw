@@ -583,12 +583,18 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 // feature is enabled and the AWF sandbox is active. The token is needed by the
 // difc-proxy running on the host (started via start_cli_proxy.sh). AWF reads it
 // from the step env and the cli-proxy sidecar uses it for upstream API authentication.
-// The token is excluded from the agent container via --exclude-env GH_TOKEN.
+// The token is excluded from the agent container via --exclude-env GH_TOKEN, so only
+// inject it when the effective AWF version supports both cli-proxy flags and
+// --exclude-env.
 //
 // #nosec G101 -- This is NOT a hardcoded credential. It is a GitHub Actions expression
 // template that is resolved at runtime by the GitHub Actions runner.
 func addCliProxyGHTokenToEnv(env map[string]string, workflowData *WorkflowData) {
-	if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) && isFirewallEnabled(workflowData) {
+	firewallConfig := getFirewallConfig(workflowData)
+	if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) &&
+		isFirewallEnabled(workflowData) &&
+		awfSupportsCliProxy(firewallConfig) &&
+		awfSupportsExcludeEnv(firewallConfig) {
 		env["GH_TOKEN"] = "${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}"
 		awfHelpersLog.Print("Added GH_TOKEN to env for CLI proxy (excluded from agent container)")
 	}
