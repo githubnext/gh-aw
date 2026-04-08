@@ -649,13 +649,17 @@ func TestGenerateMaintenanceWorkflow_SetupCLISHAPinning(t *testing.T) {
 }
 
 func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
-	workflowDataList := []*WorkflowData{
-		{
-			Name: "test-workflow",
-			SafeOutputs: &SafeOutputsConfig{
-				CreateIssues: &CreateIssuesConfig{Expires: 24},
+	// makeList returns a fresh workflow data list for each sub-test to avoid
+	// shared-state issues between parallel or repeated sub-tests.
+	makeList := func() []*WorkflowData {
+		return []*WorkflowData{
+			{
+				Name: "test-workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{Expires: 24},
+				},
 			},
-		},
+		}
 	}
 
 	t.Run("custom string runs_on is used in all jobs", func(t *testing.T) {
@@ -663,7 +667,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 		cfg := &RepoConfig{
 			Maintenance: &MaintenanceConfig{RunsOn: "my-custom-runner"},
 		}
-		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
+		err := GenerateMaintenanceWorkflow(makeList(), tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -686,7 +690,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 		cfg := &RepoConfig{
 			Maintenance: &MaintenanceConfig{RunsOn: []string{"self-hosted", "linux"}},
 		}
-		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
+		err := GenerateMaintenanceWorkflow(makeList(), tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -708,7 +712,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			t.Fatalf("Failed to write pre-existing file: %v", err)
 		}
 		cfg := &RepoConfig{MaintenanceDisabled: true}
-		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
+		err := GenerateMaintenanceWorkflow(makeList(), tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -720,7 +724,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 	t.Run("maintenance disabled skips generation even with expires", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		cfg := &RepoConfig{MaintenanceDisabled: true}
-		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
+		err := GenerateMaintenanceWorkflow(makeList(), tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

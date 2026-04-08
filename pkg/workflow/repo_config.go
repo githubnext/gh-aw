@@ -2,7 +2,7 @@
 //
 // This file loads and validates .github/workflows/aw.json, which provides
 // repository-level settings for agentic workflows such as customising the
-// agentic-maintenance runner.
+// agentics-maintenance runner.
 //
 // Configuration reference:
 //
