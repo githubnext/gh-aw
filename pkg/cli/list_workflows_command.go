@@ -161,14 +161,7 @@ func RunListWorkflows(repo, path, pattern string, verbose bool, jsonOutput bool,
 			compiled := "N/A"
 
 			if _, err := os.Stat(lockFile); err == nil {
-				// Check if up to date
-				mdStat, _ := os.Stat(file)
-				lockStat, _ := os.Stat(lockFile)
-				if mdStat.ModTime().After(lockStat.ModTime()) {
-					compiled = "No"
-				} else {
-					compiled = "Yes"
-				}
+				compiled = isCompiledUpToDate(file, lockFile)
 			}
 
 			// Extract "on" field and labels from frontmatter
