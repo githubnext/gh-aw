@@ -10,7 +10,7 @@ import (
 )
 
 func TestGetExpiresIntegerToStringCodemod(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	assert.Equal(t, "expires-integer-to-string", codemod.ID)
 	assert.Equal(t, "Convert expires integer to day string", codemod.Name)
@@ -20,7 +20,7 @@ func TestGetExpiresIntegerToStringCodemod(t *testing.T) {
 }
 
 func TestExpiresIntegerCodemod_ConvertsCreateIssue(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -48,7 +48,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_ConvertsCreateDiscussion(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -76,7 +76,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_ConvertsCreatePullRequest(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -104,7 +104,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_AlreadyStringFormat_NoChange(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -132,7 +132,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_HourStringFormat_NoChange(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -160,7 +160,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_NoSafeOutputs_NoChange(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -185,7 +185,7 @@ permissions:
 }
 
 func TestExpiresIntegerCodemod_PreservesComment(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -213,7 +213,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_PreservesOtherFields(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -248,7 +248,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_MultipleOutputTypes(t *testing.T) {
-	codemod := getExpiresIntegerToStringCodemod()
+	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
 on: workflow_dispatch
@@ -334,7 +334,7 @@ func TestConvertExpiresLineToString_Integer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, changed := convertExpiresLineToString(tt.input)
+			result, changed := convertExpiresIntegerLineToDayString(tt.input)
 			assert.Equal(t, tt.changed, changed, "changed flag should match")
 			assert.Equal(t, tt.expected, result, "converted line should match")
 		})
