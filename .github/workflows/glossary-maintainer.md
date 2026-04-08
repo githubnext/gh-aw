@@ -46,6 +46,9 @@ tools:
 
 timeout-minutes: 20
 
+checkout:
+  fetch-depth: 0  # full history required so git log --since works across all commits
+
 steps:
   - name: Fetch recent changes
     run: |
