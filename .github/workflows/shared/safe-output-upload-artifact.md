@@ -2,10 +2,8 @@
 safe-outputs:
   upload-artifact:
     max-uploads: 3
-    default-retention-days: 7
-    max-retention-days: 30
-    allow:
-      skip-archive: true
+    retention-days: 30
+    skip-archive: true
 ---
 
 <!--
@@ -16,12 +14,12 @@ upload files as run-scoped GitHub Actions artifacts.
 
 ## How it works
 
-The agent stages files to `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/` and calls the
+The agent stages files to `/tmp/gh-aw/safeoutputs/upload-artifacts/` and calls the
 `upload_artifact` tool. The `safe_outputs` job picks up the staged files and uploads them
 directly via the `@actions/artifact` REST API (no `actions: write` permission needed —
 authentication uses `ACTIONS_RUNTIME_TOKEN` which is always available to the runner).
 
-The tool returns a temporary opaque artifact ID (`tmp_artifact_*`) that can be resolved to
+The tool returns a temporary opaque artifact ID (`aw_*`) that can be resolved to
 a download URL by an authorised downstream step.
 
 ## Usage
@@ -37,21 +35,20 @@ The agent must stage files before calling the tool:
 
 ```bash
 # Stage files to the upload-artifacts directory
-cp dist/report.json $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/report.json
+cp dist/report.json /tmp/gh-aw/safeoutputs/upload-artifacts/report.json
 ```
 
 Then call the tool:
 
 ```json
-{ "type": "upload_artifact", "path": "report.json", "retention_days": 7 }
+{ "type": "upload_artifact", "path": "report.json" }
 ```
 
 ## Configuration defaults
 
 - `max-uploads`: 3 uploads per run
-- `default-retention-days`: 7 days
-- `max-retention-days`: 30 days
-- `allow.skip-archive`: true (single-file uploads can skip zip archiving)
+- `retention-days`: 30 days (fixed; the agent cannot override this value)
+- `skip-archive`: true (single-file uploads skip zip archiving; fixed)
 
 Override any of these by defining `upload-artifact` directly in your workflow's
 `safe-outputs` section (the top-level definition takes precedence over the import).

@@ -437,6 +437,51 @@ func (c *ActionCache) deduplicateEntries() {
 	}
 }
 
+// PruneStaleGHAWEntries removes entries from the cache for the gh-aw-actions
+// repository whose version does not match the current compiler version.
+//
+// When the compiler is updated (e.g., from v0.67.1 to v0.67.3), previously
+// compiled workflows referenced setup@v0.67.1 but the new compiler pins to
+// setup@v0.67.3. Without pruning, both entries survive in actions-lock.json,
+// leaving a stale entry that is never referenced by any compiled lock file.
+//
+// Only prunes when the current version is a release version (starts with "v").
+// Dev builds, empty versions, and other non-release versions are skipped to
+// avoid accidentally removing valid entries during development.
+//
+// Parameters:
+//   - currentVersion: the compiler version that is currently in use (e.g., "v0.67.3")
+//   - actionsRepoPrefix: the org/repo prefix for gh-aw-actions (e.g., "github/gh-aw-actions")
+func (c *ActionCache) PruneStaleGHAWEntries(currentVersion string, actionsRepoPrefix string) {
+	if currentVersion == "" || actionsRepoPrefix == "" {
+		return
+	}
+	// Only prune for clean release versions (e.g., "v0.67.3"), not dev/dirty builds
+	if !strings.HasPrefix(currentVersion, "v") || strings.Contains(currentVersion, "-") {
+		return
+	}
+
+	var toDelete []string
+	for key, entry := range c.Entries {
+		if !strings.HasPrefix(entry.Repo, actionsRepoPrefix+"/") {
+			continue
+		}
+		if entry.Version != currentVersion {
+			actionCacheLog.Printf("Pruning stale gh-aw-actions entry: %s (version %s != current %s)", key, entry.Version, currentVersion)
+			toDelete = append(toDelete, key)
+		}
+	}
+
+	for _, key := range toDelete {
+		delete(c.Entries, key)
+	}
+
+	if len(toDelete) > 0 {
+		c.dirty = true
+		actionCacheLog.Printf("Pruned %d stale gh-aw-actions entries, %d entries remaining", len(toDelete), len(c.Entries))
+	}
+}
+
 // isMorePreciseVersion returns true if v1 is more precise than v2
 // For example: "v4.3.0" is more precise than "v4"
 func isMorePreciseVersion(v1, v2 string) bool {

@@ -26,7 +26,8 @@ network:
     - node
 
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    retention-days: 30
   create-discussion:
     category: "reports"
     max: 1

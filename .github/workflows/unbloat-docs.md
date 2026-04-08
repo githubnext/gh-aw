@@ -81,7 +81,9 @@ safe-outputs:
     fallback-as-issue: false
   add-comment:
     max: 1
-  upload-asset:
+  upload-artifact:
+    retention-days: 30
+    skip-archive: true
   messages:
     footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."
@@ -310,13 +312,17 @@ ls -lh /tmp/gh-aw/mcp-logs/playwright/
 **If no screenshot files are found:**
 - Report this in the PR description under an "Issues" section
 - Include the error message or reason why screenshots couldn't be captured
-- Do not proceed with upload-asset if no files exist
+- Do not proceed with upload-artifact if no files exist
 
 #### Upload Screenshots
 
-1. Use the `upload asset` tool from safe-outputs to upload each screenshot file
-2. The tool will return a URL for each uploaded screenshot
-3. Keep track of these URLs to include in the PR description
+1. Stage each screenshot file to the artifact upload directory:
+   ```bash
+   mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
+   cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   ```
+2. Call the `upload_artifact` safe-output tool for each file
+3. Record the returned `aw_*` ID for each screenshot to include in the PR description
 
 #### Report Blocked Domains
 
@@ -340,7 +346,7 @@ After improving ONE file:
 1. Verify your changes preserve all essential information
 2. Update cache memory with the cleaned file
 3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
-4. Upload the screenshots and collect the URLs
+4. Stage and upload the screenshots as artifacts (see "Upload Screenshots" section above) and collect the `aw_*` IDs
 5. Create a pull request with your improvements
    - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
    - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
@@ -349,7 +355,7 @@ After improving ONE file:
    - What types of bloat you removed
    - Estimated word count or line reduction
    - Summary of changes made
-   - **Screenshot URLs**: Links to the uploaded screenshots showing the modified documentation pages
+   - **Screenshots**: List the `aw_*` IDs and a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) where reviewers can download the before/after screenshots
    - **Blocked Domains (if any)**: List any CSS/font/resource domains that were blocked during screenshot capture
 
 ## Example Improvements

@@ -14,12 +14,6 @@ var publishArtifactsLog = logger.New("workflow:publish_artifacts")
 // defaultArtifactMaxUploads is the default maximum number of upload_artifact tool calls allowed per run.
 const defaultArtifactMaxUploads = 1
 
-// defaultArtifactRetentionDays is the default artifact retention period in days.
-const defaultArtifactRetentionDays = 7
-
-// defaultArtifactMaxRetentionDays is the default maximum retention cap in days.
-const defaultArtifactMaxRetentionDays = 30
-
 // defaultArtifactMaxSizeBytes is the default maximum total upload size (100 MB).
 const defaultArtifactMaxSizeBytes int64 = 104857600
 
@@ -41,27 +35,19 @@ type ArtifactFiltersConfig struct {
 // ArtifactDefaultsConfig holds default request settings applied when the model does not
 // specify a value explicitly.
 type ArtifactDefaultsConfig struct {
-	SkipArchive bool   `yaml:"skip-archive,omitempty"` // Default value for skip_archive
-	IfNoFiles   string `yaml:"if-no-files,omitempty"`  // Behaviour when no files match: "error" or "ignore"
-}
-
-// ArtifactAllowConfig holds policy settings for optional behaviours that must be explicitly
-// opted-in to by the workflow author.
-type ArtifactAllowConfig struct {
-	SkipArchive bool `yaml:"skip-archive,omitempty"` // Allow skip_archive: true in model requests
+	IfNoFiles string `yaml:"if-no-files,omitempty"` // Behaviour when no files match: "error" or "ignore"
 }
 
 // UploadArtifactConfig holds configuration for the upload-artifact safe output type.
 type UploadArtifactConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	MaxUploads           int                     `yaml:"max-uploads,omitempty"`            // Max upload_artifact tool calls allowed (default: 1)
-	DefaultRetentionDays int                     `yaml:"default-retention-days,omitempty"` // Default retention period (default: 7 days)
-	MaxRetentionDays     int                     `yaml:"max-retention-days,omitempty"`     // Maximum retention cap (default: 30 days)
-	MaxSizeBytes         int64                   `yaml:"max-size-bytes,omitempty"`         // Max total bytes per upload (default: 100 MB)
-	AllowedPaths         []string                `yaml:"allowed-paths,omitempty"`          // Glob patterns restricting which paths the model may upload
-	Filters              *ArtifactFiltersConfig  `yaml:"filters,omitempty"`                // Default include/exclude filters applied on top of allowed-paths
-	Defaults             *ArtifactDefaultsConfig `yaml:"defaults,omitempty"`               // Default values injected when the model omits a field
-	Allow                *ArtifactAllowConfig    `yaml:"allow,omitempty"`                  // Opt-in behaviours
+	MaxUploads           int                     `yaml:"max-uploads,omitempty"`    // Max upload_artifact tool calls allowed (default: 1)
+	RetentionDays        *string                 `yaml:"retention-days,omitempty"` // Fixed retention period in days (templatable int; agent cannot override)
+	SkipArchive          *string                 `yaml:"skip-archive,omitempty"`   // Fixed skip-archive flag (templatable bool; agent cannot override)
+	MaxSizeBytes         int64                   `yaml:"max-size-bytes,omitempty"` // Max total bytes per upload (default: 100 MB)
+	AllowedPaths         []string                `yaml:"allowed-paths,omitempty"`  // Glob patterns restricting which paths the model may upload
+	Filters              *ArtifactFiltersConfig  `yaml:"filters,omitempty"`        // Default include/exclude filters applied on top of allowed-paths
+	Defaults             *ArtifactDefaultsConfig `yaml:"defaults,omitempty"`       // Default values injected when the model omits a field
 }
 
 // parseUploadArtifactConfig parses the upload-artifact key from the safe-outputs map.
@@ -79,10 +65,8 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 
 	publishArtifactsLog.Print("Parsing upload-artifact configuration")
 	config := &UploadArtifactConfig{
-		MaxUploads:           defaultArtifactMaxUploads,
-		DefaultRetentionDays: defaultArtifactRetentionDays,
-		MaxRetentionDays:     defaultArtifactMaxRetentionDays,
-		MaxSizeBytes:         defaultArtifactMaxSizeBytes,
+		MaxUploads:   defaultArtifactMaxUploads,
+		MaxSizeBytes: defaultArtifactMaxSizeBytes,
 	}
 
 	configMap, ok := configData.(map[string]any)
@@ -99,17 +83,23 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 		}
 	}
 
-	// Parse default-retention-days.
-	if retDays, exists := configMap["default-retention-days"]; exists {
-		if v, ok := typeutil.ParseIntValue(retDays); ok && v > 0 {
-			config.DefaultRetentionDays = v
+	// Parse retention-days (templatable int).
+	if err := preprocessIntFieldAsString(configMap, "retention-days", publishArtifactsLog); err != nil {
+		publishArtifactsLog.Printf("Warning: %v", err)
+	}
+	if retDays, exists := configMap["retention-days"]; exists {
+		if s, ok := retDays.(string); ok && s != "" {
+			config.RetentionDays = &s
 		}
 	}
 
-	// Parse max-retention-days.
-	if maxRetDays, exists := configMap["max-retention-days"]; exists {
-		if v, ok := typeutil.ParseIntValue(maxRetDays); ok && v > 0 {
-			config.MaxRetentionDays = v
+	// Parse skip-archive (templatable bool).
+	if err := preprocessBoolFieldAsString(configMap, "skip-archive", publishArtifactsLog); err != nil {
+		publishArtifactsLog.Printf("Warning: %v", err)
+	}
+	if skipArchive, exists := configMap["skip-archive"]; exists {
+		if s, ok := skipArchive.(string); ok && s != "" {
+			config.SkipArchive = &s
 		}
 	}
 
@@ -155,36 +145,24 @@ func (c *Compiler) parseUploadArtifactConfig(outputMap map[string]any) *UploadAr
 		}
 	}
 
-	// Parse defaults.
+	// Parse defaults (if-no-files only).
 	if defaultsData, exists := configMap["defaults"]; exists {
 		if defaultsMap, ok := defaultsData.(map[string]any); ok {
 			defaults := &ArtifactDefaultsConfig{}
-			if skipArchive, ok := defaultsMap["skip-archive"].(bool); ok {
-				defaults.SkipArchive = skipArchive
-			}
 			if ifNoFiles, ok := defaultsMap["if-no-files"].(string); ok && ifNoFiles != "" {
 				defaults.IfNoFiles = ifNoFiles
 			}
-			config.Defaults = defaults
-		}
-	}
-
-	// Parse allow.
-	if allowData, exists := configMap["allow"]; exists {
-		if allowMap, ok := allowData.(map[string]any); ok {
-			allow := &ArtifactAllowConfig{}
-			if skipArchive, ok := allowMap["skip-archive"].(bool); ok {
-				allow.SkipArchive = skipArchive
+			if defaults.IfNoFiles != "" {
+				config.Defaults = defaults
 			}
-			config.Allow = allow
 		}
 	}
 
 	// Parse common base fields (max, github-token, staged).
 	c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
 
-	publishArtifactsLog.Printf("Parsed upload-artifact config: max_uploads=%d, default_retention=%d, max_retention=%d, max_size_bytes=%d",
-		config.MaxUploads, config.DefaultRetentionDays, config.MaxRetentionDays, config.MaxSizeBytes)
+	publishArtifactsLog.Printf("Parsed upload-artifact config: max_uploads=%d, retention_days=%v, skip_archive=%v, max_size_bytes=%d",
+		config.MaxUploads, config.RetentionDays, config.SkipArchive, config.MaxSizeBytes)
 	return config
 }
 

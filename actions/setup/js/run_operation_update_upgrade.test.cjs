@@ -171,12 +171,12 @@ describe("run_operation_update_upgrade", () => {
   });
 
   describe("main - no changes after command", () => {
-    it("finishes without creating PR when no files changed", async () => {
+    it("finishes without creating PR when no known files changed", async () => {
       process.env.GH_AW_OPERATION = "update";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
       process.env.GH_TOKEN = "test-token";
 
-      // git status shows no changes
+      // git diff --cached --name-only shows no staged changes
       mockExec.getExecOutput = vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
@@ -184,42 +184,40 @@ describe("run_operation_update_upgrade", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
+      // git add was called for known files
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
     });
 
-    it("finishes without PR when only workflow yml files changed", async () => {
+    it("does not stage workflow yml files for update operation", async () => {
       process.env.GH_AW_OPERATION = "update";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
       process.env.GH_TOKEN = "test-token";
 
-      mockExec.getExecOutput = vi.fn().mockResolvedValueOnce({
-        stdout: " M .github/workflows/agentics-maintenance.yml\n",
-        stderr: "",
-        exitCode: 0,
-      });
+      // git diff --cached shows nothing staged (workflow files were not in allowlist)
+      mockExec.getExecOutput = vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No non-workflow files changed"));
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["add"]));
+      // Workflow yml files must never be staged - they are not in the update allowlist
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/my-workflow.md"]);
     });
 
-    it("finishes without PR when only workflow md files changed", async () => {
-      process.env.GH_AW_OPERATION = "update";
+    it("does not stage workflow md files for upgrade operation", async () => {
+      process.env.GH_AW_OPERATION = "upgrade";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
       process.env.GH_TOKEN = "test-token";
 
-      mockExec.getExecOutput = vi.fn().mockResolvedValueOnce({
-        stdout: " M .github/workflows/my-workflow.md\n",
-        stderr: "",
-        exitCode: 0,
-      });
+      // git diff --cached shows nothing staged
+      mockExec.getExecOutput = vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 });
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No non-workflow files changed"));
-      expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["add"]));
+      // Workflow files must never be staged
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/my-workflow.md"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
     });
   });
 
@@ -230,12 +228,6 @@ describe("run_operation_update_upgrade", () => {
       process.env.GH_TOKEN = "test-token";
 
       const getExecOutputMock = vi.fn();
-      // git status - only non-workflow file changed
-      getExecOutputMock.mockResolvedValueOnce({
-        stdout: " M .github/aw/actions-lock.json\n",
-        stderr: "",
-        exitCode: 0,
-      });
       // git diff --cached --name-only
       getExecOutputMock.mockResolvedValueOnce({
         stdout: ".github/aw/actions-lock.json\n",
@@ -255,10 +247,10 @@ describe("run_operation_update_upgrade", () => {
 
       // Verify gh aw update was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "update"]);
+      // Verify only known update files were staged
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
       // Verify branch was created
       expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["checkout", "-b", expect.stringContaining("aw/update-")]));
-      // Verify file was staged
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
       // Verify commit was made
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: update agentic workflows"]);
       // Verify PR title
@@ -266,19 +258,13 @@ describe("run_operation_update_upgrade", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created PR"));
     });
 
-    it("creates PR with only non-workflow files when both workflow and non-workflow files changed", async () => {
+    it("stages only known update files, never workflow files", async () => {
       process.env.GH_AW_OPERATION = "update";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
       process.env.GH_TOKEN = "test-token";
 
-      // Both a workflow .md and a non-workflow file changed
       const getExecOutputMock = vi.fn();
-      getExecOutputMock.mockResolvedValueOnce({
-        stdout: " M .github/workflows/my-workflow.md\n M .github/aw/actions-lock.json\n",
-        stderr: "",
-        exitCode: 0,
-      });
-      // git diff --cached --name-only (only non-workflow file staged)
+      // git diff --cached --name-only (only known file staged)
       getExecOutputMock.mockResolvedValueOnce({
         stdout: ".github/aw/actions-lock.json\n",
         stderr: "",
@@ -295,9 +281,10 @@ describe("run_operation_update_upgrade", () => {
       const { main } = await import("./run_operation_update_upgrade.cjs");
       await main();
 
-      // Workflow .md must NOT be staged
+      // Workflow files must NEVER be staged for update
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/my-workflow.md"]);
-      // Non-workflow file should be staged
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
+      // Only known update file should be staged
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
     });
 
@@ -307,12 +294,6 @@ describe("run_operation_update_upgrade", () => {
       process.env.GH_TOKEN = "test-token";
 
       const getExecOutputMock = vi.fn();
-      // git status
-      getExecOutputMock.mockResolvedValueOnce({
-        stdout: " M .github/agents/agentic-workflows.agent.md\n M .github/workflows/agentics-maintenance.yml\n",
-        stderr: "",
-        exitCode: 0,
-      });
       // git diff --cached --name-only
       getExecOutputMock.mockResolvedValueOnce({
         stdout: ".github/agents/agentic-workflows.agent.md\n",
@@ -332,6 +313,9 @@ describe("run_operation_update_upgrade", () => {
 
       // Verify gh aw upgrade was run
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["aw", "upgrade"]);
+      // Verify known upgrade files were staged (including agent file)
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/aw/actions-lock.json"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/agentic-workflows.agent.md"]);
       // Verify correct commit message
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["commit", "-m", "chore: upgrade agentic workflows"]);
       // Verify PR title is "[aw] Upgrade available"
@@ -340,16 +324,40 @@ describe("run_operation_update_upgrade", () => {
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["add", "--", ".github/workflows/agentics-maintenance.yml"]);
     });
 
+    it("stages old agent files for upgrade operation (for deletion tracking)", async () => {
+      process.env.GH_AW_OPERATION = "upgrade";
+      process.env.GH_AW_CMD_PREFIX = "gh aw";
+      process.env.GH_TOKEN = "test-token";
+
+      const getExecOutputMock = vi.fn();
+      // git diff --cached shows an old agent file was deleted
+      getExecOutputMock.mockResolvedValueOnce({
+        stdout: ".github/agents/create-agentic-workflow.agent.md\n",
+        stderr: "",
+        exitCode: 0,
+      });
+      // gh pr create
+      getExecOutputMock.mockResolvedValueOnce({
+        stdout: "https://github.com/testowner/testrepo/pull/6\n",
+        stderr: "",
+        exitCode: 0,
+      });
+      mockExec.getExecOutput = getExecOutputMock;
+
+      const { main } = await import("./run_operation_update_upgrade.cjs");
+      await main();
+
+      // Old agent file deletion should be staged
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["add", "--", ".github/agents/create-agentic-workflow.agent.md"]);
+    });
+
     it("uses ./gh-aw as binary in dev mode", async () => {
       process.env.GH_AW_OPERATION = "update";
       process.env.GH_AW_CMD_PREFIX = "./gh-aw";
       process.env.GH_TOKEN = "test-token";
 
       const getExecOutputMock = vi.fn();
-      getExecOutputMock
-        .mockResolvedValueOnce({ stdout: " M .github/aw/actions-lock.json\n", stderr: "", exitCode: 0 })
-        .mockResolvedValueOnce({ stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 })
-        .mockResolvedValueOnce({ stdout: "https://github.com/testowner/testrepo/pull/3\n", stderr: "", exitCode: 0 });
+      getExecOutputMock.mockResolvedValueOnce({ stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 }).mockResolvedValueOnce({ stdout: "https://github.com/testowner/testrepo/pull/3\n", stderr: "", exitCode: 0 });
       mockExec.getExecOutput = getExecOutputMock;
 
       const { main } = await import("./run_operation_update_upgrade.cjs");
@@ -383,25 +391,19 @@ describe("run_operation_update_upgrade", () => {
       await expect(main()).rejects.toThrow("exit code 1");
     });
 
-    it("warns and continues when staging a file fails", async () => {
+    it("warns and continues when staging a known file fails", async () => {
       process.env.GH_AW_OPERATION = "update";
       process.env.GH_AW_CMD_PREFIX = "gh aw";
       process.env.GH_TOKEN = "test-token";
 
       const getExecOutputMock = vi.fn();
-      getExecOutputMock
-        .mockResolvedValueOnce({
-          stdout: " M .github/agents/agentic-workflows.agent.md\n?? .github/aw/actions-lock.json\n",
-          stderr: "",
-          exitCode: 0,
-        })
-        .mockResolvedValueOnce({ stdout: ".github/aw/actions-lock.json\n", stderr: "", exitCode: 0 })
-        .mockResolvedValueOnce({ stdout: "https://github.com/testowner/testrepo/pull/4\n", stderr: "", exitCode: 0 });
+      // git diff --cached --name-only - nothing was staged (git add failed)
+      getExecOutputMock.mockResolvedValueOnce({ stdout: "", stderr: "", exitCode: 0 });
       mockExec.getExecOutput = getExecOutputMock;
 
-      // git add fails for the first file, succeeds for others
+      // git add fails for the known update file
       mockExec.exec = vi.fn().mockImplementation(async (cmd, args) => {
-        if (cmd === "git" && args[0] === "add" && args[2] === ".github/agents/agentic-workflows.agent.md") {
+        if (cmd === "git" && args[0] === "add" && args[2] === ".github/aw/actions-lock.json") {
           throw new Error("git add failed");
         }
         return 0;
@@ -411,6 +413,8 @@ describe("run_operation_update_upgrade", () => {
       await main();
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to stage"));
+      // Nothing was staged, so no PR was created
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No changes detected"));
     });
   });
 });
