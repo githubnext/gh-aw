@@ -2967,11 +2967,11 @@ jobs:
           path: ${{ steps.process_safe_outputs.outputs.sarif_file }}
           if-no-files-found: error
           retention-days: 1
-      - name: Upload Safe Output Items
+      - name: Upload Safe Outputs Items
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: safe-output-items
+          name: safe-outputs-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
 
