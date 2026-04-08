@@ -25,7 +25,8 @@ tools:
     toolsets: [issues]
 
 safe-outputs:
-  edit-issue: true
+  update-issue:
+    body: true
   add-comment:
     max: 1
 

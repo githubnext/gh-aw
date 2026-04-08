@@ -45,6 +45,7 @@ safe-outputs:
 
 steps:
   - name: compute-page
+    id: compute-page
     run: |
       PAGE_SIZE=25
       # Use run number mod to cycle through pages; reset every 1000 runs
@@ -166,7 +167,8 @@ tools:
 safe-outputs:
   add-comment:
     max: 1
-  edit-issue: true
+  update-issue:
+    body: true
 
 steps:
   - name: collect-results
