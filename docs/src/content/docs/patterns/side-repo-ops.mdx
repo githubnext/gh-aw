@@ -328,6 +328,89 @@ safe-outputs:
 
 This prevents GitHub from auto-linking issue numbers and creating timeline entries. See [Text Sanitization](/gh-aw/reference/safe-outputs/#text-sanitization-allowed-domains-allowed-github-references) for details.
 
+## Slash Commands
+
+GitHub Actions only delivers webhook events to workflows in the repository where the event occurred. Since SideRepoOps workflows live in a side repository, events from the main repository never reach them — **`slash_command:` triggers cannot be used directly in a SideRepoOps workflow**.
+
+### Recommended Bridge Pattern
+
+The recommended approach is to keep a thin relay workflow in the **main repository** that listens for the slash command and forwards it to the side repository via `workflow_dispatch`. The side repository workflow does the actual work.
+
+**Step 1 — Relay workflow in the main repository:**
+
+```aw wrap
+---
+on: /review
+
+permissions:
+  contents: read
+
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_SIDE_REPO_TOKEN }}
+  workflow-dispatch:
+    target-repo: "my-org/automation-repo"
+    workflow: "review.md"
+    inputs:
+      source_repo: "my-org/main-repo"
+      pr_number: "${{ github.event.issue.number }}"
+      comment_body: "${{ steps.sanitized.outputs.text }}"
+---
+
+# Review Relay
+
+Forward this `/review` command to the automation repository for processing.
+```
+
+**Step 2 — Review workflow in the side repository:**
+
+```aw wrap
+---
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "Repository where the command was triggered"
+        required: true
+      pr_number:
+        description: "Pull request number"
+        required: true
+      comment_body:
+        description: "Sanitized comment text"
+        required: true
+
+engine: copilot
+
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
+  add-comment:
+    target-repo: "${{ inputs.source_repo }}"
+
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, pull_requests]
+---
+
+# Code Review
+
+Review pull request #{{inputs.pr_number}} in {{inputs.source_repo}}.
+
+Context from the triggering comment: "{{inputs.comment_body}}"
+
+Analyze the code changes and post a detailed review comment on the pull request.
+```
+
+### Trade-offs
+
+| Approach | Isolation | Simplicity | Event Access |
+|----------|-----------|------------|--------------|
+| **Slash command directly in main repo** | Low — workflow lives in main repo | High — no relay needed | Full — all events available |
+| **Bridge pattern (relay + side repo)** | High — AI logic stays in side repo | Medium — two workflows to maintain | Good — relay passes relevant context |
+| **Scheduled polling instead** | High — no main repo changes needed | High — single workflow in side repo | Limited — no real-time response |
+
+> [!TIP]
+> If you only need a few slash commands, keep them in the main repository and use SideRepoOps only for scheduled and `workflow_dispatch` workflows. This gives you the best of both worlds with minimal complexity.
+
 ## Advanced Topics
 
 ### Multi-Target SideRepoOps
@@ -383,6 +466,6 @@ This creates a feedback loop where the side repository tracks automation effecti
 
 ## Related
 
-**Patterns**: [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) · [Orchestration](/gh-aw/patterns/orchestration/) · [IssueOps](/gh-aw/patterns/issue-ops/)
+**Patterns**: [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) · [ChatOps](/gh-aw/patterns/chat-ops/) · [Orchestration](/gh-aw/patterns/orchestration/) · [IssueOps](/gh-aw/patterns/issue-ops/)
 
-**Reference**: [Cross-Repository Operations](/gh-aw/reference/cross-repository/) · [Safe Outputs](/gh-aw/reference/safe-outputs/) · [GitHub Tools](/gh-aw/reference/github-tools/) · [Authentication](/gh-aw/reference/auth/) · [Reusing Workflows](/gh-aw/guides/packaging-imports/)
+**Reference**: [Command Triggers](/gh-aw/reference/command-triggers/) · [Cross-Repository Operations](/gh-aw/reference/cross-repository/) · [Safe Outputs](/gh-aw/reference/safe-outputs/) · [GitHub Tools](/gh-aw/reference/github-tools/) · [Authentication](/gh-aw/reference/auth/) · [Reusing Workflows](/gh-aw/guides/packaging-imports/)
