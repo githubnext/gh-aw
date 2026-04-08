@@ -88,20 +88,36 @@ const savedContent = localStorage.getItem(STORAGE_KEY);
 const initialContent = savedContent || DEFAULT_CONTENT;
 editorTextarea.value = initialContent;
 
-// Tab inserts 2 spaces; Mod-Enter triggers compile
+// Tab inserts 2 spaces (preserving undo); Shift-Tab dedents; Mod-Enter triggers compile
 editorTextarea.addEventListener('keydown', (e) => {
-  if (e.key === 'Tab') {
+  if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    // execCommand preserves the browser undo stack
+    document.execCommand('insertText', false, '  ');
+  }
+  if (e.key === 'Tab' && e.shiftKey) {
     e.preventDefault();
     const start = editorTextarea.selectionStart;
-    const end = editorTextarea.selectionEnd;
     const val = editorTextarea.value;
-    editorTextarea.value = val.substring(0, start) + '  ' + val.substring(end);
-    editorTextarea.selectionStart = editorTextarea.selectionEnd = start + 2;
-    editorTextarea.dispatchEvent(new Event('input'));
+    // Find the start of the current line
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = val.indexOf('\n', start);
+    const line = val.substring(lineStart, lineEnd === -1 ? val.length : lineEnd);
+    const spaces = line.match(/^ {1,2}/);
+    if (spaces) {
+      // Select the leading spaces and delete them via execCommand to preserve undo
+      editorTextarea.selectionStart = lineStart;
+      editorTextarea.selectionEnd = lineStart + spaces[0].length;
+      document.execCommand('delete', false);
+    }
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
     e.preventDefault();
-    doCompile();
+    if (isReady) {
+      doCompile();
+    } else {
+      pendingCompile = true;
+    }
   }
 });
 
@@ -117,7 +133,7 @@ editorTextarea.addEventListener('input', () => {
 });
 
 // Attach hover tooltips to the textarea
-attachHoverTooltips(editorTextarea, $('panelEditor'));
+attachHoverTooltips(editorTextarea);
 
 // If restoring saved content, clear the dropdown since it may not match any sample
 if (savedContent) {

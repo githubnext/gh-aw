@@ -247,14 +247,14 @@ html, body {
     <!-- Editor Panel -->
     <div class="d-flex flex-column" style="flex: 1 1 50%; min-width: 0; min-height: 0;" id="panelEditor">
       <div class="d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
-        <span class="d-flex flex-items-center gap-1">
+        <span class="d-flex flex-items-center gap-1" id="editorTextareaLabel">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.6;">
             <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/>
           </svg>
           Workflow (.md)
         </span>
       </div>
-      <textarea class="flex-1" style="min-height: 0;" id="editorTextarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+      <textarea class="flex-1" style="min-height: 0;" id="editorTextarea" aria-labelledby="editorTextareaLabel" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
     </div>
 
     <div class="divider" id="divider"></div>

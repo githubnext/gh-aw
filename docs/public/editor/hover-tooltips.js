@@ -236,9 +236,8 @@ function measureCharWidth(textarea) {
   if (_charWidth !== null) return _charWidth;
 
   const span = document.createElement('span');
-  span.style.cssText =
-    'position:absolute;visibility:hidden;white-space:pre;' +
-    window.getComputedStyle(textarea).font;
+  span.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;';
+  span.style.font = window.getComputedStyle(textarea).font;
   span.textContent = 'M';
   document.body.appendChild(span);
   _charWidth = span.getBoundingClientRect().width;
@@ -253,15 +252,16 @@ function measureCharWidth(textarea) {
 /**
  * Attach hover-tooltip behaviour to a <textarea>. Shows schema
  * documentation when the mouse hovers over a YAML frontmatter key.
+ * The tooltip is appended to document.body to avoid fixed-positioning
+ * issues with transformed parent elements.
  *
  * @param {HTMLTextAreaElement} textarea - The input textarea
- * @param {HTMLElement} container - Parent element for the tooltip div
  */
-export function attachHoverTooltips(textarea, container) {
+export function attachHoverTooltips(textarea) {
   const tooltip = document.createElement('div');
   tooltip.className = 'hover-tooltip';
   tooltip.style.display = 'none';
-  container.appendChild(tooltip);
+  document.body.appendChild(tooltip);
 
   // Cache line splits; invalidated on content change
   let cachedLines = null;
@@ -272,12 +272,26 @@ export function attachHoverTooltips(textarea, container) {
     return cachedLines;
   }
 
+  // Cache computed style values; invalidated on resize
+  let cachedStyle = null;
+  function getStyleMetrics() {
+    if (!cachedStyle) {
+      const cs = window.getComputedStyle(textarea);
+      cachedStyle = {
+        lineHeight: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.6,
+        paddingTop: parseFloat(cs.paddingTop) || 0,
+        paddingLeft: parseFloat(cs.paddingLeft) || 0,
+      };
+    }
+    return cachedStyle;
+  }
+  window.addEventListener('resize', () => { cachedStyle = null; _charWidth = null; });
+
   let hideTimer = null;
 
   function showTooltip(dom, x, y) {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    tooltip.innerHTML = '';
-    tooltip.appendChild(dom);
+    tooltip.replaceChildren(dom);
     tooltip.style.display = 'block';
 
     // Position near cursor, clamped to viewport
@@ -285,32 +299,42 @@ export function attachHoverTooltips(textarea, container) {
     let left = x + pad;
     let top = y - tooltip.offsetHeight - pad;
     if (top < 0) top = y + pad;
+    const minLeft = pad;
     const maxLeft = window.innerWidth - tooltip.offsetWidth - pad;
-    if (left > maxLeft) left = maxLeft;
+    left = Math.max(minLeft, Math.min(left, Math.max(minLeft, maxLeft)));
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
   }
 
   function hideTooltip() {
+    if (hideTimer) clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       tooltip.style.display = 'none';
-      tooltip.innerHTML = '';
+      tooltip.replaceChildren();
+      hideTimer = null;
     }, 120);
   }
 
+  let rafPending = false;
+
   textarea.addEventListener('mousemove', (e) => {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      handleMouseMove(e);
+    });
+  });
+
+  function handleMouseMove(e) {
     if (!schemaData) { hideTooltip(); return; }
 
     const lines = getLines();
     const region = findFrontmatterRegion(lines);
     if (!region) { hideTooltip(); return; }
 
-    // Compute line height from the textarea's computed style
-    const cs = window.getComputedStyle(textarea);
-    const lineHeight = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.6;
+    const { lineHeight, paddingTop, paddingLeft } = getStyleMetrics();
     const charWidth = measureCharWidth(textarea);
-    const paddingTop = parseFloat(cs.paddingTop) || 0;
-    const paddingLeft = parseFloat(cs.paddingLeft) || 0;
 
     const rect = textarea.getBoundingClientRect();
     const offsetY = e.clientY - rect.top - paddingTop + textarea.scrollTop;
@@ -335,7 +359,7 @@ export function attachHoverTooltips(textarea, container) {
     if (!schemaEntry) { hideTooltip(); return; }
 
     showTooltip(buildTooltipDOM(keyInfo.key, schemaEntry), e.clientX, e.clientY);
-  });
+  }
 
   textarea.addEventListener('mouseleave', hideTooltip);
 }
