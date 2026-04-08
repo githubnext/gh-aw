@@ -451,9 +451,10 @@ func TestProcessAndMergePostSteps_WithImportedPostSteps(t *testing.T) {
 		},
 	}
 
-	importedPostStepsYAML, _ := yaml.Marshal([]any{
+	importedPostStepsYAML, err := yaml.Marshal([]any{
 		map[string]any{"name": "Imported post step", "run": "echo 'imported'"},
 	})
+	require.NoError(t, err, "yaml.Marshal should not fail for well-formed post-steps")
 	importsResult := &parser.ImportsResult{
 		MergedPostSteps: string(importedPostStepsYAML),
 	}
@@ -510,9 +511,10 @@ func TestProcessAndMergePreSteps_WithImportedPreSteps(t *testing.T) {
 		},
 	}
 
-	importedPreStepsYAML, _ := yaml.Marshal([]any{
+	importedPreStepsYAML, err := yaml.Marshal([]any{
 		map[string]any{"name": "Imported pre step", "run": "echo 'imported'"},
 	})
+	require.NoError(t, err, "yaml.Marshal should not fail for well-formed pre-steps")
 	importsResult := &parser.ImportsResult{
 		MergedPreSteps: string(importedPreStepsYAML),
 	}

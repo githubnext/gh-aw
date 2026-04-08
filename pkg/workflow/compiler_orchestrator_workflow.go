@@ -509,7 +509,9 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 	// Parse imported pre-steps if present (these go before the main workflow's pre-steps)
 	var importedPreSteps []any
 	if importsResult.MergedPreSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err == nil {
+		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err != nil {
+			orchestratorWorkflowLog.Printf("Failed to unmarshal imported pre-steps: %v", err)
+		} else {
 			typedImported, err := SliceToSteps(importedPreSteps)
 			if err != nil {
 				orchestratorWorkflowLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
@@ -564,7 +566,9 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 	// Parse imported post-steps if present (these go after the main workflow's post-steps)
 	var importedPostSteps []any
 	if importsResult.MergedPostSteps != "" {
-		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err == nil {
+		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err != nil {
+			orchestratorWorkflowLog.Printf("Failed to unmarshal imported post-steps: %v", err)
+		} else {
 			typedImported, err := SliceToSteps(importedPostSteps)
 			if err != nil {
 				orchestratorWorkflowLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
