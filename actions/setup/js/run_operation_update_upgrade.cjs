@@ -5,6 +5,33 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
+ * Files that the 'update' command can modify outside of .github/workflows/.
+ * Only these files will be staged and included in the update PR.
+ */
+const KNOWN_FILES_UPDATE = [".github/aw/actions-lock.json"];
+
+/**
+ * Files that the 'upgrade' command can modify outside of .github/workflows/.
+ * Only these files will be staged and included in the upgrade PR.
+ */
+const KNOWN_FILES_UPGRADE = [
+  ".github/aw/actions-lock.json",
+  ".github/agents/agentic-workflows.agent.md",
+  // Old agent files that may be deleted by deleteOldAgentFiles:
+  ".github/agents/create-agentic-workflow.agent.md",
+  ".github/agents/debug-agentic-workflow.agent.md",
+  ".github/agents/create-shared-agentic-workflow.agent.md",
+  ".github/agents/create-shared-agentic-workflow.md",
+  ".github/agents/create-agentic-workflow.md",
+  ".github/agents/setup-agentic-workflows.md",
+  ".github/agents/update-agentic-workflows.md",
+  ".github/agents/upgrade-agentic-workflows.md",
+  ".github/aw/upgrade-agentic-workflow.md",
+  // Deprecated schema file that may be deleted by fix command:
+  ".github/aw/schemas/agentic-workflow.json",
+];
+
+/**
  * Format a UTC Date as YYYY-MM-DD-HH-MM-SS for use in branch names.
  * Colons are not allowed in artifact filenames or branch names on some systems.
  *
@@ -76,43 +103,32 @@ async function main() {
     throw new Error(`${ERR_SYSTEM}: Command '${fullCmd}' failed with exit code ${exitCode}`);
   }
 
-  // Check for changed files
-  const { stdout: statusOutput } = await exec.getExecOutput("git", ["status", "--porcelain"]);
+  // Stage only files known to be modified by the update/upgrade command.
+  // Using an allowlist (rather than git-status discovery) prevents temporary
+  // files created during the operation from being accidentally committed.
+  const knownFiles = isUpgrade ? KNOWN_FILES_UPGRADE : KNOWN_FILES_UPDATE;
+  for (const file of knownFiles) {
+    try {
+      await exec.exec("git", ["add", "--", file]);
+    } catch (error) {
+      core.warning(`Failed to stage '${file}': ${getErrorMessage(error)}`);
+    }
+  }
 
-  // Parse changed files from git status --porcelain format: "XY path"
-  // X and Y are 1-char each at positions 0-1, position 2 is a space,
-  // filename starts at position 3. Do NOT trim the full line before slicing.
-  const changedFiles = statusOutput
-    .split("\n")
-    .filter(line => line.length > 2)
-    .map(line => {
-      // "XY path" or "XY old -> new" for renames
-      const path = line.slice(3).trim();
-      const parts = path.split(" -> ");
-      return path.includes(" -> ") ? (parts[parts.length - 1] ?? path) : path;
-    })
-    .filter(file => file.length > 0);
-
-  if (changedFiles.length === 0) {
+  // Check what was actually staged
+  const { stdout: stagedOutput } = await exec.getExecOutput("git", ["diff", "--cached", "--name-only"]);
+  if (!stagedOutput.trim()) {
     core.info("✓ No changes detected - nothing to create a PR for");
     return;
   }
 
-  // Exclude ALL .github/workflows/ files: the GitHub Actions actor is not
-  // permitted to commit any changes to workflow files (neither compiled .yml
-  // files nor source .md files).  Including them would cause PR checks to fail.
-  const filesToStage = changedFiles.filter(file => {
-    const lower = file.toLowerCase();
-    return !lower.startsWith(".github/workflows/");
-  });
+  const stagedFiles = stagedOutput
+    .split("\n")
+    .map(f => f.trim())
+    .filter(Boolean);
 
-  if (filesToStage.length === 0) {
-    core.info("✓ No non-workflow files changed - nothing to create a PR for");
-    return;
-  }
-
-  core.info(`Found ${filesToStage.length} file(s) to include in PR:`);
-  for (const f of filesToStage) {
+  core.info(`Found ${stagedFiles.length} file(s) to include in PR:`);
+  for (const f of stagedFiles) {
     core.info(`  ${f}`);
   }
 
@@ -124,27 +140,6 @@ async function main() {
   const branchName = `aw/${operation}-${formatTimestamp(new Date())}`;
   core.info(`Creating branch: ${branchName}`);
   await exec.exec("git", ["checkout", "-b", branchName]);
-
-  // Stage non-workflow-yml files only
-  for (const file of filesToStage) {
-    try {
-      await exec.exec("git", ["add", "--", file]);
-    } catch (error) {
-      core.warning(`Failed to stage '${file}': ${getErrorMessage(error)}`);
-    }
-  }
-
-  // Verify staged content
-  const { stdout: stagedOutput } = await exec.getExecOutput("git", ["diff", "--cached", "--name-only"]);
-  if (!stagedOutput.trim()) {
-    core.info("✓ No staged changes - nothing to commit");
-    return;
-  }
-
-  const stagedFiles = stagedOutput
-    .split("\n")
-    .map(f => f.trim())
-    .filter(Boolean);
 
   // Commit the changes
   const commitMessage = isUpgrade ? "chore: upgrade agentic workflows" : "chore: update agentic workflows";
