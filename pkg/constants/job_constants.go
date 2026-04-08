@@ -97,6 +97,11 @@ const TokenUsageFilename = "agent_usage.json"
 // captured during github.rest API calls, enabling post-run analysis of rate-limit consumption.
 const GithubRateLimitsFilename = "github_rate_limits.jsonl"
 
+// OtelJsonlFilename is the filename of the OTLP span mirror written to /tmp/gh-aw/
+// by send_otlp_span.cjs. Each line is a full OTLP/HTTP JSON traces payload.
+// Included in the agent artifact so spans are available without a live collector.
+const OtelJsonlFilename = "otel.jsonl"
+
 // ArtifactPrefixOutputName is the job output name that exposes the artifact name prefix.
 // In workflow_call context, the prefix is a stable hash derived from the workflow inputs,
 // ensuring artifact names are unique when the same workflow is called multiple times in
