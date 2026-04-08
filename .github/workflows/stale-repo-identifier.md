@@ -43,9 +43,7 @@ safe-outputs:
     labels: [stale-repository, automated-analysis, cookie]
     max: 10
     group: true
-  upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+  upload-asset:
   messages:
     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."

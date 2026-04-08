@@ -27,9 +27,7 @@ safe-outputs:
     category: "reports"
     max: 1
     close-older-discussions: true
-  upload-artifact:
-    default-retention-days: 30
-    max-retention-days: 30
+  upload-asset:
 timeout-minutes: 60
 strict: true
 network:
