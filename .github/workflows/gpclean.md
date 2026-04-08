@@ -54,7 +54,7 @@ steps:
       gh api \
         -H "Accept: application/vnd.github+json" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
-        "/repos/${{ github.repository }}/dependency-graph/sbom" \
+        "/repos/$GITHUB_REPOSITORY/dependency-graph/sbom" \
         > /tmp/sbom.json
       
       echo "✅ SBOM downloaded successfully to /tmp/sbom.json"
@@ -73,7 +73,7 @@ steps:
 Systematically detect Go dependencies that introduce non-MIT friendly (GPL-type) licenses through transitive dependencies, perform deep research on how they're used, and create actionable issues with removal/replacement plans.
 
 ## Current Context
-- **Repository**: ${{ github.repository }}
+- **Repository**: $GITHUB_REPOSITORY
 - **Go Module File**: `go.mod` in repository root
 - **SBOM Source**: GitHub Dependency Graph API (SPDX format)
 - **Cache Memory**: `/tmp/gh-aw/cache-memory/gpclean/` for round-robin module tracking

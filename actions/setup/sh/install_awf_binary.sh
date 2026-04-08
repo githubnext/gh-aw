@@ -110,6 +110,12 @@ install_bundle() {
   local bundle_name="awf-bundle.js"
   local bundle_url="${BASE_URL}/${bundle_name}"
 
+  # Capture the absolute path to node so the wrapper works correctly when
+  # invoked via sudo (where PATH may not include the setup-node install dir,
+  # e.g. ~/.nvm/versions/node/v24.x.x/bin).
+  local node_bin
+  node_bin=$(command -v node)
+
   echo "Node.js >= 20 detected ($(node --version)), using lightweight bundle..."
   echo "Downloading bundle from ${bundle_url@Q}..."
   if ! curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
@@ -127,10 +133,13 @@ install_bundle() {
   sudo mkdir -p "${AWF_LIB_DIR}"
   sudo cp "${TEMP_DIR}/${bundle_name}" "${AWF_LIB_DIR}/${bundle_name}"
 
-  # Create wrapper script
-  sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<'WRAPPER'
+  # Create wrapper script using the absolute path to node.
+  # Using an unquoted heredoc (<<WRAPPER) so that ${node_bin} is expanded
+  # at wrapper-creation time, while \$@ is left as the literal $@ for
+  # runtime argument forwarding.
+  sudo tee "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}" > /dev/null <<WRAPPER
 #!/bin/bash
-exec node /usr/local/lib/awf/awf-bundle.js "$@"
+exec ${node_bin} /usr/local/lib/awf/awf-bundle.js "\$@"
 WRAPPER
   sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 

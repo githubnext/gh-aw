@@ -1487,3 +1487,48 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 		}
 	})
 }
+
+func TestCopilotEngineDriverScript(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("GetDriverScriptName returns copilot_driver.cjs", func(t *testing.T) {
+		if engine.GetDriverScriptName() != "copilot_driver.cjs" {
+			t.Errorf("Expected 'copilot_driver.cjs', got '%s'", engine.GetDriverScriptName())
+		}
+	})
+
+	t.Run("Execution step uses driver in non-sandbox mode", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "copilot"},
+			Tools:        make(map[string]any),
+			SafeOutputs:  nil,
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// The driver should be used in the command
+		if !strings.Contains(stepContent, "copilot_driver.cjs") {
+			t.Errorf("Expected copilot_driver.cjs in execution step, got:\n%s", stepContent)
+		}
+
+		// Driver should appear before the copilot args
+		driverIdx := strings.Index(stepContent, "copilot_driver.cjs")
+		promptIdx := strings.Index(stepContent, "--prompt")
+		if driverIdx == -1 || promptIdx == -1 {
+			t.Fatal("Could not find both copilot_driver.cjs and --prompt in step")
+		}
+		if driverIdx > promptIdx {
+			t.Error("Expected copilot_driver.cjs to appear before --prompt")
+		}
+	})
+
+	t.Run("CopilotEngine implements DriverProvider interface", func(t *testing.T) {
+		var _ DriverProvider = engine
+	})
+}

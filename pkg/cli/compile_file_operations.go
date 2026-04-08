@@ -221,6 +221,7 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 	successCount := stats.Total - stats.Errors
 
 	if actionCache != nil {
+		pruneStaleActionCacheEntries(compiler, actionCache)
 		if err := actionCache.Save(); err != nil {
 			compileHelpersLog.Printf("Failed to save action cache: %v", err)
 			if verbose {

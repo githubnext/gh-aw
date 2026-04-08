@@ -383,7 +383,7 @@ steps:
       
       # Get the current release information
       # Use release ID to fetch release data
-      gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
+      gh api "/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
       echo "✓ Fetched current release information"
       
       # Get the previous release to determine the range
@@ -474,7 +474,7 @@ steps:
 
 # Release Highlights Generator
 
-Generate an engaging release highlights summary for **${{ github.repository }}** release `${RELEASE_TAG}`.
+Generate an engaging release highlights summary for **$GITHUB_REPOSITORY** release `${RELEASE_TAG}`.
 
 **Release ID**: ${{ needs.release.outputs.release_id }}
 

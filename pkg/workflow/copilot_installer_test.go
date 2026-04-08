@@ -24,7 +24,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: "0.0.369",
 			shouldContain: []string{
-				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh 0.0.369",
+				"bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" 0.0.369",
 				"name: Install GitHub Copilot CLI",
 				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
@@ -38,7 +38,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: "v0.0.370",
 			shouldContain: []string{
-				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh v0.0.370",
+				"bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" v0.0.370",
 				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
 			shouldNotContain: []string{
@@ -51,7 +51,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Custom Install Step",
 			expectedVersion: "1.2.3",
 			shouldContain: []string{
-				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh 1.2.3",
+				"bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" 1.2.3",
 				"name: Custom Install Step",
 				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
@@ -65,7 +65,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: string(constants.DefaultCopilotVersion), // Should use DefaultCopilotVersion
 			shouldContain: []string{
-				"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + string(constants.DefaultCopilotVersion),
+				"bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + string(constants.DefaultCopilotVersion),
 				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
 			},
 			shouldNotContain: []string{
@@ -100,7 +100,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			}
 
 			// Verify the version is correctly passed to the install script
-			expectedVersionLine := "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + tt.expectedVersion
+			expectedVersionLine := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + tt.expectedVersion
 			if !strings.Contains(stepContent, expectedVersionLine) {
 				t.Errorf("Expected version to be set to '%s', but step content was:\n%s", tt.expectedVersion, stepContent)
 			}
@@ -137,7 +137,7 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 	}
 
 	// Should contain the custom version
-	expectedVersionLine := "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + customVersion
+	expectedVersionLine := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + customVersion
 	if !strings.Contains(installStep, expectedVersionLine) {
 		t.Errorf("Expected custom version %s in install step, got:\n%s", customVersion, installStep)
 	}

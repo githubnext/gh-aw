@@ -162,7 +162,7 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 		"install step should include command to verify gh-aw installation")
 
 	// Verify the binary copy command is present for MCP server containerization
-	assert.Contains(t, result, "cp \"$GH_AW_BIN\" ${RUNNER_TEMP}/gh-aw/gh-aw",
+	assert.Contains(t, result, "cp \"$GH_AW_BIN\" \"${RUNNER_TEMP}/gh-aw/gh-aw\"",
 		"install step should copy gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization")
 }
 

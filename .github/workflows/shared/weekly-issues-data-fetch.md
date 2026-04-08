@@ -53,7 +53,7 @@ steps:
         
         # Fetch issues from the last 7 days using gh CLI
         # Using --search with updated filter to get recent activity
-        gh issue list --repo ${{ github.repository }} \
+        gh issue list --repo $GITHUB_REPOSITORY \
           --search "updated:>=${DATE_7_DAYS_AGO}" \
           --state all \
           --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \

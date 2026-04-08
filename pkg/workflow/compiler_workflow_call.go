@@ -47,7 +47,7 @@ func generateArtifactPrefixStep() []string {
 		"        id: artifact-prefix\n",
 		"        env:\n",
 		"          INPUTS_JSON: ${{ toJSON(inputs) }}\n",
-		"        run: bash ${RUNNER_TEMP}/gh-aw/actions/compute_artifact_prefix.sh\n",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/compute_artifact_prefix.sh\"\n",
 	}
 }
 

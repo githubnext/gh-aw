@@ -114,6 +114,12 @@ func (e *CopilotEngine) GetAgentManifestFiles() []string {
 	return []string{"AGENTS.md"}
 }
 
+// GetDriverScriptName returns the filename of the JavaScript driver script that wraps
+// the Copilot CLI with retry logic for transient CAPIError 400 errors.
+func (e *CopilotEngine) GetDriverScriptName() string {
+	return "copilot_driver.cjs"
+}
+
 // GetExecutionSteps is implemented in copilot_engine_execution.go
 
 // RenderMCPConfig is implemented in copilot_mcp.go

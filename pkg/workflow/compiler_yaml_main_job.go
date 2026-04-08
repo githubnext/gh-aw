@@ -187,7 +187,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh\n")
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh\"\n")
 
 	// Configure gh CLI for GitHub Enterprise hosts (*.ghe.com / GHES).
 	// This step runs configure_gh_for_ghe.sh which:
@@ -199,7 +199,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Must run after the setup action (so the script is available at ${RUNNER_TEMP}/gh-aw/actions/)
 	// and before any custom steps that invoke gh CLI commands.
 	yaml.WriteString("      - name: Configure gh CLI for GitHub Enterprise\n")
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh\n")
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh\"\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 

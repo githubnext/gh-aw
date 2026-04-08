@@ -239,7 +239,7 @@ func RenderJSONMCPConfig(
 		yaml.WriteString("          fi\n")
 	}
 	// Write the configuration to the YAML output
-	yaml.WriteString("          cat << " + delimiter + " | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh\n")
+	yaml.WriteString("          cat << " + delimiter + " | bash \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh\"\n")
 	yaml.WriteString(generatedConfig)
 	yaml.WriteString("          " + delimiter + "\n")
 

@@ -130,7 +130,7 @@ jobs:
             await main(core, context);
       - name: Validate ANTHROPIC_API_KEY secret
         id: validate-secret
-        run: ${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Checkout .github and .agents folders
@@ -169,7 +169,7 @@ jobs:
           GH_AW_INPUTS_DEVICES: ${{ inputs.devices }}
         # poutine:ignore untrusted_checkout_exec
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
           cat << 'GH_AW_PROMPT_670d714d818f5af2_EOF'
           <system>
@@ -277,12 +277,12 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         # poutine:ignore untrusted_checkout_exec
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh"
       - name: Upload activation artifact
         if: success()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
@@ -352,9 +352,9 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Create gh-aw temp directory
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Configure Git credentials
@@ -390,7 +390,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.16
       - name: Install Claude Code CLI
         run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.94
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -404,13 +404,13 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16 ghcr.io/github/gh-aw-mcpg:v0.2.16 ghcr.io/github/github-mcp-server:v0.32.0 mcr.microsoft.com/playwright/mcp node:lts-alpine
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16 ghcr.io/github/gh-aw-mcpg:v0.2.16 ghcr.io/github/github-mcp-server:v0.32.0 mcr.microsoft.com/playwright/mcp node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_732bcf318c5a65f2_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_732bcf318c5a65f2_EOF'
           {"create_issue":{"expires":48,"labels":["cookie"],"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg"],"branch":"assets/${{ github.workflow }}","max-size":10240}}
           GH_AW_SAFE_OUTPUTS_CONFIG_732bcf318c5a65f2_EOF
       - name: Write Safe Outputs Tools
@@ -587,7 +587,7 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
           
-          bash ${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           
       - name: Start MCP Gateway
         id: start-mcp-gateway
@@ -625,7 +625,7 @@ jobs:
           if [ -n "${OTEL_EXPORTER_OTLP_HEADERS:-}" ]; then
             _GH_AW_OTLP_HEADERS_JSON=$(node -e 'const h=process.env["OTEL_EXPORTER_OTLP_HEADERS"]||"";const o={};h.split(",").forEach(function(p){const i=p.indexOf("=");if(i>0)o[p.slice(0,i).trim()]=p.slice(i+1).trim();});console.log(JSON.stringify(o));' 2>/dev/null || echo "{}")
           fi
-          cat << GH_AW_MCP_CONFIG_af715ca74493b00b_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_af715ca74493b00b_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "github": {
@@ -703,7 +703,7 @@ jobs:
           path: /tmp/gh-aw
       - name: Clean git credentials
         continue-on-error: true
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -871,7 +871,7 @@ jobs:
           MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
-          bash ${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+          bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -890,7 +890,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Append agent step summary
         if: always()
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh"
       - name: Copy Safe Outputs
         if: always()
         env:
@@ -1184,7 +1184,7 @@ jobs:
           persist-credentials: false
       # --- Threat Detection ---
       - name: Download container images
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.16 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.16 ghcr.io/github/gh-aw-firewall/squid:0.25.16
       - name: Check if detection needed
         id: detection_guard
         if: always()
@@ -1243,7 +1243,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install AWF binary
-        run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.16
       - name: Install Claude Code CLI
         run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.94
       - name: Execute Claude Code CLI

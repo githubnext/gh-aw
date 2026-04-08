@@ -246,5 +246,5 @@ func (c *Compiler) generateParseGuardVarsStep(yaml *strings.Builder, data *Workf
 	}
 	fmt.Fprintf(yaml, "          GH_AW_APPROVAL_LABELS_VAR: ${{ vars.%s || '' }}\n", constants.EnvVarGitHubApprovalLabels)
 
-	yaml.WriteString("        run: bash ${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh\n")
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh\"\n")
 }

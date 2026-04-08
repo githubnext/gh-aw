@@ -266,6 +266,13 @@ func calculateTimeRemaining(stopTimeStr string) string {
 // isCompiledUpToDate checks if a workflow's lock file is up to date with the current source
 // using hash-based comparison. Falls back to "Yes" when no hash is available (legacy lock files).
 func isCompiledUpToDate(workflowPath, lockFilePath string) string {
+	return isCompiledUpToDateWithCache(workflowPath, lockFilePath, parser.NewImportCache(""))
+}
+
+// isCompiledUpToDateWithCache is the same as isCompiledUpToDate but accepts a shared
+// ImportCache so callers that check multiple workflows can avoid creating a new cache
+// on every call.
+func isCompiledUpToDateWithCache(workflowPath, lockFilePath string, cache *parser.ImportCache) string {
 	lockContent, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		return "No"
@@ -277,7 +284,6 @@ func isCompiledUpToDate(workflowPath, lockFilePath string) string {
 		return "Yes"
 	}
 
-	cache := parser.NewImportCache("")
 	currentHash, err := parser.ComputeFrontmatterHashFromFile(workflowPath, cache)
 	if err != nil {
 		statusLog.Printf("Failed to compute frontmatter hash for %s: %v", workflowPath, err)

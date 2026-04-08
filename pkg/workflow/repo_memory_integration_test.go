@@ -360,7 +360,7 @@ This workflow tests GitHub Enterprise support.
 	}
 
 	// Check for the shell script that uses GITHUB_SERVER_URL
-	if !strings.Contains(lockFile, "bash ${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh") {
+	if !strings.Contains(lockFile, "bash \"${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh\"") {
 		t.Error("Expected clone_repo_memory_branch.sh script invocation")
 	}
 }

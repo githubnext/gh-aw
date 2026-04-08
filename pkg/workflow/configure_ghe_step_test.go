@@ -94,8 +94,8 @@ steps:
 		t.Logf("Agent job section:\n%s", agentJobSection[:min(1500, len(agentJobSection))])
 	}
 
-	if !strings.Contains(agentJobSection, "run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh") {
-		t.Error("Expected 'run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh' in agent job, but it was not found")
+	if !strings.Contains(agentJobSection, "run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh\"") {
+		t.Error("Expected 'run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh\"' in agent job, but it was not found")
 	}
 
 	if !strings.Contains(agentJobSection, "GH_TOKEN: ${{ github.token }}") {

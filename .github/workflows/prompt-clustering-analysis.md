@@ -66,7 +66,7 @@ steps:
         # Download full PR data with essential fields only
         # Use error handling to skip individual PR failures (e.g. deleted PRs, rate limits)
         if gh pr view "$pr_number" \
-          --repo "${{ github.repository }}" \
+          --repo "$GITHUB_REPOSITORY" \
           --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
           > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json" 2>"/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.err"; then
           echo "Downloaded PR #$pr_number"
@@ -114,7 +114,7 @@ Daily analysis of copilot agent task prompts using clustering techniques to iden
 
 ## Current Context
 
-- **Repository**: ${{ github.repository }}
+- **Repository**: $GITHUB_REPOSITORY
 - **Analysis Period**: Last 30 days
 - **Available Data**:
   - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary PR data for copilot-created PRs

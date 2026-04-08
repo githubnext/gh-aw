@@ -558,7 +558,7 @@ func TestGenerateMainJobSteps(t *testing.T) {
 				"- name: Checkout repository",
 				"persist-credentials: false",
 				"- name: Create gh-aw temp directory",
-				"run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh",
+				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh\"",
 			},
 			shouldError: false,
 		},
