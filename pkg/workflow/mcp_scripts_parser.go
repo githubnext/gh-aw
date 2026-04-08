@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var mcpScriptsLog = logger.New("workflow:mcp_scripts")
@@ -175,7 +176,7 @@ func parseMCPScriptsMap(mcpScriptsMap map[string]any) (*MCPScriptsConfig, bool) 
 			case int:
 				toolConfig.Timeout = t
 			case uint64:
-				toolConfig.Timeout = safeUint64ToInt(t) // Safe conversion to prevent overflow (alert #414)
+				toolConfig.Timeout = typeutil.SafeUint64ToInt(t) // Safe conversion to prevent overflow (alert #414)
 			case float64:
 				toolConfig.Timeout = int(t)
 			case string:
@@ -346,7 +347,7 @@ func (c *Compiler) mergeMCPScripts(main *MCPScriptsConfig, importedConfigs []str
 				case int:
 					toolConfig.Timeout = t
 				case uint64:
-					toolConfig.Timeout = safeUint64ToInt(t) // Safe conversion to prevent overflow (alert #413)
+					toolConfig.Timeout = typeutil.SafeUint64ToInt(t) // Safe conversion to prevent overflow (alert #413)
 				case float64:
 					toolConfig.Timeout = int(t)
 				case string:

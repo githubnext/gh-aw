@@ -225,6 +225,17 @@ type ConfigRenderer interface {
 	RenderConfig(target *ResolvedEngineTarget) ([]map[string]any, error)
 }
 
+// DriverProvider is an optional interface implemented by engines that provide a
+// JavaScript driver script to wrap CLI execution with retry and recovery logic.
+// The driver is placed in the setup actions directory and executed via Node.js
+// as a transparent subprocess wrapper around the engine CLI.
+type DriverProvider interface {
+	// GetDriverScriptName returns the filename of the JavaScript driver script
+	// (located in the setup actions directory) used to wrap CLI execution.
+	// Returns an empty string if no driver is needed.
+	GetDriverScriptName() string
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine

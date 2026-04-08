@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/github/gh-aw/schemas/repo_config_schema.json",
+  "title": "Repository Configuration Schema",
+  "description": "JSON Schema for the .github/workflows/aw.json repository-level configuration file for gh-aw agentic workflows",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "maintenance": {
+      "description": "Configuration for the agentic-maintenance workflow. Set to false to disable maintenance entirely, or provide an object to configure it.",
+      "oneOf": [
+        {
+          "type": "boolean",
+          "enum": [false],
+          "description": "Set to false to disable agentic maintenance and refuse features that rely on it (such as expires)."
+        },
+        {
+          "type": "object",
+          "description": "Agentic maintenance workflow configuration. Enables generation of agentics-maintenance.yml.",
+          "additionalProperties": false,
+          "properties": {
+            "runs_on": {
+              "description": "The runner or runners to use for maintenance workflow jobs. Accepts a single label string or an array of labels.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[^\\r\\n\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]+$",
+                  "description": "A single runner label for maintenance workflow jobs.",
+                  "examples": ["ubuntu-latest", "ubuntu-slim", "self-hosted"]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\r\\n\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]+$"
+                  },
+                  "minItems": 1,
+                  "description": "An array of runner labels for maintenance workflow jobs.",
+                  "examples": [
+                    ["self-hosted", "linux"],
+                    ["self-hosted", "linux", "x64"]
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

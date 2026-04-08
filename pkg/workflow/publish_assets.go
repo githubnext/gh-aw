@@ -7,6 +7,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var publishAssetsLog = logger.New("workflow:publish_assets")
@@ -49,7 +50,7 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 			// Parse max-size
 			if maxSize, exists := configMap["max-size"]; exists {
-				if maxSizeInt, ok := parseIntValue(maxSize); ok && maxSizeInt > 0 {
+				if maxSizeInt, ok := typeutil.ParseIntValue(maxSize); ok && maxSizeInt > 0 {
 					config.MaxSizeKB = maxSizeInt
 				}
 			}
@@ -106,7 +107,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		// Publish assets job doesn't need project support
 		// Publish assets job depends on the agent job; reuse its trace ID so all jobs share one OTLP trace
 		publishTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, publishTraceID)...)
+		preSteps = append(preSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, publishTraceID)...)
 	}
 
 	// Step 1: Checkout repository

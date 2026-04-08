@@ -48,6 +48,7 @@ func BuiltinVirtualFileExists(path string) bool {
 	builtinVirtualFilesMu.RLock()
 	defer builtinVirtualFilesMu.RUnlock()
 	_, ok := builtinVirtualFiles[path]
+	virtualFsLog.Printf("BuiltinVirtualFileExists: path=%s exists=%t", path, ok)
 	return ok
 }
 
@@ -68,8 +69,10 @@ var builtinFrontmatterCache sync.Map // map[string]*FrontmatterResult
 func GetBuiltinFrontmatterCache(path string) (*FrontmatterResult, bool) {
 	v, ok := builtinFrontmatterCache.Load(path)
 	if !ok {
+		virtualFsLog.Printf("Frontmatter cache miss: path=%s", path)
 		return nil, false
 	}
+	virtualFsLog.Printf("Frontmatter cache hit: path=%s", path)
 	return v.(*FrontmatterResult), true
 }
 
@@ -78,7 +81,12 @@ func GetBuiltinFrontmatterCache(path string) (*FrontmatterResult, bool) {
 // (or its contained maps/slices) after this call.
 // Uses LoadOrStore so concurrent races are safe; the winning value is returned.
 func SetBuiltinFrontmatterCache(path string, result *FrontmatterResult) *FrontmatterResult {
-	actual, _ := builtinFrontmatterCache.LoadOrStore(path, result)
+	actual, loaded := builtinFrontmatterCache.LoadOrStore(path, result)
+	if loaded {
+		virtualFsLog.Printf("Frontmatter cache already populated (race): path=%s", path)
+	} else {
+		virtualFsLog.Printf("Frontmatter cache stored: path=%s", path)
+	}
 	return actual.(*FrontmatterResult)
 }
 

@@ -49,7 +49,7 @@ Test workflow`
 	}
 
 	// Check that the detection step calls the shell script
-	if !strings.Contains(lockStr, "bash ${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh") {
+	if !strings.Contains(lockStr, "bash \"${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh\"") {
 		t.Error("Expected detect-inference-error step to call detect_inference_access_error.sh")
 	}
 

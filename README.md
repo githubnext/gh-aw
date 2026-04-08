@@ -369,6 +369,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @j-srodka
 
+- #25199 _(direct issue)_
 - #23485 _(direct issue)_
 - #23484 _(direct issue)_
 - #23483 _(direct issue)_
@@ -598,6 +599,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @salekseev
 
+- #25122 _(direct issue)_
 - #24135 _(direct issue)_
 
 ### @samuelkahessay

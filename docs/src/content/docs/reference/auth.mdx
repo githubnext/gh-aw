@@ -10,16 +10,18 @@ import Video from '../../../components/Video.astro';
 
 This page describes authentication settings for GitHub Agentic Workflows.
 
-## Authenticating Your Coding Agent (AI Engine)
+## Which secret do I need?
 
-You will need one of the following GitHub Actions secrets configured in your repository to authenticate the AI engine you choose:
+Configure one GitHub Actions secret per engine before running your first workflow:
 
-- **Copilot** – Add [`COPILOT_GITHUB_TOKEN`](#copilot_github_token)
-- **Claude by Anthropic** – Add [`ANTHROPIC_API_KEY`](#anthropic_api_key)
-- **Codex by OpenAI** – Add [`OPENAI_API_KEY`](#openai_api_key)
-- **Gemini by Google** – Add [`GEMINI_API_KEY`](#gemini_api_key)
+| Engine | Required secret | Alternative | Notes |
+|--------|----------------|-------------|-------|
+| **Copilot** (default) | [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) | — | Fine-grained PAT with Copilot Requests permission |
+| **Claude** | [`ANTHROPIC_API_KEY`](#anthropic_api_key) | — | API key from Anthropic Console |
+| **Codex** | [`OPENAI_API_KEY`](#openai_api_key) | `CODEX_API_KEY` | Runtime uses `CODEX_API_KEY` if present, otherwise falls back to `OPENAI_API_KEY` |
+| **Gemini** | [`GEMINI_API_KEY`](#gemini_api_key) | — | API key from Google AI Studio |
 
-Most workflows will run without any additional secrets or additional authentication.
+Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
 
 ## Additional Authentication
 
@@ -88,6 +90,10 @@ If using Copilot as your AI engine, you need a GitHub Actions Secret set to a Gi
    gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
    ```
 
+**Custom endpoints**:
+
+To route Copilot CLI through a custom endpoint (e.g., a corporate proxy or GHE Cloud data residency instance), set `GITHUB_COPILOT_BASE_URL` in `engine.env`. See [Custom API Endpoints via Environment Variables](/gh-aw/reference/engines/#custom-api-endpoints-via-environment-variables) for details. `COPILOT_GITHUB_TOKEN` must still be a fine-grained PAT — GitHub Apps and OAuth tokens are not supported for this secret.
+
 **Troubleshooting**:
 
 If your workflow fails at the Copilot inference step even with the token set, verify that the token owner's account has an active Copilot license. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic step.
@@ -108,6 +114,14 @@ If using the Claude by Anthropic engine, you need to set a GitHub Actions secret
    gh aw secrets set ANTHROPIC_API_KEY --value "YOUR_ANTHROPIC_API_KEY"
    ```
 
+**Custom endpoints**:
+
+To route Claude through a custom Anthropic-compatible endpoint (e.g., an internal proxy or Azure-hosted model), set `ANTHROPIC_BASE_URL` in `engine.env` and store any additional credentials as secrets. See [Custom API Endpoints via Environment Variables](/gh-aw/reference/engines/#custom-api-endpoints-via-environment-variables) for an example.
+
+**`CLAUDE_CODE_OAUTH_TOKEN`**:
+
+`CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. The only supported authentication method for the Claude engine is `ANTHROPIC_API_KEY`. Provider-based OAuth authentication (such as billing through a Claude Teams or Claude Max subscription) is not supported. If you have set `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, it will be ignored — configure `ANTHROPIC_API_KEY` instead.
+
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Claude with GitHub MCP.
 
 ---
@@ -125,6 +139,30 @@ If using the Codex by OpenAI engine, you need to set a GitHub Actions secret `OP
    ```bash wrap
    gh aw secrets set OPENAI_API_KEY --value "YOUR_OPENAI_API_KEY"
    ```
+
+**`CODEX_API_KEY` alternative**:
+
+Both `CODEX_API_KEY` and `OPENAI_API_KEY` are accepted. The runtime tries `CODEX_API_KEY` first. If you have already stored the key under `CODEX_API_KEY`, there is no need to add `OPENAI_API_KEY` as well.
+
+**Azure OpenAI and custom endpoints**:
+
+To use Azure OpenAI or an internal LLM router instead of the default OpenAI endpoint, set `OPENAI_BASE_URL` in `engine.env` and store the corresponding key as a GitHub Actions secret referenced from `engine.env`:
+
+```aw wrap
+engine:
+  id: codex
+  model: gpt-4o
+  env:
+    OPENAI_BASE_URL: "https://my-azure-endpoint.openai.azure.com/openai/deployments/gpt-4o"
+    OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+
+network:
+  allowed:
+    - github.com
+    - my-azure-endpoint.openai.azure.com
+```
+
+`AZURE_OPENAI_API_KEY` is a GitHub Actions repository secret you configure separately with `gh aw secrets set AZURE_OPENAI_API_KEY --value "<key>"`. Do not embed raw key values directly in the frontmatter.
 
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Codex with GitHub MCP.
 
@@ -145,6 +183,36 @@ If using the Gemini by Google engine, you need to set a GitHub Actions secret `G
    ```
 
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Gemini with GitHub MCP.
+
+---
+
+## Troubleshooting auth errors
+
+Common authentication errors and how to resolve them:
+
+**`403 "Resource not accessible by personal access token"` (Copilot)**
+
+The PAT is missing the required permission. Use a fine-grained PAT with **Account permissions → Copilot Requests: Read**. The resource owner must be your personal account, not an organization. See [`COPILOT_GITHUB_TOKEN`](#copilot_github_token) for the setup link.
+
+**`401 Unauthorized` or `403 Forbidden` (Claude)**
+
+The `ANTHROPIC_API_KEY` secret is missing, expired, or invalid. Verify the key is active in the [Anthropic Console](https://console.anthropic.com/). Re-set the secret with `gh aw secrets set ANTHROPIC_API_KEY --value "<key>"`. Also check that you have not accidentally set `CLAUDE_CODE_OAUTH_TOKEN` instead — it is not supported.
+
+**`401 Unauthorized` or `403 Forbidden` (Codex)**
+
+The `OPENAI_API_KEY` (or `CODEX_API_KEY`) secret is missing, expired, or has insufficient quota. Verify the key at https://platform.openai.com/api-keys. If using a custom endpoint, confirm `OPENAI_BASE_URL` points to a reachable host and that the host is listed under `network.allowed`.
+
+**`401 Unauthorized` (Gemini)**
+
+The `GEMINI_API_KEY` secret is missing or invalid. Generate a new key at https://aistudio.google.com/api-keys.
+
+**Copilot license or inference access errors**
+
+If the token is correctly configured but Copilot fails at the inference step, the PAT owner's account may lack an active Copilot subscription. See [Copilot License or Inference Access Issues](/gh-aw/troubleshooting/common-issues/#copilot-license-or-inference-access-issues) for a local diagnostic command.
+
+**`Error loading models: 400 Bad Request` (Copilot on GHES)**
+
+Copilot is not licensed at the enterprise level or the API proxy is routing incorrectly. See [Copilot Engine Prerequisites on GHES](/gh-aw/troubleshooting/common-issues/#copilot-engine-prerequisites-on-ghes) for the full checklist.
 
 ---
 

@@ -61,6 +61,12 @@ func RunPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	return runPoutineOnDirectory(workflowDir, verbose, strict)
 }
 
+// RunRunnerGuardOnDirectory runs runner-guard taint analysis scanner once on a directory.
+// Runner-guard scans all workflows in a directory, so it only needs to run once.
+func RunRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) error {
+	return runRunnerGuardOnDirectory(workflowDir, verbose, strict)
+}
+
 // runBatchLockFileTool runs a batch tool on lock files with uniform error handling
 func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, strict bool, runner func([]string, bool, bool) error) error {
 	if len(lockFiles) == 0 {
@@ -104,6 +110,23 @@ func runBatchPoutine(workflowDir string, verbose bool, strict bool) error {
 		// In non-strict mode, poutine errors are warnings
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("poutine warnings: %v", err)))
+		}
+	}
+
+	return nil
+}
+
+// runBatchRunnerGuard runs runner-guard taint analysis scanner once for the entire directory
+func runBatchRunnerGuard(workflowDir string, verbose bool, strict bool) error {
+	compileBatchOperationsLog.Printf("Running batch runner-guard on directory: %s", workflowDir)
+
+	if err := RunRunnerGuardOnDirectory(workflowDir, verbose, strict); err != nil {
+		if strict {
+			return fmt.Errorf("runner-guard taint analysis failed: %w", err)
+		}
+		// In non-strict mode, runner-guard errors are warnings
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("runner-guard warnings: %v", err)))
 		}
 	}
 

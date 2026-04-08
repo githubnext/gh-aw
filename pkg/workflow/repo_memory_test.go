@@ -222,7 +222,7 @@ func TestRepoMemoryStepsGeneration(t *testing.T) {
 	}
 
 	// Check for script call
-	if !strings.Contains(output, "bash ${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh") {
+	if !strings.Contains(output, "bash \"${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh\"") {
 		t.Error("Expected clone_repo_memory_branch.sh script call")
 	}
 

@@ -88,6 +88,7 @@ Examples:
   gh aw completion install --verbose # Show detailed installation steps`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			completionLog.Printf("Installing shell completion: verbose=%t", verbose)
 			return InstallShellCompletion(verbose, cmd.Root())
 		},
 	}
@@ -113,6 +114,7 @@ Examples:
   gh aw completion uninstall --verbose # Show detailed uninstallation steps`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			completionLog.Printf("Uninstalling shell completion: verbose=%t", verbose)
 			return UninstallShellCompletion(verbose)
 		},
 	}

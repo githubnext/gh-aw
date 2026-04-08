@@ -769,6 +769,45 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"upload_artifact": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UploadArtifact == nil {
+			return nil
+		}
+		c := cfg.UploadArtifact
+		b := newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfPositive("max-uploads", c.MaxUploads).
+			AddIfPositive("default-retention-days", c.DefaultRetentionDays).
+			AddIfPositive("max-retention-days", c.MaxRetentionDays).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged)
+		if c.MaxSizeBytes > 0 {
+			b = b.AddDefault("max-size-bytes", c.MaxSizeBytes)
+		}
+		if len(c.AllowedPaths) > 0 {
+			b = b.AddStringSlice("allowed-paths", c.AllowedPaths)
+		}
+		if c.Allow != nil && c.Allow.SkipArchive {
+			b = b.AddIfTrue("allow-skip-archive", true)
+		}
+		if c.Defaults != nil {
+			if c.Defaults.SkipArchive {
+				b = b.AddIfTrue("default-skip-archive", true)
+			}
+			if c.Defaults.IfNoFiles != "" {
+				b = b.AddIfNotEmpty("default-if-no-files", c.Defaults.IfNoFiles)
+			}
+		}
+		if c.Filters != nil {
+			if len(c.Filters.Include) > 0 {
+				b = b.AddStringSlice("filters-include", c.Filters.Include)
+			}
+			if len(c.Filters.Exclude) > 0 {
+				b = b.AddStringSlice("filters-exclude", c.Filters.Exclude)
+			}
+		}
+		return b.Build()
+	},
 	"autofix_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.AutofixCodeScanningAlert == nil {
 			return nil

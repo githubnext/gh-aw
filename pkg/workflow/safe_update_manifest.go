@@ -44,6 +44,8 @@ type GHAWManifest struct {
 //
 //	"actions/checkout@abc1234 # v4"
 func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
+	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d", len(secretNames), len(actionRefs))
+
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
 	seen := make(map[string]bool)
 	secrets := make([]string, 0, len(secretNames))
@@ -56,10 +58,13 @@ func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
 	}
 	sort.Strings(secrets)
 
+	actions := parseActionRefs(actionRefs)
+	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d", currentGHAWManifestVersion, len(secrets), len(actions))
+
 	return &GHAWManifest{
 		Version: currentGHAWManifestVersion,
 		Secrets: secrets,
-		Actions: parseActionRefs(actionRefs),
+		Actions: actions,
 	}
 }
 

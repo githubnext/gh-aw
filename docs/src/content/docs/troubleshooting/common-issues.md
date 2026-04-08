@@ -510,7 +510,119 @@ timeout-minutes: 60
 ---
 ```
 
-Recompile with `gh aw compile` after updating. If timeouts persist, reduce the task scope or split into smaller workflows.
+Recompile with `gh aw compile` after updating. If timeouts persist, reduce the task scope or split into smaller workflows. See [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) for a comprehensive guide including per-engine knobs, caching strategies, and self-hosted runner recommendations.
+
+### Engine Timeout Error Messages
+
+Each engine surfaces timeout errors differently. The table and examples below show common messages and their fixes.
+
+#### GitHub Actions: Job Timeout
+
+**Error in workflow run logs:**
+
+```text
+Error: The operation was canceled.
+Error: The runner has received a shutdown signal. This can happen when the runner service is stopped, or a new update is required.
+```
+
+or
+
+```text
+##[error]The job running on runner <name> has exceeded the maximum execution time of 20 minutes.
+```
+
+**Cause:** The agent job hit `timeout-minutes` (default: 20 min).
+
+**Fix:** Increase `timeout-minutes` in your workflow frontmatter and recompile:
+
+```yaml wrap
+---
+timeout-minutes: 60
+---
+```
+
+#### Claude: Tool Call Timeout
+
+**Error in workflow logs:**
+
+```text
+Bash tool timed out after 60 seconds
+claude: error: Tool execution timed out
+```
+
+**Cause:** A single bash command — such as `cmake --build .` or a full test suite — exceeded the Claude tool timeout (default: 60 s).
+
+**Fix:** Increase `tools.timeout` in your workflow frontmatter:
+
+```yaml wrap
+tools:
+  timeout: 600   # 10 minutes per tool call
+```
+
+#### Claude: Max Turns Reached
+
+**Error in workflow logs:**
+
+```text
+claude: Reached maximum number of turns (N). Stopping.
+```
+
+**Cause:** The agent hit the `max-turns` limit before completing the task.
+
+**Fix:** Increase `max-turns` or decompose the task into smaller workflows:
+
+```yaml wrap
+engine:
+  id: claude
+max-turns: 30
+```
+
+#### Codex: Tool Call Timeout
+
+**Error in workflow logs:**
+
+```text
+Tool call timed out after 120 seconds
+codex: bash command exceeded timeout
+```
+
+**Cause:** A tool call exceeded the Codex default timeout (120 s).
+
+**Fix:** Increase `tools.timeout`:
+
+```yaml wrap
+tools:
+  timeout: 600
+```
+
+#### MCP Server Startup Timeout
+
+**Error in workflow logs:**
+
+```text
+Failed to register tools error="initialize: timeout" name=<server-name>
+MCP server startup timed out after 120 seconds
+```
+
+**Cause:** An MCP server process took too long to initialize (default startup timeout: 120 s). This can happen on cold starts with heavy npm packages.
+
+**Fix:** Increase `tools.startup-timeout`:
+
+```yaml wrap
+tools:
+  startup-timeout: 300   # 5-minute MCP startup budget
+```
+
+#### Copilot: Autopilot Budget Exhausted
+
+Copilot does not expose a wall-clock timeout message, but autopilot mode stops when `max-continuations` runs are exhausted. The workflow completes without an error, but the task may be incomplete.
+
+**Fix:** Increase `max-continuations` or break the task into smaller issues:
+
+```yaml wrap
+max-continuations: 5
+timeout-minutes: 90
+```
 
 ### Why Did My Workflow Fail?
 

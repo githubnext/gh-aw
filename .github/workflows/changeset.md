@@ -31,6 +31,7 @@ timeout-minutes: 20
 network:
   allowed:
     - defaults
+    - github
     - node
     - go
 tools:

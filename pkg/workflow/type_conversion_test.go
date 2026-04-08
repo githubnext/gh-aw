@@ -5,9 +5,11 @@ package workflow
 import (
 	"math"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
-// TestConvertToIntEdgeCases provides comprehensive coverage for ConvertToInt edge cases
+// TestConvertToIntEdgeCases provides comprehensive coverage for typeutil.ConvertToInt edge cases
 func TestConvertToIntEdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -83,9 +85,9 @@ func TestConvertToIntEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ConvertToInt(tt.input)
+			result := typeutil.ConvertToInt(tt.input)
 			if result != tt.expected {
-				t.Errorf("ConvertToInt(%v) = %d; want %d", tt.input, result, tt.expected)
+				t.Errorf("typeutil.ConvertToInt(%v) = %d; want %d", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -159,17 +161,17 @@ func TestConvertToIntOverflow(t *testing.T) {
 			// Test should not panic
 			defer func() {
 				if r := recover(); r != nil {
-					t.Errorf("ConvertToInt panicked with %v: %v", tt.input, r)
+					t.Errorf("typeutil.ConvertToInt panicked with %v: %v", tt.input, r)
 				}
 			}()
 
-			result := ConvertToInt(tt.input)
+			result := typeutil.ConvertToInt(tt.input)
 			tt.validate(t, result)
 		})
 	}
 }
 
-// TestParseIntValueEdgeCases provides comprehensive coverage for parseIntValue edge cases
+// TestParseIntValueEdgeCases provides comprehensive coverage for typeutil.ParseIntValue edge cases
 func TestParseIntValueEdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -198,7 +200,7 @@ func TestParseIntValueEdgeCases(t *testing.T) {
 		{"float64 near zero", 0.9, 0, true},
 		{"float64 zero", 0.0, 0, true},
 
-		// Unsupported types - parseIntValue does NOT support strings
+		// Unsupported types - typeutil.ParseIntValue does NOT support strings
 		{"string value", "42", 0, false},
 		{"nil value", nil, 0, false},
 		{"bool value", true, 0, false},
@@ -208,12 +210,12 @@ func TestParseIntValueEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, ok := parseIntValue(tt.input)
+			result, ok := typeutil.ParseIntValue(tt.input)
 			if ok != tt.ok {
-				t.Errorf("parseIntValue(%v) ok = %v, want %v", tt.input, ok, tt.ok)
+				t.Errorf("typeutil.ParseIntValue(%v) ok = %v, want %v", tt.input, ok, tt.ok)
 			}
 			if result != tt.expected {
-				t.Errorf("parseIntValue(%v) = %d, want %d", tt.input, result, tt.expected)
+				t.Errorf("typeutil.ParseIntValue(%v) = %d, want %d", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -274,17 +276,17 @@ func TestParseIntValueOverflow(t *testing.T) {
 			// Test should not panic
 			defer func() {
 				if r := recover(); r != nil {
-					t.Errorf("parseIntValue panicked with %v: %v", tt.input, r)
+					t.Errorf("typeutil.ParseIntValue panicked with %v: %v", tt.input, r)
 				}
 			}()
 
-			result, ok := parseIntValue(tt.input)
+			result, ok := typeutil.ParseIntValue(tt.input)
 			tt.validate(t, result, ok)
 		})
 	}
 }
 
-// TestConvertToFloatEdgeCases provides comprehensive coverage for ConvertToFloat edge cases
+// TestConvertToFloatEdgeCases provides comprehensive coverage for typeutil.ConvertToFloat edge cases
 func TestConvertToFloatEdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -336,9 +338,9 @@ func TestConvertToFloatEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ConvertToFloat(tt.input)
+			result := typeutil.ConvertToFloat(tt.input)
 			if result != tt.expected {
-				t.Errorf("ConvertToFloat(%v) = %f; want %f", tt.input, result, tt.expected)
+				t.Errorf("typeutil.ConvertToFloat(%v) = %f; want %f", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -430,11 +432,11 @@ func TestConvertToFloatSpecialValues(t *testing.T) {
 			// Test should not panic
 			defer func() {
 				if r := recover(); r != nil {
-					t.Errorf("ConvertToFloat panicked with %v: %v", tt.input, r)
+					t.Errorf("typeutil.ConvertToFloat panicked with %v: %v", tt.input, r)
 				}
 			}()
 
-			result := ConvertToFloat(tt.input)
+			result := typeutil.ConvertToFloat(tt.input)
 			tt.validate(t, result)
 		})
 	}
@@ -444,7 +446,7 @@ func TestConvertToFloatSpecialValues(t *testing.T) {
 func TestPolymorphicTypeHandling(t *testing.T) {
 	// This tests the common case where YAML/JSON can provide values as different types
 
-	t.Run("ConvertToInt with polymorphic inputs", func(t *testing.T) {
+	t.Run("typeutil.ConvertToInt with polymorphic inputs", func(t *testing.T) {
 		tests := []struct {
 			name     string
 			input    any
@@ -468,15 +470,15 @@ func TestPolymorphicTypeHandling(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				result := ConvertToInt(tt.input)
+				result := typeutil.ConvertToInt(tt.input)
 				if result != tt.expected {
-					t.Errorf("ConvertToInt(%v) = %d; want %d", tt.input, result, tt.expected)
+					t.Errorf("typeutil.ConvertToInt(%v) = %d; want %d", tt.input, result, tt.expected)
 				}
 			})
 		}
 	})
 
-	t.Run("ConvertToFloat with polymorphic inputs", func(t *testing.T) {
+	t.Run("typeutil.ConvertToFloat with polymorphic inputs", func(t *testing.T) {
 		tests := []struct {
 			name     string
 			input    any
@@ -497,9 +499,9 @@ func TestPolymorphicTypeHandling(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				result := ConvertToFloat(tt.input)
+				result := typeutil.ConvertToFloat(tt.input)
 				if result != tt.expected {
-					t.Errorf("ConvertToFloat(%v) = %f; want %f", tt.input, result, tt.expected)
+					t.Errorf("typeutil.ConvertToFloat(%v) = %f; want %f", tt.input, result, tt.expected)
 				}
 			})
 		}
@@ -538,41 +540,41 @@ func TestTypeSafetyNoPanics(t *testing.T) {
 		make(chan int),
 	}
 
-	t.Run("ConvertToInt no panics", func(t *testing.T) {
+	t.Run("typeutil.ConvertToInt no panics", func(t *testing.T) {
 		for i, input := range inputs {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						t.Errorf("ConvertToInt panicked on input %d (%T): %v", i, input, r)
+						t.Errorf("typeutil.ConvertToInt panicked on input %d (%T): %v", i, input, r)
 					}
 				}()
-				_ = ConvertToInt(input)
+				_ = typeutil.ConvertToInt(input)
 			}()
 		}
 	})
 
-	t.Run("ConvertToFloat no panics", func(t *testing.T) {
+	t.Run("typeutil.ConvertToFloat no panics", func(t *testing.T) {
 		for i, input := range inputs {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						t.Errorf("ConvertToFloat panicked on input %d (%T): %v", i, input, r)
+						t.Errorf("typeutil.ConvertToFloat panicked on input %d (%T): %v", i, input, r)
 					}
 				}()
-				_ = ConvertToFloat(input)
+				_ = typeutil.ConvertToFloat(input)
 			}()
 		}
 	})
 
-	t.Run("parseIntValue no panics", func(t *testing.T) {
+	t.Run("typeutil.ParseIntValue no panics", func(t *testing.T) {
 		for i, input := range inputs {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						t.Errorf("parseIntValue panicked on input %d (%T): %v", i, input, r)
+						t.Errorf("typeutil.ParseIntValue panicked on input %d (%T): %v", i, input, r)
 					}
 				}()
-				_, _ = parseIntValue(input)
+				_, _ = typeutil.ParseIntValue(input)
 			}()
 		}
 	})
@@ -594,32 +596,32 @@ func TestZeroValueReturns(t *testing.T) {
 		"",
 	}
 
-	t.Run("ConvertToInt returns zero for invalid inputs", func(t *testing.T) {
+	t.Run("typeutil.ConvertToInt returns zero for invalid inputs", func(t *testing.T) {
 		for _, input := range invalidInputs {
-			result := ConvertToInt(input)
+			result := typeutil.ConvertToInt(input)
 			if result != 0 {
-				t.Errorf("ConvertToInt(%v) = %d; want 0", input, result)
+				t.Errorf("typeutil.ConvertToInt(%v) = %d; want 0", input, result)
 			}
 		}
 	})
 
-	t.Run("ConvertToFloat returns zero for invalid inputs", func(t *testing.T) {
+	t.Run("typeutil.ConvertToFloat returns zero for invalid inputs", func(t *testing.T) {
 		for _, input := range invalidInputs {
-			result := ConvertToFloat(input)
+			result := typeutil.ConvertToFloat(input)
 			if result != 0.0 {
-				t.Errorf("ConvertToFloat(%v) = %f; want 0.0", input, result)
+				t.Errorf("typeutil.ConvertToFloat(%v) = %f; want 0.0", input, result)
 			}
 		}
 	})
 
-	t.Run("parseIntValue returns zero and false for invalid inputs", func(t *testing.T) {
+	t.Run("typeutil.ParseIntValue returns zero and false for invalid inputs", func(t *testing.T) {
 		for _, input := range invalidInputs {
-			result, ok := parseIntValue(input)
+			result, ok := typeutil.ParseIntValue(input)
 			if ok {
-				t.Errorf("parseIntValue(%v) ok = true; want false", input)
+				t.Errorf("typeutil.ParseIntValue(%v) ok = true; want false", input)
 			}
 			if result != 0 {
-				t.Errorf("parseIntValue(%v) = %d; want 0", input, result)
+				t.Errorf("typeutil.ParseIntValue(%v) = %d; want 0", input, result)
 			}
 		}
 	})
@@ -656,19 +658,19 @@ func TestFloatToIntTruncationBehavior(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test ConvertToInt
-			result := ConvertToInt(tt.input)
+			// Test typeutil.ConvertToInt
+			result := typeutil.ConvertToInt(tt.input)
 			if result != tt.expected {
-				t.Errorf("ConvertToInt(%v) = %d; want %d", tt.input, result, tt.expected)
+				t.Errorf("typeutil.ConvertToInt(%v) = %d; want %d", tt.input, result, tt.expected)
 			}
 
-			// Test parseIntValue for consistency
-			parsed, ok := parseIntValue(tt.input)
+			// Test typeutil.ParseIntValue for consistency
+			parsed, ok := typeutil.ParseIntValue(tt.input)
 			if !ok {
-				t.Errorf("parseIntValue(%v) ok = false; want true", tt.input)
+				t.Errorf("typeutil.ParseIntValue(%v) ok = false; want true", tt.input)
 			}
 			if parsed != tt.expected {
-				t.Errorf("parseIntValue(%v) = %d; want %d", tt.input, parsed, tt.expected)
+				t.Errorf("typeutil.ParseIntValue(%v) = %d; want %d", tt.input, parsed, tt.expected)
 			}
 		})
 	}

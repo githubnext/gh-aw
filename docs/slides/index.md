@@ -175,6 +175,26 @@ Check for breaking changes in package.json and create an issue.
 
 ---
 
+# Staged Mode
+
+## Preview before you deploy
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  staged: true  # Preview only — no writes
+  create-issue:
+---
+Analyze issue and suggest follow-up tasks.
+```
+
+> See exactly what a workflow _would_ create — before it does
+
+---
+
 # Network Permissions
 
 ```yaml

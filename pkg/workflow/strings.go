@@ -379,6 +379,12 @@ func sanitizeRefForPath(ref string) string {
 // to trim leading/trailing hyphens and return a default value for empty results.
 // Hyphens are preserved by default in SanitizeName, not via PreserveSpecialChars.
 //
+// Note: Do not confuse with stringutil.sanitizeIdentifierName (private), which uses
+// a different algorithm — it keeps [a-zA-Z0-9_] and replaces others with underscores,
+// making it suitable for programming language identifiers (e.g. JavaScript, Python).
+// SanitizeIdentifier instead produces hyphen-separated lowercase identifiers for
+// workflow artifacts, job names, and user agent strings.
+//
 // See package documentation for guidance on when to use sanitize vs normalize patterns.
 func SanitizeIdentifier(name string) string {
 	stringsLog.Printf("Sanitizing identifier: %s", name)

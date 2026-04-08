@@ -74,12 +74,14 @@ func IsLabelOnlyEvent(eventValue any) bool {
 	// Event can be a map with types field
 	eventMap, isMap := eventValue.(map[string]any)
 	if !isMap {
+		schemaTriggersLog.Print("IsLabelOnlyEvent: event value is not a map, returning false")
 		return false
 	}
 
 	// Get the types field
 	typesValue, hasTypes := eventMap["types"]
 	if !hasTypes {
+		schemaTriggersLog.Print("IsLabelOnlyEvent: no types field found, returning false")
 		return false
 	}
 
@@ -100,10 +102,12 @@ func IsLabelOnlyEvent(eventValue any) bool {
 			return false
 		}
 		if typeStr != "labeled" && typeStr != "unlabeled" {
+			schemaTriggersLog.Printf("IsLabelOnlyEvent: type %q is not labeled/unlabeled, returning false", typeStr)
 			return false
 		}
 	}
 
+	schemaTriggersLog.Print("IsLabelOnlyEvent: all types are labeled/unlabeled, returning true")
 	return true
 }
 
@@ -114,12 +118,14 @@ func IsNonConflictingCommandEvent(eventValue any) bool {
 	// Event can be a map with types field
 	eventMap, isMap := eventValue.(map[string]any)
 	if !isMap {
+		schemaTriggersLog.Print("IsNonConflictingCommandEvent: event value is not a map, returning false")
 		return false
 	}
 
 	// Get the types field
 	typesValue, hasTypes := eventMap["types"]
 	if !hasTypes {
+		schemaTriggersLog.Print("IsNonConflictingCommandEvent: no types field found, returning false")
 		return false
 	}
 
@@ -142,9 +148,11 @@ func IsNonConflictingCommandEvent(eventValue any) bool {
 		case "labeled", "unlabeled", "ready_for_review":
 			// allowed
 		default:
+			schemaTriggersLog.Printf("IsNonConflictingCommandEvent: type %q conflicts with command triggers, returning false", typeStr)
 			return false
 		}
 	}
 
+	schemaTriggersLog.Print("IsNonConflictingCommandEvent: all types are non-conflicting, returning true")
 	return true
 }

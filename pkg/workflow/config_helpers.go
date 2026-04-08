@@ -41,6 +41,7 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/typeutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -182,18 +183,14 @@ func preprocessExpiresField(configData map[string]any, log *logger.Logger) bool 
 // Returns the boolean value, or false if not present or invalid.
 // If log is provided, it will log the extracted value for debugging.
 func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool {
-	if value, exists := m[key]; exists {
-		if log != nil {
-			log.Printf("Parsing %s from config", key)
-		}
-		if boolValue, ok := value.(bool); ok {
-			if log != nil {
-				log.Printf("Parsed %s from config: %t", key, boolValue)
-			}
-			return boolValue
-		}
+	if log != nil {
+		log.Printf("Parsing %s from config", key)
 	}
-	return false
+	result := typeutil.ParseBool(m, key)
+	if log != nil {
+		log.Printf("Parsed %s from config: %t", key, result)
+	}
+	return result
 }
 
 // unmarshalConfig unmarshals a config value from a map into a typed struct using YAML.

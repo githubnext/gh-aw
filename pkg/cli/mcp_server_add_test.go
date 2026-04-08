@@ -154,21 +154,29 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 
 	// Test 2: Call with missing workflows parameter (should fail)
 	t.Run("MissingWorkflows", func(t *testing.T) {
-		_, err := session.CallTool(ctx, &mcp.CallToolParams{
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{
 			Name:      "add",
 			Arguments: map[string]any{},
 		})
 
-		// MCP SDK v1.1.0 validates parameters before calling the tool,
-		// so we expect an error from CallTool itself
-		if err == nil {
+		// The SDK may return either a protocol error (err != nil) or a tool error
+		// (result.IsError=true, err=nil) depending on the SDK version. In v1.5.0+,
+		// schema validation for missing required fields returns a tool error.
+		if err != nil {
+			// Protocol error: verify it mentions workflows/required
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, "workflows") && !strings.Contains(errMsg, "required") {
+				t.Errorf("Expected error message to mention missing 'workflows' parameter, got: %s", errMsg)
+			}
+			return
+		}
+		if result == nil || !result.IsError {
 			t.Fatal("Expected error when calling add tool with missing workflows parameter")
 		}
-
-		// Verify the error message mentions the missing required parameter
-		errMsg := err.Error()
-		if !strings.Contains(errMsg, "workflows") && !strings.Contains(errMsg, "required") {
-			t.Errorf("Expected error message to mention missing 'workflows' parameter, got: %s", errMsg)
+		if len(result.Content) > 0 {
+			if tc, ok := result.Content[0].(*mcp.TextContent); ok {
+				t.Logf("Validation tool error: %s", tc.Text)
+			}
 		}
 	})
 }

@@ -78,7 +78,7 @@ steps:
         echo "Fetching Copilot coding agent workflow runs from the last 30 days..."
         
         # Get workflow runs from copilot/* branches
-        gh api "repos/${{ github.repository }}/actions/runs" \
+        gh api "repos/$GITHUB_REPOSITORY/actions/runs" \
           --paginate \
           --jq ".workflow_runs[] | select(.head_branch | startswith(\"copilot/\")) | select(.created_at >= \"${DATE_30_DAYS_AGO}\") | {id, name, head_branch, created_at, updated_at, status, conclusion, html_url}" \
           | jq -s '.[0:50]' \
@@ -105,7 +105,7 @@ steps:
               
               # Use gh agent-task view --log to get conversation transcript
               # This contains the agent's internal monologue, tool calls, and reasoning
-              gh agent-task view --repo "${{ github.repository }}" "$session_number" --log \
+              gh agent-task view --repo "$GITHUB_REPOSITORY" "$session_number" --log \
                 > "/tmp/gh-aw/session-data/logs/${session_number}-conversation.txt" 2>&1 || {
                 echo "Warning: Could not fetch conversation log for session #$session_number"
                 # If gh agent-task fails, fall back to downloading GitHub Actions logs
@@ -113,7 +113,7 @@ steps:
                 run_id=$(jq -r ".[] | select(.head_branch == \"$branch\") | .id" /tmp/gh-aw/session-data/sessions-list.json)
                 if [ -n "$run_id" ]; then
                   echo "Falling back to GitHub Actions logs for run ID: $run_id"
-                  gh api "repos/${{ github.repository }}/actions/runs/${run_id}/logs" \
+                  gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/logs" \
                     > "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" 2>&1 || true
                   
                   if [ -f "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" ] && [ -s "/tmp/gh-aw/session-data/logs/${session_number}-actions.zip" ]; then

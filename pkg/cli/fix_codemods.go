@@ -45,7 +45,7 @@ func GetAllCodemods() []Codemod {
 		getEngineStepsToTopLevelCodemod(),             // Move engine.steps to top-level steps
 		getAssignToAgentDefaultAgentCodemod(),         // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(), // Migrate tools.playwright.allowed_domains to network.allowed
-		getExpiresIntegerToStringCodemod(),            // Convert expires integer (days) to string with 'd' suffix
+		getExpiresIntegerToDayStringCodemod(),         // Convert expires integer (days) to string with 'd' suffix
 		getGitHubAppCodemod(),                         // Rename deprecated 'app' to 'github-app'
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)

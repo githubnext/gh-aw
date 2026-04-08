@@ -10,6 +10,7 @@ const { createExpirationLine, generateFooterWithExpiration } = require("./epheme
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -836,6 +837,14 @@ function buildEngineFailureContext() {
       return context;
     }
 
+    // AWF infrastructure lines written by the firewall/container wrapper — not produced by
+    // the engine itself. They must be filtered out of the fallback tail so the failure
+    // context surfaces actual agent output rather than container lifecycle noise
+    // (e.g. "Container awf-squid  Removed", "[WARN] Command completed with exit code: 1",
+    // "Process exiting with code: 1"). Shared constant from log_parser_shared.cjs keeps the
+    // pattern in sync with parse_copilot_log.cjs.
+    const INFRA_LINE_RE = AWF_INFRA_LINE_RE;
+
     // Fallback: no known error patterns found — include the last non-empty lines so that
     // failures caused by timeouts or unexpected terminations still surface useful context.
     const TAIL_LINES = 10;
@@ -844,7 +853,24 @@ function buildEngineFailureContext() {
       return "";
     }
 
-    const tailLines = nonEmptyLines.slice(-TAIL_LINES);
+    // Exclude AWF infrastructure lines so the fallback displays only actual engine output.
+    const agentLines = nonEmptyLines.filter(l => !INFRA_LINE_RE.test(l));
+
+    if (agentLines.length === 0) {
+      // The log contains only AWF infrastructure lines — the engine exited before producing
+      // any substantive output. This pattern is characteristic of a transient startup failure
+      // (e.g., API service unavailable, rate-limiting, token not yet provisioned).
+      core.info("agent-stdio.log contains only infrastructure lines — engine likely failed at startup (possible transient failure)");
+      const recurringFailureGuidance =
+        process.env.GH_AW_ENGINE_ID === "copilot"
+          ? "If this failure recurs, check the GitHub Copilot status page and review the firewall audit logs.\n\n"
+          : "If this failure recurs, check the provider status page (if available) and review the firewall audit logs.\n\n";
+      let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated before producing output.\n\n`;
+      context += "The engine exited immediately without producing any output. This often indicates a transient infrastructure issue (e.g., service unavailable, API rate limiting). " + recurringFailureGuidance;
+      return context;
+    }
+
+    const tailLines = agentLines.slice(-TAIL_LINES);
     core.info(`No specific error patterns found; including last ${tailLines.length} line(s) of agent-stdio.log as fallback`);
 
     let context = `\n**⚠️ Engine Failure**: The${engineLabel} engine terminated unexpectedly.\n\n**Last agent output:**\n\`\`\`\n`;

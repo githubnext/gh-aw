@@ -904,7 +904,7 @@ header::after {
 }
 
 /* Links */
-.sl-markdown-content a {
+.sl-markdown-content a:not(.sl-link-button) {
   color: #79c0ff;
   text-decoration: none;
   transition: color 0.15s ease;

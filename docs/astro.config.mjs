@@ -126,8 +126,10 @@ export default defineConfig({
 		'/patterns/siderepoops/': '/gh-aw/patterns/side-repo-ops/',
 		'/patterns/specops/': '/gh-aw/patterns/spec-ops/',
 		'/patterns/researchplanassignops/': '/gh-aw/patterns/research-plan-assign-ops/',
+		'/patterns/batchops/': '/gh-aw/patterns/batch-ops/',
 		'/patterns/taskops/': '/gh-aw/patterns/task-ops/',
 		'/patterns/trialops/': '/gh-aw/patterns/trial-ops/',
+		'/patterns/workqueueops/': '/gh-aw/patterns/workqueue-ops/',
 	},
 	integrations: [
 		sitemap(),
@@ -270,6 +272,7 @@ export default defineConfig({
 				{
 					label: 'Design Patterns',
 					items: [
+						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
 						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
 						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
 						{ label: 'DailyOps', link: '/patterns/daily-ops/' },
@@ -286,6 +289,7 @@ export default defineConfig({
 						{ label: 'SpecOps', link: '/patterns/spec-ops/' },
 						{ label: 'TaskOps', link: '/patterns/task-ops/' },
 						{ label: 'TrialOps', link: '/patterns/trial-ops/' },
+						{ label: 'WorkQueueOps', link: '/patterns/workqueue-ops/' },
 					],
 				},
 				{

@@ -49,7 +49,7 @@ steps:
         # Fetch all issues (open and closed) using gh CLI
         # Using --limit 1000 to get the last 1000 issues, unfiltered
         echo "Fetching the last 1000 issues..."
-        if ! gh issue list --repo ${{ github.repository }} \
+        if ! gh issue list --repo $GITHUB_REPOSITORY \
           --state all \
           --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \
           --limit 1000 \

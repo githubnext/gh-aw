@@ -30,7 +30,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		stepLines := []string{
 			"      - name: " + stepName,
-			`        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh "${ENGINE_VERSION}"`,
+			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"`,
 			"        env:",
 			"          GH_HOST: github.com",
 			"          ENGINE_VERSION: " + version,
@@ -40,7 +40,7 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 
 	stepLines := []string{
 		"      - name: " + stepName,
-		"        run: ${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh " + version,
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version,
 		"        env:",
 		"          GH_HOST: github.com",
 	}

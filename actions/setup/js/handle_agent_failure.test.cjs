@@ -590,6 +590,96 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("line 1");
     });
 
+    it("shows startup-failure message when log contains only AWF infrastructure lines", () => {
+      // This is the exact pattern from the Apr 8 systemic failure incident:
+      // containers stop cleanly, engine exits with code 1, no substantive output produced.
+      const infraLines = [
+        " Container awf-squid  Removing",
+        " Container awf-squid  Removed",
+        "[SUCCESS] Containers stopped successfully",
+        "[INFO] Agent session state preserved at: /tmp/awf-agent-session-state-abc123",
+        "[INFO] API proxy logs available at: /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs",
+        "[WARN] Command completed with exit code: 1",
+        "Process exiting with code: 1",
+      ];
+      fs.writeFileSync(stdioLogPath, infraLines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("terminated before producing output");
+      expect(result).toContain("transient infrastructure issue");
+      // Infrastructure lines should NOT appear as "Last agent output"
+      expect(result).not.toContain("Last agent output");
+      expect(result).not.toContain("awf-squid");
+      expect(result).not.toContain("Command completed with exit code");
+      expect(result).not.toContain("Process exiting with code");
+    });
+
+    it("filters infrastructure lines from fallback tail when mixed with real agent output", () => {
+      // Real agent output followed by AWF infrastructure shutdown lines.
+      // Only the real agent output should appear in the fallback.
+      const logLines = [
+        "Starting agent...",
+        "● list_files",
+        "  └ Found 12 files",
+        " Container awf-squid  Removing",
+        " Container awf-squid  Removed",
+        "[SUCCESS] Containers stopped successfully",
+        "[WARN] Command completed with exit code: 1",
+        "Process exiting with code: 1",
+      ];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Last agent output");
+      expect(result).toContain("Starting agent");
+      expect(result).toContain("Found 12 files");
+      // Infrastructure lines must be excluded from the displayed output
+      expect(result).not.toContain("awf-squid");
+      expect(result).not.toContain("Command completed with exit code");
+      expect(result).not.toContain("Process exiting with code");
+    });
+
+    it("includes [entrypoint] and [health-check] infra lines in the infra filter", () => {
+      // AWF container scripts emit lowercase [entrypoint] and [health-check] prefixes.
+      // The INFRA_LINE_RE pattern is intentionally case-sensitive and matches exactly
+      // the casing produced by each AWF component (consistent with parse_copilot_log.cjs).
+      const lines = ["[entrypoint] Starting firewall...", "[health-check] Proxy ready", "[INFO] API proxy logs available at: /tmp/gh-aw/logs", "Process exiting with code: 1"];
+      fs.writeFileSync(stdioLogPath, lines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Failure");
+      expect(result).toContain("terminated before producing output");
+      // None of the infra lines should appear
+      expect(result).not.toContain("entrypoint");
+      expect(result).not.toContain("health-check");
+      expect(result).not.toContain("API proxy");
+    });
+
+    it("includes engine ID in startup-failure message", () => {
+      process.env.GH_AW_ENGINE_ID = "copilot";
+      vi.resetModules();
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+      const infraLines = ["[WARN] Command completed with exit code: 1", "Process exiting with code: 1"];
+      fs.writeFileSync(stdioLogPath, infraLines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("`copilot` engine");
+      expect(result).toContain("terminated before producing output");
+      // Copilot-specific status page guidance
+      expect(result).toContain("GitHub Copilot status page");
+    });
+
+    it("shows provider-agnostic status page guidance for non-copilot engines", () => {
+      process.env.GH_AW_ENGINE_ID = "claude";
+      vi.resetModules();
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+      const infraLines = ["[WARN] Command completed with exit code: 1", "Process exiting with code: 1"];
+      fs.writeFileSync(stdioLogPath, infraLines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("`claude` engine");
+      expect(result).toContain("terminated before producing output");
+      // Generic guidance for non-copilot engines
+      expect(result).toContain("provider status page");
+      expect(result).not.toContain("GitHub Copilot status page");
+    });
+
     it("includes engine ID in failure message when GH_AW_ENGINE_ID is set", () => {
       process.env.GH_AW_ENGINE_ID = "copilot";
       vi.resetModules();

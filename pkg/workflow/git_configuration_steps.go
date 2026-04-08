@@ -78,6 +78,6 @@ func (c *Compiler) generateGitCredentialsCleanerStep() []string {
 	return []string{
 		"      - name: Clean git credentials\n",
 		"        continue-on-error: true\n",
-		"        run: bash ${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\n",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"\n",
 	}
 }
