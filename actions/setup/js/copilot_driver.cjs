@@ -131,9 +131,18 @@ function runProcess(command, args, attempt) {
     );
 
     child.on("exit", (code, signal) => {
+      // Log the exit event early; the promise is resolved in 'close' (see below) once stdio
+      // streams are fully drained so that collectedOutput and hasOutput are complete.
+      log(`attempt ${attempt + 1}: process exit event` + ` exitCode=${code ?? 1}` + (signal ? ` signal=${signal}` : ""));
+    });
+
+    // Resolve on 'close', not 'exit'.  'close' fires after stdio streams are fully drained,
+    // guaranteeing that collectedOutput and hasOutput are complete before we make the retry
+    // decision and that the final exit code is faithfully propagated.
+    child.on("close", (code, signal) => {
       const durationMs = Date.now() - startTime;
       const exitCode = code ?? 1;
-      log(`attempt ${attempt + 1}: process exited` + ` exitCode=${exitCode}` + (signal ? ` signal=${signal}` : "") + ` duration=${formatDuration(durationMs)}` + ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}`);
+      log(`attempt ${attempt + 1}: process closed` + ` exitCode=${exitCode}` + (signal ? ` signal=${signal}` : "") + ` duration=${formatDuration(durationMs)}` + ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}`);
       resolve({ exitCode, output: collectedOutput, hasOutput, durationMs });
     });
 
