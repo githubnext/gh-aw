@@ -2,15 +2,8 @@
 // gh-aw Playground - Application Logic
 // ================================================================
 
-import { EditorView, basicSetup } from 'https://esm.sh/codemirror@6.0.2';
-import { EditorState, Compartment } from 'https://esm.sh/@codemirror/state@6.5.4';
-import { keymap } from 'https://esm.sh/@codemirror/view@6.39.14';
-import { yaml } from 'https://esm.sh/@codemirror/lang-yaml@6.1.2';
-import { markdown } from 'https://esm.sh/@codemirror/lang-markdown@6.5.0';
-import { indentUnit } from 'https://esm.sh/@codemirror/language@6.12.1';
-import { oneDark } from 'https://esm.sh/@codemirror/theme-one-dark@6.1.3';
 import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
-import { frontmatterHoverTooltip } from './hover-tooltips.js';
+import { attachHoverTooltips } from './hover-tooltips.js';
 
 // ---------------------------------------------------------------
 // Sample workflow registry
@@ -59,9 +52,10 @@ function setHashQuietly(value) {
 const $ = (id) => document.getElementById(id);
 
 const sampleSelect = $('sampleSelect');
-const editorMount = $('editorMount');
+const editorTextarea = $('editorTextarea');
 const outputPlaceholder = $('outputPlaceholder');
-const outputMount = $('outputMount');
+const outputCode = $('outputCode');
+const outputPre = $('outputPre');
 const statusBadge = $('statusBadge');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
@@ -88,61 +82,42 @@ let pendingCompile = false;
 let isDragging = false;
 
 // ---------------------------------------------------------------
-// Theme — follows browser's prefers-color-scheme automatically.
-// Primer CSS handles the page via data-color-mode="auto".
-// We only need to toggle the CodeMirror theme (oneDark vs default).
-// ---------------------------------------------------------------
-const editorThemeConfig = new Compartment();
-const outputThemeConfig = new Compartment();
-const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
-
-function isDark() {
-  return darkMq.matches;
-}
-
-function cmThemeFor(dark) {
-  return dark ? oneDark : [];
-}
-
-function applyCmTheme() {
-  const theme = cmThemeFor(isDark());
-  editorView.dispatch({ effects: editorThemeConfig.reconfigure(theme) });
-  outputView.dispatch({ effects: outputThemeConfig.reconfigure(theme) });
-}
-
-// ---------------------------------------------------------------
-// CodeMirror: Input Editor (Markdown with YAML frontmatter)
+// Input Editor (<textarea>)
 // ---------------------------------------------------------------
 const savedContent = localStorage.getItem(STORAGE_KEY);
 const initialContent = savedContent || DEFAULT_CONTENT;
+editorTextarea.value = initialContent;
 
-const editorView = new EditorView({
-  doc: initialContent,
-  extensions: [
-    basicSetup,
-    markdown(),
-    EditorState.tabSize.of(2),
-    indentUnit.of('  '),
-    editorThemeConfig.of(cmThemeFor(isDark())),
-    keymap.of([{
-      key: 'Mod-Enter',
-      run: () => { doCompile(); return true; }
-    }]),
-    frontmatterHoverTooltip,
-    EditorView.updateListener.of(update => {
-      if (update.docChanged) {
-        try { localStorage.setItem(STORAGE_KEY, update.state.doc.toString()); }
-        catch (_) { /* localStorage full or unavailable */ }
-        if (isReady) {
-          scheduleCompile();
-        } else {
-          pendingCompile = true;
-        }
-      }
-    }),
-  ],
-  parent: editorMount,
+// Tab inserts 2 spaces; Mod-Enter triggers compile
+editorTextarea.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editorTextarea.selectionStart;
+    const end = editorTextarea.selectionEnd;
+    const val = editorTextarea.value;
+    editorTextarea.value = val.substring(0, start) + '  ' + val.substring(end);
+    editorTextarea.selectionStart = editorTextarea.selectionEnd = start + 2;
+    editorTextarea.dispatchEvent(new Event('input'));
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    doCompile();
+  }
 });
+
+// Save to localStorage and schedule auto-compile on input
+editorTextarea.addEventListener('input', () => {
+  try { localStorage.setItem(STORAGE_KEY, editorTextarea.value); }
+  catch (_) { /* localStorage full or unavailable */ }
+  if (isReady) {
+    scheduleCompile();
+  } else {
+    pendingCompile = true;
+  }
+});
+
+// Attach hover tooltips to the textarea
+attachHoverTooltips(editorTextarea, $('panelEditor'));
 
 // If restoring saved content, clear the dropdown since it may not match any sample
 if (savedContent) {
@@ -150,32 +125,13 @@ if (savedContent) {
 }
 
 // ---------------------------------------------------------------
-// CodeMirror: Output View (YAML, read-only)
-// ---------------------------------------------------------------
-const outputView = new EditorView({
-  doc: '',
-  extensions: [
-    basicSetup,
-    yaml(),
-    EditorState.readOnly.of(true),
-    EditorView.editable.of(false),
-    outputThemeConfig.of(cmThemeFor(isDark())),
-  ],
-  parent: outputMount,
-});
-
-// Listen for OS theme changes and update CodeMirror accordingly
-darkMq.addEventListener('change', () => applyCmTheme());
-
-// ---------------------------------------------------------------
 // Sample selector + deep-link loading
 // ---------------------------------------------------------------
 
 /** Replace editor content and trigger compile */
 function setEditorContent(text) {
-  editorView.dispatch({
-    changes: { from: 0, to: editorView.state.doc.length, insert: text }
-  });
+  editorTextarea.value = text;
+  editorTextarea.dispatchEvent(new Event('input'));
 }
 
 /** Load a built-in sample by key */
@@ -250,9 +206,9 @@ async function doCompile() {
     compileTimer = null;
   }
 
-  const md = editorView.state.doc.toString();
+  const md = editorTextarea.value;
   if (!md.trim()) {
-    outputMount.style.display = 'none';
+    outputPre.style.display = 'none';
     outputPlaceholder.classList.remove('d-none');
     outputPlaceholder.classList.add('d-flex');
     outputPlaceholder.textContent = 'Compiled YAML will appear here';
@@ -278,11 +234,9 @@ async function doCompile() {
       setStatus('ready', 'Ready');
       currentYaml = result.yaml;
 
-      // Update output CodeMirror view
-      outputView.dispatch({
-        changes: { from: 0, to: outputView.state.doc.length, insert: result.yaml }
-      });
-      outputMount.style.display = 'block';
+      // Update output display
+      outputCode.textContent = result.yaml;
+      outputPre.style.display = 'block';
       outputPlaceholder.classList.add('d-none');
       outputPlaceholder.classList.remove('d-flex');
 

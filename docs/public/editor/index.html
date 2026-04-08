@@ -15,22 +15,37 @@ html, body {
   overflow: hidden;
 }
 
-/* CodeMirror editor sizing */
-.cm-editor {
+/* Textarea input editor */
+#editorTextarea {
+  width: 100%;
   height: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  background: var(--bgColor-default, var(--color-canvas-default));
+  color: var(--fgColor-default, var(--color-fg-default));
+  box-sizing: border-box;
 }
-.cm-editor .cm-scroller {
+
+/* Output display */
+#outputPre {
+  margin: 0;
+  padding: 8px 12px;
+  height: 100%;
   overflow: auto;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  line-height: 1.6;
-}
-.cm-editor .cm-gutters {
   font-size: 13px;
   line-height: 1.6;
-}
-.cm-editor.cm-focused {
-  outline: none;
+  background: var(--bgColor-default, var(--color-canvas-default));
+  color: var(--fgColor-default, var(--color-fg-default));
+  box-sizing: border-box;
 }
 
 /* Draggable divider */
@@ -116,7 +131,12 @@ html, body {
 }
 
 /* Hover tooltip for frontmatter keys */
-.cm-tooltip-docs {
+.hover-tooltip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+}
+.tooltip-docs {
   padding: 8px 12px;
   max-width: 320px;
   font-size: 12px;
@@ -127,16 +147,16 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--borderColor-default, rgba(255, 255, 255, 0.1));
 }
-.cm-tooltip-docs-header {
+.tooltip-docs-header {
   display: flex;
   align-items: baseline;
   gap: 6px;
   margin-bottom: 4px;
 }
-.cm-tooltip-docs-header strong {
+.tooltip-docs-header strong {
   font-size: 13px;
 }
-.cm-tooltip-docs-type {
+.tooltip-docs-type {
   font-size: 11px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -145,31 +165,25 @@ html, body {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   white-space: nowrap;
 }
-.cm-tooltip-docs-desc {
+.tooltip-docs-desc {
   margin-top: 2px;
   color: rgba(255, 255, 255, 0.85);
   word-wrap: break-word;
 }
-.cm-tooltip-docs-enum,
-.cm-tooltip-docs-children {
+.tooltip-docs-enum,
+.tooltip-docs-children {
   margin-top: 6px;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
 }
-.cm-tooltip-docs-enum-label {
+.tooltip-docs-enum-label {
   font-weight: 600;
 }
-.cm-tooltip-docs-enum code,
-.cm-tooltip-docs-children code {
+.tooltip-docs-enum code,
+.tooltip-docs-children code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.85);
-}
-/* Override CodeMirror tooltip container styling to avoid clashing backgrounds */
-.cm-tooltip-hover {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
 }
 
 </style>
@@ -240,7 +254,7 @@ html, body {
           Workflow (.md)
         </span>
       </div>
-      <div class="flex-1" style="min-height: 0; overflow: hidden;" id="editorMount"></div>
+      <textarea class="flex-1" style="min-height: 0;" id="editorTextarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
     </div>
 
     <div class="divider" id="divider"></div>
@@ -259,7 +273,7 @@ html, body {
         <div class="d-flex flex-items-center flex-justify-center color-fg-muted f5 p-4 text-center" style="height: 100%;" id="outputPlaceholder">
           Compiled YAML will appear here
         </div>
-        <div id="outputMount" style="height: 100%; display: none;"></div>
+        <pre id="outputPre" style="display: none;"><code id="outputCode"></code></pre>
       </div>
     </div>
   </div>
