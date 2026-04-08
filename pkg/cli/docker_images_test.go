@@ -588,3 +588,36 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_ReturnsTypedError(t *test
 	// Clean up
 	ResetDockerPullState()
 }
+
+func TestCheckAndPrepareDockerImages_RunnerGuardImageDownloading(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+
+	// Mock runner-guard image as not available
+	SetMockImageAvailable(RunnerGuardImage, false)
+
+	// Simulate multiple images already downloading
+	SetDockerImageDownloading(ZizmorImage, true)
+	SetDockerImageDownloading(PoutineImage, true)
+	SetDockerImageDownloading(RunnerGuardImage, true)
+
+	// Request all tools, including runner-guard
+	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, true)
+	if err == nil {
+		t.Error("Expected error when images are downloading, got nil")
+	}
+
+	// Error should mention downloading images and runner-guard
+	if err != nil {
+		errMsg := err.Error()
+		if !strings.Contains(errMsg, "downloading") && !strings.Contains(errMsg, "retry") {
+			t.Errorf("Expected error to mention downloading and retry, got: %s", errMsg)
+		}
+		if !strings.Contains(errMsg, RunnerGuardImage) && !strings.Contains(errMsg, "runner-guard") {
+			t.Errorf("Expected error to mention runner-guard image %q or \"runner-guard\", got: %s", RunnerGuardImage, errMsg)
+		}
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}

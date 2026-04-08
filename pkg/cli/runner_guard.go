@@ -51,8 +51,18 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		return fmt.Errorf("git root is not an absolute path: %s", gitRoot)
 	}
 
+	// Determine the scan path: use workflowDir relative to gitRoot when possible,
+	// so the scan is scoped to the compiled workflows directory.
+	scanPath := "."
+	if workflowDir != "" {
+		relDir, relErr := filepath.Rel(gitRoot, workflowDir)
+		if relErr == nil && relDir != ".." && !strings.HasPrefix(relDir, ".."+string(filepath.Separator)) {
+			scanPath = relDir
+		}
+	}
+
 	// Build the Docker command
-	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:v3.0.1 scan . --format json
+	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:v3.0.1 scan <path> --format json
 	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path.
 	// exec.Command with separate args (not shell execution) prevents command injection.
 	cmd := exec.Command(
@@ -63,7 +73,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		"-w", "/workdir",
 		RunnerGuardImage,
 		"scan",
-		".",
+		scanPath,
 		"--format", "json",
 	)
 
@@ -72,8 +82,8 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir %s scan . --format json",
-			gitRoot, RunnerGuardImage)
+		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir %s scan %s --format json",
+			gitRoot, RunnerGuardImage, scanPath)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run runner-guard directly: "+dockerCmd))
 	}
 
@@ -106,8 +116,16 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 			runnerGuardLog.Printf("runner-guard exited with code %d (findings=%d)", exitCode, totalFindings)
 			// Exit code 1 typically indicates findings in the repository
 			if exitCode == 1 {
-				if strict && totalFindings > 0 {
-					return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode", totalFindings)
+				if strict {
+					if parseErr != nil {
+						// JSON parsing failed but exit code confirms findings exist
+						return fmt.Errorf("strict mode: runner-guard exited with code 1 (findings present) and output could not be parsed: %w", parseErr)
+					}
+					if totalFindings > 0 {
+						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode", totalFindings)
+					}
+					// Exit code 1 with no parseable findings is still a failure in strict mode
+					return errors.New("strict mode: runner-guard exited with code 1 indicating findings are present")
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -184,7 +202,7 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 
 		// Check if the resolved path is within gitRoot to prevent path traversal
 		relPath, err := filepath.Rel(absGitRoot, absPath)
-		if err != nil || strings.HasPrefix(relPath, "..") {
+		if err != nil || relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 			runnerGuardLog.Printf("Skipping file outside git root: %s", filePath)
 			continue
 		}
