@@ -97,8 +97,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || 'auto' }}
-          GH_AW_INFO_VERSION: "2.1.92"
-          GH_AW_INFO_AGENT_VERSION: "2.1.92"
+          GH_AW_INFO_VERSION: "2.1.94"
+          GH_AW_INFO_AGENT_VERSION: "2.1.94"
           GH_AW_INFO_WORKFLOW_NAME: "Semantic Function Refactoring"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -395,7 +395,7 @@ jobs:
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
       - name: Install Claude Code CLI
-        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.92
+        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.94
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1191,7 +1191,7 @@ jobs:
       - name: Install AWF binary
         run: bash ${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh v0.25.16
       - name: Install Claude Code CLI
-        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.92
+        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.94
       - name: Execute Claude Code CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
