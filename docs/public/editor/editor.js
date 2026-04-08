@@ -98,6 +98,7 @@ editorTextarea.addEventListener('keydown', (e) => {
   if (e.key === 'Tab' && e.shiftKey) {
     e.preventDefault();
     const start = editorTextarea.selectionStart;
+    const end = editorTextarea.selectionEnd;
     const val = editorTextarea.value;
     // Find the start of the current line
     const lineStart = val.lastIndexOf('\n', start - 1) + 1;
@@ -105,10 +106,16 @@ editorTextarea.addEventListener('keydown', (e) => {
     const line = val.substring(lineStart, lineEnd === -1 ? val.length : lineEnd);
     const spaces = line.match(/^ {1,2}/);
     if (spaces) {
+      const removed = spaces[0].length;
       // Select the leading spaces and delete them via execCommand to preserve undo
       editorTextarea.selectionStart = lineStart;
-      editorTextarea.selectionEnd = lineStart + spaces[0].length;
+      editorTextarea.selectionEnd = lineStart + removed;
       document.execCommand('delete', false);
+      // Restore adjusted selection
+      const newStart = Math.max(lineStart, start - removed);
+      const newEnd = Math.max(lineStart, end - removed);
+      editorTextarea.selectionStart = newStart;
+      editorTextarea.selectionEnd = newEnd;
     }
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

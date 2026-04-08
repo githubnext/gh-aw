@@ -301,7 +301,7 @@ export function attachHoverTooltips(textarea) {
     if (top < 0) top = y + pad;
     const minLeft = pad;
     const maxLeft = window.innerWidth - tooltip.offsetWidth - pad;
-    left = Math.max(minLeft, Math.min(left, Math.max(minLeft, maxLeft)));
+    left = Math.max(minLeft, Math.min(left, maxLeft));
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
   }
