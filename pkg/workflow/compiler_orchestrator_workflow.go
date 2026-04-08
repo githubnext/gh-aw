@@ -942,8 +942,13 @@ func (c *Compiler) extractAdditionalConfigurations(
 		workflowData.SafeOutputs.GitHubApp = includedApp
 	}
 
-	// Merge safe-outputs types from imports
-	mergedSafeOutputs, err := c.MergeSafeOutputs(workflowData.SafeOutputs, allSafeOutputsConfigs)
+	// Merge safe-outputs types from imports.
+	// Pass the raw safe-outputs map from frontmatter so MergeSafeOutputs can distinguish
+	// between types the user explicitly configured and types that were auto-defaulted by
+	// extractSafeOutputsConfig. Without this, auto-defaults (e.g. threat-detection) would
+	// prevent imported configurations for those types from being merged.
+	rawSafeOutputsMap, _ := frontmatter["safe-outputs"].(map[string]any)
+	mergedSafeOutputs, err := c.MergeSafeOutputs(workflowData.SafeOutputs, allSafeOutputsConfigs, rawSafeOutputsMap)
 	if err != nil {
 		return fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
 	}

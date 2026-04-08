@@ -485,7 +485,7 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON)
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON, nil)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -596,7 +596,7 @@ func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON)
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON, nil)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -1309,7 +1309,7 @@ func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
 		`{"jobs":{"imported-job":{"name":"Imported Job","runs-on":"ubuntu-latest"}},"create-issue":{"title-prefix":"[test] "}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 
 	// Verify that the existing job is preserved (Jobs field untouched)
@@ -1336,7 +1336,7 @@ func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
 		`{"jobs":{"imported-job":{"name":"Imported Job"}},"add-comment":{"max":5}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 
 	// Jobs should still be nil since we don't merge them in MergeSafeOutputs
@@ -1388,7 +1388,7 @@ func TestMergeSafeOutputsErrorPropagation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(nil, tt.importedJSON)
+			result, err := compiler.MergeSafeOutputs(nil, tt.importedJSON, nil)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error")
@@ -1842,7 +1842,7 @@ func TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden(t *testing.
 		`{"add-comment":{"max":1}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 	require.NotNil(t, result, "Result should not be nil")
 
@@ -1860,7 +1860,7 @@ func TestMergeSafeOutputsThreatDetectionImportedWhenExplicit(t *testing.T) {
 		`{"add-comment":{"max":1},"threat-detection":{"enabled":true}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(nil, importedJSON)
+	result, err := compiler.MergeSafeOutputs(nil, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 	require.NotNil(t, result, "Result should not be nil")
 
@@ -1926,4 +1926,70 @@ safe-outputs:
 
 	// The explicit disable must survive the import merge.
 	assert.Nil(t, workflowData.SafeOutputs.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
+}
+
+// TestSafeOutputsDifferentTypesFromImportsMerged reproduces the bug reported in
+// https://github.com/github/gh-aw/issues/<issue>:
+// When the main workflow defines one safe-outputs type (e.g. noop) and an imported
+// workflow defines a different type (e.g. threat-detection), the imported type should
+// be merged into the compiled output. Previously the auto-default applied by
+// extractSafeOutputsConfig (which enabled threat-detection by default whenever any
+// safe-outputs were present) caused threat-detection to appear as "already defined" in
+// topDefinedTypes, so the import's explicit threat-detection configuration was dropped.
+func TestSafeOutputsDifferentTypesFromImportsMerged(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Imported workflow: only defines threat-detection with a custom step
+	importedWorkflow := `---
+safe-outputs:
+  threat-detection:
+    steps:
+      - name: Print abc
+        run: echo "abc"
+---
+`
+	importedFile := filepath.Join(workflowsDir, "abc.md")
+	err = os.WriteFile(importedFile, []byte(importedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write imported file")
+
+	// Main workflow: only defines noop, does NOT define threat-detection
+	mainWorkflow := `---
+description: hello world
+on:
+  workflow_dispatch:
+imports:
+  - ./abc.md
+safe-outputs:
+  noop:
+    report-as-issue: false
+---
+Print "hello world!".
+`
+	mainFile := filepath.Join(workflowsDir, "hello-world.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("hello-world.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// noop was explicitly set in the main workflow
+	require.NotNil(t, workflowData.SafeOutputs.NoOp, "NoOp should be set (from main workflow)")
+
+	// threat-detection was explicitly set in the import — it must be merged
+	require.NotNil(t, workflowData.SafeOutputs.ThreatDetection,
+		"ThreatDetection should be merged from the imported workflow")
+	assert.Len(t, workflowData.SafeOutputs.ThreatDetection.Steps, 1,
+		"ThreatDetection should have 1 custom step from the import")
 }

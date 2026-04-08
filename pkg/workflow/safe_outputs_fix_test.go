@@ -249,7 +249,7 @@ func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(tt.topConfig, []string{tt.imported})
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, []string{tt.imported}, nil)
 			require.NoError(t, err, "MergeSafeOutputs should not error")
 			require.NotNil(t, result, "result should not be nil")
 			tt.verify(t, result)
