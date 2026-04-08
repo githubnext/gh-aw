@@ -19,13 +19,13 @@ import (
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
-// validateStepsSecrets checks both the "steps" and "post-steps" frontmatter sections
+// validateStepsSecrets checks the "pre-steps", "steps", and "post-steps" frontmatter sections
 // for secrets expressions (e.g. ${{ secrets.MY_SECRET }}).
 //
 // In strict mode the presence of any such expression is treated as an error.
 // In non-strict mode a warning is emitted instead.
 func (c *Compiler) validateStepsSecrets(frontmatter map[string]any) error {
-	for _, sectionName := range []string{"steps", "post-steps"} {
+	for _, sectionName := range []string{"pre-steps", "steps", "post-steps"} {
 		if err := c.validateStepsSectionSecrets(frontmatter, sectionName); err != nil {
 			return err
 		}

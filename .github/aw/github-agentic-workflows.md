@@ -990,6 +990,28 @@ The YAML frontmatter supports these fields:
     ```
 
     Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB).
+  - `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts
+
+    ```yaml
+    safe-outputs:
+      upload-artifact:
+        max-uploads: 5                  # Optional: max upload_artifact tool calls (default: 1)
+        default-retention-days: 7       # Optional: default retention period in days (default: 7)
+        max-retention-days: 30          # Optional: maximum retention cap in days (default: 30)
+        max-size-bytes: 104857600       # Optional: max bytes per upload (default: 100 MB)
+        allowed-paths:                  # Optional: glob patterns restricting uploadable paths
+          - "reports/**"
+          - "*.json"
+        filters:                        # Optional: default include/exclude glob filters
+          include: ["*.json", "*.csv"]
+          exclude: ["*secret*"]
+        defaults:                       # Optional: default values injected when agent omits a field
+          if-no-files: "ignore"         # "error" or "ignore" when no files match (default: "error")
+        allow:                          # Optional: opt-in behaviors
+          skip-archive: true            # Allow agent to upload files without zipping
+    ```
+
+    Uploads files as run-scoped GitHub Actions artifacts (distinct from `upload-asset`, which publishes to a git branch). Artifacts are temporary and tied to the workflow run. Agents call `upload_artifact` with a `name`, `path`, and optional `retention_days`.
   - `dispatch-workflow:` - Trigger other workflows with inputs
 
     ```yaml
@@ -2295,6 +2317,16 @@ Create an issue with your findings, including:
 ```
 
 This example demonstrates using the agentic-workflows tool to analyze workflow execution history and provide actionable improvement recommendations.
+
+### High-Volume Processing Patterns
+
+For workflows processing large numbers of items, use these design patterns:
+
+- **WorkQueueOps** — Queue-based sequential processing using issue checklists, sub-issues, cache-memory, or Discussions as durable queue backends. Best for ordered work with dependencies, human-readable progress tracking, and multi-day processing horizons. Use `concurrency.group` with `cancel-in-progress: false` to prevent race conditions.
+
+- **BatchOps** — Parallel or chunked processing using matrix jobs, rate-limit-aware throttling, and result aggregation. Best for 50+ fully independent items. Use `fail-fast: false` in matrix jobs so one shard failure doesn't cancel others.
+
+Both patterns support idempotent operations, concurrency controls, and partial failure handling via cache-memory for state persistence across runs.
 
 ## Workflow Monitoring and Analysis
 

@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -560,5 +561,26 @@ func TestIsDockerAvailable_MockFalse(t *testing.T) {
 	if IsDockerAvailable() {
 		t.Error("Expected IsDockerAvailable to return false when mocked as unavailable")
 	}
+	ResetDockerPullState()
+}
+
+func TestCheckAndPrepareDockerImages_DockerUnavailable_ReturnsTypedError(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+	SetMockDockerAvailable(false)
+
+	err := CheckAndPrepareDockerImages(context.Background(), false, false, true)
+	if err == nil {
+		t.Fatal("Expected error when Docker is unavailable, got nil")
+	}
+
+	// Verify the error is the typed DockerUnavailableError so callers can distinguish
+	// it from transient errors (e.g., images downloading).
+	var dockerUnavailableErr *DockerUnavailableError
+	if !errors.As(err, &dockerUnavailableErr) {
+		t.Errorf("Expected error to be *DockerUnavailableError, got %T: %v", err, err)
+	}
+
+	// Clean up
 	ResetDockerPullState()
 }

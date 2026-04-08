@@ -14,6 +14,19 @@ import (
 
 var dockerImagesLog = logger.New("cli:docker_images")
 
+// DockerUnavailableError is returned when the Docker daemon is not accessible.
+// This is distinct from transient errors (e.g., images being downloaded) and signals
+// that Docker is not installed or not running on the host system.
+// Callers can use errors.As to check for this type and take appropriate action,
+// such as skipping static analysis but still running the compile step.
+type DockerUnavailableError struct {
+	Message string
+}
+
+func (e *DockerUnavailableError) Error() string {
+	return e.Message
+}
+
 // DockerImages defines the Docker images used by the compile tool's static analysis scanners
 const (
 	ZizmorImage     = "ghcr.io/zizmorcore/zizmor:latest"
@@ -220,7 +233,9 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		if len(requestedTools) > 1 {
 			verb = "require"
 		}
-		return fmt.Errorf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and "))
+		return &DockerUnavailableError{
+			Message: fmt.Sprintf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and ")),
+		}
 	}
 
 	var missingImages []string

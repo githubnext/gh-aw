@@ -401,8 +401,9 @@ func TestProcessAndMergePostSteps_NoPostSteps(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{}
 	frontmatter := map[string]any{}
+	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePostSteps(frontmatter, workflowData)
+	compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
 
 	assert.Empty(t, workflowData.PostSteps)
 }
@@ -430,12 +431,103 @@ func TestProcessAndMergePostSteps_WithPostSteps(t *testing.T) {
 			},
 		},
 	}
+	importsResult := &parser.ImportsResult{}
 
-	compiler.processAndMergePostSteps(frontmatter, workflowData)
+	compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
 
 	assert.NotEmpty(t, workflowData.PostSteps)
 	assert.Contains(t, workflowData.PostSteps, "Cleanup")
 	assert.Contains(t, workflowData.PostSteps, "Upload logs")
+}
+
+// TestProcessAndMergePostSteps_WithImportedPostSteps tests that imported post-steps are appended
+func TestProcessAndMergePostSteps_WithImportedPostSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+
+	frontmatter := map[string]any{
+		"post-steps": []any{
+			map[string]any{"name": "Main post step", "run": "echo 'main'"},
+		},
+	}
+
+	importedPostStepsYAML, err := yaml.Marshal([]any{
+		map[string]any{"name": "Imported post step", "run": "echo 'imported'"},
+	})
+	require.NoError(t, err, "yaml.Marshal should not fail for well-formed post-steps")
+	importsResult := &parser.ImportsResult{
+		MergedPostSteps: string(importedPostStepsYAML),
+	}
+
+	compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
+
+	assert.Contains(t, workflowData.PostSteps, "Main post step")
+	assert.Contains(t, workflowData.PostSteps, "Imported post step")
+
+	// Main workflow's post-steps should come before imported ones
+	mainIdx := strings.Index(workflowData.PostSteps, "Main post step")
+	importedIdx := strings.Index(workflowData.PostSteps, "Imported post step")
+	assert.Less(t, mainIdx, importedIdx, "Main post-steps should come before imported ones")
+}
+
+// TestProcessAndMergePreSteps_NoPreSteps tests processAndMergePreSteps with no pre-steps
+func TestProcessAndMergePreSteps_NoPreSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{}
+	importsResult := &parser.ImportsResult{}
+
+	compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+
+	assert.Empty(t, workflowData.PreSteps)
+}
+
+// TestProcessAndMergePreSteps_WithPreSteps tests processAndMergePreSteps with pre-steps defined
+func TestProcessAndMergePreSteps_WithPreSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+
+	frontmatter := map[string]any{
+		"pre-steps": []any{
+			map[string]any{"name": "Mint token", "run": "echo 'minting'"},
+		},
+	}
+	importsResult := &parser.ImportsResult{}
+
+	compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+
+	assert.NotEmpty(t, workflowData.PreSteps)
+	assert.Contains(t, workflowData.PreSteps, "Mint token")
+}
+
+// TestProcessAndMergePreSteps_WithImportedPreSteps tests that imported pre-steps are prepended
+func TestProcessAndMergePreSteps_WithImportedPreSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+
+	frontmatter := map[string]any{
+		"pre-steps": []any{
+			map[string]any{"name": "Main pre step", "run": "echo 'main'"},
+		},
+	}
+
+	importedPreStepsYAML, err := yaml.Marshal([]any{
+		map[string]any{"name": "Imported pre step", "run": "echo 'imported'"},
+	})
+	require.NoError(t, err, "yaml.Marshal should not fail for well-formed pre-steps")
+	importsResult := &parser.ImportsResult{
+		MergedPreSteps: string(importedPreStepsYAML),
+	}
+
+	compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
+
+	assert.Contains(t, workflowData.PreSteps, "Main pre step")
+	assert.Contains(t, workflowData.PreSteps, "Imported pre step")
+
+	// Imported pre-steps should come before the main workflow's pre-steps
+	importedIdx := strings.Index(workflowData.PreSteps, "Imported pre step")
+	mainIdx := strings.Index(workflowData.PreSteps, "Main pre step")
+	assert.Less(t, importedIdx, mainIdx, "Imported pre-steps should come before main pre-steps")
 }
 
 // TestProcessAndMergeServices_NoServices tests processAndMergeServices with no services

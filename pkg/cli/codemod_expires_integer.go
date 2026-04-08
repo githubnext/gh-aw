@@ -13,9 +13,9 @@ var expiresIntegerCodemodLog = logger.New("cli:codemod_expires_integer")
 // expiresIntegerValuePattern matches an expires value that is a pure integer (possibly with a trailing comment)
 var expiresIntegerValuePattern = regexp.MustCompile(`^(\s*)(\d+)(\s*)(#.*)?$`)
 
-// getExpiresIntegerToStringCodemod creates a codemod for converting integer expires values to day strings.
+// getExpiresIntegerToDayStringCodemod creates a codemod for converting integer expires values to day strings.
 // Converts e.g. "expires: 7" to "expires: 7d" in all safe-outputs types.
-func getExpiresIntegerToStringCodemod() Codemod {
+func getExpiresIntegerToDayStringCodemod() Codemod {
 	return Codemod{
 		ID:           "expires-integer-to-string",
 		Name:         "Convert expires integer to day string",
@@ -89,7 +89,7 @@ func convertExpiresIntegersToDayStrings(lines []string) ([]string, bool) {
 
 		// Convert integer expires to day string if inside safe-outputs block
 		if inSafeOutputsBlock && strings.HasPrefix(trimmedLine, "expires:") {
-			newLine, converted := convertExpiresLineToString(line)
+			newLine, converted := convertExpiresIntegerLineToDayString(line)
 			if converted {
 				result = append(result, newLine)
 				modified = true
@@ -104,11 +104,11 @@ func convertExpiresIntegersToDayStrings(lines []string) ([]string, bool) {
 	return result, modified
 }
 
-// convertExpiresLineToString converts an expires line with an integer value to use a day string.
+// convertExpiresIntegerLineToDayString converts an expires line with an integer value to use a day string.
 // For example: "    expires: 7" -> "    expires: 7d"
 // Lines that already use a string format (e.g., "expires: 7d", "expires: 24h") are left unchanged.
 // Returns the (possibly converted) line and whether a conversion was made.
-func convertExpiresLineToString(line string) (string, bool) {
+func convertExpiresIntegerLineToDayString(line string) (string, bool) {
 	indent := getIndentation(line)
 	trimmedLine := strings.TrimSpace(line)
 
