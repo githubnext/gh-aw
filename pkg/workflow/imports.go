@@ -310,6 +310,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.PushToPullRequestBranch != nil
 	case "upload-asset":
 		return config.UploadAssets != nil
+	case "upload-artifact":
+		return config.UploadArtifact != nil
 	case "update-release":
 		return config.UpdateRelease != nil
 	case "create-agent-session":
@@ -447,6 +449,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.UploadAssets == nil && importedConfig.UploadAssets != nil {
 		result.UploadAssets = importedConfig.UploadAssets
+	}
+	if result.UploadArtifact == nil && importedConfig.UploadArtifact != nil {
+		result.UploadArtifact = importedConfig.UploadArtifact
 	}
 	if result.UpdateRelease == nil && importedConfig.UpdateRelease != nil {
 		result.UpdateRelease = importedConfig.UpdateRelease

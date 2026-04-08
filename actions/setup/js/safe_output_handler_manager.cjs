@@ -74,6 +74,7 @@ const HANDLER_MAP = {
   create_project: "./create_project.cjs",
   create_project_status_update: "./create_project_status_update.cjs",
   update_project: "./update_project.cjs",
+  upload_artifact: "./upload_artifact.cjs",
 };
 
 /**

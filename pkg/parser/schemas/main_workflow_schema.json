@@ -4343,7 +4343,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -7459,6 +7459,112 @@
             }
           ],
           "description": "Enable AI agents to publish files (images, charts, reports) to an orphaned git branch for persistent storage and web access."
+        },
+        "upload-artifact": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for uploading files as run-scoped GitHub Actions artifacts",
+              "properties": {
+                "max-uploads": {
+                  "type": "integer",
+                  "description": "Maximum number of upload_artifact tool calls allowed per run (default: 1)",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "default": 1
+                },
+                "default-retention-days": {
+                  "type": "integer",
+                  "description": "Default artifact retention period in days (default: 7)",
+                  "minimum": 1,
+                  "maximum": 90,
+                  "default": 7
+                },
+                "max-retention-days": {
+                  "type": "integer",
+                  "description": "Maximum retention cap in days; model requests are clamped to this value (default: 30)",
+                  "minimum": 1,
+                  "maximum": 90,
+                  "default": 30
+                },
+                "max-size-bytes": {
+                  "type": "integer",
+                  "description": "Maximum total upload size in bytes per slot (default: 104857600 = 100 MB)",
+                  "minimum": 1,
+                  "default": 104857600
+                },
+                "allowed-paths": {
+                  "type": "array",
+                  "description": "Glob patterns restricting which paths relative to the staging directory the model may upload",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "filters": {
+                  "type": "object",
+                  "description": "Default include/exclude glob filters applied on top of allowed-paths",
+                  "properties": {
+                    "include": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Glob patterns for files to include"
+                    },
+                    "exclude": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "Glob patterns for files to exclude"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "defaults": {
+                  "type": "object",
+                  "description": "Default values injected when the model omits a field",
+                  "properties": {
+                    "skip-archive": {
+                      "type": "boolean",
+                      "description": "Default value for skip_archive (default: false)",
+                      "default": false
+                    },
+                    "if-no-files": {
+                      "type": "string",
+                      "description": "Behaviour when no files match: 'error' (default) or 'ignore'",
+                      "enum": ["error", "ignore"],
+                      "default": "error"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "allow": {
+                  "type": "object",
+                  "description": "Opt-in behaviours that must be explicitly enabled by the workflow author",
+                  "properties": {
+                    "skip-archive": {
+                      "type": "boolean",
+                      "description": "Allow the model to set skip_archive: true (uploads the file directly without archiving)",
+                      "default": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "type": "boolean",
+                  "description": "If true, emit step summary messages instead of making GitHub Actions artifact uploads (preview mode)",
+                  "examples": [true, false]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable artifact uploads with default configuration"
+            }
+          ],
+          "description": "Enable AI agents to upload files as run-scoped GitHub Actions artifacts. Returns a temporary artifact ID rather than a raw download URL, keeping authorization centralized."
         },
         "update-release": {
           "oneOf": [

@@ -82,6 +82,9 @@ DESTINATION="${INPUT_DESTINATION:-${GH_AW_ROOT}/actions}"
 # Get safe-output-custom-tokens flag from input (default: false)
 SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED="${INPUT_SAFE_OUTPUT_CUSTOM_TOKENS:-false}"
 
+# Get safe-output-artifact-client flag from input (default: false)
+SAFE_OUTPUT_ARTIFACT_CLIENT_ENABLED="${INPUT_SAFE_OUTPUT_ARTIFACT_CLIENT:-false}"
+
 debug_log "Copying activation files to ${DESTINATION}"
 debug_log "Safe-output custom tokens support: ${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}"
 
@@ -414,6 +417,38 @@ if [ "${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}" = "true" ]; then
   cd - > /dev/null
 else
   debug_log "Custom tokens not enabled - skipping @actions/github installation"
+fi
+
+# Install @actions/artifact package if upload-artifact safe output is configured.
+# upload_artifact.cjs uses DefaultArtifactClient to upload via Actions REST API directly.
+if [ "${SAFE_OUTPUT_ARTIFACT_CLIENT_ENABLED}" = "true" ]; then
+  echo "Artifact client enabled - installing @actions/artifact package in ${DESTINATION}..."
+  cd "${DESTINATION}"
+
+  # Check if npm is available
+  if ! command -v npm &> /dev/null; then
+    echo "::error::npm is not available. Cannot install @actions/artifact package."
+    exit 1
+  fi
+
+  # Create a minimal package.json if it doesn't exist
+  if [ ! -f "package.json" ]; then
+    echo '{"private": true}' > package.json
+  fi
+
+  # Install @actions/artifact package
+  npm install --ignore-scripts --no-save --loglevel=error @actions/artifact@^6.0.0 2>&1 | grep -v "npm WARN" || true
+  if [ -d "node_modules/@actions/artifact" ]; then
+    echo "✓ Successfully installed @actions/artifact package"
+  else
+    echo "::error::Failed to install @actions/artifact package"
+    exit 1
+  fi
+
+  # Return to original directory
+  cd - > /dev/null
+else
+  debug_log "Artifact client not enabled - skipping @actions/artifact installation"
 fi
 
 # Send OTLP job setup span when configured (non-fatal).

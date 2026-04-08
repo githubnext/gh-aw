@@ -850,6 +850,58 @@
     }
   },
   {
+    "name": "upload_artifact",
+    "description": "Upload files as a run-scoped GitHub Actions artifact. The model must first copy files to $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ then request upload using this tool. Returns a temporary artifact ID that can be resolved to a download URL by an authorised step. Exactly one of path or filters must be present.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the file or directory to upload, relative to $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ (e.g., \"report.json\" or \"dist/\"). Required unless filters is provided."
+        },
+        "filters": {
+          "type": "object",
+          "description": "Glob-based file selection filters. Required unless path is provided.",
+          "properties": {
+            "include": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Glob patterns for files to include (e.g., [\"reports/**/*.json\"])"
+            },
+            "exclude": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Glob patterns for files to exclude (e.g., [\"**/*.env\", \"**/*.pem\"])"
+            }
+          },
+          "additionalProperties": false
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of days to retain the artifact. Capped by workflow configuration."
+        },
+        "skip_archive": {
+          "type": "boolean",
+          "description": "Upload the file directly without archiving. Only allowed for single-file uploads when enabled in workflow configuration."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the artifact content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the artifact source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_release",
     "description": "Update a GitHub release description by replacing, appending to, or prepending to the existing content. Use this to add release notes, changelogs, or additional information to an existing release.",
     "inputSchema": {

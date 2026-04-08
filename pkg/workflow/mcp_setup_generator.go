@@ -228,6 +228,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs\n")
+		// Create the upload-artifact staging directory before the agent runs so it exists
+		// as a bind-mount source for the read-write mount added to the awf command.
+		// The directory is inside ${RUNNER_TEMP}/gh-aw which is mounted :ro in the agent
+		// container; a child :rw mount on this subdirectory allows the model to write staged
+		// files there. The directory must exist on the host before awf starts.
+		if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadArtifact != nil {
+			yaml.WriteString("          mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts\n")
+		}
 
 		// Write the safe-outputs configuration to config.json
 		delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_CONFIG", workflowData.FrontmatterHash)

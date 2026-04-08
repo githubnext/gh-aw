@@ -40,7 +40,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if preActivationJobCreated {
 		activationSetupTraceID = fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.PreActivationJobName)
 	}
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, activationSetupTraceID)...)
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, activationSetupTraceID)...)
 	// Expose the trace ID for cross-job span correlation so downstream jobs can reuse it
 	outputs["setup-trace-id"] = "${{ steps.setup.outputs.trace-id }}"
 
