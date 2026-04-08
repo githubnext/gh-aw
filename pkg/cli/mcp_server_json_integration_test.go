@@ -386,11 +386,25 @@ func TestMCPServer_ChecksToolReturnsValidJSON(t *testing.T) {
 			Name:      "checks",
 			Arguments: map[string]any{},
 		}
-		_, err := session.CallTool(ctx, params)
-		if err == nil {
-			t.Error("Expected MCP error when pr_number is missing")
-		} else {
+		result, err := session.CallTool(ctx, params)
+		if err != nil {
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, "pr_number") && !strings.Contains(errMsg, "required") && !strings.Contains(errMsg, "missing") {
+				t.Errorf("Expected error message to mention missing 'pr_number' parameter, got: %s", errMsg)
+			}
 			t.Logf("Checks tool correctly returned error for missing pr_number: %v", err)
+		} else if result != nil && result.IsError {
+			if len(result.Content) > 0 {
+				if tc, ok := result.Content[0].(*mcp.TextContent); ok {
+					t.Logf("Checks tool correctly returned tool error for missing pr_number: %s", tc.Text)
+				} else {
+					t.Logf("Checks tool returned tool error with non-text content")
+				}
+			} else {
+				t.Logf("Checks tool correctly returned tool error for missing pr_number")
+			}
+		} else {
+			t.Error("Expected MCP error when pr_number is missing")
 		}
 	})
 

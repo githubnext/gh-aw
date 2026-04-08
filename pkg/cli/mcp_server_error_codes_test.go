@@ -52,18 +52,36 @@ func TestMCPServer_ErrorCodes_InvalidParams(t *testing.T) {
 			Arguments: map[string]any{}, // Missing required workflows
 		}
 
-		_, err := session.CallTool(ctx, params)
-		if err == nil {
+		result, err := session.CallTool(ctx, params)
+		if err != nil {
+			// Protocol error (older SDK behavior)
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, "missing required parameter") && !strings.Contains(errMsg, "missing properties") {
+				t.Errorf("Expected error message about missing parameter, got: %s", errMsg)
+			} else {
+				t.Logf("✓ Correct protocol error for missing workflows: %s", errMsg)
+			}
+			return
+		}
+
+		// Tool error (SDK v1.5.0+ behavior - schema validation returns IsError=true)
+		if result == nil || !result.IsError {
 			t.Error("Expected error for missing workflows parameter, got nil")
 			return
 		}
 
-		// The error message should contain the InvalidParams error message
-		errMsg := err.Error()
-		if !strings.Contains(errMsg, "missing required parameter") && !strings.Contains(errMsg, "missing properties") {
-			t.Errorf("Expected error message about missing parameter, got: %s", errMsg)
+		if len(result.Content) > 0 {
+			if tc, ok := result.Content[0].(*mcp.TextContent); ok {
+				if !strings.Contains(tc.Text, "missing required parameter") && !strings.Contains(tc.Text, "missing properties") {
+					t.Errorf("Expected error message about missing parameter, got: %s", tc.Text)
+				} else {
+					t.Logf("✓ Correct tool error for missing workflows: %s", tc.Text)
+				}
+			} else {
+				t.Errorf("Expected text content in tool error, got: %T", result.Content[0])
+			}
 		} else {
-			t.Logf("✓ Correct error for missing workflows: %s", errMsg)
+			t.Error("Expected non-empty content in tool error for missing workflows parameter")
 		}
 	})
 
