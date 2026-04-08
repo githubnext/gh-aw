@@ -17,11 +17,6 @@ set -e
 POLICY="${CLI_PROXY_POLICY:-}"
 CONTAINER_IMAGE="${CLI_PROXY_IMAGE:-}"
 
-if [ -z "$POLICY" ]; then
-  echo "::warning::CLI proxy policy not specified, skipping proxy start"
-  exit 0
-fi
-
 if [ -z "$CONTAINER_IMAGE" ]; then
   echo "::warning::CLI proxy container image not specified, skipping proxy start"
   exit 0
@@ -34,6 +29,12 @@ mkdir -p "$TLS_DIR" "$MCP_LOG_DIR"
 
 echo "Starting CLI proxy container: $CONTAINER_IMAGE"
 
+# Build docker run command arguments
+POLICY_ARGS=""
+if [ -n "$POLICY" ]; then
+  POLICY_ARGS="--policy $POLICY"
+fi
+
 docker run -d --name awmg-cli-proxy --network host \
   -e GH_TOKEN \
   -e GITHUB_SERVER_URL \
@@ -41,7 +42,7 @@ docker run -d --name awmg-cli-proxy --network host \
   -v "$TLS_DIR:$TLS_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
   "$CONTAINER_IMAGE" proxy \
-    --policy "$POLICY" \
+    $POLICY_ARGS \
     --listen 0.0.0.0:18443 \
     --log-dir "$MCP_LOG_DIR" \
     --tls --tls-dir "$TLS_DIR" \
@@ -62,7 +63,8 @@ for i in $(seq 1 30); do
 done
 
 if [ "$PROXY_READY" = "false" ]; then
-  echo "::warning::CLI proxy failed to start within 30s"
+  echo "::error::CLI proxy failed to start within 30s"
   docker logs awmg-cli-proxy 2>&1 | tail -20 || true
   docker rm -f awmg-cli-proxy 2>/dev/null || true
+  exit 1
 fi

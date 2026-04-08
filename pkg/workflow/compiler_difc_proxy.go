@@ -320,13 +320,13 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\"\n")
 }
 
-// hasCliProxyNeeded returns true if the CLI proxy should be started on the host.
+// isCliProxyNeeded returns true if the CLI proxy should be started on the host.
 //
 // The CLI proxy is needed when:
 //  1. The cli-proxy feature flag is enabled, and
 //  2. The AWF sandbox (firewall) is enabled, and
 //  3. The AWF version supports CLI proxy flags
-func hasCliProxyNeeded(data *WorkflowData) bool {
+func isCliProxyNeeded(data *WorkflowData) bool {
 	if !isFeatureEnabled(constants.CliProxyFeatureFlag, data) {
 		return false
 	}
@@ -345,9 +345,9 @@ func hasCliProxyNeeded(data *WorkflowData) bool {
 // on the host before the AWF execution step. AWF's cli-proxy sidecar connects
 // to this host proxy via host.docker.internal:18443.
 //
-// The step is only emitted when hasCliProxyNeeded returns true.
+// The step is only emitted when isCliProxyNeeded returns true.
 func (c *Compiler) generateStartCliProxyStep(yaml *strings.Builder, data *WorkflowData) {
-	if !hasCliProxyNeeded(data) {
+	if !isCliProxyNeeded(data) {
 		return
 	}
 
@@ -404,9 +404,9 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 // The step runs even if earlier steps failed (if: always(), continue-on-error: true)
 // to ensure the proxy container is always cleaned up.
 //
-// The step is only emitted when hasCliProxyNeeded returns true.
+// The step is only emitted when isCliProxyNeeded returns true.
 func (c *Compiler) generateStopCliProxyStep(yaml *strings.Builder, data *WorkflowData) {
-	if !hasCliProxyNeeded(data) {
+	if !isCliProxyNeeded(data) {
 		return
 	}
 
