@@ -42,19 +42,16 @@ jobs:
         uses: actions/checkout@v6.0.2
         with:
           persist-credentials: false
-      - name: Install runner-guard
-        run: go install github.com/Vigilant-LLC/runner-guard/v2/cmd/runner-guard@v2.6.0
       - name: Run runner-guard scan
         run: |
-          RUNNER_GUARD="$(go env GOPATH)/bin/runner-guard"
-          if [ ! -x "$RUNNER_GUARD" ]; then
-            echo '{"findings":[],"error":"runner-guard binary not found after install"}' > /tmp/runner-guard-results.json
-          else
-            "$RUNNER_GUARD" scan . --format json > /tmp/runner-guard-results.json 2>/tmp/runner-guard-stderr.log || true
-            # If output is empty or not valid JSON, write empty result
-            if ! python3 -c "import json,sys; json.load(open('/tmp/runner-guard-results.json'))" 2>/dev/null; then
-              echo '{"findings":[],"stderr":"'"$(cat /tmp/runner-guard-stderr.log | head -20 | tr '"' "'")"'"}' > /tmp/runner-guard-results.json
-            fi
+          docker run --rm \
+            -v "$(pwd):/workdir" \
+            -w /workdir \
+            ghcr.io/vigilant-llc/runner-guard:v3.0.1 \
+            scan . --format json > /tmp/runner-guard-results.json 2>/tmp/runner-guard-stderr.log || true
+          # If output is empty or not valid JSON, write empty result
+          if ! python3 -c "import json,sys; json.load(open('/tmp/runner-guard-results.json'))" 2>/dev/null; then
+            echo '{"findings":[],"stderr":"'"$(cat /tmp/runner-guard-stderr.log | head -20 | tr '"' "'")"'"}' > /tmp/runner-guard-results.json
           fi
       - name: Upload runner-guard results
         if: always()
@@ -87,6 +84,10 @@ steps:
       echo "Pulling poutine image..."
       docker pull ghcr.io/boostsecurityio/poutine:latest
       
+      # Pull runner-guard Docker image
+      echo "Pulling runner-guard image..."
+      docker pull ghcr.io/vigilant-llc/runner-guard:v3.0.1
+      
       echo "All static analysis Docker images pulled successfully"
   - name: Verify static analysis tools
     run: |
@@ -101,6 +102,10 @@ steps:
       echo "Testing poutine..."
       docker run --rm ghcr.io/boostsecurityio/poutine:latest --version || echo "Warning: poutine version check failed"
       
+      # Verify runner-guard
+      echo "Testing runner-guard..."
+      docker run --rm ghcr.io/vigilant-llc/runner-guard:v3.0.1 --version || echo "Warning: runner-guard version check failed"
+      
       echo "Static analysis tools verification complete"
   - name: Run compile with security tools
     run: |
@@ -109,7 +114,7 @@ steps:
       
       # Run compile with all security scanner flags to download Docker images
       # Store the output in a file for inspection
-      gh aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt
+      gh aw compile --zizmor --poutine --actionlint --runner-guard 2>&1 | tee /tmp/gh-aw/compile-output.txt
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"
