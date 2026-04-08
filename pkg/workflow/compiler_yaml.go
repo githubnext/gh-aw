@@ -604,51 +604,31 @@ func writePromptBashStep(yaml *strings.Builder, name, script string) {
 }
 
 func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {
-	if data.PreSteps != "" {
-		// Remove "pre-steps:" line and adjust indentation, similar to PostSteps processing
-		lines := strings.Split(data.PreSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Trim trailing whitespace
-				trimmed := strings.TrimRight(line, " ")
-				// Skip empty lines
-				if strings.TrimSpace(trimmed) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-				// Steps need 6-space indentation (      - name:)
-				// Nested properties need 8-space indentation (        run:)
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("        " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("      " + line + "\n")
-				}
-			}
-		}
-	}
+	writeStepsSection(yaml, data.PreSteps)
 }
 
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
-	if data.PostSteps != "" {
-		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
-		lines := strings.Split(data.PostSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Trim trailing whitespace
-				trimmed := strings.TrimRight(line, " ")
-				// Skip empty lines
-				if strings.TrimSpace(trimmed) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-				// Steps need 6-space indentation (      - name:)
-				// Nested properties need 8-space indentation (        run:)
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("        " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("      " + line + "\n")
-				}
-			}
+	writeStepsSection(yaml, data.PostSteps)
+}
+
+// writeStepsSection writes a steps section (pre-steps or post-steps) to the YAML builder,
+// stripping the header line and normalising indentation to match the agent job step format:
+// top-level items get 6-space indent (      - name:) and nested properties get 8-space indent (        run:).
+func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
+	if stepsYAML == "" {
+		return
+	}
+	lines := strings.Split(stepsYAML, "\n")
+	for _, line := range lines[1:] { // skip the "pre-steps:" / "post-steps:" header line
+		trimmed := strings.TrimRight(line, " ")
+		if strings.TrimSpace(trimmed) == "" {
+			yaml.WriteString("\n")
+			continue
+		}
+		if strings.HasPrefix(line, "  ") {
+			yaml.WriteString("        " + line[2:] + "\n")
+		} else {
+			yaml.WriteString("      " + line + "\n")
 		}
 	}
 }
