@@ -830,7 +830,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
 					Enabled: true,
-					Version: "v0.25.16", // older than AWFCliProxyMinVersion v0.26.0
+					Version: "v0.25.16", // older than AWFCliProxyMinVersion v0.25.17
 				},
 			},
 			Features: map[string]any{
@@ -866,14 +866,14 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 		want           bool
 	}{
 		{
-			name:           "nil firewall config returns false (default version below minimum)",
+			name:           "nil firewall config returns true (uses default version)",
 			firewallConfig: nil,
-			want:           false,
+			want:           true,
 		},
 		{
-			name:           "empty version returns false (default version below minimum)",
+			name:           "empty version returns true (uses default version)",
 			firewallConfig: &FirewallConfig{},
-			want:           false,
+			want:           true,
 		},
 		{
 			name:           "latest returns true",
@@ -881,7 +881,12 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 			want:           true,
 		},
 		{
-			name:           "v0.26.0 supports CLI proxy flags (exact minimum version)",
+			name:           "v0.25.17 supports CLI proxy flags (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.25.17"},
+			want:           true,
+		},
+		{
+			name:           "v0.26.0 supports CLI proxy flags",
 			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
 			want:           true,
 		},

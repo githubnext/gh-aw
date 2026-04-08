@@ -56,7 +56,7 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 // AWFCliProxyMinVersion is the minimum AWF version that supports the CLI proxy flags
 // (--difc-proxy-host, --difc-proxy-ca-cert). Workflows pinning an older AWF version
 // must not emit CLI proxy flags or the run will fail.
-const AWFCliProxyMinVersion Version = "v0.26.0"
+const AWFCliProxyMinVersion Version = "v0.25.17"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.2.16"
