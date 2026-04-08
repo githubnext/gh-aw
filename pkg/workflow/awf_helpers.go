@@ -253,26 +253,15 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfHelpersLog.Print("Added --enable-api-proxy for LLM API proxying")
 
 	// Enable CLI proxy sidecar when the cli-proxy feature flag is set.
-	// This gives the agent secure gh CLI access without exposing GITHUB_TOKEN
-	// in the agent container (firewall v0.25.14+).
+	// Start the difc-proxy on the host and tell AWF where to connect
+	// (firewall v0.26.0+).
 	if isFeatureEnabled(constants.CliProxyFeatureFlag, config.WorkflowData) {
 		if awfSupportsCliProxy(firewallConfig) {
-			awfArgs = append(awfArgs, "--enable-cli-proxy")
-			awfHelpersLog.Print("Added --enable-cli-proxy for gh CLI proxy sidecar")
-
-			// Generate and pass the guard policy JSON for the cli-proxy.
-			// Reuses getDIFCProxyPolicyJSON() to build the static policy from tools.github config
-			// (min-integrity and repos fields), matching the DIFC proxy guard policy semantics.
-			if config.WorkflowData != nil {
-				githubTool := config.WorkflowData.Tools["github"]
-				policyJSON := getDIFCProxyPolicyJSON(githubTool)
-				if policyJSON != "" {
-					awfArgs = append(awfArgs, "--cli-proxy-policy", policyJSON)
-					awfHelpersLog.Print("Added --cli-proxy-policy with guard policy")
-				}
-			}
+			awfArgs = append(awfArgs, "--difc-proxy-host", "host.docker.internal:18443")
+			awfArgs = append(awfArgs, "--difc-proxy-ca-cert", "/tmp/gh-aw/difc-proxy-tls/ca.crt")
+			awfHelpersLog.Print("Added --difc-proxy-host and --difc-proxy-ca-cert for CLI proxy sidecar")
 		} else {
-			awfHelpersLog.Printf("Skipping --enable-cli-proxy: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
+			awfHelpersLog.Printf("Skipping CLI proxy flags: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
 		}
 	}
 
@@ -580,8 +569,29 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		}
 	}
 
+	// GH_TOKEN when cli-proxy is enabled: the token is passed in the AWF step env for the
+	// host difc-proxy but must be excluded from the agent container.
+	if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) {
+		addUnique("GH_TOKEN")
+	}
+
 	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))
 	return names
+}
+
+// addCliProxyGHTokenToEnv adds GH_TOKEN to the step environment when the cli-proxy
+// feature is enabled and the AWF sandbox is active. The token is needed by the
+// difc-proxy running on the host (started via start_cli_proxy.sh). AWF reads it
+// from the step env and the cli-proxy sidecar uses it for upstream API authentication.
+// The token is excluded from the agent container via --exclude-env GH_TOKEN.
+//
+// #nosec G101 -- This is NOT a hardcoded credential. It is a GitHub Actions expression
+// template that is resolved at runtime by the GitHub Actions runner.
+func addCliProxyGHTokenToEnv(env map[string]string, workflowData *WorkflowData) {
+	if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) && isFirewallEnabled(workflowData) {
+		env["GH_TOKEN"] = "${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}"
+		awfHelpersLog.Print("Added GH_TOKEN to env for CLI proxy (excluded from agent container)")
+	}
 }
 
 // awfSupportsExcludeEnv returns true when the effective AWF version supports --exclude-env.
@@ -615,10 +625,12 @@ func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
 	return compareVersions(versionStr, minVersion) >= 0
 }
 
-// awfSupportsCliProxy returns true when the effective AWF version supports --enable-cli-proxy.
+// awfSupportsCliProxy returns true when the effective AWF version supports --difc-proxy-host
+// and --difc-proxy-ca-cert.
 //
-// The --enable-cli-proxy flag was introduced in AWF v0.25.14. Any workflow that pins an explicit
-// version older than v0.25.14 must not emit --enable-cli-proxy or the run will fail at startup.
+// These flags were introduced in AWF v0.26.0 (replacing the earlier --enable-cli-proxy).
+// Any workflow that pins an explicit version older than v0.26.0 must not emit CLI proxy
+// flags or the run will fail at startup.
 //
 // Special cases:
 //   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion

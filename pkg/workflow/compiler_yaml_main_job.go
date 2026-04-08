@@ -348,9 +348,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Start CLI proxy on the host before AWF execution. When features.cli-proxy is enabled,
+	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
+	// connects to via host.docker.internal:18443.
+	c.generateStartCliProxyStep(yaml, data)
+
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	// Stop CLI proxy after AWF execution (always runs to ensure cleanup)
+	c.generateStopCliProxyStep(yaml, data)
 
 	// Add inference access error detection step for Copilot engine
 	// This step detects when the Copilot CLI fails due to the token lacking inference access

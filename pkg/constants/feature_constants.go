@@ -28,9 +28,10 @@ const (
 	// to disable it. The codemod "features-difc-proxy-to-tools-github" migrates this flag.
 	DIFCProxyFeatureFlag FeatureFlag = "difc-proxy"
 	// CliProxyFeatureFlag enables the AWF CLI proxy sidecar.
-	// When enabled, the compiler injects --enable-cli-proxy into the AWF command,
+	// When enabled, the compiler starts a difc-proxy on the host before AWF and
+	// injects --difc-proxy-host and --difc-proxy-ca-cert into the AWF command,
 	// giving the agent secure gh CLI access without exposing GITHUB_TOKEN.
-	// The token is held in an mcpg DIFC proxy inside the sidecar, enforcing
+	// The token is held in an mcpg DIFC proxy on the host, enforcing
 	// guard policies and audit logging.
 	//
 	// Workflow frontmatter usage:
