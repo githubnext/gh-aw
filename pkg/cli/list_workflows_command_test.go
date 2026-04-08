@@ -3,11 +3,14 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -119,4 +122,89 @@ func TestNewListCommand(t *testing.T) {
 
 	labelFlag := cmd.Flags().Lookup("label")
 	assert.NotNil(t, labelFlag, "Command should have --label flag")
+}
+
+// captureListOutput calls RunListWorkflows and returns the captured stdout as a string.
+func captureListOutput(t *testing.T, dir, pattern string) string {
+	t.Helper()
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "Should create pipe")
+	os.Stdout = w
+
+	runErr := RunListWorkflows("", dir, pattern, false, true, "")
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	require.NoError(t, runErr, "RunListWorkflows should not error")
+	return buf.String()
+}
+
+func TestRunListWorkflows_CompiledField(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Minimal valid workflow markdown
+	mdContent := `---
+name: test-workflow
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+# Test Workflow
+
+A simple test workflow.
+`
+	mdPath := filepath.Join(tmpDir, "test-workflow.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte(mdContent), 0644), "Should write test workflow")
+
+	// Compute the real frontmatter hash
+	cache := parser.NewImportCache("")
+	realHash, err := parser.ComputeFrontmatterHashFromFile(mdPath, cache)
+	require.NoError(t, err, "Should compute frontmatter hash")
+
+	t.Run("compiled Yes when hash matches", func(t *testing.T) {
+		lockPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+		lockContent := `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"` + realHash + `"}
+name: test-workflow
+`
+		require.NoError(t, os.WriteFile(lockPath, []byte(lockContent), 0644), "Should write lock file")
+
+		output := captureListOutput(t, tmpDir, "")
+
+		var items []WorkflowListItem
+		require.NoError(t, json.Unmarshal([]byte(output), &items), "Should unmarshal JSON output")
+		require.Len(t, items, 1, "Should have one workflow")
+		assert.Equal(t, "Yes", items[0].Compiled, "Compiled should be Yes when hash matches")
+	})
+
+	t.Run("compiled No when hash mismatches", func(t *testing.T) {
+		lockPath := filepath.Join(tmpDir, "test-workflow.lock.yml")
+		lockContent := `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0000000000000000000000000000000000000000000000000000000000000000"}
+name: test-workflow
+`
+		require.NoError(t, os.WriteFile(lockPath, []byte(lockContent), 0644), "Should write lock file with wrong hash")
+
+		output := captureListOutput(t, tmpDir, "")
+
+		var items []WorkflowListItem
+		require.NoError(t, json.Unmarshal([]byte(output), &items), "Should unmarshal JSON output")
+		require.Len(t, items, 1, "Should have one workflow")
+		assert.Equal(t, "No", items[0].Compiled, "Compiled should be No when hash mismatches")
+	})
+
+	t.Run("compiled NA when no lock file", func(t *testing.T) {
+		// Remove lock file
+		_ = os.Remove(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+
+		output := captureListOutput(t, tmpDir, "")
+
+		var items []WorkflowListItem
+		require.NoError(t, json.Unmarshal([]byte(output), &items), "Should unmarshal JSON output")
+		require.Len(t, items, 1, "Should have one workflow")
+		assert.Equal(t, "N/A", items[0].Compiled, "Compiled should be N/A when no lock file exists")
+	})
 }
