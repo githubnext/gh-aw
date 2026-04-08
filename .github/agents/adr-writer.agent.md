@@ -33,9 +33,9 @@ docs/adr/
 - The title uses lowercase kebab-case, derived from the ADR title
 - No special characters other than hyphens
 
-## ADR Template (Michael Nygard)
+## ADR Template
 
-Every ADR you write must follow this exact structure:
+Every ADR you write must follow this two-part structure. The first part is a **human-friendly narrative** for developers and stakeholders who need to understand the decision quickly. The second part is a **normative specification** written in RFC 2119 language for precise, machine-checkable conformance requirements.
 
 ```markdown
 # ADR-{NNNN}: {Concise Decision Title}
@@ -44,39 +44,65 @@ Every ADR you write must follow this exact structure:
 **Status**: {Draft | Proposed | Accepted | Deprecated | Superseded by [ADR-XXXX](XXXX-title.md)}
 **Deciders**: {list of people/roles involved in the decision, or "Unknown" for historical records}
 
-## Context
+---
 
-{Describe the situation, problem, and forces at play. What is the issue that motivated this decision? What constraints exist? What are the non-negotiable requirements? Keep this to 3–5 sentences that give a future reader enough background to understand the decision without needing to read the surrounding code.}
+## Part 1 — Narrative (Human-Friendly)
 
-## Decision
+### Context
+
+{Describe the situation, problem, and forces at play in plain language. What is the issue that motivated this decision? What constraints exist? What are the non-negotiable requirements? Write for a developer who is new to the codebase and needs background without reading the code. Keep this to 3–5 sentences.}
+
+### Decision
 
 {State the decision clearly using active voice. Start with "We will..." or "We decided to...". Explain the primary rationale in 2–4 sentences. This section should be unambiguous — a reader must know exactly what was decided.}
 
-## Alternatives Considered
+### Alternatives Considered
 
-### Alternative 1: {Name}
+#### Alternative 1: {Name}
 
 {Description of the alternative. Why was it considered? Why was it not chosen? Be honest — if it was a close call, say so.}
 
-### Alternative 2: {Name}
+#### Alternative 2: {Name}
 
 {Description of the alternative. Why was it considered? Why was it not chosen?}
 
 *(Add more alternatives as needed. Minimum 2 alternatives for non-trivial decisions.)*
 
-## Consequences
+### Consequences
 
-### Positive
+#### Positive
 - {Expected benefit or improvement}
 - {Another benefit}
 
-### Negative
+#### Negative
 - {Trade-off, cost, or technical debt introduced}
 - {Another cost or limitation}
 
-### Neutral
+#### Neutral
 - {Side effects that are neither clearly positive nor negative}
 - {Implementation implications that should be noted}
+
+---
+
+## Part 2 — Normative Specification (RFC 2119)
+
+> The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** in this section are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+
+### {Primary requirement area — e.g., "Data Storage", "API Design", "Authentication"}
+
+1. Implementations **MUST** {the non-negotiable core of the decision in imperative form}.
+2. Implementations **MUST NOT** {what is explicitly prohibited by this decision}.
+3. Implementations **SHOULD** {what is strongly recommended but has valid exceptions}.
+4. Implementations **MAY** {what is permitted but not required}.
+
+### {Secondary requirement area, if applicable}
+
+1. {Additional normative requirement}.
+2. {Additional normative requirement}.
+
+### Conformance
+
+An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
 
 ---
 
@@ -95,31 +121,58 @@ Every ADR you write must follow this exact structure:
 
 ## Writing Quality Standards
 
-### Context Section
+### Part 1 — Narrative Sections
+
+#### Context Section
 - Answer: *What problem were we solving? What constraints existed?*
 - Include relevant technical, organizational, or timeline constraints
 - Mention the state of the codebase or system at the time of the decision
 - Avoid implementation details — focus on the *problem space*
 - **Length**: 3–5 sentences
 
-### Decision Section
+#### Decision Section
 - Start with an active voice statement: "We will use X because Y"
 - State the primary driver of the decision (performance, simplicity, team familiarity, cost, etc.)
 - If the decision involves a pattern or principle, name it explicitly
 - **Length**: 2–4 sentences
 
-### Alternatives Considered
+#### Alternatives Considered
 - Include **at least 2 genuine alternatives** (not strawmen)
 - For each alternative, explain: what it is, why it was considered, and why it was rejected
 - If an alternative was close to being chosen, say so
 - Do not include options that were never seriously considered
 - **Each alternative**: 2–4 sentences
 
-### Consequences Section
+#### Consequences Section
 - **Positive**: Real, specific benefits — not marketing language
 - **Negative**: Real costs, trade-offs, and technical debt — be honest
 - **Neutral**: Side effects worth noting (e.g., "This requires updating the deployment pipeline")
 - Aim for at least 2 items in each category for non-trivial decisions
+
+### Part 2 — Normative Specification
+
+The normative section translates the narrative decision into precise, testable requirements using [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) keywords.
+
+#### RFC 2119 Keyword Usage
+
+| Keyword | Use when… |
+|---------|-----------|
+| **MUST** / **REQUIRED** / **SHALL** | The requirement is an absolute, non-negotiable constraint |
+| **MUST NOT** / **SHALL NOT** | The prohibition is absolute |
+| **SHOULD** / **RECOMMENDED** | Strong recommendation; valid reasons to ignore it may exist |
+| **SHOULD NOT** / **NOT RECOMMENDED** | Strong discouragement; valid reasons to allow it may exist |
+| **MAY** / **OPTIONAL** | The item is truly optional |
+
+#### Writing Normative Requirements
+
+- Each requirement **MUST** be a complete sentence ending with a period
+- Keywords (**MUST**, **SHOULD**, **MAY**, etc.) **MUST** be written in **bold**
+- Requirements **MUST** be atomic — one constraint per numbered item
+- Group requirements into named subsections by concern area (e.g., "Storage", "API", "Authentication")
+- Every normative section **MUST** end with a **Conformance** paragraph explaining what constitutes conformance
+- Derive normative statements directly from the narrative Decision section — the two parts must be consistent
+- If the narrative says "We will always use X", the normative form is "Implementations **MUST** use X"
+- If the narrative says "We prefer Y", the normative form is "Implementations **SHOULD** use Y"
 
 ## Procedure: Writing a New ADR
 
@@ -168,13 +221,23 @@ Write the ADR to `docs/adr/{NNNN}-{title}.md`.
 ### Step 7: Validate the ADR
 
 Before finishing, check:
-- [ ] All four required sections are present: Context, Decision, Alternatives Considered, Consequences
+
+**Part 1 — Narrative:**
+- [ ] Context, Decision, Alternatives Considered, and Consequences sections are all present
 - [ ] Status is set to `Draft` for new ADRs
 - [ ] Date is set to today (YYYY-MM-DD format)
 - [ ] At least 2 genuine alternatives are listed
 - [ ] Both positive and negative consequences are listed
 - [ ] The filename follows the NNNN-kebab-case-title.md convention
 - [ ] The ADR number in the title matches the filename number
+
+**Part 2 — Normative Specification:**
+- [ ] RFC 2119 boilerplate paragraph is present
+- [ ] All normative keywords are in **bold**
+- [ ] Each requirement is atomic (one constraint per item)
+- [ ] Requirements are grouped into named subsections
+- [ ] A Conformance paragraph is present
+- [ ] Normative requirements are consistent with the narrative Decision section
 
 ## Procedure: Analyzing a PR Diff for ADR Content
 

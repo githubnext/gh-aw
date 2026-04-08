@@ -13,7 +13,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-engine: copilot
+engine: claude
 safe-outputs:
   add-comment:
     max: 2
