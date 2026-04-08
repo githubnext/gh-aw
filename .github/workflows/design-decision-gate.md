@@ -2,7 +2,7 @@
 description: Enforces Architecture Decision Records (ADRs) before implementation work can merge, detecting missing design decisions and generating draft ADRs using AI analysis
 on:
   pull_request:
-    types: [labeled, opened, synchronize, ready_for_review]
+    types: [labeled, ready_for_review]
     names: ["implementation"]
   workflow_dispatch:
     inputs:
