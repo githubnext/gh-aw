@@ -3,7 +3,7 @@ name: Test Quality Sentinel
 description: Analyzes test quality beyond code coverage percentages on every PR, detecting implementation-detail tests, happy-path-only tests, test inflation, and duplication
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review]
+    types: [ready_for_review]
 permissions:
   contents: read
   pull-requests: read
