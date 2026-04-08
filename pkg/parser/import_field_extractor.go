@@ -23,6 +23,7 @@ type importAccumulator struct {
 	importPaths              []string        // Import paths for runtime-import macro generation
 	stepsBuilder             strings.Builder
 	copilotSetupStepsBuilder strings.Builder // Steps from copilot-setup-steps.yml (inserted at start)
+	preStepsBuilder          strings.Builder
 	runtimesBuilder          strings.Builder
 	servicesBuilder          strings.Builder
 	networkBuilder           strings.Builder
@@ -72,7 +73,7 @@ func newImportAccumulator() *importAccumulator {
 // extractAllImportFields extracts all frontmatter fields from a single imported file
 // and accumulates the results. Handles tools, engines, mcp-servers, safe-outputs,
 // mcp-scripts, steps, runtimes, services, network, permissions, secret-masking, bots,
-// skip-roles, skip-bots, post-steps, labels, cache, and features.
+// skip-roles, skip-bots, pre-steps, post-steps, labels, cache, and features.
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
@@ -310,6 +311,12 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract pre-steps from imported file (prepend in order)
+	preStepsContent, err := extractYAMLFieldFromMap(fm, "pre-steps")
+	if err == nil && preStepsContent != "" {
+		acc.preStepsBuilder.WriteString(preStepsContent + "\n")
+	}
+
 	// Extract post-steps from imported file (append in order)
 	postStepsContent, err := extractYAMLFieldFromMap(fm, "post-steps")
 	if err == nil && postStepsContent != "" {
@@ -408,6 +415,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		ImportPaths:                 acc.importPaths,
 		MergedSteps:                 acc.stepsBuilder.String(),
 		CopilotSetupSteps:           acc.copilotSetupStepsBuilder.String(),
+		MergedPreSteps:              acc.preStepsBuilder.String(),
 		MergedRuntimes:              acc.runtimesBuilder.String(),
 		MergedRunInstallScripts:     acc.runInstallScripts,
 		MergedServices:              acc.servicesBuilder.String(),

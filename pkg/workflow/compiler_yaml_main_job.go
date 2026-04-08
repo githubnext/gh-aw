@@ -20,6 +20,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString(generateOTLPHeadersMaskStep())
 	}
 
+	// Add pre-steps before checkout and the subsequent built-in steps in this agent job.
+	// This allows users to mint short-lived tokens (via custom actions) in the same
+	// job as checkout, so the tokens are never dropped by the GitHub Actions runner's
+	// add-mask behaviour that silently suppresses masked values across job boundaries.
+	// Step outputs are available as ${{ steps.<id>.outputs.<name> }} and can be
+	// referenced directly in checkout.token. Some compiler-injected setup steps may
+	// still be emitted earlier than these pre-steps.
+	c.generatePreSteps(yaml, data)
+
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)

@@ -3317,6 +3317,41 @@
         }
       ]
     },
+    "pre-steps": {
+      "description": "Custom workflow steps to run at the very beginning of the agent job, before checkout and any other built-in steps. Use pre-steps to mint short-lived tokens or perform any setup that must happen before the repository is checked out. Step outputs are available via ${{ steps.<id>.outputs.<name> }} and can be referenced in checkout.token to avoid masked-value cross-job-boundary issues.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "examples": [
+            [
+              {
+                "name": "Mint short-lived token",
+                "id": "mint",
+                "uses": "some-org/token-minting-action@v1",
+                "with": {
+                  "scope": "target-org/target-repo"
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    },
     "post-steps": {
       "description": "Custom workflow steps to run after AI execution",
       "oneOf": [

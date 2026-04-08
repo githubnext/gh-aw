@@ -529,6 +529,10 @@ Parameters provided when manually triggering a workflow with `workflow_dispatch`
 
 Operational patterns (suffixed with "-Ops") are established workflow architectures for common automation scenarios. Each pattern addresses specific use cases with recommended triggers, tools, and safe outputs.
 
+### BatchOps
+
+Pattern for processing large volumes of work items efficiently using chunked pagination, matrix fan-out, or rate-limit-aware sub-batching. BatchOps splits a backlog into parallel or sequential chunks, handles partial failures with `fail-fast: false`, and aggregates results into a consolidated report. Use when items are independent and order doesn't matter. See [BatchOps](/gh-aw/patterns/batch-ops/).
+
 ### CentralRepoOps
 
 A [MultiRepoOps](#multirepoops) deployment variant where a single private repository acts as a control plane for coordinating large-scale operations across many repositories. Enables consistent rollouts, policy updates, and centralized tracking using cross-repository safe outputs and secure authentication. See [CentralRepoOps](/gh-aw/patterns/central-repo-ops/).
@@ -584,6 +588,10 @@ Scaffolded AI-powered code improvement strategy with three phases: research agen
 ### TrialOps
 
 Testing and validation pattern executing workflows in isolated trial repositories before production deployment. Creates temporary private repositories where workflows run safely, capturing safe outputs without modifying your actual codebase. See [TrialOps](/gh-aw/patterns/trial-ops/).
+
+### WorkQueueOps
+
+Pattern for incrementally processing a backlog of work items using a durable queue backend — issue checklists, sub-issues, [cache-memory](#cache-memory), or GitHub Discussions. Each run picks up where the last left off, making it resilient to interruptions and rate limits. Items should be idempotent and independently processable. See [WorkQueueOps](/gh-aw/patterns/workqueue-ops/).
 
 ## Related Resources
 

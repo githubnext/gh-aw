@@ -147,8 +147,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge custom steps with imported steps
 	c.processAndMergeSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
 
+	// Process and merge pre-steps
+	c.processAndMergePreSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
+
 	// Process and merge post-steps
-	c.processAndMergePostSteps(result.Frontmatter, workflowData)
+	c.processAndMergePostSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
 
 	// Process and merge services
 	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
@@ -493,38 +496,119 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 	}
 }
 
-// processAndMergePostSteps handles the processing of post-steps with action pinning
-func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflowData *WorkflowData) {
-	orchestratorWorkflowLog.Print("Processing post-steps")
+// processAndMergePreSteps handles the processing and merging of pre-steps with action pinning.
+// Pre-steps run at the very beginning of the agent job, before checkout and the subsequent
+// built-in steps, allowing users to mint tokens or perform other setup that must happen
+// before the repository is checked out. Imported pre-steps are merged before the main
+// workflow's pre-steps so that the main workflow can override or extend the imports.
+func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+	orchestratorWorkflowLog.Print("Processing and merging pre-steps")
 
-	workflowData.PostSteps = c.extractTopLevelYAMLSection(frontmatter, "post-steps")
+	mainPreStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "pre-steps")
 
-	// Apply action pinning to post-steps if any
-	if workflowData.PostSteps != "" {
-		var postStepsWrapper map[string]any
-		if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &postStepsWrapper); err == nil {
-			if postStepsVal, hasPostSteps := postStepsWrapper["post-steps"]; hasPostSteps {
-				if postSteps, ok := postStepsVal.([]any); ok {
-					// Convert to typed steps for action pinning
-					typedPostSteps, err := SliceToSteps(postSteps)
+	// Parse imported pre-steps if present (these go before the main workflow's pre-steps)
+	var importedPreSteps []any
+	if importsResult.MergedPreSteps != "" {
+		if err := yaml.Unmarshal([]byte(importsResult.MergedPreSteps), &importedPreSteps); err != nil {
+			orchestratorWorkflowLog.Printf("Failed to unmarshal imported pre-steps: %v", err)
+		} else {
+			typedImported, err := SliceToSteps(importedPreSteps)
+			if err != nil {
+				orchestratorWorkflowLog.Printf("Failed to convert imported pre-steps to typed steps: %v", err)
+			} else {
+				typedImported = ApplyActionPinsToTypedSteps(typedImported, workflowData)
+				importedPreSteps = StepsToSlice(typedImported)
+			}
+		}
+	}
+
+	// Parse main workflow pre-steps if present
+	var mainPreSteps []any
+	if mainPreStepsYAML != "" {
+		var mainWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(mainPreStepsYAML), &mainWrapper); err == nil {
+			if mainVal, ok := mainWrapper["pre-steps"]; ok {
+				if steps, ok := mainVal.([]any); ok {
+					mainPreSteps = steps
+					typedMain, err := SliceToSteps(mainPreSteps)
 					if err != nil {
-						orchestratorWorkflowLog.Printf("Failed to convert post-steps to typed steps: %v", err)
+						orchestratorWorkflowLog.Printf("Failed to convert main pre-steps to typed steps: %v", err)
 					} else {
-						// Apply action pinning to post steps using type-safe version
-						typedPostSteps = ApplyActionPinsToTypedSteps(typedPostSteps, workflowData)
-						// Convert back to []any for YAML marshaling
-						postSteps = StepsToSlice(typedPostSteps)
-					}
-
-					// Convert back to YAML with "post-steps:" wrapper
-					stepsWrapper := map[string]any{"post-steps": postSteps}
-					stepsYAML, err := yaml.Marshal(stepsWrapper)
-					if err == nil {
-						// Remove quotes from uses values with version comments
-						workflowData.PostSteps = unquoteUsesWithComments(string(stepsYAML))
+						typedMain = ApplyActionPinsToTypedSteps(typedMain, workflowData)
+						mainPreSteps = StepsToSlice(typedMain)
 					}
 				}
 			}
+		}
+	}
+
+	// Merge in order: imported pre-steps first, then main workflow's pre-steps
+	var allPreSteps []any
+	if len(importedPreSteps) > 0 || len(mainPreSteps) > 0 {
+		allPreSteps = append(allPreSteps, importedPreSteps...)
+		allPreSteps = append(allPreSteps, mainPreSteps...)
+
+		stepsWrapper := map[string]any{"pre-steps": allPreSteps}
+		stepsYAML, err := yaml.Marshal(stepsWrapper)
+		if err == nil {
+			workflowData.PreSteps = unquoteUsesWithComments(string(stepsYAML))
+		}
+	}
+}
+
+// processAndMergePostSteps handles the processing and merging of post-steps with action pinning.
+// Imported post-steps are appended after the main workflow's post-steps.
+func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+	orchestratorWorkflowLog.Print("Processing and merging post-steps")
+
+	mainPostStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "post-steps")
+
+	// Parse imported post-steps if present (these go after the main workflow's post-steps)
+	var importedPostSteps []any
+	if importsResult.MergedPostSteps != "" {
+		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err != nil {
+			orchestratorWorkflowLog.Printf("Failed to unmarshal imported post-steps: %v", err)
+		} else {
+			typedImported, err := SliceToSteps(importedPostSteps)
+			if err != nil {
+				orchestratorWorkflowLog.Printf("Failed to convert imported post-steps to typed steps: %v", err)
+			} else {
+				typedImported = ApplyActionPinsToTypedSteps(typedImported, workflowData)
+				importedPostSteps = StepsToSlice(typedImported)
+			}
+		}
+	}
+
+	// Parse main workflow post-steps if present
+	var mainPostSteps []any
+	if mainPostStepsYAML != "" {
+		var mainWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(mainPostStepsYAML), &mainWrapper); err == nil {
+			if mainVal, ok := mainWrapper["post-steps"]; ok {
+				if steps, ok := mainVal.([]any); ok {
+					mainPostSteps = steps
+					typedMain, err := SliceToSteps(mainPostSteps)
+					if err != nil {
+						orchestratorWorkflowLog.Printf("Failed to convert main post-steps to typed steps: %v", err)
+					} else {
+						typedMain = ApplyActionPinsToTypedSteps(typedMain, workflowData)
+						mainPostSteps = StepsToSlice(typedMain)
+					}
+				}
+			}
+		}
+	}
+
+	// Merge in order: main workflow's post-steps first, then imported post-steps
+	var allPostSteps []any
+	if len(mainPostSteps) > 0 || len(importedPostSteps) > 0 {
+		allPostSteps = append(allPostSteps, mainPostSteps...)
+		allPostSteps = append(allPostSteps, importedPostSteps...)
+
+		stepsWrapper := map[string]any{"post-steps": allPostSteps}
+		stepsYAML, err := yaml.Marshal(stepsWrapper)
+		if err == nil {
+			workflowData.PostSteps = unquoteUsesWithComments(string(stepsYAML))
 		}
 	}
 }
