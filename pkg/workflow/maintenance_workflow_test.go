@@ -665,7 +665,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 	t.Run("custom string runs_on is used in all jobs", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		cfg := &RepoConfig{
-			Maintenance: &MaintenanceConfig{RunsOn: "my-custom-runner"},
+			Maintenance: &MaintenanceConfig{RunsOn: RunsOnValue{"my-custom-runner"}},
 		}
 		err := GenerateMaintenanceWorkflow(makeList(), tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
 		if err != nil {
@@ -688,7 +688,7 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 	t.Run("array runs_on is used in all jobs", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		cfg := &RepoConfig{
-			Maintenance: &MaintenanceConfig{RunsOn: []string{"self-hosted", "linux"}},
+			Maintenance: &MaintenanceConfig{RunsOn: RunsOnValue{"self-hosted", "linux"}},
 		}
 		err := GenerateMaintenanceWorkflow(makeList(), tmpDir, "v1.0.0", ActionModeDev, "", false, cfg)
 		if err != nil {

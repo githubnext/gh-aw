@@ -35,11 +35,35 @@ var repoConfigLog = logger.New("workflow:repo_config")
 // relative to the git root.
 const RepoConfigFileName = ".github/workflows/aw.json"
 
+// RunsOnValue is a JSON-deserializable type for the runs_on field in aw.json.
+// It accepts either a single runner label string or an array of runner label strings.
+// When unmarshalled, a plain string is normalised to a single-element slice so the
+// rest of the code works with a uniform []string type.
+type RunsOnValue []string
+
+// UnmarshalJSON implements json.Unmarshaler, accepting either a JSON string or
+// a JSON array of strings for the runs_on field.
+func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
+	// Try plain string first (runs_on: "ubuntu-latest")
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*r = RunsOnValue{s}
+		return nil
+	}
+
+	// Try array of strings (runs_on: ["self-hosted", "linux"])
+	var ss []string
+	if err := json.Unmarshal(data, &ss); err != nil {
+		return fmt.Errorf("runs_on must be a string or array of strings: %w", err)
+	}
+	*r = RunsOnValue(ss)
+	return nil
+}
+
 // MaintenanceConfig holds maintenance-workflow-specific settings from aw.json.
 type MaintenanceConfig struct {
-	// RunsOn is the runner label or list of labels used for all jobs in
-	// agentics-maintenance.yml. It is the raw value from JSON (string or []any).
-	RunsOn any
+	// RunsOn is the runner label or labels used for all jobs in agentics-maintenance.yml.
+	RunsOn RunsOnValue `json:"runs_on,omitempty"`
 }
 
 // RepoConfig is the parsed representation of aw.json.
@@ -53,6 +77,37 @@ type RepoConfig struct {
 	// and an object was provided (nil when maintenance is not configured or is
 	// disabled).
 	Maintenance *MaintenanceConfig
+}
+
+// UnmarshalJSON implements json.Unmarshaler to handle the polymorphic maintenance
+// field, which can be either the boolean false (disable) or a configuration object.
+func (r *RepoConfig) UnmarshalJSON(data []byte) error {
+	// Use an intermediate struct with json.RawMessage to defer maintenance parsing.
+	var raw struct {
+		Maintenance json.RawMessage `json:"maintenance,omitempty"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	if len(raw.Maintenance) == 0 || string(raw.Maintenance) == "null" {
+		return nil
+	}
+
+	// Try boolean first: maintenance: false disables the feature.
+	var b bool
+	if err := json.Unmarshal(raw.Maintenance, &b); err == nil {
+		r.MaintenanceDisabled = !b
+		return nil
+	}
+
+	// Otherwise deserialise as an object with JSON annotations.
+	var mc MaintenanceConfig
+	if err := json.Unmarshal(raw.Maintenance, &mc); err != nil {
+		return fmt.Errorf("invalid maintenance configuration: %w", err)
+	}
+	r.Maintenance = &mc
+	return nil
 }
 
 // LoadRepoConfig loads and validates .github/workflows/aw.json from the
@@ -73,19 +128,18 @@ func LoadRepoConfig(gitRoot string) (*RepoConfig, error) {
 		return nil, fmt.Errorf("failed to read %s: %w", RepoConfigFileName, err)
 	}
 
-	// Validate against the embedded JSON schema before parsing into typed structs.
+	// Validate against the embedded JSON schema before deserialising.
 	if err := validateRepoConfigJSON(data, configPath); err != nil {
 		return nil, err
 	}
 
-	// Parse the raw JSON into a loosely-typed map so we can inspect the
-	// maintenance value type before converting to typed structs.
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
+	// Deserialise into typed structs via JSON annotations.
+	var cfg RepoConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", RepoConfigFileName, err)
 	}
 
-	return parseRepoConfig(raw), nil
+	return &cfg, nil
 }
 
 // validateRepoConfigJSON validates raw JSON bytes against the repo config schema.
@@ -107,87 +161,33 @@ func validateRepoConfigJSON(data []byte, filePath string) error {
 	return nil
 }
 
-// parseRepoConfig converts the raw JSON map into a typed *RepoConfig.
-func parseRepoConfig(raw map[string]any) *RepoConfig {
-	cfg := &RepoConfig{}
-
-	maintenanceVal, ok := raw["maintenance"]
-	if !ok {
-		return cfg
-	}
-
-	// maintenance: false – disabled
-	if b, ok := maintenanceVal.(bool); ok && !b {
-		cfg.MaintenanceDisabled = true
-		return cfg
-	}
-
-	// maintenance: { ... }
-	if obj, ok := maintenanceVal.(map[string]any); ok {
-		mc := &MaintenanceConfig{}
-		if runsOn, ok := obj["runs_on"]; ok {
-			mc.RunsOn = normaliseRunsOn(runsOn)
-		}
-		cfg.Maintenance = mc
-	}
-
-	return cfg
-}
-
-// normaliseRunsOn converts the JSON runs_on value into a canonical form:
-//   - string → string
-//   - []any (JSON array) → []string
-func normaliseRunsOn(v any) any {
-	switch val := v.(type) {
-	case string:
-		return val
-	case []any:
-		labels := make([]string, 0, len(val))
-		for _, item := range val {
-			if s, ok := item.(string); ok {
-				labels = append(labels, s)
-			}
-		}
-		return labels
-	default:
-		return v
-	}
-}
-
-// FormatRunsOn serialises a RunsOn value to a YAML-compatible string that can
+// FormatRunsOn serialises a RunsOnValue to a YAML-compatible string that can
 // be inlined directly after "runs-on: " in a generated workflow.
 //
-//   - string  → the string value (no quoting needed for common runner names)
-//   - []string → inline JSON array notation, e.g. ["self-hosted", "linux"]
-//   - nil / other → defaultRunsOn is returned unchanged
-func FormatRunsOn(runsOn any, defaultRunsOn string) string {
-	if runsOn == nil {
+//   - empty / nil  → defaultRunsOn is returned
+//   - single label → the label string (e.g. "ubuntu-latest")
+//   - multiple labels → inline YAML sequence, e.g. ["self-hosted", "linux"]
+func FormatRunsOn(runsOn RunsOnValue, defaultRunsOn string) string {
+	if len(runsOn) == 0 {
 		return defaultRunsOn
 	}
-	switch val := runsOn.(type) {
-	case string:
-		if val == "" {
+	if len(runsOn) == 1 {
+		if runsOn[0] == "" {
 			return defaultRunsOn
 		}
-		return val
-	case []string:
-		if len(val) == 0 {
-			return defaultRunsOn
-		}
-		// Produce inline YAML sequence notation: ["a", "b", "c"]
-		var sb strings.Builder
-		sb.WriteString("[")
-		for i, s := range val {
-			if i > 0 {
-				sb.WriteString(", ")
-			}
-			sb.WriteString(`"`)
-			sb.WriteString(s)
-			sb.WriteString(`"`)
-		}
-		sb.WriteString("]")
-		return sb.String()
-	default:
-		return defaultRunsOn
+		return runsOn[0]
 	}
+	// Multiple labels → inline YAML sequence notation: ["a", "b", "c"]
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, s := range runsOn {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(`"`)
+		sb.WriteString(s)
+		sb.WriteString(`"`)
+	}
+	sb.WriteString("]")
+	return sb.String()
 }

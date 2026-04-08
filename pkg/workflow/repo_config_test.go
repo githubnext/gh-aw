@@ -37,7 +37,7 @@ func TestLoadRepoConfig_MaintenanceWithStringRunsOn(t *testing.T) {
 	require.NoError(t, err, "valid aw.json should load without error")
 	assert.False(t, cfg.MaintenanceDisabled, "maintenance should not be disabled")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
-	assert.Equal(t, "custom-runner", cfg.Maintenance.RunsOn, "runs_on should be preserved as string")
+	assert.Equal(t, RunsOnValue{"custom-runner"}, cfg.Maintenance.RunsOn, "string runs_on should be normalised to a single-element RunsOnValue")
 }
 
 func TestLoadRepoConfig_MaintenanceWithArrayRunsOn(t *testing.T) {
@@ -48,7 +48,7 @@ func TestLoadRepoConfig_MaintenanceWithArrayRunsOn(t *testing.T) {
 	require.NoError(t, err, "valid aw.json should load without error")
 	assert.False(t, cfg.MaintenanceDisabled, "maintenance should not be disabled")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
-	assert.Equal(t, []string{"self-hosted", "linux"}, cfg.Maintenance.RunsOn, "runs_on should be normalised to []string")
+	assert.Equal(t, RunsOnValue{"self-hosted", "linux"}, cfg.Maintenance.RunsOn, "array runs_on should be deserialised as RunsOnValue")
 }
 
 func TestLoadRepoConfig_EmptyObject(t *testing.T) {
@@ -69,7 +69,7 @@ func TestLoadRepoConfig_MaintenanceEmptyObject(t *testing.T) {
 	require.NoError(t, err, "aw.json with empty maintenance object should load without error")
 	assert.False(t, cfg.MaintenanceDisabled, "maintenance should not be disabled")
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
-	assert.Nil(t, cfg.Maintenance.RunsOn, "runs_on should be nil when not specified")
+	assert.Empty(t, cfg.Maintenance.RunsOn, "runs_on should be empty when not specified")
 }
 
 func TestLoadRepoConfig_InvalidJSON(t *testing.T) {
@@ -103,15 +103,15 @@ func TestFormatRunsOn(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		runsOn   any
+		runsOn   RunsOnValue
 		expected string
 	}{
 		{"nil uses default", nil, def},
-		{"empty string uses default", "", def},
-		{"string value", "custom-runner", "custom-runner"},
-		{"single-label array", []string{"self-hosted"}, `["self-hosted"]`},
-		{"multi-label array", []string{"self-hosted", "linux"}, `["self-hosted", "linux"]`},
-		{"empty slice uses default", []string{}, def},
+		{"empty slice uses default", RunsOnValue{}, def},
+		{"empty string element uses default", RunsOnValue{""}, def},
+		{"single label", RunsOnValue{"custom-runner"}, "custom-runner"},
+		{"single self-hosted label", RunsOnValue{"self-hosted"}, "self-hosted"},
+		{"multi-label array", RunsOnValue{"self-hosted", "linux"}, `["self-hosted", "linux"]`},
 	}
 
 	for _, tt := range tests {
