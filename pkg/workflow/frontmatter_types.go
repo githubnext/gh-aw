@@ -187,6 +187,7 @@ type FrontmatterConfig struct {
 	RunsOn      string         `json:"runs-on,omitempty"`
 	RunsOnSlim  string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
 	RunName     string         `json:"run-name,omitempty"`
+	PreSteps    []any          `json:"pre-steps,omitempty"`   // Pre-workflow steps (run before checkout)
 	Steps       []any          `json:"steps,omitempty"`       // Custom workflow steps
 	PostSteps   []any          `json:"post-steps,omitempty"`  // Post-workflow steps
 	Environment map[string]any `json:"environment,omitempty"` // GitHub environment
@@ -665,6 +666,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 	if fc.RunName != "" {
 		result["run-name"] = fc.RunName
+	}
+	if fc.PreSteps != nil {
+		result["pre-steps"] = fc.PreSteps
 	}
 	if fc.Steps != nil {
 		result["steps"] = fc.Steps

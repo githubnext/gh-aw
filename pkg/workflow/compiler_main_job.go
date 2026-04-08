@@ -28,7 +28,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Main job doesn't need project support (no safe outputs processed here)
 		// Pass activation's trace ID so all agent spans share the same OTLP trace
 		agentTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, agentTraceID)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, agentTraceID)...)
 	}
 
 	// Set runtime paths that depend on RUNNER_TEMP via $GITHUB_ENV.

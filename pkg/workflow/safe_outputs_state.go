@@ -47,6 +47,7 @@ var safeOutputFieldMapping = map[string]string{
 	"UpdatePullRequests":              "update_pull_request",
 	"PushToPullRequestBranch":         "push_to_pull_request_branch",
 	"UploadAssets":                    "upload_asset",
+	"UploadArtifact":                  "upload_artifact",
 	"UpdateRelease":                   "update_release",
 	"UpdateProjects":                  "update_project",
 	"CreateProjects":                  "create_project",

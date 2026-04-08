@@ -174,12 +174,7 @@ safe-outputs:
     group-by-day: true
 ```
 
-This is useful for scheduled workflows (e.g. every 4 hours) that produce recurring daily reports: all runs on the same day contribute to one issue, eliminating duplicate open/closed issues.
-
-- Performs a pre-creation search for open issues matching the workflow-id or `close-older-key`
-- If a matching issue was created today (UTC), new content is posted as a comment on it
-- The max-count slot is not consumed when posting as a comment
-- On failure of the pre-check, normal issue creation proceeds as a fallback
+This is useful for scheduled workflows (e.g. every 4 hours) that produce recurring daily reports: all runs on the same day contribute to one issue, eliminating duplicate open/closed issues. The max-count slot is not consumed when posting as a comment; on failure of the pre-check, normal issue creation proceeds as a fallback.
 
 #### Searching for Workflow-Created Items
 
@@ -642,37 +637,6 @@ Agent output messages **must** explicitly include the `project` field. Often use
 | `start_date` | Date | Today | Run start date (format: `YYYY-MM-DD`) |
 | `target_date` | Date | Today | Projected completion or milestone date (format: `YYYY-MM-DD`) |
 
-#### Example Usage
-
-```yaml
-create-project-status-update:
-  project: "https://github.com/orgs/myorg/projects/73"
-  status: "ON_TRACK"
-  start_date: "2026-01-06"
-  target_date: "2026-01-31"
-  body: |
-  ## Run Summary
-
-    **Discovered:** 25 items (15 issues, 10 PRs)
-    **Processed:** 10 items added to project, 5 updated
-    **Completion:** 60% (30/50 total tasks)
-
-    ### Key Findings
-    - Documentation coverage improved to 88%
-    - 3 critical accessibility issues identified
-    - Worker velocity: 1.2 items/day
-
-    ### Trends
-    - Velocity stable at 8-10 items/week
-    - Blocked items decreased from 5 to 2
-    - On track for end-of-month completion
-
-    ### Next Steps
-    - Continue processing remaining 15 items
-    - Address 2 blocked items in next run
-    - Target 95% documentation coverage by end of month
-```
-
 **Status values:** `ON_TRACK` (on schedule), `AT_RISK` (potential issues), `OFF_TRACK` (behind schedule), `COMPLETE` (finished), `INACTIVE` (paused).
 
 Exposes outputs: `status-update-id`, `project-id`, `status`.
@@ -890,8 +854,6 @@ safe-outputs:
 
 **When to call `noop`**: Any time no GitHub action (issue, comment, PR, label, etc.) is needed — e.g., no issues found, no changes detected, or repository already in desired state. Do NOT call `noop` if any other safe-output action was taken.
 
-**Failure mode**: If an agent completes its analysis without calling any safe-output tool, the workflow will fail with an error like `agent did not produce any safe outputs`. This is the most common cause of safe-output workflow failures.
-
 Agent output: `{"noop": {"message": "No action needed: analysis complete - no issues found"}}`. Messages appear in the workflow conclusion comment or step summary.
 
 **Always include explicit `noop` instructions in your workflow prompts:**
@@ -925,14 +887,7 @@ safe-outputs:
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
 
-When `create-issue: true`, the agent creates or updates GitHub issues documenting missing data with:
-
-- Detailed explanation of what data is needed and why
-- Context about how the data would be used
-- Possible alternatives if the data cannot be provided
-- Encouragement message praising the agent's truthfulness
-
-This rewards honest AI behavior and helps teams improve data accessibility for future agent runs.
+When `create-issue: true`, the agent creates or updates GitHub issues documenting what data is needed and why, possible alternatives, and context for how the data would be used. This rewards honest AI behavior and helps teams improve data accessibility for future agent runs.
 
 ### Discussion Creation (`create-discussion:`)
 
@@ -1025,9 +980,7 @@ At compile time, the compiler validates that each workflow exists (`.md`, `.lock
 
 #### Defining Workflow Inputs
 
-To enable the agent to provide inputs when dispatching workflows, define `workflow_dispatch` inputs in the target workflow:
-
-**Target Workflow Example (`deploy-app.md`):**
+Define `workflow_dispatch` inputs in the target workflow so the agent can provide values when dispatching:
 
 ```yaml wrap
 ---
@@ -1039,20 +992,10 @@ on:
         required: true
         type: choice
         options: [staging, production]
-      version:
-        description: "Version to deploy"
-        required: true
-        type: string
       dry_run:
-        description: "Perform dry run without actual deployment"
-        required: false
         type: boolean
         default: false
 ---
-
-# Deploy Application Workflow
-
-Deploys the application to the specified environment...
 ```
 
 #### Rate Limiting
@@ -1095,20 +1038,7 @@ safe-outputs:
 
 #### Worker Inputs
 
-Worker inputs are forwarded via two complementary mechanisms.
-
-**Canonical transport — `payload`:** The runtime serializes all agent-provided arguments into a single JSON string and writes it to the `call_workflow_payload` step output. The compiler always includes this in the generated `with:` block:
-
-```yaml title="spring-boot-bugfix.md (worker)"
-on:
-  workflow_call:
-    inputs:
-      payload:
-        type: string
-        required: false
-```
-
-**Typed inputs — compiler-derived forwarding:** When a worker declares additional `workflow_call.inputs` beyond `payload`, the compiler reads those declarations and emits one extra `with:` entry per input in the fan-out job using `fromJSON(needs.safe_outputs.outputs.call_workflow_payload).<inputName>`. This means worker steps can reference `inputs.<name>` directly, without manually parsing the JSON envelope:
+All agent arguments are serialized into a `payload` JSON string passed via `call_workflow_payload`. Workers always receive this `payload` input. To use typed inputs directly (without parsing JSON), declare additional `workflow_call.inputs` beyond `payload` — the compiler auto-derives `fromJSON(...).<inputName>` forwarding for each, so workers can reference `${{ inputs.<name> }}` directly:
 
 ```yaml title="deploy.md (worker)"
 on:
@@ -1128,29 +1058,6 @@ on:
 ```
 
 Supported input types: `string`, `number`, `boolean`, `choice` (rendered as an enum).
-
-#### Compiled Output
-
-For each worker the compiler emits a conditional `uses:` job in the lock file. The `with:` block always includes the canonical `payload` entry; for each declared worker input other than `payload`, the compiler also emits a `fromJSON`-derived entry so worker steps can use `${{ inputs.<name> }}` directly:
-
-```yaml title="gateway.lock.yml (simplified)"
-safe_outputs:
-  outputs:
-    call_workflow_name: ${{ steps.process_safe_outputs.outputs.call_workflow_name }}
-    call_workflow_payload: ${{ steps.process_safe_outputs.outputs.call_workflow_payload }}
-
-call-spring-boot-bugfix:
-  needs: [safe_outputs]
-  if: needs.safe_outputs.outputs.call_workflow_name == 'spring-boot-bugfix'
-  uses: ./.github/workflows/spring-boot-bugfix.lock.yml
-  secrets: inherit
-  with:
-    payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
-    environment: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).environment }}
-    dry_run: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).dry_run }}
-```
-
-`payload` remains the canonical transport; the additional entries are compiler-derived projections of the same data so that worker steps can reference `inputs.<name>` without parsing JSON.
 
 #### Validation Rules
 

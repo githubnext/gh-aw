@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  issues: read
   pull-requests: read
   actions: read
 
@@ -41,11 +40,45 @@ tools:
     wiki: true
     description: "Project glossary and terminology reference"
   github:
-    toolsets: [default]
+    toolsets: [repos, pull_requests]  # scoped to avoid search_repositories (in default); repos covers commits/files, pull_requests covers PRs
   edit:
   bash: true
 
 timeout-minutes: 20
+
+checkout:
+  fetch-depth: 0  # full history required so git log --since works across all commits
+
+steps:
+  - name: Fetch recent changes
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+
+      # Determine scan scope: Monday = full weekly scan, other weekdays = daily
+      DAY=$(date +%u)
+      if [ "$DAY" -eq 1 ]; then
+        SINCE="7 days ago"
+        SCOPE="weekly"
+      else
+        SINCE="24 hours ago"
+        SCOPE="daily"
+      fi
+
+      echo "Scan scope: $SCOPE (since: $SINCE)"
+
+      # Fetch recent commits (all files) — includes file names for context
+      git log --since="$SINCE" --oneline --name-only \
+        > /tmp/gh-aw/agent/recent-commits.txt
+
+      # Fetch commits that touched docs
+      git log --since="$SINCE" --name-only \
+        --format="%H %s" -- 'docs/**/*.md' 'docs/**/*.mdx' \
+        > /tmp/gh-aw/agent/doc-changes.txt
+
+      echo "Recent commits: $(wc -l < /tmp/gh-aw/agent/recent-commits.txt)"
+      echo "Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)"
+      echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
 
 ---
 
@@ -96,19 +129,18 @@ Use Serena to:
 
 ### 1. Determine Scan Scope
 
-Check what day it is:
-- **Monday**: Full scan (review changes from last 7 days)
-- **Other weekdays**: Incremental scan (review changes from last 24 hours)
-
-Use bash commands to check recent activity:
+The pre-step has already determined the scan scope. Read it from the file:
 
 ```bash
-# For incremental (daily) scan
-git log --since='24 hours ago' --oneline
-
-# For full (weekly) scan on Monday
-git log --since='7 days ago' --oneline
+cat /tmp/gh-aw/agent/scan-scope.txt   # "daily" or "weekly"
+cat /tmp/gh-aw/agent/recent-commits.txt  # pre-fetched commit list
+cat /tmp/gh-aw/agent/doc-changes.txt     # commits that touched docs
 ```
+
+- **`weekly`** (Monday): Full scan — review changes from the last 7 days
+- **`daily`** (other weekdays): Incremental scan — review changes from the last 24 hours
+
+Do not run additional `git log` commands to re-fetch this data; the files above are already populated.
 
 ### 2. Load Cache Memory
 
@@ -129,10 +161,10 @@ Based on the scope (daily or weekly):
 - e.g., `search("cache-memory workflow persistence")` to check for existing docs before adding a term
 - e.g., `search("MCP server configuration tools")` to find all documentation on a concept
 
-**Use GitHub tools to:**
-- List recent commits using `list_commits` for the appropriate timeframe
-- Get detailed commit information using `get_commit` for commits that might introduce new terminology
-- Search for merged pull requests using `search_pull_requests`
+**Use GitHub tools sparingly** — prefer the pre-fetched files above:
+- Use `get_commit` for detailed diff of specific commit SHAs from `recent-commits.txt` (at most 20 commits)
+- Use `search_pull_requests` to find merged PRs from the timeframe (at most 10 PRs)
+- Use `pull_request_read` to inspect specific PR changes — pass `method: get_files` or `method: get_diff` as the operation
 
 **Look for new terminology in `docs/**/*.{md,mdx}` (and nowhere else)**
 - New configuration fields in frontmatter (YAML keys)
@@ -309,6 +341,16 @@ If you made any changes to the glossary:
 - **Follow Structure**: Maintain alphabetical order within sections
 - **Use Cache**: Track your work to avoid duplicates
 - **Link Appropriately**: Add references to related documentation
+
+## Constraints
+
+To keep this workflow efficient, adhere to these hard limits:
+
+- **Do not use `search_repositories`** — it searches GitHub globally and is irrelevant to this task
+- **Do not read issues** — terminology should come from commits, PRs, and documentation files, not issue discussions
+- **Analyze at most 20 commits** — use the pre-fetched `recent-commits.txt` file and pick the most relevant ones
+- **Read at most 10 pull requests** — focus on PRs that clearly introduce new features or terminology
+- **The only repository that matters is the current one** — do not query or search other repositories
 
 ## Important Notes
 

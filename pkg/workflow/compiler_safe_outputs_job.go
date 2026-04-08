@@ -51,6 +51,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Enable custom-tokens flag if any safe output uses a per-handler github-token
 		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
+		// Enable artifact client flag if upload-artifact safe output is configured
+		enableArtifactClient := data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil
 
 		// When custom tokens are enabled and the safe_outputs job runs on a custom image runner,
 		// emit a Node.js setup step before actions/setup.
@@ -67,7 +69,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, safeOutputsTraceID)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, enableArtifactClient, safeOutputsTraceID)...)
 	}
 
 	// Mask OTLP telemetry headers immediately after setup so authentication tokens cannot
@@ -175,6 +177,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.MissingData != nil ||
 		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
 		data.SafeOutputs.CreateAgentSessions != nil || // create_agent_session is now handled by the handler manager
+		data.SafeOutputs.UploadArtifact != nil || // upload_artifact is handled inline in the handler loop
 		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
 		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
 
@@ -189,7 +192,23 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, scriptSetupSteps...)
 	}
 
-	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, assign_to_agent, etc.)
+	// Download the upload-artifact staging artifact before the handler manager runs so that
+	// the upload_artifact handler (which runs inline in the handler loop) can access the files.
+	if data.SafeOutputs.UploadArtifact != nil {
+		consolidatedSafeOutputsJobLog.Print("Adding upload-artifact staging download step")
+		stagingArtifactName := agentArtifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
+		steps = append(steps,
+			"      - name: Download upload-artifact staging\n",
+			"        continue-on-error: true\n",
+			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")),
+			"        with:\n",
+			fmt.Sprintf("          name: %s\n", stagingArtifactName),
+			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
+		)
+	}
+
+	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, assign_to_agent,
+	// upload_artifact, etc.)
 	// This processes all safe output types that are handled by the unified handler
 	// Critical for workflows that create projects and then add issues/PRs to those projects
 	if hasHandlerManagerTypes {
@@ -222,6 +241,20 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			consolidatedSafeOutputsJobLog.Print("Exposing create_agent_session outputs from handler manager")
 			outputs["create_agent_session_session_number"] = "${{ steps.process_safe_outputs.outputs.session_number }}"
 			outputs["create_agent_session_session_url"] = "${{ steps.process_safe_outputs.outputs.session_url }}"
+		}
+
+		// Export upload_artifact outputs.
+		// The handler sets slot_N_* outputs on the process_safe_outputs step; we expose
+		// them as upload_artifact_slot_N_* job outputs for external consumers.
+		// The actual artifact uploads are performed directly by the JS handler via
+		// @actions/artifact REST API — no additional YAML steps are required.
+		if data.SafeOutputs.UploadArtifact != nil {
+			consolidatedSafeOutputsJobLog.Print("Exposing upload_artifact outputs from handler manager")
+			cfg := data.SafeOutputs.UploadArtifact
+			outputs["upload_artifact_count"] = "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}"
+			for i := range cfg.MaxUploads {
+				outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
+			}
 		}
 
 		// If create-issue is configured with assignees: copilot, run a follow-up step to
@@ -354,11 +387,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			insertIndex += len(c.generateCheckoutActionsFolder(data))
 			// Use the same traceID as the real call so the line count matches exactly
 			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), countTraceID))
+			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID))
 		}
 
 		// Add artifact download steps count
 		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix))
+
+		// Add upload-artifact staging download step count.
+		// The step has 6 YAML string entries: name, continue-on-error, uses, with:, name: <artifact>, path: <dir>
+		if data.SafeOutputs.UploadArtifact != nil {
+			insertIndex += 6
+		}
 
 		// Add patch download steps if present
 		// Download from unified agent artifact (prefixed in workflow_call context)

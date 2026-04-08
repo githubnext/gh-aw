@@ -23,6 +23,7 @@ type ImportsResult struct {
 	ImportPaths                 []string         // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
 	MergedSteps                 string           // Merged steps configuration from all imports (excluding copilot-setup-steps)
 	CopilotSetupSteps           string           // Steps from copilot-setup-steps.yml (inserted at start)
+	MergedPreSteps              string           // Merged pre-steps configuration from all imports (prepended in order)
 	MergedRuntimes              string           // Merged runtimes configuration from all imports
 	MergedRunInstallScripts     bool             // true if any imported workflow sets run-install-scripts: true (global or node-level)
 	MergedServices              string           // Merged services configuration from all imports

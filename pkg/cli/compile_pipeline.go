@@ -482,7 +482,7 @@ func runPostProcessingForDirectory(
 	// Skip maintenance workflow generation when using custom --dir option
 	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateMaintenanceWorkflowWrapper(compiler, workflowDataList, absWorkflowDir, config.Verbose, config.Strict); err != nil {
+		if err := generateMaintenanceWorkflowWrapper(compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
 			if config.Strict {
 				return err
 			}
