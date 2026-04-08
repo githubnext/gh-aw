@@ -662,6 +662,22 @@ describe("handle_agent_failure", () => {
       const result = buildEngineFailureContext();
       expect(result).toContain("`copilot` engine");
       expect(result).toContain("terminated before producing output");
+      // Copilot-specific status page guidance
+      expect(result).toContain("GitHub Copilot status page");
+    });
+
+    it("shows provider-agnostic status page guidance for non-copilot engines", () => {
+      process.env.GH_AW_ENGINE_ID = "claude";
+      vi.resetModules();
+      ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
+      const infraLines = ["[WARN] Command completed with exit code: 1", "Process exiting with code: 1"];
+      fs.writeFileSync(stdioLogPath, infraLines.join("\n") + "\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("`claude` engine");
+      expect(result).toContain("terminated before producing output");
+      // Generic guidance for non-copilot engines
+      expect(result).toContain("provider status page");
+      expect(result).not.toContain("GitHub Copilot status page");
     });
 
     it("includes engine ID in failure message when GH_AW_ENGINE_ID is set", () => {

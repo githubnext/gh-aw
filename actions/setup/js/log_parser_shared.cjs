@@ -44,6 +44,31 @@ const MAX_AGENT_TEXT_LENGTH = 2000;
 const SIZE_LIMIT_WARNING = "\n\n⚠️ *Step summary size limit reached. Additional content truncated.*\n\n";
 
 /**
+ * Matches AWF infrastructure lines written by the firewall/container wrapper.
+ * These lines are produced by the AWF infrastructure (container lifecycle, firewall proxy)
+ * rather than by the engine itself, and must be excluded when analysing agent output.
+ *
+ * Examples of matched lines:
+ *   - [INFO] API proxy logs available at: …
+ *   - [WARN] Command completed with exit code: 1
+ *   - [SUCCESS] Containers stopped successfully
+ *   - [ERROR] …
+ *   - [entrypoint] Starting firewall…       (lowercase — container script convention)
+ *   - [health-check] Proxy ready            (lowercase — container script convention)
+ *   -  Container awf-squid  Removed         (Docker Compose lifecycle output)
+ *   -  Network …  Removed
+ *   - Process exiting with code: 1          (AWF wrapper exit line)
+ *
+ * Note: INFO/WARN/SUCCESS/ERROR are uppercase (AWF wrapper convention); entrypoint and
+ * health-check are lowercase (container script convention). Mixed casing is intentional
+ * and reflects the actual output produced by different AWF components.
+ *
+ * Used by parse_copilot_log.cjs (parsePrettyPrintFormat) and handle_agent_failure.cjs
+ * (buildEngineFailureContext) to strip infrastructure noise from engine log analysis.
+ */
+const AWF_INFRA_LINE_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+
+/**
  * Tracks the size of content being added to a step summary.
  * Used to prevent exceeding GitHub Actions step summary size limits.
  */
@@ -1650,6 +1675,7 @@ module.exports = {
   // Constants
   MAX_TOOL_OUTPUT_LENGTH,
   MAX_STEP_SUMMARY_SIZE,
+  AWF_INFRA_LINE_RE,
   // Classes
   StepSummaryTracker,
   // Functions

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 
 const main = createEngineLogParser({
@@ -153,7 +153,7 @@ function parsePrettyPrintFormat(logContent) {
     return [];
   }
 
-  const INFRA_LINE_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+  const INFRA_LINE_RE = AWF_INFRA_LINE_RE;
   const FAILED_TOOL_RE = /^✗\s+(\S+)/;
   const SUCCESS_TOOL_RE = /^(?:●|✓)\s+(\S+)/;
   const CONTINUATION_RE = /^\s+[└│]/;
