@@ -153,4 +153,35 @@ describe("copilot_driver.cjs", () => {
       expect(logLine).toMatch(/^\[copilot-driver\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     });
   });
+
+  describe("startup log includes node version and platform", () => {
+    it("starting log line contains nodeVersion and platform fields", () => {
+      const command = "/usr/local/bin/copilot";
+      const startingLine = `starting: command=${command} maxRetries=3 initialDelayMs=5000` + ` backoffMultiplier=2 maxDelayMs=60000` + ` nodeVersion=${process.version} platform=${process.platform}`;
+      expect(startingLine).toContain("nodeVersion=");
+      expect(startingLine).toContain("platform=");
+      expect(startingLine).toMatch(/nodeVersion=v\d+\.\d+/);
+    });
+  });
+
+  describe("no-output failure message", () => {
+    it("includes actionable possible causes", () => {
+      const msg = `attempt 1: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`;
+      expect(msg).toContain("binary not found");
+      expect(msg).toContain("permission denied");
+      expect(msg).toContain("auth failure");
+      expect(msg).toContain("silent startup crash");
+    });
+  });
+
+  describe("error event message", () => {
+    it("includes code and syscall fields", () => {
+      const errMessage = "spawn /usr/local/bin/copilot ENOENT";
+      const errCode = "ENOENT";
+      const errSyscall = "spawn";
+      const logMsg = `attempt 1: failed to start process '/usr/local/bin/copilot': ${errMessage}` + ` (code=${errCode} syscall=${errSyscall})`;
+      expect(logMsg).toContain("code=ENOENT");
+      expect(logMsg).toContain("syscall=spawn");
+    });
+  });
 });

@@ -25,6 +25,7 @@
 "use strict";
 
 const { spawn } = require("child_process");
+const fs = require("fs");
 
 // Maximum number of retry attempts after the initial run
 const MAX_RETRIES = 3;
@@ -65,6 +66,29 @@ function isTransientCAPIError(output) {
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Check whether a command path is accessible and executable, logging the result.
+ * Returns true if the command is usable, false otherwise.
+ * @param {string} command - Absolute or relative path to the executable
+ * @returns {Promise<boolean>}
+ */
+async function checkCommandAccessible(command) {
+  try {
+    await fs.promises.access(command, fs.constants.F_OK);
+  } catch {
+    log(`pre-flight: command not found: ${command} (F_OK check failed — binary does not exist at this path)`);
+    return false;
+  }
+  try {
+    await fs.promises.access(command, fs.constants.X_OK);
+    log(`pre-flight: command is accessible and executable: ${command}`);
+    return true;
+  } catch {
+    log(`pre-flight: command exists but is not executable: ${command} (X_OK check failed — permission denied)`);
+    return false;
+  }
 }
 
 /**
@@ -148,7 +172,10 @@ function runProcess(command, args, attempt) {
 
     child.on("error", err => {
       const durationMs = Date.now() - startTime;
-      log(`attempt ${attempt + 1}: failed to start process '${command}': ${err.message}`);
+      const errno = /** @type {NodeJS.ErrnoException} */ err;
+      const errCode = errno.code ?? "unknown";
+      const errSyscall = errno.syscall ?? "unknown";
+      log(`attempt ${attempt + 1}: failed to start process '${command}': ${err.message}` + ` (code=${errCode} syscall=${errSyscall})`);
       resolve({
         exitCode: 1,
         output: collectedOutput,
@@ -170,7 +197,9 @@ async function main() {
     process.exit(1);
   }
 
-  log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS} backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}`);
+  log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
+
+  await checkCommandAccessible(command);
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
@@ -212,7 +241,7 @@ async function main() {
     if (attempt >= MAX_RETRIES) {
       log(`all ${MAX_RETRIES} retries exhausted — giving up (exitCode=${lastExitCode})`);
     } else {
-      log(`attempt ${attempt + 1}: no output produced — not retrying (process may have failed to start)`);
+      log(`attempt ${attempt + 1}: no output produced — not retrying` + ` (possible causes: binary not found, permission denied, auth failure, or silent startup crash)`);
     }
 
     // Non-retryable error or retries exhausted — propagate exit code
