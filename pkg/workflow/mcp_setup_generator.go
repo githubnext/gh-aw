@@ -378,6 +378,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate the tools.json configuration file
 		toolsJSON := GenerateMCPScriptsToolsConfig(workflowData.MCPScripts)
 		toolsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_TOOLS", workflowData.FrontmatterHash)
+		if err := ValidateHeredocContent(toolsJSON, toolsDelimiter); err != nil {
+			return fmt.Errorf("mcp-scripts tools.json: %w", err)
+		}
 		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json\" << '" + toolsDelimiter + "'\n")
 		for line := range strings.SplitSeq(toolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
@@ -387,6 +390,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate the MCP server entry point
 		mcpScriptsMCPServer := GenerateMCPScriptsMCPServerScript(workflowData.MCPScripts)
 		serverDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_SERVER", workflowData.FrontmatterHash)
+		if err := ValidateHeredocContent(mcpScriptsMCPServer, serverDelimiter); err != nil {
+			return fmt.Errorf("mcp-scripts mcp-server.cjs: %w", err)
+		}
 		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs\" << '" + serverDelimiter + "'\n")
 		for _, line := range FormatJavaScriptForYAML(mcpScriptsMCPServer) {
 			yaml.WriteString(line)

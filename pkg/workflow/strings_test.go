@@ -615,11 +615,73 @@ func TestValidateHeredocContent(t *testing.T) {
 			delimiter: "GH_AW_MCP_SCRIPTS_JS_TOOL_abc123def456789a_EOF",
 			wantErr:   false,
 		},
+		{
+			name:      "delimiter with single quote rejected",
+			content:   "safe content",
+			delimiter: "GH_AW_PROMPT'_EOF",
+			wantErr:   true,
+		},
+		{
+			name:      "delimiter with newline rejected",
+			content:   "safe content",
+			delimiter: "GH_AW_PROMPT\n_EOF",
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateHeredocContent(tt.content, tt.delimiter)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+			} else {
+				assert.NoError(t, err, "Expected no error for test case: %s", tt.name)
+			}
+		})
+	}
+}
+
+func TestValidateHeredocDelimiter(t *testing.T) {
+	tests := []struct {
+		name      string
+		delimiter string
+		wantErr   bool
+	}{
+		{
+			name:      "valid delimiter",
+			delimiter: "GH_AW_PROMPT_abc123def456789a_EOF",
+			wantErr:   false,
+		},
+		{
+			name:      "single quote",
+			delimiter: "DELIM'QUOTE",
+			wantErr:   true,
+		},
+		{
+			name:      "newline",
+			delimiter: "DELIM\nNEWLINE",
+			wantErr:   true,
+		},
+		{
+			name:      "carriage return",
+			delimiter: "DELIM\rCR",
+			wantErr:   true,
+		},
+		{
+			name:      "non-printable control char",
+			delimiter: "DELIM\x01CTRL",
+			wantErr:   true,
+		},
+		{
+			name:      "tab allowed",
+			delimiter: "DELIM\tTAB",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateHeredocDelimiter(tt.delimiter)
 			if tt.wantErr {
 				assert.Error(t, err, "Expected error for test case: %s", tt.name)
 			} else {
