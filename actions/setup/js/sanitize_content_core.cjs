@@ -1006,6 +1006,12 @@ const HOMOGLYPH_MAP = {
 };
 
 /**
+ * Regex matching only the exact characters present in HOMOGLYPH_MAP.
+ * Built dynamically from the map keys to stay in sync without manual maintenance.
+ */
+const HOMOGLYPH_REGEX = new RegExp("[" + Object.keys(HOMOGLYPH_MAP).join("") + "]", "g");
+
+/**
  * Performs text hardening to protect against Unicode-based attacks.
  * This applies multiple layers of character normalization and filtering
  * to ensure consistent text processing and prevent visual spoofing.
@@ -1058,9 +1064,7 @@ function hardenUnicodeText(text) {
   // These characters are visually indistinguishable from Latin letters and are used
   // to bypass text filters while appearing to contain only ASCII-like content.
   // Based on Unicode TR#39 confusables (https://www.unicode.org/reports/tr39/).
-  result = result.replace(/[\u0391-\u03A9\u03B1-\u03C9\u0400-\u045F]/g, char => {
-    return HOMOGLYPH_MAP[char] || char;
-  });
+  result = result.replace(HOMOGLYPH_REGEX, char => HOMOGLYPH_MAP[char]);
 
   return result;
 }
