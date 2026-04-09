@@ -47,7 +47,7 @@ const DefaultGeminiVersion Version = "0.36.0"
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.17"
+const DefaultFirewallVersion Version = "v0.25.18"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -59,7 +59,7 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 const AWFCliProxyMinVersion Version = "v0.25.17"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.16"
+const DefaultMCPGatewayVersion Version = "v0.2.17"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.70"
