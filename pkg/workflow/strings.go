@@ -83,6 +83,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -310,7 +311,7 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 // HMAC-SHA256. This check exists as defense-in-depth.
 func ValidateHeredocContent(content, delimiter string) error {
 	if delimiter == "" {
-		return fmt.Errorf("heredoc delimiter cannot be empty")
+		return errors.New("heredoc delimiter cannot be empty")
 	}
 	if err := ValidateHeredocDelimiter(delimiter); err != nil {
 		return err
