@@ -420,7 +420,9 @@ function isValidSpanId(id) {
  *
  * Runtime files read (optional):
  * - `/tmp/gh-aw/aw_info.json` – when present, `context.otel_trace_id` is used as a fallback
- *   trace ID so that dispatched child workflows share the parent's OTLP trace
+ *   trace ID so that dispatched child workflows share the parent's OTLP trace; and
+ *   `context.otel_parent_span_id` is used as the parent span ID so the child's setup span
+ *   is properly nested under the parent's setup span in the trace hierarchy
  *
  * @param {SendJobSetupSpanOptions} [options]
  * @returns {Promise<{ traceId: string, spanId: string }>} The trace and span IDs used.
@@ -447,6 +449,11 @@ async function sendJobSetupSpan(options = {}) {
   const awInfo = readJSONIfExists("/tmp/gh-aw/aw_info.json") || {};
   const rawContextTraceId = typeof awInfo.context?.otel_trace_id === "string" ? awInfo.context.otel_trace_id.trim().toLowerCase() : "";
   const contextTraceId = isValidTraceId(rawContextTraceId) ? rawContextTraceId : "";
+  // When this job was dispatched by a parent workflow, the parent's setup span ID is
+  // propagated via aw_context.otel_parent_span_id → aw_info.context.otel_parent_span_id so
+  // that the child's setup span is nested under the parent's setup span in the trace.
+  const rawContextParentSpanId = typeof awInfo.context?.otel_parent_span_id === "string" ? awInfo.context.otel_parent_span_id.trim().toLowerCase() : "";
+  const contextParentSpanId = isValidSpanId(rawContextParentSpanId) ? rawContextParentSpanId : "";
   const staged = awInfo.staged === true;
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
@@ -508,6 +515,7 @@ async function sendJobSetupSpan(options = {}) {
   const payload = buildOTLPPayload({
     traceId,
     spanId,
+    ...(contextParentSpanId ? { parentSpanId: contextParentSpanId } : {}),
     spanName: jobName ? `gh-aw.${jobName}.setup` : "gh-aw.job.setup",
     startMs,
     endMs,

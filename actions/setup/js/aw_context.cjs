@@ -107,7 +107,8 @@ function resolveItemContext(payload) {
  *   item_number: string,
  *   comment_id: string,
  *   comment_node_id: string,
- *   otel_trace_id: string
+ *   otel_trace_id: string,
+ *   otel_parent_span_id: string
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -125,6 +126,10 @@ function resolveItemContext(payload) {
  *     Empty string when OTLP is not configured or the parent setup step has
  *     not yet run.  Used by child workflow setup steps to continue the same
  *     trace as the parent (composite-action trace propagation).
+ *   - otel_parent_span_id: OTLP span ID of the parent workflow's setup span.
+ *     Empty string when OTLP is not configured or the parent setup step has
+ *     not yet run.  Used by child workflow setup steps to link their setup
+ *     span as a child of the parent's setup span for proper trace hierarchy.
  */
 function buildAwContext() {
   const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
@@ -149,6 +154,10 @@ function buildAwContext() {
     // composite actions share the same trace as their parent.  Empty string when
     // OTLP is not configured or the parent setup step has not run yet.
     otel_trace_id: process.env.GITHUB_AW_OTEL_TRACE_ID || "",
+    // Propagate the current job's setup span ID so dispatched child workflows
+    // can link their setup span as a child of this span for proper trace hierarchy.
+    // Empty string when OTLP is not configured or the parent setup step has not run yet.
+    otel_parent_span_id: process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID || "",
   };
 }
 
