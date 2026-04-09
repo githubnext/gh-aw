@@ -88,11 +88,14 @@ function sanitizeContent(content, maxLengthOrOptions) {
   // Neutralize commands at the start of text
   sanitized = neutralizeCommands(sanitized);
 
+  // Remove XML comments before mention neutralization to prevent bypass: if removeXmlComments
+  // ran after neutralizeMentions, a comment like <!-- @user payload --> would first become
+  // <!-- `@user` payload --> and applyFnOutsideInlineCode would split at the backtick boundary,
+  // preventing the full <!--...--> pattern from being matched.
+  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
+
   // Neutralize @mentions with selective filtering (custom logic for allowed aliases)
   sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
-
-  // Remove XML comments – skip code blocks and inline code
-  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
 
   // Convert XML tags – skip code blocks and inline code
   sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);

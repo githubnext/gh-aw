@@ -289,6 +289,23 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Hello <!-- multi\nline\ncomment --> world");
       expect(result).toBe("Hello  world");
     });
+
+    it("should remove XML comments containing @mentions (regression: bypass via backtick wrapping)", () => {
+      // If removeXmlComments ran after neutralizeMentions, the @mention would be wrapped in
+      // backticks first, splitting the <!--...--> pattern and causing it to survive sanitization.
+      const result = sanitizeContent("<!-- @exploituser injected payload -->");
+      expect(result).toBe("");
+    });
+
+    it("should remove XML comments containing multiple @mentions", () => {
+      const result = sanitizeContent("<!-- @attacker1 and @attacker2 payload -->");
+      expect(result).toBe("");
+    });
+
+    it("should remove XML comments with @mentions mixed with surrounding text", () => {
+      const result = sanitizeContent("before <!-- @exploituser payload --> after");
+      expect(result).toBe("before  after");
+    });
   });
 
   describe("XML/HTML tag conversion", () => {

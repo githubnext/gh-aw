@@ -1035,11 +1035,14 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   // Neutralize commands at the start of text (e.g., /bot-name)
   sanitized = neutralizeCommands(sanitized);
 
+  // Remove XML comments before mention neutralization to prevent bypass: if removeXmlComments
+  // ran after neutralizeAllMentions, a comment like <!-- @user payload --> would first become
+  // <!-- `@user` payload --> and applyFnOutsideInlineCode would split at the backtick boundary,
+  // preventing the full <!--...--> pattern from being matched.
+  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
+
   // Neutralize ALL @mentions (no filtering in core version)
   sanitized = neutralizeAllMentions(sanitized);
-
-  // Remove XML comments – skip code blocks and inline code to avoid altering code content
-  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
 
   // Convert XML tags to parentheses format – skip code blocks and inline code so that
   // type parameters (e.g. VBuffer<float32>) and code containing angle brackets are preserved
