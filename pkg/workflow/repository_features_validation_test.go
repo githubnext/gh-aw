@@ -64,7 +64,9 @@ func TestValidateRepositoryFeatures(t *testing.T) {
 			description: "validation will check both features but won't fail on API errors",
 		},
 		{
-			name: "add-comment with discussions: true",
+			// add-comment.discussions (plural) only controls permissions, not repository feature checks
+			// Repository feature validation for discussions is only triggered by create-discussion
+			name: "add-comment with discussions: true does not trigger repository feature check",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
@@ -73,10 +75,10 @@ func TestValidateRepositoryFeatures(t *testing.T) {
 				},
 			},
 			expectError: false,
-			description: "should pass when add-comment explicitly enables discussions:write permission",
+			description: "add-comment.discussions only controls permissions; no discussions feature check is performed",
 		},
 		{
-			name: "add-comment with discussions: false",
+			name: "add-comment with discussions: false does not trigger repository feature check",
 			workflowData: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
@@ -85,7 +87,7 @@ func TestValidateRepositoryFeatures(t *testing.T) {
 				},
 			},
 			expectError: false,
-			description: "should pass when add-comment opts out of discussions:write permission",
+			description: "add-comment.discussions only controls permissions; no discussions feature check is performed",
 		},
 	}
 

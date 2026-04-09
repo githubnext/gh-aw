@@ -51,7 +51,7 @@ The [`safe-outputs:`](/gh-aw/reference/safe-outputs/) (validated GitHub operatio
 
 ### Discussion Comments
 
-For workflows that post updates to an existing discussion, use `add-comment` with a specific `target` discussion number. Discussion targeting is automatic when the workflow runs in a discussion event context, or when the agent provides a `discussion_number`:
+For workflows that post updates to an existing discussion, use `add-comment` with a specific `target` discussion number. Discussion targeting is automatic when the workflow runs in a discussion event context, or when the agent provides an `item_number`:
 
 ```aw wrap
 safe-outputs:

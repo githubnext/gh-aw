@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,12 +92,10 @@ func TestAddCommentDiscussionsFieldIntegration(t *testing.T) {
 				require.NoError(t, err, "Expected workflow to compile successfully")
 				require.NotNil(t, job, "Expected consolidated job to be built")
 
-				jobYAML := strings.Join(job.Steps, "")
-
 				if tt.expectDiscussionsWrite {
-					assert.Contains(t, jobYAML, "discussions: write", "Expected discussions:write permission to be present")
+					assert.Contains(t, job.Permissions, "discussions: write", "Expected discussions:write permission to be present")
 				} else {
-					assert.NotContains(t, jobYAML, "discussions: write", "Expected discussions:write permission to be absent")
+					assert.NotContains(t, job.Permissions, "discussions: write", "Expected discussions:write permission to be absent")
 				}
 			} else {
 				assert.Error(t, err, "Expected compilation to fail")

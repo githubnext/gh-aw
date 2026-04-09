@@ -5537,15 +5537,15 @@
                 },
                 "discussions": {
                   "type": "boolean",
-                  "description": "Controls whether the workflow requests discussions:write permission for add-comment and includes discussions in the event trigger condition. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
+                  "description": "Controls whether the workflow requests discussions:write permission for add-comment. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
                 },
                 "issues": {
                   "type": "boolean",
-                  "description": "Controls whether the workflow requests issues:write permission for add-comment and includes issues in the event trigger condition. Default: true (includes issues:write). Set to false to disable issue commenting."
+                  "description": "Controls whether the workflow requests issues:write permission for add-comment. Default: true (includes issues:write). Set to false to disable issue commenting permissions."
                 },
                 "pull-requests": {
                   "type": "boolean",
-                  "description": "Controls whether the workflow requests pull-requests:write permission for add-comment and includes pull requests in the event trigger condition. Default: true (includes pull-requests:write). Set to false to disable pull request commenting."
+                  "description": "Controls whether the workflow requests pull-requests:write permission for add-comment. Default: true (includes pull-requests:write). Set to false to disable pull request commenting permissions."
                 },
                 "footer": {
                   "type": "boolean",

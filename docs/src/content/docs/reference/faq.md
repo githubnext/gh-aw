@@ -349,15 +349,15 @@ Use `fallback-to-issue: true` (the default) to automatically create an issue if 
 
 ### How do I turn off discussions in add-comment?
 
-By default, `add-comment` requests `discussions: write` permission and includes discussion events in the trigger condition. If your GitHub App lacks the Discussions permission (which can cause 422 errors during token generation), set `discussions: false`:
+By default, `add-comment` requests `discussions: write` permission. If your GitHub App lacks the Discussions permission (which can cause 422 errors during token generation), set `discussions: false`:
 
 ```yaml wrap
 safe-outputs:
   add-comment:
-    discussions: false   # exclude discussions:write permission and discussion events
+    discussions: false   # exclude discussions:write permission
 ```
 
-This removes the `discussions: write` permission requirement and excludes `discussion` and `discussion_comment` events from the event trigger condition. Discussion targeting is still automatic when the events are present — `discussions: false` only controls the permission scope.
+This removes the `discussions: write` permission requirement. Discussion targeting itself remains automatic — `discussions: false` only controls the permission scope, not which events trigger the workflow.
 
 Similarly, you can opt out of `issues: write` or `pull-requests: write` using `issues: false` or `pull-requests: false`.
 
