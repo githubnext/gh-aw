@@ -185,10 +185,10 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "empty config fails anyOf",
+			name:        "empty config fails anyOf - missing type, url, command, and container",
 			mcpConfig:   map[string]any{},
 			wantErr:     true,
-			errContains: "jsonschema validation failed",
+			errContains: "missing property",
 		},
 		{
 			name: "invalid container pattern rejected by schema",

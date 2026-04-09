@@ -371,6 +371,10 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 // mcp_config_schema.json. Only these fields should be passed to
 // parser.ValidateMCPConfigWithSchema; the schema uses additionalProperties: false
 // so any extra field would cause a spurious validation failure.
+//
+// WARNING: This map must be kept in sync with the properties defined in
+// pkg/parser/schemas/mcp_config_schema.json. If you add or remove a property
+// from that schema, update this map accordingly.
 var mcpSchemaTopLevelFields = map[string]bool{
 	"type":           true,
 	"registry":       true,
@@ -407,6 +411,16 @@ func buildSchemaMCPConfig(toolConfig map[string]any) map[string]any {
 	}
 	// If 'type' is not present, infer it from other fields so the schema's
 	// if/then conditions do not fire vacuously and reject valid inferred-type configs.
+	//
+	// Why this is necessary: the JSON Schema draft-07 `properties` keyword is
+	// vacuously satisfied when the checked property is absent. This means the
+	// `if {"properties": {"type": {"enum": ["stdio"]}}}` condition evaluates to
+	// true even when 'type' is not in the config, causing the stdio `then` clause
+	// (requiring command/container) to apply unexpectedly for HTTP-only configs.
+	// Injecting the inferred type before schema validation ensures the correct
+	// if/then branch fires. When inference is not possible (empty string returned),
+	// the map is left without a 'type'; the schema's anyOf constraint will then
+	// report a clear "missing required property" error on its own.
 	if _, hasType := result["type"]; !hasType {
 		if inferred := inferMCPType(result); inferred != "" {
 			result["type"] = inferred
