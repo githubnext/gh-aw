@@ -308,6 +308,9 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 // delimiter that also appears in the content — computationally infeasible with
 // HMAC-SHA256. This check exists as defense-in-depth.
 func ValidateHeredocContent(content, delimiter string) error {
+	if delimiter == "" {
+		return fmt.Errorf("heredoc delimiter cannot be empty")
+	}
 	if strings.Contains(content, delimiter) {
 		return fmt.Errorf("content contains heredoc delimiter %q — possible injection attempt", delimiter)
 	}
