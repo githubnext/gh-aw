@@ -136,7 +136,133 @@ timeout_minu tes: 10
 	}
 }
 
-// TestGetSafeOutputTypeKeys tests extracting safe output type keys from the embedded schema
+// TestValidateMCPConfigWithSchema tests the ValidateMCPConfigWithSchema function
+// which validates a single MCP server configuration against the MCP config JSON schema.
+func TestValidateMCPConfigWithSchema(t *testing.T) {
+	tests := []struct {
+		name        string
+		mcpConfig   map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid stdio config with command",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "npx",
+				"args":    []any{"-y", "@modelcontextprotocol/server-filesystem"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid stdio config with container",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "docker.io/mcp/brave-search",
+				"env": map[string]any{
+					"BRAVE_API_KEY": "secret",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid http config",
+			mcpConfig: map[string]any{
+				"type": "http",
+				"url":  "https://api.example.com/mcp",
+				"headers": map[string]any{
+					"Authorization": "Bearer token",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid config inferred from url requires explicit type in schema",
+			mcpConfig: map[string]any{
+				"type": "http",
+				"url":  "http://localhost:8765",
+			},
+			wantErr: false,
+		},
+		{
+			name:        "empty config fails anyOf - missing type, url, command, and container",
+			mcpConfig:   map[string]any{},
+			wantErr:     true,
+			errContains: "missing property",
+		},
+		{
+			name: "invalid container pattern rejected by schema",
+			mcpConfig: map[string]any{
+				"container": "INVALID CONTAINER NAME WITH SPACES",
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
+			name: "invalid env key pattern rejected by schema",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "node",
+				"env": map[string]any{
+					"lowercase-key": "value",
+				},
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
+			name: "invalid mounts item pattern rejected by schema",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "mcp/server",
+				"mounts":    []any{"invalid-mount-format"},
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
+			name: "additional property rejected by schema",
+			mcpConfig: map[string]any{
+				"type":          "stdio",
+				"command":       "node",
+				"unknown-field": "value",
+			},
+			wantErr:     true,
+			errContains: "jsonschema validation failed",
+		},
+		{
+			name: "valid local type (alias for stdio)",
+			mcpConfig: map[string]any{
+				"type":    "local",
+				"command": "node",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMCPConfigWithSchema(tt.mcpConfig)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("ValidateMCPConfigWithSchema() expected error, got nil")
+				return
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Errorf("ValidateMCPConfigWithSchema() unexpected error = %v", err)
+				return
+			}
+
+			if tt.wantErr && err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ValidateMCPConfigWithSchema() error = %v, expected to contain %v", err, tt.errContains)
+				}
+			}
+		})
+	}
+}
+
 func TestGetSafeOutputTypeKeys(t *testing.T) {
 	keys, err := GetSafeOutputTypeKeys()
 	if err != nil {

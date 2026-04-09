@@ -485,7 +485,7 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON)
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON, nil)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -596,7 +596,7 @@ func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON)
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, tt.importedJSON, nil)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -1309,7 +1309,7 @@ func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
 		`{"jobs":{"imported-job":{"name":"Imported Job","runs-on":"ubuntu-latest"}},"create-issue":{"title-prefix":"[test] "}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 
 	// Verify that the existing job is preserved (Jobs field untouched)
@@ -1336,7 +1336,7 @@ func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
 		`{"jobs":{"imported-job":{"name":"Imported Job"}},"add-comment":{"max":5}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 
 	// Jobs should still be nil since we don't merge them in MergeSafeOutputs
@@ -1388,7 +1388,7 @@ func TestMergeSafeOutputsErrorPropagation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := compiler.MergeSafeOutputs(nil, tt.importedJSON)
+			result, err := compiler.MergeSafeOutputs(nil, tt.importedJSON, nil)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error")
@@ -1842,7 +1842,7 @@ func TestMergeSafeOutputsThreatDetectionExplicitDisableNotOverridden(t *testing.
 		`{"add-comment":{"max":1}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON)
+	result, err := compiler.MergeSafeOutputs(topConfig, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 	require.NotNil(t, result, "Result should not be nil")
 
@@ -1860,7 +1860,7 @@ func TestMergeSafeOutputsThreatDetectionImportedWhenExplicit(t *testing.T) {
 		`{"add-comment":{"max":1},"threat-detection":{"enabled":true}}`,
 	}
 
-	result, err := compiler.MergeSafeOutputs(nil, importedJSON)
+	result, err := compiler.MergeSafeOutputs(nil, importedJSON, nil)
 	require.NoError(t, err, "MergeSafeOutputs should not error")
 	require.NotNil(t, result, "Result should not be nil")
 
@@ -1926,4 +1926,302 @@ safe-outputs:
 
 	// The explicit disable must survive the import merge.
 	assert.Nil(t, workflowData.SafeOutputs.ThreatDetection, "ThreatDetection must remain nil when explicitly disabled by main workflow")
+}
+
+// TestSafeOutputsDifferentTypesFromImportsMerged reproduces the bug reported in
+// https://github.com/github/gh-aw/issues/<issue>:
+// When the main workflow defines one safe-outputs type (e.g. noop) and an imported
+// workflow defines a different type (e.g. threat-detection), the imported type should
+// be merged into the compiled output. Previously the auto-default applied by
+// extractSafeOutputsConfig (which enabled threat-detection by default whenever any
+// safe-outputs were present) caused threat-detection to appear as "already defined" in
+// topDefinedTypes, so the import's explicit threat-detection configuration was dropped.
+func TestSafeOutputsDifferentTypesFromImportsMerged(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Imported workflow: only defines threat-detection with a custom step
+	importedWorkflow := `---
+safe-outputs:
+  threat-detection:
+    steps:
+      - name: Print abc
+        run: echo "abc"
+---
+`
+	importedFile := filepath.Join(workflowsDir, "abc.md")
+	err = os.WriteFile(importedFile, []byte(importedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write imported file")
+
+	// Main workflow: only defines noop, does NOT define threat-detection
+	mainWorkflow := `---
+description: hello world
+on:
+  workflow_dispatch:
+imports:
+  - ./abc.md
+safe-outputs:
+  noop:
+    report-as-issue: false
+---
+Print "hello world!".
+`
+	mainFile := filepath.Join(workflowsDir, "hello-world.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("hello-world.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// noop was explicitly set in the main workflow
+	require.NotNil(t, workflowData.SafeOutputs.NoOp, "NoOp should be set (from main workflow)")
+
+	// threat-detection was explicitly set in the import — it must be merged
+	require.NotNil(t, workflowData.SafeOutputs.ThreatDetection,
+		"ThreatDetection should be merged from the imported workflow")
+	assert.Len(t, workflowData.SafeOutputs.ThreatDetection.Steps, 1,
+		"ThreatDetection should have 1 custom step from the import")
+}
+
+// TestSafeOutputsAutoDefaultableTypesImportedWhenMainHasNone verifies that every
+// auto-defaultable type (noop, missing-tool, missing-data, report-incomplete,
+// threat-detection) is properly imported when the main workflow has no safe-outputs.
+// Previously, extractSafeOutputsConfig created auto-defaults for these types that
+// would silently block import merges.
+func TestSafeOutputsAutoDefaultableTypesImportedWhenMainHasNone(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Import defines all five auto-defaultable types with explicit custom values.
+	importedWorkflow := `---
+safe-outputs:
+  noop:
+    report-as-issue: false
+  missing-tool:
+    title-prefix: "[imported missing-tool] "
+  missing-data:
+    title-prefix: "[imported missing-data] "
+  report-incomplete:
+    title-prefix: "[imported report-incomplete] "
+  threat-detection:
+    steps:
+      - name: Custom detection step
+        run: echo "custom"
+---
+`
+	importedFile := filepath.Join(workflowsDir, "shared.md")
+	err = os.WriteFile(importedFile, []byte(importedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write imported file")
+
+	// Main workflow has no safe-outputs section at all.
+	mainWorkflow := `---
+on:
+  workflow_dispatch:
+imports:
+  - ./shared.md
+---
+Run a task.
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// noop: report-as-issue was explicitly set to false in the import
+	require.NotNil(t, workflowData.SafeOutputs.NoOp, "NoOp should be imported")
+	require.NotNil(t, workflowData.SafeOutputs.NoOp.ReportAsIssue, "NoOp.ReportAsIssue should be set")
+	assert.Equal(t, "false", *workflowData.SafeOutputs.NoOp.ReportAsIssue,
+		"NoOp.ReportAsIssue should be 'false' from the import")
+
+	// missing-tool with custom title-prefix
+	require.NotNil(t, workflowData.SafeOutputs.MissingTool, "MissingTool should be imported")
+	assert.Equal(t, "[imported missing-tool] ", workflowData.SafeOutputs.MissingTool.TitlePrefix,
+		"MissingTool.TitlePrefix should come from the import")
+
+	// missing-data with custom title-prefix
+	require.NotNil(t, workflowData.SafeOutputs.MissingData, "MissingData should be imported")
+	assert.Equal(t, "[imported missing-data] ", workflowData.SafeOutputs.MissingData.TitlePrefix,
+		"MissingData.TitlePrefix should come from the import")
+
+	// report-incomplete with custom title-prefix
+	require.NotNil(t, workflowData.SafeOutputs.ReportIncomplete, "ReportIncomplete should be imported")
+	assert.Equal(t, "[imported report-incomplete] ", workflowData.SafeOutputs.ReportIncomplete.TitlePrefix,
+		"ReportIncomplete.TitlePrefix should come from the import")
+
+	// threat-detection with custom step
+	require.NotNil(t, workflowData.SafeOutputs.ThreatDetection, "ThreatDetection should be imported")
+	assert.Len(t, workflowData.SafeOutputs.ThreatDetection.Steps, 1,
+		"ThreatDetection should have the 1 custom step from the import")
+}
+
+// TestSafeOutputsMainExplicitAutoDefaultableTypeOverridesImport verifies that when the main
+// workflow explicitly configures an auto-defaultable type (e.g. noop), an import that also
+// defines the same type is overridden by the main (main wins / override semantics).
+func TestSafeOutputsMainExplicitAutoDefaultableTypeOverridesImport(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	importedWorkflow := `---
+safe-outputs:
+  noop:
+    report-as-issue: true
+  missing-tool:
+    title-prefix: "[imported] "
+---
+`
+	importedFile := filepath.Join(workflowsDir, "shared.md")
+	err = os.WriteFile(importedFile, []byte(importedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write imported file")
+
+	// Main explicitly sets noop (report-as-issue: false) — import's noop should be ignored.
+	mainWorkflow := `---
+on:
+  workflow_dispatch:
+imports:
+  - ./shared.md
+safe-outputs:
+  noop:
+    report-as-issue: false
+---
+Run a task.
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// Main's noop (report-as-issue: false) must take precedence over import's (true).
+	require.NotNil(t, workflowData.SafeOutputs.NoOp, "NoOp should be present")
+	require.NotNil(t, workflowData.SafeOutputs.NoOp.ReportAsIssue, "NoOp.ReportAsIssue should be set")
+	assert.Equal(t, "false", *workflowData.SafeOutputs.NoOp.ReportAsIssue,
+		"Main's noop (report-as-issue: false) should override import's noop (true)")
+
+	// missing-tool was only in the import — it must still be merged.
+	require.NotNil(t, workflowData.SafeOutputs.MissingTool, "MissingTool should be imported")
+	assert.Equal(t, "[imported] ", workflowData.SafeOutputs.MissingTool.TitlePrefix,
+		"MissingTool.TitlePrefix should come from the import")
+}
+
+// TestSafeOutputsMultipleImportsEachContributeAutoDefaultableType verifies that when
+// several imports each contribute a different auto-defaultable type, all of them are
+// merged and none triggers a conflict error.
+func TestSafeOutputsMultipleImportsEachContributeAutoDefaultableType(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// First import: noop
+	import1 := `---
+safe-outputs:
+  noop:
+    report-as-issue: false
+---
+`
+	err = os.WriteFile(filepath.Join(workflowsDir, "noop.md"), []byte(import1), 0644)
+	require.NoError(t, err, "Failed to write noop.md")
+
+	// Second import: missing-tool
+	import2 := `---
+safe-outputs:
+  missing-tool:
+    title-prefix: "[missing-tool import] "
+---
+`
+	err = os.WriteFile(filepath.Join(workflowsDir, "missing-tool.md"), []byte(import2), 0644)
+	require.NoError(t, err, "Failed to write missing-tool.md")
+
+	// Third import: report-incomplete
+	import3 := `---
+safe-outputs:
+  report-incomplete:
+    title-prefix: "[report-incomplete import] "
+---
+`
+	err = os.WriteFile(filepath.Join(workflowsDir, "report-incomplete.md"), []byte(import3), 0644)
+	require.NoError(t, err, "Failed to write report-incomplete.md")
+
+	// Main workflow: only defines create-issue; all three auto-defaultable types come from imports.
+	mainWorkflow := `---
+on:
+  workflow_dispatch:
+imports:
+  - ./noop.md
+  - ./missing-tool.md
+  - ./report-incomplete.md
+safe-outputs:
+  create-issue:
+    title-prefix: "[main] "
+---
+Run a task.
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "ParseWorkflowFile should not error — no conflicts expected")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+
+	// create-issue from main
+	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be present from main")
+	assert.Equal(t, "[main] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+
+	// noop from first import
+	require.NotNil(t, workflowData.SafeOutputs.NoOp, "NoOp should be imported from noop.md")
+	require.NotNil(t, workflowData.SafeOutputs.NoOp.ReportAsIssue, "NoOp.ReportAsIssue should be set")
+	assert.Equal(t, "false", *workflowData.SafeOutputs.NoOp.ReportAsIssue)
+
+	// missing-tool from second import
+	require.NotNil(t, workflowData.SafeOutputs.MissingTool, "MissingTool should be imported from missing-tool.md")
+	assert.Equal(t, "[missing-tool import] ", workflowData.SafeOutputs.MissingTool.TitlePrefix)
+
+	// report-incomplete from third import
+	require.NotNil(t, workflowData.SafeOutputs.ReportIncomplete, "ReportIncomplete should be imported from report-incomplete.md")
+	assert.Equal(t, "[report-incomplete import] ", workflowData.SafeOutputs.ReportIncomplete.TitlePrefix)
 }

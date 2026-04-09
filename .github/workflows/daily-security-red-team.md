@@ -6,14 +6,14 @@ on:
 permissions:
   contents: read
   issues: read
+  security-events: read
 tracker-id: security-red-team
 engine: claude
 strict: true
 tools:
   github:
-    toolsets: [repos, issues]
+    toolsets: [issues]
   edit:
-  bash: true
 safe-outputs:
   create-issue:
     title-prefix: "🚨 [SECURITY]"
@@ -21,6 +21,7 @@ safe-outputs:
     max: 5
 timeout-minutes: 60
 imports:
+  - shared/security-analysis-base.md
   - shared/reporting.md
   - shared/observability-otlp.md
 ---

@@ -54,24 +54,7 @@ Supported input types: `string` (text), `boolean` (checkbox), `choice` (dropdown
 
 ### Environment Input Type
 
-The `environment` type populates automatically from repository Settings → Environments, returning the selected name as a string. A `default` may be specified (must match an existing environment name). Unlike `choice`, no `options` list is needed.
-
-```yaml
-on:
-  workflow_dispatch:
-    inputs:
-      target_env:
-        description: 'Deployment target'
-        required: true
-        type: environment
-        default: staging
-```
-
-```markdown
-Deploy to the ${{ github.event.inputs.target_env }} environment.
-```
-
-**Note:** The `environment` type does not enforce protection rules. To require approval gates, reviewers, or wait timers, use the `manual-approval:` field (see [Environment Approval Gates](#environment-approval-gates) below).
+The `environment` type auto-populates from repository Settings → Environments, returning the selected name as a string. No `options` list is needed; specify a `default` matching an existing environment name. The type does not enforce protection rules — use `manual-approval:` for approval gates (see [Environment Approval Gates](#environment-approval-gates)).
 
 ## Security Model
 
@@ -116,22 +99,7 @@ Configure approval rules, required reviewers, and wait timers in repository Sett
 
 ### Via Actions Tab
 
-1. Navigate to your repository on GitHub.com
-2. Click the **Actions** tab
-3. Select the workflow from the left sidebar
-4. Click the **Run workflow** dropdown button
-5. Select the branch to run from (default: main)
-6. Fill in any required inputs
-7. Click the **Run workflow** button
-
-The workflow will execute immediately, and you can watch progress in the Actions tab.
-
-### Finding Runnable Workflows
-
-Only workflows with `workflow_dispatch:` appear in the "Run workflow" dropdown. If your workflow isn't listed:
-- Verify `workflow_dispatch:` exists in the `on:` section
-- Ensure the workflow has been compiled and pushed to GitHub
-- Check that the `.lock.yml` file exists in `.github/workflows/`
+Go to the **Actions** tab, select the workflow from the sidebar, click **Run workflow**, fill in any inputs, and confirm. Only workflows with `workflow_dispatch:` in their `on:` section appear in the dropdown — if yours is missing, verify it has been compiled and the `.lock.yml` pushed to the repository.
 
 ## Running Workflows with CLI
 
@@ -178,35 +146,6 @@ gh aw run research --raw-field topic="AI" --verbose  # Verbose output
 ```
 
 ## Declaring and Referencing Inputs
-
-### Declaring Inputs in Frontmatter
-
-```yaml
-on:
-  workflow_dispatch:
-    inputs:
-      analysis_depth:
-        description: 'How deep should the analysis go?'
-        required: true
-        type: choice
-        options:
-          - surface
-          - detailed
-          - comprehensive
-        default: detailed
-      
-      include_examples:
-        description: 'Include code examples in the report'
-        required: false
-        type: boolean
-        default: true
-      
-      max_results:
-        description: 'Maximum number of results to return'
-        required: false
-        type: string
-        default: '10'
-```
 
 ### Referencing Inputs in Markdown
 
@@ -265,30 +204,12 @@ URGENT: Prioritize speed over completeness.
 
 ### Testing Workflow Changes
 
-When developing workflows in a feature branch, add `workflow_dispatch:` for testing before merging to main:
+Add `workflow_dispatch:` to feature branches for testing before merging. Use [trial mode](/gh-aw/patterns/trial-ops/) for isolated testing without affecting the production repository, or run from a branch directly:
 
 ```bash
-# 1. Develop in feature branch
-git checkout -b feature/improve-workflow
-# Edit .github/workflows/research.md and add workflow_dispatch
-
-# 2. Test in isolation first
-gh aw trial ./research.md --raw-field topic="test query"
-
-# 3. For in-repo testing, temporarily push to main
-git checkout main
-git cherry-pick <commit-sha>
-git push origin main
-
-# 4. Test from your branch
-git checkout feature/improve-workflow
-gh aw run research --ref feature/improve-workflow
-
-# 5. Iterate, then create PR when satisfied
-gh pr create --title "Improve workflow"
+gh aw trial ./research.md --raw-field topic="test query"  # isolated, no side effects
+gh aw run research --ref feature/improve-workflow          # runs against live repo
 ```
-
-The workflow runs with your branch's code and state. Safe outputs (issues, PRs, comments) are created in your branch context. Use [trial mode](/gh-aw/patterns/trial-ops/) for completely isolated testing without affecting the production repository.
 
 ## Common Use Cases
 

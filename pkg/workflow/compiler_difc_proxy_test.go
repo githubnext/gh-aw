@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -692,4 +693,120 @@ func TestGenerateSetGHRepoAfterDIFCProxyStep(t *testing.T) {
 		assert.Contains(t, result, "GITHUB_ENV", "should write to GITHUB_ENV")
 		assert.NotContains(t, result, "GH_HOST", "should not touch GH_HOST")
 	})
+}
+
+// TestBuildStartCliProxyStepYAML verifies that the CLI proxy step always emits
+// CLI_PROXY_POLICY, using the default permissive policy when no guard policy is
+// configured in the frontmatter.
+func TestBuildStartCliProxyStepYAML(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("emits default policy when no guard policy is configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step even without guard policy")
+		assert.Contains(t, result, "CLI_PROXY_POLICY", "should always emit CLI_PROXY_POLICY")
+		assert.Contains(t, result, `"allow-only"`, "default policy should contain allow-only")
+		assert.Contains(t, result, `"repos":"all"`, "default policy should allow all repos")
+		assert.Contains(t, result, `"min-integrity":"none"`, "default policy should have min-integrity none")
+	})
+
+	t.Run("emits default policy when github tool is nil", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step even without github tool")
+		assert.Contains(t, result, "CLI_PROXY_POLICY", "should always emit CLI_PROXY_POLICY")
+		assert.Contains(t, result, `"min-integrity":"none"`, "should use default min-integrity")
+	})
+
+	t.Run("uses configured guard policy when present", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{
+					"min-integrity": "approved",
+					"allowed-repos": "owner/*",
+				},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step")
+		assert.Contains(t, result, "CLI_PROXY_POLICY", "should emit CLI_PROXY_POLICY")
+		assert.Contains(t, result, `"min-integrity":"approved"`, "should use configured min-integrity")
+		assert.Contains(t, result, `"repos":"owner/*"`, "should use configured repos")
+	})
+
+	t.Run("emits correct step structure", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		assert.Contains(t, result, "name: Start CLI proxy", "should have correct step name")
+		assert.Contains(t, result, "GH_TOKEN:", "should include GH_TOKEN")
+		assert.Contains(t, result, "GITHUB_SERVER_URL:", "should include GITHUB_SERVER_URL")
+		assert.Contains(t, result, "CLI_PROXY_IMAGE:", "should include CLI_PROXY_IMAGE")
+		assert.Contains(t, result, "start_cli_proxy.sh", "should reference the start script")
+	})
+}
+
+// TestResolveProxyContainerImage verifies that the helper builds the correct container
+// image reference from the gateway config, falling back to the default version when
+// no version is specified.
+func TestResolveProxyContainerImage(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *MCPGatewayRuntimeConfig
+		expected string
+	}{
+		{
+			name: "uses default version when version is empty",
+			config: &MCPGatewayRuntimeConfig{
+				Container: constants.DefaultMCPGatewayContainer,
+				Version:   "",
+			},
+			expected: constants.DefaultMCPGatewayContainer + ":" + string(constants.DefaultMCPGatewayVersion),
+		},
+		{
+			name: "uses explicit version when set",
+			config: &MCPGatewayRuntimeConfig{
+				Container: constants.DefaultMCPGatewayContainer,
+				Version:   "v1.2.3",
+			},
+			expected: constants.DefaultMCPGatewayContainer + ":v1.2.3",
+		},
+		{
+			name: "custom container with default version fallback",
+			config: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/myorg/my-proxy",
+				Version:   "",
+			},
+			expected: "ghcr.io/myorg/my-proxy:" + string(constants.DefaultMCPGatewayVersion),
+		},
+		{
+			name: "custom container with explicit version",
+			config: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/myorg/my-proxy",
+				Version:   "latest",
+			},
+			expected: "ghcr.io/myorg/my-proxy:latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveProxyContainerImage(tt.config)
+			assert.Equal(t, tt.expected, got, "resolveProxyContainerImage(%+v)", tt.config)
+		})
+	}
 }

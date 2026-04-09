@@ -378,6 +378,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate the tools.json configuration file
 		toolsJSON := GenerateMCPScriptsToolsConfig(workflowData.MCPScripts)
 		toolsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_TOOLS", workflowData.FrontmatterHash)
+		if err := ValidateHeredocContent(toolsJSON, toolsDelimiter); err != nil {
+			return fmt.Errorf("mcp-scripts tools.json: %w", err)
+		}
 		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json\" << '" + toolsDelimiter + "'\n")
 		for line := range strings.SplitSeq(toolsJSON, "\n") {
 			yaml.WriteString("          " + line + "\n")
@@ -387,6 +390,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate the MCP server entry point
 		mcpScriptsMCPServer := GenerateMCPScriptsMCPServerScript(workflowData.MCPScripts)
 		serverDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_SERVER", workflowData.FrontmatterHash)
+		if err := ValidateHeredocContent(mcpScriptsMCPServer, serverDelimiter); err != nil {
+			return fmt.Errorf("mcp-scripts mcp-server.cjs: %w", err)
+		}
 		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs\" << '" + serverDelimiter + "'\n")
 		for _, line := range FormatJavaScriptForYAML(mcpScriptsMCPServer) {
 			yaml.WriteString(line)
@@ -409,6 +415,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// JavaScript tool
 				toolScript := GenerateMCPScriptJavaScriptToolScript(toolConfig)
 				jsDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_JS_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+				if err := ValidateHeredocContent(toolScript, jsDelimiter); err != nil {
+					return fmt.Errorf("mcp-scripts tool %q (js): %w", toolName, err)
+				}
 				fmt.Fprintf(yaml, "          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.cjs\" << '%s'\n", toolName, jsDelimiter)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
 					yaml.WriteString(line)
@@ -418,6 +427,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// Shell script tool
 				toolScript := GenerateMCPScriptShellToolScript(toolConfig)
 				shDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_SH_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+				if err := ValidateHeredocContent(toolScript, shDelimiter); err != nil {
+					return fmt.Errorf("mcp-scripts tool %q (sh): %w", toolName, err)
+				}
 				fmt.Fprintf(yaml, "          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.sh\" << '%s'\n", toolName, shDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
@@ -428,6 +440,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// Python script tool
 				toolScript := GenerateMCPScriptPythonToolScript(toolConfig)
 				pyDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_PY_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+				if err := ValidateHeredocContent(toolScript, pyDelimiter); err != nil {
+					return fmt.Errorf("mcp-scripts tool %q (py): %w", toolName, err)
+				}
 				fmt.Fprintf(yaml, "          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.py\" << '%s'\n", toolName, pyDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
@@ -438,6 +453,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// Go script tool
 				toolScript := GenerateMCPScriptGoToolScript(toolConfig)
 				goDelimiter := GenerateHeredocDelimiterFromSeed("MCP_SCRIPTS_GO_"+strings.ToUpper(toolName), workflowData.FrontmatterHash)
+				if err := ValidateHeredocContent(toolScript, goDelimiter); err != nil {
+					return fmt.Errorf("mcp-scripts tool %q (go): %w", toolName, err)
+				}
 				fmt.Fprintf(yaml, "          cat > \"${RUNNER_TEMP}/gh-aw/mcp-scripts/%s.go\" << '%s'\n", toolName, goDelimiter)
 				for line := range strings.SplitSeq(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
@@ -530,9 +548,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	// Pre-create the playwright output directory on the host so the Docker container
-	// can write screenshots to the mounted volume path without ENOENT errors
+	// can write screenshots to the mounted volume path without ENOENT errors.
+	// chmod 777 is required because the Playwright Docker container runs as a non-root user
+	// and needs write access to this directory.
 	if slices.Contains(mcpTools, "playwright") {
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/playwright\n")
+		yaml.WriteString("          chmod 777 /tmp/gh-aw/mcp-logs/playwright\n")
 	}
 
 	// Export gateway environment variables and build docker command BEFORE rendering MCP config

@@ -28,6 +28,7 @@ safe-outputs:
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during security review."
 timeout-minutes: 15
 imports:
+  - shared/security-analysis-base.md
   - shared/pr-code-review-config.md
 ---
 

@@ -216,7 +216,7 @@ mkdir -p ${{ github.workspace }}/docs/adr
 Post a comment using `add-comment` explaining the requirement:
 
 ```markdown
-## 🏗️ Design Decision Gate — ADR Required
+### 🏗️ Design Decision Gate — ADR Required
 
 This PR {has been labeled `implementation` / makes significant changes to core business logic (>100 new lines)} but does not have a linked Architecture Decision Record (ADR).
 
@@ -296,7 +296,7 @@ Compare the ADR's stated decision against the actual code changes in the PR diff
 
 Post an approving comment:
 ```markdown
-## ✅ Design Decision Gate — ADR Verified
+### ✅ Design Decision Gate — ADR Verified
 
 The implementation in this PR aligns with the stated Architecture Decision Record.
 
@@ -320,7 +320,7 @@ Submit an APPROVE review:
 
 Post a comment describing the discrepancies:
 ```markdown
-## ⚠️ Design Decision Gate — Implementation Diverges from ADR
+### ⚠️ Design Decision Gate — Implementation Diverges from ADR
 
 The implementation in this PR has divergences from the linked Architecture Decision Record.
 

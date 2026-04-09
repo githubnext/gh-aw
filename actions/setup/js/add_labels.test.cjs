@@ -652,7 +652,7 @@ describe("add_labels", () => {
     });
 
     it("should use default max=10 when config.max is not provided", async () => {
-      // No max provided - defaults to 10 via || operator
+      // No max provided - defaults to 10 via ?? operator
       const handler = await main({});
       const result = await handler({ item_number: 1, labels: ["bug"] }, {});
       expect(result.success).toBe(true);

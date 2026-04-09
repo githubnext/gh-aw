@@ -3,6 +3,12 @@
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ * @typedef {import('./types/handler-factory').ResolvedTemporaryIds} ResolvedTemporaryIds
+ * @typedef {import('./types/handler-factory').HandlerResult} HandlerResult
+ */
+
+/**
+ * @typedef {{ item_number?: number|string, labels?: string[], repo?: string }} AddLabelsMessage
  */
 
 /** @type {string} Safe output type handled by this module */
@@ -25,7 +31,7 @@ const { MAX_LABELS } = require("./constants.cjs");
  */
 async function main(config = {}) {
   const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
-  const maxCount = config.max || 10;
+  const maxCount = config.max ?? 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
@@ -40,9 +46,9 @@ async function main(config = {}) {
 
   /**
    * Message handler function that processes a single add_labels message
-   * @param {Object} message - The add_labels message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status
+   * @param {AddLabelsMessage} message - The add_labels message to process
+   * @param {ResolvedTemporaryIds} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<HandlerResult>} Result with success/error status
    */
   return async function handleAddLabels(message, resolvedTemporaryIds) {
     // Check if we've hit the max limit

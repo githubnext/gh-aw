@@ -730,8 +730,8 @@ func TestAWFSupportsExcludeEnv(t *testing.T) {
 	}
 }
 
-// TestBuildAWFArgsCliProxy tests that BuildAWFArgs correctly injects --enable-cli-proxy
-// and --cli-proxy-policy based on the cli-proxy feature flag.
+// TestBuildAWFArgsCliProxy tests that BuildAWFArgs correctly injects --difc-proxy-host
+// and --difc-proxy-ca-cert based on the cli-proxy feature flag.
 func TestBuildAWFArgsCliProxy(t *testing.T) {
 	baseWorkflow := func(features map[string]any, tools map[string]any) *WorkflowData {
 		return &WorkflowData{
@@ -747,7 +747,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		}
 	}
 
-	t.Run("does not include --enable-cli-proxy when feature flag is absent", func(t *testing.T) {
+	t.Run("does not include cli-proxy flags when feature flag is absent", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			WorkflowData:   baseWorkflow(nil, nil),
@@ -757,94 +757,71 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include --enable-cli-proxy when feature flag is absent")
-		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include --cli-proxy-policy when feature flag is absent")
+		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host when feature flag is absent")
+		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert when feature flag is absent")
+		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
+		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
 	})
 
-	t.Run("includes --enable-cli-proxy when cli-proxy feature flag is enabled", func(t *testing.T) {
+	t.Run("includes --difc-proxy-host and --difc-proxy-ca-cert when cli-proxy is enabled", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true},
-				nil,
-			),
+			WorkflowData: &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+				},
+				Features: map[string]any{"cli-proxy": true},
+			},
 			AllowedDomains: "github.com",
 		}
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--enable-cli-proxy", "Should include --enable-cli-proxy when cli-proxy feature flag is enabled")
+		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host when cli-proxy is enabled")
+		assert.Contains(t, argsStr, "host.docker.internal:18443", "Should use host.docker.internal:18443 as proxy host")
+		assert.Contains(t, argsStr, "--difc-proxy-ca-cert", "Should include --difc-proxy-ca-cert")
+		assert.Contains(t, argsStr, "/tmp/gh-aw/difc-proxy-tls/ca.crt", "Should use the correct CA cert path")
+		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
+		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
 	})
 
-	t.Run("includes --cli-proxy-policy with guard policy when tools.github has min-integrity", func(t *testing.T) {
+	t.Run("does not include deprecated flags even with guard policy configured", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true},
-				map[string]any{
+			WorkflowData: &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+				},
+				Features: map[string]any{"cli-proxy": true},
+				Tools: map[string]any{
 					"github": map[string]any{
 						"min-integrity": "approved",
 					},
 				},
-			),
+			},
 			AllowedDomains: "github.com",
 		}
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--enable-cli-proxy", "Should include --enable-cli-proxy")
-		assert.Contains(t, argsStr, "--cli-proxy-policy", "Should include --cli-proxy-policy when guard policy is configured")
-		assert.Contains(t, argsStr, "approved", "Policy JSON should contain the min-integrity value")
-	})
-
-	t.Run("does not include --cli-proxy-policy when no guard policy fields configured", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true},
-				map[string]any{
-					"github": map[string]any{
-						"toolsets": []string{"default"},
-					},
-				},
-			),
-			AllowedDomains: "github.com",
-		}
-
-		args := BuildAWFArgs(config)
-		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--enable-cli-proxy", "Should include --enable-cli-proxy")
-		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include --cli-proxy-policy when no guard policy fields are configured")
-	})
-
-	t.Run("includes --cli-proxy-policy with allowed-repos when configured", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName: "copilot",
-			WorkflowData: baseWorkflow(
-				map[string]any{"cli-proxy": true},
-				map[string]any{
-					"github": map[string]any{
-						"min-integrity": "merged",
-						"allowed-repos": "owner/*",
-					},
-				},
-			),
-			AllowedDomains: "github.com",
-		}
-
-		args := BuildAWFArgs(config)
-		argsStr := strings.Join(args, " ")
-
-		assert.Contains(t, argsStr, "--cli-proxy-policy", "Should include --cli-proxy-policy")
-		assert.Contains(t, argsStr, "merged", "Policy JSON should contain the min-integrity value")
-		assert.Contains(t, argsStr, "owner/*", "Policy JSON should contain the allowed-repos value")
+		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host")
+		assert.Contains(t, argsStr, "--difc-proxy-ca-cert", "Should include --difc-proxy-ca-cert")
+		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
+		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
 	})
 
 	t.Run("skips all cli-proxy flags when AWF version is too old", func(t *testing.T) {
-		// Simulate a workflow that pins an AWF version older than v0.25.14
+		// Simulate a workflow that pins an AWF version older than AWFCliProxyMinVersion
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -853,7 +830,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
 					Enabled: true,
-					Version: "v0.25.13", // older than AWFCliProxyMinVersion
+					Version: "v0.25.16", // older than AWFCliProxyMinVersion v0.25.17
 				},
 			},
 			Features: map[string]any{
@@ -875,8 +852,9 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include --enable-cli-proxy for AWF < v0.25.14")
-		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include --cli-proxy-policy for AWF < v0.25.14")
+		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host for old AWF")
+		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert for old AWF")
+		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
 	})
 }
 
@@ -903,27 +881,32 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 			want:           true,
 		},
 		{
-			name:           "v0.25.14 supports --enable-cli-proxy (exact minimum version)",
-			firewallConfig: &FirewallConfig{Version: "v0.25.14"},
+			name:           "v0.25.17 supports CLI proxy flags (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.25.17"},
 			want:           true,
 		},
 		{
-			name:           "v0.26.0 supports --enable-cli-proxy",
+			name:           "v0.26.0 supports CLI proxy flags",
 			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
 			want:           true,
 		},
 		{
-			name:           "v0.25.13 does not support --enable-cli-proxy",
-			firewallConfig: &FirewallConfig{Version: "v0.25.13"},
+			name:           "v0.27.0 supports CLI proxy flags",
+			firewallConfig: &FirewallConfig{Version: "v0.27.0"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.16 does not support CLI proxy flags",
+			firewallConfig: &FirewallConfig{Version: "v0.25.16"},
 			want:           false,
 		},
 		{
-			name:           "v0.25.3 does not support --enable-cli-proxy",
-			firewallConfig: &FirewallConfig{Version: "v0.25.3"},
+			name:           "v0.25.14 does not support CLI proxy flags",
+			firewallConfig: &FirewallConfig{Version: "v0.25.14"},
 			want:           false,
 		},
 		{
-			name:           "v0.1.0 does not support --enable-cli-proxy",
+			name:           "v0.1.0 does not support CLI proxy flags",
 			firewallConfig: &FirewallConfig{Version: "v0.1.0"},
 			want:           false,
 		},

@@ -10,17 +10,17 @@ permissions:
   security-events: read
 engine: copilot
 imports:
+  - shared/security-analysis-base.md
   - shared/activation-app.md
 tools:
   github:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
-    toolsets: [context, repos, code_security, pull_requests]
+    toolsets: [context, pull_requests]
   repo-memory:
     - id: campaigns
       branch-name: memory/campaigns
       file-glob: [security-alert-burndown/**]
   edit:
-  bash: true
   cache-memory:
 safe-outputs:
   add-labels:
@@ -33,8 +33,6 @@ safe-outputs:
     labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
     reviewers: [copilot]
 timeout-minutes: 20
-features:
-  copilot-requests: true
 ---
 
 # Code Scanning Alert Fixer Agent

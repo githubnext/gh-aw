@@ -71,3 +71,19 @@ func formatCompilerErrorWithPosition(filePath string, line int, column int, errT
 	// cause may be nil for validation errors that have no underlying cause.
 	return &wrappedCompilerError{formatted: formattedErr, cause: cause}
 }
+
+// formatCompilerMessage creates a formatted compiler message string (for warnings printed to stderr)
+// filePath: the file path to include in the message (typically markdownPath or lockFile)
+// msgType: the message type ("error" or "warning")
+// message: the message text
+func formatCompilerMessage(filePath string, msgType string, message string) string {
+	return console.FormatError(console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   filePath,
+			Line:   0,
+			Column: 0,
+		},
+		Type:    msgType,
+		Message: message,
+	})
+}

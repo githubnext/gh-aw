@@ -6,9 +6,10 @@
 // keys in the editor. Tooltip content (description, type, enum
 // values) comes from autocomplete-data.json, which is generated
 // from the main workflow JSON Schema.
+//
+// This module is dependency-free — tooltips are positioned using
+// monospace font math on a <textarea>.
 // ================================================================
-
-import { hoverTooltip } from 'https://esm.sh/@codemirror/view@6.39.14';
 
 // ---------------------------------------------------------------
 // Schema data loader
@@ -26,33 +27,19 @@ fetch('./autocomplete-data.json')
 
 /**
  * Find the frontmatter region (between opening and closing ---).
- * Returns { start, end } as character offsets, or null if no
- * valid frontmatter is found.
+ * Returns { startLine, endLine } as 0-based line indices, or null
+ * if no valid frontmatter is found.
  */
-function findFrontmatterRegion(doc) {
-  // Frontmatter must start at the very beginning of the document.
-  // We check the first line rather than converting the entire
-  // document to a string for performance reasons.
-  if (doc.lines === 0) return null;
+function findFrontmatterRegion(lines) {
+  if (lines.length === 0) return null;
+  if (!lines[0].startsWith('---')) return null;
 
-  const firstLine = doc.line(1);
-  if (!firstLine.text.startsWith('---')) return null;
-
-  // Scan forward line-by-line to find the closing --- on its own line.
-  // A closing line looks like: "---" followed by optional spaces/tabs.
-  for (let lineNumber = 2; lineNumber <= doc.lines; lineNumber++) {
-    const line = doc.line(lineNumber);
-    if (/^---[ \t]*$/.test(line.text)) {
-      // The frontmatter region spans from character 0 to the end of
-      // the closing --- line.
-      return {
-        start: 0,
-        end: line.to,
-      };
+  for (let i = 1; i < lines.length; i++) {
+    if (/^---[ \t]*$/.test(lines[i])) {
+      return { startLine: 0, endLine: i };
     }
   }
 
-  // No valid closing delimiter found.
   return null;
 }
 
@@ -91,8 +78,8 @@ function getIndent(lineText) {
 }
 
 /**
- * Given a line number in the document, resolve the full key path
- * by walking upward through parent keys based on indentation.
+ * Given a 0-based line index, resolve the full key path by walking
+ * upward through parent keys based on indentation.
  *
  * For example, if the cursor is on "toolsets" inside:
  *   tools:
@@ -101,17 +88,15 @@ function getIndent(lineText) {
  *
  * This returns ["tools", "github", "toolsets"].
  */
-function resolveKeyPath(doc, lineNumber, key, lineText) {
+function resolveKeyPath(lines, lineIndex, key, lineText) {
   const path = [key];
   const currentIndent = getIndent(lineText);
 
   if (currentIndent === 0) return path;
 
-  // Walk upward to find parent keys
   let targetIndent = currentIndent;
-  for (let i = lineNumber - 1; i >= 0; i--) {
-    const prevLine = doc.line(i + 1).text; // doc.line is 1-based
-    // Skip blank lines and comments
+  for (let i = lineIndex - 1; i >= 0; i--) {
+    const prevLine = lines[i];
     if (prevLine.trim() === '' || prevLine.trim().startsWith('#')) continue;
 
     const prevIndent = getIndent(prevLine);
@@ -147,11 +132,9 @@ function lookupSchema(keyPath) {
     if (!entry) return null;
 
     if (i === keyPath.length - 1) {
-      // This is the target key
       return entry;
     }
 
-    // Navigate into children for the next segment
     if (entry.children) {
       current = entry.children;
     } else {
@@ -171,11 +154,11 @@ function lookupSchema(keyPath) {
  */
 function buildTooltipDOM(keyName, schemaEntry) {
   const dom = document.createElement('div');
-  dom.className = 'cm-tooltip-docs';
+  dom.className = 'tooltip-docs';
 
   // Header: key name + type badge
   const header = document.createElement('div');
-  header.className = 'cm-tooltip-docs-header';
+  header.className = 'tooltip-docs-header';
 
   const nameEl = document.createElement('strong');
   nameEl.textContent = keyName;
@@ -183,7 +166,7 @@ function buildTooltipDOM(keyName, schemaEntry) {
 
   if (schemaEntry.type) {
     const typeEl = document.createElement('span');
-    typeEl.className = 'cm-tooltip-docs-type';
+    typeEl.className = 'tooltip-docs-type';
     typeEl.textContent = schemaEntry.type;
     header.appendChild(typeEl);
   }
@@ -193,7 +176,7 @@ function buildTooltipDOM(keyName, schemaEntry) {
   // Description
   if (schemaEntry.desc) {
     const descEl = document.createElement('div');
-    descEl.className = 'cm-tooltip-docs-desc';
+    descEl.className = 'tooltip-docs-desc';
     descEl.textContent = schemaEntry.desc;
     dom.appendChild(descEl);
   }
@@ -201,10 +184,10 @@ function buildTooltipDOM(keyName, schemaEntry) {
   // Enum values
   if (schemaEntry.enum && schemaEntry.enum.length > 0) {
     const enumEl = document.createElement('div');
-    enumEl.className = 'cm-tooltip-docs-enum';
+    enumEl.className = 'tooltip-docs-enum';
 
     const label = document.createElement('span');
-    label.className = 'cm-tooltip-docs-enum-label';
+    label.className = 'tooltip-docs-enum-label';
     label.textContent = 'Values: ';
     enumEl.appendChild(label);
 
@@ -220,10 +203,10 @@ function buildTooltipDOM(keyName, schemaEntry) {
     const childKeys = Object.keys(schemaEntry.children);
     if (childKeys.length > 0) {
       const childEl = document.createElement('div');
-      childEl.className = 'cm-tooltip-docs-children';
+      childEl.className = 'tooltip-docs-children';
 
       const label = document.createElement('span');
-      label.className = 'cm-tooltip-docs-enum-label';
+      label.className = 'tooltip-docs-enum-label';
       label.textContent = 'Keys: ';
       childEl.appendChild(label);
 
@@ -240,50 +223,143 @@ function buildTooltipDOM(keyName, schemaEntry) {
 }
 
 // ---------------------------------------------------------------
-// CodeMirror hoverTooltip extension
+// Character measurement
 // ---------------------------------------------------------------
 
-export const frontmatterHoverTooltip = hoverTooltip((view, pos, side) => {
-  if (!schemaData) return null;
+let _charWidth = null;
 
-  const doc = view.state.doc;
-  const region = findFrontmatterRegion(doc);
-  if (!region) return null;
+/**
+ * Measure the width of a single monospace character by using a
+ * hidden <span> styled to match the textarea font.
+ */
+function measureCharWidth(textarea) {
+  if (_charWidth !== null) return _charWidth;
 
-  // Only show tooltips inside the frontmatter region
-  if (pos < region.start || pos >= region.end) return null;
+  const span = document.createElement('span');
+  span.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;';
+  span.style.font = window.getComputedStyle(textarea).font;
+  span.textContent = 'M';
+  document.body.appendChild(span);
+  _charWidth = span.getBoundingClientRect().width;
+  document.body.removeChild(span);
+  return _charWidth;
+}
 
-  // Get the line at the hover position
-  const line = doc.lineAt(pos);
-  const lineText = line.text;
-  const posInLine = pos - line.from;
+// ---------------------------------------------------------------
+// Textarea hover-tooltip wiring
+// ---------------------------------------------------------------
 
-  // Skip the opening/closing --- delimiters
-  if (lineText.trim() === '---') return null;
+/**
+ * Attach hover-tooltip behaviour to a <textarea>. Shows schema
+ * documentation when the mouse hovers over a YAML frontmatter key.
+ * The tooltip is appended to document.body to avoid fixed-positioning
+ * issues with transformed parent elements.
+ *
+ * @param {HTMLTextAreaElement} textarea - The input textarea
+ */
+export function attachHoverTooltips(textarea) {
+  const tooltip = document.createElement('div');
+  tooltip.className = 'hover-tooltip';
+  tooltip.style.display = 'none';
+  document.body.appendChild(tooltip);
 
-  // Extract the key at the hover position
-  const keyInfo = extractKeyFromLine(lineText, posInLine);
-  if (!keyInfo) return null;
+  // Cache line splits; invalidated on content change
+  let cachedLines = null;
+  textarea.addEventListener('input', () => { cachedLines = null; });
 
-  // Resolve the full key path (handles nested keys)
-  const lineNumber = line.number - 1; // 0-based for our helper
-  const keyPath = resolveKeyPath(doc, lineNumber, keyInfo.key, lineText);
+  function getLines() {
+    if (!cachedLines) cachedLines = textarea.value.split('\n');
+    return cachedLines;
+  }
 
-  // Look up the schema entry
-  const schemaEntry = lookupSchema(keyPath);
-  if (!schemaEntry) return null;
-
-  // Calculate absolute positions for the key span
-  const wordStart = line.from + keyInfo.keyStart;
-  const wordEnd = line.from + keyInfo.keyEnd;
-
-  return {
-    pos: wordStart,
-    end: wordEnd,
-    above: true,
-    create() {
-      const dom = buildTooltipDOM(keyInfo.key, schemaEntry);
-      return { dom };
+  // Cache computed style values; invalidated on resize
+  let cachedStyle = null;
+  function getStyleMetrics() {
+    if (!cachedStyle) {
+      const cs = window.getComputedStyle(textarea);
+      cachedStyle = {
+        lineHeight: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.6,
+        paddingTop: parseFloat(cs.paddingTop) || 0,
+        paddingLeft: parseFloat(cs.paddingLeft) || 0,
+      };
     }
-  };
-});
+    return cachedStyle;
+  }
+  window.addEventListener('resize', () => { cachedStyle = null; _charWidth = null; });
+
+  let hideTimer = null;
+
+  function showTooltip(dom, x, y) {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    tooltip.replaceChildren(dom);
+    tooltip.style.display = 'block';
+
+    // Position near cursor, clamped to viewport
+    const pad = 8;
+    let left = x + pad;
+    let top = y - tooltip.offsetHeight - pad;
+    if (top < 0) top = y + pad;
+    const minLeft = pad;
+    const maxLeft = window.innerWidth - tooltip.offsetWidth - pad;
+    left = Math.max(minLeft, Math.min(left, maxLeft));
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+  }
+
+  function hideTooltip() {
+    if (hideTimer) clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      tooltip.style.display = 'none';
+      tooltip.replaceChildren();
+      hideTimer = null;
+    }, 120);
+  }
+
+  let rafPending = false;
+
+  textarea.addEventListener('mousemove', (e) => {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      handleMouseMove(e);
+    });
+  });
+
+  function handleMouseMove(e) {
+    if (!schemaData) { hideTooltip(); return; }
+
+    const lines = getLines();
+    const region = findFrontmatterRegion(lines);
+    if (!region) { hideTooltip(); return; }
+
+    const { lineHeight, paddingTop, paddingLeft } = getStyleMetrics();
+    const charWidth = measureCharWidth(textarea);
+
+    const rect = textarea.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top - paddingTop + textarea.scrollTop;
+    const offsetX = e.clientX - rect.left - paddingLeft + textarea.scrollLeft;
+
+    const lineIndex = Math.floor(offsetY / lineHeight);
+    const charIndex = Math.floor(offsetX / charWidth);
+
+    if (lineIndex < 0 || lineIndex >= lines.length) { hideTooltip(); return; }
+
+    // Only show inside frontmatter
+    if (lineIndex <= region.startLine || lineIndex >= region.endLine) { hideTooltip(); return; }
+
+    const lineText = lines[lineIndex];
+    if (lineText.trim() === '---') { hideTooltip(); return; }
+
+    const keyInfo = extractKeyFromLine(lineText, charIndex);
+    if (!keyInfo) { hideTooltip(); return; }
+
+    const keyPath = resolveKeyPath(lines, lineIndex, keyInfo.key, lineText);
+    const schemaEntry = lookupSchema(keyPath);
+    if (!schemaEntry) { hideTooltip(); return; }
+
+    showTooltip(buildTooltipDOM(keyInfo.key, schemaEntry), e.clientX, e.clientY);
+  }
+
+  textarea.addEventListener('mouseleave', hideTooltip);
+}

@@ -955,6 +955,63 @@ function decodeHtmlEntities(text) {
 }
 
 /**
+ * Unicode TR#39 confusables map for Cyrillic and Greek characters that are
+ * visually identical or near-identical to Latin characters.
+ * Keys are Cyrillic/Greek codepoints; values are their Latin equivalents.
+ * Reference: https://www.unicode.org/reports/tr39/#Confusable_Detection
+ */
+const HOMOGLYPH_MAP = {
+  // --- Cyrillic uppercase → Latin ---
+  "\u0410": "A", // А → A
+  "\u0412": "B", // В → B
+  "\u0415": "E", // Е → E
+  "\u041A": "K", // К → K
+  "\u041C": "M", // М → M
+  "\u041D": "H", // Н → H
+  "\u041E": "O", // О → O
+  "\u0420": "P", // Р → P
+  "\u0421": "C", // С → C
+  "\u0422": "T", // Т → T
+  "\u0425": "X", // Х → X
+  // --- Cyrillic lowercase → Latin ---
+  "\u0430": "a", // а → a
+  "\u0435": "e", // е → e
+  "\u043E": "o", // о → o
+  "\u0440": "p", // р → p
+  "\u0441": "c", // с → c
+  "\u0445": "x", // х → x
+  "\u0443": "y", // у → y
+  "\u0456": "i", // і → i (Ukrainian/Byelorussian)
+  "\u0455": "s", // ѕ → s (Macedonian dze)
+  "\u0458": "j", // ј → j (Macedonian je)
+  // --- Greek uppercase → Latin ---
+  "\u0391": "A", // Α → A
+  "\u0392": "B", // Β → B
+  "\u0395": "E", // Ε → E
+  "\u0396": "Z", // Ζ → Z
+  "\u0397": "H", // Η → H
+  "\u0399": "I", // Ι → I
+  "\u039A": "K", // Κ → K
+  "\u039C": "M", // Μ → M
+  "\u039D": "N", // Ν → N
+  "\u039F": "O", // Ο → O
+  "\u03A1": "P", // Ρ → P
+  "\u03A4": "T", // Τ → T
+  "\u03A5": "Y", // Υ → Y
+  "\u03A7": "X", // Χ → X
+  // --- Greek lowercase → Latin ---
+  "\u03BF": "o", // ο → o
+  "\u03BD": "v", // ν → v
+  "\u03B9": "i", // ι → i
+};
+
+/**
+ * Regex matching only the exact characters present in HOMOGLYPH_MAP.
+ * Built dynamically from the map keys to stay in sync without manual maintenance.
+ */
+const HOMOGLYPH_REGEX = new RegExp("[" + Object.keys(HOMOGLYPH_MAP).join("") + "]", "g");
+
+/**
  * Performs text hardening to protect against Unicode-based attacks.
  * This applies multiple layers of character normalization and filtering
  * to ensure consistent text processing and prevent visual spoofing.
@@ -998,6 +1055,17 @@ function hardenUnicodeText(text) {
     return String.fromCharCode(standardCode);
   });
 
+  // Step 6: Apply NFKC normalization to handle compatibility characters
+  // NFKC decomposes ligatures (ﬁ→fi), superscripts, circled letters, etc.
+  // This must come after full-width conversion to avoid double-processing
+  result = result.normalize("NFKC");
+
+  // Step 7: Map Cyrillic and Greek homoglyph characters to their Latin equivalents
+  // These characters are visually indistinguishable from Latin letters and are used
+  // to bypass text filters while appearing to contain only ASCII-like content.
+  // Based on Unicode TR#39 confusables (https://www.unicode.org/reports/tr39/).
+  result = result.replace(HOMOGLYPH_REGEX, char => HOMOGLYPH_MAP[char]);
+
   return result;
 }
 
@@ -1035,11 +1103,14 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   // Neutralize commands at the start of text (e.g., /bot-name)
   sanitized = neutralizeCommands(sanitized);
 
+  // Remove XML comments before mention neutralization to prevent bypass: if removeXmlComments
+  // ran after neutralizeAllMentions, a comment like <!-- @user payload --> would first become
+  // <!-- `@user` payload --> and applyFnOutsideInlineCode would split at the backtick boundary,
+  // preventing the full <!--...--> pattern from being matched.
+  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
+
   // Neutralize ALL @mentions (no filtering in core version)
   sanitized = neutralizeAllMentions(sanitized);
-
-  // Remove XML comments – skip code blocks and inline code to avoid altering code content
-  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
 
   // Convert XML tags to parentheses format – skip code blocks and inline code so that
   // type parameters (e.g. VBuffer<float32>) and code containing angle brackets are preserved

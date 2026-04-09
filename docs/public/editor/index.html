@@ -15,22 +15,37 @@ html, body {
   overflow: hidden;
 }
 
-/* CodeMirror editor sizing */
-.cm-editor {
+/* Textarea input editor */
+#editorTextarea {
+  width: 100%;
   height: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  background: var(--bgColor-default, var(--color-canvas-default));
+  color: var(--fgColor-default, var(--color-fg-default));
+  box-sizing: border-box;
 }
-.cm-editor .cm-scroller {
+
+/* Output display */
+#outputPre {
+  margin: 0;
+  padding: 8px 12px;
+  height: 100%;
   overflow: auto;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  line-height: 1.6;
-}
-.cm-editor .cm-gutters {
   font-size: 13px;
   line-height: 1.6;
-}
-.cm-editor.cm-focused {
-  outline: none;
+  background: var(--bgColor-default, var(--color-canvas-default));
+  color: var(--fgColor-default, var(--color-fg-default));
+  box-sizing: border-box;
 }
 
 /* Draggable divider */
@@ -116,7 +131,12 @@ html, body {
 }
 
 /* Hover tooltip for frontmatter keys */
-.cm-tooltip-docs {
+.hover-tooltip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+}
+.tooltip-docs {
   padding: 8px 12px;
   max-width: 320px;
   font-size: 12px;
@@ -127,16 +147,16 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--borderColor-default, rgba(255, 255, 255, 0.1));
 }
-.cm-tooltip-docs-header {
+.tooltip-docs-header {
   display: flex;
   align-items: baseline;
   gap: 6px;
   margin-bottom: 4px;
 }
-.cm-tooltip-docs-header strong {
+.tooltip-docs-header strong {
   font-size: 13px;
 }
-.cm-tooltip-docs-type {
+.tooltip-docs-type {
   font-size: 11px;
   padding: 1px 5px;
   border-radius: 4px;
@@ -145,31 +165,25 @@ html, body {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   white-space: nowrap;
 }
-.cm-tooltip-docs-desc {
+.tooltip-docs-desc {
   margin-top: 2px;
   color: rgba(255, 255, 255, 0.85);
   word-wrap: break-word;
 }
-.cm-tooltip-docs-enum,
-.cm-tooltip-docs-children {
+.tooltip-docs-enum,
+.tooltip-docs-children {
   margin-top: 6px;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
 }
-.cm-tooltip-docs-enum-label {
+.tooltip-docs-enum-label {
   font-weight: 600;
 }
-.cm-tooltip-docs-enum code,
-.cm-tooltip-docs-children code {
+.tooltip-docs-enum code,
+.tooltip-docs-children code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.85);
-}
-/* Override CodeMirror tooltip container styling to avoid clashing backgrounds */
-.cm-tooltip-hover {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
 }
 
 </style>
@@ -233,14 +247,14 @@ html, body {
     <!-- Editor Panel -->
     <div class="d-flex flex-column" style="flex: 1 1 50%; min-width: 0; min-height: 0;" id="panelEditor">
       <div class="d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
-        <span class="d-flex flex-items-center gap-1">
+        <span class="d-flex flex-items-center gap-1" id="editorTextareaLabel">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.6;">
             <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/>
           </svg>
           Workflow (.md)
         </span>
       </div>
-      <div class="flex-1" style="min-height: 0; overflow: hidden;" id="editorMount"></div>
+      <textarea class="flex-1" style="min-height: 0;" id="editorTextarea" aria-labelledby="editorTextareaLabel" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
     </div>
 
     <div class="divider" id="divider"></div>
@@ -259,7 +273,7 @@ html, body {
         <div class="d-flex flex-items-center flex-justify-center color-fg-muted f5 p-4 text-center" style="height: 100%;" id="outputPlaceholder">
           Compiled YAML will appear here
         </div>
-        <div id="outputMount" style="height: 100%; display: none;"></div>
+        <pre id="outputPre" style="display: none;"><code id="outputCode"></code></pre>
       </div>
     </div>
   </div>

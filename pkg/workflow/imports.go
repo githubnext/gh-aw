@@ -170,9 +170,17 @@ func getSafeOutputTypeKeys() ([]string, error) {
 	return safeOutputTypeKeys, safeOutputTypeKeysErr
 }
 
-// MergeSafeOutputs merges safe-outputs configurations from imports into the top-level safe-outputs
-// Returns an error if a conflict is detected (same safe-output type defined in both main and imported)
-func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedSafeOutputsJSON []string) (*SafeOutputsConfig, error) {
+// MergeSafeOutputs merges safe-outputs configurations from imports into the top-level safe-outputs.
+// Returns an error if a conflict is detected (same safe-output type defined in both main and imported).
+//
+// topRawSafeOutputs is the raw safe-outputs map from the main workflow's frontmatter (may be nil).
+// When provided, only keys explicitly present in the raw map are treated as "defined" in the main
+// workflow for the purpose of conflict detection. This prevents auto-defaults applied by
+// extractSafeOutputsConfig (e.g. threat-detection, noop, missing-tool) from blocking import
+// configurations for types the user never explicitly configured.
+// When nil, the processed topSafeOutputs config fields are used to determine defined types
+// (legacy behavior used by unit tests that construct configs directly).
+func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedSafeOutputsJSON []string, topRawSafeOutputs map[string]any) (*SafeOutputsConfig, error) {
 	importsLog.Print("Merging safe-outputs from imports")
 
 	if len(importedSafeOutputsJSON) == 0 {
@@ -186,11 +194,18 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		return nil, fmt.Errorf("failed to get safe output type keys: %w", err)
 	}
 
-	// Collect all safe output types defined in the top-level config
+	// Collect all safe output types defined in the top-level config.
+	// When topRawSafeOutputs is provided (from raw frontmatter), use only keys that are
+	// explicitly present in the raw map to avoid counting auto-defaults as user-defined types.
+	// When nil, fall back to inspecting the processed config struct (legacy/test behaviour).
 	topDefinedTypes := make(map[string]bool)
 	if topSafeOutputs != nil {
 		for _, key := range typeKeys {
-			if hasSafeOutputType(topSafeOutputs, key) {
+			if topRawSafeOutputs != nil {
+				if _, exists := topRawSafeOutputs[key]; exists {
+					topDefinedTypes[key] = true
+				}
+			} else if hasSafeOutputType(topSafeOutputs, key) {
 				topDefinedTypes[key] = true
 			}
 		}
@@ -483,24 +498,36 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if result.CallWorkflow == nil && importedConfig.CallWorkflow != nil {
 		result.CallWorkflow = importedConfig.CallWorkflow
 	}
-	if result.MissingTool == nil && importedConfig.MissingTool != nil {
+	// missing-tool, missing-data, noop, and report-incomplete are auto-defaulted by
+	// extractSafeOutputsConfig whenever any safe-outputs are present, even when the user
+	// has not explicitly configured those types. This means result.X can be non-nil (the
+	// auto-default) even though the main workflow never explicitly set it. We therefore use
+	// the presence of the key in the raw imported config map as the authoritative signal:
+	// if the import explicitly carries the key, its value wins over any auto-default in result.
+	// The "|| result.X == nil" arm preserves the legacy path where result has no value at all.
+	_, hasMissingTool := config["missing-tool"]
+	if (hasMissingTool || result.MissingTool == nil) && importedConfig.MissingTool != nil {
 		result.MissingTool = importedConfig.MissingTool
 	}
-	if result.MissingData == nil && importedConfig.MissingData != nil {
+	_, hasMissingData := config["missing-data"]
+	if (hasMissingData || result.MissingData == nil) && importedConfig.MissingData != nil {
 		result.MissingData = importedConfig.MissingData
 	}
-	if result.NoOp == nil && importedConfig.NoOp != nil {
+	_, hasNoop := config["noop"]
+	if (hasNoop || result.NoOp == nil) && importedConfig.NoOp != nil {
 		result.NoOp = importedConfig.NoOp
 	}
-	if result.ReportIncomplete == nil && importedConfig.ReportIncomplete != nil {
+	_, hasReportIncomplete := config["report-incomplete"]
+	if (hasReportIncomplete || result.ReportIncomplete == nil) && importedConfig.ReportIncomplete != nil {
 		result.ReportIncomplete = importedConfig.ReportIncomplete
 	}
-	// ThreatDetection is a workflow-level concern; only merge from an import that
-	// explicitly carries a threat-detection key (not just an auto-enabled default).
-	if result.ThreatDetection == nil {
-		if _, hasTD := config["threat-detection"]; hasTD && importedConfig.ThreatDetection != nil {
-			result.ThreatDetection = importedConfig.ThreatDetection
-		}
+	// ThreatDetection is also auto-defaulted by extractSafeOutputsConfig; apply the same
+	// pattern — the import's explicit threat-detection key takes precedence over the result's
+	// auto-default empty struct (which is not user-authored). If the main workflow explicitly
+	// defined threat-detection, MergeSafeOutputs will have already removed it from the import
+	// config (via topDefinedTypes), so config["threat-detection"] won't exist in that case.
+	if _, hasTD := config["threat-detection"]; hasTD && importedConfig.ThreatDetection != nil {
+		result.ThreatDetection = importedConfig.ThreatDetection
 	}
 
 	// Merge meta-configuration fields (only set if empty/zero in result)

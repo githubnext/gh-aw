@@ -734,8 +734,11 @@ safe-outputs:
     target: "triggering"  # or "*", or e.g. ${{ github.event.inputs.pr_number }} when not in pull_request trigger
     target-repo: "owner/repo"  # cross-repository: submit review on PR in another repo
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
+    allowed-events: [COMMENT, REQUEST_CHANGES]  # restrict allowed review event types (default: all allowed)
     footer: false     # omit AI-generated footer from review body (default: true)
 ```
+
+Use `allowed-events` to restrict which review event types the agent can submit. This provides infrastructure-level enforcement — for example, `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from submitting APPROVE reviews regardless of what the agent attempts to output. If omitted, all event types (APPROVE, COMMENT, REQUEST_CHANGES) are allowed.
 
 ### Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
 
