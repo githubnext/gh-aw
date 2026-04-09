@@ -203,14 +203,14 @@ func TestActionCacheDuplicateSHAWarning(t *testing.T) {
 			"actions/github-script@v8": {
 				Repo:    "actions/github-script",
 				Version: "v8",
-				SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+				SHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 			},
 		},
 		path: "/tmp/test-cache.json",
 	}
 
 	// Add a second entry with the same SHA but different version
-	cache.Set("actions/github-script", "v8.0.0", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
+	cache.Set("actions/github-script", "v8.0.0", "3a2844b7e9c422d3c10d287c895573f7108da1b3")
 
 	// Verify both entries are in the cache
 	if len(cache.Entries) != 2 {
@@ -245,12 +245,12 @@ func TestDeduplicationRemovesLessPreciseVersions(t *testing.T) {
 				"actions/github-script@v8": {
 					Repo:    "actions/github-script",
 					Version: "v8",
-					SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+					SHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 				},
 				"actions/github-script@v8.0.0": {
 					Repo:    "actions/github-script",
 					Version: "v8.0.0",
-					SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+					SHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 				},
 			},
 			expectedKeep:        "actions/github-script@v8.0.0",

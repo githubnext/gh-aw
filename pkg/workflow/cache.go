@@ -601,7 +601,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		// Build validation script
 		var validationScript strings.Builder
 		validationScript.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-		validationScript.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+		validationScript.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 		validationScript.WriteString("            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');\n")
 		fmt.Fprintf(&validationScript, "            const allowedExtensions = %s;\n", allowedExtsJSON)
 		fmt.Fprintf(&validationScript, "            const result = validateMemoryFiles('%s', 'cache', allowedExtensions);\n", cacheDir)
@@ -873,7 +873,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			// Build validation script
 			var validationScript strings.Builder
 			validationScript.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-			validationScript.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+			validationScript.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 			validationScript.WriteString("            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');\n")
 			fmt.Fprintf(&validationScript, "            const allowedExtensions = %s;\n", allowedExtsJSON)
 			fmt.Fprintf(&validationScript, "            const result = validateMemoryFiles('%s', 'cache', allowedExtensions);\n", cacheDir)
@@ -926,7 +926,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		// Cache restore job doesn't need project support
 		// Cache job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		cacheTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		setupSteps = append(setupSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, cacheTraceID)...)
+		setupSteps = append(setupSteps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, cacheTraceID)...)
 	}
 
 	// Prepend setup steps to all cache steps

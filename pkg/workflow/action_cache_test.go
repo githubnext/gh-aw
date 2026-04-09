@@ -513,11 +513,11 @@ func TestActionCacheFindEntryBySHA(t *testing.T) {
 	cache := NewActionCache(tmpDir)
 
 	// Add entries with same SHA
-	cache.Set("actions/github-script", "v8", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
-	cache.Set("actions/github-script", "v8.0.0", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
+	cache.Set("actions/github-script", "v8", "3a2844b7e9c422d3c10d287c895573f7108da1b3")
+	cache.Set("actions/github-script", "v8.0.0", "3a2844b7e9c422d3c10d287c895573f7108da1b3")
 
 	// Find entry by SHA
-	entry, found := cache.FindEntryBySHA("actions/github-script", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
+	entry, found := cache.FindEntryBySHA("actions/github-script", "3a2844b7e9c422d3c10d287c895573f7108da1b3")
 	if !found {
 		t.Fatal("Expected to find entry by SHA")
 	}
@@ -526,7 +526,7 @@ func TestActionCacheFindEntryBySHA(t *testing.T) {
 	if entry.Repo != "actions/github-script" {
 		t.Errorf("Expected repo 'actions/github-script', got '%s'", entry.Repo)
 	}
-	if entry.SHA != "ed597411d8f924073f98dfc5c65a23a2325f34cd" {
+	if entry.SHA != "3a2844b7e9c422d3c10d287c895573f7108da1b3" {
 		t.Errorf("Expected SHA to match")
 	}
 	if entry.Version != "v8" && entry.Version != "v8.0.0" {
@@ -540,7 +540,7 @@ func TestActionCacheFindEntryBySHA(t *testing.T) {
 	}
 
 	// Test different repo with same SHA
-	_, found = cache.FindEntryBySHA("actions/checkout", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
+	_, found = cache.FindEntryBySHA("actions/checkout", "3a2844b7e9c422d3c10d287c895573f7108da1b3")
 	if found {
 		t.Error("Expected not to find entry for different repo")
 	}

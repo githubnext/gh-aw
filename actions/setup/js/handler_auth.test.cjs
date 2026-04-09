@@ -3,15 +3,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-// Mock @actions/github so we can control getOctokit
-vi.mock("@actions/github", () => ({
-  getOctokit: vi.fn(token => ({
-    _token: token,
-    rest: {},
-    graphql: vi.fn(),
-  })),
-}));
-
 import { createAuthenticatedGitHubClient } from "./handler_auth.cjs";
 
 describe("createAuthenticatedGitHubClient", () => {
@@ -23,6 +14,7 @@ describe("createAuthenticatedGitHubClient", () => {
     originalGlobals = {
       core: global.core,
       github: global.github,
+      getOctokit: global.getOctokit,
     };
 
     mockCore = {
@@ -40,11 +32,19 @@ describe("createAuthenticatedGitHubClient", () => {
 
     global.core = mockCore;
     global.github = mockGithub;
+
+    // Mock the builtin getOctokit (available in actions/github-script@v9)
+    global.getOctokit = vi.fn(token => ({
+      _token: token,
+      rest: {},
+      graphql: vi.fn(),
+    }));
   });
 
   afterEach(() => {
     global.core = originalGlobals.core;
     global.github = originalGlobals.github;
+    global.getOctokit = originalGlobals.getOctokit;
     vi.clearAllMocks();
   });
 

@@ -46,7 +46,6 @@ async function createAuthenticatedGitHubClient(config) {
     return github;
   }
   core.info("Using per-handler github-token for cross-repository authentication");
-  const { getOctokit } = await import("@actions/github");
   return getOctokit(token);
 }
 

@@ -400,7 +400,7 @@ func (c *Compiler) buildSetupScriptRequire() string {
 	// Build a simple require statement that calls the main function
 	// The template is now read from file at runtime by the JavaScript module
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io);
+setupGlobals(core, github, context, exec, io, getOctokit);
 const { main } = require('` + SetupActionDestination + `/setup_threat_detection.cjs');
 await main();`
 
@@ -560,7 +560,7 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 func (c *Compiler) buildResultsParsingScriptRequire() string {
 	// Build a simple require statement that calls the main function
 	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io);
+setupGlobals(core, github, context, exec, io, getOctokit);
 const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
 await main();`
 
@@ -659,7 +659,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 		// Detection job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		detectionTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, detectionTraceID)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, detectionTraceID)...)
 	}
 
 	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).

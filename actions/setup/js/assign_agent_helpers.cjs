@@ -9,7 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  *
  * NOTE: All functions use the built-in `github` global object for authentication.
  * The token must be set at the step level via the `github-token` parameter in GitHub Actions.
- * This approach is required for compatibility with actions/github-script@v8.
+ * This approach is required for compatibility with actions/github-script@v9.
  */
 
 /**

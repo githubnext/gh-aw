@@ -51,7 +51,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	// Load log parser script from external file using require()
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/" + parserScriptName + ".cjs');\n")
 	yaml.WriteString("            await main();\n")
@@ -69,7 +69,7 @@ func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder) {
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	// Load mcp-scripts log parser script from external file using require()
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_mcp_scripts_logs.cjs');\n")
 	yaml.WriteString("            await main();\n")
@@ -88,7 +88,7 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	// Load MCP gateway log parser script from external file using require()
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_mcp_gateway_log.cjs');\n")
 	yaml.WriteString("            await main();\n")
@@ -110,7 +110,7 @@ func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');\n")
 	yaml.WriteString("            await main(core);\n")
 }
@@ -189,7 +189,7 @@ func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder) {
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/parse_token_usage.cjs');\n")
 	yaml.WriteString("            await main();\n")
 }

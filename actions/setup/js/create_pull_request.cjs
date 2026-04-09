@@ -56,7 +56,6 @@ async function createCopilotAssignmentClient(config) {
     return github;
   }
   core.info("Using dedicated github client for copilot assignment");
-  const { getOctokit } = await import("@actions/github");
   return getOctokit(token);
 }
 
