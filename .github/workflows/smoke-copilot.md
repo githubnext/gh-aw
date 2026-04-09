@@ -25,7 +25,6 @@ imports:
   - shared/reporting.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
 network:
   allowed:
     - defaults
