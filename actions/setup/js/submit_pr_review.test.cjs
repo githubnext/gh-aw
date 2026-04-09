@@ -173,6 +173,83 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
     expect(result.error).toContain("Invalid review event");
   });
 
+  it("should allow all events when allowed_events not configured", async () => {
+    const { main } = require("./submit_pr_review.cjs");
+
+    for (const event of ["APPROVE", "COMMENT", "REQUEST_CHANGES"]) {
+      const localBuffer = createReviewBuffer();
+      const h = await main({ max: 5, _prReviewBuffer: localBuffer });
+      const result = await h({ event, body: event === "REQUEST_CHANGES" ? "body" : "" }, {});
+      expect(result.success).toBe(true);
+      expect(result.event).toBe(event);
+    }
+  });
+
+  it("should block APPROVE when allowed_events is [COMMENT, REQUEST_CHANGES]", async () => {
+    const { main } = require("./submit_pr_review.cjs");
+    const localBuffer = createReviewBuffer();
+    const localHandler = await main({
+      max: 5,
+      _prReviewBuffer: localBuffer,
+      allowed_events: ["COMMENT", "REQUEST_CHANGES"],
+    });
+
+    const result = await localHandler({ event: "APPROVE", body: "" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not allowed");
+    expect(result.error).toContain("APPROVE");
+  });
+
+  it("should allow COMMENT when allowed_events is [COMMENT, REQUEST_CHANGES]", async () => {
+    const { main } = require("./submit_pr_review.cjs");
+    const localBuffer = createReviewBuffer();
+    const localHandler = await main({
+      max: 5,
+      _prReviewBuffer: localBuffer,
+      allowed_events: ["COMMENT", "REQUEST_CHANGES"],
+    });
+
+    const result = await localHandler({ event: "COMMENT", body: "some feedback" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.event).toBe("COMMENT");
+  });
+
+  it("should normalize event case before checking allowed_events", async () => {
+    const { main } = require("./submit_pr_review.cjs");
+    const localBuffer = createReviewBuffer();
+    const localHandler = await main({
+      max: 5,
+      _prReviewBuffer: localBuffer,
+      allowed_events: ["COMMENT"],
+    });
+
+    const result = await localHandler({ event: "comment", body: "feedback" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.event).toBe("COMMENT");
+  });
+
+  it("should not consume max count slot when event is blocked by allowed_events", async () => {
+    const { main } = require("./submit_pr_review.cjs");
+    const localBuffer = createReviewBuffer();
+    const localHandler = await main({
+      max: 1,
+      _prReviewBuffer: localBuffer,
+      allowed_events: ["COMMENT"],
+    });
+
+    // Blocked event should not consume a slot
+    const blocked = await localHandler({ event: "APPROVE", body: "" }, {});
+    expect(blocked.success).toBe(false);
+
+    // Allowed event should still succeed since blocked one didn't count
+    const allowed = await localHandler({ event: "COMMENT", body: "feedback" }, {});
+    expect(allowed.success).toBe(true);
+    expect(allowed.event).toBe("COMMENT");
+  });
+
   it("should allow empty body for APPROVE event", async () => {
     const message = {
       type: "submit_pull_request_review",

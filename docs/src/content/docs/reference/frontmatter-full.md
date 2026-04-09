@@ -4039,6 +4039,13 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
+    # Optional list of allowed review event types. If omitted, all event types
+    # (APPROVE, COMMENT, REQUEST_CHANGES) are allowed. Use this to restrict the agent
+    # to specific event types at the infrastructure level.
+    # (optional)
+    allowed-events: []
+      # Array of strings (APPROVE, COMMENT, REQUEST_CHANGES)
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)

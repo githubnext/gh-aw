@@ -198,6 +198,75 @@ func TestSubmitPRReviewFooterConfig(t *testing.T) {
 		assert.Equal(t, []string{"consumer-org/other-repo", "consumer-org/another-repo"}, config.AllowedRepos, "AllowedRepos should be parsed")
 	})
 
+	t.Run("parses allowed-events field", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":            1,
+				"allowed-events": []any{"COMMENT", "REQUEST_CHANGES"},
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, []string{"COMMENT", "REQUEST_CHANGES"}, config.AllowedEvents, "AllowedEvents should be parsed")
+	})
+
+	t.Run("parses allowed-events and normalizes to uppercase", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":            1,
+				"allowed-events": []any{"comment", "approve"},
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, []string{"COMMENT", "APPROVE"}, config.AllowedEvents, "AllowedEvents should be normalized to uppercase")
+	})
+
+	t.Run("ignores invalid values in allowed-events", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":            1,
+				"allowed-events": []any{"COMMENT", "INVALID_EVENT", "APPROVE"},
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, []string{"COMMENT", "APPROVE"}, config.AllowedEvents, "Invalid events should be ignored")
+	})
+
+	t.Run("allowed-events empty when omitted", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max": 1,
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Empty(t, config.AllowedEvents, "AllowedEvents should be empty when not configured")
+	})
+
+	t.Run("parses all three valid event types in allowed-events", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":            1,
+				"allowed-events": []any{"APPROVE", "COMMENT", "REQUEST_CHANGES"},
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, []string{"APPROVE", "COMMENT", "REQUEST_CHANGES"}, config.AllowedEvents, "All three event types should be parsed")
+	})
+
 	t.Run("returns nil for wildcard target-repo", func(t *testing.T) {
 		compiler := NewCompiler()
 		outputMap := map[string]any{

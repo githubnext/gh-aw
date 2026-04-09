@@ -33,6 +33,9 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
+  // Build the allowed events set from config (empty set means all events are allowed)
+  const allowedEvents = new Set(Array.isArray(config.allowed_events) && config.allowed_events.length > 0 ? config.allowed_events.map(e => String(e).toUpperCase()) : []);
+
   if (!buffer) {
     core.warning("submit_pull_request_review: No PR review buffer provided in config");
     return async function handleSubmitPRReview() {
@@ -44,6 +47,9 @@ async function main(config = {}) {
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
+  if (allowedEvents.size > 0) {
+    core.info(`Allowed review events: ${Array.from(allowedEvents).join(", ")}`);
   }
 
   // Propagate per-handler staged flag to the shared PR review buffer
@@ -78,6 +84,16 @@ async function main(config = {}) {
       return {
         success: false,
         error: `Invalid review event: ${message.event}. Must be one of: APPROVE, REQUEST_CHANGES, COMMENT`,
+      };
+    }
+
+    // Enforce allowed-events filter (infrastructure-level enforcement)
+    if (allowedEvents.size > 0 && !allowedEvents.has(event)) {
+      const allowedList = Array.from(allowedEvents).join(", ");
+      core.warning(`Review event '${event}' is not allowed. Allowed events: ${allowedList}`);
+      return {
+        success: false,
+        error: `Review event '${event}' is not allowed by safe-outputs configuration. Allowed events: ${allowedList}`,
       };
     }
 
