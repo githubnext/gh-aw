@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"strings"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -13,7 +15,8 @@ var submitPRReviewLog = logger.New("workflow:submit_pr_review")
 type SubmitPullRequestReviewConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Footer                 *string `yaml:"footer,omitempty"` // Controls when to show footer in PR review body: "always" (default), "none", or "if-body" (only when review has body text)
+	Footer                 *string  `yaml:"footer,omitempty"`         // Controls when to show footer in PR review body: "always" (default), "none", or "if-body" (only when review has body text)
+	AllowedEvents          []string `yaml:"allowed-events,omitempty"` // Optional list of allowed review event types: APPROVE, COMMENT, REQUEST_CHANGES. If omitted, all event types are allowed.
 }
 
 // parseSubmitPullRequestReviewConfig handles submit-pull-request-review configuration
@@ -71,7 +74,33 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 			}
 		}
 
-		submitPRReviewLog.Printf("Parsed submit-pull-request-review config: max=%d, target=%s, target_repo=%s", templatableIntValue(config.Max), config.Target, config.TargetRepoSlug)
+		// Parse allowed-events configuration
+		if allowedEvents, exists := configMap["allowed-events"]; exists {
+			eventsSlice, ok := allowedEvents.([]any)
+			if !ok {
+				submitPRReviewLog.Printf("Invalid allowed-events configuration: must be a list of review event types")
+				return nil
+			}
+
+			validEvents := map[string]bool{"APPROVE": true, "COMMENT": true, "REQUEST_CHANGES": true}
+			for _, e := range eventsSlice {
+				if eventStr, ok := e.(string); ok {
+					upper := strings.ToUpper(eventStr)
+					if validEvents[upper] {
+						config.AllowedEvents = append(config.AllowedEvents, upper)
+					} else {
+						submitPRReviewLog.Printf("Ignoring invalid allowed-events value: %s", eventStr)
+					}
+				}
+			}
+
+			if len(config.AllowedEvents) == 0 {
+				submitPRReviewLog.Printf("Invalid allowed-events configuration: at least one valid event type is required when allowed-events is specified")
+				return nil
+			}
+		}
+
+		submitPRReviewLog.Printf("Parsed submit-pull-request-review config: max=%d, target=%s, target_repo=%s, allowed_events=%v", templatableIntValue(config.Max), config.Target, config.TargetRepoSlug, config.AllowedEvents)
 	} else {
 		// If configData is nil or not a map, set the default max
 		config.Max = defaultIntStr(1)

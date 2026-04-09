@@ -109,6 +109,7 @@ interface SubmitPullRequestReviewConfig extends SafeOutputConfig {
   target?: string;
   "target-repo"?: string;
   "allowed-repos"?: string[];
+  "allowed-events"?: Array<"APPROVE" | "COMMENT" | "REQUEST_CHANGES">;
   footer?: boolean | "always" | "none" | "if-body";
 }
 
