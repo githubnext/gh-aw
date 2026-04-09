@@ -308,6 +308,25 @@ gh aw compile
 
 ---
 
+# OpenTelemetry Distributed Tracing
+
+```yaml
+---
+on:
+  pull_request:
+    types: [opened]
+observability:
+  otlp:
+    endpoint: "${{ secrets.OTLP_ENDPOINT }}"
+    headers: "${{ secrets.OTLP_HEADERS }}"
+---
+Analyze this pull request for security issues.
+```
+
+**Export spans** to Honeycomb, Grafana Tempo, or Sentry — every job emits setup and conclusion spans, MCP tool calls are correlated under the same trace ID
+
+---
+
 # Cache & Persistent Memory
 
 ## Speed up workflows and maintain context
