@@ -60,10 +60,13 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected Playwright MCP configuration to include official Docker image 'mcr.microsoft.com/playwright/mcp'")
 	}
 
-	// Verify the playwright output directory is pre-created so the Docker container
-	// can write screenshots to the mounted volume path without ENOENT errors
+	// Verify the playwright output directory is pre-created and made writable so the Docker container
+	// (which runs as a non-root user) can write screenshots to the mounted volume path
 	if !strings.Contains(lockContentStr, "mkdir -p /tmp/gh-aw/mcp-logs/playwright") {
 		t.Error("Expected 'mkdir -p /tmp/gh-aw/mcp-logs/playwright' in Start MCP Gateway step to pre-create screenshot directory")
+	}
+	if !strings.Contains(lockContentStr, "chmod 777 /tmp/gh-aw/mcp-logs/playwright") {
+		t.Error("Expected 'chmod 777 /tmp/gh-aw/mcp-logs/playwright' in Start MCP Gateway step so non-root Docker user can write screenshots")
 	}
 
 	// Verify MCP logs are uploaded via the unified artifact upload

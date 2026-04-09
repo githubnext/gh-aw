@@ -530,9 +530,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	// Pre-create the playwright output directory on the host so the Docker container
-	// can write screenshots to the mounted volume path without ENOENT errors
+	// can write screenshots to the mounted volume path without ENOENT errors.
+	// chmod 777 is required because the Playwright Docker container runs as a non-root user
+	// and needs write access to this directory.
 	if slices.Contains(mcpTools, "playwright") {
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/playwright\n")
+		yaml.WriteString("          chmod 777 /tmp/gh-aw/mcp-logs/playwright\n")
 	}
 
 	// Export gateway environment variables and build docker command BEFORE rendering MCP config
