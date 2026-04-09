@@ -226,7 +226,7 @@ func TestSubmitPRReviewFooterConfig(t *testing.T) {
 		assert.Equal(t, []string{"COMMENT", "APPROVE"}, config.AllowedEvents, "AllowedEvents should be normalized to uppercase")
 	})
 
-	t.Run("ignores invalid values in allowed-events", func(t *testing.T) {
+	t.Run("ignores invalid values in allowed-events when mixed with valid values", func(t *testing.T) {
 		compiler := NewCompiler()
 		outputMap := map[string]any{
 			"submit-pull-request-review": map[string]any{
@@ -236,8 +236,34 @@ func TestSubmitPRReviewFooterConfig(t *testing.T) {
 		}
 
 		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
-		require.NotNil(t, config, "Config should be parsed")
-		assert.Equal(t, []string{"COMMENT", "APPROVE"}, config.AllowedEvents, "Invalid events should be ignored")
+		require.NotNil(t, config, "Config should be parsed when at least one valid event remains")
+		assert.Equal(t, []string{"COMMENT", "APPROVE"}, config.AllowedEvents, "Invalid events should be ignored while valid ones remain")
+	})
+
+	t.Run("returns nil when allowed-events contains only invalid values (fail closed)", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":            1,
+				"allowed-events": []any{"INVALID_EVENT", "ANOTHER_BAD_VALUE"},
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		assert.Nil(t, config, "Config should be nil when all allowed-events values are invalid (fail closed)")
+	})
+
+	t.Run("returns nil when allowed-events is not a list (fail closed)", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":            1,
+				"allowed-events": "COMMENT",
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		assert.Nil(t, config, "Config should be nil when allowed-events is not a list (fail closed)")
 	})
 
 	t.Run("allowed-events empty when omitted", func(t *testing.T) {
@@ -457,6 +483,86 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
 					require.True(t, ok, "submit_pull_request_review config should exist")
 					assert.Equal(t, "consumer-org/consumer-repo", submitConfig["target-repo"], "Target-repo should be in submit handler config")
+				}
+			}
+		}
+	})
+
+	t.Run("allowed_events included in submit_pull_request_review handler config when set", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			SafeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					AllowedEvents:        []string{"COMMENT", "REQUEST_CHANGES"},
+				},
+			},
+		}
+
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		require.NotEmpty(t, steps, "Steps should not be empty")
+
+		stepsContent := strings.Join(steps, "")
+		require.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG")
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err, "Should unmarshal handler config")
+
+					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
+					require.True(t, ok, "submit_pull_request_review config should exist")
+					allowedEvents, ok := submitConfig["allowed_events"].([]any)
+					require.True(t, ok, "allowed_events should be present in handler config")
+					require.Len(t, allowedEvents, 2, "allowed_events should have 2 entries")
+					assert.Equal(t, "COMMENT", allowedEvents[0], "First allowed event should be COMMENT")
+					assert.Equal(t, "REQUEST_CHANGES", allowedEvents[1], "Second allowed event should be REQUEST_CHANGES")
+				}
+			}
+		}
+	})
+
+	t.Run("allowed_events not in handler config when not set", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			SafeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+		}
+
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		require.NotEmpty(t, steps, "Steps should not be empty")
+
+		stepsContent := strings.Join(steps, "")
+		require.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG")
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err, "Should unmarshal handler config")
+
+					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
+					require.True(t, ok, "submit_pull_request_review config should exist")
+					_, hasAllowedEvents := submitConfig["allowed_events"]
+					assert.False(t, hasAllowedEvents, "allowed_events should not be in handler config when not set")
 				}
 			}
 		}

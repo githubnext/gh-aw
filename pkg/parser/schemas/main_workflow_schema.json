@@ -5913,7 +5913,8 @@
                     "type": "string",
                     "enum": ["APPROVE", "COMMENT", "REQUEST_CHANGES"]
                   },
-                  "description": "Optional list of allowed review event types. If omitted, all event types (APPROVE, COMMENT, REQUEST_CHANGES) are allowed. Use this to restrict the agent to specific event types, e.g. [COMMENT, REQUEST_CHANGES] to prevent approvals."
+                  "description": "Optional list of allowed review event types. If omitted, all event types (APPROVE, COMMENT, REQUEST_CHANGES) are allowed. Use this to restrict the agent to specific event types, e.g. [COMMENT, REQUEST_CHANGES] to prevent approvals.",
+                  "minItems": 1
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
