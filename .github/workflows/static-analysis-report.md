@@ -35,7 +35,7 @@ steps:
     run: |
       set -e
       make build
-      ./gh-aw --version
+      $GITHUB_WORKSPACE/gh-aw --version
   - name: Pull static analysis Docker images
     run: |
       set -e
