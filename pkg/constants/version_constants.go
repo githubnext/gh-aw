@@ -35,7 +35,8 @@ type ModelName string
 const DefaultClaudeCodeVersion Version = "2.1.94"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
-const DefaultCopilotVersion Version = "1.0.21"
+// Pinned to 1.0.20 (previous version) to avoid silent startup crash in 1.0.21
+const DefaultCopilotVersion Version = "1.0.20"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.118.0"
