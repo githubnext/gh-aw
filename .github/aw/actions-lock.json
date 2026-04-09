@@ -148,20 +148,20 @@
       "version": "v4.35.1",
       "sha": "0e9f55954318745b37b7933c693bc093f7336125"
     },
-    "github/gh-aw-actions/setup@v0.67.2": {
+    "github/gh-aw-actions/setup@v0.67.4": {
       "repo": "github/gh-aw-actions/setup",
-      "version": "v0.67.2",
-      "sha": "03e31e064a68e8d5ad890c92f303cfb5a3536006"
+      "version": "v0.67.4",
+      "sha": "9d6ae06250fc0ec536a0e5f35de313b35bad7246"
     },
-    "github/stale-repos@v9.0.7": {
+    "github/stale-repos@v9.0.8": {
       "repo": "github/stale-repos",
-      "version": "v9.0.7",
-      "sha": "25946246f29e8692a397502045e457c4dc96c6e4"
+      "version": "v9.0.8",
+      "sha": "5f2e18fc5432823f96c1feb69327f665c2acab59"
     },
-    "haskell-actions/setup@v2.10.3": {
+    "haskell-actions/setup@v2.10.4": {
       "repo": "haskell-actions/setup",
-      "version": "v2.10.3",
-      "sha": "9cd1b7bf3f36d5a3c3b17abc3545bfb5481912ea"
+      "version": "v2.10.4",
+      "sha": "77bff5043ea8b8189e09903b6f29125b16c531f9"
     },
     "microsoft/apm-action@v1.4.1": {
       "repo": "microsoft/apm-action",

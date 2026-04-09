@@ -71,7 +71,7 @@ env:
 steps:
   - name: Run stale-repos tool
     id: stale-repos
-    uses: github/stale-repos@v9.0.7
+    uses: github/stale-repos@v9.0.8
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ORGANIZATION: ${{ env.ORGANIZATION }}
