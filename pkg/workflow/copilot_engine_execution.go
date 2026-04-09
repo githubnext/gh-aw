@@ -286,9 +286,12 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
-	// Temporarily disabled — GITHUB_COPILOT_INTEGRATION_ID may be causing Copilot CLI failures.
+	// Inject the integration ID only when the feature flag is explicitly enabled.
+	// Default off — the env var may cause Copilot CLI failures.
 	// See https://github.com/github/gh-aw/issues/25516
-	// env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
+	if isFeatureEnabled(constants.CopilotIntegrationIDFeatureFlag, workflowData) {
+		env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
+	}
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	if workflowData.IsDetectionRun {
 		env["GH_AW_PHASE"] = "detection"

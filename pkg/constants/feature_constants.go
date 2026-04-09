@@ -39,4 +39,14 @@ const (
 	//	features:
 	//	  cli-proxy: true
 	CliProxyFeatureFlag FeatureFlag = "cli-proxy"
+	// CopilotIntegrationIDFeatureFlag gates injection of the
+	// GITHUB_COPILOT_INTEGRATION_ID environment variable into the agent step.
+	// Default off — the env var may cause Copilot CLI failures.
+	// See https://github.com/github/gh-aw/issues/25516
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  copilot-integration-id: true
+	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
 )
