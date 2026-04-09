@@ -9,10 +9,6 @@ permissions:
   security-events: read
 tracker-id: malicious-code-scan
 engine: copilot
-tools:
-  github:
-    toolsets: [repos, code_security]
-  bash: true
 safe-outputs:
   create-code-scanning-alert:
     driver: "Malicious Code Scanner"
@@ -20,10 +16,9 @@ safe-outputs:
 timeout-minutes: 15
 strict: true
 imports:
+  - shared/security-analysis-base.md
   - shared/reporting.md
   - shared/observability-otlp.md
-features:
-  copilot-requests: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
