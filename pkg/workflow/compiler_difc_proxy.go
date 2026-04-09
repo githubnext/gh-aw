@@ -201,6 +201,16 @@ func getDIFCProxyPolicyJSON(githubTool any) string {
 	return string(jsonBytes)
 }
 
+// resolveProxyContainerImage returns the full container image reference (container:version)
+// for the DIFC/CLI proxy, falling back to the default MCP gateway version if none is configured.
+func resolveProxyContainerImage(gatewayConfig *MCPGatewayRuntimeConfig) string {
+	version := gatewayConfig.Version
+	if version == "" {
+		version = string(constants.DefaultMCPGatewayVersion)
+	}
+	return gatewayConfig.Container + ":" + version
+}
+
 // buildStartDIFCProxyStepYAML returns the YAML for the "Start DIFC proxy" step,
 // or an empty string if proxy injection is not needed or the policy cannot be built.
 // This is the shared implementation used by both the main job and the indexing job.
@@ -223,14 +233,7 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	// Resolve the container image from the MCP gateway configuration
 	// (proxy uses the same image as the gateway, just in "proxy" mode)
 	ensureDefaultMCPGatewayConfig(data)
-	gatewayConfig := data.SandboxConfig.MCP
-
-	containerImage := gatewayConfig.Container
-	if gatewayConfig.Version != "" {
-		containerImage += ":" + gatewayConfig.Version
-	} else {
-		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
-	}
+	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
 	sb.WriteString("      - name: Start DIFC proxy for pre-agent gh calls\n")
@@ -388,14 +391,7 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 
 	// Resolve the container image from the MCP gateway configuration
 	ensureDefaultMCPGatewayConfig(data)
-	gatewayConfig := data.SandboxConfig.MCP
-
-	containerImage := gatewayConfig.Container
-	if gatewayConfig.Version != "" {
-		containerImage += ":" + gatewayConfig.Version
-	} else {
-		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
-	}
+	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
 	sb.WriteString("      - name: Start CLI proxy\n")
