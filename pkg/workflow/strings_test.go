@@ -571,3 +571,60 @@ func TestGenerateHeredocDelimiterFromSeed_EmptyName(t *testing.T) {
 	pattern := regexp.MustCompile(`^GH_AW_[0-9a-f]{16}_EOF$`)
 	assert.True(t, pattern.MatchString(result), "Empty-name seeded delimiter should match GH_AW_<hex>_EOF, got %q", result)
 }
+
+func TestValidateHeredocContent(t *testing.T) {
+	tests := []struct {
+		name      string
+		content   string
+		delimiter string
+		wantErr   bool
+	}{
+		{
+			name:      "safe content without delimiter",
+			content:   "console.log('hello world');",
+			delimiter: "GH_AW_PROMPT_abc123def456789a_EOF",
+			wantErr:   false,
+		},
+		{
+			name:      "content containing delimiter",
+			content:   "line1\nGH_AW_PROMPT_abc123def456789a_EOF\nline3",
+			delimiter: "GH_AW_PROMPT_abc123def456789a_EOF",
+			wantErr:   true,
+		},
+		{
+			name:      "delimiter embedded in larger string",
+			content:   "echo GH_AW_PROMPT_abc123def456789a_EOF done",
+			delimiter: "GH_AW_PROMPT_abc123def456789a_EOF",
+			wantErr:   true,
+		},
+		{
+			name:      "empty content",
+			content:   "",
+			delimiter: "GH_AW_PROMPT_abc123def456789a_EOF",
+			wantErr:   false,
+		},
+		{
+			name:      "empty delimiter",
+			content:   "some content",
+			delimiter: "",
+			wantErr:   true,
+		},
+		{
+			name:      "multiline content without delimiter",
+			content:   "line1\nline2\nline3",
+			delimiter: "GH_AW_MCP_SCRIPTS_JS_TOOL_abc123def456789a_EOF",
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateHeredocContent(tt.content, tt.delimiter)
+			if tt.wantErr {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+			} else {
+				assert.NoError(t, err, "Expected no error for test case: %s", tt.name)
+			}
+		})
+	}
+}

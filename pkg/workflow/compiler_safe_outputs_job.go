@@ -188,7 +188,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// This must run before the handler manager step so the files are available for require()
 	if len(data.SafeOutputs.Scripts) > 0 {
 		consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
-		scriptSetupSteps := buildCustomScriptFilesStep(data.SafeOutputs.Scripts, data.FrontmatterHash)
+		scriptSetupSteps, err := buildCustomScriptFilesStep(data.SafeOutputs.Scripts, data.FrontmatterHash)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to build custom script files step: %w", err)
+		}
 		steps = append(steps, scriptSetupSteps...)
 	}
 
@@ -768,9 +771,9 @@ func generateSafeOutputScriptContent(scriptName string, scriptConfig *SafeScript
 // Users write only the handler body; the compiler wraps it with config destructuring,
 // the handler function, and module.exports boilerplate.
 // Each script is written using a heredoc to avoid shell quoting issues.
-func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatterHash string) []string {
+func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatterHash string) ([]string, error) {
 	if len(scripts) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Sort script names for deterministic output
@@ -792,6 +795,10 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatte
 		delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUT_SCRIPT_"+strings.ToUpper(normalizedName), frontmatterHash)
 		scriptContent := generateSafeOutputScriptContent(scriptName, scriptConfig)
 
+		if err := ValidateHeredocContent(scriptContent, delimiter); err != nil {
+			return nil, fmt.Errorf("safe-output script %q: %w", scriptName, err)
+		}
+
 		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filePath, delimiter))
 		for line := range strings.SplitSeq(scriptContent, "\n") {
 			steps = append(steps, "          "+line+"\n")
@@ -799,5 +806,5 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatte
 		steps = append(steps, "          "+delimiter+"\n")
 	}
 
-	return steps
+	return steps, nil
 }

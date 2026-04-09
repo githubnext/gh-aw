@@ -296,6 +296,24 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 	return "GH_AW_" + upperName + "_" + tag + "_EOF"
 }
 
+// ValidateHeredocContent checks that content does not contain the heredoc delimiter.
+// If the content contains the delimiter on its own line, an attacker could prematurely
+// close the heredoc and inject arbitrary shell commands.
+//
+// Callers that wrap user-influenced content (e.g. the markdown body, frontmatter scripts)
+// MUST call ValidateHeredocContent before embedding that content in a heredoc.
+//
+// In practice, hitting this error requires finding a fixed-point where the content
+// (which is part of the frontmatter hash input) produces a hash that generates a
+// delimiter that also appears in the content — computationally infeasible with
+// HMAC-SHA256. This check exists as defense-in-depth.
+func ValidateHeredocContent(content, delimiter string) error {
+	if strings.Contains(content, delimiter) {
+		return fmt.Errorf("content contains heredoc delimiter %q — possible injection attempt", delimiter)
+	}
+	return nil
+}
+
 // PrettifyToolName removes "mcp__" prefix and formats tool names nicely
 func PrettifyToolName(toolName string) string {
 	// Handle MCP tools: "mcp__github__search_issues" -> "github_search_issues"
