@@ -25,6 +25,152 @@ engine: copilot
 Say hello to the world! Check the current date and time, and greet the user warmly.
 `,
   },
+  'issue-triage': {
+    label: 'Issue Triage',
+    content: `---
+name: Issue Triage
+description: Automatically labels new issues based on their content
+on:
+  issues:
+    types: [opened, edited]
+engine: copilot
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    toolsets: [issues]
+safe-outputs:
+  add-labels:
+    allowed: [bug, enhancement, documentation, question]
+    max: 3
+  add-comment:
+    max: 1
+---
+
+# Issue Triage
+
+You are a helpful triage assistant. Analyze the new issue and:
+
+1. Read the issue title and body carefully.
+2. Select the most appropriate label(s) from: \`bug\`, \`enhancement\`, \`documentation\`, \`question\`.
+3. Add the label(s) to the issue.
+4. Post a brief comment acknowledging receipt and explaining any labels added.
+
+Be concise in your comment — one or two sentences is ideal.
+`,
+  },
+  'ci-doctor': {
+    label: 'CI Doctor',
+    content: `---
+name: CI Doctor
+description: Investigates failed CI runs and posts a diagnosis
+on:
+  label_command:
+    name: ci-doctor
+    events: [pull_request]
+engine: claude
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+  checks: read
+tools:
+  github:
+    toolsets: [default]
+safe-outputs:
+  add-comment:
+    max: 1
+    hide-older-comments: true
+  noop:
+---
+
+# CI Failure Analysis
+
+You are a CI diagnostics expert. The \`ci-doctor\` label was applied to a pull request.
+
+1. Find the most recent failed workflow run for this PR.
+2. Fetch the logs for the failing job(s).
+3. Identify the root cause: compilation error, test failure, lint issue, or environment problem.
+4. Post a comment with: the failing step, the error message, and a suggested fix.
+
+Keep the diagnosis focused and actionable. If the failure is unrelated to the PR changes, say so.
+`,
+  },
+  'contribution-check': {
+    label: 'Contribution Guidelines Checker',
+    content: `---
+name: Contribution Guidelines Checker
+description: Checks if new pull requests follow contribution guidelines
+on:
+  pull_request:
+    types: [opened, edited]
+engine: copilot
+permissions:
+  contents: read
+  pull-requests: read
+tools:
+  github:
+    toolsets: [pull_requests]
+safe-outputs:
+  add-comment:
+    max: 1
+    hide-older-comments: true
+  add-labels:
+    allowed: [needs-work, lgtm]
+    max: 1
+  noop:
+---
+
+# Contribution Guidelines Check
+
+Review this pull request against the project contribution guidelines.
+
+1. Read the PR title, description, and changed files.
+2. Check for: clear description of what changed and why, linked issue (if applicable), reasonable PR size.
+3. If the PR looks good: add the \`lgtm\` label and post a brief approval comment.
+4. If the PR needs work: add the \`needs-work\` label and post a comment explaining what to fix.
+
+Be encouraging and constructive in feedback. Assume good intent.
+`,
+  },
+  'daily-repo-status': {
+    label: 'Daily Repo Status',
+    content: `---
+name: Daily Repo Status
+description: Posts a daily summary of repository activity
+on:
+  schedule:
+    - cron: "0 9 * * 1-5"
+  workflow_dispatch:
+engine: copilot
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+tools:
+  github:
+    toolsets: [issues, pull_requests]
+safe-outputs:
+  create-issue:
+    title-prefix: "[Daily Status] "
+    labels: [report]
+    close-older-issues: true
+    expires: 3
+---
+
+# Daily Repository Status Report
+
+Generate a brief daily status report for this repository.
+
+1. Count: open issues, open PRs, PRs merged today, issues closed today.
+2. Highlight any items labeled \`urgent\` or \`P1\`.
+3. List any stale PRs (open for more than 14 days without activity).
+4. Summarize in a brief, scannable report with emoji indicators for status.
+
+Keep the report concise — it should be readable in under 2 minutes.
+`,
+  },
 };
 
 const DEFAULT_CONTENT = SAMPLES['hello-world'].content;
