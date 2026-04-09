@@ -693,3 +693,68 @@ func TestGenerateSetGHRepoAfterDIFCProxyStep(t *testing.T) {
 		assert.NotContains(t, result, "GH_HOST", "should not touch GH_HOST")
 	})
 }
+
+// TestBuildStartCliProxyStepYAML verifies that the CLI proxy step always emits
+// CLI_PROXY_POLICY, using the default permissive policy when no guard policy is
+// configured in the frontmatter.
+func TestBuildStartCliProxyStepYAML(t *testing.T) {
+	c := &Compiler{}
+
+	t.Run("emits default policy when no guard policy is configured", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step even without guard policy")
+		assert.Contains(t, result, "CLI_PROXY_POLICY", "should always emit CLI_PROXY_POLICY")
+		assert.Contains(t, result, `"allow-only"`, "default policy should contain allow-only")
+		assert.Contains(t, result, `"repos":"all"`, "default policy should allow all repos")
+		assert.Contains(t, result, `"min-integrity":"none"`, "default policy should have min-integrity none")
+	})
+
+	t.Run("emits default policy when github tool is nil", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step even without github tool")
+		assert.Contains(t, result, "CLI_PROXY_POLICY", "should always emit CLI_PROXY_POLICY")
+		assert.Contains(t, result, `"min-integrity":"none"`, "should use default min-integrity")
+	})
+
+	t.Run("uses configured guard policy when present", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{
+					"min-integrity": "approved",
+					"allowed-repos": "owner/*",
+				},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		require.NotEmpty(t, result, "should emit CLI proxy step")
+		assert.Contains(t, result, "CLI_PROXY_POLICY", "should emit CLI_PROXY_POLICY")
+		assert.Contains(t, result, `"min-integrity":"approved"`, "should use configured min-integrity")
+		assert.Contains(t, result, `"repos":"owner/*"`, "should use configured repos")
+	})
+
+	t.Run("emits correct step structure", func(t *testing.T) {
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"github": map[string]any{"toolsets": []string{"default"}},
+			},
+		}
+
+		result := c.buildStartCliProxyStepYAML(data)
+		assert.Contains(t, result, "name: Start CLI proxy", "should have correct step name")
+		assert.Contains(t, result, "GH_TOKEN:", "should include GH_TOKEN")
+		assert.Contains(t, result, "GITHUB_SERVER_URL:", "should include GITHUB_SERVER_URL")
+		assert.Contains(t, result, "CLI_PROXY_IMAGE:", "should include CLI_PROXY_IMAGE")
+		assert.Contains(t, result, "start_cli_proxy.sh", "should reference the start script")
+	})
+}

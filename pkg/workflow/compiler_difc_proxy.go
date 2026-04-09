@@ -357,6 +357,14 @@ func (c *Compiler) generateStartCliProxyStep(yaml *strings.Builder, data *Workfl
 	}
 }
 
+// defaultCliProxyPolicyJSON is the fallback guard policy for the CLI proxy when no
+// guard policy is explicitly configured in the workflow frontmatter.
+// The DIFC proxy requires a --policy flag to forward requests; without it, all API
+// calls return HTTP 503 with body "proxy enforcement not configured".
+// This default allows all repos with no integrity filtering — the most permissive
+// policy that still satisfies the proxy's requirement.
+const defaultCliProxyPolicyJSON = `{"allow-only":{"repos":"all","min-integrity":"none"}}`
+
 // buildStartCliProxyStepYAML returns the YAML for the "Start CLI proxy" step,
 // or an empty string if the proxy cannot be configured.
 func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
@@ -368,10 +376,15 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	customGitHubToken := getGitHubToken(githubTool)
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
-	// Build the guard policy JSON (static fields only)
+	// Build the guard policy JSON (static fields only).
+	// The CLI proxy requires a policy to forward requests — without one, all API
+	// calls return HTTP 503 ("proxy enforcement not configured"). Use the default
+	// permissive policy when no guard policy is configured in the frontmatter.
 	policyJSON := getDIFCProxyPolicyJSON(githubTool)
-	// An empty policy is acceptable — the proxy still provides gh CLI routing
-	// without guard filtering when no min-integrity is configured.
+	if policyJSON == "" {
+		policyJSON = defaultCliProxyPolicyJSON
+		difcProxyLog.Print("No guard policy configured, using default CLI proxy policy")
+	}
 
 	// Resolve the container image from the MCP gateway configuration
 	ensureDefaultMCPGatewayConfig(data)
@@ -389,9 +402,7 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_TOKEN: %s\n", effectiveToken)
 	sb.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
-	if policyJSON != "" {
-		fmt.Fprintf(&sb, "          CLI_PROXY_POLICY: '%s'\n", policyJSON)
-	}
+	fmt.Fprintf(&sb, "          CLI_PROXY_POLICY: '%s'\n", policyJSON)
 	fmt.Fprintf(&sb, "          CLI_PROXY_IMAGE: '%s'\n", containerImage)
 	sb.WriteString("        run: |\n")
 	sb.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh\"\n")
