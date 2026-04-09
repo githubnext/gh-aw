@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.5
-**Last Updated**: 2026-04-08
+**Version**: 5.6
+**Last Updated**: 2026-04-09
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2720,6 +2720,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 
 ### Related Documentation
 
+- [Scratchpad Index](./README.md) - Directory index of all specification and documentation files in the `scratchpad/` directory with status and implementation references
 - [Safe Outputs Specification](./safe-outputs-specification.md) - W3C-style formal specification
 - [Validation Architecture](./validation-architecture.md) - Detailed validation patterns
 - [GitHub Actions Security](./github-actions-security-best-practices.md) - Security guidelines
@@ -2794,6 +2795,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.6 (2026-04-09): Fixed 4 broken links in `scratchpad/README.md` (case-sensitive file name corrections: `MCP_LOGS_GUARDRAIL.md`→`mcp_logs_guardrails.md`, `SCHEMA_VALIDATION.md`→`schema-validation.md`, `SECURITY_REVIEW_TEMPLATE_INJECTION.md`→`security_review.md`; `campaigns-files.md` marked removed). Fixed 3 tone issues in `README.md` ("Detailed comparison"→"Comparison", "Detailed analysis"→"Analysis", "Complete deep-dive statistical analysis"→"Statistical analysis"). Updated `README.md` last-updated date. Added `README.md` to Related Documentation. Coverage: 75 spec files (no new files).
 - v5.5 (2026-04-08): Added WorkQueueOps and BatchOps design pattern subsections to Workflow Patterns (from PR #25178: four queue strategies — issue checklist, sub-issues, cache-memory, discussion-based; four batch strategies — chunked, matrix fan-out, rate-limit-aware, result aggregation). Added 2 new Related Documentation links for `docs/src/content/docs/patterns/workqueue-ops.md` and `batch-ops.md`. Coverage: 75 spec files (2 new pattern docs).
 - v5.4 (2026-04-07): Added `gh-aw.github.rate_limit.reset` OTLP span attribute to GitHub API Rate Limit Observability section (from PR #25061: ISO 8601 reset timestamp now included in conclusion spans). Coverage: 73 spec files (no new spec files).
 - v5.3 (2026-04-05): Added GitHub API Rate Limit Observability subsection to MCP Integration (from PR #24694: `github_rate_limit_logger.cjs`, `GithubRateLimitsFilename` constant, artifact upload paths, OTLP span enrichment). Created new spec file `scratchpad/github-rate-limit-observability.md`. Added 1 new Related Documentation link. Coverage: 73 spec files (1 new).
