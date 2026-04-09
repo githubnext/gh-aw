@@ -38,6 +38,11 @@ describe("update_discussion", () => {
     { id: "LA_kwDO4", name: "Label4" },
     { id: "LA_kwDO5", name: "Label5" },
     { id: "LA_kwDO6", name: "Label6" },
+    { id: "LA_kwDO7", name: "Label7" },
+    { id: "LA_kwDO8", name: "Label8" },
+    { id: "LA_kwDO9", name: "Label9" },
+    { id: "LA_kwDO10", name: "Label10" },
+    { id: "LA_kwDO11", name: "Label11" },
     { id: "LA_kwDO_bug", name: "bug" },
     { id: "LA_kwDO_feature", name: "feature" },
   ];
@@ -302,6 +307,31 @@ describe("update_discussion", () => {
       const addCalls = getAddLabelsCalls();
       expect(addCalls).toHaveLength(1);
       expect(addCalls[0].variables.labelIds).toEqual(["LA_kwDO1", "LA_kwDO2", "LA_kwDO3", "LA_kwDO4", "LA_kwDO5"]);
+    });
+
+    it("should reject when more than MAX_LABELS (10) labels are requested", async () => {
+      const handler = await main({
+        target: "*",
+        allow_labels: true,
+      });
+
+      // Agent requests 11 labels — exceeds MAX_LABELS limit
+      const result = await handler(
+        {
+          type: "update_discussion",
+          labels: ["Label1", "Label2", "Label3", "Label4", "Label5", "Label6", "Label7", "Label8", "Label9", "Label10", "Label11"],
+          discussion_number: 42,
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("10");
+
+      // No label mutations should have been called
+      expect(getAddLabelsCalls()).toHaveLength(0);
+      expect(getRemoveLabelsCalls()).toHaveLength(0);
     });
   });
 
