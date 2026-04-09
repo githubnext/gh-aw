@@ -283,7 +283,7 @@ Post a comment to the pull request with the full analysis using `add-comment`.
 **Comment format:**
 
 ```markdown
-## 🧪 Test Quality Sentinel Report
+### 🧪 Test Quality Sentinel Report
 
 ### Test Quality Score: {SCORE}/100
 

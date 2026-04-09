@@ -156,7 +156,7 @@ Create a GitHub issue with your recommendation.
 **Issue body**:
 
 ```markdown
-## 📡 OTel Instrumentation Improvement: <title>
+### 📡 OTel Instrumentation Improvement: <title>
 
 **Analysis Date**: <date from `date +%Y-%m-%d`>  
 **Priority**: High / Medium / Low  
@@ -199,7 +199,8 @@ After this change:
 - In the JSONL mirror: <what additional data appears>
 - For on-call engineers: <how debugging improves>
 
-### Implementation Steps
+<details>
+<summary><b>Implementation Steps</b></summary>
 
 - [ ] Identify the file(s) to modify
 - [ ] Add the attribute / fix the behavior (reference the code snippet above)
@@ -207,6 +208,8 @@ After this change:
 - [ ] Run `make test-unit` (or `cd actions/setup/js && npx vitest run`) to confirm tests pass
 - [ ] Run `make fmt` to ensure formatting
 - [ ] Open a PR referencing this issue
+
+</details>
 
 ### Evidence from Live Sentry Data
 
