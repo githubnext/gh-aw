@@ -261,9 +261,14 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
-	if level, ok := permissions.Get(PermissionDiscussions); ok {
-		fields["permission-discussions"] = string(level)
-	}
+	// Note: PermissionDiscussions ("discussions") is intentionally NOT mapped to "permission-discussions"
+	// here. The actions/create-github-app-token action does NOT declare "permission-discussions" as a
+	// supported input (see the generated inputs in its action.yml). Passing an unsupported input would
+	// be silently ignored, meaning the discussions scope would never be explicitly set. GitHub App
+	// installation tokens inherit the full set of app-installation permissions by default, so the token
+	// will have discussions access whenever the GitHub App installation itself was granted that permission.
+	// Repository-level discussions operations should therefore work without an explicit permission-discussions
+	// field.
 
 	// GitHub App-only permissions (not available in GitHub Actions GITHUB_TOKEN).
 	// Use GetExplicit() so that shorthand permissions like "read-all" do not accidentally

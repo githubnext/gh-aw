@@ -111,7 +111,13 @@ Test workflow without safe outputs.
 	assert.Nil(t, workflowData.SafeOutputs, "SafeOutputs should be nil")
 }
 
-// TestSafeOutputsAppTokenDiscussionsPermission tests that discussions permission is included
+// TestSafeOutputsAppTokenDiscussionsPermission tests that discussions permission is handled correctly
+// in the GitHub App token minting step.
+//
+// The actions/create-github-app-token action does NOT declare "permission-discussions" as a supported
+// input (its generated action.yml only has "permission-team-discussions" for org-level team discussions).
+// Therefore "permission-discussions" must NOT be emitted in the token mint step — the GitHub App
+// installation token inherits the app's discussion permission from the installation itself.
 func TestSafeOutputsAppTokenDiscussionsPermission(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
@@ -149,7 +155,10 @@ Test workflow with discussions permission.
 	// Convert steps to string for easier assertion
 	stepsStr := strings.Join(job.Steps, "")
 
-	// Verify that permission-discussions: write is included in the GitHub App token minting step
-	assert.Contains(t, stepsStr, "permission-discussions: write", "GitHub App token should include discussions write permission")
+	// permission-discussions is NOT a valid input to actions/create-github-app-token and must not
+	// appear in the token mint step. Discussions access is inherited from the GitHub App installation.
+	assert.NotContains(t, stepsStr, "permission-discussions:", "GitHub App token must not use permission-discussions (not a valid action input)")
+	// Other explicitly supported permission inputs should still be present
 	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission (create-discussion falls back to issue)")
 }
