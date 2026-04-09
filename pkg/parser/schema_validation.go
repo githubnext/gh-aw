@@ -99,4 +99,12 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 	return validateEngineSpecificRules(filtered)
 }
 
-// ValidateMCPConfigWithSchema validates MCP configuration using JSON schema
+// ValidateMCPConfigWithSchema validates MCP configuration using JSON schema.
+// The caller is responsible for passing only the fields defined in the MCP
+// config schema; additional tool-specific fields (e.g. auth, proxy-args)
+// must be stripped before calling this function because the schema uses
+// additionalProperties: false.
+func ValidateMCPConfigWithSchema(mcpConfig map[string]any) error {
+	schemaValidationLog.Printf("Validating MCP configuration against JSON schema: %d fields", len(mcpConfig))
+	return validateWithSchema(mcpConfig, mcpConfigSchema, "MCP configuration")
+}
