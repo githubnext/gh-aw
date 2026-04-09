@@ -1846,8 +1846,75 @@ describe("sanitize_content.cjs", () => {
         const input = "\uFEFF\u200B\uFF21\u202E\u0301\u200C";
         // BOM + ZWS + full-width A + RTL + combining + ZWNJ
         const result = sanitizeContent(input);
-        // Should result in just "A" with the combining accent normalized
-        expect(result.replace(/\u0301/g, "")).toBe("A");
+        // After NFKC normalization, full-width A + combining accent (U+0301) composes to Á (U+00C1)
+        expect(result).toBe("Á");
+      });
+    });
+
+    describe("Cyrillic and Greek homoglyph normalization", () => {
+      it("should map Cyrillic А (U+0410) to Latin A", () => {
+        expect(sanitizeContent("\u0410BC")).toBe("ABC");
+      });
+
+      it("should map Cyrillic С (U+0421) to Latin C", () => {
+        expect(sanitizeContent("\u0421\u0410\u0422")).toBe("CAT");
+      });
+
+      it("should map a mixed Cyrillic homoglyph string to its Latin equivalent", () => {
+        // АТТАCК using Cyrillic А, Т, Т, А, С, К
+        const input = "\u0410\u0422\u0422\u0410\u0421\u041A";
+        expect(sanitizeContent(input)).toBe("ATTACK");
+      });
+
+      it("should map Cyrillic lowercase о (U+043E) to Latin o", () => {
+        // Cyrillic о (U+043E) looks like Latin o; verify it maps to 'o'
+        expect(sanitizeContent("t\u043Eken")).toBe("token");
+      });
+
+      it("should map Cyrillic р (U+0440) to Latin p", () => {
+        expect(sanitizeContent("\u0440assword")).toBe("password");
+      });
+
+      it("should map Greek Α (U+0391) to Latin A", () => {
+        expect(sanitizeContent("\u0391BC")).toBe("ABC");
+      });
+
+      it("should map Greek Ο (U+039F) to Latin O", () => {
+        expect(sanitizeContent("T\u039FKEN")).toBe("TOKEN");
+      });
+
+      it("should map Greek lowercase ο (U+03BF) to Latin o", () => {
+        expect(sanitizeContent("t\u03BFken")).toBe("token");
+      });
+
+      it("should handle mixed Latin and Cyrillic homoglyph word", () => {
+        // 'secret' with Cyrillic ѕ (U+0455→s) and е (U+0435→e) substituted
+        const input = "\u0455\u0435cret";
+        expect(sanitizeContent(input)).toBe("secret");
+      });
+
+      it("should handle Ukrainian і (U+0456) mapped to Latin i", () => {
+        expect(sanitizeContent("\u0456ssue")).toBe("issue");
+      });
+
+      it("should handle Greek Ζ (U+0396) mapped to Latin Z", () => {
+        expect(sanitizeContent("\u0396ero")).toBe("Zero");
+      });
+
+      it("should not affect regular Latin text", () => {
+        const input = "Hello World";
+        expect(sanitizeContent(input)).toBe("Hello World");
+      });
+
+      it("should not affect legitimate Cyrillic text that has no Latin lookalike", () => {
+        // Ф (U+0424) has no Latin lookalike; should remain as-is
+        expect(sanitizeContent("Ф")).toBe("Ф");
+      });
+
+      it("should handle full homoglyph-substituted word using all Cyrillic lookalikes", () => {
+        // 'COMET' with all Cyrillic lookalikes: С О М Е Т
+        const input = "\u0421\u041E\u041C\u0415\u0422";
+        expect(sanitizeContent(input)).toBe("COMET");
       });
     });
 
