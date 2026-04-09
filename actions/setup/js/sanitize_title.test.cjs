@@ -54,8 +54,8 @@ describe("sanitize_title", () => {
       it("should convert fullwidth ASCII to standard ASCII", () => {
         // Fullwidth brackets
         expect(sanitizeTitle("［Test］")).toBe("[Test]");
-        // Fullwidth letters and numbers (note: fullwidth space U+3000 is not converted by hardenUnicodeText)
-        expect(sanitizeTitle("Ｔｅｓｔ　１２３")).toBe("Test　123");
+        // Fullwidth letters and numbers; NFKC normalization also converts fullwidth space U+3000 to regular space U+0020
+        expect(sanitizeTitle("Ｔｅｓｔ　１２３")).toBe("Test 123");
         // Mix of fullwidth and normal
         expect(sanitizeTitle("Test［Ａｇｅｎｔ］")).toBe("Test[Agent]");
       });
