@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -757,4 +758,55 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		assert.Contains(t, result, "CLI_PROXY_IMAGE:", "should include CLI_PROXY_IMAGE")
 		assert.Contains(t, result, "start_cli_proxy.sh", "should reference the start script")
 	})
+}
+
+// TestResolveProxyContainerImage verifies that the helper builds the correct container
+// image reference from the gateway config, falling back to the default version when
+// no version is specified.
+func TestResolveProxyContainerImage(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *MCPGatewayRuntimeConfig
+		expected string
+	}{
+		{
+			name: "uses default version when version is empty",
+			config: &MCPGatewayRuntimeConfig{
+				Container: constants.DefaultMCPGatewayContainer,
+				Version:   "",
+			},
+			expected: constants.DefaultMCPGatewayContainer + ":" + string(constants.DefaultMCPGatewayVersion),
+		},
+		{
+			name: "uses explicit version when set",
+			config: &MCPGatewayRuntimeConfig{
+				Container: constants.DefaultMCPGatewayContainer,
+				Version:   "v1.2.3",
+			},
+			expected: constants.DefaultMCPGatewayContainer + ":v1.2.3",
+		},
+		{
+			name: "custom container with default version fallback",
+			config: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/myorg/my-proxy",
+				Version:   "",
+			},
+			expected: "ghcr.io/myorg/my-proxy:" + string(constants.DefaultMCPGatewayVersion),
+		},
+		{
+			name: "custom container with explicit version",
+			config: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/myorg/my-proxy",
+				Version:   "latest",
+			},
+			expected: "ghcr.io/myorg/my-proxy:latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveProxyContainerImage(tt.config)
+			assert.Equal(t, tt.expected, got, "resolveProxyContainerImage(%+v)", tt.config)
+		})
+	}
 }
