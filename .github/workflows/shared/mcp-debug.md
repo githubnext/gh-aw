@@ -23,7 +23,7 @@ safe-outputs:
         - name: Checkout repository
           uses: actions/checkout@v6.0.2
         - name: Post diagnostic report to pull request
-          uses: actions/github-script@v8
+          uses: actions/github-script@v9
           with:
             script: |
               const fs = require('fs');

@@ -21,7 +21,7 @@ on:
   steps:
     - name: Search for candidate issues
       id: search
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const { owner, repo } = context.repo;

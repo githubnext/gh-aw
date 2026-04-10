@@ -180,7 +180,7 @@ Just a simple test workflow.
 	// These version-based references should NOT appear in the generated workflow
 	forbiddenPatterns := []string{
 		"actions/checkout@v5",
-		"actions/github-script@v8",
+		"actions/github-script@v9",
 		"actions/upload-artifact@v4",
 		"actions/download-artifact@v6",
 		"actions/cache@v4",

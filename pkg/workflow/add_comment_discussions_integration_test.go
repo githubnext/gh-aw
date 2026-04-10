@@ -116,6 +116,7 @@ func TestAddCommentDiscussionsFieldSchemaIntegration(t *testing.T) {
 			name: "discussions: true is accepted",
 			workflowMD: `---
 name: Test Workflow
+on: push
 engine: copilot
 safe-outputs:
   add-comment:
@@ -131,6 +132,7 @@ Handle issues.
 			name: "discussions: false is accepted",
 			workflowMD: `---
 name: Test Workflow
+on: push
 engine: copilot
 safe-outputs:
   add-comment:
@@ -146,6 +148,7 @@ Handle issues.
 			name: "add-comment without discussions field is accepted",
 			workflowMD: `---
 name: Test Workflow
+on: push
 engine: copilot
 safe-outputs:
   add-comment: {}

@@ -386,39 +386,6 @@ fi
 
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 
-# Install @actions/github package if any safe output uses a per-handler github-token.
-# handler_auth.cjs needs getOctokit() from @actions/github to create a new Octokit
-# instance when a handler has its own token (for cross-repo operations, project tokens, etc.).
-if [ "${SAFE_OUTPUT_CUSTOM_TOKENS_ENABLED}" = "true" ]; then
-  echo "Custom tokens enabled - installing @actions/github package in ${DESTINATION}..."
-  cd "${DESTINATION}"
-
-  # Check if npm is available
-  if ! command -v npm &> /dev/null; then
-    echo "::error::npm is not available. Cannot install @actions/github package."
-    exit 1
-  fi
-
-  # Create a minimal package.json if it doesn't exist
-  if [ ! -f "package.json" ]; then
-    echo '{"private": true}' > package.json
-  fi
-
-  # Install @actions/github package
-  npm install --ignore-scripts --no-save --loglevel=error @actions/github@^7.0.0 2>&1 | grep -v "npm WARN" || true
-  if [ -d "node_modules/@actions/github" ]; then
-    echo "✓ Successfully installed @actions/github package"
-  else
-    echo "::error::Failed to install @actions/github package"
-    exit 1
-  fi
-
-  # Return to original directory
-  cd - > /dev/null
-else
-  debug_log "Custom tokens not enabled - skipping @actions/github installation"
-fi
-
 # Install @actions/artifact package if upload-artifact safe output is configured.
 # upload_artifact.cjs uses DefaultArtifactClient to upload via Actions REST API directly.
 if [ "${SAFE_OUTPUT_ARTIFACT_CLIENT_ENABLED}" = "true" ]; then

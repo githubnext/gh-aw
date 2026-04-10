@@ -605,7 +605,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		// Repo memory job doesn't need project support
 		// Repo memory job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		repoMemoryTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, repoMemoryTraceID)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, repoMemoryTraceID)...)
 	}
 
 	// Add checkout step to configure git (without checking out files)
@@ -706,13 +706,13 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		if useRequire {
 			// Use require() to load script from copied files using setup_globals helper
 			step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-			step.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+			step.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 			step.WriteString("            const { main } = require('" + SetupActionDestination + "/push_repo_memory.cjs');\n")
 			step.WriteString("            await main();\n")
 		} else {
 			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
 			step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-			step.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+			step.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML("const { main } = require('${{ runner.temp }}/gh-aw/actions/push_repo_memory.cjs'); await main();")
 			for _, line := range formattedScript {

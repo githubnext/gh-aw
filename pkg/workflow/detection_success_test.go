@@ -74,7 +74,7 @@ Create an issue.
 	}
 
 	// Check that setupGlobals is called
-	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io)") {
+	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io, getOctokit)") {
 		t.Error("Detection conclusion step doesn't call setupGlobals")
 	}
 

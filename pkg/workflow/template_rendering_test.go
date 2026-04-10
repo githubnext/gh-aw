@@ -122,7 +122,7 @@ Normal content here.
 		t.Error("Template rendering step should use setupGlobals helper")
 	}
 
-	if !strings.Contains(compiledStr, "setupGlobals(core, github, context, exec, io)") {
+	if !strings.Contains(compiledStr, "setupGlobals(core, github, context, exec, io, getOctokit)") {
 		t.Error("Template rendering step should call setupGlobals function")
 	}
 

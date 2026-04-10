@@ -46,7 +46,7 @@ jobs:
           persist-credentials: false
       - name: Compute release configuration
         id: compute_config
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const releaseType = context.payload.inputs.release_type;

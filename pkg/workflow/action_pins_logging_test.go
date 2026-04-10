@@ -200,17 +200,17 @@ func TestActionCacheDuplicateSHAWarning(t *testing.T) {
 	// Create a test cache with one entry
 	cache := &ActionCache{
 		Entries: map[string]ActionCacheEntry{
-			"actions/github-script@v8": {
+			"actions/github-script@v9": {
 				Repo:    "actions/github-script",
-				Version: "v8",
-				SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+				Version: "v9",
+				SHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 			},
 		},
 		path: "/tmp/test-cache.json",
 	}
 
 	// Add a second entry with the same SHA but different version
-	cache.Set("actions/github-script", "v8.0.0", "ed597411d8f924073f98dfc5c65a23a2325f34cd")
+	cache.Set("actions/github-script", "v9.0.0", "3a2844b7e9c422d3c10d287c895573f7108da1b3")
 
 	// Verify both entries are in the cache
 	if len(cache.Entries) != 2 {
@@ -218,15 +218,15 @@ func TestActionCacheDuplicateSHAWarning(t *testing.T) {
 	}
 
 	// Verify both have the same SHA (this is what causes the issue)
-	v8Entry := cache.Entries["actions/github-script@v8"]
-	v800Entry := cache.Entries["actions/github-script@v8.0.0"]
-	if v8Entry.SHA != v800Entry.SHA {
+	v9Entry := cache.Entries["actions/github-script@v9"]
+	v900Entry := cache.Entries["actions/github-script@v9.0.0"]
+	if v9Entry.SHA != v900Entry.SHA {
 		t.Error("Expected both entries to have the same SHA")
 	}
 
 	t.Logf("Cache has duplicate SHA entries with different versions:")
-	t.Logf("  v8: %s", v8Entry.SHA[:8])
-	t.Logf("  v8.0.0: %s", v800Entry.SHA[:8])
+	t.Logf("  v9: %s", v9Entry.SHA[:8])
+	t.Logf("  v9.0.0: %s", v900Entry.SHA[:8])
 	t.Logf("This configuration causes version comment flipping in lock files")
 }
 
@@ -240,20 +240,20 @@ func TestDeduplicationRemovesLessPreciseVersions(t *testing.T) {
 		expectedRemoveCount int
 	}{
 		{
-			name: "v8.0.0 is kept over v8",
+			name: "v9.0.0 is kept over v9",
 			entries: map[string]ActionCacheEntry{
-				"actions/github-script@v8": {
+				"actions/github-script@v9": {
 					Repo:    "actions/github-script",
-					Version: "v8",
-					SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+					Version: "v9",
+					SHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 				},
-				"actions/github-script@v8.0.0": {
+				"actions/github-script@v9.0.0": {
 					Repo:    "actions/github-script",
-					Version: "v8.0.0",
-					SHA:     "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+					Version: "v9.0.0",
+					SHA:     "3a2844b7e9c422d3c10d287c895573f7108da1b3",
 				},
 			},
-			expectedKeep:        "actions/github-script@v8.0.0",
+			expectedKeep:        "actions/github-script@v9.0.0",
 			expectedRemoveCount: 1,
 		},
 		{
