@@ -207,7 +207,7 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 
 	for i, img := range images {
 		if cache != nil {
-			if pin, ok := cache.GetContainerPin(img); ok {
+			if pin, ok := cache.GetContainerPin(img); ok && pin.PinnedImage != "" {
 				result[i] = pin.PinnedImage
 				pins[i] = GHAWManifestContainer(pin)
 				dockerLog.Printf("Pinned container image: %s -> %s", img, pin.PinnedImage)

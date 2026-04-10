@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -194,6 +196,9 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 	return images, nil
 }
 
+// dockerCmdTimeout is the maximum time allowed for a single Docker CLI operation.
+const dockerCmdTimeout = 60 * time.Second
+
 // resolveContainerDigest returns the SHA-256 content digest for the given image tag.
 // It first attempts "docker buildx imagetools inspect" (no pull required), then
 // falls back to "docker pull" + "docker inspect".
@@ -223,8 +228,10 @@ func resolveContainerDigest(image string, verbose bool) (string, error) {
 func resolveDigestViaBuildx(image string) (string, error) {
 	// docker buildx imagetools inspect IMAGE --format '{{.Manifest.Digest}}'
 	// outputs a single line like: sha256:abc123...
-	out, err := exec.Command("docker", "buildx", "imagetools", "inspect",
-		image, "--format", "{{.Manifest.Digest}}").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), dockerCmdTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "docker", "buildx", "imagetools", "inspect",
+		image, "--format", "{{.Manifest.Digest}}").CombinedOutput()
 	if err != nil {
 		return "", err
 	}
@@ -241,14 +248,18 @@ func resolveDigestViaPull(image string, verbose bool) (string, error) {
 		fmt.Fprintf(os.Stderr, "  Pulling %s to resolve digest...\n", image)
 	}
 
-	if _, err := exec.Command("docker", "pull", "--quiet", image).Output(); err != nil {
-		return "", fmt.Errorf("docker pull failed: %w", err)
+	pullCtx, pullCancel := context.WithTimeout(context.Background(), dockerCmdTimeout)
+	defer pullCancel()
+	if out, err := exec.CommandContext(pullCtx, "docker", "pull", "--quiet", image).CombinedOutput(); err != nil {
+		return "", fmt.Errorf("docker pull failed: %w\n%s", err, strings.TrimSpace(string(out)))
 	}
 
-	out, err := exec.Command("docker", "inspect",
-		"--format", "{{index .RepoDigests 0}}", image).Output()
+	inspectCtx, inspectCancel := context.WithTimeout(context.Background(), dockerCmdTimeout)
+	defer inspectCancel()
+	out, err := exec.CommandContext(inspectCtx, "docker", "inspect",
+		"--format", "{{index .RepoDigests 0}}", image).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("docker inspect failed: %w", err)
+		return "", fmt.Errorf("docker inspect failed: %w\n%s", err, strings.TrimSpace(string(out)))
 	}
 
 	// RepoDigest format: "registry/image@sha256:..."  or "image@sha256:..."

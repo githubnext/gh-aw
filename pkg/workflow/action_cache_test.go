@@ -254,7 +254,39 @@ func TestActionCacheEmptySaveDeletesExistingFile(t *testing.T) {
 	}
 }
 
-// TestActionCacheDeduplication tests that duplicate entries are removed
+// TestActionCacheSaveWithContainerPinsOnly verifies that a cache with no Entries
+// but with ContainerPins is still written to disk (not treated as "empty").
+func TestActionCacheSaveWithContainerPinsOnly(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Add a container pin without any action entries
+	cache.SetContainerPin("node:lts-alpine", "sha256:abc123", "node:lts-alpine@sha256:abc123")
+
+	if err := cache.Save(); err != nil {
+		t.Fatalf("Failed to save cache with container pins only: %v", err)
+	}
+
+	// File should exist because ContainerPins is non-empty
+	cachePath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
+	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+		t.Error("Cache file should exist when ContainerPins is non-empty, even if Entries is empty")
+	}
+
+	// Reload and confirm the pin round-trips correctly
+	reloaded := NewActionCache(tmpDir)
+	if err := reloaded.Load(); err != nil {
+		t.Fatalf("Failed to reload cache: %v", err)
+	}
+	pin, ok := reloaded.GetContainerPin("node:lts-alpine")
+	if !ok {
+		t.Fatal("Container pin should have been reloaded")
+	}
+	if pin.Digest != "sha256:abc123" {
+		t.Errorf("Expected digest sha256:abc123, got %s", pin.Digest)
+	}
+}
+
 func TestActionCacheDeduplication(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)

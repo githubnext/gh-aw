@@ -147,8 +147,8 @@ func (c *ActionCache) Save() error {
 
 	actionCacheLog.Printf("Saving action cache to: %s with %d entries", c.path, len(c.Entries))
 
-	// If cache is empty, skip saving and delete the file if it exists
-	if len(c.Entries) == 0 {
+	// If cache is empty (no entries and no container pins), skip saving and delete the file if it exists
+	if len(c.Entries) == 0 && len(c.ContainerPins) == 0 {
 		actionCacheLog.Print("Cache is empty, skipping file creation")
 		// Remove the file if it exists
 		if _, err := os.Stat(c.path); err == nil {
