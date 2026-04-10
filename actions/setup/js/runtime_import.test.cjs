@@ -885,11 +885,14 @@ describe("runtime_import", () => {
         it("should prefer env var over context.payload.inputs for inputs.* expressions", () => {
           // When both env var and payload.inputs are set, env var should win
           // This ensures workflow_call inputs (delivered via env vars) are resolved correctly
+          // even when workflow_dispatch also populates context.payload.inputs
+          global.context.payload.inputs = { repository: "context-value" };
           process.env.GH_AW_INPUTS_REPOSITORY = "env-value";
           try {
             expect(evaluateExpression("inputs.repository")).toBe("env-value");
           } finally {
             delete process.env.GH_AW_INPUTS_REPOSITORY;
+            delete global.context.payload.inputs;
           }
         });
 
