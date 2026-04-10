@@ -274,7 +274,8 @@ touch %s
 	// When bare mode is enabled, set GEMINI_SYSTEM_MD to /dev/null to override the
 	// built-in system prompt with an empty one. This is the only supported mechanism
 	// to suppress Gemini CLI's default context loading (no dedicated CLI flag exists).
-	// Note: engine.env takes precedence above, so a user can still override this.
+	// engine.env (applied above) takes precedence: if the user explicitly sets
+	// GEMINI_SYSTEM_MD there, we skip the bare-mode default so their value wins.
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
 		geminiLog.Print("Bare mode enabled: setting GEMINI_SYSTEM_MD=/dev/null")
 		if _, alreadySet := env["GEMINI_SYSTEM_MD"]; !alreadySet {
