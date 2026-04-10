@@ -281,11 +281,65 @@ async function main() {
     }
   }
 
+  /**
+   * Re-runs the hash computation with full step-by-step debug logging.
+   * Called only when the first comparison reveals a mismatch or failure so that
+   * the extra verbosity does not appear in healthy runs.
+   * Uses the same file reader strategy (API first, local filesystem fallback).
+   */
+  async function recomputeHashWithDebugLogging() {
+    core.info("═══ Debug hash recomputation (verbose mode) ═══");
+    core.info("Re-running hash computation with full logging to aid debugging.");
+    core.info(`  Source file: ${workflowMdPath}`);
+    core.info(`  Source repo: ${owner}/${repo} @ ${ref || "(default branch)"}`);
+    try {
+      // Try API first (same strategy as compareFrontmatterHashes)
+      let fileReader;
+      try {
+        const testContent = await getFileContent(github, owner, repo, workflowMdPath, ref);
+        if (testContent) {
+          fileReader = createGitHubFileReader(github, owner, repo, ref);
+          core.info("  Using GitHub API file reader for debug pass");
+        }
+      } catch (_apiErr) {
+        // ignore; fall through to local filesystem
+      }
+
+      if (!fileReader) {
+        // Local filesystem fallback
+        const workspace = process.env.GITHUB_WORKSPACE;
+        if (workspace) {
+          const localMdFilePath = path.resolve(workspace, workflowMdPath);
+          const allowedDir = path.resolve(workspace, ".github", "workflows");
+          if (localMdFilePath.startsWith(allowedDir + path.sep)) {
+            core.info("  Using local filesystem file reader for debug pass");
+            // defaultFileReader is the built-in fs-based reader; wrap it as async
+            fileReader = async filePath => fs.readFileSync(filePath, "utf8");
+            // Override workflowMdPath to the resolved local path for this pass
+            await computeFrontmatterHash(localMdFilePath, { fileReader, verbose: true });
+            core.info("═══ End of debug hash recomputation ═══");
+            return;
+          }
+        }
+        core.info("  Cannot determine file reader for debug pass (API and local filesystem both unavailable)");
+        core.info("═══ End of debug hash recomputation ═══");
+        return;
+      }
+
+      await computeFrontmatterHash(workflowMdPath, { fileReader, verbose: true });
+    } catch (debugErr) {
+      core.info(`  Debug recomputation encountered an error: ${getErrorMessage(debugErr)}`);
+    }
+    core.info("═══ End of debug hash recomputation ═══");
+  }
+
   const hashComparison = await compareFrontmatterHashes();
 
   if (!hashComparison) {
-    // Could not compute hash - be conservative and fail
+    // Could not compute hash - run verbose pass for debugging then fail
     core.warning("Could not compare frontmatter hashes - assuming lock file is outdated");
+    await recomputeHashWithDebugLogging();
+
     const warningMessage = `Lock file '${lockFilePath}' is outdated or unverifiable! Could not verify frontmatter hash for '${workflowMdPath}'. Run 'gh aw compile' to regenerate the lock file.`;
 
     let summary = core.summary
@@ -298,12 +352,15 @@ async function main() {
 
     await summary.write();
 
+    core.setOutput("stale_lock_file_failed", "true");
     core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
   } else if (hashComparison.match) {
     // Hashes match - lock file is up to date
     core.info("✅ Lock file is up to date (hashes match)");
   } else {
-    // Hashes differ - lock file needs recompilation
+    // Hashes differ - run verbose pass for debugging then fail
+    await recomputeHashWithDebugLogging();
+
     const warningMessage = `Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' frontmatter has changed. Run 'gh aw compile' to regenerate the lock file.`;
 
     let summary = core.summary
@@ -317,6 +374,10 @@ async function main() {
       .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
 
     await summary.write();
+
+    // Signal the activation job so the conclusion job can surface this as a
+    // specialised failure issue (separate from agent runtime failures).
+    core.setOutput("stale_lock_file_failed", "true");
 
     // Fail the step to prevent workflow from running with outdated configuration
     core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);

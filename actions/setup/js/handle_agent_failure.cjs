@@ -718,6 +718,23 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
 }
 
 /**
+ * Build a context string when the frontmatter hash (stale lock file) check failed in the
+ * activation job. This surfaces remediation guidance — including how to disable the check —
+ * directly in the failure issue / comment.
+ * @param {boolean} hasStaleLockFileFailed - Whether the stale lock file check failed
+ * @returns {string} Formatted context string, or empty string if no failure
+ */
+function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
+  if (!hasStaleLockFileFailed) {
+    return "";
+  }
+
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/stale_lock_file_failed.md`;
+  const template = fs.readFileSync(templatePath, "utf8");
+  return "\n" + template;
+}
+
+/**
  * Build a context string when assigning the Copilot coding agent to created issues failed.
  * @param {boolean} hasAssignCopilotFailures - Whether any copilot assignments failed
  * @param {string} assignCopilotErrors - Newline-separated list of "issue:number:copilot:error" entries
@@ -920,6 +937,10 @@ async function main() {
     // Lockdown check failure from the activation job — set when validate_lockdown_requirements fails.
     // The agent is skipped in this case, but the conclusion job still runs to report the failure.
     const hasLockdownCheckFailed = process.env.GH_AW_LOCKDOWN_CHECK_FAILED === "true";
+    // Stale lock file check failure from the activation job — set when the frontmatter hash
+    // stored in the compiled .lock.yml no longer matches the source .md file.
+    // The agent is skipped in this case; the conclusion job runs to surface remediation guidance.
+    const hasStaleLockFileFailed = process.env.GH_AW_STALE_LOCK_FILE_FAILED === "true";
 
     // Collect repo-memory validation errors from all memory configurations
     const repoMemoryValidationErrors = [];
@@ -955,6 +976,7 @@ async function main() {
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
+    core.info(`Stale lock file check failed: ${hasStaleLockFileFailed}`);
 
     // Check if the agent timed out
     const isTimedOut = agentConclusion === "timed_out";
@@ -1026,7 +1048,7 @@ async function main() {
     // Only proceed if the agent job actually failed OR timed out OR there are assignment errors OR
     // create_discussion errors OR code-push failures OR push_repo_memory failed OR missing safe outputs
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
-    // OR the agent reported task incompletion via report_incomplete.
+    // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete.
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     if (
       agentConclusion !== "failure" &&
@@ -1039,9 +1061,10 @@ async function main() {
       !hasMissingSafeOutputs &&
       !hasAppTokenMintingFailed &&
       !hasLockdownCheckFailed &&
+      !hasStaleLockFileFailed &&
       !hasReportIncomplete
     ) {
-      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/report-incomplete errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+      core.info(`Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/stale-lock-file/report-incomplete errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -1217,6 +1240,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build stale lock file failure context
+        const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
+
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
@@ -1247,6 +1273,7 @@ async function main() {
           inference_access_error_context: inferenceAccessErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
+          stale_lock_file_failed_context: staleLockFileFailedContext,
         };
 
         // Render the comment template
@@ -1362,6 +1389,9 @@ async function main() {
         // Build lockdown check failure context
         const lockdownCheckFailedContext = buildLockdownCheckFailedContext(hasLockdownCheckFailed);
 
+        // Build stale lock file failure context
+        const staleLockFileFailedContext = buildStaleLockFileFailedContext(hasStaleLockFileFailed);
+
         // Build copilot assignment failure context for created issues
         const assignCopilotFailureContext = buildAssignCopilotFailureContext(hasAssignCopilotFailures, assignCopilotErrors);
 
@@ -1393,6 +1423,7 @@ async function main() {
           inference_access_error_context: inferenceAccessErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
+          stale_lock_file_failed_context: staleLockFileFailedContext,
         };
 
         // Render the issue template
@@ -1455,6 +1486,7 @@ module.exports = {
   buildPushRepoMemoryFailureContext,
   buildAppTokenMintingFailedContext,
   buildLockdownCheckFailedContext,
+  buildStaleLockFileFailedContext,
   buildTimeoutContext,
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,

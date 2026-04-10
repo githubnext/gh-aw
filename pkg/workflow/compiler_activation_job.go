@@ -88,6 +88,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Track whether the lockdown check failed so the conclusion job can surface
 	// the configuration error in the failure issue even when the agent never ran.
 	outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
+	// Track whether the frontmatter hash check failed (stale lock file detected) so the
+	// conclusion job can surface a specialised failure issue with remediation guidance.
+	// The output is only present when stale-check is enabled (the default).
+	if !data.StaleCheckDisabled {
+		outputs["stale_lock_file_failed"] = "${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}"
+	}
 
 	// Expose the resolved platform (host) repository and ref so agent and safe_outputs jobs
 	// can use needs.activation.outputs.target_repo / target_ref for any checkout that must
@@ -199,6 +205,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Skipped when on.stale-check: false is set in the frontmatter.
 	if !data.StaleCheckDisabled {
 		steps = append(steps, "      - name: Check workflow lock file\n")
+		steps = append(steps, "        id: check-lock-file\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
