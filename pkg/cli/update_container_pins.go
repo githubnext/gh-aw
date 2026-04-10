@@ -35,6 +35,9 @@ var dockerImagesArgPattern = regexp.MustCompile(`download_docker_images\.sh"?\s+
 // buildxDigestPattern matches the "Digest:" line in the output of
 // "docker buildx imagetools inspect", e.g. "Digest:    sha256:abc123..."
 // The first capture group is the full "sha256:..." digest string.
+// SHA-256 digests are always exactly 64 lowercase hexadecimal characters;
+// other hash algorithms (SHA-384, SHA-512) are not used by OCI image manifests
+// in practice and are not expected here.
 var buildxDigestPattern = regexp.MustCompile(`(?m)^Digest:\s+(sha256:[a-f0-9]{64})`)
 
 // UpdateContainerPins resolves SHA-256 digests for all container images referenced in
