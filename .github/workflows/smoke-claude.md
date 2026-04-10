@@ -19,6 +19,7 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 100
+  bare: true
 strict: false
 inlined-imports: true
 imports:

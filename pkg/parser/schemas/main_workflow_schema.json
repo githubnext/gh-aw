@@ -9379,6 +9379,11 @@
                 }
               },
               "additionalProperties": false
+            },
+            "bare": {
+              "type": "boolean",
+              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions, claude uses --bare, codex uses --no-system-prompt, gemini sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.",
+              "default": false
             }
           },
           "required": ["runtime"],

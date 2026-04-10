@@ -153,6 +153,14 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					}
 				}
 
+				// Extract optional 'bare' field (shared with non-inline path)
+				if bare, hasBare := engineObj["bare"]; hasBare {
+					if bareBool, ok := bare.(bool); ok {
+						config.Bare = bareBool
+						engineLog.Printf("Extracted bare mode (inline): %v", config.Bare)
+					}
+				}
+
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
 				return config.ID, config
 			}
