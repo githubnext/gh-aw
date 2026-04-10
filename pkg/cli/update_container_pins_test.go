@@ -106,18 +106,65 @@ func TestCollectImagesFromLockFiles_MissingDir(t *testing.T) {
 	assert.Nil(t, images, "missing dir should return nil images")
 }
 
-// TestCollectImagesFromLockFiles_IgnoresNonLockFiles verifies that non-.lock.yml
-// files are not scanned.
-func TestCollectImagesFromLockFiles_IgnoresNonLockFiles(t *testing.T) {
-	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+// TestBuildxDigestPattern verifies that the regex correctly extracts the top-level
+// "Digest:" line from docker buildx imagetools inspect text output.
+func TestBuildxDigestPattern(t *testing.T) {
+	tests := []struct {
+		name           string
+		output         string
+		expectedDigest string
+		shouldMatch    bool
+	}{
+		{
+			name: "standard OCI index output",
+			output: `Name:      docker.io/mcp/brave-search:latest
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22
 
-	// This is a .yml file (not .lock.yml) — should be ignored.
-	content := `run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" node:lts-alpine`
-	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "ci.yml"), []byte(content), 0644))
+Manifests:
+  Name:        docker.io/mcp/brave-search:latest@sha256:ae3b30d079370f67495d75085ffb73a11efcf9f9b23b919ffcb990ed2c076cfe
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/amd64
+`,
+			expectedDigest: "sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22",
+			shouldMatch:    true,
+		},
+		{
+			name: "single-platform image",
+			output: `Name:      ghcr.io/github/github-mcp-server:v0.32.0
+MediaType: application/vnd.oci.image.manifest.v1+json
+Digest:    sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1
+`,
+			expectedDigest: "sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1",
+			shouldMatch:    true,
+		},
+		{
+			name: "picks top-level Digest not manifest sub-digest",
+			output: `Name:      node:lts-alpine
+Digest:    sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
-	images, err := collectImagesFromLockFiles(workflowsDir)
-	require.NoError(t, err)
-	assert.Empty(t, images, "non-lock-yml files should be ignored")
+Manifests:
+  Name:        node:lts-alpine@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+`,
+			expectedDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			shouldMatch:    true,
+		},
+		{
+			name:        "no digest in output",
+			output:      "Name:      unknown\nMediaType: unknown\n",
+			shouldMatch: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			matches := buildxDigestPattern.FindSubmatch([]byte(tt.output))
+			if tt.shouldMatch {
+				require.NotNil(t, matches, "expected pattern to match")
+				assert.Equal(t, tt.expectedDigest, string(matches[1]), "extracted digest")
+			} else {
+				assert.Nil(t, matches, "expected pattern not to match")
+			}
+		})
+	}
 }

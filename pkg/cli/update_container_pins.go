@@ -32,6 +32,11 @@ type imageFailure struct {
 // Example: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" img1 img2
 var dockerImagesArgPattern = regexp.MustCompile(`download_docker_images\.sh"?\s+(.+)`)
 
+// buildxDigestPattern matches the "Digest:" line in the output of
+// "docker buildx imagetools inspect", e.g. "Digest:    sha256:abc123..."
+// The first capture group is the full "sha256:..." digest string.
+var buildxDigestPattern = regexp.MustCompile(`(?m)^Digest:\s+(sha256:[a-f0-9]{64})`)
+
 // UpdateContainerPins resolves SHA-256 digests for all container images referenced in
 // the compiled lock files under workflowDir and stores the pins in
 // .github/aw/actions-lock.json.
@@ -252,22 +257,25 @@ func resolveContainerDigest(ctx context.Context, image string, verbose bool) (st
 }
 
 // resolveDigestViaBuildx uses "docker buildx imagetools inspect" to get the content
-// digest without pulling the image layers.
+// digest without pulling the image layers. It parses the top-level "Digest:" line
+// from the human-readable text output because the --format template flag is not
+// supported consistently across all Docker buildx versions.
 func resolveDigestViaBuildx(ctx context.Context, image string) (string, error) {
-	// docker buildx imagetools inspect IMAGE --format '{{.Manifest.Digest}}'
-	// outputs a single line like: sha256:abc123...
+	// Run without --format so the output is the stable human-readable text, e.g.:
+	//   Name:      ghcr.io/github/github-mcp-server:v0.32.0
+	//   MediaType: application/vnd.oci.image.index.v1+json
+	//   Digest:    sha256:abc123...
 	ctx, cancel := context.WithTimeout(ctx, dockerCmdTimeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "docker", "buildx", "imagetools", "inspect",
-		image, "--format", "{{.Manifest.Digest}}").CombinedOutput()
+	out, err := exec.CommandContext(ctx, "docker", "buildx", "imagetools", "inspect", image).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("buildx inspect failed: %w\n%s", err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("buildx inspect failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
-	digest := strings.TrimSpace(string(out))
-	if !strings.HasPrefix(digest, "sha256:") {
-		return "", fmt.Errorf("unexpected digest format: %q", digest)
+	matches := buildxDigestPattern.FindSubmatch(out)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("no sha256 digest found in buildx inspect output for %s", image)
 	}
-	return digest, nil
+	return string(matches[1]), nil
 }
 
 // resolveDigestViaCrane uses the "crane" CLI tool to resolve a digest without
@@ -298,7 +306,7 @@ func resolveDigestViaPull(ctx context.Context, image string, verbose bool) (stri
 	pullCtx, pullCancel := context.WithTimeout(ctx, dockerCmdTimeout)
 	defer pullCancel()
 	if out, err := exec.CommandContext(pullCtx, "docker", "pull", "--quiet", image).CombinedOutput(); err != nil {
-		return "", fmt.Errorf("docker pull failed: %w\n%s", err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("docker pull failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	inspectCtx, inspectCancel := context.WithTimeout(ctx, dockerCmdTimeout)
@@ -306,7 +314,7 @@ func resolveDigestViaPull(ctx context.Context, image string, verbose bool) (stri
 	out, err := exec.CommandContext(inspectCtx, "docker", "inspect",
 		"--format", "{{index .RepoDigests 0}}", image).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("docker inspect failed: %w\n%s", err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("docker inspect failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	// RepoDigest format: "registry/image@sha256:..."  or "image@sha256:..."
