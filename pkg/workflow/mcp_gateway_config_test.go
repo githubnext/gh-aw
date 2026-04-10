@@ -500,3 +500,78 @@ func TestIsAgentSandboxDisabled(t *testing.T) {
 		})
 	}
 }
+
+// TestMCPGatewaySupportsStringHeaders verifies that mcpGatewaySupportsStringHeaders
+// correctly identifies gateway versions that accept the opentelemetry.headers field
+// as a plain string (≥ MCPGatewayStringHeadersMinVersion = v0.2.17) versus those
+// that require it to be an object (< v0.2.17).
+func TestMCPGatewaySupportsStringHeaders(t *testing.T) {
+	tests := []struct {
+		name      string
+		mcpConfig *MCPGatewayRuntimeConfig
+		expected  bool
+	}{
+		{
+			name:      "nil config uses default version - supports string headers",
+			mcpConfig: nil,
+			expected:  true,
+		},
+		{
+			name:      "empty version uses default - supports string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: ""},
+			expected:  true,
+		},
+		{
+			name:      "latest always supports string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "latest"},
+			expected:  true,
+		},
+		{
+			name:      "LATEST (uppercase) always supports string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "LATEST"},
+			expected:  true,
+		},
+		{
+			name:      "default version supports string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: string(constants.DefaultMCPGatewayVersion)},
+			expected:  true,
+		},
+		{
+			name:      "v0.2.17 supports string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "v0.2.17"},
+			expected:  true,
+		},
+		{
+			name:      "v0.2.18 supports string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "v0.2.18"},
+			expected:  true,
+		},
+		{
+			name:      "v0.2.16 does NOT support string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "v0.2.16"},
+			expected:  false,
+		},
+		{
+			name:      "v0.2.0 does NOT support string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "v0.2.0"},
+			expected:  false,
+		},
+		{
+			name:      "v0.1.99 does NOT support string headers",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "v0.1.99"},
+			expected:  false,
+		},
+		{
+			name:      "non-semver string is conservative - returns false",
+			mcpConfig: &MCPGatewayRuntimeConfig{Version: "my-feature-branch"},
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mcpGatewaySupportsStringHeaders(tt.mcpConfig)
+			assert.Equal(t, tt.expected, result, "mcpGatewaySupportsStringHeaders result should match expected")
+		})
+	}
+}

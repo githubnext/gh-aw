@@ -61,6 +61,14 @@ const AWFCliProxyMinVersion Version = "v0.25.17"
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.2.17"
 
+// MCPGatewayStringHeadersMinVersion is the minimum MCP Gateway version that accepts
+// the opentelemetry.headers field as a plain string value.
+// Gateway versions older than this require headers to be an object (key-value map),
+// which is no longer supported — headers are now always passed as a raw string.
+// Any workflow pinning a gateway version older than v0.2.17 that also configures
+// observability.otlp.headers will fail at startup with a schema validation error.
+const MCPGatewayStringHeadersMinVersion Version = "v0.2.17"
+
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.70"
 

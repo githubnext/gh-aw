@@ -46,11 +46,42 @@
 package workflow
 
 import (
+	"strings"
+
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var mcpGatewayConfigLog = logger.New("workflow:mcp_gateway_config")
+
+// mcpGatewaySupportsStringHeaders returns true when the effective MCP Gateway version
+// supports the opentelemetry.headers field as a plain string value.
+//
+// Gateway versions before MCPGatewayStringHeadersMinVersion require headers to be an
+// object (key-value map). Starting with v0.2.17, the schema accepts only a raw string
+// passed through as-is to the OTLP exporter.
+//
+// Special cases:
+//   - No version override (mcpConfig is nil or has no Version): the default is always
+//     ≥ MCPGatewayStringHeadersMinVersion → returns true.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ MCPGatewayStringHeadersMinVersion: returns true.
+//   - Any semver string < MCPGatewayStringHeadersMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func mcpGatewaySupportsStringHeaders(mcpConfig *MCPGatewayRuntimeConfig) bool {
+	if mcpConfig == nil || mcpConfig.Version == "" {
+		// No version override → use the default, which is always ≥ the minimum.
+		return true
+	}
+
+	// "latest" means the newest release — always supports string headers.
+	if strings.EqualFold(mcpConfig.Version, "latest") {
+		return true
+	}
+
+	minVersion := string(constants.MCPGatewayStringHeadersMinVersion)
+	return compareVersions(mcpConfig.Version, minVersion) >= 0
+}
 
 // ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
 // The MCP gateway is mandatory and defaults to github/gh-aw-mcpg

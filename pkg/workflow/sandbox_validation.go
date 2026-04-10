@@ -114,6 +114,28 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
 	}
 
+	// Validate MCP gateway version compatibility with OTLP string headers.
+	// Gateway versions before MCPGatewayStringHeadersMinVersion require headers to be an
+	// object, but the compiler always emits headers as a plain string. Workflows that pin
+	// an old gateway version AND configure observability.otlp.headers will crash at runtime
+	// with a schema validation error, so we catch this at compile time instead.
+	if isOTLPHeadersPresent(workflowData) && sandboxConfig.MCP != nil && sandboxConfig.MCP.Version != "" {
+		if !mcpGatewaySupportsStringHeaders(sandboxConfig.MCP) {
+			return NewConfigurationError(
+				"sandbox.mcp.version",
+				sandboxConfig.MCP.Version,
+				"this MCP Gateway version does not support string OTLP headers",
+				"Update sandbox.mcp.version to "+string(constants.MCPGatewayStringHeadersMinVersion)+" or later.\n"+
+					"Gateway versions before "+string(constants.MCPGatewayStringHeadersMinVersion)+" require opentelemetry.headers\n"+
+					"to be an object, but the compiler emits it as a string. This mismatch causes\n"+
+					"a schema validation failure at gateway startup.\n\n"+
+					"Either upgrade the pinned version or remove sandbox.mcp.version to use the\n"+
+					"default version which already supports string headers.",
+			)
+		}
+		sandboxValidationLog.Printf("MCP gateway version %s supports string OTLP headers", sandboxConfig.MCP.Version)
+	}
+
 	// Validate that if agent sandbox is enabled, MCP gateway is always enabled
 	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP)
 	// Only validate this when sandbox is explicitly configured (not nil)
