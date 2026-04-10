@@ -113,7 +113,9 @@ func TestCopilotEngineWithoutAgentFlag(t *testing.T) {
 	}
 }
 
-// TestClaudeEngineWithAgentFromImports tests that claude engine prepends agent file content to prompt
+// TestClaudeEngineWithAgentFromImports tests that claude engine does NOT handle agent files
+// natively — agent file content is prepended to prompt.txt by the compiler in the activation
+// job, so the engine step always reads the standard prompt.txt path.
 func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{
@@ -132,19 +134,26 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Check that custom agent content extraction is present
-	if !strings.Contains(stepContent, `AGENT_CONTENT="$(awk`) {
-		t.Errorf("Expected agent content extraction in claude command, got:\n%s", stepContent)
+	// Claude does not handle the agent file natively — no awk or AGENT_CONTENT/PROMPT_TEXT
+	// variable juggling should appear in the step.
+	if strings.Contains(stepContent, "AGENT_CONTENT") {
+		t.Errorf("Claude must NOT handle agent file natively (AGENT_CONTENT found in step); the compiler handles it:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "awk") {
+		t.Errorf("Claude must NOT invoke awk for agent file reading (found in step); the compiler handles it:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "PROMPT_TEXT") {
+		t.Errorf("Claude must NOT use a PROMPT_TEXT shell variable (found in step); the compiler handles it:\n%s", stepContent)
 	}
 
-	// Check that agent file path is referenced with quoted GITHUB_WORKSPACE prefix
-	if !strings.Contains(stepContent, `"${GITHUB_WORKSPACE}/.github/agents/test-agent.md"`) {
-		t.Errorf("Expected agent file path with quoted GITHUB_WORKSPACE prefix in claude command, got:\n%s", stepContent)
+	// The engine still reads the standard prompt.txt (which has agent content prepended by the compiler).
+	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+		t.Errorf("Expected standard prompt.txt reading in claude command, got:\n%s", stepContent)
 	}
 
-	// Check that agent content is prepended to prompt
-	if !strings.Contains(stepContent, "$AGENT_CONTENT") {
-		t.Errorf("Expected $AGENT_CONTENT variable in claude command, got:\n%s", stepContent)
+	// The engine reports that it does not support native agent file handling.
+	if engine.SupportsNativeAgentFile() {
+		t.Errorf("Claude engine should return false for SupportsNativeAgentFile()")
 	}
 }
 
@@ -344,8 +353,11 @@ This is a test agent file.
 	})
 }
 
-// TestInvalidAgentFilePathGeneratesFailingStep tests that engines emit a clearly-failing step
-// (rather than silently skipping execution) when an agent file path contains shell metacharacters.
+// TestInvalidAgentFilePathGeneratesFailingStep tests that engines that handle agent files
+// natively emit a clearly-failing step (rather than silently skipping execution) when the
+// agent file path contains shell metacharacters.
+// Engines that do NOT support native agent files (e.g. Claude) rely on the compiler's
+// validateAgentFile to reject malicious paths at compile time instead.
 func TestInvalidAgentFilePathGeneratesFailingStep(t *testing.T) {
 	maliciousPath := `.github/agents/a";id;"b.md`
 
@@ -373,7 +385,10 @@ func TestInvalidAgentFilePathGeneratesFailingStep(t *testing.T) {
 		}
 	})
 
-	t.Run("claude_emits_failing_step_for_invalid_path", func(t *testing.T) {
+	// Claude does not handle agent files natively; path validation is done by the compiler
+	// at compile time (validateAgentFile). The engine step should proceed normally and never
+	// reference the agent file path directly.
+	t.Run("claude_ignores_agent_path_in_step_for_invalid_path", func(t *testing.T) {
 		engine := NewClaudeEngine()
 		workflowData := &WorkflowData{
 			Name:      "test-workflow",
@@ -382,18 +397,15 @@ func TestInvalidAgentFilePathGeneratesFailingStep(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
 		if len(steps) != 1 {
-			t.Fatalf("Expected exactly 1 failing step, got %d", len(steps))
+			t.Fatalf("Expected exactly 1 step, got %d", len(steps))
 		}
 		content := strings.Join([]string(steps[0]), "\n")
-		if !strings.Contains(content, "exit 1") {
-			t.Errorf("Expected failing step with 'exit 1', got:\n%s", content)
+		// Must NOT reference the malicious path at all in the generated step
+		if strings.Contains(content, maliciousPath) {
+			t.Errorf("Claude step must not reference the agent file path directly, got:\n%s", content)
 		}
-		if !strings.Contains(content, "Error") {
-			t.Errorf("Expected error message in failing step, got:\n%s", content)
-		}
-		// Must NOT invoke awk (that would mean the path was used for real execution)
 		if strings.Contains(content, "awk") {
-			t.Errorf("Failing step must not invoke awk with the invalid path, got:\n%s", content)
+			t.Errorf("Claude step must not invoke awk for agent file reading, got:\n%s", content)
 		}
 	})
 }
@@ -465,4 +477,59 @@ func TestCheckoutWithAgentFromImports(t *testing.T) {
 			t.Error("Expected checkout NOT to be added when custom steps already contain checkout, even with agent file")
 		}
 	})
+}
+
+// TestCompilerIncludesAgentFileViaImportPaths verifies that when a non-native engine (Claude)
+// is used with an agent file, the agent file path is included in the prompt via the standard
+// ImportPaths/runtime-import mechanism (Step 1b in generatePrompt), so that prompt.txt
+// already contains the agent file content when the engine reads it.
+func TestCompilerIncludesAgentFileViaImportPaths(t *testing.T) {
+	agentFilePath := ".github/agents/my-agent.md"
+
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, ".github", "workflows", "test.md")
+	if err := os.MkdirAll(filepath.Dir(workflowFile), 0o755); err != nil {
+		t.Fatalf("Failed to create workflow directory: %v", err)
+	}
+	if err := os.WriteFile(workflowFile, []byte("# Do the thing\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Simulate what the orchestrator populates: the agent file is in ImportPaths (no inputs).
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		AI:   "claude",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		AgentFile: agentFilePath,
+		// ImportPaths mirrors what import_bfs.go populates for agent files without inputs.
+		ImportPaths: []string{agentFilePath},
+	}
+
+	compiler := NewCompiler()
+	compiler.markdownPath = workflowFile
+
+	var buf strings.Builder
+	compiler.generatePrompt(&buf, workflowData, false, nil)
+	generated := buf.String()
+
+	// The runtime-import macro for the agent file must appear in the generated YAML (exactly once).
+	agentImportMacro := "{{#runtime-import " + agentFilePath + "}}"
+	count := strings.Count(generated, agentImportMacro)
+	if count == 0 {
+		t.Errorf("Expected runtime-import macro %q in generated prompt YAML, got:\n%s", agentImportMacro, generated)
+	} else if count > 1 {
+		t.Errorf("Expected runtime-import macro %q exactly once, but found %d occurrences:\n%s", agentImportMacro, count, generated)
+	}
+
+	// The agent file import must appear before the main workflow markdown import.
+	mainWorkflowMacro := "{{#runtime-import .github/workflows/test.md}}"
+	agentIdx := strings.Index(generated, agentImportMacro)
+	mainIdx := strings.Index(generated, mainWorkflowMacro)
+	if mainIdx == -1 {
+		t.Errorf("Expected main workflow runtime-import macro %q in generated prompt YAML, got:\n%s", mainWorkflowMacro, generated)
+	} else if agentIdx > mainIdx {
+		t.Errorf("Agent file runtime-import macro must appear before main workflow macro in prompt:\n%s", generated)
+	}
 }

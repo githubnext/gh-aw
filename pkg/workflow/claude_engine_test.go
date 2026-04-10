@@ -392,7 +392,9 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	}
 }
 
-// TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped
+// TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped.
+// Claude always reads the prompt from prompt.txt; agent-file content is prepended there by
+// the compiler rather than being handled in the engine step.
 func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 	engine := NewClaudeEngine()
 
@@ -419,8 +421,9 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		}
 	})
 
-	// Test with agent file (custom prompt)
-	t.Run("with_agent_file", func(t *testing.T) {
+	// Test with agent file: Claude still reads from prompt.txt (compiler prepended the agent
+	// file content there); no PROMPT_TEXT shell variable should appear in the step.
+	t.Run("with_agent_file_uses_prompt_txt", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -432,27 +435,33 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		// Should have single-quoted PROMPT_TEXT, not double-quoted
-		if strings.Contains(stepContent, `""$PROMPT_TEXT""`) {
-			t.Errorf("Found double-escaped PROMPT_TEXT variable (with double quotes), expected single quotes:\n%s", stepContent)
+		// Must still read from prompt.txt — not from a PROMPT_TEXT shell variable
+		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+			t.Errorf("Expected claude to read from prompt.txt even with agent file set, got:\n%s", stepContent)
 		}
-
-		// Should have correctly quoted PROMPT_TEXT
-		if !strings.Contains(stepContent, `"$PROMPT_TEXT"`) {
-			t.Errorf("Expected correctly quoted PROMPT_TEXT variable, got:\n%s", stepContent)
+		if strings.Contains(stepContent, "PROMPT_TEXT") {
+			t.Errorf("Claude must not use a PROMPT_TEXT shell variable when an agent file is set; compiler handles the prepending:\n%s", stepContent)
 		}
 	})
 }
 
-// TestClaudeEngineAgentFileAWFInlineSetup verifies that when an agent file is used with the
-// firewall (AWF) enabled, AGENT_CONTENT and PROMPT_TEXT are set INSIDE the AWF container
-// command rather than on the host.  Setting them on the host would fail silently because
-// unexported bash shell variables are not forwarded to container environments via --env-all.
-func TestClaudeEngineAgentFileAWFInlineSetup(t *testing.T) {
+// TestClaudeEngineDoesNotSupportNativeAgentFile verifies that the Claude engine declares
+// it does not handle agent files natively, so the compiler knows to prepend the agent file
+// content to prompt.txt during the activation job instead.
+func TestClaudeEngineDoesNotSupportNativeAgentFile(t *testing.T) {
+	engine := NewClaudeEngine()
+	if engine.SupportsNativeAgentFile() {
+		t.Errorf("Claude engine should return false for SupportsNativeAgentFile(); the compiler handles agent file injection")
+	}
+}
+
+// TestClaudeEngineAWFWithAgentFileReadsPromptTxt verifies that when an agent file is used
+// with the firewall (AWF) enabled, the claude command reads from prompt.txt (not from a
+// PROMPT_TEXT shell variable).  The compiler prepends the agent file content to prompt.txt
+// in the activation job.
+func TestClaudeEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
 	engine := NewClaudeEngine()
 
-	// Enable the firewall by providing a SandboxConfig with an AWF agent type (the simplest
-	// way to make isFirewallEnabled return true without a full compilation pass).
 	agentSandbox := &AgentSandboxConfig{Type: SandboxTypeAWF}
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -472,29 +481,17 @@ func TestClaudeEngineAgentFileAWFInlineSetup(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// The host-side run script (PathSetup) must NOT contain PROMPT_TEXT assignment.
-	// In AWF mode the run: block contains only the touch + sudo awf invocation.
-	// We identify the host part as everything before the '-- /bin/bash -c' separator.
-	hostPart, containerPart, found := strings.Cut(stepContent, "-- /bin/bash -c")
-	if !found {
-		t.Fatal("Expected '-- /bin/bash -c' separator in step content (AWF mode marker), but it was not found")
+	// No AGENT_CONTENT or PROMPT_TEXT shell variables anywhere in the step.
+	if strings.Contains(stepContent, "AGENT_CONTENT") {
+		t.Errorf("AGENT_CONTENT must not appear in the Claude AWF step; compiler handles agent file injection:\n%s", stepContent)
 	}
-	if strings.Contains(hostPart, "PROMPT_TEXT=") {
-		t.Errorf("PROMPT_TEXT assignment found in host-side script (before AWF container command); it must be set inside the container:\n%s", hostPart)
-	}
-	if strings.Contains(hostPart, "AGENT_CONTENT=") {
-		t.Errorf("AGENT_CONTENT assignment found in host-side script (before AWF container command); it must be set inside the container:\n%s", hostPart)
+	if strings.Contains(stepContent, "PROMPT_TEXT") {
+		t.Errorf("PROMPT_TEXT must not appear in the Claude AWF step; compiler handles agent file injection:\n%s", stepContent)
 	}
 
-	// The container command (after '-- /bin/bash -c') must contain the inline setup.
-	if !strings.Contains(containerPart, "AGENT_CONTENT=") {
-		t.Errorf("Expected AGENT_CONTENT assignment inside the AWF container command, not found in:\n%s", containerPart)
-	}
-	if !strings.Contains(containerPart, "PROMPT_TEXT=") {
-		t.Errorf("Expected PROMPT_TEXT assignment inside the AWF container command, not found in:\n%s", containerPart)
-	}
-	if !strings.Contains(containerPart, `"$PROMPT_TEXT"`) {
-		t.Errorf("Expected claude to receive \"$PROMPT_TEXT\" inside the AWF container command, not found in:\n%s", containerPart)
+	// The container command must still read from prompt.txt.
+	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+		t.Errorf("Expected claude to read from prompt.txt in AWF mode, got:\n%s", stepContent)
 	}
 }
 

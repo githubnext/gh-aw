@@ -116,6 +116,13 @@ type CapabilityProvider interface {
 	// SupportsMaxContinuations returns true if this engine supports the max-continuations feature
 	// When true, max-continuations > 1 enables autopilot/multi-run mode for the engine
 	SupportsMaxContinuations() bool
+
+	// SupportsNativeAgentFile returns true if this engine handles agent-file imports natively
+	// in its own execution steps (reading the file, stripping frontmatter, and prepending the
+	// content to the prompt at runtime).  When false, the compiler is responsible for including
+	// the agent file content in prompt.txt during the activation job so that the engine just
+	// reads the standard /tmp/gh-aw/aw-prompts/prompt.txt as usual.
+	SupportsNativeAgentFile() bool
 }
 
 // WorkflowExecutor handles workflow compilation and execution
@@ -260,6 +267,7 @@ type BaseEngine struct {
 	supportsMaxTurns         bool
 	supportsMaxContinuations bool
 	supportsWebSearch        bool
+	supportsNativeAgentFile  bool
 	llmGatewayPort           int
 }
 
@@ -293,6 +301,10 @@ func (e *BaseEngine) SupportsWebSearch() bool {
 
 func (e *BaseEngine) SupportsMaxContinuations() bool {
 	return e.supportsMaxContinuations
+}
+
+func (e *BaseEngine) SupportsNativeAgentFile() bool {
+	return e.supportsNativeAgentFile
 }
 
 func (e *BaseEngine) getLLMGatewayPort() int {

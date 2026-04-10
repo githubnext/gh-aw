@@ -380,6 +380,15 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// - Imported markdown with inputs is still inlined (compile-time substitution required)
 	// - Main workflow markdown body uses runtime-import to allow editing without recompilation
 	// This ensures consistency for most imports while maintaining import inputs functionality
+	//
+	// NOTE: When an engine does not support native agent-file handling
+	// (SupportsNativeAgentFile() == false), the agent file content is already present in the
+	// prompt via the standard mechanisms below — no special Step 0 is needed:
+	//   - Agent files WITHOUT inputs: path is in data.ImportPaths → included by Step 1b.
+	//   - Agent files WITH inputs: content is in data.ImportedMarkdown → included by Step 1a.
+	//   - inlined-imports mode: data.AgentFile is cleared; content is in data.ImportPaths.
+	// Engines that DO support native agent-file handling (e.g. Codex) continue to read the
+	// file themselves in GetExecutionSteps alongside the runtime-import.
 
 	var userPromptChunks []string
 	var expressionMappings []*ExpressionMapping
