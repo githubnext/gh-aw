@@ -22,7 +22,7 @@ func generateGitHubScriptWithRequire(scriptPath string) string {
 
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
 	script.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	script.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	script.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	script.WriteString("            const { main } = require('" + SetupActionDestination + "/" + scriptPath + "');\n")
 	script.WriteString("            await main();\n")
 
@@ -101,7 +101,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 
 	// Use setup_globals helper to make GitHub Actions objects available globally
 	yaml.WriteString(indent + "      const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-	yaml.WriteString(indent + "      setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString(indent + "      setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString(indent + "      \n")
 	// Use require() to load script from copied files
 	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")

@@ -173,7 +173,7 @@ Search for range loops that transform data:
 
 ```bash
 # Find range loops
-grep -rn 'for .* range' --include='*.go' pkg/ | head -50
+grep -rn 'for .* range' --include='*.go' "$next_package/" | head -50
 ```
 
 **Look for patterns like:**
@@ -200,7 +200,7 @@ Look for initialization patterns that mutate unnecessarily:
 
 ```bash
 # Find make calls that might indicate initialization patterns
-grep -rn 'make(' --include='*.go' pkg/ | head -30
+grep -rn 'make(' --include='*.go' "$next_package/" | head -30
 ```
 
 **Look for patterns like:**
@@ -224,7 +224,7 @@ Search for constructor functions that could benefit from functional options:
 
 ```bash
 # Find constructor functions
-grep -rn 'func New' --include='*.go' pkg/ | head -30
+grep -rn 'func New' --include='*.go' "$next_package/" | head -30
 ```
 
 **Look for patterns like:**
@@ -256,10 +256,10 @@ Search for global variables and shared mutable state:
 
 ```bash
 # Find global variable declarations
-grep -rn '^var ' --include='*.go' pkg/ | grep -v '_test.go' | head -30
+grep -rn '^var ' --include='*.go' "$next_package/" | grep -v '_test.go' | head -30
 
 # Find sync primitives that may indicate shared state
-grep -rn 'sync\.' --include='*.go' pkg/ | head -20
+grep -rn 'sync\.' --include='*.go' "$next_package/" | head -20
 ```
 
 **Look for patterns like:**
@@ -287,7 +287,7 @@ Look for functions that could be pure but have side effects:
 
 ```bash
 # Find functions that write to global state or perform I/O
-grep -rn 'os\.\|log\.\|fmt\.Print' --include='*.go' pkg/ | head -30
+grep -rn 'os\.\|log\.\|fmt\.Print' --include='*.go' "$next_package/" | head -30
 ```
 
 **Look for patterns like:**
@@ -312,10 +312,10 @@ Search for code that could use reusable wrappers:
 
 ```bash
 # Find retry patterns
-grep -rn 'for.*retry\|for.*attempt\|time\.Sleep' --include='*.go' pkg/ | head -20
+grep -rn 'for.*retry\|for.*attempt\|time\.Sleep' --include='*.go' "$next_package/" | head -20
 
 # Find logging wrapper opportunities
-grep -rn 'log\.\|logger\.' --include='*.go' pkg/ | head -30
+grep -rn 'log\.\|logger\.' --include='*.go' "$next_package/" | head -30
 ```
 
 **Look for patterns like:**
@@ -343,6 +343,19 @@ Score each opportunity based on:
 - **Risk level**: Complexity of change (Lower risk = higher priority)
 
 Focus on changes with high safety/clarity/testability scores and low risk.
+
+#### 1.9 Early Exit If No Opportunities Found
+
+If Phase 1 discovery found **no actionable opportunities** in `$next_package` (no mutable patterns, no constructors with 4+ parameters, no shared state, no repeated logic), then:
+
+1. Update the cache (see Phase 5.1)
+2. Call the `noop` safe-output and exit immediately — do **not** proceed to Phase 2:
+
+```
+✅ Package [$next_package] analyzed for functional/immutability opportunities.
+No improvements found - code already follows good functional patterns.
+Cache updated. Next run will process: [$next_after_package]
+```
 
 ### Phase 2: Analysis - Deep Dive with Serena
 
@@ -426,69 +439,9 @@ For each opportunity, design a specific improvement:
 
 If the codebase lacks functional utilities, add them to `pkg/fp/` package:
 
-**IMPORTANT: Write tests FIRST using test-driven development:**
+**IMPORTANT: Write tests FIRST using test-driven development.** See `docs/functional-patterns.md` for reference implementations of `Map`, `Filter`, `Reduce`, `Retry`, `WithTiming`, `Memoize`, `Must`, and `When`.
 
-```go
-// pkg/fp/slice_test.go - Write tests first!
-package fp_test
-
-import (
-    "testing"
-    "github.com/github/gh-aw/pkg/fp"
-    "github.com/stretchr/testify/assert"
-)
-
-func TestMap(t *testing.T) {
-    input := []int{1, 2, 3}
-    result := fp.Map(input, func(x int) int { return x * 2 })
-    assert.Equal(t, []int{2, 4, 6}, result, "Map should double each element")
-}
-
-func TestFilter(t *testing.T) {
-    input := []int{1, 2, 3, 4}
-    result := fp.Filter(input, func(x int) bool { return x%2 == 0 })
-    assert.Equal(t, []int{2, 4}, result, "Filter should return even numbers")
-}
-```
-
-**Then implement the helpers:**
-
-```go
-// pkg/fp/slice.go - Example helpers for common operations
-package fp
-
-// Map transforms each element in a slice
-// Note: uses var+append to avoid CodeQL violations from make([]U, len(slice))
-func Map[T, U any](slice []T, fn func(T) U) []U {
-    var result []U
-    for _, v := range slice {
-        result = append(result, fn(v))
-    }
-    return result
-}
-
-// Filter returns elements that match the predicate
-func Filter[T any](slice []T, fn func(T) bool) []T {
-    var result []T
-    for _, v := range slice {
-        if fn(v) {
-            result = append(result, v)
-        }
-    }
-    return result
-}
-
-// Reduce aggregates slice elements
-func Reduce[T, U any](slice []T, initial U, fn func(U, T) U) U {
-    result := initial
-    for _, v := range slice {
-        result = fn(result, v)
-    }
-    return result
-}
-```
-
-**Important**: Only add helpers if:
+**Only add helpers if:**
 - They'll be used in multiple places (3+ usages)
 - They improve clarity over inline loops
 - The project doesn't already have similar utilities
@@ -497,364 +450,28 @@ func Reduce[T, U any](slice []T, initial U, fn func(U, T) U) U {
 
 #### 3.2 Apply Immutability Improvements
 
-Use the **edit** tool to transform mutable patterns to immutable ones:
+Use the **edit** tool to transform mutable patterns to immutable ones. See `docs/functional-patterns.md` for before/after examples of immutability improvements, functional initialization, transformative operations, functional options, state elimination, pure function extraction, and reusable wrappers.
 
-**Example transformations:**
+Key transformations to apply:
+- `var x T; x = value` → `x := value`
+- Multi-step struct/map/slice initialization → composite literals
+- Imperative filter/map loops → functional helpers or inline clarity
+- Constructors with 4+ params → functional options pattern
+- Global mutable state → explicit parameter passing
+- Mixed pure/impure logic → extracted pure functions
+- Repeated cross-cutting patterns → reusable higher-order functions (3+ usages threshold)
 
-```go
-// Before: Mutable initialization
-var filters []Filter
-for _, name := range names {
-    filters = append(filters, Filter{Name: name})
-}
+#### 3.3 Apply Functional Initialization, Transformative Operations, and Functional Options
 
-// After: Immutable initialization using append
-var filters []Filter
-for _, name := range names {
-    filters = append(filters, Filter{Name: name})
-}
-// Or even better if simple:
-filters := sliceutil.Map(names, func(name string) Filter {
-    return Filter{Name: name}
-})
-```
+Apply declarative map/slice/struct initialization, convert imperative filter/map loops, and transform constructors with 4+ params to use functional options. Reference `docs/functional-patterns.md` for before/after examples.
 
-```go
-// Before: Multiple mutations
-var config Config
-config.Host = getHost()
-config.Port = getPort()
-config.Timeout = getTimeout()
+#### 3.4 Eliminate Shared Mutable State and Extract Pure Functions
 
-// After: Single initialization
-config := Config{
-    Host:    getHost(),
-    Port:    getPort(),
-    Timeout: getTimeout(),
-}
-```
+Refactor global variables to explicit parameter passing and extract pure calculation functions from impure orchestration code. Reference `docs/functional-patterns.md` for examples.
 
-#### 3.3 Apply Functional Initialization Patterns
+#### 3.5 Add Reusable Logic Wrappers (If Warranted)
 
-Transform imperative initialization to declarative:
-
-```go
-// Before: Imperative building
-result := make(map[string]string)
-result["name"] = name
-result["version"] = version
-result["status"] = "active"
-
-// After: Declarative initialization
-result := map[string]string{
-    "name":    name,
-    "version": version,
-    "status":  "active",
-}
-```
-
-#### 3.4 Apply Transformative Operations
-
-Convert imperative loops to functional transformations:
-
-```go
-// Before: Imperative filtering and mapping
-var activeNames []string
-for _, item := range items {
-    if item.Active {
-        activeNames = append(activeNames, item.Name)
-    }
-}
-
-// After: Functional pipeline
-activeItems := sliceutil.Filter(items, func(item Item) bool { return item.Active })
-activeNames := sliceutil.Map(activeItems, func(item Item) string { return item.Name })
-
-// Or inline if it's clearer:
-var activeNames []string
-for _, item := range items {
-    if item.Active {
-        activeNames = append(activeNames, item.Name)
-    }
-}
-// Note: Sometimes inline is clearer - use judgment!
-```
-
-#### 3.5 Apply Functional Options Pattern
-
-Transform constructors with many parameters to use functional options:
-
-```go
-// Before: Constructor with many parameters
-func NewClient(host string, port int, timeout time.Duration, retries int, logger Logger) *Client {
-    return &Client{
-        host:    host,
-        port:    port,
-        timeout: timeout,
-        retries: retries,
-        logger:  logger,
-    }
-}
-
-// After: Functional options pattern
-type ClientOption func(*Client)
-
-func WithTimeout(d time.Duration) ClientOption {
-    return func(c *Client) {
-        c.timeout = d
-    }
-}
-
-func WithRetries(n int) ClientOption {
-    return func(c *Client) {
-        c.retries = n
-    }
-}
-
-func WithLogger(l Logger) ClientOption {
-    return func(c *Client) {
-        c.logger = l
-    }
-}
-
-func NewClient(host string, port int, opts ...ClientOption) *Client {
-    c := &Client{
-        host:    host,
-        port:    port,
-        timeout: 30 * time.Second,  // sensible default
-        retries: 3,                  // sensible default
-        logger:  defaultLogger,      // sensible default
-    }
-    for _, opt := range opts {
-        opt(c)
-    }
-    return c
-}
-
-// Usage: client := NewClient("localhost", 8080, WithTimeout(time.Minute), WithRetries(5))
-```
-
-**Benefits of functional options:**
-- Required parameters remain positional
-- Optional parameters have sensible defaults
-- Easy to add new options without breaking API
-- Self-documenting option names
-- Zero value is meaningful
-
-#### 3.6 Eliminate Shared Mutable State
-
-Transform global state to explicit parameter passing:
-
-```go
-// Before: Global mutable state
-var (
-    globalConfig *Config
-    configMutex  sync.RWMutex
-)
-
-func GetSetting(key string) string {
-    configMutex.RLock()
-    defer configMutex.RUnlock()
-    return globalConfig.Settings[key]
-}
-
-func ProcessRequest(req Request) Response {
-    setting := GetSetting("timeout")
-    // ... use setting
-}
-
-// After: Explicit parameter passing
-type Service struct {
-    config *Config  // Immutable after construction
-}
-
-func NewService(config *Config) *Service {
-    return &Service{config: config}
-}
-
-func (s *Service) ProcessRequest(req Request) Response {
-    setting := s.config.Settings["timeout"]
-    // ... use setting
-}
-```
-
-**Strategies for eliminating shared state:**
-1. Pass configuration at construction time
-2. Use immutable configuration objects
-3. Inject dependencies through constructors
-4. Use context for request-scoped values
-5. Make state local to functions when possible
-
-#### 3.7 Extract Pure Functions
-
-Separate pure logic from side effects:
-
-```go
-// Before: Mixed pure and impure logic
-func ProcessOrder(order Order) error {
-    log.Printf("Processing order %s", order.ID)  // Side effect
-    
-    total := 0.0
-    for _, item := range order.Items {
-        total += item.Price * float64(item.Quantity)
-    }
-    
-    if total > 1000 {
-        total *= 0.9  // 10% discount
-    }
-    
-    db.Save(order.ID, total)  // Side effect
-    log.Printf("Order %s total: %.2f", order.ID, total)  // Side effect
-    return nil
-}
-
-// After: Pure calculation extracted
-// Pure function - same input always gives same output
-func CalculateOrderTotal(items []OrderItem) float64 {
-    total := 0.0
-    for _, item := range items {
-        total += item.Price * float64(item.Quantity)
-    }
-    return total
-}
-
-// Pure function - business logic without side effects
-func ApplyDiscounts(total float64) float64 {
-    if total > 1000 {
-        return total * 0.9
-    }
-    return total
-}
-
-// Impure orchestration - side effects are explicit and isolated
-func ProcessOrder(order Order, db Database, logger Logger) error {
-    logger.Printf("Processing order %s", order.ID)
-    
-    total := CalculateOrderTotal(order.Items)
-    total = ApplyDiscounts(total)
-    
-    if err := db.Save(order.ID, total); err != nil {
-        return err
-    }
-    
-    logger.Printf("Order %s total: %.2f", order.ID, total)
-    return nil
-}
-```
-
-**Benefits of pure functions:**
-- Easier to test (no mocks needed)
-- Easier to reason about (no hidden dependencies)
-- Can be memoized/cached safely
-- Composable with other pure functions
-- Thread-safe by default
-
-#### 3.8 Create Reusable Logic Wrappers
-
-Add higher-order functions for cross-cutting concerns:
-
-```go
-// Retry wrapper with exponential backoff
-func Retry[T any](attempts int, delay time.Duration, fn func() (T, error)) (T, error) {
-    var result T
-    var err error
-    for i := 0; i < attempts; i++ {
-        result, err = fn()
-        if err == nil {
-            return result, nil
-        }
-        if i < attempts-1 {
-            time.Sleep(delay * time.Duration(1<<i))  // Exponential backoff
-        }
-    }
-    return result, fmt.Errorf("failed after %d attempts: %w", attempts, err)
-}
-
-// Usage:
-data, err := Retry(3, time.Second, func() ([]byte, error) {
-    return fetchFromAPI(url)
-})
-```
-
-```go
-// Timing wrapper for performance logging
-func WithTiming[T any](name string, logger Logger, fn func() T) T {
-    start := time.Now()
-    result := fn()
-    logger.Printf("%s took %v", name, time.Since(start))
-    return result
-}
-
-// Usage:
-result := WithTiming("database query", logger, func() []Record {
-    return db.Query(sql)
-})
-```
-
-```go
-// Memoization wrapper for caching
-func Memoize[K comparable, V any](fn func(K) V) func(K) V {
-    cache := make(map[K]V)
-    var mu sync.RWMutex
-    
-    return func(key K) V {
-        mu.RLock()
-        if val, ok := cache[key]; ok {
-            mu.RUnlock()
-            return val
-        }
-        mu.RUnlock()
-        
-        val := fn(key)
-        
-        mu.Lock()
-        cache[key] = val
-        mu.Unlock()
-        
-        return val
-    }
-}
-
-// Usage:
-expensiveCalc := Memoize(func(n int) int {
-    // expensive computation
-    return fibonacci(n)
-})
-```
-
-```go
-// Error handling wrapper
-func Must[T any](val T, err error) T {
-    if err != nil {
-        panic(err)
-    }
-    return val
-}
-
-// Usage in initialization:
-config := Must(LoadConfig("config.yaml"))
-```
-
-```go
-// Conditional execution wrapper
-func When[T any](condition bool, fn func() T, defaultVal T) T {
-    if condition {
-        return fn()
-    }
-    return defaultVal
-}
-
-// Usage:
-result := When(useCache, func() Data { return cache.Get(key) }, fetchFromDB(key))
-```
-
-**Guidelines for reusable wrappers:**
-- Keep wrappers simple and focused on one concern
-- Use generics for type safety
-- Make them composable when possible
-- Document behavior clearly
-- Consider error handling carefully
-```
+Add higher-order functions for cross-cutting concerns (retry, timing, memoization) only when the pattern appears 3+ times. Reference `docs/functional-patterns.md` for wrapper implementations.
 
 ### Phase 4: Validation
 
@@ -978,164 +595,12 @@ Next run will process: [$next_package]
 
 #### 5.3 Generate PR Description
 
-If creating a PR, use this structure:
-
-```markdown
-## Functional/Immutability Enhancements - Package: `$current_package`
-
-This PR applies moderate, tasteful functional/immutability techniques to the **`$current_package`** package to improve code clarity, safety, testability, and maintainability.
-
-**Round-Robin Progress**: This is part of a systematic package-by-package refactoring. Next package to process: `$next_package`
-
-### Summary of Changes
-
-#### 1. Immutability Improvements
-- [Number] variables converted from mutable to immutable initialization
-- [Number] structs initialized with composite literals instead of field-by-field assignment
-- [Number] slice/map variables created with literals instead of incremental building
-
-**Files affected:**
-- `pkg/path/file1.go` - Made config initialization immutable
-- `pkg/path/file2.go` - Converted variable declarations to immutable patterns
-
-#### 2. Functional Initialization Patterns
-- [Number] initialization sequences simplified to single declarations
-- [Number] multi-step builds replaced with declarative initialization
-- [Number] unnecessary intermediate mutations eliminated
-
-**Files affected:**
-- `pkg/path/file3.go` - Simplified struct initialization
-- `pkg/path/file4.go` - Replaced imperative map building with literals
-
-#### 3. Functional Options Pattern
-- [Number] constructors converted to use functional options
-- [Number] configuration structs made extensible without breaking changes
-- [Number] option functions created for common configuration
-
-**Files affected:**
-- `pkg/path/file5.go` - NewClient now uses functional options
-- `pkg/path/file6.go` - Added WithTimeout, WithRetries options
-
-#### 4. Shared Mutable State Elimination
-- [Number] global variables eliminated through explicit parameter passing
-- [Number] package-level state encapsulated in structs
-- [Number] mutex-protected globals converted to passed dependencies
-
-**Files affected:**
-- `pkg/path/file7.go` - Removed global config, now passed to Service
-- `pkg/path/file8.go` - Encapsulated cache in CacheService struct
-
-#### 5. Pure Function Extraction
-- [Number] pure functions extracted from impure code
-- [Number] side effects isolated to orchestration functions
-- [Number] calculations made deterministic and testable
-
-**Files affected:**
-- `pkg/path/file9.go` - Extracted CalculateTotal pure function
-- `pkg/path/file10.go` - Separated validation logic from I/O
-
-#### 6. Transformative Data Operations
-- [Number] imperative loops converted to functional transformations
-- [Number] filter/map operations made explicit
-- [Add helper functions if created]
-
-**Files affected:**
-- `pkg/path/file11.go` - Replaced filter loop with functional pattern
-- `pkg/path/file12.go` - Converted map operation to use helper
-
-#### 7. Reusable Logic Wrappers
-- [Number] retry wrappers added for transient failures
-- [Number] timing/logging wrappers for observability
-- [Number] memoization wrappers for expensive computations
-
-**Files affected:**
-- `pkg/sliceutil/wrappers.go` - Added Retry, WithTiming, Memoize functions
-- `pkg/path/file13.go` - Applied retry wrapper to API calls
-
-### Benefits
-
-- **Safety**: Reduced mutation surface area by [number] instances
-- **Clarity**: Declarative initialization makes intent clearer
-- **Testability**: Pure functions can be tested without mocks
-- **Extensibility**: Functional options allow API evolution without breaking changes
-- **Maintainability**: Functional patterns are easier to reason about
-- **Consistency**: Applied consistent patterns across similar code
-
-### Principles Applied
-
-1. **Immutability First**: Variables are immutable unless mutation is necessary
-2. **Declarative Over Imperative**: Initialization expresses "what" not "how"
-3. **Transformative Over Iterative**: Data transformations use functional patterns
-4. **Explicit Dependencies**: Pass dependencies rather than using globals
-5. **Pure Over Impure**: Separate pure calculations from side effects
-6. **Composition Over Complexity**: Build complex behavior from simple wrappers
-7. **Pragmatic Balance**: Changes improve clarity without dogmatic adherence
-
-### Testing
-
-- ✅ All tests pass (`make test-unit`)
-- ✅ Test existence verified BEFORE refactoring (via code search)
-- ✅ Tests added for previously untested code
-- ✅ New helper functions in `pkg/fp/` have comprehensive test coverage
-- ✅ Linting passes (`make lint`)
-- ✅ No behavioral changes - functionality is identical
-- ✅ Manual review confirms clarity improvements
-- ✅ Test-driven refactoring approach followed
-
-### Review Focus
-
-Please verify:
-- Immutability changes are appropriate
-- Functional options maintain API compatibility
-- Pure function extraction doesn't change behavior
-- Shared state elimination doesn't break concurrent access
-- Reusable wrappers are correctly implemented
-- No unintended side effects or behavior changes
-
-### Examples
-
-#### Before: Constructor with many parameters
-```go
-func NewClient(host string, port int, timeout time.Duration, retries int) *Client
-```
-
-#### After: Functional options pattern
-```go
-func NewClient(host string, port int, opts ...ClientOption) *Client
-client := NewClient("localhost", 8080, WithTimeout(time.Minute))
-```
-
-#### Before: Global mutable state
-```go
-var globalConfig *Config
-func GetConfig() *Config { return globalConfig }
-```
-
-#### After: Explicit parameter passing
-```go
-type Service struct { config *Config }
-func NewService(config *Config) *Service
-```
-
-#### Before: Mixed pure and impure logic
-```go
-func ProcessOrder(order Order) error {
-    log.Printf("Processing...")
-    total := calculateTotal(order)
-    db.Save(total)
-}
-```
-
-#### After: Separated concerns
-```go
-func CalculateTotal(items []Item) float64  // Pure
-func ProcessOrder(order Order, db DB, log Logger) error  // Orchestration
-```
-
----
-
-*Automated by Functional Pragmatist - applying moderate functional/immutability techniques to `$current_package`*
-```
+Generate a PR description covering:
+- Package processed and round-robin progress (next package)
+- Summary of each improvement category with counts and files affected
+- Benefits (safety, clarity, testability, extensibility)
+- Testing checklist (all tests pass, linting clean, no behavior changes)
+- Review focus areas
 
 #### 5.4 Use Safe Outputs
 
@@ -1147,273 +612,24 @@ Create the pull request using safe-outputs configuration:
 
 ## Guidelines and Best Practices
 
-### Test-Driven Refactoring
+**Core principles:**
+- **Immutability first**: Variables should be immutable unless mutation is necessary
+- **Declarative over imperative**: Initialization should express "what" not "how"
+- **Explicit dependencies**: Pass dependencies rather than using globals
+- **Pure over impure**: Separate pure calculations from side effects
+- **Pragmatic balance**: Changes should improve clarity without dogmatic adherence to FP
+- **Tests first**: Always verify/write tests before refactoring; never refactor untested code
 
-**CRITICAL: Always verify test coverage before refactoring:**
-
-```bash
-# Check coverage for package you're refactoring
-go test -cover ./pkg/path/to/package/
-```
-
-**Test-driven refactoring workflow:**
-1. **Check coverage** - Verify tests exist (minimum 60% coverage)
-2. **Write tests first** - If coverage is low, add tests for current behavior
-3. **Verify tests pass** - Green tests before refactoring
-4. **Refactor** - Make functional/immutability improvements
-5. **Verify tests pass** - Green tests after refactoring
-6. **Check coverage again** - Ensure coverage maintained or improved
-
-**For new helper functions (`pkg/fp/`):**
-- Write tests FIRST (test-driven development)
-- Aim for >80% test coverage
-- Include edge cases and error conditions
-- Use table-driven tests for multiple scenarios
-
-**Never refactor untested code without adding tests first!**
-
-### Balance Pragmatism and Purity
-
-- **DO** make data immutable when it improves safety and clarity
-- **DO** use functional patterns for data transformations
-- **DO** use functional options for extensible APIs
-- **DO** extract pure functions to improve testability
-- **DO** eliminate shared mutable state where practical
-- **DON'T** force functional patterns where imperative is clearer
-- **DON'T** create overly complex abstractions for simple operations
-- **DON'T** add unnecessary wrappers for one-off operations
-
-### Tasteful Application
-
-**Good functional programming:**
-- Makes code more readable
-- Reduces cognitive load
-- Eliminates unnecessary mutations
-- Creates clear data flow
-- Improves testability
-- Makes APIs more extensible
-
-**Avoid:**
-- Dogmatic functional purity at the cost of clarity
-- Over-abstraction with too many helper functions
-- Functional patterns that obscure simple operations
-- Changes that make Go code feel like Haskell
-
-### Functional Options Pattern Guidelines
-
-**Use functional options when:**
-- Constructor has 4+ optional parameters
-- API needs to be extended without breaking changes
-- Configuration has sensible defaults
-- Different call sites need different subsets of options
-
-**Don't use functional options when:**
-- All parameters are required
-- Constructor has 1-2 simple parameters
-- Configuration is unlikely to change
-- Inline struct literal is clearer
-
-**Best practices for functional options:**
-```go
-// Option type convention
-type Option func(*Config)
-
-// Option function naming: With* prefix
-func WithTimeout(d time.Duration) Option
-
-// Required parameters stay positional
-func New(required1 string, required2 int, opts ...Option) *T
-
-// Provide sensible defaults
-func New(opts ...Option) *T {
-    c := &Config{
-        Timeout: 30 * time.Second,  // Default
-        Retries: 3,                  // Default
-    }
-    for _, opt := range opts {
-        opt(c)
-    }
-    return c
-}
-```
-
-### Pure Functions Guidelines
-
-**Characteristics of pure functions:**
-- Same input always produces same output
-- No side effects (no I/O, no mutation of external state)
-- Don't depend on external mutable state
-- Can be safely memoized, parallelized, and tested
-
-**When to extract pure functions:**
-- Business logic that calculates/transforms data
-- Validation logic
-- Formatting/parsing functions
-- Any computation that doesn't need I/O
-
-**Keep impure code at the edges:**
-```go
-// Pure core, impure shell pattern
-func ProcessOrder(order Order, db Database, logger Logger) error {
-    // Orchestration layer (impure) calls pure functions
-    validated := ValidateOrder(order)      // Pure
-    total := CalculateTotal(validated)     // Pure
-    discounted := ApplyDiscounts(total)    // Pure
-    
-    // Side effects isolated here
-    return db.Save(order.ID, discounted)
-}
-```
-
-### Avoiding Shared Mutable State
-
-**Strategies:**
-1. **Explicit parameters**: Pass dependencies through constructors
-2. **Immutable configuration**: Load once, never modify
-3. **Request-scoped state**: Use context for per-request data
-4. **Functional core**: Keep mutable state at the edges
-
-**Anti-patterns to fix:**
-```go
-// ❌ Global mutable state
-var config *Config
-
-// ❌ Package-level maps (concurrent access issues)
-var cache = make(map[string]Result)
-
-// ❌ Singleton with hidden mutation
-var instance *Service
-func GetInstance() *Service { ... }
-```
-
-**Better patterns:**
-```go
-// ✅ Explicit dependency
-type Service struct { config *Config }
-
-// ✅ Encapsulated state
-type Cache struct { 
-    mu sync.RWMutex
-    data map[string]Result
-}
-
-// ✅ Factory with explicit dependencies
-func NewService(config *Config, cache *Cache) *Service
-```
-
-### Reusable Wrappers Guidelines
-
-**When to create wrappers:**
-- Pattern appears 3+ times
-- Cross-cutting concern (retry, logging, timing)
-- Complex logic that benefits from abstraction
-- Wrapper significantly improves clarity
-
-**When NOT to create wrappers:**
-- One-off usage
-- Simple inline code is clearer
-- Wrapper would hide important details
-- Over-abstraction for the sake of abstraction
-
-**Wrapper design principles:**
-- Keep wrappers focused on one concern
-- Make them composable
-- Use generics for type safety
-- Handle errors appropriately
-- Document behavior clearly
-
-### When to Use Inline vs Helpers
-
-**Use inline functional patterns when:**
-- The operation is simple and used once
-- The inline version is clearer than a helper call
-- Adding a helper would be over-abstraction
-
-**Use helper functions when:**
-- The pattern appears 3+ times in the codebase
-- The helper significantly improves clarity
-- The operation is complex enough to warrant abstraction
-- The codebase already has similar utilities
-
-### Go-Specific Considerations
-
-- Go doesn't have built-in map/filter/reduce - that's okay!
-- Inline loops are often clearer than generic helpers
-- Use type parameters (generics) for helpers to avoid reflection
-- Avoid `make([]T, len(input))` and `make([]T, 0, len(input))` — use `var result []T` + `append` instead; CodeQL flags these patterns because the slice length/capacity is derived from user-controlled input, which can trigger incorrect memory allocation analysis
-- Simple for-loops are idiomatic Go - don't force functional style
-- Functional options is a well-established Go pattern - use it confidently
-- Pure functions align well with Go's simplicity philosophy
-- Explicit parameter passing is idiomatic Go - prefer it over globals
-
-### Immutability by Convention
-
-Go doesn't enforce immutability, but you can establish conventions:
-
-**Naming conventions:**
-```go
-// Unexported fields signal "don't modify"
-type Config struct {
-    host    string  // Lowercase = private, treat as immutable
-    port    int
-}
-
-// Exported getters, no setters
-func (c *Config) Host() string { return c.host }
-func (c *Config) Port() int { return c.port }
-```
-
-**Documentation conventions:**
-```go
-// Config holds immutable configuration loaded at startup.
-// Fields should not be modified after construction.
-type Config struct {
-    Host string
-    Port int
-}
-```
-
-**Constructor enforcement:**
-```go
-// Only way to create Config - ensures valid, immutable state
-func NewConfig(host string, port int) (*Config, error) {
-    if host == "" {
-        return nil, errors.New("host required")
-    }
-    return &Config{host: host, port: port}, nil
-}
-```
-
-**Defensive copying:**
-```go
-// Return copy to prevent mutation of internal state
-func (s *Service) GetItems() []Item {
-    return slices.Clone(s.items)
-}
-```
-
-### Risk Management
-
-**Low Risk Changes (Prioritize these):**
-- Converting `var x T; x = value` to `x := value`
-- Replacing empty slice/map initialization with literals
-- Making struct initialization more declarative
-- Extracting pure helper functions (no API change)
-- Adding immutability documentation/comments
-
-**Medium Risk Changes (Review carefully):**
-- Converting range loops to functional patterns
-- Adding new helper functions
-- Changing initialization order
-- Applying functional options to internal constructors
-- Extracting pure functions from larger functions
-
-**High Risk Changes (Avoid or verify thoroughly):**
-- Changes to public APIs (functional options on exported constructors)
-- Modifications to concurrency patterns
-- Changes affecting error handling flow
-- Eliminating shared state that's used across packages
-- Adding wrappers that change control flow (retry, circuit breaker)
+See `docs/functional-patterns.md` for detailed guidelines on:
+- Test-Driven Refactoring (workflow, coverage requirements)
+- Balance Pragmatism and Purity (DO/DON'T rules)
+- Functional Options Pattern (when to use, best practices)
+- Pure Functions (characteristics, extraction patterns)
+- Avoiding Shared Mutable State (strategies, anti-patterns)
+- Reusable Wrappers (when to create, design principles)
+- Go-Specific Considerations (idiomatic patterns, CodeQL notes)
+- Immutability by Convention (naming, defensive copying)
+- Risk Management (low/medium/high risk change categories)
 
 ## Success Criteria
 

@@ -313,7 +313,7 @@ jobs:
 
 	// Add the close expired discussions script using require()
 	yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_discussions.cjs');
             await main();
 
@@ -325,7 +325,7 @@ jobs:
 
 	// Add the close expired issues script using require()
 	yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_issues.cjs');
             await main();
 
@@ -337,7 +337,7 @@ jobs:
 
 	// Add the close expired pull requests script using require()
 	yaml.WriteString(`            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_pull_requests.cjs');
             await main();
 `)
@@ -368,7 +368,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
             await main();
 
@@ -385,7 +385,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_operation_update_upgrade.cjs');
             await main();
 `)
@@ -420,7 +420,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
             await main();
 
@@ -433,7 +433,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/apply_safe_outputs_replay.cjs');
             await main();
 `)
@@ -463,7 +463,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
             await main();
 
@@ -478,7 +478,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/create_labels.cjs');
             await main();
 `)
@@ -522,7 +522,7 @@ jobs:
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
@@ -597,7 +597,7 @@ jobs:
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/validate_secrets.cjs');
             await main();
 

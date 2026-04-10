@@ -137,7 +137,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 		yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-		yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 		yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/merge_remote_agent_github_folder.cjs');\n")
 		yaml.WriteString("            await main();\n")
 	}

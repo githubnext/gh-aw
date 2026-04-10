@@ -49,27 +49,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// For dev mode (local action path), checkout the actions folder first
 		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
-		// Enable custom-tokens flag if any safe output uses a per-handler github-token
-		enableCustomTokens := c.hasCustomTokenSafeOutputs(data.SafeOutputs)
 		// Enable artifact client flag if upload-artifact safe output is configured
 		enableArtifactClient := data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil
 
-		// When custom tokens are enabled and the safe_outputs job runs on a custom image runner,
-		// emit a Node.js setup step before actions/setup.
-		// setup.sh runs `npm install @actions/github` when custom tokens are enabled,
-		// so Node.js must be available on PATH. Standard GitHub-hosted runners (ubuntu-*, windows-*)
-		// already have Node.js pre-installed; custom runners may not.
-		if enableCustomTokens && isCustomImageRunner(c.formatFrameworkJobRunsOn(data)) {
-			consolidatedSafeOutputsJobLog.Printf("Custom image runner detected with custom tokens enabled — adding Node.js setup step before actions/setup")
-			nodeStep := GenerateNodeJsSetupStep()
-			for _, line := range nodeStep {
-				steps = append(steps, line+"\n")
-			}
-		}
-
 		// Safe outputs job depends on agent job; reuse the agent's trace ID so all jobs share one OTLP trace
 		safeOutputsTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableCustomTokens, enableArtifactClient, safeOutputsTraceID)...)
+		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, enableArtifactClient, safeOutputsTraceID)...)
 	}
 
 	// Mask OTLP telemetry headers immediately after setup so authentication tokens cannot
@@ -390,7 +375,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			insertIndex += len(c.generateCheckoutActionsFolder(data))
 			// Use the same traceID as the real call so the line count matches exactly
 			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, c.hasCustomTokenSafeOutputs(data.SafeOutputs), data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID))
+			insertIndex += len(c.generateSetupStep(setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID))
 		}
 
 		// Add artifact download steps count

@@ -43,11 +43,11 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Validate context variables
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/validate_context_variables.cjs');
             await main();
       - name: Checkout .github and .agents folders
@@ -59,22 +59,22 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Check workflow lock file
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_WORKFLOW_FILE: "smoke-test-tools.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
       - name: Compute current body text
         id: sanitized
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/compute_text.cjs');
             await main();
       - name: Create prompt with built-in context
@@ -203,17 +203,17 @@ jobs:
           
           GH_AW_PROMPT_EOF
       - name: Interpolate variables and render templates
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/interpolate_prompt.cjs');
             await main();
       - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -229,7 +229,7 @@ jobs:
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             
             const substitutePlaceholders = require('${RUNNER_TEMP}/gh-aw/actions/substitute_placeholders.cjs');
             
@@ -334,19 +334,19 @@ jobs:
         id: checkout-pr
         if: |
           github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Generate agentic run info
         id: generate_aw_info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const fs = require('fs');
@@ -399,7 +399,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.20.2
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -455,7 +455,7 @@ jobs:
           }
           GH_AW_MCP_CONFIG_EOF
       - name: Generate workflow overview
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { generateWorkflowOverview } = require('${RUNNER_TEMP}/gh-aw/actions/generate_workflow_overview.cjs');
@@ -525,11 +525,11 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
@@ -548,22 +548,22 @@ jobs:
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/parse_copilot_log.cjs');
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/parse_mcp_gateway_log.cjs');
             await main();
       - name: Print firewall logs
@@ -615,14 +615,14 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
       - name: Check team membership for workflow
         id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_REQUIRED_ROLES: 
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${RUNNER_TEMP}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${RUNNER_TEMP}/gh-aw/actions/check_membership.cjs');
             await main();
 

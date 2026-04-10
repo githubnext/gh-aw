@@ -72,7 +72,7 @@ const DefaultPlaywrightBrowserVersion Version = "v1.59.1"
 const DefaultMCPSDKVersion Version = "1.24.0"
 
 // DefaultGitHubScriptVersion is the default version of the actions/github-script action
-const DefaultGitHubScriptVersion Version = "v8"
+const DefaultGitHubScriptVersion Version = "v9"
 
 // DefaultBunVersion is the default version of Bun for runtime setup
 const DefaultBunVersion Version = "1.1"

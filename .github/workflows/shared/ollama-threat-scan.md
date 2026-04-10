@@ -27,7 +27,7 @@ safe-outputs:
     steps:
       - name: Ollama Llama Guard 3 Threat Scan
         id: ollama-scan
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

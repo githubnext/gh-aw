@@ -66,7 +66,7 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 
 	// Verify setupGlobals is called before main so that global.core is available
 	// for modules like staged_preview.cjs that rely on it (fixes staged mode ReferenceError)
-	if !strings.Contains(lockStr, "setupGlobals(core, github, context, exec, io)") {
+	if !strings.Contains(lockStr, "setupGlobals(core, github, context, exec, io, getOctokit)") {
 		t.Error("Expected step to call setupGlobals before main to set global.core")
 	}
 

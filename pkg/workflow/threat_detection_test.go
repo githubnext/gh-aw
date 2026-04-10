@@ -718,7 +718,7 @@ func TestSetupScriptReferencesPromptFile(t *testing.T) {
 	}
 
 	// Verify setupGlobals is called
-	if !strings.Contains(script, "setupGlobals(core, github, context, exec, io)") {
+	if !strings.Contains(script, "setupGlobals(core, github, context, exec, io, getOctokit)") {
 		t.Error("Expected setup script to call setupGlobals")
 	}
 

@@ -40,7 +40,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Pre-activation job doesn't need project support (no safe outputs processed here)
 	// Pre-activation generates the root trace ID; activation will reuse it via setup-trace-id output
-	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, false, "")...)
+	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false, "")...)
 
 	// Determine permissions for pre-activation job
 	var perms *Permissions
