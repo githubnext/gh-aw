@@ -26,7 +26,7 @@ type EngineConfig struct {
 	Config           string
 	Args             []string
 	Agent            string // Agent identifier for copilot --agent flag (copilot engine only)
-	NoAskUser        bool   // When true, passes --no-ask-user flag to enable fully autonomous agentic mode (copilot engine only)
+	NoAskUser        bool   // When true, passes --no-ask-user to the Copilot CLI, preventing it from prompting the user for confirmation or input during execution (fully autonomous agentic mode; copilot engine only)
 	APITarget        string // Custom API endpoint hostname (e.g., "api.acme.ghe.com" or "api.enterprise.githubcopilot.com")
 	// TokenWeights provides custom model cost data for effective token computation.
 	// When set, overrides or extends the built-in model_multipliers.json values.
