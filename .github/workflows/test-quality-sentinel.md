@@ -7,14 +7,14 @@ on:
 permissions:
   contents: read
   pull-requests: read
-engine: copilot
+engine:
+  id: copilot
+  max-continuations: 40
 tools:
   github:
-    toolsets: [repos, pull_requests]
+    toolsets: [pull_requests]
   bash:
     - "git diff:*"
-    - "git show:*"
-    - "git log:*"
     - "grep:*"
     - "find:*"
     - "cat:*"
@@ -22,7 +22,36 @@ tools:
     - "awk:*"
     - "sed:*"
     - "echo:*"
-    - "node:*"
+steps:
+  - name: Pre-fetch PR data
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/agent
+
+      # PR metadata
+      gh pr view "$PR_NUMBER" \
+        --json files,additions,deletions,baseRefName,headRefName \
+        > /tmp/gh-aw/agent/pr-meta.json
+
+      # List of changed test files
+      gh pr diff "$PR_NUMBER" \
+        --name-only | grep -E '(_test\.go|\.test\.cjs|\.test\.js)$' \
+        > /tmp/gh-aw/agent/test-files.txt || true
+
+      # Diff for test files only (empty file is fine if no test files changed)
+      if [ -s /tmp/gh-aw/agent/test-files.txt ]; then
+        # shellcheck disable=SC2046
+        gh pr diff "$PR_NUMBER" \
+          -- $(tr '\n' ' ' < /tmp/gh-aw/agent/test-files.txt) \
+          > /tmp/gh-aw/agent/test-diff.txt 2>/dev/null || true
+      else
+        touch /tmp/gh-aw/agent/test-diff.txt
+      fi
+
+      echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
 safe-outputs:
   add-comment:
     max: 1
@@ -35,7 +64,7 @@ safe-outputs:
     run-started: "🔬 [{workflow_name}]({run_url}) is analyzing test quality on this {event_type}..."
     run-success: "🧪 [{workflow_name}]({run_url}) completed test quality analysis."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during test quality analysis."
-timeout-minutes: 20
+timeout-minutes: 15
 features:
   copilot-requests: true
 ---
@@ -57,13 +86,20 @@ Analyze new and changed tests in this PR to produce a **Test Quality Score** (0�
 
 High test counts can create an illusion of safety. The real signal is whether tests cover behavioral contracts and design invariants — not just happy-path implementations.
 
-## Step 1: Fetch PR Diff and Identify Test Files
+## Step 1: Load Pre-fetched PR Data and Identify Test Files
 
-Use the GitHub tools to get the PR diff:
+PR data has already been fetched before the agent started. Read the pre-fetched files:
 
-1. Get the pull request details for PR #${{ github.event.pull_request.number }}
-2. Get the list of changed files in the PR
-3. Get the PR diff to see exact line-by-line changes
+```bash
+# PR metadata (files, additions, deletions, branch names)
+cat /tmp/gh-aw/agent/pr-meta.json
+
+# List of changed test files
+cat /tmp/gh-aw/agent/test-files.txt
+
+# Diff for test files only
+cat /tmp/gh-aw/agent/test-diff.txt
+```
 
 Then identify all **new and modified test files** in the diff:
 
