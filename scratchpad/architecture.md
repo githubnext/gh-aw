@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-04-05 · Source: [Issue #aw_arch001](https://github.com/github/gh-aw/issues)
+> Last updated: 2026-04-10 · Source: [Issue #aw_arch002](https://github.com/github/gh-aw/issues)
 
 ## Overview
 
@@ -38,9 +38,9 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 │  ┌───────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────────┐ ┌────────────┐                   │
 │  │pkg/envutil│ │pkg/repoutil │ │pkg/sliceutil│ │pkg/semverutil│ │pkg/timeutil│                   │
 │  └───────────┘ └─────────────┘ └─────────────┘ └──────────────┘ └────────────┘                   │
-│  ┌──────────────┐                                                                                  │
-│  │ pkg/testutil │  (test support only)                                                            │
-│  └──────────────┘                                                                                  │
+│  ┌──────────────┐ ┌──────────────┐                                                                │
+│  │ pkg/testutil │ │ pkg/typeutil │  (test support; type conversion utilities)                    │
+│  └──────────────┘ └──────────────┘                                                                │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,3 +71,4 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 | pkg/semverutil | Utility | Semantic versioning primitives |
 | pkg/timeutil | Utility | Time formatting utilities |
 | pkg/testutil | Utility | Test support utilities (test-only) |
+| pkg/typeutil | Utility | General-purpose type conversion utilities (any→int, bool, uint overflow safety) |
