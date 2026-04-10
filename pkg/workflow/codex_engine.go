@@ -255,7 +255,7 @@ touch %s
 (umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, logFile, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
+%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
 	}
 
 	// Get effective GitHub token based on precedence: custom token > default

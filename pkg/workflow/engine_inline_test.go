@@ -277,3 +277,56 @@ func TestInlineEngineDefinition_UnknownRuntimeID(t *testing.T) {
 	assert.Contains(t, err.Error(), string(constants.DocsEnginesURL),
 		"error should include the docs URL")
 }
+
+// TestExtractEngineConfig_InlineDefinition_Bare verifies that engine.bare is
+// parsed correctly in the inline engine definition path.
+func TestExtractEngineConfig_InlineDefinition_Bare(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("bare true with inline definition", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"runtime": map[string]any{
+					"id": "claude",
+				},
+				"bare": true,
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		require.NotNil(t, config, "inline definition with bare:true should produce a config")
+		assert.True(t, config.IsInlineDefinition, "Expected inline definition")
+		assert.True(t, config.Bare, "Expected Bare=true for inline definition with bare:true")
+	})
+
+	t.Run("bare false with inline definition", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"runtime": map[string]any{
+					"id": "codex",
+				},
+				"bare": false,
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		require.NotNil(t, config, "inline definition with bare:false should produce a config")
+		assert.True(t, config.IsInlineDefinition, "Expected inline definition")
+		assert.False(t, config.Bare, "Expected Bare=false")
+	})
+
+	t.Run("bare not set defaults to false with inline definition", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"engine": map[string]any{
+				"runtime": map[string]any{
+					"id": "claude",
+				},
+			},
+		}
+
+		_, config := compiler.ExtractEngineConfig(frontmatter)
+		require.NotNil(t, config, "inline definition without bare field should produce a config")
+		assert.True(t, config.IsInlineDefinition, "Expected inline definition")
+		assert.False(t, config.Bare, "Expected Bare=false by default for inline definition")
+	})
+}

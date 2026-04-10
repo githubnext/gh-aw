@@ -3,12 +3,15 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEngineArgsIntegration(t *testing.T) {
@@ -268,5 +271,132 @@ This is a test workflow to verify codex engine args injection.
 	}
 	if customFlagIdx > instructionIdx {
 		t.Error("Expected --custom-flag to come before $INSTRUCTION in compiled YAML")
+	}
+}
+
+func TestEngineBareModeCopilotIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  bare: true
+---
+
+# Test Bare Mode Copilot
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	result := string(content)
+
+	if !strings.Contains(result, "--no-custom-instructions") {
+		t.Errorf("Expected --no-custom-instructions in compiled output when bare=true, got:\n%s", result)
+	}
+}
+
+func TestEngineBareModeClaudeIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: claude
+  bare: true
+---
+
+# Test Bare Mode Claude
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	result := string(content)
+
+	if !strings.Contains(result, "--bare") {
+		t.Errorf("Expected --bare in compiled output when bare=true, got:\n%s", result)
+	}
+}
+
+func TestBareMode_UnsupportedEngineWarningIntegration(t *testing.T) {
+	tests := []struct {
+		name          string
+		engineID      string
+		bannedOutput  []string
+		workflowTitle string
+	}{
+		{
+			name:          "codex emits warning, no --no-system-prompt in output",
+			engineID:      "codex",
+			bannedOutput:  []string{"--no-system-prompt"},
+			workflowTitle: "Test Bare Mode Codex",
+		},
+		{
+			name:          "gemini emits warning, no GEMINI_SYSTEM_MD=/dev/null in output",
+			engineID:      "gemini",
+			bannedOutput:  []string{"GEMINI_SYSTEM_MD=/dev/null"},
+			workflowTitle: "Test Bare Mode Gemini",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-*")
+
+			workflowContent := fmt.Sprintf(`---
+on: workflow_dispatch
+engine:
+  id: %s
+  bare: true
+---
+
+# %s
+`, tt.engineID, tt.workflowTitle)
+
+			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+			require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0644),
+				"should write workflow file")
+
+			compiler := NewCompiler()
+			require.NoError(t, compiler.CompileWorkflow(workflowPath),
+				"should compile without error (bare mode unsupported is a warning, not an error)")
+
+			// A warning should have been counted
+			assert.Greater(t, compiler.GetWarningCount(), 0,
+				"should emit a warning when bare mode is specified for unsupported engine")
+
+			content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+			require.NoError(t, err, "should read lock file")
+			result := string(content)
+
+			for _, banned := range tt.bannedOutput {
+				assert.NotContains(t, result, banned,
+					"compiled output should not contain %q for unsupported bare mode engine", banned)
+			}
+		})
 	}
 }

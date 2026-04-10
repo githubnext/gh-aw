@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractEngineConfig(t *testing.T) {
@@ -580,4 +581,264 @@ func TestNilEngineConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEngineBareFieldExtraction(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		expectedBare bool
+	}{
+		{
+			name: "bare true",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "copilot",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+		{
+			name: "bare false",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "copilot",
+					"bare": false,
+				},
+			},
+			expectedBare: false,
+		},
+		{
+			name: "bare not set (default false)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			expectedBare: false,
+		},
+		{
+			name: "bare true for claude",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "claude",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+		{
+			name: "bare true for codex",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "codex",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+		{
+			name: "bare true for gemini",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "gemini",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			if config == nil {
+				t.Fatal("Expected config to be non-nil")
+			}
+			if config.Bare != tt.expectedBare {
+				t.Errorf("Expected Bare=%v, got Bare=%v", tt.expectedBare, config.Bare)
+			}
+		})
+	}
+}
+
+func TestEngineBareModeCopilotArgs(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "copilot",
+			Bare: true,
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var foundFlag bool
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-custom-instructions") {
+				foundFlag = true
+				break
+			}
+		}
+	}
+	if !foundFlag {
+		t.Error("Expected --no-custom-instructions in copilot execution steps when bare=true")
+	}
+}
+
+func TestEngineBareModeCopilotArgsNotPresent(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "copilot",
+			Bare: false,
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-custom-instructions") {
+				t.Error("Expected --no-custom-instructions to be absent when bare=false")
+				return
+			}
+		}
+	}
+}
+
+func TestEngineBareModeClaude(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "claude",
+			Bare: true,
+		},
+	}
+
+	engine := NewClaudeEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var foundFlag bool
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--bare") {
+				foundFlag = true
+				break
+			}
+		}
+	}
+	if !foundFlag {
+		t.Error("Expected --bare in claude execution steps when bare=true")
+	}
+}
+
+func TestEngineBareModeClaude_NotPresent(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "claude",
+			Bare: false,
+		},
+	}
+
+	engine := NewClaudeEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--bare") {
+				t.Error("Expected --bare to be absent in claude execution steps when bare=false")
+				return
+			}
+		}
+	}
+}
+
+func TestSupportsBareMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		engine   CodingAgentEngine
+		expected bool
+	}{
+		{
+			name:     "copilot supports bare mode",
+			engine:   NewCopilotEngine(),
+			expected: true,
+		},
+		{
+			name:     "claude supports bare mode",
+			engine:   NewClaudeEngine(),
+			expected: true,
+		},
+		{
+			name:     "codex does not support bare mode",
+			engine:   NewCodexEngine(),
+			expected: false,
+		},
+		{
+			name:     "gemini does not support bare mode",
+			engine:   NewGeminiEngine(),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.engine.SupportsBareMode(),
+				"SupportsBareMode() should return %v for %s", tt.expected, tt.engine.GetID())
+		})
+	}
+}
+
+// TestBareMode_UnsupportedEngineNoFlag verifies that engines not supporting bare mode
+// do not inject any bare-mode flags in their execution steps.
+func TestBareMode_UnsupportedEngineNoFlag(t *testing.T) {
+	t.Run("codex does not inject --no-system-prompt", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:   "codex",
+				Bare: true,
+			},
+		}
+
+		engine := NewCodexEngine()
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+		for _, step := range steps {
+			for _, line := range step {
+				assert.NotContains(t, line, "--no-system-prompt",
+					"Codex should not inject --no-system-prompt (bare mode unsupported)")
+			}
+		}
+	})
+
+	t.Run("gemini does not inject GEMINI_SYSTEM_MD=/dev/null", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:   "gemini",
+				Bare: true,
+			},
+		}
+
+		engine := NewGeminiEngine()
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+		for _, step := range steps {
+			for _, line := range step {
+				if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
+					t.Error("Gemini should not inject GEMINI_SYSTEM_MD=/dev/null (bare mode unsupported)")
+					return
+				}
+			}
+		}
+	})
 }

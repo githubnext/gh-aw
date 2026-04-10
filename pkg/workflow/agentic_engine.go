@@ -38,7 +38,10 @@ type GitHubActionStep []string
 //   CapabilityProvider (feature detection - optional)
 //   ├── SupportsToolsAllowlist()
 //   ├── SupportsMaxTurns()
-//   └── SupportsWebSearch()
+//   ├── SupportsWebSearch()
+//   ├── SupportsMaxContinuations()
+//   ├── SupportsNativeAgentFile()
+//   └── SupportsBareMode()
 //
 //   WorkflowExecutor (compilation - required)
 //   ├── GetDeclaredOutputFiles()
@@ -123,6 +126,11 @@ type CapabilityProvider interface {
 	// the agent file content in prompt.txt during the activation job so that the engine just
 	// reads the standard /tmp/gh-aw/aw-prompts/prompt.txt as usual.
 	SupportsNativeAgentFile() bool
+
+	// SupportsBareMode returns true if this engine supports the bare mode feature
+	// (engine.bare: true), which suppresses automatic loading of context and custom
+	// instructions. When false, specifying bare: true emits a warning and has no effect.
+	SupportsBareMode() bool
 }
 
 // WorkflowExecutor handles workflow compilation and execution
@@ -268,6 +276,7 @@ type BaseEngine struct {
 	supportsMaxContinuations bool
 	supportsWebSearch        bool
 	supportsNativeAgentFile  bool
+	supportsBareMode         bool
 	llmGatewayPort           int
 }
 
@@ -305,6 +314,10 @@ func (e *BaseEngine) SupportsMaxContinuations() bool {
 
 func (e *BaseEngine) SupportsNativeAgentFile() bool {
 	return e.supportsNativeAgentFile
+}
+
+func (e *BaseEngine) SupportsBareMode() bool {
+	return e.supportsBareMode
 }
 
 func (e *BaseEngine) getLLMGatewayPort() int {

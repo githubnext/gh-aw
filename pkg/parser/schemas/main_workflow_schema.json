@@ -9253,6 +9253,11 @@
                 "type": "string"
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
+            },
+            "bare": {
+              "type": "boolean",
+              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex uses --no-system-prompt (suppresses the default system prompt), gemini sets GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty one). Defaults to false.",
+              "default": false
             }
           },
           "required": ["id"],
@@ -9374,6 +9379,11 @@
                 }
               },
               "additionalProperties": false
+            },
+            "bare": {
+              "type": "boolean",
+              "description": "When true, disables automatic loading of context and custom instructions by the AI engine. The engine-specific flag depends on the engine: copilot uses --no-custom-instructions, claude uses --bare, codex uses --no-system-prompt, gemini sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.",
+              "default": false
             }
           },
           "required": ["runtime"],

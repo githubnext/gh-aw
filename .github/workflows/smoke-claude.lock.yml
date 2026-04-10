@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"21ff673e699d808782479870bf351cdbf8f6b95415b21decc3c7721a95f0e281","agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"2ae7dcd51af83d12ec7314dff889b5f100b093c8763bf446f2227e78b608e1aa","agent_id":"claude"}
 # gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_PLUGINS_TOKEN","GITHUB_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"668228422ae6a00e4ad889ee87cd7109ec5666a7","version":"v5.0.4"},{"repo":"actions/cache/save","sha":"668228422ae6a00e4ad889ee87cd7109ec5666a7","version":"v5.0.4"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/upload-artifact","sha":"bbbca2ddaa5d8feaa63e36b76fdaad77386f024f","version":"v7"},{"repo":"docker/build-push-action","sha":"d08e5c354a6adb9ed34480a06d141179aa583294","version":"v7"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4"},{"repo":"github/codeql-action/upload-sarif","sha":"0e9f55954318745b37b7933c693bc093f7336125","version":"v4.35.1"},{"repo":"microsoft/apm-action","sha":"a190b0b1a91031057144dc136acf9757a59c9e4d","version":"v1.4.1"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -230,9 +230,9 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_4ec99b0fd270d235_EOF'
+          cat << 'GH_AW_PROMPT_fbe47867fe51abb6_EOF'
           <system>
-          GH_AW_PROMPT_4ec99b0fd270d235_EOF
+          GH_AW_PROMPT_fbe47867fe51abb6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
@@ -240,12 +240,12 @@ jobs:
           cat "${RUNNER_TEMP}/gh-aw/prompts/agentic_workflows_guide.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4ec99b0fd270d235_EOF'
+          cat << 'GH_AW_PROMPT_fbe47867fe51abb6_EOF'
           <safe-output-tools>
           Tools: add_comment(max:2), create_issue, close_pull_request, update_pull_request, create_pull_request_review_comment(max:5), submit_pull_request_review, resolve_pull_request_review_thread(max:5), add_labels, add_reviewer(max:2), push_to_pull_request_branch, create_code_scanning_alert, missing_tool, missing_data, noop, post_slack_message
-          GH_AW_PROMPT_4ec99b0fd270d235_EOF
+          GH_AW_PROMPT_fbe47867fe51abb6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_push_to_pr_branch.md"
-          cat << 'GH_AW_PROMPT_4ec99b0fd270d235_EOF'
+          cat << 'GH_AW_PROMPT_fbe47867fe51abb6_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -275,9 +275,9 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_4ec99b0fd270d235_EOF
+          GH_AW_PROMPT_fbe47867fe51abb6_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4ec99b0fd270d235_EOF'
+          cat << 'GH_AW_PROMPT_fbe47867fe51abb6_EOF'
           </system>
           
           
@@ -660,7 +660,7 @@ jobs:
           {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
           ```
           
-          GH_AW_PROMPT_4ec99b0fd270d235_EOF
+          GH_AW_PROMPT_fbe47867fe51abb6_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -940,9 +940,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_0e10b6117a7b2ef5_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_3eb7909eedd0aba9_EOF'
           {"add_comment":{"hide_older_comments":true,"max":2},"add_labels":{"allowed":["smoke-claude"]},"add_reviewer":{"max":2,"target":"*"},"close_pull_request":{"max":1,"staged":true},"create_code_scanning_alert":{"driver":"Smoke Claude"},"create_issue":{"close_older_issues":true,"close_older_key":"smoke-claude","expires":2,"group":true,"labels":["automation","testing"],"max":1},"create_pull_request_review_comment":{"max":5,"side":"RIGHT","target":"*"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"post_slack_message":{"description":"Post a message to a fictitious Slack channel (smoke test only — no real Slack integration)","inputs":{"channel":{"default":"#general","description":"Slack channel name to post to","required":false,"type":"string"},"message":{"description":"Message text to post","required":false,"type":"string"}}},"push_to_pull_request_branch":{"allowed_files":["smoke-test-files/smoke-claude-push-test.md"],"if_no_changes":"warn","max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"staged":true,"target":"*"},"report_incomplete":{},"resolve_pull_request_review_thread":{"max":5},"submit_pull_request_review":{"footer":"always","max":1},"update_pull_request":{"allow_body":true,"allow_title":true,"max":1,"target":"*"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_0e10b6117a7b2ef5_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_3eb7909eedd0aba9_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1374,7 +1374,7 @@ jobs:
       - name: Write MCP Scripts Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_d6f51c172b30cd14_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_8692fc643b7ec75a_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -1526,8 +1526,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_d6f51c172b30cd14_EOF
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_38ef6c81187f1145_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_8692fc643b7ec75a_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_1588da80b8b97b95_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -1541,12 +1541,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_38ef6c81187f1145_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_1588da80b8b97b95_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh" << 'GH_AW_MCP_SCRIPTS_SH_GH_2c5983231b4f4fe3_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh" << 'GH_AW_MCP_SCRIPTS_SH_GH_106b238f9874b59a_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: gh
           # Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1557,9 +1557,9 @@ jobs:
           echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
           GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
-          GH_AW_MCP_SCRIPTS_SH_GH_2c5983231b4f4fe3_EOF
+          GH_AW_MCP_SCRIPTS_SH_GH_106b238f9874b59a_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_76877b18b2f4e52f_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_d6607deeb0af2d69_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-discussion-query
           # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1694,9 +1694,9 @@ jobs:
           EOF
           fi
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_76877b18b2f4e52f_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_d6607deeb0af2d69_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_3fcdce0ca0eeef3e_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_cbb7e9fb0fc82e70_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-issue-query
           # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1775,9 +1775,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_3fcdce0ca0eeef3e_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_cbb7e9fb0fc82e70_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_b3f67904ec5beb3f_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_07afac11ee22a00a_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: github-pr-query
           # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
@@ -1862,9 +1862,9 @@ jobs:
           fi
           
           
-          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_b3f67904ec5beb3f_EOF
+          GH_AW_MCP_SCRIPTS_SH_GITHUB-PR-QUERY_07afac11ee22a00a_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-pr-query.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_4fce796bf6c344f8_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh" << 'GH_AW_MCP_SCRIPTS_SH_GO_2d027a5129f213c1_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: go
           # Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1875,9 +1875,9 @@ jobs:
           go $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_GO_4fce796bf6c344f8_EOF
+          GH_AW_MCP_SCRIPTS_SH_GO_2d027a5129f213c1_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/go.sh"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_d92303afa15e5799_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh" << 'GH_AW_MCP_SCRIPTS_SH_MAKE_993da1897df2e12c_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: make
           # Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
@@ -1887,7 +1887,7 @@ jobs:
           echo "make $INPUT_ARGS"
           make $INPUT_ARGS
           
-          GH_AW_MCP_SCRIPTS_SH_MAKE_d92303afa15e5799_EOF
+          GH_AW_MCP_SCRIPTS_SH_MAKE_993da1897df2e12c_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh"
           
       - name: Generate MCP Scripts Server Config
@@ -1961,7 +1961,7 @@ jobs:
           export GH_AW_ENGINE="claude"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.17'
           
-          cat << GH_AW_MCP_CONFIG_82ac77150d4b9330_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
+          cat << GH_AW_MCP_CONFIG_ca493173ba23cbd9_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -2103,7 +2103,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_82ac77150d4b9330_EOF
+          GH_AW_MCP_CONFIG_ca493173ba23cbd9_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -2215,7 +2215,7 @@ jobs:
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
           # shellcheck disable=SC1003
           sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --tty --env-all --exclude-env ANTHROPIC_API_KEY --exclude-env GH_AW_GH_TOKEN --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --exclude-env TAVILY_API_KEY --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.github.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,go.dev,golang.org,goproxy.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,mcp.tavily.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkg.go.dev,playwright.download.prss.microsoft.com,ppa.launchpad.net,proxy.golang.org,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,storage.googleapis.com,sum.golang.org,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --image-tag 0.25.18 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && claude --print --no-chrome --max-turns 100 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools '\''Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for,mcp__tavily'\'' --debug-file /tmp/gh-aw/agent-stdio.log --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && claude --print --no-chrome --max-turns 100 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools '\''Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for,mcp__tavily'\'' --debug-file /tmp/gh-aw/agent-stdio.log --verbose --permission-mode bypassPermissions --output-format stream-json --bare "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_CLAUDE:+ --model "$GH_AW_MODEL_AGENT_CLAUDE"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BASH_DEFAULT_TIMEOUT_MS: 60000
@@ -2892,7 +2892,7 @@ jobs:
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Configure Safe Outputs Custom Scripts
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_22707f2b142f0f65_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_dae07f2089a4b2eb_EOF'
           // @ts-check
           /// <reference types="./safe-output-script" />
           // Auto-generated safe-output script handler: post-slack-message
@@ -2912,7 +2912,7 @@ jobs:
           }
           module.exports = { main };
           
-          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_22707f2b142f0f65_EOF
+          GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_dae07f2089a4b2eb_EOF
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9

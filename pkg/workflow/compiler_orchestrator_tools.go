@@ -215,6 +215,9 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Validate web-search support for the current engine (warning only)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
+	// Validate bare mode support for the current engine (warning only)
+	c.validateBareModeSupport(result.Frontmatter, agenticEngine)
+
 	// Process @include directives in markdown content
 	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
 	if err != nil {

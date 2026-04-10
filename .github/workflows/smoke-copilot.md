@@ -19,6 +19,7 @@ name: Smoke Copilot
 engine:
   id: copilot
   max-continuations: 2
+  bare: true
 imports:
   - shared/github-guard-policy.md
   - shared/gh.md
