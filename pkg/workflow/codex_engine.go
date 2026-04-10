@@ -265,16 +265,18 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			}
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
+(umask 177 && touch %s)
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, logFile, agentPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
+(umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
+%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, logFile, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
 		}
 	}
 

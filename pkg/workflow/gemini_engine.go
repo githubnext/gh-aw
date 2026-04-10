@@ -201,7 +201,8 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 touch %s
-%s 2>&1 | tee -a %s`, AgentStepSummaryPath, geminiCommand, logFile)
+(umask 177 && touch %s)
+%s 2>&1 | tee -a %s`, AgentStepSummaryPath, logFile, geminiCommand, logFile)
 	}
 
 	// Build environment variables

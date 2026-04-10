@@ -120,16 +120,24 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// Wrap engine command in shell (command already includes any internal setup like npm PATH)
 	shellWrappedCommand := WrapCommandInShell(config.EngineCommand)
 
+	// Pre-create the agent stdio log file with restrictive permissions (0600) before
+	// starting the AWF container.  tee would otherwise create it with the default
+	// umask (0644), leaving secrets (e.g. MCP gateway tokens) world-readable on the
+	// runner host until the secret-redaction step runs.
+	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
+
 	// Build the complete command with proper formatting
 	var command string
 	if config.PathSetup != "" {
 		// Include path setup before AWF command (runs on host before AWF)
 		command = fmt.Sprintf(`set -o pipefail
 %s
+%s
 # shellcheck disable=SC1003
 %s %s %s \
   -- %s 2>&1 | tee -a %s`,
 			config.PathSetup,
+			preCreateLog,
 			awfCommand,
 			expandableArgs,
 			shellJoinArgs(awfArgs),
@@ -137,9 +145,11 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 			shellEscapeArg(config.LogFile))
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
+%s
 # shellcheck disable=SC1003
 %s %s %s \
   -- %s 2>&1 | tee -a %s`,
+			preCreateLog,
 			awfCommand,
 			expandableArgs,
 			shellJoinArgs(awfArgs),
