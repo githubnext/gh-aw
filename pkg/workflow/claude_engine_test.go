@@ -475,9 +475,9 @@ func TestClaudeEngineAgentFileAWFInlineSetup(t *testing.T) {
 	// The host-side run script (PathSetup) must NOT contain PROMPT_TEXT assignment.
 	// In AWF mode the run: block contains only the touch + sudo awf invocation.
 	// We identify the host part as everything before the '-- /bin/bash -c' separator.
-	hostPart := stepContent
-	if idx := strings.Index(stepContent, "-- /bin/bash -c"); idx != -1 {
-		hostPart = stepContent[:idx]
+	hostPart, containerPart, found := strings.Cut(stepContent, "-- /bin/bash -c")
+	if !found {
+		t.Fatal("Expected '-- /bin/bash -c' separator in step content (AWF mode marker), but it was not found")
 	}
 	if strings.Contains(hostPart, "PROMPT_TEXT=") {
 		t.Errorf("PROMPT_TEXT assignment found in host-side script (before AWF container command); it must be set inside the container:\n%s", hostPart)
@@ -487,10 +487,6 @@ func TestClaudeEngineAgentFileAWFInlineSetup(t *testing.T) {
 	}
 
 	// The container command (after '-- /bin/bash -c') must contain the inline setup.
-	containerPart := ""
-	if idx := strings.Index(stepContent, "-- /bin/bash -c"); idx != -1 {
-		containerPart = stepContent[idx:]
-	}
 	if !strings.Contains(containerPart, "AGENT_CONTENT=") {
 		t.Errorf("Expected AGENT_CONTENT assignment inside the AWF container command, not found in:\n%s", containerPart)
 	}

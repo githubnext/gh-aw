@@ -192,11 +192,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		promptCommand = `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
 	}
 
-	// agentContainerSetup builds the inline shell fragment that sets AGENT_CONTENT and
-	// PROMPT_TEXT inside the execution environment.  It is used in both the AWF container
-	// command and in the non-AWF host run script.
-	agentContainerSetup := func() string {
-		return fmt.Sprintf(
+	// agentSetupCmd is the inline shell fragment that sets AGENT_CONTENT and PROMPT_TEXT.
+	// It is used in both the AWF container command and in the non-AWF host run script.
+	// Empty when no agent file is specified.
+	var agentSetupCmd string
+	if agentPath != "" {
+		agentSetupCmd = fmt.Sprintf(
 			`AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)" && PROMPT_TEXT="$(printf '%%s\n\n%%s' "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")"`,
 			agentPath,
 		)
@@ -264,7 +265,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// the container command chain, exactly as the Codex engine does.
 		var claudeCommandWithPath string
 		if agentPath != "" {
-			claudeCommandWithPath = fmt.Sprintf(`%s && %s && %s`, npmPathSetup, agentContainerSetup(), claudeCommand)
+			claudeCommandWithPath = fmt.Sprintf(`%s && %s && %s`, npmPathSetup, agentSetupCmd, claudeCommand)
 		} else {
 			claudeCommandWithPath = fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
 		}
@@ -303,7 +304,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
           # Extract markdown body from custom agent file (skip frontmatter)
           %s
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, agentContainerSetup(), claudeCommand, logFile)
+          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, agentSetupCmd, claudeCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
           touch %s
