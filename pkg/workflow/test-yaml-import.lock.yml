@@ -127,7 +127,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: ${{ runner.temp }}/gh-aw/actions/install_copilot_cli.sh 1.0.20
+        run: ${{ runner.temp }}/gh-aw/actions/install_copilot_cli.sh 1.0.21
       - name: Install AWF binary
         run: bash ${{ runner.temp }}/gh-aw/actions/install_awf_binary.sh v0.13.4
       - name: Determine automatic lockdown mode for GitHub MCP server
