@@ -9,6 +9,13 @@ import (
 
 var writePermissionsCodemodLog = logger.New("cli:codemod_permissions")
 
+// writeOnlyPermissions are permission scopes that only accept "write" or "none" as valid values.
+// These must never be converted to "read" since "read" is not a valid value for them.
+var writeOnlyPermissions = map[string]bool{
+	"id-token":         true, // OIDC token: only write or none
+	"copilot-requests": true, // Copilot authentication token: only write or none
+}
+
 // getMigrateWritePermissionsToReadCodemod creates a codemod for converting write permissions to read
 func getMigrateWritePermissionsToReadCodemod() Codemod {
 	return Codemod{
@@ -35,7 +42,12 @@ func getMigrateWritePermissionsToReadCodemod() Codemod {
 
 			// Handle map format
 			if mapValue, ok := permissionsValue.(map[string]any); ok {
-				for _, value := range mapValue {
+				for key, value := range mapValue {
+					// Skip write-only permissions (e.g. id-token, copilot-requests) since
+					// "read" is not a valid value for them — they only accept "write" or "none"
+					if writeOnlyPermissions[key] {
+						continue
+					}
 					if strValue, ok := value.(string); ok && strValue == "write" {
 						hasWritePermissions = true
 						break
@@ -91,7 +103,16 @@ func getMigrateWritePermissionsToReadCodemod() Codemod {
 						parts := strings.SplitN(line, ":", 2)
 						if len(parts) >= 2 {
 							key := parts[0]
+							permKey := strings.TrimSpace(key)
 							valueAndComment := parts[1]
+
+							// Skip write-only permissions (e.g. id-token, copilot-requests) since
+							// "read" is not a valid value for them — they only accept "write" or "none"
+							if writeOnlyPermissions[permKey] {
+								result[i] = line
+								writePermissionsCodemodLog.Printf("Skipping write-only permission %q on line %d", permKey, i+1)
+								continue
+							}
 
 							// Replace "write" with "read" in the value part
 							newValueAndComment := strings.Replace(valueAndComment, " write", " read", 1)
