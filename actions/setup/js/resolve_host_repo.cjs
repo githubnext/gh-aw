@@ -44,13 +44,9 @@ async function main() {
   core.info(`Resolved target_ref       = ${targetRef}`);
 
   if (targetRepo && targetRepo !== currentRepo) {
-    core.info(
-      `Cross-repo invocation detected: platform repo "${targetRepo}" differs from caller "${currentRepo}"`
-    );
+    core.info(`Cross-repo invocation detected: platform repo "${targetRepo}" differs from caller "${currentRepo}"`);
   } else {
-    core.info(
-      `Same-repo invocation: platform and caller are both "${targetRepo}"`
-    );
+    core.info(`Same-repo invocation: platform and caller are both "${targetRepo}"`);
   }
 
   core.setOutput("target_repo", targetRepo);
