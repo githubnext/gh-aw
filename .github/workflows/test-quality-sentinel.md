@@ -25,6 +25,7 @@ tools:
 steps:
   - name: Pre-fetch PR data
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     run: |
       set -euo pipefail
