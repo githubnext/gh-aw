@@ -45,7 +45,7 @@ async function main() {
   // Use .trim() + || so that empty/whitespace-only values also fall back to defaults
   const maxRuns = parseInt(process.env.GH_AW_RATE_LIMIT_MAX?.trim() || "5", 10);
   const windowMinutes = parseInt(process.env.GH_AW_RATE_LIMIT_WINDOW?.trim() || "60", 10);
-  const eventsList = process.env.GH_AW_RATE_LIMIT_EVENTS?.trim() ?? "";
+  const eventsList = process.env.GH_AW_RATE_LIMIT_EVENTS?.trim() || "";
   // Default: admin, maintain, and write roles are exempt from rate limiting
   const ignoredRolesList = process.env.GH_AW_RATE_LIMIT_IGNORED_ROLES?.trim() || "admin,maintain,write";
 
