@@ -1,21 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getErrorMessage } = require("./error_helpers.cjs");
-const { getTrackerID } = require("./get_tracker_id.cjs");
-const { generateFooterWithMessages } = require("./messages_footer.cjs");
-const { sanitizeContent } = require("./sanitize_content.cjs");
-const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
-const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { createCloseEntityHandler, checkLabelFilter, buildCommentBody, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
-
-const HANDLER_TYPE = "close_pull_request";
 
 /**
  * Get pull request details using REST API
@@ -83,17 +75,11 @@ async function closePullRequest(github, owner, repo, prNumber) {
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
-  // Extract configuration
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
-  const maxCount = config.max || 10;
-  const comment = config.comment || "";
   const githubClient = await createAuthenticatedGitHubClient(config);
 
-  // Check if we're in staged mode (either globally or per-handler config)
-  const isStaged = isStagedMode(config);
-
-  core.info(`Close pull request configuration: max=${maxCount}`);
+  core.info(`Close pull request configuration: max=${config.max || 10}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -101,252 +87,67 @@ async function main(config = {}) {
     core.info(`Required title prefix: ${requiredTitlePrefix}`);
   }
 
-  // Track how many items we've processed for max limit
-  let processedCount = 0;
+  return createCloseEntityHandler(
+    config,
+    PULL_REQUEST_CONFIG,
+    {
+      resolveTarget(item) {
+        let prNumber;
+        if (item.pull_request_number !== undefined) {
+          prNumber = parseInt(String(item.pull_request_number), 10);
+          if (isNaN(prNumber)) {
+            return { success: false, error: `Invalid pull request number: ${item.pull_request_number}` };
+          }
+        } else {
+          const contextPR = context.payload?.pull_request?.number;
+          if (!contextPR) {
+            return { success: false, error: "No pull_request_number provided and not in pull request context" };
+          }
+          prNumber = contextPR;
+        }
+        return { success: true, entityNumber: prNumber, owner: context.repo.owner, repo: context.repo.repo };
+      },
 
-  /**
-   * Message handler function that processes a single close_pull_request message
-   * @param {Object} message - The close_pull_request message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status
-   */
-  return async function handleClosePullRequest(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping close_pull_request: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
+      getDetails: getPullRequestDetails,
 
-    processedCount++;
+      validateLabels(entity, entityNumber, requiredLabels) {
+        if (!checkLabelFilter(entity.labels, requiredLabels)) {
+          return {
+            valid: false,
+            warning: `Skipping PR #${entityNumber}: does not match label filter (required: ${requiredLabels.join(", ")})`,
+            error: "PR does not match required labels",
+          };
+        }
+        return { valid: true };
+      },
 
-    const item = message;
+      buildCommentBody(sanitizedBody) {
+        const triggeringPRNumber = context.payload?.pull_request?.number;
+        const triggeringIssueNumber = context.payload?.issue?.number;
+        return buildCommentBody(sanitizedBody, triggeringIssueNumber, triggeringPRNumber);
+      },
 
-    // Log message structure for debugging (avoid logging body content)
-    core.info(
-      `Processing close_pull_request message: ${JSON.stringify({
-        has_body: !!item.body,
-        body_length: item.body ? item.body.length : 0,
-        pull_request_number: item.pull_request_number,
-      })}`
-    );
+      addComment: addPullRequestComment,
 
-    // Determine comment body - prefer non-empty item.body over non-empty config.comment
-    /** @type {string} */
-    let commentToPost;
-    /** @type {string} */
-    let commentSource = "unknown";
-
-    if (typeof item.body === "string" && item.body.trim() !== "") {
-      commentToPost = item.body;
-      commentSource = "item.body";
-    } else if (typeof comment === "string" && comment.trim() !== "") {
-      commentToPost = comment;
-      commentSource = "config.comment";
-    } else {
-      core.warning("No comment body provided in message and no default comment configured");
-      return {
-        success: false,
-        error: "No comment body provided",
-      };
-    }
-
-    core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
-
-    // Sanitize content to prevent injection attacks
-    commentToPost = sanitizeContent(commentToPost);
-
-    // Determine PR number
-    let prNumber;
-    if (item.pull_request_number !== undefined) {
-      prNumber = parseInt(String(item.pull_request_number), 10);
-      if (isNaN(prNumber)) {
-        core.warning(`Invalid pull request number: ${item.pull_request_number}`);
-        return {
-          success: false,
-          error: `Invalid pull request number: ${item.pull_request_number}`,
-        };
-      }
-    } else {
-      // Use context PR if available
-      const contextPR = context.payload?.pull_request?.number;
-      if (!contextPR) {
-        core.warning("No pull_request_number provided and not in pull request context");
-        return {
-          success: false,
-          error: "No pull_request_number provided and not in pull request context",
-        };
-      }
-      prNumber = contextPR;
-    }
-
-    core.info(`Processing close_pull_request for PR #${prNumber}`);
-
-    // Get PR details
-    const { owner, repo } = context.repo;
-    let pr;
-    try {
-      core.info(`Fetching PR details for #${prNumber} in ${owner}/${repo}`);
-      pr = await getPullRequestDetails(githubClient, owner, repo, prNumber);
-      core.info(`PR #${prNumber} fetched: state=${pr.state}, title="${pr.title}", labels=[${pr.labels.map(l => l.name || l).join(", ")}]`);
-    } catch (error) {
-      const errorMsg = getErrorMessage(error);
-      core.warning(`Failed to get PR #${prNumber} details: ${errorMsg}`);
-      return {
-        success: false,
-        error: `Failed to get PR #${prNumber} details: ${errorMsg}`,
-      };
-    }
-
-    // Check if already closed - but still add comment
-    const wasAlreadyClosed = pr.state === "closed";
-    if (wasAlreadyClosed) {
-      core.info(`PR #${prNumber} is already closed, but will still add comment`);
-    }
-
-    // Check label filter
-    if (!checkLabelFilter(pr.labels, requiredLabels)) {
-      core.info(`Skipping PR #${prNumber}: does not match label filter (required: ${requiredLabels.join(", ")})`);
-      return {
-        success: false,
-        error: `PR does not match required labels`,
-      };
-    }
-    if (requiredLabels.length > 0) {
-      core.info(`PR #${prNumber} has all required labels: ${requiredLabels.join(", ")}`);
-    }
-
-    // Check title prefix filter
-    if (!checkTitlePrefixFilter(pr.title, requiredTitlePrefix)) {
-      core.info(`Skipping PR #${prNumber}: title does not start with '${requiredTitlePrefix}'`);
-      return {
-        success: false,
-        error: `PR title does not start with required prefix`,
-      };
-    }
-    if (requiredTitlePrefix) {
-      core.info(`PR #${prNumber} has required title prefix: "${requiredTitlePrefix}"`);
-    }
-
-    // If in staged mode, preview the close without executing it
-    if (isStaged) {
-      logStagedPreviewInfo(`Would close PR #${prNumber}`);
-      return {
-        success: true,
-        staged: true,
-        previewInfo: {
-          number: prNumber,
-          alreadyClosed: wasAlreadyClosed,
-          hasComment: !!commentToPost,
-        },
-      };
-    }
-
-    // Add comment with the body from the message
-    let commentPosted = false;
-    try {
-      const triggeringPRNumber = context.payload?.pull_request?.number;
-      const triggeringIssueNumber = context.payload?.issue?.number;
-      const commentBody = buildCommentBody(commentToPost, triggeringIssueNumber, triggeringPRNumber);
-      core.info(`Adding comment to PR #${prNumber}: length=${commentBody.length}`);
-      await addPullRequestComment(githubClient, owner, repo, prNumber, commentBody);
-      commentPosted = true;
-      core.info(`✓ Comment posted to PR #${prNumber}`);
-      core.info(`Comment details: body_length=${commentBody.length}`);
-    } catch (error) {
-      const errorMsg = getErrorMessage(error);
-      core.error(`Failed to add comment to PR #${prNumber}: ${errorMsg}`);
-      core.error(
-        `Error details: ${JSON.stringify({
-          prNumber,
-          hasBody: !!item.body,
-          bodyLength: item.body ? item.body.length : 0,
-          errorMessage: errorMsg,
-        })}`
-      );
-      // Continue with closing even if comment fails - but log the error
-    }
-
-    // Close the PR if not already closed
-    let closedPR;
-    if (wasAlreadyClosed) {
-      core.info(`PR #${prNumber} was already closed, comment ${commentPosted ? "posted successfully" : "posting attempted"}`);
-      closedPR = pr;
-    } else {
-      try {
+      closeEntity(github, owner, repo, prNumber) {
         core.info(`Closing PR #${prNumber}`);
-        closedPR = await closePullRequest(githubClient, owner, repo, prNumber);
-        core.info(`✓ PR #${prNumber} closed successfully: ${closedPR.title}`);
-      } catch (error) {
-        const errorMsg = getErrorMessage(error);
-        core.error(`Failed to close PR #${prNumber}: ${errorMsg}`);
-        core.error(
-          `Error details: ${JSON.stringify({
-            prNumber,
-            hasBody: !!item.body,
-            bodyLength: item.body ? item.body.length : 0,
-            errorMessage: errorMsg,
-          })}`
-        );
+        return closePullRequest(github, owner, repo, prNumber);
+      },
+
+      continueOnCommentError: true,
+
+      buildSuccessResult(closedEntity, commentResult, wasAlreadyClosed, commentPosted) {
         return {
-          success: false,
-          error: `Failed to close PR #${prNumber}: ${errorMsg}`,
+          success: true,
+          pull_request_number: closedEntity.number,
+          pull_request_url: closedEntity.html_url,
+          alreadyClosed: wasAlreadyClosed,
+          commentPosted,
         };
-      }
-    }
-
-    core.info(`close_pull_request completed for PR #${prNumber}: ${commentPosted ? "comment posted and " : ""}PR ${wasAlreadyClosed ? "was already closed" : "closed successfully"}`);
-
-    return {
-      success: true,
-      pull_request_number: closedPR.number,
-      pull_request_url: closedPR.html_url,
-      alreadyClosed: wasAlreadyClosed,
-      commentPosted,
-    };
-  };
-}
-
-/**
- * Check if labels match the required labels filter
- * @param {Array<{name: string}>} prLabels - Labels on the PR
- * @param {string[]} requiredLabels - Required labels (any match)
- * @returns {boolean} True if PR has at least one required label or no filter is set
- */
-function checkLabelFilter(prLabels, requiredLabels) {
-  if (requiredLabels.length === 0) return true;
-
-  const labelNames = prLabels.map(l => l.name);
-  return requiredLabels.some(required => labelNames.includes(required));
-}
-
-/**
- * Check if title matches the required prefix filter
- * @param {string} title - PR title
- * @param {string} requiredTitlePrefix - Required title prefix
- * @returns {boolean} True if title starts with required prefix or no filter is set
- */
-function checkTitlePrefixFilter(title, requiredTitlePrefix) {
-  if (!requiredTitlePrefix) return true;
-  return title.startsWith(requiredTitlePrefix);
-}
-
-/**
- * Build comment body with tracker ID and footer
- * @param {string} body - The original comment body
- * @param {number|undefined} triggeringIssueNumber - Issue number that triggered this workflow
- * @param {number|undefined} triggeringPRNumber - PR number that triggered this workflow
- * @returns {string} The complete comment body with tracker ID and footer
- */
-function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-  const runUrl = buildWorkflowRunUrl(context, context.repo);
-
-  return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+      },
+    },
+    githubClient
+  );
 }
 
 module.exports = { main };
