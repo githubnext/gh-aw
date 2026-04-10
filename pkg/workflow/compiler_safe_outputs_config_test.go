@@ -590,6 +590,21 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"upload_asset"},
 		},
 		{
+			name: "upload_artifact config",
+			safeOutputs: &SafeOutputsConfig{
+				UploadArtifact: &UploadArtifactConfig{
+					MaxUploads:   1,
+					MaxSizeBytes: 104857600,
+					AllowedPaths: []string{"output/**"},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"upload_artifact"},
+		},
+		{
 			name: "update_release config",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateRelease: &UpdateReleaseConfig{
