@@ -83,10 +83,12 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //
 // Parameters:
 //   - repository: the repository to checkout. May be a literal "owner/repo" value or a
-//     GitHub Actions expression such as "${{ steps.resolve-host-repo.outputs.target_repo }}".
+//     GitHub Actions expression such as "${{ steps.resolve-host-repo.outputs.target_repo }}"
+//     (which is derived from job.workflow_repository at runtime).
 //     Pass an empty string to omit the repository field and check out the current repository.
 //   - ref: the branch, tag, or SHA to checkout. May be a literal value or a GitHub Actions
-//     expression such as "${{ steps.resolve-host-repo.outputs.target_ref }}".
+//     expression such as "${{ steps.resolve-host-repo.outputs.target_ref }}"
+//     (which is derived from job.workflow_ref at runtime).
 //     Pass an empty string to omit the ref field and use the repository's default branch.
 //   - getActionPin: resolves an action reference to a pinned SHA form.
 //   - extraPaths: additional paths to include in the sparse-checkout beyond .github and .agents.

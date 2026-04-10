@@ -112,13 +112,12 @@ jobs:
           trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
       - name: Resolve host repo for activation checkout
         id: resolve-host-repo
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/resolve_host_repo.cjs');
-            await main();
+        run: |
+          repo="${{ job.workflow_repository }}"
+          ref="${{ job.workflow_ref }}"
+          echo "target_repo=${repo}" >> "$GITHUB_OUTPUT"
+          echo "target_repo_name=${repo##*/}" >> "$GITHUB_OUTPUT"
+          echo "target_ref=${ref##*@}" >> "$GITHUB_OUTPUT"
       - name: Compute artifact prefix
         id: artifact-prefix
         env:
