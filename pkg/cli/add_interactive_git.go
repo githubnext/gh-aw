@@ -279,13 +279,34 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
 	return nil
 }
 
-// mergePullRequest merges the specified PR
+// mergeCommitsNotAllowedErr is the lowercase substring of the GitHub GraphQL API error
+// returned when a repository does not permit merge commits. It is used to detect when
+// a merge should be retried with a squash strategy.
+const mergeCommitsNotAllowedErr = "merge commits are not allowed"
+
+// mergePullRequest merges the specified PR, attempting a merge commit first and
+// falling back to squash if merge commits are not allowed on the repository.
 func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
-	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", strconv.Itoa(prNumber), "--repo", c.RepoOverride, "--merge")
-	if err != nil {
-		return fmt.Errorf("merge failed: %w (output: %s)", err, string(output))
+	prArg := strconv.Itoa(prNumber)
+	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--merge")
+	if err == nil {
+		return nil
 	}
-	return nil
+
+	// If merge commits are not allowed on this repository (e.g. only squash or rebase merges
+	// are enabled), fall back to squash merge. The error text comes from the GitHub GraphQL API
+	// and is surfaced verbatim in the gh CLI output.
+	combinedText := strings.ToLower(string(output) + err.Error())
+	if strings.Contains(combinedText, mergeCommitsNotAllowedErr) {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merge commits are not allowed on this repository, retrying with squash merge"))
+		squashOutput, squashErr := workflow.RunGHCombined("Merging pull request (squash)...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--squash")
+		if squashErr != nil {
+			return fmt.Errorf("merge failed: %w (output: %s)", squashErr, string(squashOutput))
+		}
+		return nil
+	}
+
+	return fmt.Errorf("merge failed: %w (output: %s)", err, string(output))
 }
 
 // editPRTitle updates the title of the specified PR via the gh CLI.
