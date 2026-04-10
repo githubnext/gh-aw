@@ -54,6 +54,18 @@ declare global {
   const io: typeof __actionsIo;
 
   /**
+   * Factory function to create an authenticated Octokit client with a specific token.
+   * Provided as a builtin by actions/github-script@v9.
+   * Useful for cross-repository operations that need a different token than the step-level GITHUB_TOKEN.
+   *
+   * @param token - A GitHub personal access token or app token
+   * @param options - Optional Octokit client options
+   * @param additionalPlugins - Optional additional Octokit plugins
+   * @returns An authenticated Octokit instance
+   */
+  var getOctokit: typeof __actionsGithub.getOctokit;
+
+  /**
    * Console object for logging (available in Node.js environment)
    */
   const console: Console;

@@ -37,7 +37,6 @@ function setupGlobals(coreModule, githubModule, contextModule, execModule, ioMod
   global.exec = execModule;
   // @ts-expect-error - Assigning to global properties that are declared as const
   global.io = ioModule;
-  // @ts-expect-error - Assigning to global properties that are declared as const
   global.getOctokit = getOctokitFn;
 }
 
