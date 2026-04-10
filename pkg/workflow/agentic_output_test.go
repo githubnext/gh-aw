@@ -63,7 +63,7 @@ This workflow tests the agentic output collection functionality.
 
 	// Verify GH_AW_SAFE_OUTPUTS is set via the "Set runtime paths" step (not job-level env,
 	// because runner context is unavailable in job-level env: blocks).
-	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_OUTPUT"`) {
+	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"`) {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS to be set via 'Set runtime paths' step using $GITHUB_OUTPUT")
 	}
 
@@ -173,7 +173,7 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 
 	// Verify that Codex workflow DOES have GH_AW_SAFE_OUTPUTS functionality via "Set runtime paths" step
 	// (not job-level env, because runner context is unavailable in job-level env: blocks).
-	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_OUTPUT"`) {
+	if !strings.Contains(lockContent, `echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"`) {
 		t.Error("Codex workflow should set GH_AW_SAFE_OUTPUTS via 'Set runtime paths' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 

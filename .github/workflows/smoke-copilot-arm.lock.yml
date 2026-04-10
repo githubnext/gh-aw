@@ -433,9 +433,11 @@ jobs:
       - name: Set runtime paths
         id: set-runtime-paths
         run: |
-          echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_OUTPUT"
-          echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" >> "$GITHUB_OUTPUT"
-          echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json" >> "$GITHUB_OUTPUT"
+          {
+            echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl"
+            echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"
+            echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json"
+          } >> "$GITHUB_OUTPUT"
       - name: Mask OTLP telemetry headers
         run: echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
       - name: Checkout repository
