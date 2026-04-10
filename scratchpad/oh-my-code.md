@@ -1,13 +1,13 @@
-# oh-my-opencode vs GitHub Agentic Workflows: Deep Research Comparison
+# oh-my-opencode vs GitHub Agentic Workflows: Technical Comparison
 
 **Date**: 2026-01-05  
 **oh-my-opencode Repository**: https://github.com/code-yeongyu/oh-my-opencode  
 **GitHub Agentic Workflows Repository**: https://github.com/github/gh-aw  
-**Status**: Comprehensive Analysis
+**Status**: Analysis
 
 ## Executive Summary
 
-This document provides a deep research comparison between **oh-my-opencode** and **GitHub Agentic Workflows** (gh-aw). Both projects represent recent approaches to AI-powered software development automation, but they target fundamentally different use cases, execution environments, and philosophies.
+This document compares **oh-my-opencode** and **GitHub Agentic Workflows** (gh-aw). Both projects represent recent approaches to AI-powered software development automation, but they target fundamentally different use cases, execution environments, and philosophies.
 
 ### Key Differences at a Glance
 

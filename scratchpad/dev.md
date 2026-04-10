@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.6
-**Last Updated**: 2026-04-09
+**Version**: 5.7
+**Last Updated**: 2026-04-10
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2777,7 +2777,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 - [Gastown Multi-Agent Analysis](./gastown.md) - Conceptual mapping of Gastown orchestration patterns (persistent state, crash recovery, structured handoffs) to gh-aw concepts
 - [mdflow Deep Research](./mdflow.md) - Technical comparison of mdflow and gh-aw: custom engine opportunities, template variable patterns, and import mechanism differences
 - [mdflow Syntax Comparison](./mdflow-comparison.md) - Detailed comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, and execution patterns
-- [oh-my-opencode Comparison](./oh-my-code.md) - Deep research comparison of oh-my-opencode and gh-aw: architecture, use cases, tool ecosystems, security models, and implementation patterns
+- [oh-my-opencode Comparison](./oh-my-code.md) - Technical comparison of oh-my-opencode and gh-aw: architecture, use cases, tool ecosystems, security models, and implementation patterns
 - [Agent Sessions Terminology Migration](./agent-sessions.md) - Migration plan for renaming "agent task" to "agent session": schema updates, codemod in `fix_codemods.go`, Go/JavaScript code changes, documentation updates, and backward compatibility strategy
 - [Safe Output Handler Factory Pattern](./safe-output-handlers-refactoring.md) - Refactoring status for all 11 safe output handlers to the handler factory pattern (`main(config)` returns a message handler function): per-handler status, testing strategy, and handler manager compatibility
 - [Serena Tools Statistical Analysis](./serena-tools-analysis.md) - Deep statistical analysis of Serena MCP tool usage in workflow run 21560089409: tool adoption rates (26% of registered tools used), call distributions, and unused tool identification
@@ -2795,6 +2795,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.7 (2026-04-10): Maintenance tone scan — fixed 4 tone issues across 2 spec files: `oh-my-code.md` (3 fixes: "Deep Research Comparison"→"Technical Comparison", "Comprehensive Analysis"→"Analysis", "deep research comparison between"→"compares"), `mdflow-comparison.md` (1 fix: "detailed syntax comparison"→"syntax comparison"). Updated Related Documentation description for `oh-my-code.md`. Coverage: 75 spec files (no new files).
 - v5.6 (2026-04-09): Fixed 4 broken links in `scratchpad/README.md` (case-sensitive file name corrections: `MCP_LOGS_GUARDRAIL.md`→`mcp_logs_guardrails.md`, `SCHEMA_VALIDATION.md`→`schema-validation.md`, `SECURITY_REVIEW_TEMPLATE_INJECTION.md`→`security_review.md`; `campaigns-files.md` marked removed). Fixed 3 tone issues in `README.md` ("Detailed comparison"→"Comparison", "Detailed analysis"→"Analysis", "Complete deep-dive statistical analysis"→"Statistical analysis"). Updated `README.md` last-updated date. Added `README.md` to Related Documentation. Coverage: 75 spec files (no new files).
 - v5.5 (2026-04-08): Added WorkQueueOps and BatchOps design pattern subsections to Workflow Patterns (from PR #25178: four queue strategies — issue checklist, sub-issues, cache-memory, discussion-based; four batch strategies — chunked, matrix fan-out, rate-limit-aware, result aggregation). Added 2 new Related Documentation links for `docs/src/content/docs/patterns/workqueue-ops.md` and `batch-ops.md`. Coverage: 75 spec files (2 new pattern docs).
 - v5.4 (2026-04-07): Added `gh-aw.github.rate_limit.reset` OTLP span attribute to GitHub API Rate Limit Observability section (from PR #25061: ISO 8601 reset timestamp now included in conclusion spans). Coverage: 73 spec files (no new spec files).
