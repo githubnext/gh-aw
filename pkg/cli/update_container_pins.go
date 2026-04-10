@@ -18,6 +18,13 @@ import (
 
 var containerPinsLog = logger.New("cli:update_container_pins")
 
+// imageFailure pairs a container image tag with the human-readable reason it
+// could not be pinned, so the summary can surface actionable details.
+type imageFailure struct {
+	image  string
+	reason string
+}
+
 // dockerImagesArgPattern matches the download_docker_images.sh invocation in lock files
 // and captures the space-separated list of image arguments.
 // Example: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" img1 img2
@@ -71,7 +78,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 
 	// Resolve digests for images that are not yet pinned.
 	var updatedImages []string
-	var failedImages []string
+	var failedImages []imageFailure
 	var skippedImages []string
 
 	for _, image := range images {
@@ -91,13 +98,10 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		}
 
 		// Attempt to resolve the digest without pulling.
-		digest, err := resolveContainerDigest(ctx, image, verbose)
-		if err != nil {
-			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to resolve digest for %s: %v", image, err)))
-			}
-			failedImages = append(failedImages, image)
+		digest, resolveErr := resolveContainerDigest(ctx, image, verbose)
+		if resolveErr != nil {
+			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, resolveErr)
+			failedImages = append(failedImages, imageFailure{image: image, reason: resolveErr.Error()})
 			continue
 		}
 
@@ -127,9 +131,9 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	}
 
 	if len(failedImages) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve digest for %d image(s) (Docker may be unavailable):", len(failedImages))))
-		for _, img := range failedImages {
-			fmt.Fprintf(os.Stderr, "  %s\n", img)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve digest for %d image(s) (Docker/crane may be unavailable):", len(failedImages))))
+		for _, f := range failedImages {
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.image, f.reason)
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -202,27 +206,47 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 const dockerCmdTimeout = 60 * time.Second
 
 // resolveContainerDigest returns the SHA-256 content digest for the given image tag.
-// It first attempts "docker buildx imagetools inspect" (no pull required), then
-// falls back to "docker pull" + "docker inspect".
-// Returns an error when Docker is unavailable or the image cannot be found.
+// It tries three strategies in order:
+//  1. "docker buildx imagetools inspect" (no pull, preferred — works when docker daemon is running)
+//  2. "crane digest" (no pull, no daemon — works in CI without Docker)
+//  3. "docker pull" + "docker inspect" (fallback that pulls the full image)
+//
+// Returns an error when all three strategies fail.
 func resolveContainerDigest(ctx context.Context, image string, verbose bool) (string, error) {
 	containerPinsLog.Printf("Resolving digest for container image: %s", image)
 
-	// Strategy 1: docker buildx imagetools inspect (no pull, preferred)
-	digest, err := resolveDigestViaBuildx(ctx, image)
-	if err == nil && digest != "" {
-		return digest, nil
+	type strategy struct {
+		name string
+		fn   func() (string, error)
 	}
-	containerPinsLog.Printf("buildx imagetools strategy failed for %s: %v", image, err)
-
-	// Strategy 2: docker pull + docker inspect
-	digest, err = resolveDigestViaPull(ctx, image, verbose)
-	if err == nil && digest != "" {
-		return digest, nil
+	strategies := []strategy{
+		{
+			name: "docker buildx imagetools",
+			fn:   func() (string, error) { return resolveDigestViaBuildx(ctx, image) },
+		},
+		{
+			name: "crane digest",
+			fn:   func() (string, error) { return resolveDigestViaCrane(ctx, image) },
+		},
+		{
+			name: "docker pull + inspect",
+			fn:   func() (string, error) { return resolveDigestViaPull(ctx, image, verbose) },
+		},
 	}
-	containerPinsLog.Printf("pull+inspect strategy failed for %s: %v", image, err)
 
-	return "", fmt.Errorf("could not resolve digest for %s: docker buildx and docker pull both failed", image)
+	var errs []string
+	for _, s := range strategies {
+		digest, err := s.fn()
+		if err == nil && digest != "" {
+			containerPinsLog.Printf("Resolved %s via %s: %s", image, s.name, digest)
+			return digest, nil
+		}
+		msg := fmt.Sprintf("%s: %v", s.name, err)
+		containerPinsLog.Printf("Strategy %q failed for %s: %v", s.name, image, err)
+		errs = append(errs, msg)
+	}
+
+	return "", fmt.Errorf("%s", strings.Join(errs, "; "))
 }
 
 // resolveDigestViaBuildx uses "docker buildx imagetools inspect" to get the content
@@ -240,6 +264,25 @@ func resolveDigestViaBuildx(ctx context.Context, image string) (string, error) {
 	digest := strings.TrimSpace(string(out))
 	if !strings.HasPrefix(digest, "sha256:") {
 		return "", fmt.Errorf("unexpected digest format: %q", digest)
+	}
+	return digest, nil
+}
+
+// resolveDigestViaCrane uses the "crane" CLI tool to resolve a digest without
+// requiring the Docker daemon. crane is part of google/go-containerregistry and
+// is commonly pre-installed in CI environments. It works with public and
+// authenticated private registries using the local credential store.
+func resolveDigestViaCrane(ctx context.Context, image string) (string, error) {
+	// crane digest IMAGE outputs a single line like: sha256:abc123...
+	ctx, cancel := context.WithTimeout(ctx, dockerCmdTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "crane", "digest", image).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("crane digest failed: %w\n%s", err, strings.TrimSpace(string(out)))
+	}
+	digest := strings.TrimSpace(string(out))
+	if !strings.HasPrefix(digest, "sha256:") {
+		return "", fmt.Errorf("unexpected digest format from crane: %q", digest)
 	}
 	return digest, nil
 }
