@@ -99,6 +99,18 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 				dockerLog.Printf("Added AWF api-proxy sidecar container: %s", apiProxyImage)
 			}
 		}
+
+		// Add cli-proxy sidecar container when the cli-proxy feature flag is enabled
+		// and the AWF version supports it. Without this, --skip-pull causes AWF to fail
+		// because the cli-proxy image was never pulled.
+		if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) && awfSupportsCliProxy(firewallConfig) {
+			cliProxyImage := constants.DefaultFirewallRegistry + "/cli-proxy:" + awfImageTag
+			if !imageSet[cliProxyImage] {
+				images = append(images, cliProxyImage)
+				imageSet[cliProxyImage] = true
+				dockerLog.Printf("Added AWF cli-proxy sidecar container: %s", cliProxyImage)
+			}
+		}
 	}
 
 	// Collect sandbox.mcp container (MCP gateway)
