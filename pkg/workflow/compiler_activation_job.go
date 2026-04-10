@@ -50,13 +50,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, generateOTLPHeadersMaskStep())
 	}
 
-	// When a workflow_call trigger is present, resolve the platform (host) repository before
-	// generating aw_info so that target_repo can be included in aw_info.json and used by
-	// the checkout step. This is necessary for event-driven relays (e.g. on: issue_comment)
-	// where github.event_name is not 'workflow_call', making the previous expression
-	// (github.event_name == 'workflow_call' && github.action_repository || github.repository)
-	// unreliable. GITHUB_WORKFLOW_REF always reflects the executing workflow's repo regardless
-	// of how it was triggered.
+	// When a workflow_call trigger is present, resolve the platform (host) repository using
+	// the job.workflow_* context fields. job.workflow_repository identifies the
+	// platform repo and job.workflow_sha pins the checkout to the exact executing revision,
+	// correctly handling all relay patterns including cross-repo and cross-org scenarios.
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding resolve-host-repo step for workflow_call trigger")
 		steps = append(steps, c.generateResolveHostRepoStep())
@@ -615,26 +612,24 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 }
 
 // generateResolveHostRepoStep generates a step that resolves the platform (host) repository
-// for the activation job checkout by inspecting GITHUB_WORKFLOW_REF at runtime.
+// for the activation job checkout using the job.workflow_* context fields.
 //
-// This step replaces the previous compile-time expression
+// job.workflow_repository provides the owner/repo of the currently executing workflow file,
+// correctly identifying the platform repo in all relay patterns (cross-repo workflow_call,
+// event-driven relays like on: issue_comment, on: push, and cross-org scenarios).
 //
-//	github.event_name == 'workflow_call' && github.action_repository || github.repository
-//
-// which only worked when the outermost trigger was workflow_call. For event-driven relays
-// (e.g. on: issue_comment, on: push) the event_name is the native event, so the old
-// expression always fell back to github.repository (the caller's repo), causing the
-// activation job to check out the wrong repository.
-//
-// GITHUB_WORKFLOW_REF always contains the path of the currently executing workflow file
-// (owner/repo/.github/workflows/file.yml@ref), regardless of the triggering event.
-// Comparing its owner/repo prefix with GITHUB_REPOSITORY reliably detects cross-repo
-// invocations for all relay patterns.
+// job.workflow_sha provides the immutable commit SHA of the workflow being executed, ensuring
+// the activation checkout pins to the exact revision rather than a moving branch/tag ref.
 func (c *Compiler) generateResolveHostRepoStep() string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
 	step.WriteString("        id: resolve-host-repo\n")
 	step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	step.WriteString("        env:\n")
+	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
+	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")
+	step.WriteString("          JOB_WORKFLOW_REF: ${{ job.workflow_ref }}\n")
+	step.WriteString("          JOB_WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}\n")
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")
 	step.WriteString(generateGitHubScriptWithRequire("resolve_host_repo.cjs"))
@@ -665,9 +660,9 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// The agent job uses only the user-specified permissions (no automatic contents:read augmentation).
 
 	// For workflow_call triggers, checkout the callee (platform) repository using the target_repo
-	// output from the resolve-host-repo step. That step parses GITHUB_WORKFLOW_REF at runtime to
-	// determine the platform repo, correctly handling event-driven relays where event_name is not
-	// 'workflow_call' (e.g. on: issue_comment, on: push).
+	// and target_ref outputs from the resolve-host-repo step. That step uses job.workflow_repository
+	// and job.workflow_sha to identify the platform repo and pin to the exact commit,
+	// correctly handling all relay patterns including cross-repo and cross-org scenarios.
 	//
 	// Skip when inlined-imports is enabled: content is embedded at compile time and no
 	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
