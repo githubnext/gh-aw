@@ -33,7 +33,7 @@ var dockerImagesArgPattern = regexp.MustCompile(`download_docker_images\.sh"?\s+
 //
 // When Docker is unavailable the function logs a warning and returns nil so that
 // the overall upgrade flow is not interrupted.
-func UpdateContainerPins(workflowDir string, verbose bool) error {
+func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) error {
 	containerPinsLog.Print("Starting container pin update")
 
 	if verbose {
@@ -91,7 +91,7 @@ func UpdateContainerPins(workflowDir string, verbose bool) error {
 		}
 
 		// Attempt to resolve the digest without pulling.
-		digest, err := resolveContainerDigest(image, verbose)
+		digest, err := resolveContainerDigest(ctx, image, verbose)
 		if err != nil {
 			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, err)
 			if verbose {
@@ -205,18 +205,18 @@ const dockerCmdTimeout = 60 * time.Second
 // It first attempts "docker buildx imagetools inspect" (no pull required), then
 // falls back to "docker pull" + "docker inspect".
 // Returns an error when Docker is unavailable or the image cannot be found.
-func resolveContainerDigest(image string, verbose bool) (string, error) {
+func resolveContainerDigest(ctx context.Context, image string, verbose bool) (string, error) {
 	containerPinsLog.Printf("Resolving digest for container image: %s", image)
 
 	// Strategy 1: docker buildx imagetools inspect (no pull, preferred)
-	digest, err := resolveDigestViaBuildx(image)
+	digest, err := resolveDigestViaBuildx(ctx, image)
 	if err == nil && digest != "" {
 		return digest, nil
 	}
 	containerPinsLog.Printf("buildx imagetools strategy failed for %s: %v", image, err)
 
 	// Strategy 2: docker pull + docker inspect
-	digest, err = resolveDigestViaPull(image, verbose)
+	digest, err = resolveDigestViaPull(ctx, image, verbose)
 	if err == nil && digest != "" {
 		return digest, nil
 	}
@@ -227,10 +227,10 @@ func resolveContainerDigest(image string, verbose bool) (string, error) {
 
 // resolveDigestViaBuildx uses "docker buildx imagetools inspect" to get the content
 // digest without pulling the image layers.
-func resolveDigestViaBuildx(image string) (string, error) {
+func resolveDigestViaBuildx(ctx context.Context, image string) (string, error) {
 	// docker buildx imagetools inspect IMAGE --format '{{.Manifest.Digest}}'
 	// outputs a single line like: sha256:abc123...
-	ctx, cancel := context.WithTimeout(context.Background(), dockerCmdTimeout)
+	ctx, cancel := context.WithTimeout(ctx, dockerCmdTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "docker", "buildx", "imagetools", "inspect",
 		image, "--format", "{{.Manifest.Digest}}").CombinedOutput()
@@ -245,18 +245,18 @@ func resolveDigestViaBuildx(image string) (string, error) {
 }
 
 // resolveDigestViaPull pulls the image and then reads its RepoDigests field.
-func resolveDigestViaPull(image string, verbose bool) (string, error) {
+func resolveDigestViaPull(ctx context.Context, image string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "  Pulling %s to resolve digest...\n", image)
 	}
 
-	pullCtx, pullCancel := context.WithTimeout(context.Background(), dockerCmdTimeout)
+	pullCtx, pullCancel := context.WithTimeout(ctx, dockerCmdTimeout)
 	defer pullCancel()
 	if out, err := exec.CommandContext(pullCtx, "docker", "pull", "--quiet", image).CombinedOutput(); err != nil {
 		return "", fmt.Errorf("docker pull failed: %w\n%s", err, strings.TrimSpace(string(out)))
 	}
 
-	inspectCtx, inspectCancel := context.WithTimeout(context.Background(), dockerCmdTimeout)
+	inspectCtx, inspectCancel := context.WithTimeout(ctx, dockerCmdTimeout)
 	defer inspectCancel()
 	out, err := exec.CommandContext(inspectCtx, "docker", "inspect",
 		"--format", "{{index .RepoDigests 0}}", image).CombinedOutput()

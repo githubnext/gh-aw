@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -93,7 +94,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
+			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
 				return err
 			}
 
@@ -146,7 +147,7 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
+func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
 		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
 
@@ -245,7 +246,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	// pinned @sha256: references in the generated lock files.
 	if !noFix && !noActions {
 		upgradeLog.Print("Updating container image digest pins")
-		if err := UpdateContainerPins(workflowDir, verbose); err != nil {
+		if err := UpdateContainerPins(ctx, workflowDir, verbose); err != nil {
 			upgradeLog.Printf("Failed to update container pins: %v", err)
 			// Non-critical — Docker may not be available in all environments.
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
