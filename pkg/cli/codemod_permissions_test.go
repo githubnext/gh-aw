@@ -451,11 +451,11 @@ permissions:
 
 	result, applied, err := codemod.Apply(content, frontmatter)
 
-	require.NoError(t, err)
+	require.NoError(t, err, "codemod should not return an error")
 	assert.False(t, applied, "Should not be applied when only write-only permissions have write")
-	assert.Equal(t, content, result)
-	assert.Contains(t, result, "id-token: write")
-	assert.NotContains(t, result, "id-token: read")
+	assert.Equal(t, content, result, "codemod result should be unchanged when only write-only permissions have write")
+	assert.Contains(t, result, "id-token: write", "id-token permission should remain write after codemod")
+	assert.NotContains(t, result, "id-token: read", "id-token should never be converted to read")
 }
 
 func TestWritePermissionsCodemod_SkipsCopilotRequests(t *testing.T) {
@@ -480,11 +480,11 @@ permissions:
 
 	result, applied, err := codemod.Apply(content, frontmatter)
 
-	require.NoError(t, err)
+	require.NoError(t, err, "codemod should not return an error")
 	assert.False(t, applied, "Should not be applied when only write-only permissions have write")
-	assert.Equal(t, content, result)
-	assert.Contains(t, result, "copilot-requests: write")
-	assert.NotContains(t, result, "copilot-requests: read")
+	assert.Equal(t, content, result, "codemod result should be unchanged when only write-only permissions have write")
+	assert.Contains(t, result, "copilot-requests: write", "copilot-requests permission should remain write after codemod")
+	assert.NotContains(t, result, "copilot-requests: read", "copilot-requests should never be converted to read")
 }
 
 func TestWritePermissionsCodemod_MixedWithIdToken(t *testing.T) {
@@ -511,13 +511,13 @@ permissions:
 
 	result, applied, err := codemod.Apply(content, frontmatter)
 
-	require.NoError(t, err)
-	assert.True(t, applied)
-	assert.Contains(t, result, "contents: read")
-	assert.Contains(t, result, "issues: read")
+	require.NoError(t, err, "codemod should not return an error")
+	assert.True(t, applied, "codemod should be applied when non-write-only permissions have write")
+	assert.Contains(t, result, "contents: read", "contents permission should be downgraded from write to read")
+	assert.Contains(t, result, "issues: read", "issues permission should be downgraded from write to read")
 	// id-token must remain write — "read" is not a valid value for it
-	assert.Contains(t, result, "id-token: write")
-	assert.NotContains(t, result, "id-token: read")
+	assert.Contains(t, result, "id-token: write", "id-token permission should remain write after codemod")
+	assert.NotContains(t, result, "id-token: read", "id-token should never be converted to read")
 }
 
 func TestWritePermissionsCodemod_MixedWithCopilotRequests(t *testing.T) {
@@ -542,10 +542,10 @@ permissions:
 
 	result, applied, err := codemod.Apply(content, frontmatter)
 
-	require.NoError(t, err)
-	assert.True(t, applied)
-	assert.Contains(t, result, "contents: read")
+	require.NoError(t, err, "codemod should not return an error")
+	assert.True(t, applied, "codemod should be applied when non-write-only permissions have write")
+	assert.Contains(t, result, "contents: read", "contents permission should be downgraded from write to read")
 	// copilot-requests must remain write — "read" is not a valid value for it
-	assert.Contains(t, result, "copilot-requests: write")
-	assert.NotContains(t, result, "copilot-requests: read")
+	assert.Contains(t, result, "copilot-requests: write", "copilot-requests permission should remain write after codemod")
+	assert.NotContains(t, result, "copilot-requests: read", "copilot-requests should never be converted to read")
 }
