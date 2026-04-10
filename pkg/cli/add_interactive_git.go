@@ -279,34 +279,34 @@ func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
 	return nil
 }
 
-// mergeCommitsNotAllowedErr is the lowercase substring of the GitHub GraphQL API error
-// returned when a repository does not permit merge commits. It is used to detect when
-// a merge should be retried with a squash strategy.
-const mergeCommitsNotAllowedErr = "merge commits are not allowed"
+// squashMergeNotAllowedErr is the lowercase substring of the GitHub GraphQL API error
+// returned when a repository does not permit squash merges. It is used to detect when
+// a squash merge should be retried with a merge-commit strategy.
+const squashMergeNotAllowedErr = "squash merges are not allowed"
 
-// mergePullRequest merges the specified PR, attempting a merge commit first and
-// falling back to squash if merge commits are not allowed on the repository.
+// mergePullRequest merges the specified PR, attempting a squash merge first and
+// falling back to a merge commit if squash merges are not allowed on the repository.
 func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 	prArg := strconv.Itoa(prNumber)
-	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--merge")
-	if err == nil {
+	squashOutput, squashErr := workflow.RunGHCombined("Merging pull request (squash)...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--squash")
+	if squashErr == nil {
 		return nil
 	}
 
-	// If merge commits are not allowed on this repository (e.g. only squash or rebase merges
-	// are enabled), fall back to squash merge. The error text comes from the GitHub GraphQL API
-	// and is surfaced verbatim in the gh CLI output.
-	combinedText := strings.ToLower(string(output) + err.Error())
-	if strings.Contains(combinedText, mergeCommitsNotAllowedErr) {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merge commits are not allowed on this repository, retrying with squash merge"))
-		squashOutput, squashErr := workflow.RunGHCombined("Merging pull request (squash)...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--squash")
-		if squashErr != nil {
-			return fmt.Errorf("merge failed: %w (output: %s)", squashErr, string(squashOutput))
+	// If squash merges are not allowed on this repository (e.g. only merge commits or rebase
+	// merges are enabled), fall back to a merge commit. The error text comes from the GitHub
+	// GraphQL API and is surfaced verbatim in the gh CLI output.
+	combinedText := strings.ToLower(string(squashOutput) + squashErr.Error())
+	if strings.Contains(combinedText, squashMergeNotAllowedErr) {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Squash merges are not allowed on this repository, retrying with merge commit"))
+		mergeOutput, mergeErr := workflow.RunGHCombined("Merging pull request...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--merge")
+		if mergeErr != nil {
+			return fmt.Errorf("merge failed: %w (output: %s)", mergeErr, string(mergeOutput))
 		}
 		return nil
 	}
 
-	return fmt.Errorf("merge failed: %w (output: %s)", err, string(output))
+	return fmt.Errorf("merge failed: %w (output: %s)", squashErr, string(squashOutput))
 }
 
 // editPRTitle updates the title of the specified PR via the gh CLI.
