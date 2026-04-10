@@ -432,8 +432,8 @@ Test content.
 	err = os.WriteFile(localWorkflowPath, []byte(localWorkflowContent), 0644)
 	require.NoError(t, err, "should write local workflow file")
 
-	// Add to a custom directory
-	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--dir", "experimental")
+	// Add to a custom directory (full path required, consistent with compile/fix/upgrade --dir)
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--dir", ".github/workflows/experimental")
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -442,7 +442,7 @@ Test content.
 
 	require.NoError(t, err, "add command should succeed: %s", outputStr)
 
-	// Verify the workflow file was created in the custom subdirectory
+	// Verify the workflow file was created in the custom directory
 	customDir := filepath.Join(setup.tempDir, ".github", "workflows", "experimental")
 	info, err := os.Stat(customDir)
 	require.NoError(t, err, "custom workflows subdirectory should exist")

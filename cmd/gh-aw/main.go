@@ -174,16 +174,18 @@ By default, this command also removes orphaned include files that are no longer 
 by any workflow. Use --keep-orphans to skip this cleanup.
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow       # Remove specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` remove test-             # Remove all workflows starting with 'test-'
-  ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans  # Remove workflows but keep orphaned includes`,
+  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow              # Remove specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows starting with 'test-'
+  ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans      # Remove workflows but keep orphaned includes
+  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow --dir .github/workflows/shared  # Remove from custom directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var pattern string
 		if len(args) > 0 {
 			pattern = args[0]
 		}
 		keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
-		return cli.RemoveWorkflows(pattern, keepOrphans)
+		workflowDir, _ := cmd.Flags().GetString("dir")
+		return cli.RemoveWorkflows(pattern, keepOrphans, workflowDir)
 	},
 }
 
@@ -367,7 +369,6 @@ This command accepts one or more workflow IDs.
 The workflows must have been added as actions and compiled.
 
 This command only works with workflows that have workflow_dispatch triggers.
-It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
 
 ` + cli.WorkflowIDExplanation + `
 
@@ -705,8 +706,10 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+	removeCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	// Register completions for remove command
 	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	cli.RegisterDirFlagCompletion(removeCmd, "dir")
 
 	// Add flags to enable/disable commands
 	enableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")

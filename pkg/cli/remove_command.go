@@ -17,9 +17,12 @@ import (
 var removeLog = logger.New("cli:remove_command")
 
 // RemoveWorkflows removes workflows matching a pattern
-func RemoveWorkflows(pattern string, keepOrphans bool) error {
-	removeLog.Printf("Removing workflows: pattern=%q, keepOrphans=%v", pattern, keepOrphans)
-	workflowsDir := getWorkflowsDir()
+func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error {
+	removeLog.Printf("Removing workflows: pattern=%q, keepOrphans=%v, workflowDir=%q", pattern, keepOrphans, workflowDir)
+	workflowsDir := workflowDir
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No .github/workflows directory found."))

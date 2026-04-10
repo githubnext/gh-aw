@@ -315,7 +315,6 @@ This command searches the MCP registry for the specified server, adds it to the 
 and automatically compiles the workflow. If the tool already exists, the command will fail.
 
 When called with no arguments, it will show a list of available MCP servers from the registry.
-When called with only a workflow argument, it will show an error asking for a server name.
 
 The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
