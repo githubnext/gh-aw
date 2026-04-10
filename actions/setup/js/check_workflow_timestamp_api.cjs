@@ -314,10 +314,7 @@ async function main() {
           if (localMdFilePath.startsWith(allowedDir + path.sep)) {
             core.info("  Using local filesystem file reader for debug pass");
             // defaultFileReader is the built-in fs-based reader; wrap it as async
-            fileReader = async filePath => {
-              const fs = require("fs");
-              return fs.readFileSync(filePath, "utf8");
-            };
+            fileReader = async filePath => fs.readFileSync(filePath, "utf8");
             // Override workflowMdPath to the resolved local path for this pass
             await computeFrontmatterHash(localMdFilePath, { fileReader, verbose: true });
             core.info("═══ End of debug hash recomputation ═══");
