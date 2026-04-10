@@ -14,7 +14,7 @@ const { resolveTargetRepoConfig, parseRepoSlug, validateTargetRepo } = require("
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildAwContext } = require("./aw_context.cjs");
-const { loadTemporaryIdMapFromResolved, resolveNumberFromTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { loadTemporaryIdMapFromResolved, resolveIssueNumber, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -196,16 +196,20 @@ async function main(config = {}) {
 
           // Resolve temporary ID references in string input values.
           // If the entire value is a pure temporary ID (e.g. "#aw_slosync"), resolve it
-          // to just the issue number so the dispatched workflow receives the real value.
+          // using the full temporaryIdMap (which retains repo context) so we can emit
+          // just the number for same-repo targets and "owner/repo#number" for cross-repo,
+          // consistent with how replaceTemporaryIdReferences handles embedded references.
           // For text values with embedded references (e.g. "See #aw_xxx"), replace each
           // reference with its cross-repository link (owner/repo#number).
           if (strValue !== "") {
-            const pureIdResult = resolveNumberFromTemporaryId(strValue, resolvedTemporaryIds);
+            const pureIdResult = resolveIssueNumber(strValue, temporaryIdMap);
             if (pureIdResult.wasTemporaryId) {
               if (pureIdResult.errorMessage) {
                 core.warning(`Unresolved temporary ID in input "${key}": ${pureIdResult.errorMessage}`);
+              } else if (pureIdResult.resolved.repo === resolvedRepoSlug) {
+                strValue = String(pureIdResult.resolved.number);
               } else {
-                strValue = String(pureIdResult.resolved);
+                strValue = `${pureIdResult.resolved.repo}#${pureIdResult.resolved.number}`;
               }
             } else if (temporaryIdMap.size > 0) {
               strValue = replaceTemporaryIdReferences(strValue, temporaryIdMap, resolvedRepoSlug);

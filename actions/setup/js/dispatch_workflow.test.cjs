@@ -1030,5 +1030,37 @@ describe("dispatch_workflow handler factory", () => {
         })
       );
     });
+
+    it("should use owner/repo#number format when pure temporary ID resolves to a different repo", async () => {
+      // The dispatch target is the context repo (test-owner/test-repo).
+      // The temp ID was created in a different repo. The resolved value should carry
+      // full cross-repo reference so the dispatched workflow knows which repo the
+      // issue belongs to, rather than silently passing a bare number that would be
+      // misinterpreted as an issue in the dispatch-target repo.
+      const handler = await main(baseConfig);
+
+      const resolvedTemporaryIds = {
+        aw_crossrepo: { repo: "other-org/other-repo", number: 999 },
+      };
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          tracking_issue: "#aw_crossrepo",
+        },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            tracking_issue: "other-org/other-repo#999",
+          }),
+        })
+      );
+    });
   });
 });
