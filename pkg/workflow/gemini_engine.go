@@ -278,20 +278,6 @@ touch %s
 		geminiLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
 
-	// When bare mode is enabled, set GEMINI_SYSTEM_MD to /dev/null to override the
-	// built-in system prompt with an empty one. This is the only supported mechanism
-	// to suppress Gemini CLI's default context loading (no dedicated CLI flag exists).
-	// Applied after all user-provided env merges (engine.env and agent env above),
-	// so an explicit GEMINI_SYSTEM_MD from those sources takes precedence.
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
-		if existingVal, alreadySet := env["GEMINI_SYSTEM_MD"]; !alreadySet {
-			geminiLog.Print("Bare mode enabled: setting GEMINI_SYSTEM_MD=/dev/null")
-			env["GEMINI_SYSTEM_MD"] = "/dev/null"
-		} else {
-			geminiLog.Printf("Bare mode enabled: GEMINI_SYSTEM_MD already set to %q; leaving as-is", existingVal)
-		}
-	}
-
 	// Generate the execution step
 	stepLines := []string{
 		"      - name: Execute Gemini CLI",

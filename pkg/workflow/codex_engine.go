@@ -190,14 +190,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		customArgsParam += customArgsParamSb.String()
 	}
 
-	// Build bare mode parameter: --no-system-prompt is a global Codex flag placed before the
-	// "exec" subcommand to suppress loading of the default system prompt/instructions.
-	bareGlobalParam := ""
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
-		codexEngineLog.Print("Bare mode enabled: adding --no-system-prompt")
-		bareGlobalParam = "--no-system-prompt "
-	}
-
 	// Build the Codex command
 	// Determine which command to use
 	var commandName string
@@ -209,8 +201,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %s%sexec%s%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, bareGlobalParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string

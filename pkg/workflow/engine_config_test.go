@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExtractEngineConfig(t *testing.T) {
@@ -760,124 +761,84 @@ func TestEngineBareModeClaude_NotPresent(t *testing.T) {
 	}
 }
 
-func TestEngineBareModeCodex(t *testing.T) {
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			ID:   "codex",
-			Bare: true,
+func TestSupportsBareMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		engine   CodingAgentEngine
+		expected bool
+	}{
+		{
+			name:     "copilot supports bare mode",
+			engine:   NewCopilotEngine(),
+			expected: true,
+		},
+		{
+			name:     "claude supports bare mode",
+			engine:   NewClaudeEngine(),
+			expected: true,
+		},
+		{
+			name:     "codex does not support bare mode",
+			engine:   NewCodexEngine(),
+			expected: false,
+		},
+		{
+			name:     "gemini does not support bare mode",
+			engine:   NewGeminiEngine(),
+			expected: false,
 		},
 	}
 
-	engine := NewCodexEngine()
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-
-	var foundFlag bool
-	for _, step := range steps {
-		for _, line := range step {
-			if strings.Contains(line, "--no-system-prompt") {
-				foundFlag = true
-				break
-			}
-		}
-	}
-	if !foundFlag {
-		t.Error("Expected --no-system-prompt in codex execution steps when bare=true")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.engine.SupportsBareMode(),
+				"SupportsBareMode() should return %v for %s", tt.expected, tt.engine.GetID())
+		})
 	}
 }
 
-func TestEngineBareModeCodex_NotPresent(t *testing.T) {
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			ID:   "codex",
-			Bare: false,
-		},
-	}
+// TestBareMode_UnsupportedEngineNoFlag verifies that engines not supporting bare mode
+// do not inject any bare-mode flags in their execution steps.
+func TestBareMode_UnsupportedEngineNoFlag(t *testing.T) {
+	t.Run("codex does not inject --no-system-prompt", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:   "codex",
+				Bare: true,
+			},
+		}
 
-	engine := NewCodexEngine()
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		engine := NewCodexEngine()
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	for _, step := range steps {
-		for _, line := range step {
-			if strings.Contains(line, "--no-system-prompt") {
-				t.Error("Expected --no-system-prompt to be absent when bare=false")
-				return
+		for _, step := range steps {
+			for _, line := range step {
+				assert.NotContains(t, line, "--no-system-prompt",
+					"Codex should not inject --no-system-prompt (bare mode unsupported)")
 			}
 		}
-	}
-}
+	})
 
-func TestEngineBareModeCodex_BeforeExec(t *testing.T) {
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			ID:   "codex",
-			Bare: true,
-		},
-	}
+	t.Run("gemini does not inject GEMINI_SYSTEM_MD=/dev/null", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:   "gemini",
+				Bare: true,
+			},
+		}
 
-	engine := NewCodexEngine()
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		engine := NewGeminiEngine()
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	for _, step := range steps {
-		for _, line := range step {
-			if strings.Contains(line, "--no-system-prompt") && strings.Contains(line, "exec") {
-				noSysPromptIdx := strings.Index(line, "--no-system-prompt")
-				execIdx := strings.Index(line, "exec")
-				if noSysPromptIdx > execIdx {
-					t.Error("Expected --no-system-prompt to come before 'exec' subcommand")
+		for _, step := range steps {
+			for _, line := range step {
+				if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
+					t.Error("Gemini should not inject GEMINI_SYSTEM_MD=/dev/null (bare mode unsupported)")
+					return
 				}
-				return
 			}
 		}
-	}
-}
-
-func TestEngineBareGemini(t *testing.T) {
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			ID:   "gemini",
-			Bare: true,
-		},
-	}
-
-	engine := NewGeminiEngine()
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-
-	var foundEnvVar bool
-	for _, step := range steps {
-		for _, line := range step {
-			if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
-				foundEnvVar = true
-				break
-			}
-		}
-	}
-	if !foundEnvVar {
-		t.Error("Expected GEMINI_SYSTEM_MD=/dev/null in gemini execution steps when bare=true")
-	}
-}
-
-func TestEngineBareGemini_NotPresent(t *testing.T) {
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		EngineConfig: &EngineConfig{
-			ID:   "gemini",
-			Bare: false,
-		},
-	}
-
-	engine := NewGeminiEngine()
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-
-	for _, step := range steps {
-		for _, line := range step {
-			if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
-				t.Error("Expected GEMINI_SYSTEM_MD=/dev/null to be absent when bare=false")
-				return
-			}
-		}
-	}
+	})
 }

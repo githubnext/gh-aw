@@ -30,6 +30,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsMaxContinuations: false, // Claude Code does not support --max-autopilot-continues-style continuation
 			supportsWebSearch:        true,  // Claude has built-in WebSearch support
 			supportsNativeAgentFile:  false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+			supportsBareMode:         true,  // Claude CLI supports --bare
 			llmGatewayPort:           constants.ClaudeLLMGatewayPort,
 		},
 	}

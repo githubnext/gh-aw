@@ -3,12 +3,15 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEngineArgsIntegration(t *testing.T) {
@@ -339,83 +342,61 @@ engine:
 	}
 }
 
-func TestEngineBareModeCodexIntegration(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "test-*")
+func TestBareMode_UnsupportedEngineWarningIntegration(t *testing.T) {
+	tests := []struct {
+		name          string
+		engineID      string
+		bannedOutput  []string
+		workflowTitle string
+	}{
+		{
+			name:          "codex emits warning, no --no-system-prompt in output",
+			engineID:      "codex",
+			bannedOutput:  []string{"--no-system-prompt"},
+			workflowTitle: "Test Bare Mode Codex",
+		},
+		{
+			name:          "gemini emits warning, no GEMINI_SYSTEM_MD=/dev/null in output",
+			engineID:      "gemini",
+			bannedOutput:  []string{"GEMINI_SYSTEM_MD=/dev/null"},
+			workflowTitle: "Test Bare Mode Gemini",
+		},
+	}
 
-	workflowContent := `---
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-*")
+
+			workflowContent := fmt.Sprintf(`---
 on: workflow_dispatch
 engine:
-  id: codex
+  id: %s
   bare: true
 ---
 
-# Test Bare Mode Codex
-`
+# %s
+`, tt.engineID, tt.workflowTitle)
 
-	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
+			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+			require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0644),
+				"should write workflow file")
 
-	compiler := NewCompiler()
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("Failed to compile workflow: %v", err)
-	}
+			compiler := NewCompiler()
+			require.NoError(t, compiler.CompileWorkflow(workflowPath),
+				"should compile without error (bare mode unsupported is a warning, not an error)")
 
-	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-	result := string(content)
+			// A warning should have been counted
+			assert.Greater(t, compiler.GetWarningCount(), 0,
+				"should emit a warning when bare mode is specified for unsupported engine")
 
-	if !strings.Contains(result, "--no-system-prompt") {
-		t.Errorf("Expected --no-system-prompt in compiled output when bare=true, got:\n%s", result)
-	}
+			content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+			require.NoError(t, err, "should read lock file")
+			result := string(content)
 
-	// Verify --no-system-prompt appears before exec
-	noSysPromptIdx := strings.Index(result, "--no-system-prompt")
-	execIdx := strings.Index(result, "exec")
-	if noSysPromptIdx == -1 || execIdx == -1 {
-		t.Fatal("Could not find both --no-system-prompt and exec in compiled YAML")
-	}
-	if noSysPromptIdx > execIdx {
-		t.Error("Expected --no-system-prompt to come before 'exec' subcommand")
-	}
-}
-
-func TestEngineBareModeGeminiIntegration(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "test-*")
-
-	workflowContent := `---
-on: workflow_dispatch
-engine:
-  id: gemini
-  bare: true
----
-
-# Test Bare Mode Gemini
-`
-
-	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
-	compiler := NewCompiler()
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("Failed to compile workflow: %v", err)
-	}
-
-	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-	result := string(content)
-
-	if !strings.Contains(result, "GEMINI_SYSTEM_MD") {
-		t.Errorf("Expected GEMINI_SYSTEM_MD in compiled output when bare=true, got:\n%s", result)
-	}
-	if !strings.Contains(result, "/dev/null") {
-		t.Errorf("Expected /dev/null in GEMINI_SYSTEM_MD value, got:\n%s", result)
+			for _, banned := range tt.bannedOutput {
+				assert.NotContains(t, result, banned,
+					"compiled output should not contain %q for unsupported bare mode engine", banned)
+			}
+		})
 	}
 }

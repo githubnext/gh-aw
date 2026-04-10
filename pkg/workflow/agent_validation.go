@@ -5,7 +5,7 @@
 // This file validates agent-specific configuration and feature compatibility
 // for agentic workflows. It ensures that:
 //   - Custom agent files exist when specified
-//   - Engine features are supported (HTTP transport, max-turns, web-search)
+//   - Engine features are supported (HTTP transport, max-turns, web-search, bare mode)
 //   - Workflow triggers have appropriate security constraints
 //
 // # Validation Functions
@@ -14,6 +14,7 @@
 //   - validateMaxTurnsSupport() - Validates max-turns feature support
 //   - validateMaxContinuationsSupport() - Validates max-continuations feature support
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
+//   - validateBareModeSupport() - Validates bare mode feature support (warning)
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
 //
 // # Validation Patterns
@@ -170,6 +171,25 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	if !engine.SupportsWebSearch() {
 		agentValidationLog.Printf("Engine %s does not natively support web-search tool, emitting warning", engine.GetID())
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://github.github.com/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
+		c.IncrementWarningCount()
+	}
+}
+
+// validateBareModeSupport validates that bare mode is only used with engines that support this feature.
+// Emits a warning and has no effect on engines that do not support bare mode.
+func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine CodingAgentEngine) {
+	_, engineConfig := c.ExtractEngineConfig(frontmatter)
+
+	if engineConfig == nil || !engineConfig.Bare {
+		// bare mode not requested, no validation needed
+		return
+	}
+
+	agentValidationLog.Printf("Validating bare mode support for engine: %s", engine.GetID())
+
+	if !engine.SupportsBareMode() {
+		agentValidationLog.Printf("Engine %s does not support bare mode, emitting warning", engine.GetID())
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
 }
