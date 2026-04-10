@@ -21,7 +21,9 @@ var containerPinsLog = logger.New("cli:update_container_pins")
 // imageFailure pairs a container image tag with the human-readable reason it
 // could not be pinned, so the summary can surface actionable details.
 type imageFailure struct {
-	image  string
+	// image is the container image tag, e.g. "ghcr.io/github/github-mcp-server:v0.32.0".
+	image string
+	// reason is the human-readable error message explaining why digest resolution failed.
 	reason string
 }
 
@@ -278,7 +280,7 @@ func resolveDigestViaCrane(ctx context.Context, image string) (string, error) {
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "crane", "digest", image).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("crane digest failed: %w\n%s", err, strings.TrimSpace(string(out)))
+		return "", fmt.Errorf("crane digest failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	digest := strings.TrimSpace(string(out))
 	if !strings.HasPrefix(digest, "sha256:") {
