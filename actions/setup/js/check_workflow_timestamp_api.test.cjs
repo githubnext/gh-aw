@@ -1153,4 +1153,170 @@ engine: copilot
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ owner: "caller-owner", repo: "caller-repo" }));
     });
   });
+
+  describe("stale_lock_file_failed output", () => {
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+    });
+
+    it("should set stale_lock_file_failed output when hashes differ", async () => {
+      const storedHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${storedHash}
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest`;
+
+      // Different frontmatter — produces a different hash
+      const mdFileContent = `---
+engine: claude
+model: claude-sonnet-4
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        })
+        // Third call is from the debug recomputation pass (re-fetches the .md file)
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("stale_lock_file_failed", "true");
+      expect(mockCore.setFailed).toHaveBeenCalled();
+    });
+
+    it("should set stale_lock_file_failed output when hash cannot be verified", async () => {
+      // No hash in lock file — compareFrontmatterHashes returns null
+      const lockFileContent = `name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest`;
+
+      mockGithub.rest.repos.getContent.mockResolvedValueOnce({
+        data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+      });
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("stale_lock_file_failed", "true");
+      expect(mockCore.setFailed).toHaveBeenCalled();
+    });
+
+    it("should NOT set stale_lock_file_failed output when hashes match", async () => {
+      // Hash for frontmatter "engine: copilot"
+      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${validHash}
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest`;
+
+      const mdFileContent = `---
+engine: copilot
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("stale_lock_file_failed", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("debug recomputation logging on failure", () => {
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+    });
+
+    it("should emit debug recomputation log section when hashes differ", async () => {
+      const storedHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${storedHash}
+name: Test Workflow
+on: push`;
+
+      const mdFileContent = `---
+engine: claude
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        })
+        // Third call is from the debug recomputation pass
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      // The debug section header must appear in the info log
+      const infoMessages = mockCore.info.mock.calls.map(c => c[0]);
+      expect(infoMessages.some(m => m.includes("Debug hash recomputation"))).toBe(true);
+      // Verbose hash-debug lines must appear inside the debug pass
+      expect(infoMessages.some(m => m.includes("[hash-debug]"))).toBe(true);
+    });
+
+    it("should emit debug recomputation log section when hash cannot be verified", async () => {
+      // No hash in lock file — triggers the null branch
+      const lockFileContent = `name: Test Workflow
+on: push`;
+
+      mockGithub.rest.repos.getContent.mockResolvedValueOnce({
+        data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+      });
+
+      await main();
+
+      const infoMessages = mockCore.info.mock.calls.map(c => c[0]);
+      expect(infoMessages.some(m => m.includes("Debug hash recomputation"))).toBe(true);
+    });
+
+    it("should NOT emit debug log section when hashes match", async () => {
+      const validHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# frontmatter-hash: ${validHash}
+name: Test Workflow
+on: push`;
+
+      const mdFileContent = `---
+engine: copilot
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      const infoMessages = mockCore.info.mock.calls.map(c => c[0]);
+      expect(infoMessages.some(m => m.includes("Debug hash recomputation"))).toBe(false);
+      expect(infoMessages.some(m => m.includes("[hash-debug]"))).toBe(false);
+    });
+  });
 });

@@ -94,6 +94,7 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
+      stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
       text: ${{ steps.sanitized.outputs.text }}
       title: ${{ steps.sanitized.outputs.title }}
     steps:
@@ -154,6 +155,7 @@ jobs:
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Check workflow lock file
+        id: check-lock-file
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_FILE: "smoke-agent-scoped-approved.lock.yml"
@@ -926,7 +928,9 @@ jobs:
       - agent
       - detection
       - safe_outputs
-    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
+    if: >
+      always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
+      needs.activation.outputs.stale_lock_file_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -1029,6 +1033,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
+          GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🤖 *Guard policy smoke test by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) testing guard policy: `repos=[github/gh-aw, github/*], min-integrity=approved`...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed guard policy test.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status}. Check the logs for details.\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"

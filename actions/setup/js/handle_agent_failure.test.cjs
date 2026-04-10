@@ -398,6 +398,58 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // buildStaleLockFileFailedContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildStaleLockFileFailedContext", () => {
+    let buildStaleLockFileFailedContext;
+    const fs = require("fs");
+    const path = require("path");
+    const templateContent = fs.readFileSync(path.join(__dirname, "../md/stale_lock_file_failed.md"), "utf8");
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+
+    beforeEach(() => {
+      vi.resetModules();
+      fs.readFileSync = (filePath, encoding) => {
+        if (typeof filePath === "string" && filePath.includes("stale_lock_file_failed.md")) {
+          return templateContent;
+        }
+        return originalReadFileSync(filePath, encoding);
+      };
+      ({ buildStaleLockFileFailedContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      fs.readFileSync = originalReadFileSync;
+    });
+
+    it("returns empty string when check did not fail", () => {
+      expect(buildStaleLockFileFailedContext(false)).toBe("");
+    });
+
+    it("returns formatted context when stale lock file check failed", () => {
+      const result = buildStaleLockFileFailedContext(true);
+      expect(result).toBeTruthy();
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("includes recompile guidance", () => {
+      const result = buildStaleLockFileFailedContext(true);
+      expect(result).toContain("gh aw compile");
+    });
+
+    it("includes guidance on how to disable the check", () => {
+      const result = buildStaleLockFileFailedContext(true);
+      expect(result).toContain("stale-check: false");
+    });
+
+    it("includes debug logging guidance", () => {
+      const result = buildStaleLockFileFailedContext(true);
+      expect(result).toContain("[hash-debug]");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // buildTimeoutContext
   // ──────────────────────────────────────────────────────
 
