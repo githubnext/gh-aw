@@ -244,6 +244,54 @@ Pull request #${pullRequest.number} is closed. The checkout failed because the b
       return;
     }
 
+    // Re-check current PR state via API to handle race conditions where
+    // the PR was merged/closed after the webhook payload was captured but
+    // before the agent job ran (e.g. PR merged within seconds of triggering).
+    let isNowClosed = false;
+    try {
+      const { data: currentPR } = await github.rest.pulls.get({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        pull_number: pullRequest.number,
+      });
+      isNowClosed = currentPR.state === "closed";
+      if (isNowClosed) {
+        core.info(`ℹ️ PR #${pullRequest.number} is now closed (was '${pullRequest.state}' in webhook payload) — treating checkout failure as expected`);
+      }
+    } catch (apiError) {
+      const apiErrorMsg = getErrorMessage(apiError);
+      const statusCode = /** @type {any} */ apiError?.status;
+      const statusSuffix = statusCode ? ` (HTTP ${statusCode})` : "";
+      core.warning(`Could not fetch current PR state${statusSuffix}: ${apiErrorMsg}`);
+    }
+
+    if (isNowClosed) {
+      core.startGroup("⚠️ Closed PR Checkout Warning");
+      core.warning(`Event type: ${eventName}`);
+      core.warning(`PR number: ${pullRequest.number}`);
+      core.warning(`PR state: closed (merged after workflow was triggered)`);
+      core.warning(`Checkout failed (expected for closed PR): ${errorMsg}`);
+
+      if (pullRequest.head?.ref) {
+        core.warning(`Branch likely deleted: ${pullRequest.head.ref}`);
+      }
+
+      core.warning("This is expected behavior when a PR is closed - the branch may have been deleted.");
+      core.endGroup();
+
+      // Set output to indicate successful handling of closed PR
+      core.setOutput("checkout_pr_success", "true");
+
+      const warningMessage = `## ⚠️ Closed Pull Request
+
+Pull request #${pullRequest.number} was merged after this workflow was triggered. The checkout failed because the branch has been deleted, which is expected behavior.
+
+**This is not an error** - workflows targeting closed PRs will continue normally.`;
+
+      await core.summary.addRaw(warningMessage).write();
+      return;
+    }
+
     // For open PRs, treat checkout failure as an error
     // Log detailed error context
     core.startGroup("❌ Checkout Error Details");
