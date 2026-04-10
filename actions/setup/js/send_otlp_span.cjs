@@ -310,12 +310,16 @@ function sanitizeOTLPPayload(payload) {
  *
  * @param {string} endpoint  - OTLP base URL (e.g. https://traces.example.com:4317)
  * @param {object} payload   - Serialisable OTLP JSON object
- * @param {{ maxRetries?: number, baseDelayMs?: number }} [opts]
+ * @param {{ maxRetries?: number, baseDelayMs?: number, skipJSONL?: boolean }} [opts]
  * @returns {Promise<void>}
  */
-async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100 } = {}) {
+async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 100, skipJSONL = false } = {}) {
   // Mirror payload locally so it survives even when the collector is unreachable.
-  appendToOTLPJSONL(payload);
+  // Callers that already wrote the JSONL mirror pass skipJSONL: true to avoid a
+  // duplicate line.
+  if (!skipJSONL) {
+    appendToOTLPJSONL(payload);
+  }
 
   const url = endpoint.replace(/\/$/, "") + "/v1/traces";
   const extraHeaders = parseOTLPHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS || "");
@@ -463,11 +467,8 @@ async function sendJobSetupSpan(options = {}) {
   // scripts to establish the correct parent span context.
   const spanId = generateSpanId();
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
-  if (!endpoint) {
-    return { traceId, spanId };
-  }
-
+  // Build the full payload unconditionally so the JSONL mirror is always written,
+  // enabling artifact-based debugging even without a live OTLP collector.
   const startMs = options.startMs ?? nowMs();
   const endMs = nowMs();
 
@@ -525,7 +526,16 @@ async function sendJobSetupSpan(options = {}) {
     resourceAttributes,
   });
 
-  await sendOTLPSpan(endpoint, payload);
+  // Always mirror to JSONL — the artifact is useful even without a live collector.
+  appendToOTLPJSONL(payload);
+
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  if (!endpoint) {
+    return { traceId, spanId };
+  }
+
+  // Pass skipJSONL: true so sendOTLPSpan doesn't double-write the mirror.
+  await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
   return { traceId, spanId };
 }
 
@@ -595,8 +605,11 @@ function readLastRateLimitEntry() {
  * setup action.  The span carries workflow metadata read from `aw_info.json`
  * and the effective token count from `GH_AW_EFFECTIVE_TOKENS`.
  *
- * This is a no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.  All errors
- * are surfaced as `console.warn` messages and never re-thrown.
+ * The span payload is always built and mirrored to the local JSONL file so
+ * that it can be inspected via GitHub Actions artifacts without needing a live
+ * collector.  The HTTP export to the OTLP endpoint is skipped when
+ * `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.  All errors are surfaced as
+ * `console.warn` messages and never re-thrown.
  *
  * Environment variables consumed:
  * - `OTEL_EXPORTER_OTLP_ENDPOINT`  – collector endpoint
@@ -623,11 +636,6 @@ function readLastRateLimitEntry() {
  * @returns {Promise<void>}
  */
 async function sendJobConclusionSpan(spanName, options = {}) {
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
-  if (!endpoint) {
-    return;
-  }
-
   const startMs = options.startMs ?? nowMs();
 
   // Read workflow metadata from aw_info.json (written by the agent job setup step).
@@ -765,7 +773,16 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     statusMessage,
   });
 
-  await sendOTLPSpan(endpoint, payload);
+  // Always mirror to JSONL — the artifact is useful even without a live collector.
+  appendToOTLPJSONL(payload);
+
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  if (!endpoint) {
+    return;
+  }
+
+  // Pass skipJSONL: true so sendOTLPSpan doesn't double-write the mirror.
+  await sendOTLPSpan(endpoint, payload, { skipJSONL: true });
 }
 
 module.exports = {
