@@ -163,15 +163,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		webSearchParam = ""
 	}
 
-	// Build fetch parameter: disable the native fetch tool by default, enable only if web-fetch tool is present.
-	// Codex enables the fetch tool by default, so we must explicitly set fetch="disabled" to disable it.
-	// See https://developers.openai.com/api/docs/mcp#fetch-tool
+	// Always disable the native Codex fetch tool with -c fetch="disabled".
+	// Codex's native fetch capability is not exposed as a callable function in the model's
+	// tool list, so it cannot be used by the agent directly. When web-fetch is requested,
+	// the mcp/fetch MCP server container is added instead (see codex_mcp.go).
 	// Leading space is intentional: the format string concatenates this directly after webSearchParam with no space separator.
 	webFetchParam := ` -c fetch="disabled"`
-	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
-		// Fetch is enabled by default in Codex; no extra flag needed.
-		webFetchParam = ""
-	}
 
 	// See https://github.com/github/gh-aw/issues/892
 	// --dangerously-bypass-approvals-and-sandbox: Skips all confirmation prompts and disables sandboxing

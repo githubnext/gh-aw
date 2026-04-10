@@ -53,10 +53,11 @@ Fetch content from the web.
 	return string(lockData)
 }
 
-// TestMCPFetchNotAddedForAnyEngine tests that the mcp/fetch container is never added
-// to any compiled workflow, regardless of engine, since the fallback has been removed.
-func TestMCPFetchNotAddedForAnyEngine(t *testing.T) {
-	engines := []string{"codex", "claude", "copilot", "gemini"}
+// TestMCPFetchNotAddedForNonCodexEngines tests that the mcp/fetch container is not added
+// to compiled workflows for Claude, Copilot, and Gemini, since those engines have native
+// web-fetch support. Only Codex uses the mcp/fetch container fallback.
+func TestMCPFetchNotAddedForNonCodexEngines(t *testing.T) {
+	engines := []string{"claude", "copilot", "gemini"}
 
 	for _, engine := range engines {
 		t.Run(engine, func(t *testing.T) {
@@ -77,12 +78,22 @@ func TestWebFetchClaudeAllowedTools(t *testing.T) {
 	}
 }
 
-// TestWebFetchCodexNativeFetchTool tests that a Codex workflow with web-fetch uses
-// the native fetch tool (no -c fetch="disabled") instead of an mcp/fetch container.
-func TestWebFetchCodexNativeFetchTool(t *testing.T) {
+// TestWebFetchCodexUsesMCPFetchContainer tests that a Codex workflow with web-fetch
+// uses the mcp/fetch MCP server container instead of the native (non-functional) fetch tool.
+func TestWebFetchCodexUsesMCPFetchContainer(t *testing.T) {
 	lockContent := compileWebFetchWorkflow(t, "codex")
-	if strings.Contains(lockContent, `-c fetch="disabled"`) {
-		t.Errorf(`Expected Codex workflow with web-fetch to NOT have -c fetch="disabled", but it did`)
+	if !strings.Contains(lockContent, "mcp/fetch") {
+		t.Errorf("Expected Codex workflow with web-fetch to use mcp/fetch container, but it didn't")
+	}
+}
+
+// TestWebFetchCodexNativeFetchDisabled tests that a Codex workflow with web-fetch
+// still disables the native fetch tool with -c fetch="disabled", since the MCP server
+// handles fetching instead of the non-functional native fetch capability.
+func TestWebFetchCodexNativeFetchDisabled(t *testing.T) {
+	lockContent := compileWebFetchWorkflow(t, "codex")
+	if !strings.Contains(lockContent, `-c fetch="disabled"`) {
+		t.Errorf(`Expected Codex workflow with web-fetch to have -c fetch="disabled" (native fetch disabled in favour of mcp/fetch MCP server)`)
 	}
 }
 

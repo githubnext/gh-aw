@@ -39,6 +39,18 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 		}
 	}
 
+	// Check for web-fetch tool when using the Codex engine.
+	// Codex does not expose its native fetch capability as a callable function tool,
+	// so we use the mcp/fetch MCP server container instead.
+	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch && workflowData != nil && workflowData.AI == "codex" {
+		image := "mcp/fetch"
+		if !imageSet[image] {
+			images = append(images, image)
+			imageSet[image] = true
+			dockerLog.Printf("Added mcp/fetch container for Codex web-fetch tool")
+		}
+	}
+
 	// Check for safe-outputs MCP server (uses node:lts-alpine container)
 	if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		image := constants.DefaultNodeAlpineLTSImage

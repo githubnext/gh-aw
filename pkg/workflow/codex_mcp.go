@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -42,8 +43,21 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)
 
+	// Codex does not support the native fetch tool as a callable function in the model's
+	// tool list. When web-fetch is requested, inject the mcp/fetch container MCP server
+	// so the agent has an explicit fetch tool available via MCP.
+	effectiveMCPTools := mcpTools
+	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
+		expandedTools["web-fetch"] = map[string]any{"container": "mcp/fetch"}
+		effectiveMCPTools = make([]string, len(mcpTools)+1)
+		copy(effectiveMCPTools, mcpTools)
+		effectiveMCPTools[len(mcpTools)] = "web-fetch"
+		sort.Strings(effectiveMCPTools)
+		codexMCPLog.Printf("web-fetch tool enabled: added mcp/fetch MCP server to effective tools")
+	}
+
 	// Generate [mcp_servers] section
-	for _, toolName := range mcpTools {
+	for _, toolName := range effectiveMCPTools {
 		renderer := createRenderer(false) // isLast is always false in TOML format
 		switch toolName {
 		case "github":
@@ -99,7 +113,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          # Generate JSON config for MCP gateway\n")
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
-	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
+	return renderStandardJSONMCPConfig(yaml, expandedTools, effectiveMCPTools, workflowData,
 		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)

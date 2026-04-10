@@ -775,7 +775,7 @@ func TestCodexEngineWebSearch(t *testing.T) {
 func TestCodexEngineWebFetch(t *testing.T) {
 	engine := NewCodexEngine()
 
-	t.Run("fetch tool disabled by default when tool not specified", func(t *testing.T) {
+	t.Run("native fetch always disabled regardless of web-fetch tool", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 		}
@@ -789,7 +789,7 @@ func TestCodexEngineWebFetch(t *testing.T) {
 		}
 	})
 
-	t.Run("fetch tool enabled when web-fetch tool is specified", func(t *testing.T) {
+	t.Run("native fetch still disabled when web-fetch tool is specified (mcp/fetch handles it instead)", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			ParsedTools: &ToolsConfig{
@@ -801,8 +801,8 @@ func TestCodexEngineWebFetch(t *testing.T) {
 			t.Fatalf("Expected 1 step, got %d", len(steps))
 		}
 		stepContent := strings.Join([]string(steps[0]), "\n")
-		if strings.Contains(stepContent, `-c fetch="disabled"`) {
-			t.Errorf(`Expected no -c fetch="disabled" config when web-fetch tool is specified, got:\n%s`, stepContent)
+		if !strings.Contains(stepContent, `-c fetch="disabled"`) {
+			t.Errorf(`Expected -c fetch="disabled" config even when web-fetch is specified (mcp/fetch MCP server handles it), got:\n%s`, stepContent)
 		}
 	})
 }
