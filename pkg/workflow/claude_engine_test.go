@@ -392,7 +392,9 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	}
 }
 
-// TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped
+// TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped.
+// Claude always reads the prompt from prompt.txt; agent-file content is prepended there by
+// the compiler rather than being handled in the engine step.
 func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 	engine := NewClaudeEngine()
 
@@ -419,8 +421,9 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		}
 	})
 
-	// Test with agent file (custom prompt)
-	t.Run("with_agent_file", func(t *testing.T) {
+	// Test with agent file: Claude still reads from prompt.txt (compiler prepended the agent
+	// file content there); no PROMPT_TEXT shell variable should appear in the step.
+	t.Run("with_agent_file_uses_prompt_txt", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -432,16 +435,64 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		// Should have single-quoted PROMPT_TEXT, not double-quoted
-		if strings.Contains(stepContent, `""$PROMPT_TEXT""`) {
-			t.Errorf("Found double-escaped PROMPT_TEXT variable (with double quotes), expected single quotes:\n%s", stepContent)
+		// Must still read from prompt.txt — not from a PROMPT_TEXT shell variable
+		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+			t.Errorf("Expected claude to read from prompt.txt even with agent file set, got:\n%s", stepContent)
 		}
-
-		// Should have correctly quoted PROMPT_TEXT
-		if !strings.Contains(stepContent, `"$PROMPT_TEXT"`) {
-			t.Errorf("Expected correctly quoted PROMPT_TEXT variable, got:\n%s", stepContent)
+		if strings.Contains(stepContent, "PROMPT_TEXT") {
+			t.Errorf("Claude must not use a PROMPT_TEXT shell variable when an agent file is set; compiler handles the prepending:\n%s", stepContent)
 		}
 	})
+}
+
+// TestClaudeEngineDoesNotSupportNativeAgentFile verifies that the Claude engine declares
+// it does not handle agent files natively, so the compiler knows to prepend the agent file
+// content to prompt.txt during the activation job instead.
+func TestClaudeEngineDoesNotSupportNativeAgentFile(t *testing.T) {
+	engine := NewClaudeEngine()
+	if engine.SupportsNativeAgentFile() {
+		t.Errorf("Claude engine should return false for SupportsNativeAgentFile(); the compiler handles agent file injection")
+	}
+}
+
+// TestClaudeEngineAWFWithAgentFileReadsPromptTxt verifies that when an agent file is used
+// with the firewall (AWF) enabled, the claude command reads from prompt.txt (not from a
+// PROMPT_TEXT shell variable).  The compiler prepends the agent file content to prompt.txt
+// in the activation job.
+func TestClaudeEngineAWFWithAgentFileReadsPromptTxt(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	agentSandbox := &AgentSandboxConfig{Type: SandboxTypeAWF}
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		AgentFile: ".github/agents/test-agent.md",
+		SandboxConfig: &SandboxConfig{
+			Agent: agentSandbox,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected at least one step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// No AGENT_CONTENT or PROMPT_TEXT shell variables anywhere in the step.
+	if strings.Contains(stepContent, "AGENT_CONTENT") {
+		t.Errorf("AGENT_CONTENT must not appear in the Claude AWF step; compiler handles agent file injection:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "PROMPT_TEXT") {
+		t.Errorf("PROMPT_TEXT must not appear in the Claude AWF step; compiler handles agent file injection:\n%s", stepContent)
+	}
+
+	// The container command must still read from prompt.txt.
+	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+		t.Errorf("Expected claude to read from prompt.txt in AWF mode, got:\n%s", stepContent)
+	}
 }
 
 func TestClaudeEngineSkipInstallationWithCommand(t *testing.T) {

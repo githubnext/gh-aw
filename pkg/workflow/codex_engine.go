@@ -40,6 +40,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxTurns:         false, // Codex does not support max-turns feature
 			supportsMaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
 			supportsWebSearch:        true,  // Codex has built-in web-search support
+			supportsNativeAgentFile:  true,  // Codex reads the agent file and prepends it to the prompt at runtime
 			llmGatewayPort:           constants.CodexLLMGatewayPort,
 		},
 	}
