@@ -9,26 +9,30 @@ const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
  * Prevents users from triggering workflows too frequently
  */
 
+const PROGRAMMATIC_EVENTS = ["workflow_dispatch", "repository_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "discussion_comment"];
+
 async function main() {
-  const actor = context.actor;
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
-  const eventName = context.eventName;
-  const runId = context.runId;
+  const {
+    actor,
+    repo: { owner, repo },
+    workflow,
+    eventName,
+    runId,
+  } = context;
 
   // Capture a rate-limit snapshot at the start of the check for observability.
   await fetchAndLogRateLimit(github, "check_rate_limit_start");
 
   // Get workflow file name from GITHUB_WORKFLOW_REF (format: "owner/repo/.github/workflows/file.yml@ref")
   // or fall back to GITHUB_WORKFLOW (workflow name)
-  const workflowRef = process.env.GITHUB_WORKFLOW_REF || "";
-  let workflowId = context.workflow; // Default to workflow name
+  const workflowRef = process.env.GITHUB_WORKFLOW_REF ?? "";
+  // Extract workflow file from the ref (e.g., ".github/workflows/test.lock.yml@refs/heads/main")
+  const workflowRefMatch = workflowRef.match(/\.github\/workflows\/([^@]+)/);
+  let workflowId = workflow; // Default to workflow name
 
   if (workflowRef) {
-    // Extract workflow file from the ref (e.g., ".github/workflows/test.lock.yml@refs/heads/main")
-    const match = workflowRef.match(/\.github\/workflows\/([^@]+)/);
-    if (match && match[1]) {
-      workflowId = match[1];
+    if (workflowRefMatch?.[1]) {
+      workflowId = workflowRefMatch[1];
       core.info(`   Using workflow file: ${workflowId} (from GITHUB_WORKFLOW_REF)`);
     } else {
       core.info(`   Using workflow name: ${workflowId} (fallback - could not parse GITHUB_WORKFLOW_REF)`);
@@ -38,11 +42,11 @@ async function main() {
   }
 
   // Get configuration from environment variables
-  const maxRuns = parseInt(process.env.GH_AW_RATE_LIMIT_MAX || "5", 10);
-  const windowMinutes = parseInt(process.env.GH_AW_RATE_LIMIT_WINDOW || "60", 10);
-  const eventsList = process.env.GH_AW_RATE_LIMIT_EVENTS || "";
+  const maxRuns = parseInt(process.env.GH_AW_RATE_LIMIT_MAX ?? "5", 10);
+  const windowMinutes = parseInt(process.env.GH_AW_RATE_LIMIT_WINDOW ?? "60", 10);
+  const eventsList = process.env.GH_AW_RATE_LIMIT_EVENTS ?? "";
   // Default: admin, maintain, and write roles are exempt from rate limiting
-  const ignoredRolesList = process.env.GH_AW_RATE_LIMIT_IGNORED_ROLES || "admin,maintain,write";
+  const ignoredRolesList = process.env.GH_AW_RATE_LIMIT_IGNORED_ROLES ?? "admin,maintain,write";
 
   core.info(`🔍 Checking rate limit for user '${actor}' on workflow '${workflowId}'`);
   core.info(`   Configuration: max=${maxRuns} runs per ${windowMinutes} minutes`);
@@ -54,14 +58,14 @@ async function main() {
 
   try {
     // Check user's permission level in the repository
-    const permResponse = await github.rest.repos.getCollaboratorPermissionLevel({
+    const {
+      data: { permission: userPermission },
+    } = await github.rest.repos.getCollaboratorPermissionLevel({
       owner,
       repo,
       username: actor,
     });
 
-    const { data: permissionData } = permResponse;
-    const userPermission = permissionData.permission;
     core.info(`   User '${actor}' has permission level: ${userPermission}`);
 
     // Map GitHub permission levels to role names
@@ -92,16 +96,14 @@ async function main() {
   } else {
     // When no specific events are configured, apply rate limiting only to
     // known programmatic triggers. Allow all other events.
-    const programmaticEvents = ["workflow_dispatch", "repository_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "discussion_comment"];
-
-    if (!programmaticEvents.includes(eventName)) {
+    if (!PROGRAMMATIC_EVENTS.includes(eventName)) {
       core.info(`✅ Event '${eventName}' is not a programmatic trigger; skipping rate limiting`);
-      core.info(`   Rate limiting applies to: ${programmaticEvents.join(", ")}`);
+      core.info(`   Rate limiting applies to: ${PROGRAMMATIC_EVENTS.join(", ")}`);
       core.setOutput("rate_limit_ok", "true");
       return;
     }
 
-    core.info(`   Rate limiting applies to programmatic events: ${programmaticEvents.join(", ")}`);
+    core.info(`   Rate limiting applies to programmatic events: ${PROGRAMMATIC_EVENTS.join(", ")}`);
   }
 
   // Calculate time threshold
@@ -197,7 +199,7 @@ async function main() {
 
         // Count this run
         totalRecentRuns++;
-        runsPerEvent[runEvent] = (runsPerEvent[runEvent] || 0) + 1;
+        runsPerEvent[runEvent] = (runsPerEvent[runEvent] ?? 0) + 1;
 
         core.info(`   ✓ Run #${run.run_number} (${run.id}) by ${run.actor?.login} - ` + `event: ${runEvent}, created: ${run.created_at}, status: ${run.status}`);
       }

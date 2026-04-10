@@ -768,4 +768,68 @@ describe("check_rate_limit", () => {
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Stack trace:"));
     expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
   });
+
+  it("should count runs without updated_at (no duration check applied)", async () => {
+    const recentTime = new Date(Date.now() - 10 * 60 * 1000);
+
+    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
+      data: {
+        workflow_runs: [
+          {
+            id: 111111,
+            run_number: 1,
+            created_at: recentTime.toISOString(),
+            // no updated_at — duration check skipped, run should be counted
+            actor: { login: "test-user" },
+            event: "workflow_dispatch",
+            status: "in_progress",
+          },
+        ],
+      },
+    });
+
+    await checkRateLimit.main();
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Total recent runs in last 60 minutes: 1"));
+  });
+
+  it("should fetch additional pages when first page is full", async () => {
+    process.env.GH_AW_RATE_LIMIT_MAX = "10";
+    const recentTime = new Date(Date.now() - 10 * 60 * 1000);
+
+    const makeRunOtherUser = id => ({
+      id,
+      run_number: id,
+      created_at: recentTime.toISOString(),
+      actor: { login: "other-user" }, // not counted for test-user
+      event: "workflow_dispatch",
+      status: "completed",
+    });
+
+    const makeRunTestUser = id => ({
+      id,
+      run_number: id,
+      created_at: recentTime.toISOString(),
+      actor: { login: "test-user" },
+      event: "workflow_dispatch",
+      status: "completed",
+    });
+
+    // First page is full (100 runs) but all by a different user → no match, fetches page 2
+    mockGithub.rest.actions.listWorkflowRuns
+      .mockResolvedValueOnce({
+        data: { workflow_runs: Array.from({ length: 100 }, (_, i) => makeRunOtherUser(i + 1)) },
+      })
+      .mockResolvedValueOnce({
+        data: { workflow_runs: [makeRunTestUser(101), makeRunTestUser(102)] },
+      });
+
+    await checkRateLimit.main();
+
+    expect(mockGithub.rest.actions.listWorkflowRuns).toHaveBeenCalledTimes(2);
+    expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Fetching page 2"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Total recent runs in last 60 minutes: 2"));
+  });
 });
