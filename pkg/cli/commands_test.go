@@ -213,7 +213,7 @@ This is a test workflow to verify the --no-emit flag functionality.`
 }
 
 func TestRemoveWorkflows(t *testing.T) {
-	err := RemoveWorkflows("test-pattern", false)
+	err := RemoveWorkflows("test-pattern", false, "")
 
 	// Should not error since it's a stub implementation
 	if err != nil {
@@ -385,7 +385,7 @@ Test workflow for command existence.`
 			_, err := CompileWorkflows(context.Background(), config)
 			return err
 		}, false, "CompileWorkflows"},
-		{func() error { return RemoveWorkflows("nonexistent", false) }, false, "RemoveWorkflows"},                    // Should handle missing directory gracefully
+		{func() error { return RemoveWorkflows("nonexistent", false, "") }, false, "RemoveWorkflows"},                // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("nonexistent", false, false, "", "", "") }, false, "StatusWorkflows"}, // Should handle missing directory gracefully
 		{func() error {
 			return RunWorkflowOnGitHub(context.Background(), "", RunOptions{})

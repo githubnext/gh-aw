@@ -84,7 +84,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 
 	// Add workflow directory flag
-	cmd.Flags().StringP("dir", "d", "", "Subdirectory under .github/workflows/ (e.g., 'shared' creates .github/workflows/shared/)")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 
 	// Add no-stop-after flag
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")

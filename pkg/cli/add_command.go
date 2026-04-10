@@ -63,7 +63,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
   ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/
 
 Workflow specifications:
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
@@ -74,7 +74,7 @@ Workflow specifications:
   - Version can be tag, branch, or SHA (for remote workflows)
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
-The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
+The --dir flag allows you to specify the workflow directory (default: .github/workflows).
 The --create-pull-request flag creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
 
@@ -151,7 +151,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 
 	// Add workflow directory flag to add command
-	cmd.Flags().StringP("dir", "d", "", "Subdirectory under .github/workflows/ (e.g., 'shared' creates .github/workflows/shared/)")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 
 	// Add no-stop-after flag to add command
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
@@ -328,11 +328,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 			return fmt.Errorf("workflow directory must be a relative path, got: %s", opts.WorkflowDir)
 		}
 		opts.WorkflowDir = filepath.Clean(opts.WorkflowDir)
-		if !strings.HasPrefix(opts.WorkflowDir, ".github/workflows") {
-			githubWorkflowsDir = filepath.Join(gitRoot, ".github/workflows", opts.WorkflowDir)
-		} else {
-			githubWorkflowsDir = filepath.Join(gitRoot, opts.WorkflowDir)
-		}
+		githubWorkflowsDir = filepath.Join(gitRoot, opts.WorkflowDir)
 	} else {
 		githubWorkflowsDir = filepath.Join(gitRoot, ".github/workflows")
 	}
