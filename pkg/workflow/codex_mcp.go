@@ -40,7 +40,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	// This is a security feature to prevent accidental exposure of secrets
 	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools, workflowData)
 
-	// Expand neutral tools (like playwright: null) to include the copilot agent tools
+	// Expand neutral tools (like playwright: null) to include the copilot agent tools.
+	// expandNeutralToolsToCodexToolsFromMap returns a fresh independent map, so
+	// modifying expandedTools below does not affect the original tools parameter.
 	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)
 
 	// Codex does not support the native fetch tool as a callable function in the model's

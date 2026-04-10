@@ -93,7 +93,7 @@ func TestWebFetchCodexUsesMCPFetchContainer(t *testing.T) {
 func TestWebFetchCodexNativeFetchDisabled(t *testing.T) {
 	lockContent := compileWebFetchWorkflow(t, "codex")
 	if !strings.Contains(lockContent, `-c fetch="disabled"`) {
-		t.Errorf(`Expected Codex workflow with web-fetch to have -c fetch="disabled" (native fetch disabled in favour of mcp/fetch MCP server)`)
+		t.Errorf(`Expected Codex workflow with web-fetch to have -c fetch="disabled" (native fetch disabled in favor of mcp/fetch MCP server)`)
 	}
 }
 
