@@ -85,10 +85,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--autopilot", "--max-autopilot-continues", strconv.Itoa(maxCont))
 	}
 
-	// Add --no-ask-user when no-ask-user is enabled for fully autonomous agentic mode.
-	// Never apply to detection jobs; only meaningful for the agent run.
-	if !isDetectionJob && workflowData.EngineConfig != nil && workflowData.EngineConfig.NoAskUser {
-		copilotExecLog.Print("Enabling no-ask-user mode for fully autonomous agentic execution")
+	// Always add --no-ask-user to prevent interactive prompts and enable fully autonomous execution.
+	if !isDetectionJob {
 		copilotArgs = append(copilotArgs, "--no-ask-user")
 	}
 

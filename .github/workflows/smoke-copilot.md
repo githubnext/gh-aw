@@ -19,7 +19,6 @@ name: Smoke Copilot
 engine:
   id: copilot
   model: gpt-5.3-codex
-  no-ask-user: true
   max-continuations: 2
 imports:
   - shared/github-guard-policy.md
