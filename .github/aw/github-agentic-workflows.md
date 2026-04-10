@@ -63,9 +63,10 @@ gh aw compile --purge
 gh aw compile --actionlint  # Includes shellcheck
 gh aw compile --zizmor      # Security vulnerability scanner
 gh aw compile --poutine     # Supply chain security analyzer
+gh aw compile --runner-guard  # Runner constraint scanner (requires Docker)
 
 # Strict mode with all scanners
-gh aw compile --actionlint --zizmor --poutine
+gh aw compile --actionlint --zizmor --poutine --runner-guard
 
 # Output validation results as JSON (includes labels referenced in safe-outputs)
 gh aw compile --json --no-emit
@@ -648,6 +649,7 @@ The YAML frontmatter supports these fields:
       submit-pull-request-review:
         max: 1                          # Optional: maximum number of reviews to submit (default: 1)
         footer: "if-body"               # Optional: footer control ("always", "none", "if-body", default: "always")
+        allowed-events: [COMMENT, REQUEST_CHANGES]  # Optional: restrict allowed review event types; omit to allow all (APPROVE, COMMENT, REQUEST_CHANGES)
     ```
 
     **Footer Control**: The `footer` field on `submit-pull-request-review` controls when AI-generated footers appear in the PR review body. Values: `"always"` (default, always include footer), `"none"` (never include footer), `"if-body"` (only include footer when review body is non-empty). Boolean values are also supported: `true` maps to `"always"`, `false` maps to `"none"`. This is useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
