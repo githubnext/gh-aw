@@ -29,6 +29,7 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 imports:
+  - shared/reporting.md
   - shared/observability-otlp.md
 ---
 
