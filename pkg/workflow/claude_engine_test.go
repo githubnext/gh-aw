@@ -444,6 +444,64 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 	})
 }
 
+// TestClaudeEngineAgentFileAWFInlineSetup verifies that when an agent file is used with the
+// firewall (AWF) enabled, AGENT_CONTENT and PROMPT_TEXT are set INSIDE the AWF container
+// command rather than on the host.  Setting them on the host would fail silently because
+// unexported bash shell variables are not forwarded to container environments via --env-all.
+func TestClaudeEngineAgentFileAWFInlineSetup(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Enable the firewall by providing a SandboxConfig with an AWF agent type (the simplest
+	// way to make isFirewallEnabled return true without a full compilation pass).
+	agentSandbox := &AgentSandboxConfig{Type: SandboxTypeAWF}
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		AgentFile: ".github/agents/test-agent.md",
+		SandboxConfig: &SandboxConfig{
+			Agent: agentSandbox,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected at least one step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// The host-side run script (PathSetup) must NOT contain PROMPT_TEXT assignment.
+	// In AWF mode the run: block contains only the touch + sudo awf invocation.
+	// We identify the host part as everything before the '-- /bin/bash -c' separator.
+	hostPart := stepContent
+	if idx := strings.Index(stepContent, "-- /bin/bash -c"); idx != -1 {
+		hostPart = stepContent[:idx]
+	}
+	if strings.Contains(hostPart, "PROMPT_TEXT=") {
+		t.Errorf("PROMPT_TEXT assignment found in host-side script (before AWF container command); it must be set inside the container:\n%s", hostPart)
+	}
+	if strings.Contains(hostPart, "AGENT_CONTENT=") {
+		t.Errorf("AGENT_CONTENT assignment found in host-side script (before AWF container command); it must be set inside the container:\n%s", hostPart)
+	}
+
+	// The container command (after '-- /bin/bash -c') must contain the inline setup.
+	containerPart := ""
+	if idx := strings.Index(stepContent, "-- /bin/bash -c"); idx != -1 {
+		containerPart = stepContent[idx:]
+	}
+	if !strings.Contains(containerPart, "AGENT_CONTENT=") {
+		t.Errorf("Expected AGENT_CONTENT assignment inside the AWF container command, not found in:\n%s", containerPart)
+	}
+	if !strings.Contains(containerPart, "PROMPT_TEXT=") {
+		t.Errorf("Expected PROMPT_TEXT assignment inside the AWF container command, not found in:\n%s", containerPart)
+	}
+	if !strings.Contains(containerPart, `"$PROMPT_TEXT"`) {
+		t.Errorf("Expected claude to receive \"$PROMPT_TEXT\" inside the AWF container command, not found in:\n%s", containerPart)
+	}
+}
+
 func TestClaudeEngineSkipInstallationWithCommand(t *testing.T) {
 	engine := NewClaudeEngine()
 

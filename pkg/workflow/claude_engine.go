@@ -166,24 +166,40 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Build the agent command - prepend custom agent file content if specified (via imports)
-	var promptSetup string
-	var promptCommand string
+	// Resolve the agent file path early (used in both AWF and non-AWF paths below).
+	// An empty agentPath means no custom agent file was specified.
+	var agentPath string
 	if workflowData.AgentFile != "" {
-		agentPath, err := ResolveAgentFilePath(workflowData.AgentFile)
+		var err error
+		agentPath, err = ResolveAgentFilePath(workflowData.AgentFile)
 		if err != nil {
 			claudeLog.Printf("Error resolving agent file path: %v", err)
 			return BuildInvalidAgentPathStep("Execute Claude Code CLI", workflowData.AgentFile, err)
 		}
 		claudeLog.Printf("Using custom agent file: %s", workflowData.AgentFile)
-		// Extract markdown body from custom agent file and prepend to prompt
-		promptSetup = fmt.Sprintf(`# Extract markdown body from custom agent file (skip frontmatter)
-          AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
-          # Combine agent content with prompt
-          PROMPT_TEXT="$(printf '%%s\n\n%%s' "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")"`, agentPath)
+	}
+
+	// Build the prompt command.
+	// When an agent file is specified, the prompt is the concatenation of the agent file's
+	// markdown body (frontmatter stripped) and the workflow prompt.  We always use the
+	// "$PROMPT_TEXT" shell variable reference here; the variable is set either inside the
+	// AWF container command (firewall path) or directly in the host run script (non-firewall
+	// path) — see the build sections below.
+	var promptCommand string
+	if agentPath != "" {
 		promptCommand = `"$PROMPT_TEXT"`
 	} else {
 		promptCommand = `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
+	}
+
+	// agentContainerSetup builds the inline shell fragment that sets AGENT_CONTENT and
+	// PROMPT_TEXT inside the execution environment.  It is used in both the AWF container
+	// command and in the non-AWF host run script.
+	agentContainerSetup := func() string {
+		return fmt.Sprintf(
+			`AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)" && PROMPT_TEXT="$(printf '%%s\n\n%%s' "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")"`,
+			agentPath,
+		)
 	}
 
 	// Build the command string with proper argument formatting
@@ -239,15 +255,23 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// However, npm-installed CLIs (like claude) need hostedtoolcache bin directories in PATH.
 		// We prepend GetNpmBinPathSetup() to the engine command so it runs inside the AWF container.
 		npmPathSetup := GetNpmBinPathSetup()
-		claudeCommandWithPath := fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
 
-		// Build host-side path setup: create the agent step summary file so it is accessible
-		// inside the sandbox. Combine with any existing promptSetup (may be empty).
-		touchSummary := "touch " + AgentStepSummaryPath
-		hostSetup := touchSummary
-		if promptSetup != "" {
-			hostSetup = promptSetup + "\n" + touchSummary
+		// When an agent file is used, AGENT_CONTENT and PROMPT_TEXT must be set *inside* the
+		// AWF container command.  Setting them on the host (PathSetup) and relying on
+		// --env-all to forward them into the container does not work because unexported bash
+		// shell variables are not visible to subprocess environments, so $PROMPT_TEXT would
+		// expand to an empty string inside the container.  Instead we inline the setup into
+		// the container command chain, exactly as the Codex engine does.
+		var claudeCommandWithPath string
+		if agentPath != "" {
+			claudeCommandWithPath = fmt.Sprintf(`%s && %s && %s`, npmPathSetup, agentContainerSetup(), claudeCommand)
+		} else {
+			claudeCommandWithPath = fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
 		}
+
+		// Host-side setup: only create the agent step summary file so it is accessible
+		// inside the sandbox.  PROMPT_TEXT is no longer set here (see above).
+		hostSetup := "touch " + AgentStepSummaryPath
 
 		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
 		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
@@ -259,7 +283,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
 			AllowedDomains: allowedDomains,
-			PathSetup:      hostSetup, // Runs BEFORE AWF on the host (prompt setup + summary file creation)
+			PathSetup:      hostSetup, // Runs BEFORE AWF on the host (summary file creation only)
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY"}),
@@ -270,12 +294,16 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
 		// The combined output (debug logs + JSON) will be in the log file for parsing
 		// PATH is already set correctly by actions/setup-* steps which prepend to PATH
-		if promptSetup != "" {
+		if agentPath != "" {
+			// In non-AWF mode, set AGENT_CONTENT and PROMPT_TEXT in the same bash script —
+			// they are plain shell variables and are visible to the subsequent claude invocation
+			// in the same process.  Unlike the AWF path there is no subprocess boundary here.
 			command = fmt.Sprintf(`set -o pipefail
           touch %s
+          # Extract markdown body from custom agent file (skip frontmatter)
           %s
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, promptSetup, claudeCommand, logFile)
+          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, agentContainerSetup(), claudeCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
           touch %s
