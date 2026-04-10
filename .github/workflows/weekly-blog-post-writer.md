@@ -12,6 +12,11 @@ tracker-id: weekly-blog-post-writer
 engine: copilot
 strict: true
 timeout-minutes: 30
+network:
+  allowed:
+    - defaults
+sandbox:
+  agent: awf
 
 tools:
   agentic-workflows:

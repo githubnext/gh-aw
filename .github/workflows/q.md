@@ -262,12 +262,14 @@ Create a pull request with your improvements using the safe-outputs MCP server:
    - Before calling create-pull-request, verify you have modified workflow files
    - If investigation shows no issues or improvements needed, use add-comment to report findings
    - Only proceed with PR creation when you have actual changes to propose
+   - **⚠️ DO NOT use bash git commands** (`git checkout -b`, `git add`, `git commit`, `git push`) to stage or commit changes — the `create-pull-request` safe-output tool automatically detects, stages, and commits all your edits
 
 2. **Use Safe-Outputs for PR Creation**:
    - Use the `create-pull-request` tool from the safe-outputs MCP server
    - This is automatically configured in the workflow frontmatter
    - The PR will be created with the prefix "[q]" and labeled with "automation, workflow-optimization"
    - The system will automatically skip PR creation if there are no file changes
+   - Call `create-pull-request` directly after making file edits — do not run any git commands first
 
 3. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
    - Let the copilot agent compile them later
