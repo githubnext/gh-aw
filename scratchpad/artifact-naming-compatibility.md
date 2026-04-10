@@ -41,17 +41,17 @@ These artifacts contain exactly one file and are flattened to the root directory
 | `safe_output.jsonl` | `safe-output` | `safe_output.jsonl` | `safe_output.jsonl` | ✅ |
 | `agent_output.json` | `agent-output` | `agent_output.json` | `agent_output.json` | ✅ |
 | `prompt.txt` | `prompt` | `prompt.txt` | `prompt.txt` | ✅ |
+| `threat-detection.log` | `detection` | `detection.log` | `detection.log` | ✅ |
 
 ### Multi-File Artifacts
 
-These artifacts contain a directory tree and are **not** flattened. They retain their directory structure after download.
+These artifacts are initially downloaded by `gh run download` as directory trees that retain their internal structure. However, unlike the single-file artifact handling above, `gh aw logs` / `gh aw audit` may perform additional post-processing for some multi-file artifacts (notably `agent` and `activation`) to move expected files into the final layout used by the CLI.
 
 | Artifact Name | Constant | Contents | Notes |
 |---------------|----------|----------|-------|
-| `firewall-audit-logs` | `constants.FirewallAuditArtifactName` | AWF structured audit/observability logs | Uploaded by all firewall-enabled workflows |
-| `agent` | `constants.AgentArtifactName` | Unified agent job outputs (logs, safe outputs, token usage) | The primary agent artifact |
-| `activation` | `constants.ActivationArtifactName` | Activation job output (`aw_info.json`, `prompt.txt`) | Used by downstream jobs |
-| `detection` | `constants.DetectionArtifactName` | Threat detection log output | Legacy name: `threat-detection.log` |
+| `firewall-audit-logs` | `constants.FirewallAuditArtifactName` | AWF structured audit/observability logs | Uploaded by all firewall-enabled workflows; retains directory structure after download |
+| `agent` | `constants.AgentArtifactName` | Unified agent job outputs (logs, safe outputs, token usage) | Downloaded as a directory tree, then post-processed by CLI flattening/reorganization helpers |
+| `activation` | `constants.ActivationArtifactName` | Activation job output (`aw_info.json`, `prompt.txt`) | Downloaded as a directory tree, then post-processed by CLI flattening helpers for downstream use |
 
 #### `firewall-audit-logs` Directory Structure
 
@@ -59,14 +59,12 @@ The `firewall-audit-logs` artifact (constant: `constants.FirewallAuditArtifactNa
 
 ```
 firewall-audit-logs/
-├── logs/
-│   ├── api-proxy-logs/
-│   │   └── token-usage.jsonl    ← Token usage data (input/output/cache tokens per request)
-│   └── squid-logs/
-│       └── access.log           ← Network policy log (domain allow/deny decisions)
-└── audit/
-    ├── audit.jsonl              ← Firewall audit trail (policy matches, rule evaluations)
-    └── policy-manifest.json     ← Policy configuration snapshot
+├── api-proxy-logs/
+│   └── token-usage.jsonl        ← Token usage data (input/output/cache tokens per request)
+├── squid-logs/
+│   └── access.log               ← Network policy log (domain allow/deny decisions)
+├── audit.jsonl                  ← Firewall audit trail (policy matches, rule evaluations)
+└── policy-manifest.json         ← Policy configuration snapshot
 ```
 
 **Downloading firewall audit logs with `gh run download`:**
@@ -76,9 +74,10 @@ firewall-audit-logs/
 gh run download <run-id> -n firewall-audit-logs
 
 # The data is then at:
-#   firewall-audit-logs/logs/api-proxy-logs/token-usage.jsonl
-#   firewall-audit-logs/logs/squid-logs/access.log
-#   firewall-audit-logs/audit/audit.jsonl
+#   firewall-audit-logs/api-proxy-logs/token-usage.jsonl
+#   firewall-audit-logs/squid-logs/access.log
+#   firewall-audit-logs/audit.jsonl
+#   firewall-audit-logs/policy-manifest.json
 ```
 
 **Recommended: Use `gh aw logs` instead of `gh run download`:**

@@ -253,7 +253,7 @@ Workflows generate several artifacts during execution:
 | **agent_usage.json** | `/tmp/gh-aw/` | Aggregated token counts: `{"input_tokens":…,"output_tokens":…,"cache_read_tokens":…,"cache_write_tokens":…}` | Bundled in the unified agent artifact when the firewall is enabled; accessible to third-party tools without parsing step summaries |
 | **prompt.txt** | `/tmp/gh-aw/aw-prompts/` | Generated prompt sent to AI agent (includes markdown instructions, imports, context variables) | Retained for debugging and reproduction |
 | **firewall-audit-logs** | See structure below | Dedicated artifact for AWF audit/observability logs (token usage, network policy, audit trail) | Uploaded by all firewall-enabled workflows; analyzed by `gh aw logs --artifacts firewall` |
-| **firewall-logs/** | `/tmp/gh-aw/firewall-logs/` | Network access logs in Squid format (when `network.firewall:` enabled) | Analyzed by `gh aw logs` command |
+| **firewall-logs/** | `/tmp/gh-aw/sandbox/firewall/logs/` | Network access logs in Squid format (when `network.firewall:` enabled) | Analyzed by `gh aw logs` command |
 | **cache-memory/** | `/tmp/gh-aw/cache-memory/` | Persistent agent memory across runs (when `tools.cache-memory:` configured) | Restored at start, saved at end via GitHub Actions cache |
 | **patches/**, **sarif/**, **metadata/** | Various | Safe output data (git patches, SARIF files, metadata JSON) | Temporary, cleaned after processing |
 
@@ -263,13 +263,12 @@ The `firewall-audit-logs` artifact is a dedicated multi-file artifact uploaded b
 
 ```
 firewall-audit-logs/
-├── logs/
-│   ├── api-proxy-logs/
-│   │   └── token-usage.jsonl    ← Token usage data per request
-│   └── squid-logs/
-│       └── access.log           ← Network policy log (allow/deny)
-└── audit/
-    └── audit.jsonl              ← Firewall audit trail
+├── api-proxy-logs/
+│   └── token-usage.jsonl        ← Token usage data per request
+├── squid-logs/
+│   └── access.log               ← Network policy log (allow/deny)
+├── audit.jsonl                  ← Firewall audit trail
+└── policy-manifest.json         ← Policy configuration snapshot
 ```
 
 > **Tip:** Use `gh aw logs <run-id> --artifacts firewall` to download and analyze firewall data instead of `gh run download` directly. The CLI handles artifact naming and backward compatibility automatically. See the [Artifacts reference](/gh-aw/reference/artifacts/) for the complete artifact naming guide.

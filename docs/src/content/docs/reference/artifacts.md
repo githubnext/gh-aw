@@ -5,7 +5,7 @@ sidebar:
   order: 298
 ---
 
-GitHub Agentic Workflows uploads several artifacts during workflow execution. This reference documents every artifact name, its contents, and how to access the data — especially for downstream workflows that use `gh run download` directly instead of `gh aw logs`.
+GitHub Agentic Workflows upload several artifacts during workflow execution. This reference documents every artifact name, its contents, and how to access the data — especially for downstream workflows that use `gh run download` directly instead of `gh aw logs`.
 
 ## Quick Reference
 
@@ -15,8 +15,8 @@ GitHub Agentic Workflows uploads several artifacts during workflow execution. Th
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
 | `firewall-audit-logs` | `constants.FirewallAuditArtifactName` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
 | `detection` | `constants.DetectionArtifactName` | Single-file | Threat detection log (`detection.log`) |
-| `safe-output` | `constants.SafeOutputArtifactName` | Single-file | Safe output data (`safe_output.jsonl`) |
-| `agent-output` | `constants.AgentOutputArtifactName` | Single-file | Agent output data (`agent_output.json`) |
+| `safe-output` | `constants.SafeOutputArtifactName` | Legacy/back-compat | Historical standalone safe output artifact (`safe_output.jsonl`); in current compiled workflows this content is included in the unified `agent` artifact instead |
+| `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
 | `prompt` | — | Single-file | Generated prompt (`prompt.txt`) |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Single-file | Safe output items manifest |
@@ -57,14 +57,12 @@ The `firewall-audit-logs` artifact is uploaded by **all firewall-enabled workflo
 
 ```
 firewall-audit-logs/
-├── logs/
-│   ├── api-proxy-logs/
-│   │   └── token-usage.jsonl    ← Token usage data (input/output/cache tokens per API request)
-│   └── squid-logs/
-│       └── access.log           ← Network policy log (domain allow/deny decisions)
-└── audit/
-    ├── audit.jsonl              ← Firewall audit trail (policy matches, rule evaluations)
-    └── policy-manifest.json     ← Policy configuration snapshot
+├── api-proxy-logs/
+│   └── token-usage.jsonl        ← Token usage data (input/output/cache tokens per API request)
+├── squid-logs/
+│   └── access.log               ← Network policy log (domain allow/deny decisions)
+├── audit.jsonl                  ← Firewall audit trail (policy matches, rule evaluations)
+└── policy-manifest.json         ← Policy configuration snapshot
 ```
 
 ### Accessing Token Usage Data
@@ -86,13 +84,16 @@ gh aw logs <run-id> --artifacts firewall --json
 gh run download <run-id> -n firewall-audit-logs
 
 # Token usage data is at:
-cat firewall-audit-logs/logs/api-proxy-logs/token-usage.jsonl
+cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
 
 # Network access log is at:
-cat firewall-audit-logs/logs/squid-logs/access.log
+cat firewall-audit-logs/squid-logs/access.log
 
 # Audit trail is at:
-cat firewall-audit-logs/audit/audit.jsonl
+cat firewall-audit-logs/audit.jsonl
+
+# Policy manifest is at:
+cat firewall-audit-logs/policy-manifest.json
 ```
 
 ### Common Mistake
@@ -106,7 +107,7 @@ cat agent/token-usage.jsonl  # File not found!
 
 # ✅ CORRECT — download from firewall-audit-logs
 gh run download <run-id> -n firewall-audit-logs
-cat firewall-audit-logs/logs/api-proxy-logs/token-usage.jsonl
+cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
 ```
 
 ## `agent`
