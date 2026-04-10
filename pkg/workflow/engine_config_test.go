@@ -581,3 +581,303 @@ func TestNilEngineConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestEngineBareFieldExtraction(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		expectedBare bool
+	}{
+		{
+			name: "bare true",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "copilot",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+		{
+			name: "bare false",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "copilot",
+					"bare": false,
+				},
+			},
+			expectedBare: false,
+		},
+		{
+			name: "bare not set (default false)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "copilot",
+				},
+			},
+			expectedBare: false,
+		},
+		{
+			name: "bare true for claude",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "claude",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+		{
+			name: "bare true for codex",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "codex",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+		{
+			name: "bare true for gemini",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":   "gemini",
+					"bare": true,
+				},
+			},
+			expectedBare: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			if config == nil {
+				t.Fatal("Expected config to be non-nil")
+			}
+			if config.Bare != tt.expectedBare {
+				t.Errorf("Expected Bare=%v, got Bare=%v", tt.expectedBare, config.Bare)
+			}
+		})
+	}
+}
+
+func TestEngineBareModeCopilotArgs(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "copilot",
+			Bare: true,
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var foundFlag bool
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-custom-instructions") {
+				foundFlag = true
+				break
+			}
+		}
+	}
+	if !foundFlag {
+		t.Error("Expected --no-custom-instructions in copilot execution steps when bare=true")
+	}
+}
+
+func TestEngineBareModeCopilotArgsNotPresent(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "copilot",
+			Bare: false,
+		},
+	}
+
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-custom-instructions") {
+				t.Error("Expected --no-custom-instructions to be absent when bare=false")
+				return
+			}
+		}
+	}
+}
+
+func TestEngineBareModeClaude(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "claude",
+			Bare: true,
+		},
+	}
+
+	engine := NewClaudeEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var foundFlag bool
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--bare") {
+				foundFlag = true
+				break
+			}
+		}
+	}
+	if !foundFlag {
+		t.Error("Expected --bare in claude execution steps when bare=true")
+	}
+}
+
+func TestEngineBareModeClaude_NotPresent(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "claude",
+			Bare: false,
+		},
+	}
+
+	engine := NewClaudeEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--bare") {
+				t.Error("Expected --bare to be absent in claude execution steps when bare=false")
+				return
+			}
+		}
+	}
+}
+
+func TestEngineBareModeCodex(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "codex",
+			Bare: true,
+		},
+	}
+
+	engine := NewCodexEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var foundFlag bool
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-system-prompt") {
+				foundFlag = true
+				break
+			}
+		}
+	}
+	if !foundFlag {
+		t.Error("Expected --no-system-prompt in codex execution steps when bare=true")
+	}
+}
+
+func TestEngineBareModeCodex_NotPresent(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "codex",
+			Bare: false,
+		},
+	}
+
+	engine := NewCodexEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-system-prompt") {
+				t.Error("Expected --no-system-prompt to be absent when bare=false")
+				return
+			}
+		}
+	}
+}
+
+func TestEngineBareModeCodex_BeforeExec(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "codex",
+			Bare: true,
+		},
+	}
+
+	engine := NewCodexEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "--no-system-prompt") && strings.Contains(line, "exec") {
+				noSysPromptIdx := strings.Index(line, "--no-system-prompt")
+				execIdx := strings.Index(line, "exec")
+				if noSysPromptIdx > execIdx {
+					t.Error("Expected --no-system-prompt to come before 'exec' subcommand")
+				}
+				return
+			}
+		}
+	}
+}
+
+func TestEngineBareGemini(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "gemini",
+			Bare: true,
+		},
+	}
+
+	engine := NewGeminiEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	var foundEnvVar bool
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
+				foundEnvVar = true
+				break
+			}
+		}
+	}
+	if !foundEnvVar {
+		t.Error("Expected GEMINI_SYSTEM_MD=/dev/null in gemini execution steps when bare=true")
+	}
+}
+
+func TestEngineBareGemini_NotPresent(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:   "gemini",
+			Bare: false,
+		},
+	}
+
+	engine := NewGeminiEngine()
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	for _, step := range steps {
+		for _, line := range step {
+			if strings.Contains(line, "GEMINI_SYSTEM_MD") && strings.Contains(line, "/dev/null") {
+				t.Error("Expected GEMINI_SYSTEM_MD=/dev/null to be absent when bare=false")
+				return
+			}
+		}
+	}
+}

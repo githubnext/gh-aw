@@ -111,6 +111,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
+	// Add --no-custom-instructions when bare mode is enabled to suppress automatic
+	// loading of custom instructions from .github/AGENTS.md and user-level configs.
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
+		copilotExecLog.Print("Bare mode enabled: adding --no-custom-instructions")
+		copilotArgs = append(copilotArgs, "--no-custom-instructions")
+	}
+
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)

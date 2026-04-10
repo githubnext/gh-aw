@@ -270,3 +270,152 @@ This is a test workflow to verify codex engine args injection.
 		t.Error("Expected --custom-flag to come before $INSTRUCTION in compiled YAML")
 	}
 }
+
+func TestEngineBareModeCopilotIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  bare: true
+---
+
+# Test Bare Mode Copilot
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	result := string(content)
+
+	if !strings.Contains(result, "--no-custom-instructions") {
+		t.Errorf("Expected --no-custom-instructions in compiled output when bare=true, got:\n%s", result)
+	}
+}
+
+func TestEngineBareModeClaudeIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: claude
+  bare: true
+---
+
+# Test Bare Mode Claude
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	result := string(content)
+
+	if !strings.Contains(result, "--bare") {
+		t.Errorf("Expected --bare in compiled output when bare=true, got:\n%s", result)
+	}
+}
+
+func TestEngineBareModeCodexIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: codex
+  bare: true
+---
+
+# Test Bare Mode Codex
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	result := string(content)
+
+	if !strings.Contains(result, "--no-system-prompt") {
+		t.Errorf("Expected --no-system-prompt in compiled output when bare=true, got:\n%s", result)
+	}
+
+	// Verify --no-system-prompt appears before exec
+	noSysPromptIdx := strings.Index(result, "--no-system-prompt")
+	execIdx := strings.Index(result, "exec")
+	if noSysPromptIdx == -1 || execIdx == -1 {
+		t.Fatal("Could not find both --no-system-prompt and exec in compiled YAML")
+	}
+	if noSysPromptIdx > execIdx {
+		t.Error("Expected --no-system-prompt to come before 'exec' subcommand")
+	}
+}
+
+func TestEngineBareModeGeminiIntegration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: gemini
+  bare: true
+---
+
+# Test Bare Mode Gemini
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test-workflow.lock.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	result := string(content)
+
+	if !strings.Contains(result, "GEMINI_SYSTEM_MD") {
+		t.Errorf("Expected GEMINI_SYSTEM_MD in compiled output when bare=true, got:\n%s", result)
+	}
+	if !strings.Contains(result, "/dev/null") {
+		t.Errorf("Expected /dev/null in GEMINI_SYSTEM_MD value, got:\n%s", result)
+	}
+}

@@ -162,6 +162,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This format is compatible with the log parser which expects either JSON array or JSONL
 	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
 
+	// Add --bare when bare mode is enabled to suppress automatic loading of memory
+	// files (CLAUDE.md, ~/.claude/) and other context injections.
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
+		claudeLog.Print("Bare mode enabled: adding --bare")
+		claudeArgs = append(claudeArgs, "--bare")
+	}
+
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)

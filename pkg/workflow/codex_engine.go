@@ -190,6 +190,14 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		customArgsParam += customArgsParamSb.String()
 	}
 
+	// Build bare mode parameter: --no-system-prompt is a global Codex flag placed before the
+	// "exec" subcommand to suppress loading of the default system prompt/instructions.
+	bareGlobalParam := ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
+		codexEngineLog.Print("Bare mode enabled: adding --no-system-prompt")
+		bareGlobalParam = "--no-system-prompt "
+	}
+
 	// Build the Codex command
 	// Determine which command to use
 	var commandName string
@@ -201,8 +209,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	codexCommand := fmt.Sprintf("%s %s%sexec%s%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, bareGlobalParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
@@ -268,13 +276,13 @@ touch %s
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
+%s %s%sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, commandName, modelParam, bareGlobalParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s %sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
+%s %s%sexec%s%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, AgentStepSummaryPath, commandName, modelParam, bareGlobalParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam, logFile)
 		}
 	}
 
