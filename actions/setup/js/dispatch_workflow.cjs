@@ -204,7 +204,7 @@ async function main(config = {}) {
           if (strValue !== "") {
             const pureIdResult = resolveIssueNumber(strValue, temporaryIdMap);
             if (pureIdResult.wasTemporaryId) {
-              if (pureIdResult.errorMessage) {
+              if (pureIdResult.errorMessage || !pureIdResult.resolved) {
                 core.warning(`Unresolved temporary ID in input "${key}": ${pureIdResult.errorMessage}`);
               } else if (pureIdResult.resolved.repo === resolvedRepoSlug) {
                 strValue = String(pureIdResult.resolved.number);
