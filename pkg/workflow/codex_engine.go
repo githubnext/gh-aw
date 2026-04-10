@@ -265,16 +265,18 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			}
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
+(umask 177 && touch %s)
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentStepSummaryPath, agentPath, codexCommand, logFile)
+%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, agentPath, codexCommand, logFile)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 touch %s
+(umask 177 && touch %s)
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
-%s 2>&1 | tee %s`, AgentStepSummaryPath, codexCommand, logFile)
+%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, codexCommand, logFile)
 		}
 	}
 

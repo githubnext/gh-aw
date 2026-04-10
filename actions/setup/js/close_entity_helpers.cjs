@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -50,10 +51,8 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildWorkflowRunUrl(context, context.repo);
 
-  // Sanitize the body content to prevent injection attacks
-  const sanitizedBody = sanitizeContent(body);
-
-  return sanitizedBody.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+  // Caller is responsible for sanitizing body before passing it here.
+  return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 }
 
 /**
@@ -205,6 +204,227 @@ function escapeMarkdownTitle(title) {
 }
 
 /**
+ * @typedef {Object} CloseEntityHandlerCallbacks
+ * @property {(item: Object, config: Object) => ({success: true, entityNumber: number, owner: string, repo: string, entityRepo?: string} | {success: false, error: string})} resolveTarget
+ *   Resolves the entity number and target repository from the message and handler config.
+ *   The factory passes both `item` and `config`; implementations may ignore `config` if not needed.
+ * @property {(github: any, owner: string, repo: string, entityNumber: number) => Promise<{number: number, title: string, labels: Array<{name: string}>, html_url: string, state: string}>} getDetails
+ *   Fetches entity details from the GitHub API.
+ * @property {(entity: Object, entityNumber: number, requiredLabels: string[]) => {valid: true} | {valid: false, warning?: string, error: string}} validateLabels
+ *   Validates entity labels against the required-labels filter.
+ * @property {(sanitizedBody: string, item: Object) => string} buildCommentBody
+ *   Builds the final comment body from the already-sanitized body text.
+ *   The factory passes both `sanitizedBody` and `item`; implementations may ignore `item`
+ *   if they retrieve context values (e.g. triggering PR number) from the global `context` directly.
+ * @property {(github: any, owner: string, repo: string, entityNumber: number, body: string) => Promise<{id: number, html_url: string}>} addComment
+ *   Posts a comment to the entity.
+ * @property {(github: any, owner: string, repo: string, entityNumber: number, item: Object, config: Object) => Promise<{number: number, html_url: string, title: string}>} closeEntity
+ *   Closes the entity via the GitHub API.
+ *   The factory passes `item` and `config` for implementations that need per-item overrides
+ *   (e.g. `state_reason`); implementations that don't need them may ignore those parameters.
+ * @property {(closedEntity: Object, commentResult: Object|null, wasAlreadyClosed: boolean, commentPosted: boolean) => Object} buildSuccessResult
+ *   Builds the success result object returned to the caller.
+ * @property {boolean} [continueOnCommentError]
+ *   When true, a failed comment post is logged but does not abort the close operation.
+ *   When false/omitted, a comment failure propagates and causes the handler to return an error.
+ */
+
+/**
+ * Create a message-level close-entity handler function.
+ *
+ * Centralises the common close-flow pipeline:
+ *   1. Max-count gating
+ *   2. Comment body resolution (item.body → config.comment fallback)
+ *   3. Content sanitization
+ *   4. Target repository / entity number resolution (via callbacks.resolveTarget)
+ *   5. Entity details fetch + already-closed detection
+ *   6. Label filter validation (via callbacks.validateLabels)
+ *   7. Title-prefix filter validation
+ *   8. Staged-mode preview short-circuit
+ *   9. Comment posting (with optional continueOnCommentError)
+ *  10. Entity close (skipped when already closed)
+ *  11. Success result construction (via callbacks.buildSuccessResult)
+ *
+ * Entity-specific behaviour (API calls, label semantics, comment body
+ * construction, result shape, cross-repo support) is supplied through the
+ * callbacks argument so that each handler only retains the code that is
+ * genuinely unique to it.
+ *
+ * @param {Object} config - Handler configuration object from main()
+ * @param {EntityConfig} entityConfig - Entity display/type configuration
+ * @param {CloseEntityHandlerCallbacks} callbacks - Entity-specific callbacks
+ * @param {any} githubClient - Authenticated GitHub client
+ * @returns {import('./types/handler-factory').MessageHandlerFunction} Message handler function
+ */
+function createCloseEntityHandler(config, entityConfig, callbacks, githubClient) {
+  const requiredLabels = config.required_labels || [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  const maxCount = config.max || 10;
+  const comment = config.comment || "";
+  const isStaged = isStagedMode(config);
+
+  let processedCount = 0;
+
+  return async function handleCloseEntity(message, resolvedTemporaryIds) {
+    // 1. Max-count gating
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping ${entityConfig.itemType}: max count of ${maxCount} reached`);
+      return { success: false, error: `Max count of ${maxCount} reached` };
+    }
+    processedCount++;
+
+    const item = message;
+
+    // Log message structure for debugging (avoid logging body content)
+    const logFields = { has_body: !!item.body, body_length: item.body ? item.body.length : 0 };
+    if (item[entityConfig.numberField] !== undefined) {
+      logFields[entityConfig.numberField] = item[entityConfig.numberField];
+    }
+    if (item.repo !== undefined) {
+      logFields.has_repo = true;
+    }
+    core.info(`Processing ${entityConfig.itemType} message: ${JSON.stringify(logFields)}`);
+
+    // 2. Comment body resolution
+    /** @type {string} */
+    let commentToPost;
+    /** @type {string} */
+    let commentSource = "unknown";
+
+    if (typeof item.body === "string" && item.body.trim() !== "") {
+      commentToPost = item.body;
+      commentSource = "item.body";
+    } else if (typeof comment === "string" && comment.trim() !== "") {
+      commentToPost = comment;
+      commentSource = "config.comment";
+    } else {
+      core.warning("No comment body provided in message and no default comment configured");
+      return { success: false, error: "No comment body provided" };
+    }
+
+    core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
+
+    // 3. Content sanitization
+    commentToPost = sanitizeContent(commentToPost);
+
+    // 4. Target repository / entity number resolution
+    const targetResult = callbacks.resolveTarget(item, config);
+    if (!targetResult.success) {
+      core.warning(`Skipping ${entityConfig.itemType}: ${targetResult.error}`);
+      return { success: false, error: targetResult.error };
+    }
+    const { entityNumber, owner, repo: repoName, entityRepo } = targetResult;
+    if (entityRepo) {
+      core.info(`Target repository: ${entityRepo}`);
+    }
+
+    try {
+      // 5. Entity details fetch
+      core.info(`Fetching ${entityConfig.displayName} details for #${entityNumber} in ${owner}/${repoName}`);
+      const entity = await callbacks.getDetails(githubClient, owner, repoName, entityNumber);
+      core.info(`${entityConfig.displayNameCapitalized} #${entityNumber} fetched: state=${entity.state}, title="${entity.title}", labels=[${entity.labels.map(l => l.name || l).join(", ")}]`);
+
+      const wasAlreadyClosed = entity.state === "closed";
+      if (wasAlreadyClosed) {
+        core.info(`${entityConfig.displayNameCapitalized} #${entityNumber} is already closed, but will still add comment`);
+      }
+
+      // 6. Label filter validation
+      const labelResult = callbacks.validateLabels(entity, entityNumber, requiredLabels);
+      if (!labelResult.valid) {
+        core.warning(labelResult.warning || `Skipping ${entityConfig.displayName} #${entityNumber}: ${labelResult.error}`);
+        return { success: false, error: labelResult.error };
+      }
+      if (requiredLabels.length > 0) {
+        core.info(`${entityConfig.displayNameCapitalized} #${entityNumber} has required labels: ${requiredLabels.join(", ")}`);
+      }
+
+      // 7. Title-prefix filter validation
+      if (requiredTitlePrefix && !checkTitlePrefixFilter(entity.title, requiredTitlePrefix)) {
+        core.warning(`${entityConfig.displayNameCapitalized} #${entityNumber} title doesn't start with "${requiredTitlePrefix}"`);
+        return { success: false, error: `Title doesn't start with "${requiredTitlePrefix}"` };
+      }
+      if (requiredTitlePrefix) {
+        core.info(`${entityConfig.displayNameCapitalized} #${entityNumber} has required title prefix: "${requiredTitlePrefix}"`);
+      }
+
+      // 8. Staged-mode preview short-circuit
+      if (isStaged) {
+        const repoStr = entityRepo || `${owner}/${repoName}`;
+        logStagedPreviewInfo(`Would close ${entityConfig.displayName} #${entityNumber} in ${repoStr}`);
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            number: entityNumber,
+            repo: repoStr,
+            alreadyClosed: wasAlreadyClosed,
+            hasComment: !!commentToPost,
+          },
+        };
+      }
+
+      // 9. Comment posting
+      const commentBody = callbacks.buildCommentBody(commentToPost, item);
+      core.info(`Adding comment to ${entityConfig.displayName} #${entityNumber}: length=${commentBody.length}`);
+
+      /** @type {{id: number, html_url: string}|null} */
+      let commentResult = null;
+      let commentPosted = false;
+      try {
+        commentResult = await callbacks.addComment(githubClient, owner, repoName, entityNumber, commentBody);
+        commentPosted = true;
+        core.info(`✓ Comment posted to ${entityConfig.displayName} #${entityNumber}: ${commentResult.html_url}`);
+        core.info(`Comment details: id=${commentResult.id}, body_length=${commentBody.length}`);
+      } catch (commentError) {
+        const errorMsg = getErrorMessage(commentError);
+        if (callbacks.continueOnCommentError) {
+          core.error(`Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`);
+          core.error(
+            `Error details: ${JSON.stringify({
+              entityNumber,
+              hasBody: !!item.body,
+              bodyLength: item.body ? item.body.length : 0,
+              errorMessage: errorMsg,
+            })}`
+          );
+          // commentPosted stays false; close operation continues
+        } else {
+          throw commentError;
+        }
+      }
+
+      // 10. Entity close (skipped when already closed)
+      let closedEntity;
+      if (wasAlreadyClosed) {
+        core.info(`${entityConfig.displayNameCapitalized} #${entityNumber} was already closed, comment ${commentPosted ? "added successfully" : "posting attempted"}`);
+        closedEntity = entity;
+      } else {
+        closedEntity = await callbacks.closeEntity(githubClient, owner, repoName, entityNumber, item, config);
+        core.info(`✓ ${entityConfig.displayNameCapitalized} #${entityNumber} closed successfully: ${closedEntity.html_url}`);
+      }
+
+      core.info(`${entityConfig.itemType} completed successfully for ${entityConfig.displayName} #${entityNumber}`);
+
+      // 11. Success result construction
+      return callbacks.buildSuccessResult(closedEntity, commentResult, wasAlreadyClosed, commentPosted);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to close ${entityConfig.displayName} #${entityNumber}: ${errorMessage}`);
+      core.error(
+        `Error details: ${JSON.stringify({
+          entityNumber,
+          hasBody: !!item.body,
+          bodyLength: item.body ? item.body.length : 0,
+          errorMessage,
+        })}`
+      );
+      return { success: false, error: errorMessage };
+    }
+  };
+}
+
+/**
  * Process close entity items from agent output
  * @param {EntityConfig} config - Entity configuration
  * @param {EntityCallbacks} callbacks - Entity-specific API callbacks
@@ -292,8 +512,9 @@ async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
         core.info(`${config.displayNameCapitalized} #${entityNumber} is already closed, but will still add comment`);
       }
 
-      // Build comment body
-      const commentBody = buildCommentBody(item.body, triggeringIssueNumber, triggeringPRNumber);
+      // Build comment body (sanitize first, then append tracker/footer)
+      const sanitizedItemBody = sanitizeContent(item.body);
+      const commentBody = buildCommentBody(sanitizedItemBody, triggeringIssueNumber, triggeringPRNumber);
 
       // Add comment before closing (or to already-closed entity)
       const comment = await callbacks.addComment(github, context.repo.owner, context.repo.repo, entityNumber, commentBody);
@@ -389,6 +610,7 @@ module.exports = {
   resolveEntityNumber,
   buildCommentBody,
   escapeMarkdownTitle,
+  createCloseEntityHandler,
   ISSUE_CONFIG,
   PULL_REQUEST_CONFIG,
 };

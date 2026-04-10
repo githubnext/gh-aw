@@ -549,4 +549,159 @@ Custom secret: my-secret-123456789012`;
         });
       });
     }));
+
+  describe("extractMCPGatewayTokens", () => {
+    it("should extract Authorization tokens from gateway-output.json", () => {
+      const configDir = path.join(tempDir, "mcp-config");
+      fs.mkdirSync(configDir, { recursive: true });
+      const gatewayOutput = path.join(configDir, "gateway-output.json");
+      fs.writeFileSync(
+        gatewayOutput,
+        JSON.stringify({
+          mcpServers: {
+            github: {
+              type: "http",
+              url: "http://host.docker.internal:8080/mcp/github",
+              headers: { Authorization: "my-gateway-token-abc123" },
+            },
+          },
+        })
+      );
+
+      const script = redactScript
+        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+      let tokens;
+      eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
+      expect(tokens).toContain("my-gateway-token-abc123");
+    });
+
+    it("should extract Authorization tokens from mcp-servers.json", () => {
+      const configDir = path.join(tempDir, "mcp-config");
+      fs.mkdirSync(configDir, { recursive: true });
+      const mcpServers = path.join(configDir, "mcp-servers.json");
+      fs.writeFileSync(
+        mcpServers,
+        JSON.stringify({
+          mcpServers: {
+            safeoutputs: {
+              type: "http",
+              url: "http://host.docker.internal:8080/mcp/safeoutputs",
+              headers: { Authorization: "safe-output-token-xyz789" },
+            },
+          },
+        })
+      );
+
+      const script = redactScript
+        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${path.join(configDir, "gateway-output.json").replace(/\\/g, "\\\\")}"`)
+        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${mcpServers.replace(/\\/g, "\\\\")}"`);
+      let tokens;
+      eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
+      expect(tokens).toContain("safe-output-token-xyz789");
+    });
+
+    it("should extract both the full Bearer header value and the bare token", () => {
+      const configDir = path.join(tempDir, "mcp-config");
+      fs.mkdirSync(configDir, { recursive: true });
+      const gatewayOutput = path.join(configDir, "gateway-output.json");
+      fs.writeFileSync(
+        gatewayOutput,
+        JSON.stringify({
+          mcpServers: {
+            github: {
+              type: "http",
+              url: "http://host.docker.internal:8080/mcp/github",
+              headers: { Authorization: "Bearer tok-abc123def456" },
+            },
+          },
+        })
+      );
+
+      const script = redactScript
+        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+      let tokens;
+      eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
+      expect(tokens).toContain("Bearer tok-abc123def456");
+      expect(tokens).toContain("tok-abc123def456");
+    });
+
+    it("should deduplicate tokens shared across multiple servers", () => {
+      const configDir = path.join(tempDir, "mcp-config");
+      fs.mkdirSync(configDir, { recursive: true });
+      const gatewayOutput = path.join(configDir, "gateway-output.json");
+      const sharedToken = "shared-token-same-for-all";
+      fs.writeFileSync(
+        gatewayOutput,
+        JSON.stringify({
+          mcpServers: {
+            github: { type: "http", url: "http://host.docker.internal:8080/mcp/github", headers: { Authorization: sharedToken } },
+            safeoutputs: { type: "http", url: "http://host.docker.internal:8080/mcp/safeoutputs", headers: { Authorization: sharedToken } },
+          },
+        })
+      );
+
+      const script = redactScript
+        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+      let tokens;
+      eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
+      expect(tokens.filter(t => t === sharedToken)).toHaveLength(1);
+    });
+
+    it("should return empty array when config files do not exist", () => {
+      const nonExistent = path.join(tempDir, "nonexistent.json");
+      const script = redactScript.replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${nonExistent.replace(/\\/g, "\\\\")}"`).replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${nonExistent.replace(/\\/g, "\\\\")}"`);
+      let tokens;
+      eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
+      expect(tokens).toEqual([]);
+    });
+
+    it("should silently ignore malformed JSON config files", () => {
+      const configDir = path.join(tempDir, "mcp-config");
+      fs.mkdirSync(configDir, { recursive: true });
+      const gatewayOutput = path.join(configDir, "gateway-output.json");
+      fs.writeFileSync(gatewayOutput, "not valid json {{{");
+
+      const script = redactScript
+        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+      let tokens;
+      expect(() => {
+        eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
+      }).not.toThrow();
+      expect(tokens).toEqual([]);
+    });
+
+    it("should redact MCP gateway token from agent-stdio.log in main()", async () => {
+      const configDir = path.join(tempDir, "mcp-config");
+      fs.mkdirSync(configDir, { recursive: true });
+      const gatewayOutput = path.join(configDir, "gateway-output.json");
+      const gatewayToken = "super-secret-gateway-token-98765";
+      fs.writeFileSync(
+        gatewayOutput,
+        JSON.stringify({
+          mcpServers: {
+            github: { type: "http", url: "http://host.docker.internal:8080/mcp/github", headers: { Authorization: gatewayToken } },
+          },
+        })
+      );
+
+      // Write a log file that contains the gateway token (simulating the leak)
+      const logFile = path.join(tempDir, "agent-stdio.log");
+      fs.writeFileSync(logFile, `{"type":"tool_result","content":"Authorization: ${gatewayToken}"}`);
+
+      let modifiedScript = redactScript
+        .replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`)
+        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+
+      await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+
+      const redacted = fs.readFileSync(logFile, "utf8");
+      expect(redacted).not.toContain(gatewayToken);
+      expect(redacted).toContain("***REDACTED***");
+    });
+  });
 });

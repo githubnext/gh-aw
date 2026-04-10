@@ -872,6 +872,72 @@ func TestMultipleSiblingStylesFromSameDirectory(t *testing.T) {
 		"server-c from shared/server-c.md root-relative import should be merged")
 }
 
+// TestDotGithubAgentsImport verifies the documented import path format
+// ".github/agents/planner.md" resolves from the repository root
+// (not from .github/workflows/ as a base).
+//
+// This is the regression test for the bug where:
+//   - importing ".github/agents/planner.md" failed with "import file not found"
+//   - because the resolver was treating the path as relative to .github/workflows/
+//
+// The correct behaviour is described in the imports documentation:
+// paths starting with ".github/" are repo-root-relative.
+func TestDotGithubAgentsImport(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	agentsDir := filepath.Join(tmpDir, ".github", "agents")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755), "create .github/workflows dir")
+	require.NoError(t, os.MkdirAll(agentsDir, 0o755), "create .github/agents dir")
+
+	// Agent file at .github/agents/planner.md (repo-root-relative path as documented)
+	agentContent := "---\ndescription: Planner agent\n---\n\n# Planner\n\nHelp with planning."
+	require.NoError(t, os.WriteFile(filepath.Join(agentsDir, "planner.md"), []byte(agentContent), 0o644),
+		"write .github/agents/planner.md")
+
+	t.Run("root-relative .github/agents/ path resolves as agent file", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": []any{".github/agents/planner.md"},
+		}
+		yamlContent := "imports:\n  - .github/agents/planner.md\n"
+		cache := NewImportCache(tmpDir)
+		result, err := ProcessImportsFromFrontmatterWithSource(
+			frontmatter, workflowsDir, cache,
+			filepath.Join(workflowsDir, "planner-test.md"), yamlContent,
+		)
+
+		require.NoError(t, err, "'.github/agents/planner.md' import should resolve successfully")
+		require.NotNil(t, result, "result should not be nil")
+
+		// The agent file should be detected and its path stored
+		assert.Equal(t, ".github/agents/planner.md", result.AgentFile,
+			"AgentFile should be set to the repo-root-relative path")
+
+		// The import path should be added for runtime-import macro generation
+		assert.Contains(t, result.ImportPaths, ".github/agents/planner.md",
+			"ImportPaths should contain the agent import path")
+	})
+
+	t.Run("slash-prefixed /.github/agents/ path also resolves as agent file", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"imports": []any{"/.github/agents/planner.md"},
+		}
+		yamlContent := "imports:\n  - /.github/agents/planner.md\n"
+		cache := NewImportCache(tmpDir)
+		result, err := ProcessImportsFromFrontmatterWithSource(
+			frontmatter, workflowsDir, cache,
+			filepath.Join(workflowsDir, "planner-test.md"), yamlContent,
+		)
+
+		require.NoError(t, err, "'/.github/agents/planner.md' import should resolve successfully")
+		require.NotNil(t, result, "result should not be nil")
+
+		// The agent file should be detected
+		assert.NotEmpty(t, result.AgentFile, "AgentFile should be set")
+		assert.Contains(t, result.ImportPaths, result.AgentFile,
+			"ImportPaths should contain the agent import path")
+	})
+}
+
 // writeFile is a test helper that writes content to a file in the given directory.
 func writeFile(t *testing.T, dir, name, content string) {
 	t.Helper()

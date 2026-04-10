@@ -407,7 +407,7 @@ describe("close_pull_request", () => {
       const result = await handler({ pull_request_number: 100, body: "Close" }, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("does not start with required prefix");
+      expect(result.error).toContain("doesn't start with");
     });
 
     it("should add comment before closing when configured", async () => {

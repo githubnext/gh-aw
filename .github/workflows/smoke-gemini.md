@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
-    names: ["water"]
+    names: ["smoke"]
   reaction: "rocket"
   status-comment: true
 permissions:
