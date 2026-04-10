@@ -860,4 +860,175 @@ describe("dispatch_workflow handler factory", () => {
       })
     );
   });
+
+  describe("temporary ID resolution in inputs", () => {
+    const baseConfig = {
+      workflows: ["create-pr"],
+      workflow_files: { "create-pr": ".lock.yml" },
+    };
+
+    it("should resolve a pure temporary ID input value to the issue number", async () => {
+      const handler = await main(baseConfig);
+
+      const resolvedTemporaryIds = {
+        aw_slosync: { repo: "test-owner/test-repo", number: 6499 },
+      };
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          issue_number: "#aw_slosync",
+        },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            issue_number: "6499",
+          }),
+        })
+      );
+    });
+
+    it("should resolve temporary ID without hash prefix", async () => {
+      const handler = await main(baseConfig);
+
+      const resolvedTemporaryIds = {
+        aw_myissue: { repo: "test-owner/test-repo", number: 42 },
+      };
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          item_number: "aw_myissue",
+        },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            item_number: "42",
+          }),
+        })
+      );
+    });
+
+    it("should replace embedded temporary ID references in text input values", async () => {
+      const handler = await main(baseConfig);
+
+      const resolvedTemporaryIds = {
+        aw_track: { repo: "test-owner/test-repo", number: 100 },
+      };
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          description: "Tracking issue is #aw_track",
+        },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      const callArgs = github.rest.actions.createWorkflowDispatch.mock.calls[0][0];
+      // Embedded references are replaced with cross-reference format (e.g. #100 or owner/repo#100)
+      expect(callArgs.inputs.description).toContain("100");
+      expect(callArgs.inputs.description).not.toContain("#aw_track");
+    });
+
+    it("should warn and keep original value when temporary ID is unresolved", async () => {
+      const handler = await main(baseConfig);
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          issue_number: "#aw_missing",
+        },
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("aw_missing"));
+      // Original value kept when unresolved
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            issue_number: "#aw_missing",
+          }),
+        })
+      );
+    });
+
+    it("should leave non-temporary-ID values unchanged", async () => {
+      const handler = await main(baseConfig);
+
+      const resolvedTemporaryIds = {
+        aw_slosync: { repo: "test-owner/test-repo", number: 6499 },
+      };
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          issue_number: "123",
+          label: "bug",
+          count: 5,
+        },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            issue_number: "123",
+            label: "bug",
+            count: "5",
+          }),
+        })
+      );
+    });
+
+    it("should handle multiple temporary ID inputs in a single dispatch", async () => {
+      const handler = await main(baseConfig);
+
+      const resolvedTemporaryIds = {
+        aw_issue1: { repo: "test-owner/test-repo", number: 10 },
+        aw_issue2: { repo: "test-owner/test-repo", number: 20 },
+      };
+
+      const message = {
+        type: "dispatch_workflow",
+        workflow_name: "create-pr",
+        inputs: {
+          parent_issue: "#aw_issue1",
+          child_issue: "#aw_issue2",
+        },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            parent_issue: "10",
+            child_issue: "20",
+          }),
+        })
+      );
+    });
+  });
 });
