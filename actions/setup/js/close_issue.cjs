@@ -5,13 +5,10 @@
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
  */
 
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { sanitizeContent } = require("./sanitize_content.cjs");
-const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 
 /**
  * Get issue details using REST API
@@ -82,19 +79,13 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason) {
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
-  // Extract configuration
+  const configStateReason = config.state_reason || "COMPLETED";
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
-  const maxCount = config.max || 10;
-  const comment = config.comment || "";
-  const configStateReason = config.state_reason || "COMPLETED";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
-  // Check if we're in staged mode
-  const isStaged = isStagedMode(config);
-
-  core.info(`Close issue configuration: max=${maxCount}, state_reason=${configStateReason}`);
+  core.info(`Close issue configuration: max=${config.max || 10}, state_reason=${configStateReason}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -106,199 +97,81 @@ async function main(config = {}) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
 
-  // Track how many items we've processed for max limit
-  let processedCount = 0;
-
-  /**
-   * Message handler function that processes a single close_issue message
-   * @param {Object} message - The close_issue message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status
-   */
-  return async function handleCloseIssue(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping close_issue: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
-
-    processedCount++;
-
-    const item = message;
-
-    // Log message structure for debugging (avoid logging body content)
-    core.info(
-      `Processing close_issue message: ${JSON.stringify({
-        has_body: !!item.body,
-        body_length: item.body ? item.body.length : 0,
-        issue_number: item.issue_number,
-        has_repo: !!item.repo,
-      })}`
-    );
-
-    // Determine comment body - prefer non-empty item.body over non-empty config.comment
-    /** @type {string} */
-    let commentToPost;
-    /** @type {string} */
-    let commentSource = "unknown";
-
-    if (typeof item.body === "string" && item.body.trim() !== "") {
-      commentToPost = item.body;
-      commentSource = "item.body";
-    } else if (typeof comment === "string" && comment.trim() !== "") {
-      commentToPost = comment;
-      commentSource = "config.comment";
-    } else {
-      core.warning("No comment body provided in message and no default comment configured");
-      return {
-        success: false,
-        error: "No comment body provided",
-      };
-    }
-
-    core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
-
-    // Sanitize content to prevent injection attacks
-    commentToPost = sanitizeContent(commentToPost);
-
-    // Resolve and validate target repository
-    const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");
-    if (!repoResult.success) {
-      core.warning(`Skipping close_issue: ${repoResult.error}`);
-      return {
-        success: false,
-        error: repoResult.error,
-      };
-    }
-    const { repo: itemRepo, repoParts } = repoResult;
-    core.info(`Target repository: ${itemRepo}`);
-
-    // Determine issue number
-    let issueNumber;
-    if (item.issue_number !== undefined) {
-      issueNumber = parseInt(String(item.issue_number), 10);
-      if (isNaN(issueNumber)) {
-        core.warning(`Invalid issue number: ${item.issue_number}`);
-        return {
-          success: false,
-          error: `Invalid issue number: ${item.issue_number}`,
-        };
-      }
-    } else {
-      // Use context issue if available
-      const contextIssue = context.payload?.issue?.number;
-      if (!contextIssue) {
-        core.warning("No issue_number provided and not in issue context");
-        return {
-          success: false,
-          error: "No issue number available",
-        };
-      }
-      issueNumber = contextIssue;
-    }
-
-    try {
-      // Fetch issue details
-      core.info(`Fetching issue details for #${issueNumber} in ${repoParts.owner}/${repoParts.repo}`);
-      const issue = await getIssueDetails(githubClient, repoParts.owner, repoParts.repo, issueNumber);
-      core.info(`Issue #${issueNumber} fetched: state=${issue.state}, title="${issue.title}", labels=[${issue.labels.map(l => l.name || l).join(", ")}]`);
-
-      // Check if already closed - but still add comment
-      const wasAlreadyClosed = issue.state === "closed";
-      if (wasAlreadyClosed) {
-        core.info(`Issue #${issueNumber} is already closed, but will still add comment`);
-      }
-
-      // Validate required labels if configured
-      if (requiredLabels.length > 0) {
-        const issueLabels = issue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
-        const missingLabels = requiredLabels.filter(required => !issueLabels.includes(required));
-        if (missingLabels.length > 0) {
-          core.warning(`Issue #${issueNumber} missing required labels: ${missingLabels.join(", ")}`);
-          return {
-            success: false,
-            error: `Missing required labels: ${missingLabels.join(", ")}`,
-          };
+  return createCloseEntityHandler(
+    config,
+    ISSUE_CONFIG,
+    {
+      resolveTarget(item) {
+        // Resolve and validate target repository
+        const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");
+        if (!repoResult.success) {
+          return { success: false, error: repoResult.error };
         }
-        core.info(`Issue #${issueNumber} has all required labels: ${requiredLabels.join(", ")}`);
-      }
+        const { repo: entityRepo, repoParts } = repoResult;
 
-      // Validate required title prefix if configured
-      if (requiredTitlePrefix && !issue.title.startsWith(requiredTitlePrefix)) {
-        core.warning(`Issue #${issueNumber} title doesn't start with "${requiredTitlePrefix}"`);
-        return {
-          success: false,
-          error: `Title doesn't start with "${requiredTitlePrefix}"`,
-        };
-      }
-      if (requiredTitlePrefix) {
-        core.info(`Issue #${issueNumber} has required title prefix: "${requiredTitlePrefix}"`);
-      }
+        // Determine issue number
+        let issueNumber;
+        if (item.issue_number !== undefined) {
+          issueNumber = parseInt(String(item.issue_number), 10);
+          if (isNaN(issueNumber)) {
+            return { success: false, error: `Invalid issue number: ${item.issue_number}` };
+          }
+        } else {
+          const contextIssue = context.payload?.issue?.number;
+          if (!contextIssue) {
+            return { success: false, error: "No issue number available" };
+          }
+          issueNumber = contextIssue;
+        }
 
-      // If in staged mode, preview the close without executing it
-      if (isStaged) {
-        logStagedPreviewInfo(`Would close issue #${issueNumber} in ${itemRepo}`);
+        return { success: true, entityNumber: issueNumber, owner: repoParts.owner, repo: repoParts.repo, entityRepo };
+      },
+
+      getDetails: getIssueDetails,
+
+      validateLabels(entity, entityNumber, requiredLabels) {
+        if (requiredLabels.length > 0) {
+          const issueLabels = entity.labels.map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
+          const missingLabels = requiredLabels.filter(required => !issueLabels.includes(required));
+          if (missingLabels.length > 0) {
+            return {
+              valid: false,
+              warning: `Issue #${entityNumber} missing required labels: ${missingLabels.join(", ")}`,
+              error: `Missing required labels: ${missingLabels.join(", ")}`,
+            };
+          }
+        }
+        return { valid: true };
+      },
+
+      buildCommentBody(sanitizedBody) {
+        // Issues post the sanitized body directly without a workflow footer
+        return sanitizedBody;
+      },
+
+      addComment: addIssueComment,
+
+      closeEntity(github, owner, repo, entityNumber, item) {
+        // Support item-level state_reason override, falling back to config-level default
+        const stateReason = item.state_reason || configStateReason;
+        core.info(`Closing issue #${entityNumber} with state_reason=${stateReason}`);
+        return closeIssue(github, owner, repo, entityNumber, stateReason);
+      },
+
+      continueOnCommentError: false,
+
+      buildSuccessResult(closedEntity, commentResult, wasAlreadyClosed) {
         return {
           success: true,
-          staged: true,
-          previewInfo: {
-            number: issueNumber,
-            repo: itemRepo,
-            alreadyClosed: wasAlreadyClosed,
-            hasComment: !!commentToPost,
-          },
+          number: closedEntity.number,
+          url: closedEntity.html_url,
+          title: closedEntity.title,
+          alreadyClosed: wasAlreadyClosed,
         };
-      }
-
-      // Add comment with the body from the message
-      core.info(`Adding comment to issue #${issueNumber}: length=${commentToPost.length}`);
-      const commentResult = await addIssueComment(githubClient, repoParts.owner, repoParts.repo, issueNumber, commentToPost);
-      core.info(`✓ Comment posted to issue #${issueNumber}: ${commentResult.html_url}`);
-      core.info(`Comment details: id=${commentResult.id}, body_length=${commentToPost.length}`);
-
-      // Close the issue if not already closed
-      let closedIssue;
-      if (wasAlreadyClosed) {
-        core.info(`Issue #${issueNumber} was already closed, comment added successfully`);
-        closedIssue = issue;
-      } else {
-        // Use item-level state_reason if provided, otherwise fall back to config-level default
-        const stateReason = item.state_reason || configStateReason;
-        core.info(`Closing issue #${issueNumber} in ${itemRepo} with state_reason=${stateReason}`);
-        closedIssue = await closeIssue(githubClient, repoParts.owner, repoParts.repo, issueNumber, stateReason);
-        core.info(`✓ Issue #${issueNumber} closed successfully: ${closedIssue.html_url}`);
-      }
-
-      core.info(`close_issue completed successfully for issue #${issueNumber}`);
-
-      return {
-        success: true,
-        number: issueNumber,
-        url: closedIssue.html_url,
-        title: closedIssue.title,
-        alreadyClosed: wasAlreadyClosed,
-      };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to close issue #${issueNumber}: ${errorMessage}`);
-      core.error(
-        `Error details: ${JSON.stringify({
-          issueNumber,
-          repo: itemRepo,
-          hasBody: !!item.body,
-          bodyLength: item.body ? item.body.length : 0,
-          errorMessage,
-        })}`
-      );
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  };
+      },
+    },
+    githubClient
+  );
 }
 
 module.exports = { main };
