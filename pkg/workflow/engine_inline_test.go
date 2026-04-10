@@ -294,7 +294,7 @@ func TestExtractEngineConfig_InlineDefinition_Bare(t *testing.T) {
 		}
 
 		_, config := compiler.ExtractEngineConfig(frontmatter)
-		require.NotNil(t, config, "Expected config to be non-nil")
+		require.NotNil(t, config, "inline definition with bare:true should produce a config")
 		assert.True(t, config.IsInlineDefinition, "Expected inline definition")
 		assert.True(t, config.Bare, "Expected Bare=true for inline definition with bare:true")
 	})
@@ -310,7 +310,7 @@ func TestExtractEngineConfig_InlineDefinition_Bare(t *testing.T) {
 		}
 
 		_, config := compiler.ExtractEngineConfig(frontmatter)
-		require.NotNil(t, config, "Expected config to be non-nil")
+		require.NotNil(t, config, "inline definition with bare:false should produce a config")
 		assert.True(t, config.IsInlineDefinition, "Expected inline definition")
 		assert.False(t, config.Bare, "Expected Bare=false")
 	})
@@ -325,7 +325,7 @@ func TestExtractEngineConfig_InlineDefinition_Bare(t *testing.T) {
 		}
 
 		_, config := compiler.ExtractEngineConfig(frontmatter)
-		require.NotNil(t, config, "Expected config to be non-nil")
+		require.NotNil(t, config, "inline definition without bare field should produce a config")
 		assert.True(t, config.IsInlineDefinition, "Expected inline definition")
 		assert.False(t, config.Bare, "Expected Bare=false by default for inline definition")
 	})

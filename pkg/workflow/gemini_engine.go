@@ -284,11 +284,11 @@ touch %s
 	// Applied after all user-provided env merges (engine.env and agent env above),
 	// so an explicit GEMINI_SYSTEM_MD from those sources takes precedence.
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
-		if _, alreadySet := env["GEMINI_SYSTEM_MD"]; !alreadySet {
+		if existingVal, alreadySet := env["GEMINI_SYSTEM_MD"]; !alreadySet {
 			geminiLog.Print("Bare mode enabled: setting GEMINI_SYSTEM_MD=/dev/null")
 			env["GEMINI_SYSTEM_MD"] = "/dev/null"
 		} else {
-			geminiLog.Print("Bare mode enabled: GEMINI_SYSTEM_MD already set; leaving as-is")
+			geminiLog.Printf("Bare mode enabled: GEMINI_SYSTEM_MD already set to %q; leaving as-is", existingVal)
 		}
 	}
 
