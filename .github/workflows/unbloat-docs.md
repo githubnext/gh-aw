@@ -41,6 +41,11 @@ network:
 sandbox:
   agent: awf
 
+# Runtime: ensures Node.js 24 is available for the agent to run npm ci and npm run dev
+runtimes:
+  node:
+    version: "24"
+
 # Tools configuration
 tools:
   cache-memory: true
@@ -92,30 +97,6 @@ safe-outputs:
 
 # Timeout (increased from 12min after timeout issues; aligns with similar doc workflows)
 timeout-minutes: 30
-
-# Build steps for documentation
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v6.0.2
-    with:
-      persist-credentials: false
-
-  - name: Setup Node.js
-    uses: actions/setup-node@v6.3.0
-    with:
-      node-version: '24'
-      cache: 'npm'
-      cache-dependency-path: 'docs/package-lock.json'
-
-  - name: Install dependencies
-    working-directory: ./docs
-    run: npm ci
-
-  - name: Build documentation
-    working-directory: ./docs
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: npm run build
 ---
 
 # Documentation Unbloat Workflow
@@ -285,7 +266,13 @@ After making changes to a documentation file, take screenshots of the rendered p
 
 #### Build and Start Documentation Server
 
-Follow the shared **Documentation Server Lifecycle Management** instructions:
+First, install documentation dependencies:
+
+```bash
+cd docs && npm ci
+```
+
+Then follow the shared **Documentation Server Lifecycle Management** instructions:
 1. Start the preview server (section "Starting the Documentation Preview Server")
 2. Wait for readiness (section "Waiting for Server Readiness")
 3. Optionally verify accessibility (section "Verifying Server Accessibility")
