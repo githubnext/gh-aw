@@ -227,7 +227,7 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 
 	result = append(result, []byte("  }")...)
 
-	// Add container_pins section if non-empty
+	// Add containers section if non-empty
 	if len(c.ContainerPins) > 0 {
 		pinKeys := make([]string, 0, len(c.ContainerPins))
 		for k := range c.ContainerPins {
