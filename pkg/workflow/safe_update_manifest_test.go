@@ -76,7 +76,7 @@ func TestNewGHAWManifest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, nil)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {

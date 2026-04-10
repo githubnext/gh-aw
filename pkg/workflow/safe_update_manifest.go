@@ -26,25 +26,29 @@ type GHAWManifestAction struct {
 }
 
 // GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
-// comment in generated lock files. It records the secrets and external actions that
-// were detected at the time the lock file was last compiled so that subsequent
-// compilations can detect newly introduced secrets when safe update mode is enabled.
+// comment in generated lock files. It records the secrets, external actions, and
+// container images that were detected at the time the lock file was last compiled
+// so that subsequent compilations can detect newly introduced secrets when safe
+// update mode is enabled.
 type GHAWManifest struct {
-	Version int                  `json:"version"`
-	Secrets []string             `json:"secrets"`
-	Actions []GHAWManifestAction `json:"actions"`
+	Version    int                  `json:"version"`
+	Secrets    []string             `json:"secrets"`
+	Actions    []GHAWManifestAction `json:"actions"`
+	Containers []string             `json:"containers,omitempty"` // container images used, including digest pins when available
 }
 
-// NewGHAWManifest builds a GHAWManifest from the raw secret names and action reference
-// strings produced by CollectSecretReferences and CollectActionReferences.
+// NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
+// strings, and container image references produced at compile time.
 //
 // secretNames entries may include or omit the "secrets." prefix; the prefix is always
 // stripped before storage so the manifest contains plain names (e.g. "GITHUB_TOKEN").
 // actionRefs entries follow the format produced by CollectActionReferences, e.g.
 //
 //	"actions/checkout@abc1234 # v4"
-func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
-	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d", len(secretNames), len(actionRefs))
+//
+// containers is the list of container image references (pinned when available).
+func NewGHAWManifest(secretNames []string, actionRefs []string, containers []string) *GHAWManifest {
+	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
 	seen := make(map[string]bool)
@@ -59,12 +63,26 @@ func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
 	sort.Strings(secrets)
 
 	actions := parseActionRefs(actionRefs)
-	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d", currentGHAWManifestVersion, len(secrets), len(actions))
+
+	// Deduplicate and sort container image references.
+	seenContainers := make(map[string]bool, len(containers))
+	sortedContainers := make([]string, 0, len(containers))
+	for _, c := range containers {
+		if c != "" && !seenContainers[c] {
+			seenContainers[c] = true
+			sortedContainers = append(sortedContainers, c)
+		}
+	}
+	sort.Strings(sortedContainers)
+
+	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d",
+		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers))
 
 	return &GHAWManifest{
-		Version: currentGHAWManifestVersion,
-		Secrets: secrets,
-		Actions: actions,
+		Version:    currentGHAWManifestVersion,
+		Secrets:    secrets,
+		Actions:    actions,
+		Containers: sortedContainers,
 	}
 }
 

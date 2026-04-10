@@ -11,7 +11,10 @@ import (
 
 var dockerLog = logger.New("workflow:docker")
 
-// collectDockerImages collects all Docker images used in MCP configurations
+// collectDockerImages collects all Docker images used in MCP configurations.
+// When workflowData.ActionCache contains container pins, the returned slice uses
+// the pinned references (image:tag@sha256:…) instead of the bare tags, ensuring
+// deterministic and supply-chain-safe image pulls.
 func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actionMode ActionMode) []string {
 	var images []string
 	imageSet := make(map[string]bool) // Use a set to avoid duplicates
@@ -172,7 +175,56 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	// Sort for stable output
 	sort.Strings(images)
 	dockerLog.Printf("Collected %d Docker images from tools", len(images))
-	return images
+
+	// Apply digest pins from the action cache when available.
+	// Each pinned ref replaces the bare tag with "tag@sha256:…" so that the pull
+	// is bound to a specific immutable manifest and not just to a mutable tag.
+	pinnedImages := applyContainerPins(images, workflowData)
+
+	// Store pinned image refs in WorkflowData so they can be included in the
+	// compiled lock file header and gh-aw-manifest for auditability.
+	if workflowData != nil {
+		workflowData.DockerImages = mergeDockerImages(workflowData.DockerImages, pinnedImages)
+	}
+
+	return pinnedImages
+}
+
+// applyContainerPins substitutes cached digest-pinned references for any image
+// tags that have an entry in workflowData.ActionCache.ContainerPins.
+// Images without a cached pin are returned unchanged.
+func applyContainerPins(images []string, workflowData *WorkflowData) []string {
+	if workflowData == nil || workflowData.ActionCache == nil {
+		return images
+	}
+	cache := workflowData.ActionCache
+	result := make([]string, len(images))
+	for i, img := range images {
+		if pin, ok := cache.GetContainerPin(img); ok {
+			result[i] = pin.PinnedImage
+			dockerLog.Printf("Pinned container image: %s -> %s", img, pin.PinnedImage)
+		} else {
+			result[i] = img
+		}
+	}
+	return result
+}
+
+// mergeDockerImages appends any images from newImages that are not already present
+// in existing, preserving order for stability.
+func mergeDockerImages(existing, newImages []string) []string {
+	seen := make(map[string]bool, len(existing))
+	for _, img := range existing {
+		seen[img] = true
+	}
+	result := existing
+	for _, img := range newImages {
+		if !seen[img] {
+			result = append(result, img)
+			seen[img] = true
+		}
+	}
+	return result
 }
 
 // generateDownloadDockerImagesStep generates the step to download Docker images
