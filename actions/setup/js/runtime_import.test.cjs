@@ -864,6 +864,35 @@ describe("runtime_import", () => {
           }
         });
 
+        it("should return env var value for inputs.* expressions when set (workflow_call)", () => {
+          process.env.GH_AW_INPUTS_ERRORS = "some error list";
+          try {
+            expect(evaluateExpression("inputs.errors")).toBe("some error list");
+          } finally {
+            delete process.env.GH_AW_INPUTS_ERRORS;
+          }
+        });
+
+        it("should return empty string for inputs.* env var set to empty", () => {
+          process.env.GH_AW_INPUTS_BRANCH = "";
+          try {
+            expect(evaluateExpression("inputs.branch")).toBe("");
+          } finally {
+            delete process.env.GH_AW_INPUTS_BRANCH;
+          }
+        });
+
+        it("should prefer env var over context.payload.inputs for inputs.* expressions", () => {
+          // When both env var and payload.inputs are set, env var should win
+          // This ensures workflow_call inputs (delivered via env vars) are resolved correctly
+          process.env.GH_AW_INPUTS_REPOSITORY = "env-value";
+          try {
+            expect(evaluateExpression("inputs.repository")).toBe("env-value");
+          } finally {
+            delete process.env.GH_AW_INPUTS_REPOSITORY;
+          }
+        });
+
         it("should handle missing properties gracefully", () => {
           const result = evaluateExpression("github.event.nonexistent.property");
           expect(result).toContain("github.event.nonexistent.property");
