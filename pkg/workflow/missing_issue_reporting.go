@@ -19,6 +19,38 @@ type IssueReportingConfig struct {
 type MissingDataConfig = IssueReportingConfig
 type MissingToolConfig = IssueReportingConfig
 
+// ReportIncompleteConfig holds configuration for the report_incomplete safe output.
+// report_incomplete is a structured signal that the agent could not complete its
+// assigned task due to an infrastructure or tool failure (e.g., MCP server crash,
+// missing authentication, inaccessible repository).
+//
+// When an agent emits report_incomplete, gh-aw activates failure handling even
+// when the agent process exits 0 and other safe outputs were also emitted.
+// This prevents semantically-empty outputs (e.g., a comment describing tool
+// failures) from being classified as a successful result.
+//
+// ReportIncompleteConfig is a type alias for IssueReportingConfig so that it
+// supports the same create-issue, title-prefix, and labels configuration fields
+// as missing-tool and missing-data.
+type ReportIncompleteConfig = IssueReportingConfig
+
+var missingToolLog = logger.New("workflow:missing_tool")
+var missingDataLog = logger.New("workflow:missing_data")
+var reportIncompleteLog = logger.New("workflow:report_incomplete")
+
+func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
+	return c.parseIssueReportingConfig(outputMap, "missing-tool", "[missing tool]", missingToolLog)
+}
+
+func (c *Compiler) parseMissingDataConfig(outputMap map[string]any) *MissingDataConfig {
+	return c.parseIssueReportingConfig(outputMap, "missing-data", "[missing data]", missingDataLog)
+}
+
+// parseReportIncompleteConfig handles report_incomplete configuration.
+func (c *Compiler) parseReportIncompleteConfig(outputMap map[string]any) *ReportIncompleteConfig {
+	return c.parseIssueReportingConfig(outputMap, "report-incomplete", "[incomplete]", reportIncompleteLog)
+}
+
 func (c *Compiler) parseIssueReportingConfig(outputMap map[string]any, yamlKey, defaultTitle string, log *logger.Logger) *IssueReportingConfig {
 	configData, exists := outputMap[yamlKey]
 	if !exists {

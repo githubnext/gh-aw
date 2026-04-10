@@ -1,5 +1,9 @@
 //go:build js || wasm
 
+// This file provides WASM/JS no-op stubs for git helper functions.
+// The canonical (non-WASM) implementations live in git_helpers.go.
+// If any function signatures change in git_helpers.go, this file must be updated to match.
+
 package workflow
 
 import (

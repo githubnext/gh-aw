@@ -1,5 +1,9 @@
 //go:build js || wasm
 
+// This file provides WASM/JS no-op stubs for npm validation functions.
+// The canonical (non-WASM) implementations live in npm_validation.go.
+// If any function signatures change in npm_validation.go, this file must be updated to match.
+
 package workflow
 
 import "errors"

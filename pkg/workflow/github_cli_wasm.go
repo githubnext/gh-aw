@@ -1,5 +1,9 @@
 //go:build js || wasm
 
+// This file provides WASM/JS no-op stubs for GitHub CLI functions.
+// The canonical (non-WASM) implementations live in github_cli.go.
+// If any function signatures change in github_cli.go, this file must be updated to match.
+
 package workflow
 
 import (

@@ -1,5 +1,9 @@
 //go:build js || wasm
 
+// This file provides WASM/JS no-op stubs for pip/uv validation functions.
+// The canonical (non-WASM) implementations live in pip_validation.go.
+// If any function signatures change in pip_validation.go, this file must be updated to match.
+
 package workflow
 
 func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string, pipCmd string) {
