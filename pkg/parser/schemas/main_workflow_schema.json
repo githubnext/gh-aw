@@ -9189,6 +9189,10 @@
               "type": "string",
               "description": "Agent identifier to pass to copilot --agent flag (copilot engine only). Specifies which custom agent to use for the workflow."
             },
+            "no-ask-user": {
+              "type": "boolean",
+              "description": "When true, passes --no-ask-user to the Copilot CLI to enable fully autonomous agentic mode (copilot engine only)."
+            },
             "api-target": {
               "type": "string",
               "description": "Custom API endpoint hostname for the agentic engine. Used for GitHub Enterprise Cloud (GHEC), GitHub Enterprise Server (GHES), or custom AI endpoints. Example: 'api.acme.ghe.com' for GHEC, 'api.enterprise.githubcopilot.com' for GHES, or custom endpoint hostnames.",
