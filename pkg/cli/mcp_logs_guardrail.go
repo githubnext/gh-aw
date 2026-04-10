@@ -32,12 +32,6 @@ type MCPLogsGuardrailResponse struct {
 	FilePath string `json:"file_path,omitempty"`
 }
 
-// estimateTokens estimates the number of tokens in a string
-// Using the approximation: ~4 characters per token
-func estimateTokens(text string) int {
-	return len(text) / CharsPerToken
-}
-
 // buildLogsFileResponse writes the logs JSON output to a content-addressed cache
 // file and returns a JSON response containing the file path.
 // The file is named by the SHA256 hash of its content so that identical results

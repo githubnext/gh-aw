@@ -126,24 +126,3 @@ func TestBuildLogsFileResponse_ResponseStructure(t *testing.T) {
 	// Cleanup
 	_ = os.Remove(response.FilePath)
 }
-
-func TestEstimateTokens(t *testing.T) {
-	// Test token estimation
-	tests := []struct {
-		text           string
-		expectedTokens int
-	}{
-		{"", 0},
-		{"x", 0},                        // 1 char / 4 = 0
-		{"xxxx", 1},                     // 4 chars / 4 = 1
-		{"xxxxxxxx", 2},                 // 8 chars / 4 = 2
-		{strings.Repeat("x", 400), 100}, // 400 chars / 4 = 100
-	}
-
-	for _, tt := range tests {
-		got := estimateTokens(tt.text)
-		if got != tt.expectedTokens {
-			t.Errorf("estimateTokens(%q) = %d, want %d", tt.text, got, tt.expectedTokens)
-		}
-	}
-}
