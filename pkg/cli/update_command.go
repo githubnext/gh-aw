@@ -127,6 +127,13 @@ func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool,
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
 	}
 
+	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
+	updateLog.Print("Updating container image digest pins")
+	if err := UpdateContainerPins(workflowsDir, verbose); err != nil {
+		// Non-fatal: Docker may not be available in all environments.
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
+	}
+
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")

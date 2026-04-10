@@ -25,16 +25,25 @@ type GHAWManifestAction struct {
 	Version string `json:"version,omitempty"`
 }
 
+// GHAWManifestContainer represents a Docker container image referenced in a compiled workflow.
+// It records the original mutable tag, the resolved SHA-256 digest (when available),
+// and the full pinned reference that combines both.
+type GHAWManifestContainer struct {
+	Image       string `json:"image"`                  // Original tag, e.g. "node:lts-alpine"
+	Digest      string `json:"digest,omitempty"`       // SHA-256 digest, e.g. "sha256:abc123..."
+	PinnedImage string `json:"pinned_image,omitempty"` // Full ref, e.g. "node:lts-alpine@sha256:abc123..."
+}
+
 // GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
 // comment in generated lock files. It records the secrets, external actions, and
 // container images that were detected at the time the lock file was last compiled
 // so that subsequent compilations can detect newly introduced secrets when safe
 // update mode is enabled.
 type GHAWManifest struct {
-	Version    int                  `json:"version"`
-	Secrets    []string             `json:"secrets"`
-	Actions    []GHAWManifestAction `json:"actions"`
-	Containers []string             `json:"containers,omitempty"` // container images used, including digest pins when available
+	Version    int                     `json:"version"`
+	Secrets    []string                `json:"secrets"`
+	Actions    []GHAWManifestAction    `json:"actions"`
+	Containers []GHAWManifestContainer `json:"containers,omitempty"` // container images used, with digest when available
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
@@ -46,8 +55,8 @@ type GHAWManifest struct {
 //
 //	"actions/checkout@abc1234 # v4"
 //
-// containers is the list of container image references (pinned when available).
-func NewGHAWManifest(secretNames []string, actionRefs []string, containers []string) *GHAWManifest {
+// containers is the list of container image entries with full digest info (when available).
+func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHAWManifestContainer) *GHAWManifest {
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
@@ -64,16 +73,18 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, containers []str
 
 	actions := parseActionRefs(actionRefs)
 
-	// Deduplicate and sort container image references.
+	// Deduplicate container entries by image name and sort for deterministic output.
 	seenContainers := make(map[string]bool, len(containers))
-	sortedContainers := make([]string, 0, len(containers))
+	sortedContainers := make([]GHAWManifestContainer, 0, len(containers))
 	for _, c := range containers {
-		if c != "" && !seenContainers[c] {
-			seenContainers[c] = true
+		if c.Image != "" && !seenContainers[c.Image] {
+			seenContainers[c.Image] = true
 			sortedContainers = append(sortedContainers, c)
 		}
 	}
-	sort.Strings(sortedContainers)
+	sort.Slice(sortedContainers, func(i, j int) bool {
+		return sortedContainers[i].Image < sortedContainers[j].Image
+	})
 
 	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d",
 		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers))

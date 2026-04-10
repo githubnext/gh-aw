@@ -38,8 +38,8 @@ type ContainerPin struct {
 
 // ActionCache manages cached action pin resolutions.
 type ActionCache struct {
-	Entries       map[string]ActionCacheEntry `json:"entries"`                  // key: "repo@version"
-	ContainerPins map[string]ContainerPin     `json:"container_pins,omitempty"` // key: image tag
+	Entries       map[string]ActionCacheEntry `json:"entries"`              // key: "repo@version"
+	ContainerPins map[string]ContainerPin     `json:"containers,omitempty"` // key: image tag
 	path          string
 	dirty         bool // tracks if cache has unsaved changes
 }
@@ -235,7 +235,7 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 		}
 		sort.Strings(pinKeys)
 
-		result = append(result, []byte(",\n  \"container_pins\": {\n")...)
+		result = append(result, []byte(",\n  \"containers\": {\n")...)
 		for i, k := range pinKeys {
 			pin := c.ContainerPins[k]
 			pinJSON, err := json.MarshalIndent(pin, "    ", "  ")

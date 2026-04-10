@@ -126,7 +126,7 @@ func TestContainerPinMarshalSortedOutput(t *testing.T) {
 	contentStr := string(content)
 	assert.Contains(t, contentStr, `"a-image:latest"`, "a-image pin in output")
 	assert.Contains(t, contentStr, `"z-image:latest"`, "z-image pin in output")
-	assert.Contains(t, contentStr, `"container_pins"`, "container_pins section present")
+	assert.Contains(t, contentStr, `"containers"`, "containers section present")
 
 	// Reload and verify round-trip.
 	cache2 := NewActionCache(tmpDir)

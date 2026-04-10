@@ -179,12 +179,13 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	// Apply digest pins from the action cache when available.
 	// Each pinned ref replaces the bare tag with "tag@sha256:…" so that the pull
 	// is bound to a specific immutable manifest and not just to a mutable tag.
-	pinnedImages := applyContainerPins(images, workflowData)
+	pinnedImages, imagePins := applyContainerPins(images, workflowData)
 
-	// Store pinned image refs in WorkflowData so they can be included in the
-	// compiled lock file header and gh-aw-manifest for auditability.
+	// Store pinned image refs and full pin info in WorkflowData so they can be
+	// included in the compiled lock file header and gh-aw-manifest for auditability.
 	if workflowData != nil {
 		workflowData.DockerImages = mergeDockerImages(workflowData.DockerImages, pinnedImages)
+		workflowData.DockerImagePins = mergeDockerImagePins(workflowData.DockerImagePins, imagePins)
 	}
 
 	return pinnedImages
@@ -193,21 +194,30 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 // applyContainerPins substitutes cached digest-pinned references for any image
 // tags that have an entry in workflowData.ActionCache.ContainerPins.
 // Images without a cached pin are returned unchanged.
-func applyContainerPins(images []string, workflowData *WorkflowData) []string {
-	if workflowData == nil || workflowData.ActionCache == nil {
-		return images
-	}
-	cache := workflowData.ActionCache
+// Returns both the resolved image strings (for script args) and full GHAWManifestContainer
+// entries (for the manifest).
+func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, []GHAWManifestContainer) {
 	result := make([]string, len(images))
-	for i, img := range images {
-		if pin, ok := cache.GetContainerPin(img); ok {
-			result[i] = pin.PinnedImage
-			dockerLog.Printf("Pinned container image: %s -> %s", img, pin.PinnedImage)
-		} else {
-			result[i] = img
-		}
+	pins := make([]GHAWManifestContainer, len(images))
+
+	var cache *ActionCache
+	if workflowData != nil {
+		cache = workflowData.ActionCache
 	}
-	return result
+
+	for i, img := range images {
+		if cache != nil {
+			if pin, ok := cache.GetContainerPin(img); ok {
+				result[i] = pin.PinnedImage
+				pins[i] = GHAWManifestContainer(pin)
+				dockerLog.Printf("Pinned container image: %s -> %s", img, pin.PinnedImage)
+				continue
+			}
+		}
+		result[i] = img
+		pins[i] = GHAWManifestContainer{Image: img}
+	}
+	return result, pins
 }
 
 // mergeDockerImages appends any images from newImages that are not already present
@@ -222,6 +232,23 @@ func mergeDockerImages(existing, newImages []string) []string {
 		if !seen[img] {
 			result = append(result, img)
 			seen[img] = true
+		}
+	}
+	return result
+}
+
+// mergeDockerImagePins appends any pin entries from newPins that are not already present
+// in existing (keyed by Image), preserving order for stability.
+func mergeDockerImagePins(existing, newPins []GHAWManifestContainer) []GHAWManifestContainer {
+	seen := make(map[string]bool, len(existing))
+	for _, p := range existing {
+		seen[p.Image] = true
+	}
+	result := existing
+	for _, p := range newPins {
+		if p.Image != "" && !seen[p.Image] {
+			result = append(result, p)
+			seen[p.Image] = true
 		}
 	}
 	return result
