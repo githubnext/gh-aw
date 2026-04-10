@@ -27,7 +27,7 @@
  *   GITHUB_AW_OTEL_TRACE_ID       – parent trace ID (set by action_setup_otlp.cjs)
  *   GITHUB_AW_OTEL_PARENT_SPAN_ID – parent span ID (set by action_setup_otlp.cjs)
  *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (HTTP export skipped when not set;
- *                                    JSONL mirror is always written)
+ *                                    JSONL mirror write is attempted regardless)
  *
  * Runtime files read (optional):
  *   /tmp/gh-aw/github_rate_limits.jsonl – GitHub API rate-limit log written by
@@ -61,7 +61,7 @@ async function run() {
   const spanName = jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
 
   if (!endpoint) {
-    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OTLP export (JSONL mirror still written)");
+    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OTLP export (will attempt JSONL mirror)");
   } else {
     console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
   }
@@ -69,7 +69,7 @@ async function run() {
   await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
 
   if (endpoint) {
-    console.log(`[otlp] conclusion span sent`);
+    console.log(`[otlp] conclusion span export attempted`);
   }
 }
 
