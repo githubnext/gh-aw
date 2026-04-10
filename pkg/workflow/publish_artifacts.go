@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -187,15 +186,4 @@ func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *Wo
 	fmt.Fprintf(builder, "          path: %s\n", artifactStagingDirExpr)
 	builder.WriteString("          retention-days: 1\n")
 	builder.WriteString("          if-no-files-found: ignore\n")
-}
-
-// marshalStringSliceJSON serialises a []string to a compact JSON array string.
-// This is used to pass multi-value config fields as environment variables.
-func marshalStringSliceJSON(values []string) string {
-	data, err := json.Marshal(values)
-	if err != nil {
-		// Should never happen for plain string slices.
-		return "[]"
-	}
-	return string(data)
 }

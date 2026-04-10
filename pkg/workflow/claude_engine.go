@@ -29,6 +29,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsMaxTurns:         true,  // Claude supports max-turns feature
 			supportsMaxContinuations: false, // Claude Code does not support --max-autopilot-continues-style continuation
 			supportsWebSearch:        true,  // Claude has built-in WebSearch support
+			supportsNativeAgentFile:  false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 			llmGatewayPort:           constants.ClaudeLLMGatewayPort,
 		},
 	}
@@ -166,25 +167,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
 	}
 
-	// Build the agent command - prepend custom agent file content if specified (via imports)
-	var promptSetup string
-	var promptCommand string
-	if workflowData.AgentFile != "" {
-		agentPath, err := ResolveAgentFilePath(workflowData.AgentFile)
-		if err != nil {
-			claudeLog.Printf("Error resolving agent file path: %v", err)
-			return BuildInvalidAgentPathStep("Execute Claude Code CLI", workflowData.AgentFile, err)
-		}
-		claudeLog.Printf("Using custom agent file: %s", workflowData.AgentFile)
-		// Extract markdown body from custom agent file and prepend to prompt
-		promptSetup = fmt.Sprintf(`# Extract markdown body from custom agent file (skip frontmatter)
-          AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
-          # Combine agent content with prompt
-          PROMPT_TEXT="$(printf '%%s\n\n%%s' "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")"`, agentPath)
-		promptCommand = `"$PROMPT_TEXT"`
-	} else {
-		promptCommand = `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
-	}
+	// The prompt is always read from prompt.txt, which is assembled by the compiler in the
+	// activation job.  For engines that do not support native agent-file handling (including
+	// Claude), the compiler prepends the agent file content to prompt.txt so no special
+	// shell variable juggling is needed here.
+	promptCommand := `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`
 
 	// Build the command string with proper argument formatting
 	// Determine which command to use
@@ -202,8 +189,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Join command parts (excluding the prompt) with proper escaping.
 	// The prompt command is appended raw after shellJoinArgs because it contains
-	// shell variable references ("$PROMPT_TEXT", "$(cat ...)") that must NOT be
-	// escaped — single-quoting them would prevent shell expansion at runtime.
+	// shell variable references ("$(cat ...)") that must NOT be escaped —
+	// single-quoting them would prevent shell expansion at runtime.
 	claudeCommand := fmt.Sprintf("%s %s", shellJoinArgs(commandParts), promptCommand)
 
 	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
@@ -241,17 +228,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		npmPathSetup := GetNpmBinPathSetup()
 		claudeCommandWithPath := fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
 
-		// Build host-side path setup: create the agent step summary file so it is accessible
-		// inside the sandbox. Combine with any existing promptSetup (may be empty).
-		touchSummary := "touch " + AgentStepSummaryPath
-		hostSetup := touchSummary
-		if promptSetup != "" {
-			hostSetup = promptSetup + "\n" + touchSummary
-		}
-
-		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
-		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
-		// The combined output (debug logs + JSON) will be in the log file for parsing
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "claude",
 			EngineCommand:  claudeCommandWithPath, // Command with npm PATH setup runs inside AWF
@@ -259,7 +235,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
 			AllowedDomains: allowedDomains,
-			PathSetup:      hostSetup, // Runs BEFORE AWF on the host (prompt setup + summary file creation)
+			PathSetup:      "touch " + AgentStepSummaryPath, // Runs BEFORE AWF on the host
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"ANTHROPIC_API_KEY"}),
@@ -270,18 +246,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
 		// The combined output (debug logs + JSON) will be in the log file for parsing
 		// PATH is already set correctly by actions/setup-* steps which prepend to PATH
-		if promptSetup != "" {
-			command = fmt.Sprintf(`set -o pipefail
-          touch %s
-          %s
-          # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, AgentStepSummaryPath, promptSetup, claudeCommand, logFile)
-		} else {
-			command = fmt.Sprintf(`set -o pipefail
+		command = fmt.Sprintf(`set -o pipefail
           touch %s
           # Execute Claude Code CLI with prompt from file
           %s 2>&1 | tee -a %s`, AgentStepSummaryPath, claudeCommand, logFile)
-		}
 	}
 
 	// Build environment variables map

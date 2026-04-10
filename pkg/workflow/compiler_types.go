@@ -32,25 +32,6 @@ func WithNoEmit(noEmit bool) CompilerOption {
 	return func(c *Compiler) { c.noEmit = noEmit }
 }
 
-// WithSafeUpdate configures whether to enforce safe update mode (reject newly introduced secrets
-// and unapproved action additions/removals relative to the previously recorded manifest).
-func WithSafeUpdate(safeUpdate bool) CompilerOption {
-	return func(c *Compiler) { c.safeUpdate = safeUpdate }
-}
-
-// WithPriorManifest registers a pre-cached manifest for a specific lock file.
-// When set, the compiler uses this manifest as the trusted baseline for safe update
-// enforcement instead of reading from git HEAD or the filesystem.  This is intended for
-// use by the MCP server, which collects manifests at startup before any agent interaction.
-func WithPriorManifest(lockFile string, manifest *GHAWManifest) CompilerOption {
-	return func(c *Compiler) {
-		if c.priorManifests == nil {
-			c.priorManifests = make(map[string]*GHAWManifest)
-		}
-		c.priorManifests[lockFile] = manifest
-	}
-}
-
 // WithFailFast configures whether to stop at first validation error
 func WithFailFast(failFast bool) CompilerOption {
 	return func(c *Compiler) { c.failFast = failFast }
@@ -305,19 +286,7 @@ func (c *Compiler) GetSafeUpdateWarnings() []string {
 	return c.safeUpdateWarnings
 }
 
-// SetPriorManifest registers a pre-cached manifest for a specific lock file path.
-// When set, the compiler uses this as the trusted baseline for safe update enforcement
-// instead of reading from git HEAD or the filesystem.  Intended for use by the MCP
-// server, which pre-captures manifests at startup before any agent can tamper with them.
-func (c *Compiler) SetPriorManifest(lockFile string, manifest *GHAWManifest) {
-	if c.priorManifests == nil {
-		c.priorManifests = make(map[string]*GHAWManifest)
-	}
-	c.priorManifests[lockFile] = manifest
-}
-
 // SetPriorManifests replaces the entire pre-cached manifest map.
-// Equivalent to calling SetPriorManifest for every entry in the map.
 func (c *Compiler) SetPriorManifests(manifests map[string]*GHAWManifest) {
 	c.priorManifests = manifests
 }

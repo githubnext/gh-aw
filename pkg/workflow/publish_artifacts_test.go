@@ -247,21 +247,3 @@ func TestGenerateSafeOutputsArtifactStagingUpload(t *testing.T) {
 		assert.Empty(t, b.String(), "should generate nothing when SafeOutputs is nil")
 	})
 }
-
-func TestMarshalStringSliceJSON(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []string
-		expected string
-	}{
-		{"empty slice", []string{}, "[]"},
-		{"single value", []string{"dist/**"}, `["dist/**"]`},
-		{"multiple values", []string{"dist/**", "reports/**/*.json"}, `["dist/**","reports/**/*.json"]`},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := marshalStringSliceJSON(tt.input)
-			assert.Equal(t, tt.expected, result, "JSON output mismatch")
-		})
-	}
-}
