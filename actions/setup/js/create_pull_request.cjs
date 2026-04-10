@@ -56,7 +56,7 @@ async function createCopilotAssignmentClient(config) {
     return github;
   }
   core.info("Using dedicated github client for copilot assignment");
-  return getOctokit(token);
+  return global.getOctokit(token);
 }
 
 /** @type {string} Safe output type handled by this module */

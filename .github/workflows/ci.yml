@@ -845,7 +845,7 @@ jobs:
           echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
 
       - name: Validate releases.json structure and version formats
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const fs = require('fs');
@@ -3011,7 +3011,7 @@ jobs:
           echo "✅ gh CLI works through DIFC proxy (repo: $repo_name)"
 
       - name: Test actions/github-script with proxy env
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           github-token: ${{ github.token }}
           script: |

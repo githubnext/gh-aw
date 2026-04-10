@@ -38,7 +38,7 @@ async function createAssignToAgentGitHubClient(config) {
     return github;
   }
   core.info("Using dedicated github client for assign-to-agent operations");
-  return getOctokit(token);
+  return global.getOctokit(token);
 }
 
 /**
