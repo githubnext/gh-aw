@@ -51,10 +51,8 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildWorkflowRunUrl(context, context.repo);
 
-  // Sanitize the body content to prevent injection attacks
-  const sanitizedBody = sanitizeContent(body);
-
-  return sanitizedBody.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+  // Caller is responsible for sanitizing body before passing it here.
+  return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 }
 
 /**
@@ -256,7 +254,7 @@ function escapeMarkdownTitle(title) {
  * @param {EntityConfig} entityConfig - Entity display/type configuration
  * @param {CloseEntityHandlerCallbacks} callbacks - Entity-specific callbacks
  * @param {any} githubClient - Authenticated GitHub client
- * @returns {Function} Async handler function suitable for use as a message handler
+ * @returns {import('./types/handler-factory').MessageHandlerFunction} Message handler function
  */
 function createCloseEntityHandler(config, entityConfig, callbacks, githubClient) {
   const requiredLabels = config.required_labels || [];
@@ -514,8 +512,9 @@ async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
         core.info(`${config.displayNameCapitalized} #${entityNumber} is already closed, but will still add comment`);
       }
 
-      // Build comment body
-      const commentBody = buildCommentBody(item.body, triggeringIssueNumber, triggeringPRNumber);
+      // Build comment body (sanitize first, then append tracker/footer)
+      const sanitizedItemBody = sanitizeContent(item.body);
+      const commentBody = buildCommentBody(sanitizedItemBody, triggeringIssueNumber, triggeringPRNumber);
 
       // Add comment before closing (or to already-closed entity)
       const comment = await callbacks.addComment(github, context.repo.owner, context.repo.repo, entityNumber, commentBody);
