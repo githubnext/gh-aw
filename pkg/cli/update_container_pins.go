@@ -197,6 +197,8 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 }
 
 // dockerCmdTimeout is the maximum time allowed for a single Docker CLI operation.
+// 60 seconds is sufficient for most registry metadata lookups and short pulls
+// while still bounding any hung Docker daemon or slow network connections.
 const dockerCmdTimeout = 60 * time.Second
 
 // resolveContainerDigest returns the SHA-256 content digest for the given image tag.
@@ -233,7 +235,7 @@ func resolveDigestViaBuildx(image string) (string, error) {
 	out, err := exec.CommandContext(ctx, "docker", "buildx", "imagetools", "inspect",
 		image, "--format", "{{.Manifest.Digest}}").CombinedOutput()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("buildx inspect failed: %w\n%s", err, strings.TrimSpace(string(out)))
 	}
 	digest := strings.TrimSpace(string(out))
 	if !strings.HasPrefix(digest, "sha256:") {

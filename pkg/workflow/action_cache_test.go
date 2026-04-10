@@ -287,6 +287,60 @@ func TestActionCacheSaveWithContainerPinsOnly(t *testing.T) {
 	}
 }
 
+// TestSetContainerPinEdgeCases verifies SetContainerPin behaviour with edge case inputs.
+func TestSetContainerPinEdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		image       string
+		digest      string
+		pinnedImage string
+		wantOK      bool // whether GetContainerPin should find it
+	}{
+		{
+			name:        "valid pin",
+			image:       "node:lts-alpine",
+			digest:      "sha256:abc123",
+			pinnedImage: "node:lts-alpine@sha256:abc123",
+			wantOK:      true,
+		},
+		{
+			name:        "empty digest stored as-is",
+			image:       "myimage:tag",
+			digest:      "",
+			pinnedImage: "myimage:tag@",
+			wantOK:      true,
+		},
+		{
+			name:        "empty pinned_image stored as-is",
+			image:       "myimage:v1",
+			digest:      "sha256:deadbeef",
+			pinnedImage: "",
+			wantOK:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-*")
+			cache := NewActionCache(tmpDir)
+			cache.SetContainerPin(tt.image, tt.digest, tt.pinnedImage)
+
+			pin, ok := cache.GetContainerPin(tt.image)
+			if ok != tt.wantOK {
+				t.Errorf("GetContainerPin returned ok=%v, want %v", ok, tt.wantOK)
+			}
+			if ok {
+				if pin.Digest != tt.digest {
+					t.Errorf("Digest: got %q, want %q", pin.Digest, tt.digest)
+				}
+				if pin.PinnedImage != tt.pinnedImage {
+					t.Errorf("PinnedImage: got %q, want %q", pin.PinnedImage, tt.pinnedImage)
+				}
+			}
+		})
+	}
+}
+
 func TestActionCacheDeduplication(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	cache := NewActionCache(tmpDir)
