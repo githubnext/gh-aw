@@ -62,6 +62,11 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 // v0.25.17 must not emit CLI proxy flags or the run will fail.
 const AWFCliProxyMinVersion Version = "v0.25.17"
 
+// CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
+// flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
+// Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.
+const CopilotNoAskUserMinVersion Version = "1.0.19"
+
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.2.17"
 
