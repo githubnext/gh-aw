@@ -75,6 +75,54 @@ const BUILT_IN_PATTERNS = [
 ];
 
 /**
+ * MCP gateway configuration files that may contain bearer tokens.
+ * These are the canonical paths produced by the gateway setup scripts.
+ * The list is defined as a module-level constant so tests can replace entries.
+ */
+const MCP_GATEWAY_CONFIG_PATHS = ["/tmp/gh-aw/mcp-config/gateway-output.json", "/tmp/gh-aw/mcp-config/mcp-servers.json"];
+
+/**
+ * Extracts MCP gateway bearer tokens from known configuration files.
+ * The gateway token is dynamically minted and has no recognisable prefix,
+ * so it cannot be caught by the built-in regex patterns.  We read the
+ * gateway config files directly and treat every Authorization header value
+ * as a secret to be redacted.
+ * @param {string[]} configPaths - Paths to MCP gateway config JSON files
+ * @returns {string[]} Unique token values extracted from the files
+ */
+function extractMCPGatewayTokens(configPaths) {
+  /** @type {Set<string>} */
+  const tokens = new Set();
+  for (const configPath of configPaths) {
+    try {
+      if (!fs.existsSync(configPath)) continue;
+      const raw = fs.readFileSync(configPath, "utf8");
+      const config = /** @type {Record<string, any>} */ JSON.parse(raw);
+      const servers = /** @type {Record<string, any>} */ config.mcpServers || {};
+      for (const server of Object.values(servers)) {
+        const auth = /** @type {string|undefined} */ server?.headers?.Authorization;
+        if (typeof auth === "string" && auth.trim().length >= 6) {
+          const trimmed = auth.trim();
+          tokens.add(trimmed);
+          // Also add just the credential portion when the value is a "Bearer <token>" header
+          // so the bare token is redacted even when it appears without the "Bearer " prefix.
+          if (/^[Bb]earer /.test(trimmed)) {
+            const tokenPart = trimmed.slice(7).trim();
+            if (tokenPart.length >= 6) {
+              tokens.add(tokenPart);
+            }
+          }
+        }
+      }
+    } catch {
+      // Silently skip unreadable or malformed files — absence of the gateway
+      // config is normal when the MCP gateway is not used by a workflow.
+    }
+  }
+  return [...tokens];
+}
+
+/**
  * Detects and redacts secrets matching built-in patterns
  * @param {string} content - File content to process
  * @returns {{content: string, redactionCount: number, detectedPatterns: string[]}} Redacted content, count, and detected pattern types
@@ -193,6 +241,15 @@ async function main() {
       core.info(`Found ${secretValues.length} custom secret(s) to redact`);
     }
 
+    // Extract MCP gateway bearer tokens from known config files and add them to
+    // the redaction list.  The gateway token has no fixed prefix so it cannot be
+    // matched by the built-in regex patterns; we must read it from the config.
+    const gatewayTokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS);
+    if (gatewayTokens.length > 0) {
+      core.info(`Found ${gatewayTokens.length} MCP gateway token(s) to redact`);
+      secretValues.push(...gatewayTokens);
+    }
+
     // Always scan for built-in patterns, even if there are no custom secrets
     core.info("Scanning for built-in credential patterns and custom secrets");
 
@@ -222,4 +279,4 @@ async function main() {
   }
 }
 
-module.exports = { main, redactSecrets, redactBuiltInPatterns, BUILT_IN_PATTERNS };
+module.exports = { main, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, BUILT_IN_PATTERNS, MCP_GATEWAY_CONFIG_PATHS };

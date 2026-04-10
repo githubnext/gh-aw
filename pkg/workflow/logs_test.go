@@ -50,6 +50,9 @@ This is a test workflow.`
 	// This provides cleaner, more reliable log capture than shell redirection
 	expected := []string{
 		"--debug-file /tmp/gh-aw/agent-stdio.log",
+		// The log file must be pre-created with restrictive permissions before the
+		// agent starts, so that tee/--debug-file cannot produce a world-readable file.
+		"(umask 177 && touch /tmp/gh-aw/agent-stdio.log)",
 	}
 
 	for _, expected := range expected {
@@ -58,9 +61,9 @@ This is a test workflow.`
 		}
 	}
 
-	// Verify that the old log capture step is NOT present
+	// Verify that the old standalone log-file touch step (pre-permissions-fix) is NOT present
+	// as a bare command (without the umask wrapper).
 	notExpected := []string{
-		"touch /tmp/gh-aw/agent-stdio.log",
 		"cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY",
 		"cat /tmp/gh-aw/agent-stdio.log >> \"$GITHUB_STEP_SUMMARY\"",
 	}

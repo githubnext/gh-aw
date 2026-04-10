@@ -230,8 +230,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Prepend a touch command to create the agent step summary file before copilot runs.
 		command = fmt.Sprintf(`set -o pipefail
 touch %s
+(umask 177 && touch %s)
 COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-%s%s 2>&1 | tee %s`, AgentStepSummaryPath, mkdirCommands.String(), copilotCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
 	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
