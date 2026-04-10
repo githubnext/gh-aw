@@ -254,6 +254,93 @@ func TestActionCacheEmptySaveDeletesExistingFile(t *testing.T) {
 	}
 }
 
+// TestActionCacheSaveWithContainerPinsOnly verifies that a cache with no Entries
+// but with ContainerPins is still written to disk (not treated as "empty").
+func TestActionCacheSaveWithContainerPinsOnly(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Add a container pin without any action entries
+	cache.SetContainerPin("node:lts-alpine", "sha256:abc123", "node:lts-alpine@sha256:abc123")
+
+	if err := cache.Save(); err != nil {
+		t.Fatalf("Failed to save cache with container pins only: %v", err)
+	}
+
+	// File should exist because ContainerPins is non-empty
+	cachePath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
+	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+		t.Error("Cache file should exist when ContainerPins is non-empty, even if Entries is empty")
+	}
+
+	// Reload and confirm the pin round-trips correctly
+	reloaded := NewActionCache(tmpDir)
+	if err := reloaded.Load(); err != nil {
+		t.Fatalf("Failed to reload cache: %v", err)
+	}
+	pin, ok := reloaded.GetContainerPin("node:lts-alpine")
+	if !ok {
+		t.Fatal("Container pin should have been reloaded")
+	}
+	if pin.Digest != "sha256:abc123" {
+		t.Errorf("Expected digest sha256:abc123, got %s", pin.Digest)
+	}
+}
+
+// TestSetContainerPinEdgeCases verifies SetContainerPin behaviour with edge case inputs.
+func TestSetContainerPinEdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		image       string
+		digest      string
+		pinnedImage string
+		wantOK      bool // whether GetContainerPin should find it
+	}{
+		{
+			name:        "valid pin",
+			image:       "node:lts-alpine",
+			digest:      "sha256:abc123",
+			pinnedImage: "node:lts-alpine@sha256:abc123",
+			wantOK:      true,
+		},
+		{
+			name:        "empty digest stored as-is",
+			image:       "myimage:tag",
+			digest:      "",
+			pinnedImage: "myimage:tag@",
+			wantOK:      true,
+		},
+		{
+			name:        "empty pinned_image stored as-is",
+			image:       "myimage:v1",
+			digest:      "sha256:deadbeef",
+			pinnedImage: "",
+			wantOK:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "test-*")
+			cache := NewActionCache(tmpDir)
+			cache.SetContainerPin(tt.image, tt.digest, tt.pinnedImage)
+
+			pin, ok := cache.GetContainerPin(tt.image)
+			if ok != tt.wantOK {
+				t.Errorf("GetContainerPin returned ok=%v, want %v", ok, tt.wantOK)
+			}
+			if ok {
+				if pin.Digest != tt.digest {
+					t.Errorf("Digest: got %q, want %q", pin.Digest, tt.digest)
+				}
+				if pin.PinnedImage != tt.pinnedImage {
+					t.Errorf("PinnedImage: got %q, want %q", pin.PinnedImage, tt.pinnedImage)
+				}
+			}
+		})
+	}
+}
+
 // TestActionCacheDeduplication tests that duplicate entries are removed
 func TestActionCacheDeduplication(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")

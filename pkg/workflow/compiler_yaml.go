@@ -116,9 +116,9 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	}
 
 	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
-	// The manifest records all secrets and external actions detected at compile time so
-	// that subsequent compilations can perform safe update enforcement.
-	manifest := NewGHAWManifest(secrets, actions)
+	// The manifest records all secrets, external actions, and container images detected at
+	// compile time so that subsequent compilations can perform safe update enforcement.
+	manifest := NewGHAWManifest(secrets, actions, data.DockerImagePins)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {
@@ -208,6 +208,15 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("# Custom actions used:\n")
 		for _, a := range actions {
 			fmt.Fprintf(yaml, "#   - %s\n", a)
+		}
+	}
+
+	// Add list of container images used in the workflow
+	if len(data.DockerImages) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Container images used:\n")
+		for _, img := range data.DockerImages {
+			fmt.Fprintf(yaml, "#   - %s\n", img)
 		}
 	}
 

@@ -1,5 +1,5 @@
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"8ff5dad0feac5c48485ec0d9c4681c621a42f34e623a93de150b5712296788f7","agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["AZURE_CLIENT_ID","AZURE_CLIENT_SECRET","AZURE_TENANT_ID","BRAVE_API_KEY","CONTEXT7_API_KEY","COPILOT_GITHUB_TOKEN","DD_API_KEY","DD_APPLICATION_KEY","DD_SITE","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","NOTION_API_TOKEN","SENTRY_ACCESS_TOKEN","SENTRY_OPENAI_API_KEY","SLACK_BOT_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"668228422ae6a00e4ad889ee87cd7109ec5666a7","version":"v5.0.4"},{"repo":"actions/cache/save","sha":"668228422ae6a00e4ad889ee87cd7109ec5666a7","version":"v5.0.4"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"bbbca2ddaa5d8feaa63e36b76fdaad77386f024f","version":"v7"},{"repo":"astral-sh/setup-uv","sha":"cec208311dfd045dd5311c1add060b2062131d57","version":"v8.0.0"},{"repo":"docker/build-push-action","sha":"d08e5c354a6adb9ed34480a06d141179aa583294","version":"v7"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4"}]}
+# gh-aw-manifest: {"version":1,"secrets":["AZURE_CLIENT_ID","AZURE_CLIENT_SECRET","AZURE_TENANT_ID","BRAVE_API_KEY","CONTEXT7_API_KEY","COPILOT_GITHUB_TOKEN","DD_API_KEY","DD_APPLICATION_KEY","DD_SITE","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","NOTION_API_TOKEN","SENTRY_ACCESS_TOKEN","SENTRY_OPENAI_API_KEY","SLACK_BOT_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"668228422ae6a00e4ad889ee87cd7109ec5666a7","version":"v5.0.4"},{"repo":"actions/cache/save","sha":"668228422ae6a00e4ad889ee87cd7109ec5666a7","version":"v5.0.4"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/setup-go","sha":"4a3601121dd01d1626a1e23e37211e3254c1c06c","version":"v6.4.0"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"bbbca2ddaa5d8feaa63e36b76fdaad77386f024f","version":"v7"},{"repo":"astral-sh/setup-uv","sha":"cec208311dfd045dd5311c1add060b2062131d57","version":"v8.0.0"},{"repo":"docker/build-push-action","sha":"d08e5c354a6adb9ed34480a06d141179aa583294","version":"v7"},{"repo":"docker/setup-buildx-action","sha":"4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd","version":"v4"}],"containers":[{"image":"docker.io/mcp/brave-search"},{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.18"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.18"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.17"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0"},{"image":"ghcr.io/github/serena-mcp-server:latest"},{"image":"mcp/arxiv-mcp-server"},{"image":"mcp/ast-grep:latest"},{"image":"mcp/context7"},{"image":"mcp/markitdown"},{"image":"mcp/memory"},{"image":"mcp/notion"},{"image":"node:lts-alpine"},{"image":"python:alpine"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -77,6 +77,23 @@
 #   - astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
 #   - docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
 #   - docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+#
+# Container images used:
+#   - docker.io/mcp/brave-search
+#   - ghcr.io/github/gh-aw-firewall/agent:0.25.18
+#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18
+#   - ghcr.io/github/gh-aw-firewall/squid:0.25.18
+#   - ghcr.io/github/gh-aw-mcpg:v0.2.17
+#   - ghcr.io/github/github-mcp-server:v0.32.0
+#   - ghcr.io/github/serena-mcp-server:latest
+#   - mcp/arxiv-mcp-server
+#   - mcp/ast-grep:latest
+#   - mcp/context7
+#   - mcp/markitdown
+#   - mcp/memory
+#   - mcp/notion
+#   - node:lts-alpine
+#   - python:alpine
 
 name: "MCP Inspector Agent"
 "on":

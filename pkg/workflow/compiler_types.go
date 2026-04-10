@@ -454,6 +454,8 @@ type WorkflowData struct {
 	Features                    map[string]any            // feature flags and configuration options from frontmatter (supports bool and string values)
 	ActionCache                 *ActionCache              // cache for action pin resolutions
 	ActionResolver              *ActionResolver           // resolver for action pins
+	DockerImages                []string                  // container images collected at compile time (pinned refs when pins are cached)
+	DockerImagePins             []GHAWManifestContainer   // full container pin info (image, digest, pinned_image) for manifest
 	StrictMode                  bool                      // strict mode for action pinning
 	SecretMasking               *SecretMaskingConfig      // secret masking configuration
 	ParsedFrontmatter           *FrontmatterConfig        // cached parsed frontmatter configuration (for performance optimization)

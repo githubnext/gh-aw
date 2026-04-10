@@ -239,6 +239,21 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		}
 	}
 
+	// Step 3b: Update container image digest pins (unless --no-fix or --no-actions is specified)
+	// Container pins are stored alongside action pins in .github/aw/actions-lock.json.
+	// Running this before compilation means the next compile step will embed the
+	// pinned @sha256: references in the generated lock files.
+	if !noFix && !noActions {
+		upgradeLog.Print("Updating container image digest pins")
+		if err := UpdateContainerPins(workflowDir, verbose); err != nil {
+			upgradeLog.Printf("Failed to update container pins: %v", err)
+			// Non-critical — Docker may not be available in all environments.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated container image pins"))
+		}
+	}
+
 	// Step 4: Compile all workflows (unless --no-fix or --no-compile is specified)
 	if !noFix && !noCompile {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
