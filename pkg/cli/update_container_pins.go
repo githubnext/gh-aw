@@ -87,7 +87,11 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	}
 
 	// Resolve digests for images that are not yet pinned.
-	var updatedImages []string
+	type pinnedEntry struct {
+		image       string
+		pinnedImage string // image@sha256:...
+	}
+	var updatedImages []pinnedEntry
 	var failedImages []imageFailure
 	var skippedImages []string
 
@@ -117,7 +121,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 
 		pinnedImage := image + "@" + digest
 		actionCache.SetContainerPin(image, digest, pinnedImage)
-		updatedImages = append(updatedImages, image)
+		updatedImages = append(updatedImages, pinnedEntry{image: image, pinnedImage: pinnedImage})
 
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %s → %s", image, digest)))
@@ -129,8 +133,8 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 
 	if len(updatedImages) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %d container image(s):", len(updatedImages))))
-		for _, img := range updatedImages {
-			fmt.Fprintln(os.Stderr, console.FormatListItem(img))
+		for _, entry := range updatedImages {
+			fmt.Fprintln(os.Stderr, console.FormatListItem(entry.pinnedImage))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
