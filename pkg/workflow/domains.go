@@ -122,6 +122,7 @@ var OpenCodeBaseDefaultDomains = []string{
 // openCodeProviderDomains maps provider prefixes to their API domains.
 // Used by extractProviderFromModel() and GetOpenCodeDefaultDomains().
 var openCodeProviderDomains = map[string]string{
+	"copilot":   "api.githubcopilot.com",
 	"anthropic": "api.anthropic.com",
 	"openai":    "api.openai.com",
 	"google":    "generativelanguage.googleapis.com",
@@ -132,10 +133,10 @@ var openCodeProviderDomains = map[string]string{
 }
 
 // OpenCodeDefaultDomains are the default domains required for OpenCode CLI operation.
-// Includes the three most common provider API endpoints plus infrastructure domains.
+// Includes the Copilot API endpoints (default routing) plus infrastructure domains.
 var OpenCodeDefaultDomains = []string{
-	"api.anthropic.com",                 // Default provider (Anthropic)
-	"api.openai.com",                    // OpenAI provider
+	"api.githubcopilot.com",             // Default provider (Copilot routing)
+	"api.openai.com",                    // OpenAI provider (fallback)
 	"generativelanguage.googleapis.com", // Google/Gemini provider
 	"host.docker.internal",              // MCP gateway / API proxy access
 	"opencode.ai",                       // OpenCode telemetry/config (required for startup)
@@ -144,14 +145,14 @@ var OpenCodeDefaultDomains = []string{
 
 // extractProviderFromModel extracts the provider name from an OpenCode model string.
 // OpenCode uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
-// Returns the provider prefix, or "anthropic" as default if no slash is found.
+// Returns the provider prefix, or "copilot" as default if no slash is found.
 func extractProviderFromModel(model string) string {
 	if model == "" {
-		return "anthropic"
+		return "copilot"
 	}
 	parts := strings.SplitN(model, "/", 2)
 	if len(parts) < 2 {
-		return "anthropic"
+		return "copilot"
 	}
 	return strings.ToLower(parts[0])
 }

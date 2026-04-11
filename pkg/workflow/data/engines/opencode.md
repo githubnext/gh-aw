@@ -8,7 +8,7 @@ engine:
     name: opencode
   auth:
     - role: api-key
-      secret: ANTHROPIC_API_KEY
+      secret: OPENAI_API_KEY
 ---
 
 <!-- # OpenCode CLI

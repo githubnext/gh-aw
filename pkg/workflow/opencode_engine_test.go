@@ -39,7 +39,7 @@ func TestOpenCodeEngine(t *testing.T) {
 			Tools:       map[string]any{},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY")
+		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for Copilot routing")
 	})
 
 	t.Run("required secrets with MCP servers", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestOpenCodeEngine(t *testing.T) {
 			},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should require ANTHROPIC_API_KEY")
+		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for Copilot routing")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY", "Should require MCP_GATEWAY_API_KEY when MCP servers present")
 		assert.Contains(t, secrets, "GITHUB_MCP_SERVER_TOKEN", "Should require GITHUB_MCP_SERVER_TOKEN for GitHub tool")
 	})
@@ -65,13 +65,13 @@ func TestOpenCodeEngine(t *testing.T) {
 			Tools:       map[string]any{},
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					"OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
+					"ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}",
 				},
 			},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should still require ANTHROPIC_API_KEY")
-		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should add OPENAI_API_KEY from engine.env")
+		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should still require OPENAI_API_KEY for Copilot routing")
+		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should add ANTHROPIC_API_KEY from engine.env")
 	})
 
 	t.Run("declared output files", func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "opencode run", "Should invoke opencode run command")
 		assert.Contains(t, stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
-		assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}", "Should set ANTHROPIC_API_KEY env var")
+		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", "Should set OPENAI_API_KEY env var")
 		assert.Contains(t, stepContent, "NO_PROXY: localhost,127.0.0.1", "Should set NO_PROXY env var")
 	})
 
@@ -227,7 +227,7 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					"ANTHROPIC_API_KEY": "${{ secrets.MY_ORG_ANTHROPIC_KEY }}",
+					"OPENAI_API_KEY": "${{ secrets.MY_ORG_OPENAI_KEY }}",
 				},
 			},
 		}
@@ -238,8 +238,8 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 		stepContent := strings.Join(steps[1], "\n")
 
 		// The user-provided value should override the default token expression
-		assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.MY_ORG_ANTHROPIC_KEY }}", "engine.env should override the default ANTHROPIC_API_KEY expression")
-		assert.NotContains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}", "Default ANTHROPIC_API_KEY expression should be replaced by engine.env")
+		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.MY_ORG_OPENAI_KEY }}", "engine.env should override the default OPENAI_API_KEY expression")
+		assert.NotContains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", "Default OPENAI_API_KEY expression should be replaced by engine.env")
 	})
 
 	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {
@@ -301,7 +301,7 @@ func TestOpenCodeEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
 		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
-		assert.Contains(t, stepContent, "ANTHROPIC_BASE_URL: http://host.docker.internal:10004", "Should set ANTHROPIC_BASE_URL to LLM gateway URL")
+		assert.Contains(t, stepContent, "OPENAI_BASE_URL: http://host.docker.internal:10004", "Should set OPENAI_BASE_URL to LLM gateway URL")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestOpenCodeEngineFirewallIntegration(t *testing.T) {
 		// Should use simple command without AWF
 		assert.Contains(t, stepContent, "set -o pipefail", "Should use simple command with pipefail")
 		assert.NotContains(t, stepContent, "awf", "Should not use AWF when firewall is disabled")
-		assert.NotContains(t, stepContent, "ANTHROPIC_BASE_URL", "Should not set ANTHROPIC_BASE_URL when firewall is disabled")
+		assert.NotContains(t, stepContent, "OPENAI_BASE_URL", "Should not set OPENAI_BASE_URL when firewall is disabled")
 	})
 }
 
@@ -333,12 +333,12 @@ func TestExtractProviderFromModel(t *testing.T) {
 		assert.Equal(t, "google", extractProviderFromModel("google/gemini-2.5-pro"))
 	})
 
-	t.Run("empty model defaults to anthropic", func(t *testing.T) {
-		assert.Equal(t, "anthropic", extractProviderFromModel(""))
+	t.Run("empty model defaults to copilot", func(t *testing.T) {
+		assert.Equal(t, "copilot", extractProviderFromModel(""))
 	})
 
-	t.Run("no slash defaults to anthropic", func(t *testing.T) {
-		assert.Equal(t, "anthropic", extractProviderFromModel("claude-sonnet-4-20250514"))
+	t.Run("no slash defaults to copilot", func(t *testing.T) {
+		assert.Equal(t, "copilot", extractProviderFromModel("claude-sonnet-4-20250514"))
 	})
 
 	t.Run("case insensitive provider", func(t *testing.T) {

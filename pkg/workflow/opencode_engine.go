@@ -45,11 +45,11 @@ func (e *OpenCodeEngine) GetModelEnvVarName() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the OpenCode engine.
-// This includes ANTHROPIC_API_KEY as the default provider, plus any additional
-// provider API keys from engine.env, and MCP/GitHub secrets as needed.
+// By default, OpenCode routes through the Copilot API (OpenAI-compatible) using OPENAI_API_KEY.
+// Additional provider API keys can be added via engine.env overrides.
 func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	opencodeLog.Print("Collecting required secrets for OpenCode engine")
-	secrets := []string{"ANTHROPIC_API_KEY"} // Default provider
+	secrets := []string{"OPENAI_API_KEY"} // Default: Copilot routing via OpenAI-compatible API
 
 	// Allow additional provider API keys from engine.env overrides
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
@@ -168,12 +168,12 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", opencodeCommand, logFile)
 	}
 
-	// Environment variables
+	// Environment variables — default to Copilot routing (OpenAI-compatible API)
 	env := map[string]string{
-		"ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}",
-		"GH_AW_PROMPT":      "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_WORKSPACE":  "${{ github.workspace }}",
-		"NO_PROXY":          "localhost,127.0.0.1",
+		"OPENAI_API_KEY":   "${{ secrets.OPENAI_API_KEY }}",
+		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		"NO_PROXY":         "localhost,127.0.0.1",
 	}
 
 	// MCP config path
@@ -181,9 +181,9 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/opencode.jsonc"
 	}
 
-	// LLM gateway base URL override (default Anthropic)
+	// LLM gateway base URL override (default Copilot routing via OpenAI-compatible endpoint)
 	if firewallEnabled {
-		env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d",
+		env["OPENAI_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d",
 			constants.OpenCodeLLMGatewayPort)
 	}
 
