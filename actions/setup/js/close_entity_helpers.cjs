@@ -206,9 +206,10 @@ function escapeMarkdownTitle(title) {
 
 /**
  * @typedef {Object} CloseEntityHandlerCallbacks
- * @property {(item: Object, config: Object) => ({success: true, entityNumber: number, owner: string, repo: string, entityRepo?: string} | {success: false, error: string})} resolveTarget
+ * @property {(item: Object, config: Object, resolvedTemporaryIds?: any) => ({success: true, entityNumber: number, owner: string, repo: string, entityRepo?: string} | {success: false, error: string, deferred?: boolean})} resolveTarget
  *   Resolves the entity number and target repository from the message and handler config.
- *   The factory passes both `item` and `config`; implementations may ignore `config` if not needed.
+ *   The factory passes `item`, `config`, and `resolvedTemporaryIds`; implementations may ignore
+ *   `config` or `resolvedTemporaryIds` if not needed.
  * @property {(github: any, owner: string, repo: string, entityNumber: number) => Promise<{number: number, title: string, labels: Array<{name: string}>, html_url: string, state: string}>} getDetails
  *   Fetches entity details from the GitHub API.
  * @property {(entity: Object, entityNumber: number, requiredLabels: string[]) => {valid: true} | {valid: false, warning?: string, error: string}} validateLabels
