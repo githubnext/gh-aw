@@ -162,6 +162,11 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected --disable-builtin-mcps flag in command, got:\n%s", stepContent)
 	}
 
+	// Test that --no-ask-user IS present for detection jobs (SafeOutputs == nil)
+	if !strings.Contains(stepContent, "--no-ask-user") {
+		t.Errorf("Expected --no-ask-user to be present for detection jobs, got:\n%s", stepContent)
+	}
+
 	// Test that mkdir commands are present for --add-dir directories
 	if !strings.Contains(stepContent, "mkdir -p /tmp/") {
 		t.Errorf("Expected 'mkdir -p /tmp/' command in step content:\n%s", stepContent)
@@ -1531,4 +1536,166 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 	t.Run("CopilotEngine implements DriverProvider interface", func(t *testing.T) {
 		var _ DriverProvider = engine
 	})
+}
+
+func TestCopilotEngineNoAskUser(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name         string
+		engineConfig *EngineConfig
+		safeOutputs  *SafeOutputsConfig
+		expectNoAsk  bool
+		description  string
+	}{
+		{
+			name:         "default version emits --no-ask-user for agent job",
+			engineConfig: nil,
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "default version is >= 1.0.19",
+		},
+		{
+			name:         "latest version emits --no-ask-user for agent job",
+			engineConfig: &EngineConfig{Version: "latest"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "latest always supports --no-ask-user",
+		},
+		{
+			name:         "version 1.0.19 emits --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.19"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "1.0.19 is the minimum supported version",
+		},
+		{
+			name:         "version 1.0.20 emits --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.20"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  true,
+			description:  "1.0.20 > 1.0.19",
+		},
+		{
+			name:         "version 1.0.18 does not emit --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.18"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  false,
+			description:  "1.0.18 < 1.0.19",
+		},
+		{
+			name:         "version 1.0.0 does not emit --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.0"},
+			safeOutputs:  &SafeOutputsConfig{},
+			expectNoAsk:  false,
+			description:  "1.0.0 < 1.0.19",
+		},
+		{
+			name:         "detection job emits --no-ask-user with default version",
+			engineConfig: nil,
+			safeOutputs:  nil, // nil SafeOutputs = detection job
+			expectNoAsk:  true,
+			description:  "--no-ask-user is emitted for both agent and detection jobs",
+		},
+		{
+			name:         "detection job with old version does not emit --no-ask-user",
+			engineConfig: &EngineConfig{Version: "1.0.18"},
+			safeOutputs:  nil,
+			expectNoAsk:  false,
+			description:  "detection job with old version still respects version gate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: tt.engineConfig,
+				SafeOutputs:  tt.safeOutputs,
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			if len(steps) == 0 {
+				t.Fatal("Expected at least one step")
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+			hasNoAsk := strings.Contains(stepContent, "--no-ask-user")
+
+			if tt.expectNoAsk && !hasNoAsk {
+				t.Errorf("%s: expected --no-ask-user in step, got:\n%s", tt.description, stepContent)
+			}
+			if !tt.expectNoAsk && hasNoAsk {
+				t.Errorf("%s: expected --no-ask-user NOT in step, got:\n%s", tt.description, stepContent)
+			}
+		})
+	}
+}
+
+func TestCopilotSupportsNoAskUser(t *testing.T) {
+	tests := []struct {
+		name         string
+		engineConfig *EngineConfig
+		expected     bool
+	}{
+		{
+			name:         "nil config uses default (supported)",
+			engineConfig: nil,
+			expected:     true,
+		},
+		{
+			name:         "empty version uses default (supported)",
+			engineConfig: &EngineConfig{},
+			expected:     true,
+		},
+		{
+			name:         "latest is always supported",
+			engineConfig: &EngineConfig{Version: "latest"},
+			expected:     true,
+		},
+		{
+			name:         "LATEST (uppercase) is always supported",
+			engineConfig: &EngineConfig{Version: "LATEST"},
+			expected:     true,
+		},
+		{
+			name:         "exact minimum version 1.0.19 is supported",
+			engineConfig: &EngineConfig{Version: "1.0.19"},
+			expected:     true,
+		},
+		{
+			name:         "version with v-prefix v1.0.19 is supported",
+			engineConfig: &EngineConfig{Version: "v1.0.19"},
+			expected:     true,
+		},
+		{
+			name:         "version above minimum 1.0.20 is supported",
+			engineConfig: &EngineConfig{Version: "1.0.20"},
+			expected:     true,
+		},
+		{
+			name:         "version below minimum 1.0.18 is not supported",
+			engineConfig: &EngineConfig{Version: "1.0.18"},
+			expected:     false,
+		},
+		{
+			name:         "version 1.0.0 is not supported",
+			engineConfig: &EngineConfig{Version: "1.0.0"},
+			expected:     false,
+		},
+		{
+			name:         "non-semver branch name returns false (conservative)",
+			engineConfig: &EngineConfig{Version: "main"},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := copilotSupportsNoAskUser(tt.engineConfig)
+			if result != tt.expected {
+				t.Errorf("copilotSupportsNoAskUser(%v) = %v, want %v", tt.engineConfig, result, tt.expected)
+			}
+		})
+	}
 }

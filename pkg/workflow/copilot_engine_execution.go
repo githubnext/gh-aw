@@ -30,6 +30,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
@@ -61,6 +62,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
+	// Add --no-ask-user to enable fully autonomous runs (suppresses interactive prompts).
+	// Emitted for both agent and detection jobs when the Copilot CLI version supports it
+	// (v1.0.19+). Latest and unspecified versions always include the flag.
+	isDetectionJob := workflowData.SafeOutputs == nil
+	if copilotSupportsNoAskUser(workflowData.EngineConfig) {
+		copilotExecLog.Print("Adding --no-ask-user for fully autonomous run")
+		copilotArgs = append(copilotArgs, "--no-ask-user")
+	}
+
 	// Model is always passed via the native COPILOT_MODEL environment variable when configured.
 	// This avoids embedding the value directly in the shell command (which fails template injection
 	// validation for GitHub Actions expressions like ${{ inputs.model }}).
@@ -78,7 +88,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add --autopilot and --max-autopilot-continues when max-continuations > 1
 	// Never apply autopilot flags to detection jobs; they are only meaningful for the agent run.
-	isDetectionJob := workflowData.SafeOutputs == nil
 	if !isDetectionJob && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxContinuations > 1 {
 		maxCont := workflowData.EngineConfig.MaxContinuations
 		copilotExecLog.Printf("Enabling autopilot mode with max-autopilot-continues=%d", maxCont)
@@ -454,6 +463,37 @@ func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
 	step = append(step, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh\"")
 
 	return GitHubActionStep(step)
+}
+
+// copilotSupportsNoAskUser returns true when the effective Copilot CLI version supports the
+// --no-ask-user flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
+//
+// The --no-ask-user flag was introduced in Copilot CLI v1.0.19. Any workflow that pins an
+// explicit version older than v1.0.19 must not emit --no-ask-user or the run will fail at startup.
+//
+// Special cases:
+//   - No version override (engineConfig is nil or has no Version): use DefaultCopilotVersion
+//     which is always ≥ CopilotNoAskUserMinVersion → returns true.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ CopilotNoAskUserMinVersion: returns true.
+//   - Any semver string < CopilotNoAskUserMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func copilotSupportsNoAskUser(engineConfig *EngineConfig) bool {
+	var versionStr string
+	if engineConfig != nil && engineConfig.Version != "" {
+		versionStr = engineConfig.Version
+	} else {
+		// No override → use the default, which is always ≥ the minimum.
+		return true
+	}
+
+	// "latest" means the newest release — always supports the flag.
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	minVersion := string(constants.CopilotNoAskUserMinVersion)
+	return semverutil.Compare(versionStr, minVersion) >= 0
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
