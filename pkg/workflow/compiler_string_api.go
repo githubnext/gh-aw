@@ -80,6 +80,8 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, errors.New("no frontmatter found")
 	}
 
+	compilerStringAPILog.Printf("ParseWorkflowString: extracted frontmatter with %d fields", len(result.Frontmatter))
+
 	// Preprocess schedule fields
 	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, content); err != nil {
 		return nil, err
@@ -90,11 +92,13 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	// Check if shared workflow (no 'on' field)
 	_, hasOnField := frontmatterForValidation["on"]
 	if !hasOnField {
+		compilerStringAPILog.Printf("ParseWorkflowString: no 'on' field, treating as shared workflow: %s", cleanPath)
 		return nil, &SharedWorkflowError{Path: cleanPath}
 	}
 
 	// Validate frontmatter against schema
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+		compilerStringAPILog.Printf("ParseWorkflowString: schema validation failed for %s", cleanPath)
 		return nil, err
 	}
 
@@ -157,6 +161,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 
 	// Merge features from imports
 	if len(engineSetup.importsResult.MergedFeatures) > 0 {
+		compilerStringAPILog.Printf("ParseWorkflowString: merging %d features from imports", len(engineSetup.importsResult.MergedFeatures))
 		mergedFeatures, err := c.MergeFeatures(workflowData.Features, engineSetup.importsResult.MergedFeatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to merge features from imports: %w", err)

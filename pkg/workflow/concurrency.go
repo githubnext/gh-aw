@@ -251,6 +251,7 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		// For command/slash_command workflows: use issue/PR number; fall back to run_id when
 		// neither is available (e.g. manual workflow_dispatch of the outer workflow).
 		// When bot risk is detected, prepend the bot-actor isolation check.
+		concurrencyLog.Print("Building concurrency key for command/slash_command workflow")
 		if botRisk {
 			keys = append(keys, "${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.event.pull_request.number || github.run_id }}")
 		} else {
@@ -258,6 +259,7 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		}
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
 		// Mixed workflows with both issue and PR triggers
+		concurrencyLog.Print("Building concurrency key for mixed PR+issue workflow")
 		keys = append(keys, entityKey(
 			[]string{"github.event.issue.number", "github.event.pull_request.number"},
 			[]string{"github.run_id"},
@@ -277,6 +279,7 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		))
 	} else if isPullRequestWorkflow(workflowData.On) {
 		// PR workflows: use PR number, fall back to ref then run_id
+		concurrencyLog.Print("Building concurrency key for PR workflow")
 		keys = append(keys, entityConcurrencyKey(
 			[]string{"github.event.pull_request.number"},
 			[]string{"github.ref", "github.run_id"},
@@ -285,6 +288,7 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	} else if isIssueWorkflow(workflowData.On) {
 		// Issue workflows: run_id is the fallback when no issue context is available
 		// (e.g. when a mixed-trigger workflow is started via workflow_dispatch).
+		concurrencyLog.Print("Building concurrency key for issue workflow")
 		keys = append(keys, entityKey(
 			[]string{"github.event.issue.number"},
 			[]string{"github.run_id"},
@@ -298,6 +302,7 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 		))
 	} else if isPushWorkflow(workflowData.On) {
 		// Push workflows: use ref to differentiate between branches
+		concurrencyLog.Print("Building concurrency key for push workflow")
 		keys = append(keys, "${{ github.ref || github.run_id }}")
 	}
 
@@ -318,9 +323,12 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 func shouldEnableCancelInProgress(workflowData *WorkflowData, isCommandTrigger bool) bool {
 	// Never enable cancellation for command workflows
 	if isCommandTrigger {
+		concurrencyLog.Print("cancel-in-progress disabled: command trigger workflow")
 		return false
 	}
 
 	// Enable cancellation for pull request workflows (including mixed workflows)
-	return isPullRequestWorkflow(workflowData.On)
+	result := isPullRequestWorkflow(workflowData.On)
+	concurrencyLog.Printf("cancel-in-progress=%v for workflow on=%s", result, workflowData.On)
+	return result
 }
