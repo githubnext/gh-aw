@@ -248,6 +248,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				for varName, fullExpr := range configExpressions {
 					sanitizedConfig = strings.ReplaceAll(sanitizedConfig, fullExpr, "${"+varName+"}")
 				}
+				// Escape any stray $ characters that are NOT our intended ${VAR}
+				// placeholders. Unquoted heredocs expand all $VAR / ${VAR}
+				// references, which would corrupt user-provided strings (e.g.,
+				// title_prefix containing "$") or leak runner env vars.
+				placeholders := make([]string, 0, len(configExpressions))
+				for varName := range configExpressions {
+					placeholders = append(placeholders, varName)
+				}
+				sanitizedConfig = escapeNonPlaceholderDollars(sanitizedConfig, placeholders)
 				yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << " + delimiter + "\n")
 				yaml.WriteString("          " + sanitizedConfig + "\n")
 				yaml.WriteString("          " + delimiter + "\n")
@@ -871,4 +880,34 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Render MCP config - this will pipe directly to the gateway script
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+}
+
+// escapeNonPlaceholderDollars escapes every "$" in s that is NOT part of one of
+// the intentionally-injected ${VAR} placeholders listed in allowedVars.
+// This is needed when writing s into an unquoted heredoc: bash would otherwise
+// expand stray "$" sequences (e.g., "$100" in a user title_prefix) into whatever
+// the shell thinks they reference.
+//
+// The function works by temporarily replacing each known ${VAR} with a unique
+// sentinel, then escaping every remaining "$", and finally restoring the sentinels.
+func escapeNonPlaceholderDollars(s string, allowedVars []string) string {
+	// Sentinel prefix chosen to be extremely unlikely in user-provided JSON.
+	const sentinel = "\x00__PLACEHOLDER_"
+
+	// Step 1: Replace each allowed ${VAR} with a unique sentinel
+	for i, v := range allowedVars {
+		placeholder := fmt.Sprintf("%s%d__\x00", sentinel, i)
+		s = strings.ReplaceAll(s, "${"+v+"}", placeholder)
+	}
+
+	// Step 2: Escape all remaining "$" with "\$"
+	s = strings.ReplaceAll(s, "$", "\\$")
+
+	// Step 3: Restore sentinels to their original ${VAR} form
+	for i, v := range allowedVars {
+		placeholder := fmt.Sprintf("%s%d__\x00", sentinel, i)
+		s = strings.ReplaceAll(s, placeholder, "${"+v+"}")
+	}
+
+	return s
 }
