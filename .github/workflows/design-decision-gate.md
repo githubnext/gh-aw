@@ -114,7 +114,7 @@ Search for a linked ADR in multiple locations:
 
 ### 3a. Check the PR Body
 Look in the PR body for:
-- A link to a file in `docs/adr/` (e.g., `docs/adr/0001-*.md`)
+- A link to a file in `docs/adr/` (e.g., `docs/adr/NNNN-*.md` where NNNN is the PR number)
 - A markdown link containing "ADR" or "Architecture Decision"
 - A section labeled "ADR", "Design Decision Record", or "Architecture Decision Record"
 
@@ -145,14 +145,13 @@ An ADR is considered **present** if it contains all four required sections from 
 
 If no ADR is found, perform the following:
 
-### Generate the Next ADR Number
+### Determine the ADR Number
 
-Check existing ADRs to determine the next sequence number:
-```bash
-ls ${{ github.workspace }}/docs/adr/*.md 2>/dev/null | grep -oP '\d+' | sort -n | tail -1
-```
+Use the **pull request number** as the ADR number. This avoids file name collisions and merge conflicts when multiple PRs generate ADRs concurrently.
 
-If no ADRs exist, start at `0001`.
+The PR number is: `${{ github.event.pull_request.number || github.event.inputs.pr_number }}`
+
+Format the number with zero-padding to 4 digits (e.g., PR #42 becomes `0042`, PR #1234 becomes `1234`).
 
 ### Analyze the PR Diff and Generate a Draft ADR
 
@@ -252,7 +251,7 @@ An ADR must contain these four sections to be considered complete:
 - **Alternatives Considered** — What else could have been done?
 - **Consequences** — What are the trade-offs (positive and negative)?
 
-All ADRs are stored in `docs/adr/` as numbered Markdown files (e.g., `0001-use-postgresql.md`).
+All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g., `0042-use-postgresql.md` for PR #42).
 
 </details>
 
@@ -364,7 +363,7 @@ When generating or reviewing ADRs, apply these quality standards based on the Mi
 - **Decisive decision**: Use active voice. Say "We will use X because Y" not "X might be used."
 - **Real alternatives**: List at least 2 genuine alternatives that were considered, not strawmen.
 - **Balanced consequences**: Include both positive outcomes and genuine trade-offs.
-- **Numbered and dated**: Filename format: `NNNN-kebab-case-title.md`. Always include the date.
+- **Numbered by PR**: Filename format: `NNNN-kebab-case-title.md` where `NNNN` is the zero-padded pull request number. This avoids collisions when multiple PRs generate ADRs concurrently. Always include the date.
 
 ## Examples of ADR-Worthy Decisions
 
