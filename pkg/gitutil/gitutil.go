@@ -99,6 +99,13 @@ func ReadFileFromHEAD(filePath string) (string, error) {
 		return "", fmt.Errorf("cannot read %q from git HEAD: %w", filePath, err)
 	}
 
+	return ReadFileFromHEADWithRoot(filePath, gitRoot)
+}
+
+// ReadFileFromHEADWithRoot is like ReadFileFromHEAD but accepts a pre-computed git
+// repository root, avoiding the subprocess overhead of calling FindGitRoot().
+// Use this when the caller already knows the git root (e.g. from a cached value).
+func ReadFileFromHEADWithRoot(filePath, gitRoot string) (string, error) {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve absolute path for %q: %w", filePath, err)
