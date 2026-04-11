@@ -110,6 +110,72 @@ var GeminiDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
+// OpenCodeBaseDefaultDomains are the default domains required for OpenCode CLI operation.
+// OpenCode is BYOK (any provider), so provider-specific domains are added dynamically
+// based on the model prefix via GetOpenCodeDefaultDomains().
+var OpenCodeBaseDefaultDomains = []string{
+	"host.docker.internal", // MCP gateway / API proxy access
+	"opencode.ai",          // OpenCode telemetry/config (required for startup)
+	"registry.npmjs.org",   // npm package downloads
+}
+
+// openCodeProviderDomains maps provider prefixes to their API domains.
+// Used by extractProviderFromModel() and GetOpenCodeDefaultDomains().
+var openCodeProviderDomains = map[string]string{
+	"anthropic": "api.anthropic.com",
+	"openai":    "api.openai.com",
+	"google":    "generativelanguage.googleapis.com",
+	"groq":      "api.groq.com",
+	"mistral":   "api.mistral.ai",
+	"deepseek":  "api.deepseek.com",
+	"xai":       "api.x.ai",
+}
+
+// OpenCodeDefaultDomains are the default domains required for OpenCode CLI operation.
+// Includes the three most common provider API endpoints plus infrastructure domains.
+var OpenCodeDefaultDomains = []string{
+	"api.anthropic.com",                 // Default provider (Anthropic)
+	"api.openai.com",                    // OpenAI provider
+	"generativelanguage.googleapis.com", // Google/Gemini provider
+	"host.docker.internal",              // MCP gateway / API proxy access
+	"opencode.ai",                       // OpenCode telemetry/config (required for startup)
+	"registry.npmjs.org",                // npm package downloads
+}
+
+// extractProviderFromModel extracts the provider name from an OpenCode model string.
+// OpenCode uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
+// Returns the provider prefix, or "anthropic" as default if no slash is found.
+func extractProviderFromModel(model string) string {
+	if model == "" {
+		return "anthropic"
+	}
+	parts := strings.SplitN(model, "/", 2)
+	if len(parts) < 2 {
+		return "anthropic"
+	}
+	return strings.ToLower(parts[0])
+}
+
+// GetOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
+// It starts with OpenCodeBaseDefaultDomains and adds the provider-specific API domain.
+func GetOpenCodeDefaultDomains(model string) []string {
+	provider := extractProviderFromModel(model)
+	domains := make([]string, 0, len(OpenCodeBaseDefaultDomains)+1)
+	domains = append(domains, OpenCodeBaseDefaultDomains...)
+
+	if domain, ok := openCodeProviderDomains[provider]; ok {
+		domains = append(domains, domain)
+	}
+
+	return domains
+}
+
+// GetOpenCodeAllowedDomainsWithToolsAndRuntimes merges OpenCode default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return GetAllowedDomainsForEngine(constants.OpenCodeEngine, network, tools, runtimes)
+}
+
 // PlaywrightDomains are the domains required for Playwright browser downloads
 // These domains are needed when Playwright MCP server initializes in the Docker container
 var PlaywrightDomains = []string{
@@ -547,10 +613,11 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 // engineDefaultDomains maps each engine to its default required domains.
 // Add new engines here to avoid adding new engine-specific domain functions.
 var engineDefaultDomains = map[constants.EngineName][]string{
-	constants.CopilotEngine: CopilotDefaultDomains,
-	constants.ClaudeEngine:  ClaudeDefaultDomains,
-	constants.CodexEngine:   CodexDefaultDomains,
-	constants.GeminiEngine:  GeminiDefaultDomains,
+	constants.CopilotEngine:  CopilotDefaultDomains,
+	constants.ClaudeEngine:   ClaudeDefaultDomains,
+	constants.CodexEngine:    CodexDefaultDomains,
+	constants.GeminiEngine:   GeminiDefaultDomains,
+	constants.OpenCodeEngine: OpenCodeDefaultDomains,
 }
 
 // GetAllowedDomainsForEngine merges the engine's default domains with NetworkPermissions,
@@ -739,6 +806,8 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		base = GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "gemini":
 		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+	case "opencode":
+		base = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)

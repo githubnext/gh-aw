@@ -400,6 +400,10 @@ case "$ENGINE_TYPE" in
     echo "Using Gemini converter..."
     bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.sh
     ;;
+  opencode)
+    echo "Using OpenCode converter..."
+    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_opencode.sh
+    ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"
