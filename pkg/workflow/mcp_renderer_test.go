@@ -587,9 +587,10 @@ func TestRenderJSONMCPConfig_OTLPGateway(t *testing.T) {
 				t.Errorf("headers field presence = %v, want %v\noutput:\n%s", hasHeaders, tt.wantHeaders, result)
 			}
 
-			// Verify endpoint is present iff configured
-			if tt.wantEndpoint && !strings.Contains(result, `"endpoint": "https://otel.example.com:4318"`) {
-				t.Errorf("expected endpoint in output\noutput:\n%s", result)
+			// Verify endpoint uses env var reference instead of literal value
+			// (prevents template injection when endpoint contains ${{ secrets.X }})
+			if tt.wantEndpoint && !strings.Contains(result, `"endpoint": "${OTEL_EXPORTER_OTLP_ENDPOINT}"`) {
+				t.Errorf("expected endpoint env var reference in output\noutput:\n%s", result)
 			}
 			if !tt.wantEndpoint && strings.Contains(result, `"opentelemetry"`) {
 				t.Errorf("expected no opentelemetry section when no endpoint configured\noutput:\n%s", result)

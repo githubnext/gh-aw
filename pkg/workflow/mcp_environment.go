@@ -90,6 +90,14 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		if !guardPoliciesExplicit {
 			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
 			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
+		} else {
+			// When guard policies are explicitly configured, the parse-guard-vars step
+			// provides blocked-users, trusted-users, and approval-labels as JSON arrays.
+			// Security: Pass step outputs through environment variables to prevent template injection
+			// in the MCP config heredoc (zizmor: template-injection).
+			envVars["GH_AW_GUARD_BLOCKED_USERS"] = "${{ steps.parse-guard-vars.outputs.blocked_users }}"
+			envVars["GH_AW_GUARD_TRUSTED_USERS"] = "${{ steps.parse-guard-vars.outputs.trusted_users }}"
+			envVars["GH_AW_GUARD_APPROVAL_LABELS"] = "${{ steps.parse-guard-vars.outputs.approval_labels }}"
 		}
 	}
 

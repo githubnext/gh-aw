@@ -178,6 +178,73 @@ func ExtractEnvExpressionsFromValue(value string) map[string]string {
 	return envExpressions
 }
 
+// ExtractAllExpressionsFromValue extracts ALL GitHub Actions ${{ }} expressions from a string
+// and generates environment variable names for each.
+// Returns a map of environment variable names to their full expressions.
+// For secrets, the env var name is the secret name (e.g., "DD_API_KEY").
+// For github context, the env var name is the uppercased dotted path prefixed with GH_AW_
+// (e.g., ${{ github.workflow }} -> "GH_AW_GITHUB_WORKFLOW").
+// For other expressions, a sanitized uppercase version is used.
+func ExtractAllExpressionsFromValue(value string) map[string]string {
+	result := make(map[string]string)
+
+	expressions := secretsExprFindPattern.FindAllString(value, -1)
+	for _, expr := range expressions {
+		varName := expressionToEnvVarName(expr)
+		if varName != "" {
+			result[varName] = expr
+			secretLog.Printf("Extracted expression: %s -> env var: %s", expr, varName)
+		}
+	}
+
+	return result
+}
+
+// expressionToEnvVarName converts a GitHub Actions expression to a suitable environment variable name.
+// Examples:
+//   - "${{ secrets.DD_API_KEY }}" -> "DD_API_KEY"
+//   - "${{ github.workflow }}" -> "GH_AW_GITHUB_WORKFLOW"
+//   - "${{ steps.parse-guard-vars.outputs.blocked_users }}" -> "GH_AW_GUARD_BLOCKED_USERS"
+func expressionToEnvVarName(expr string) string {
+	inner := strings.TrimPrefix(expr, "${{")
+	inner = strings.TrimSuffix(inner, "}}")
+	inner = strings.TrimSpace(inner)
+
+	// Handle secrets: ${{ secrets.X }} -> X
+	if m := secretsNamePattern.FindStringSubmatch(expr); len(m) >= 2 {
+		return m[1]
+	}
+
+	// Handle github context: ${{ github.X }} -> GH_AW_GITHUB_X
+	if name, ok := strings.CutPrefix(inner, "github."); ok {
+		return "GH_AW_GITHUB_" + sanitizeEnvVarName(name)
+	}
+
+	// Handle steps outputs: ${{ steps.X.outputs.Y }} -> GH_AW_STEP_X_Y
+	if name, ok := strings.CutPrefix(inner, "steps."); ok {
+		name = strings.ReplaceAll(name, ".outputs.", "_")
+		return "GH_AW_STEP_" + sanitizeEnvVarName(name)
+	}
+
+	// General case: sanitize to valid env var name
+	return "GH_AW_" + sanitizeEnvVarName(inner)
+}
+
+// sanitizeEnvVarName converts a string to a valid environment variable name
+// by uppercasing and replacing non-alphanumeric characters with underscores.
+func sanitizeEnvVarName(s string) string {
+	upper := strings.ToUpper(s)
+	var result strings.Builder
+	for _, r := range upper {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			result.WriteRune(r)
+		} else {
+			result.WriteRune('_')
+		}
+	}
+	return result.String()
+}
+
 // ReplaceTemplateExpressionsWithEnvVars replaces all template expressions with environment variable references
 // Handles: secrets.*, env.*, and github.workspace
 // Examples:

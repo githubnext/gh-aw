@@ -21,11 +21,14 @@ const guardExprSentinel = "__GH_AW_GUARD_EXPR:"
 // guardExprRE matches sentinel-prefixed expression values in the JSON output:
 //
 //	"__GH_AW_GUARD_EXPR:${{ expr }}"  →  ${{ expr }}
+//	"__GH_AW_GUARD_EXPR:${ENV_VAR}"   →  ${ENV_VAR}
 //
-// Expressions are always of the form ${{ ... }} and must not contain double quotes
-// (our generated expressions use single-quoted strings inside the GitHub Actions expression,
-// so this invariant holds for all compiler-generated fallback values).
-var guardExprRE = regexp.MustCompile(`"` + regexp.QuoteMeta(guardExprSentinel) + `(\$\{\{[^"]+\}\})"`)
+// Expressions are of the form ${{ ... }} (GitHub Actions expressions) or ${VAR}
+// (shell environment variable references used for template injection prevention).
+// They must not contain double quotes (our generated expressions use single-quoted
+// strings inside the GitHub Actions expression or simple env var names,
+// so this invariant holds for all compiler-generated values).
+var guardExprRE = regexp.MustCompile(`"` + regexp.QuoteMeta(guardExprSentinel) + `(\$\{\{[^"]+\}\}|\$\{[A-Za-z_][A-Za-z0-9_]*\})"`)
 
 // renderGuardPoliciesJSON renders a "guard-policies" JSON field at the given indent level.
 // The policies map contains policy names (e.g., "allow-only") mapped to their configurations.
@@ -46,11 +49,12 @@ func renderGuardPoliciesJSON(yaml *strings.Builder, policies map[string]any, ind
 		return
 	}
 
-	// Un-quote sentinel-prefixed expression values so they are emitted as raw GitHub Actions
-	// expressions. For example:
-	//   Before: "blocked-users": "__GH_AW_GUARD_EXPR:${{ toJSON(vars.X || '') }}"
-	//   After:  "blocked-users": ${{ toJSON(vars.X || '') }}
-	// At runtime, GitHub Actions evaluates toJSON() which properly JSON-encodes the value.
+	// Un-quote sentinel-prefixed expression values so they are emitted as raw
+	// expressions (either GitHub Actions ${{ }} or shell ${VAR} references).
+	// For example:
+	//   Before: "blocked-users": "__GH_AW_GUARD_EXPR:${GH_AW_GUARD_BLOCKED_USERS}"
+	//   After:  "blocked-users": ${GH_AW_GUARD_BLOCKED_USERS}
+	// At runtime, bash expands the ${VAR} reference from the step env block.
 	output := guardExprRE.ReplaceAllString(string(jsonBytes), `$1`)
 
 	fmt.Fprintf(yaml, "%s\"guard-policies\": %s\n", indent, output)

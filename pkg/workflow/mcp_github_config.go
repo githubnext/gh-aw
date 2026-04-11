@@ -276,9 +276,12 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 			// parse-guard-vars step. The step outputs proper JSON arrays (split on comma/newline,
 			// validated, jq-encoded) from both the compile-time static values and the
 			// GH_AW_GITHUB_* org/repo variables.
-			policy["blocked-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.blocked_users }}"
-			policy["trusted-users"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.trusted_users }}"
-			policy["approval-labels"] = guardExprSentinel + "${{ steps.parse-guard-vars.outputs.approval_labels }}"
+			// Security: Use environment variable references instead of ${{ }} expressions
+			// directly in run: blocks to prevent template injection (zizmor: template-injection).
+			// The corresponding env vars are set in collectMCPEnvironmentVariables.
+			policy["blocked-users"] = guardExprSentinel + "${GH_AW_GUARD_BLOCKED_USERS}"
+			policy["trusted-users"] = guardExprSentinel + "${GH_AW_GUARD_TRUSTED_USERS}"
+			policy["approval-labels"] = guardExprSentinel + "${GH_AW_GUARD_APPROVAL_LABELS}"
 			return map[string]any{
 				"allow-only": policy,
 			}

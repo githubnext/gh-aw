@@ -209,18 +209,19 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// AND exceeds 21,000 characters total.
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 
-		// SECURITY: extract any ${{ secrets.* }} from config.json content and pass them
+		// SECURITY: extract ALL ${{ }} expressions from config.json content and pass them
 		// as env vars so the shell treats the values as data, not syntax.
-		configSecrets := ExtractSecretsFromValue(safeOutputConfig)
-		if len(configSecrets) > 0 {
+		// This prevents template injection vulnerabilities flagged by zizmor.
+		configExpressions := ExtractAllExpressionsFromValue(safeOutputConfig)
+		if len(configExpressions) > 0 {
 			yaml.WriteString("        env:\n")
-			secretKeys := make([]string, 0, len(configSecrets))
-			for k := range configSecrets {
-				secretKeys = append(secretKeys, k)
+			exprKeys := make([]string, 0, len(configExpressions))
+			for k := range configExpressions {
+				exprKeys = append(exprKeys, k)
 			}
-			sort.Strings(secretKeys)
-			for _, varName := range secretKeys {
-				yaml.WriteString("          " + varName + ": " + configSecrets[varName] + "\n")
+			sort.Strings(exprKeys)
+			for _, varName := range exprKeys {
+				yaml.WriteString("          " + varName + ": " + configExpressions[varName] + "\n")
 			}
 		}
 
@@ -240,12 +241,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Write the safe-outputs configuration to config.json
 		delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_CONFIG", workflowData.FrontmatterHash)
 		if safeOutputConfig != "" {
-			if len(configSecrets) > 0 {
-				// Replace ${{ secrets.X }} with ${X} and use unquoted heredoc so the
+			if len(configExpressions) > 0 {
+				// Replace ${{ expr }} with ${ENV_VAR} and use unquoted heredoc so the
 				// shell expands the env var references we set above.
 				sanitizedConfig := safeOutputConfig
-				for varName, secretExpr := range configSecrets {
-					sanitizedConfig = strings.ReplaceAll(sanitizedConfig, secretExpr, "${"+varName+"}")
+				for varName, fullExpr := range configExpressions {
+					sanitizedConfig = strings.ReplaceAll(sanitizedConfig, fullExpr, "${"+varName+"}")
 				}
 				yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << " + delimiter + "\n")
 				yaml.WriteString("          " + sanitizedConfig + "\n")
@@ -790,6 +791,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			addedEnvVars["GH_AW_SAFE_OUTPUTS_PORT"] = true
 			addedEnvVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = true
 		}
+		// Guard env vars are only needed for bash heredoc expansion in the MCP config,
+		// not inside the Docker container itself. Mark them as added to prevent passing them.
+		addedEnvVars["GH_AW_GUARD_BLOCKED_USERS"] = true
+		addedEnvVars["GH_AW_GUARD_TRUSTED_USERS"] = true
+		addedEnvVars["GH_AW_GUARD_APPROVAL_LABELS"] = true
 		if workflowData.OTLPEndpoint != "" {
 			addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = true
 			addedEnvVars["GITHUB_AW_OTEL_PARENT_SPAN_ID"] = true
