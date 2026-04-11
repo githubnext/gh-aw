@@ -369,6 +369,7 @@ Follow the formatting guidelines above. Use the following structure:
 
 ### Report Quality
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 - Be specific with numbers and percentages
 - Link to actual workflow runs for context
 - Provide actionable recommendations
