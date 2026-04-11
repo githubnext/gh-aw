@@ -132,11 +132,12 @@ var openCodeProviderDomains = map[string]string{
 	"xai":       "api.x.ai",
 }
 
-// OpenCodeDefaultDomains are the default domains required for OpenCode CLI operation.
-// Includes the Copilot API endpoints (default routing) plus infrastructure domains.
+// OpenCodeDefaultDomains are the static default domains for backward compatibility.
+// The dynamic path (GetOpenCodeDefaultDomains) resolves provider-specific domains
+// based on the model prefix and uses OpenCodeBaseDefaultDomains as the base.
 var OpenCodeDefaultDomains = []string{
 	"api.githubcopilot.com",             // Default provider (Copilot routing)
-	"api.openai.com",                    // OpenAI provider (fallback)
+	"api.openai.com",                    // Direct OpenAI provider access
 	"generativelanguage.googleapis.com", // Google/Gemini provider
 	"host.docker.internal",              // MCP gateway / API proxy access
 	"opencode.ai",                       // OpenCode telemetry/config (required for startup)
