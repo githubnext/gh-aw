@@ -423,7 +423,7 @@ func detectFirewallAuditArtifacts(runDir string) (manifestPath, auditJSONLPath s
 		firewallPolicyLog.Printf("Found audit JSONL: %s", auditJSONLPath)
 	}
 
-	// Also check for firewall-audit-logs directory (artifact name based path)
+	// Also check for legacy firewall-audit-logs directory (backward compat for older runs)
 	if manifestPath == "" || auditJSONLPath == "" {
 		entries, err := os.ReadDir(runDir)
 		if err != nil {

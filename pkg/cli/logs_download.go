@@ -564,7 +564,7 @@ func downloadArtifactsByName(runID int64, outputDir string, names []string, verb
 // criticalArtifactNames lists the artifact names that are essential for audit analysis.
 // When a bulk download fails partially (e.g., due to non-zip artifacts), these artifacts
 // are retried individually so that flattening and audit extraction have data to work with.
-var criticalArtifactNames = []string{"activation", "agent", "firewall-audit-logs"}
+var criticalArtifactNames = []string{"activation", "agent"}
 
 // retryCriticalArtifacts downloads critical artifacts individually when the bulk download
 // was only partially successful. gh run download aborts on the first non-zip artifact,

@@ -183,41 +183,6 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 	})
 }
 
-func TestGenerateFirewallAuditLogsUploadStep(t *testing.T) {
-	t.Run("includes both logs and audit directories in upload path", func(t *testing.T) {
-		compiler := NewCompiler()
-		var yaml strings.Builder
-
-		compiler.generateFirewallAuditLogsUploadStep(&yaml, "")
-
-		output := yaml.String()
-		if !strings.Contains(output, "/tmp/gh-aw/sandbox/firewall/logs/") {
-			t.Error("Expected upload step to include firewall logs directory")
-		}
-		if !strings.Contains(output, "/tmp/gh-aw/sandbox/firewall/audit/") {
-			t.Error("Expected upload step to include firewall audit directory")
-		}
-		if !strings.Contains(output, "path: |") {
-			t.Error("Expected upload step to use multi-line YAML path")
-		}
-		if !strings.Contains(output, "firewall-audit-logs") {
-			t.Error("Expected upload step to use firewall-audit-logs artifact name")
-		}
-	})
-
-	t.Run("includes prefix in artifact name for workflow_call context", func(t *testing.T) {
-		compiler := NewCompiler()
-		var yaml strings.Builder
-
-		compiler.generateFirewallAuditLogsUploadStep(&yaml, "my-prefix-")
-
-		output := yaml.String()
-		if !strings.Contains(output, "my-prefix-firewall-audit-logs") {
-			t.Error("Expected upload step to include prefix in artifact name")
-		}
-	})
-}
-
 func TestCheckFirewallDisable(t *testing.T) {
 	t.Run("firewall enabled - no validation", func(t *testing.T) {
 		compiler := NewCompiler()

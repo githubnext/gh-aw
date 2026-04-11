@@ -564,16 +564,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 
+	// Include firewall audit/observability logs in the unified agent artifact
+	// so all agent job outputs ship as a single artifact (AWF v0.25.0+).
+	if isFirewallEnabled(data) {
+		artifactPaths = append(artifactPaths, constants.AWFProxyLogsDir+"/")
+		artifactPaths = append(artifactPaths, constants.AWFAuditDir+"/")
+	}
+
 	// Generate single unified artifact upload with all collected paths.
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
-
-	// Upload firewall audit logs as a dedicated artifact so users can inspect network
-	// activity, policy decisions, and blocked domains after the run (AWF v0.25.0+).
-	if isFirewallEnabled(data) {
-		c.generateFirewallAuditLogsUploadStep(yaml, agentArtifactPrefix)
-	}
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)

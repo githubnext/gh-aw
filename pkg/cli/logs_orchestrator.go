@@ -779,10 +779,11 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.AccessAnalysis = accessAnalysis
 
-				// Analyze firewall/gateway data only when firewall-audit-logs was downloaded.
+				// Analyze firewall/gateway data only when the agent artifact was downloaded.
+				// Firewall audit logs are now included in the unified agent artifact.
 				// Skip silently when the artifact was intentionally excluded from the filter to
 				// avoid spurious "not found" warnings in verbose mode.
-				hasFirewallArtifact := artifactMatchesFilter(constants.FirewallAuditArtifactName, artifactFilter)
+				hasFirewallArtifact := artifactMatchesFilter(constants.AgentArtifactName, artifactFilter)
 
 				// Analyze firewall logs if available
 				var firewallAnalysis *FirewallAnalysis
@@ -843,7 +844,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result.MCPFailures = mcpFailures
 
 				// Extract MCP tool usage data from gateway logs if available.
-				// Gated on hasFirewallArtifact since gateway.jsonl lives in firewall-audit-logs.
+				// Gated on hasFirewallArtifact since gateway.jsonl lives in the agent artifact.
 				var mcpToolUsage *MCPToolUsageData
 				if hasFirewallArtifact {
 					var mcpToolErr error
@@ -857,7 +858,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result.MCPToolUsage = mcpToolUsage
 
 				// Analyze token usage from firewall proxy logs.
-				// Gated on hasFirewallArtifact since token-usage.jsonl lives in firewall-audit-logs.
+				// Gated on hasFirewallArtifact since token-usage.jsonl lives in the agent artifact.
 				var tokenUsage *TokenUsageSummary
 				if hasFirewallArtifact {
 					var tokenErr error

@@ -173,7 +173,7 @@ func findTokenUsageFile(runDir string) string {
 		return primary
 	}
 
-	// Check firewall-audit-logs artifact directory
+	// Check legacy firewall-audit-logs artifact directory (backward compat for older runs)
 	entries, err := os.ReadDir(runDir)
 	if err != nil {
 		return ""
