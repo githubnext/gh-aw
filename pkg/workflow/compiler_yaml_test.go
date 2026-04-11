@@ -217,7 +217,7 @@ strict: false
 Invalid YAML with invalid number format.`,
 			expectedErrorLine:   3, // The timeout-minutes field is on line 3
 			expectedErrorColumn: 17,
-			expectedMessagePart: "got number, want integer", // Schema validation catches this
+			expectedMessagePart: "expected integer or string, got number", // Synthesized from oneOf type conflicts
 			description:         "invalid number format should trigger schema validation error",
 		},
 		{

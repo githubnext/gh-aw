@@ -72,6 +72,33 @@ func formatCompilerErrorWithPosition(filePath string, line int, column int, errT
 	return &wrappedCompilerError{formatted: formattedErr, cause: cause}
 }
 
+// formatCompilerErrorWithContext creates a formatted compiler error with specific
+// line/column position and source-code context lines for Rust-style rendering.
+// Use this when source context is available; otherwise use formatCompilerErrorWithPosition.
+//
+// filePath: the file path to include in the error
+// line: the line number where the error occurred
+// column: the column number where the error occurred
+// errType: the error type ("error" or "warning")
+// message: the error message text
+// cause: optional underlying error to wrap (use nil for validation errors)
+// context: source code lines around the error for Rust-like snippet rendering
+func formatCompilerErrorWithContext(filePath string, line int, column int, errType string, message string, cause error, context []string) error {
+	compilerErrorLog.Printf("Formatting compiler error with context: file=%s, line=%d, column=%d, type=%s, context=%d lines", filePath, line, column, errType, len(context))
+	formattedErr := console.FormatError(console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   filePath,
+			Line:   line,
+			Column: column,
+		},
+		Type:    errType,
+		Message: message,
+		Context: context,
+	})
+
+	return &wrappedCompilerError{formatted: formattedErr, cause: cause}
+}
+
 // formatCompilerMessage creates a formatted compiler message string (for warnings printed to stderr)
 // filePath: the file path to include in the message (typically markdownPath or lockFile)
 // msgType: the message type ("error" or "warning")

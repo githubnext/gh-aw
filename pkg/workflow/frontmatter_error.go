@@ -23,6 +23,33 @@ var (
 	sourceContextPattern = regexp.MustCompile(`\n(\s+\d+\s*\|)`)
 )
 
+// readSourceContextLines extracts source lines around a target line (±3 lines)
+// from the given file content for Rust-style error rendering.
+// The returned slice is suitable for console.CompilerError.Context.
+func readSourceContextLines(content []byte, targetLine int) []string {
+	allLines := strings.Split(string(content), "\n")
+	contextSize := 7 // ±3 lines around the error
+
+	// Calculate the expected first line of the context window
+	expectedFirstLine := targetLine - contextSize/2
+	fileStart := max(0, expectedFirstLine-1) // 0-indexed, clamped to file start
+
+	var contextLines []string
+
+	// Pad with empty strings for lines that are before the file
+	for lineNum := expectedFirstLine; lineNum < 1; lineNum++ {
+		contextLines = append(contextLines, "")
+	}
+
+	// Add real lines from the file
+	fileEnd := min(len(allLines), fileStart+contextSize-len(contextLines))
+	for i := fileStart; i < fileEnd; i++ {
+		contextLines = append(contextLines, allLines[i])
+	}
+
+	return contextLines
+}
+
 // findFrontmatterFieldLine searches frontmatterLines for a line whose first
 // non-space key matches fieldName (e.g., "engine") and returns the 1-based
 // document line number.  frontmatterStart is the 1-based line number of the

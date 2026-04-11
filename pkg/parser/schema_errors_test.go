@@ -48,12 +48,21 @@ func TestCleanOneOfMessage(t *testing.T) {
 			wantAny: []string{"deployments"},
 		},
 		{
-			name: "message unchanged when all sub-errors are type conflicts",
+			name: "all type conflicts synthesizes plain-English message",
 			input: "at '/x': 'oneOf' failed, none matched\n" +
 				"- at '/x': got string, want object\n" +
 				"- at '/x': got string, want array",
-			// When nothing meaningful remains, return the original
-			wantAny: []string{"oneOf"},
+			// When all sub-errors are type conflicts, synthesize a plain-English message
+			wantNot: []string{"oneOf", "got string, want object"},
+			wantAny: []string{"expected object or array, got string"},
+		},
+		{
+			name: "engine type conflict produces actionable message",
+			input: "at '/engine': 'oneOf' failed, none matched\n" +
+				"- at '/engine': got number, want string\n" +
+				"- at '/engine': got number, want object",
+			wantNot: []string{"oneOf", "got number, want string"},
+			wantAny: []string{"expected string or object, got number", "Valid engine names", "copilot"},
 		},
 	}
 
@@ -76,6 +85,68 @@ func TestCleanOneOfMessage(t *testing.T) {
 				}
 				assert.True(t, found,
 					"Result should contain at least one of %v\nResult: %s", tt.wantAny, result)
+			}
+		})
+	}
+}
+
+// TestSynthesizeOneOfTypeConflictMessage tests the fallback message synthesis for oneOf
+// errors where all sub-errors are type conflicts.
+func TestSynthesizeOneOfTypeConflictMessage(t *testing.T) {
+	tests := []struct {
+		name    string
+		lines   []string
+		want    string
+		wantAny []string // at least one of these must appear in output
+	}{
+		{
+			name: "engine field with number type produces actionable message",
+			lines: []string{
+				"at '/engine': 'oneOf' failed, none matched",
+				"- at '/engine': got number, want string",
+				"- at '/engine': got number, want object",
+			},
+			wantAny: []string{"expected string or object, got number", "Valid engine names", "copilot"},
+		},
+		{
+			name: "unknown field produces generic message without hints",
+			lines: []string{
+				"at '/foo': 'oneOf' failed, none matched",
+				"- at '/foo': got boolean, want string",
+				"- at '/foo': got boolean, want array",
+			},
+			want: "expected string or array, got boolean",
+		},
+		{
+			name: "bare got-want without path",
+			lines: []string{
+				"'oneOf' failed, none matched",
+				"got integer, want string",
+				"got integer, want object",
+			},
+			want: "expected string or object, got integer",
+		},
+		{
+			name: "no type conflicts returns fallback",
+			lines: []string{
+				"'oneOf' failed, none matched",
+			},
+			want: "schema validation failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := synthesizeOneOfTypeConflictMessage(tt.lines)
+
+			if tt.want != "" {
+				assert.Equal(t, tt.want, result,
+					"synthesizeOneOfTypeConflictMessage should produce expected message")
+			}
+
+			for _, wanted := range tt.wantAny {
+				assert.Contains(t, result, wanted,
+					"Result should contain %q\nResult: %s", wanted, result)
 			}
 		})
 	}
@@ -117,6 +188,26 @@ func TestIsTypeConflictLine(t *testing.T) {
 			name: "empty line is not a type conflict",
 			line: "",
 			want: false,
+		},
+		{
+			name: "minItems constraint is not a type conflict",
+			line: "- at '/safe-outputs/add-labels/allowed': minItems: got 0, want 1",
+			want: false,
+		},
+		{
+			name: "minimum constraint is not a type conflict",
+			line: "- at '/tools/timeout': minimum: got 0, want 1",
+			want: false,
+		},
+		{
+			name: "maximum constraint is not a type conflict",
+			line: "maximum: got 120, want 60",
+			want: false,
+		},
+		{
+			name: "got number want integer is a type conflict",
+			line: "- at '/timeout-minutes': got number, want integer",
+			want: true,
 		},
 	}
 

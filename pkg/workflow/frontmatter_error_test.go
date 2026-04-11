@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,6 +82,44 @@ func TestFindFrontmatterFieldLine(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := findFrontmatterFieldLine(tt.frontmatterLines, tt.frontmatterStart, tt.fieldName)
 			assert.Equal(t, tt.expectedDocLine, got, tt.description)
+		})
+	}
+}
+
+// TestReadSourceContextLines verifies that reading source context lines around a
+// target line produces the expected context window for Rust-style error rendering.
+func TestReadSourceContextLines(t *testing.T) {
+	content := []byte("---\nengine: 123\non: push\n---\n# Workflow")
+
+	tests := []struct {
+		name       string
+		targetLine int
+		wantLen    int
+		wantAny    string // at least this substring appears in the joined output
+	}{
+		{
+			name:       "context around engine line",
+			targetLine: 2,
+			wantLen:    7,
+			wantAny:    "engine: 123",
+		},
+		{
+			name:       "context near start of file",
+			targetLine: 1,
+			wantLen:    7,
+			wantAny:    "---",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines := readSourceContextLines(content, tt.targetLine)
+			assert.LessOrEqual(t, len(lines), tt.wantLen, "context should not exceed %d lines", tt.wantLen)
+			assert.NotEmpty(t, lines, "context should not be empty")
+
+			joined := strings.Join(lines, "\n")
+			assert.Contains(t, joined, tt.wantAny,
+				"context should contain the target line content")
 		})
 	}
 }
