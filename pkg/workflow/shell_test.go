@@ -93,6 +93,21 @@ func TestShellEscapeArg(t *testing.T) {
 			input:    "path\\to\\file",
 			expected: "'path\\to\\file'",
 		},
+		{
+			name:     "GitHub Actions expression uses double quotes",
+			input:    "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com",
+			expected: `"${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com"`,
+		},
+		{
+			name:     "simple GitHub Actions expression uses double quotes",
+			input:    "${{ env.DOMAINS }}",
+			expected: `"${{ env.DOMAINS }}"`,
+		},
+		{
+			name:     "GitHub Actions expression with embedded double quotes escapes them",
+			input:    `${{ env.X == "test" && env.Y || env.Z }}`,
+			expected: `"${{ env.X == \"test\" && env.Y || env.Z }}"`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -130,6 +145,11 @@ func TestShellJoinArgs(t *testing.T) {
 			name:     "prompt with pre-quoted instruction is now properly escaped by shellJoinArgs",
 			input:    []string{"copilot", "--add-dir", "/tmp/gh-aw/", "--prompt", "\"$INSTRUCTION\""},
 			expected: "copilot --add-dir /tmp/gh-aw/ --prompt '\"$INSTRUCTION\"'",
+		},
+		{
+			name:     "allow-domains with GitHub Actions expression uses double quotes",
+			input:    []string{"--allow-domains", "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com"},
+			expected: `--allow-domains "${{ env.MCP_ENV == 'staging' && env.MCP_URL_STAGING || env.MCP_URL_PROD }},errors.code.visualstudio.com"`,
 		},
 	}
 

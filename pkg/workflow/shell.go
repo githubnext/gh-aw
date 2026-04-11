@@ -24,6 +24,17 @@ func shellJoinArgs(args []string) string {
 // shellEscapeArg escapes a single argument for safe use in shell commands
 // Arguments containing special characters are wrapped in single quotes
 func shellEscapeArg(arg string) string {
+	// If the argument contains GitHub Actions expressions (${{ }}), use double-quote
+	// wrapping. GitHub Actions evaluates ${{ }} at the YAML level before the shell runs,
+	// so single-quoting would mangle the expression syntax (e.g., 'staging' inside
+	// ${{ env.X == 'staging' }} becomes '\''staging'\'' which GA cannot parse).
+	// Double-quoting preserves the expression for GA evaluation.
+	if containsGitHubActionsExpression(arg) {
+		shellLog.Print("Argument contains GitHub Actions expression, using double-quote wrapping")
+		escaped := strings.ReplaceAll(arg, `"`, `\"`)
+		return `"` + escaped + `"`
+	}
+
 	// Check if the argument contains special shell characters that need escaping
 	if strings.ContainsAny(arg, "()[]{}*?$`\"'\\|&;<> \t\n") {
 		shellLog.Print("Argument contains special characters, applying escaping")
@@ -34,6 +45,12 @@ func shellEscapeArg(arg string) string {
 		return "'" + escaped + "'"
 	}
 	return arg
+}
+
+// containsGitHubActionsExpression checks if a string contains GitHub Actions
+// expressions (${{ ... }}).
+func containsGitHubActionsExpression(s string) bool {
+	return strings.Contains(s, "${{") && strings.Contains(s, "}}")
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command
