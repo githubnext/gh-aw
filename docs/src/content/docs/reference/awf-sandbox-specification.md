@@ -56,7 +56,7 @@ The Agent Workflow Firewall (AWF) provides a containerized sandbox environment f
 
 This specification covers:
 
-- Sandbox top-level configuration (`sandbox.agent`, `sandbox.mcp`)
+- Sandbox agent configuration (`sandbox.agent`)
 - Network permissions configuration (`network.allowed`, `network.blocked`, `network.firewall`)
 - AWF command-line arguments and their mapping from workflow frontmatter
 - Engine definition types (`EngineDefinition`, `ProviderSelection`, `AuthDefinition`)
@@ -65,7 +65,7 @@ This specification covers:
 
 This specification does NOT cover:
 
-- MCP Gateway protocol behavior (see [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/))
+- MCP Gateway protocol behavior (see [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/)) — the `sandbox.mcp` field is out of scope for this specification
 - Individual engine CLI installation or execution steps
 - Threat detection or input sanitization layers (see [Security Architecture Specification](/gh-aw/specs/security-architecture-spec/))
 - GitHub Actions workflow syntax
@@ -131,11 +131,6 @@ Implementations MUST support:
 │  │  │  └──────────────────────────────────────┘    │   │  │
 │  │  └───────────────────────────────────────────────┘   │  │
 │  └───────────────────────────────────────────────────────┘  │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │              MCP Gateway (Sidecar)                     │  │
-│  │         (See MCP Gateway Specification)                │  │
-│  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -163,12 +158,11 @@ The AWF operates as a wrapper command that:
 
 ### 4.1 Top-Level Structure
 
-The `sandbox` field in workflow frontmatter configures the sandbox environment. It MUST conform to the following structure:
+The `sandbox` field in workflow frontmatter configures the sandbox environment. This specification covers only the `sandbox.agent` sub-field. The `sandbox.mcp` field is defined by the [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/).
 
 ```yaml
 sandbox:
   agent: <AgentSandboxConfig | "awf" | false>
-  mcp: <MCPGatewayRuntimeConfig>
 ```
 
 ### 4.2 Agent Sandbox Configuration
@@ -183,7 +177,7 @@ When `sandbox.agent` is a string, it MUST be one of the following values:
 | `default` | Alias for `awf` (backward compatibility) |
 | `false` | Disables the agent sandbox |
 
-When `sandbox.agent` is set to `false`, the AWF firewall container SHALL NOT be started and the engine command SHALL run directly on the runner host without network isolation. The MCP gateway SHALL remain active.
+When `sandbox.agent` is set to `false`, the AWF firewall container SHALL NOT be started and the engine command SHALL run directly on the runner host without network isolation.
 
 #### 4.2.2 Object Format
 
@@ -229,29 +223,11 @@ When the `sandbox` field is omitted from the workflow frontmatter, implementatio
 
 1. `sandbox.agent` SHALL default to `awf`
 2. The AWF firewall SHALL be enabled
-3. The MCP gateway SHALL remain active
 
 When `sandbox.agent` is explicitly set to `false`:
 
 1. The AWF container SHALL NOT be started
 2. The engine command SHALL run directly on the runner host
-3. The MCP gateway SHALL remain active (it cannot be disabled)
-
-### 4.3 MCP Gateway Runtime Configuration
-
-The `sandbox.mcp` field configures the MCP Gateway sidecar. This specification defers the full MCP Gateway protocol behavior to the [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/). The following fields are relevant to AWF sandbox integration:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `port` | integer | No | Gateway HTTP port. MUST be between 1 and 65535. |
-| `api-key` | string | No | API key for gateway authentication. MAY contain `${{ secrets.* }}` expressions. |
-| `version` | string | No | Gateway container image version. |
-| `container` | string | No | Custom container image for the gateway. Default: `ghcr.io/github/gh-aw-mcpg`. |
-| `domain` | string | No | Domain name for gateway access from inside the container. |
-| `trusted-bots` | string[] | No | GitHub bot identities passed to the gateway's trust list. |
-| `keepalive-interval` | integer | No | Keepalive ping interval in seconds for HTTP MCP backends. |
-| `payload-dir` | string | No | Directory for large payload file exchange. Default: `/tmp/gh-aw/mcp-payloads`. |
-| `payload-size-threshold` | integer | No | Size threshold (bytes) above which payloads are stored to disk. Default: `524288` (512 KB). |
 
 ---
 
@@ -461,7 +437,7 @@ The following arguments MUST always be present:
 | `--log-level` | `"info"` (default) | AWF log verbosity. |
 | `--proxy-logs-dir` | `/tmp/gh-aw/sandbox/firewall/logs` | Directory for proxy log files. |
 | `--audit-dir` | `/tmp/gh-aw/sandbox/firewall/audit` | Directory for audit files (policy-manifest, squid.conf). |
-| `--enable-host-access` | (flag) | Enable access to host services (API proxy, MCP gateway). |
+| `--enable-host-access` | (flag) | Enable access to host services (API proxy sidecar and other sidecars). |
 | `--image-tag` | AWF version (without `v` prefix) | Pin Docker image version to match installed binary. |
 | `--skip-pull` | (flag) | Skip pulling images (pre-downloaded during setup). |
 | `--enable-api-proxy` | (flag) | Enable the API proxy sidecar for LLM credential isolation. |
@@ -727,7 +703,6 @@ System-level secrets that are not engine-specific:
 |--------|----------|-------------|
 | `GH_AW_GITHUB_TOKEN` | Optional | PAT for GitHub write operations using a user identity. |
 | `GH_AW_AGENT_TOKEN` | Optional | PAT for agent/bot assignment to issues or pull requests. |
-| `GH_AW_GITHUB_MCP_SERVER_TOKEN` | Optional | Read-mostly token for isolating MCP server permissions. |
 
 ### 8.8 Custom API Targets
 
@@ -821,7 +796,7 @@ When SSL Bump is enabled, the AWF intercepts and decrypts HTTPS traffic for cont
 ### 11.1 Sandbox Configuration Tests
 
 - **T-SBX-001**: Default sandbox configuration creates AWF agent when `sandbox` field is omitted.
-- **T-SBX-002**: `sandbox.agent: false` disables the AWF container but keeps MCP gateway active.
+- **T-SBX-002**: `sandbox.agent: false` disables the AWF container.
 - **T-SBX-003**: `sandbox.agent: awf` explicitly enables AWF.
 - **T-SBX-004**: Legacy `sandbox.type: default` is treated as AWF.
 - **T-SBX-005**: Object format `sandbox.agent.id: awf` is accepted.
@@ -888,7 +863,7 @@ When SSL Bump is enabled, the AWF intercepts and decrypts HTTPS traffic for cont
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
 | Default sandbox is AWF | T-SBX-001 | 1 | Required |
-| Agent disable keeps MCP | T-SBX-002 | 1 | Required |
+| Agent disable | T-SBX-002 | 1 | Required |
 | Mount format validation | T-MNT-001–006 | 1 | Required |
 | Domain-based filtering | T-NET-001–005 | 1 | Required |
 | Firewall auto-enablement | T-FWL-004–008 | 1 | Required |
@@ -909,7 +884,6 @@ When SSL Bump is enabled, the AWF intercepts and decrypts HTTPS traffic for cont
 ### Normative References
 
 - **[RFC 2119]** Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14, RFC 2119, March 1997.
-- **[MCP Gateway Specification]** GitHub Agentic Workflows Team, "MCP Gateway Specification", Draft, [/gh-aw/reference/mcp-gateway/](/gh-aw/reference/mcp-gateway/).
 - **[Security Architecture Specification]** GitHub Agentic Workflows Team, "Security Architecture Specification", Candidate Recommendation.
 
 ### Informative References
@@ -925,7 +899,7 @@ When SSL Bump is enabled, the AWF intercepts and decrypts HTTPS traffic for cont
 ### Version 1.0.0 (Draft)
 
 - Initial specification release
-- Sandbox configuration format (agent, MCP gateway)
+- Sandbox agent configuration format
 - Network egress control (allowed/blocked domains, ecosystems, protocol-qualified, wildcards)
 - Firewall configuration (log level, SSL Bump, auto-enablement, version pinning)
 - AWF command interface (required/conditional arguments, standard mounts, env exclusion)
