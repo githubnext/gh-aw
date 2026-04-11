@@ -137,12 +137,13 @@ This is a test.`,
 				inMainJob := false
 				foundEnvironment := false
 
+				agentJobLine := "  " + string(constants.AgentJobName) + ":"
 				for i, line := range lines {
-					if strings.Contains(line, string(constants.AgentJobName)+":") {
+					if line == agentJobLine {
 						inMainJob = true
 						continue
 					}
-					if inMainJob && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && line != "  "+string(constants.AgentJobName)+":" {
+					if inMainJob && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && line != agentJobLine {
 						// Found next job, stop looking
 						break
 					}
