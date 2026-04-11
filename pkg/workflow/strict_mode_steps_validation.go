@@ -114,6 +114,10 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 // classifyStepSecrets separates secrets found in a step into two categories:
 // - unsafeRefs: secrets found in fields other than "env" (e.g. run, with)
 // - envRefs: secrets found in step-level env: bindings (controlled, masked)
+//
+// Only secrets in well-formed env: mappings (map[string]any) are classified as
+// envRefs. Malformed env values (string, slice, etc.) are treated as unsafe to
+// prevent strict-mode bypass via invalid YAML like `env: "${{ secrets.TOKEN }}"`.
 func classifyStepSecrets(step any) (unsafeRefs, envRefs []string) {
 	stepMap, ok := step.(map[string]any)
 	if !ok {
@@ -123,7 +127,12 @@ func classifyStepSecrets(step any) (unsafeRefs, envRefs []string) {
 	for key, val := range stepMap {
 		refs := extractSecretsFromStepValue(val)
 		if key == "env" {
-			envRefs = append(envRefs, refs...)
+			if _, isMap := val.(map[string]any); isMap {
+				envRefs = append(envRefs, refs...)
+			} else {
+				// Malformed env (string, slice, etc.): treat as unsafe.
+				unsafeRefs = append(unsafeRefs, refs...)
+			}
 		} else {
 			unsafeRefs = append(unsafeRefs, refs...)
 		}

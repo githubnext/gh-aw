@@ -251,6 +251,38 @@ func TestValidateStepsSecrets(t *testing.T) {
 			strictMode:  true,
 			expectError: false,
 		},
+		{
+			name: "malformed string env with secret is blocked in strict mode",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Malformed env",
+						"env":  "${{ secrets.TOKEN }}",
+						"run":  "echo hi",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
+		},
+		{
+			name: "malformed slice env with secret is blocked in strict mode",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Malformed slice env",
+						"env": []any{
+							"${{ secrets.ARRAY_TOKEN }}",
+						},
+						"run": "echo hi",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
+		},
 	}
 
 	for _, tt := range tests {
@@ -335,6 +367,28 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run":  "echo hello",
 			},
 			expectedUnsafe: nil,
+			expectedEnv:    nil,
+		},
+		{
+			name: "secret in malformed string env is unsafe",
+			step: map[string]any{
+				"name": "Malformed env step",
+				"env":  "${{ secrets.TOKEN }}",
+				"run":  "echo hi",
+			},
+			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
+			expectedEnv:    nil,
+		},
+		{
+			name: "secret in malformed slice env is unsafe",
+			step: map[string]any{
+				"name": "Malformed env slice step",
+				"env": []any{
+					"${{ secrets.ARRAY_TOKEN }}",
+				},
+				"run": "echo hi",
+			},
+			expectedUnsafe: []string{"${{ secrets.ARRAY_TOKEN }}"},
 			expectedEnv:    nil,
 		},
 	}
