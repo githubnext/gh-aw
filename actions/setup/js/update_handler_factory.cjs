@@ -44,7 +44,7 @@ function createStandardResolveNumber(config) {
     // Resolve temporary IDs in the item number field before target resolution
     let resolvedItem = item;
     const itemNumberValue = item[itemNumberField];
-    if (resolvedTemporaryIds && itemNumberValue !== undefined && itemNumberValue !== null) {
+    if (resolvedTemporaryIds && itemNumberValue != null) {
       const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
       const resolvedTarget = resolveRepoIssueTarget(itemNumberValue, tempIdMap, context.repo.owner, context.repo.repo);
       if (resolvedTarget.wasTemporaryId && resolvedTarget.resolved) {

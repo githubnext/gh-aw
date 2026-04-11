@@ -358,8 +358,9 @@ async function main(config = {}) {
     let itemNumber;
     let isDiscussion = false;
 
-    // Check if item_number or issue_number was explicitly provided in the message
-    const explicitItemNumber = message.item_number !== undefined && message.item_number !== null ? message.item_number : message.issue_number !== undefined && message.issue_number !== null ? message.issue_number : undefined;
+    // Check if item_number or issue_number was explicitly provided in the message.
+    // item_number takes precedence over issue_number when both are present.
+    const explicitItemNumber = message.item_number != null ? message.item_number : message.issue_number != null ? message.issue_number : undefined;
 
     if (explicitItemNumber !== undefined) {
       // Resolve temporary IDs if present
