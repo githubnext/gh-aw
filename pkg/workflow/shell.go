@@ -48,9 +48,13 @@ func shellEscapeArg(arg string) string {
 }
 
 // containsGitHubActionsExpression checks if a string contains GitHub Actions
-// expressions (${{ ... }}).
+// expressions (${{ ... }}). It verifies that ${{ appears before }}.
 func containsGitHubActionsExpression(s string) bool {
-	return strings.Contains(s, "${{") && strings.Contains(s, "}}")
+	openIdx := strings.Index(s, "${{")
+	if openIdx < 0 {
+		return false
+	}
+	return strings.Index(s[openIdx:], "}}") >= 0
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command
