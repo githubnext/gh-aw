@@ -5,11 +5,22 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var log = logger.New("gitutil:gitutil")
+
+// cachedGitRoot caches the result of FindGitRoot across calls within the same
+// process.  The git repository root never changes during a single process
+// lifetime, so running `git rev-parse --show-toplevel` more than once is pure
+// overhead.
+var (
+	gitRootOnce   sync.Once
+	cachedRoot    string
+	cachedRootErr error
+)
 
 // IsRateLimitError checks if an error message indicates a GitHub API rate limit error.
 // This is used to detect transient failures caused by hitting the GitHub API rate limit
@@ -67,18 +78,23 @@ func ExtractBaseRepo(repoPath string) string {
 }
 
 // FindGitRoot finds the root directory of the git repository.
+// The result is cached after the first successful (or failed) call because the
+// git root cannot change during a single process lifetime.
 // Returns an error if not in a git repository or if the git command fails.
 func FindGitRoot() (string, error) {
-	log.Print("Finding git root directory")
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		log.Printf("Failed to find git root: %v", err)
-		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
-	}
-	gitRoot := strings.TrimSpace(string(output))
-	log.Printf("Found git root: %s", gitRoot)
-	return gitRoot, nil
+	gitRootOnce.Do(func() {
+		log.Print("Finding git root directory")
+		cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+		output, err := cmd.Output()
+		if err != nil {
+			log.Printf("Failed to find git root: %v", err)
+			cachedRootErr = fmt.Errorf("not in a git repository or git command failed: %w", err)
+			return
+		}
+		cachedRoot = strings.TrimSpace(string(output))
+		log.Printf("Found git root: %s", cachedRoot)
+	})
+	return cachedRoot, cachedRootErr
 }
 
 // ReadFileFromHEAD returns the content of filePath as recorded in the most recent

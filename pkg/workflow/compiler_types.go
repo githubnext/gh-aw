@@ -89,6 +89,7 @@ type Compiler struct {
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
+	validatedContentHashes  map[string]bool          // Cache of content hashes that have passed all content-dependent validation (expression sizes, template injection, schema)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -104,18 +105,19 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	// Create compiler with defaults
 	c := &Compiler{
-		verbose:           false,
-		engineOverride:    "",
-		version:           version,
-		skipValidation:    true,                      // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:        DetectActionMode(version), // Auto-detect action mode based on version
-		jobManager:        NewJobManager(),
-		engineRegistry:    GetGlobalEngineRegistry(),
-		engineCatalog:     NewEngineCatalog(GetGlobalEngineRegistry()),
-		stepOrderTracker:  NewStepOrderTracker(),
-		artifactManager:   NewArtifactManager(),
-		actionPinWarnings: make(map[string]bool), // Initialize warning cache
-		gitRoot:           gitRoot,               // Auto-detected git root
+		verbose:                false,
+		engineOverride:         "",
+		version:                version,
+		skipValidation:         true,                      // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:             DetectActionMode(version), // Auto-detect action mode based on version
+		jobManager:             NewJobManager(),
+		engineRegistry:         GetGlobalEngineRegistry(),
+		engineCatalog:          NewEngineCatalog(GetGlobalEngineRegistry()),
+		stepOrderTracker:       NewStepOrderTracker(),
+		artifactManager:        NewArtifactManager(),
+		actionPinWarnings:      make(map[string]bool), // Initialize warning cache
+		gitRoot:                gitRoot,               // Auto-detected git root
+		validatedContentHashes: make(map[string]bool), // Initialize validation cache
 	}
 
 	// Apply functional options

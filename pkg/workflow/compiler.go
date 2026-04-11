@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -40,6 +42,13 @@ var containerPinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
 // so that compiled output compares equal regardless of whether the action cache was loaded.
 func normalizeContainerPins(content string) string {
 	return containerPinRE.ReplaceAllString(content, "")
+}
+
+// hashYAMLContent computes a SHA-256 hex digest of the given YAML content.
+// Used as a cache key for skipping redundant validation of identical output.
+func hashYAMLContent(content string) string {
+	h := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(h[:])
 }
 
 const (
@@ -451,6 +460,16 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err), err)
 	}
 
+	// Fast-path: skip content-dependent validation if we have already validated identical
+	// YAML content in a previous compilation with this compiler instance.  The compiled
+	// output is deterministic (frontmatter-hash-based heredoc delimiters), so the same
+	// content always produces the same validation result.
+	contentHash := hashYAMLContent(yamlContent)
+	if c.validatedContentHashes[contentHash] {
+		log.Print("Skipping content validation (cache hit)")
+		return yamlContent, bodySecrets, bodyActions, nil
+	}
+
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
 	// that cannot be bypassed, so we validate it unconditionally
 	log.Print("Validating expression sizes")
@@ -567,6 +586,10 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
 	}
+
+	// All content-dependent validation passed — cache the result so we can skip
+	// validation on subsequent compilations of the same (deterministic) YAML.
+	c.validatedContentHashes[contentHash] = true
 
 	return yamlContent, bodySecrets, bodyActions, nil
 }
