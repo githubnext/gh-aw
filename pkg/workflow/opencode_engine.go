@@ -126,21 +126,28 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	opencodeArgs = append(opencodeArgs, "--print-logs")
 	opencodeArgs = append(opencodeArgs, "--log-level", "DEBUG")
 
-	// Prompt from file (positional argument to `opencode run`)
-	opencodeArgs = append(opencodeArgs, "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
+	// Prompt from file (positional argument to `opencode run`).
+	// Keep this outside shellJoinArgs so command substitution expands at runtime.
+	promptArg := "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
 
 	// Build command name
 	commandName := "opencode"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		commandName = workflowData.EngineConfig.Command
 	}
-	opencodeCommand := fmt.Sprintf("%s run %s", commandName, shellJoinArgs(opencodeArgs))
+	opencodeCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(opencodeArgs), promptArg)
 
 	// AWF wrapping
 	firewallEnabled := isFirewallEnabled(workflowData)
 	var command string
 	if firewallEnabled {
+		// Resolve model for provider-specific domain allowlisting
+		model := ""
+		if modelConfigured {
+			model = workflowData.EngineConfig.Model
+		}
 		allowedDomains := GetOpenCodeAllowedDomainsWithToolsAndRuntimes(
+			model,
 			workflowData.NetworkPermissions,
 			workflowData.Tools,
 			workflowData.Runtimes,
@@ -220,8 +227,9 @@ func (e *OpenCodeEngine) generateOpenCodeConfigStep(_ *WorkflowData) GitHubActio
 	// Build the config JSON with all permissions set to allow
 	configJSON := `{"agent":{"build":{"permissions":{"bash":"allow","edit":"allow","read":"allow","glob":"allow","grep":"allow","write":"allow","webfetch":"allow","websearch":"allow"}}}}`
 
-	// Shell command to write or merge the config
-	command := fmt.Sprintf(`mkdir -p "$GITHUB_WORKSPACE"
+	// Shell command to write or merge the config with restrictive permissions
+	command := fmt.Sprintf(`umask 077
+mkdir -p "$GITHUB_WORKSPACE"
 CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
 BASE_CONFIG='%s'
 if [ -f "$CONFIG" ]; then
@@ -229,7 +237,8 @@ if [ -f "$CONFIG" ]; then
   echo "$MERGED" > "$CONFIG"
 else
   echo "$BASE_CONFIG" > "$CONFIG"
-fi`, configJSON)
+fi
+chmod 600 "$CONFIG"`, configJSON)
 
 	stepLines := []string{"      - name: Write OpenCode configuration"}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)

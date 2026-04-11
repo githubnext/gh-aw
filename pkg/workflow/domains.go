@@ -170,10 +170,11 @@ func GetOpenCodeDefaultDomains(model string) []string {
 	return domains
 }
 
-// GetOpenCodeAllowedDomainsWithToolsAndRuntimes merges OpenCode default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngine(constants.OpenCodeEngine, network, tools, runtimes)
+// GetOpenCodeAllowedDomainsWithToolsAndRuntimes merges OpenCode default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
+// Pass the selected model (e.g. "anthropic/claude-sonnet-4-20250514") so provider-specific
+// API domains are included. Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
+func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return GetAllowedDomainsForEngineWithModel(constants.OpenCodeEngine, model, network, tools, runtimes)
 }
 
 // PlaywrightDomains are the domains required for Playwright browser downloads
@@ -610,22 +611,46 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 	return strings.Join(domains, ",")
 }
 
-// engineDefaultDomains maps each engine to its default required domains.
-// Add new engines here to avoid adding new engine-specific domain functions.
+// engineDefaultDomains maps each engine to its static default required domains.
+// Engines with model-specific defaults (for example, OpenCode) are resolved in
+// getDefaultDomainsForEngine instead of being stored directly in this map.
 var engineDefaultDomains = map[constants.EngineName][]string{
-	constants.CopilotEngine:  CopilotDefaultDomains,
-	constants.ClaudeEngine:   ClaudeDefaultDomains,
-	constants.CodexEngine:    CodexDefaultDomains,
-	constants.GeminiEngine:   GeminiDefaultDomains,
-	constants.OpenCodeEngine: OpenCodeDefaultDomains,
+	constants.CopilotEngine: CopilotDefaultDomains,
+	constants.ClaudeEngine:  ClaudeDefaultDomains,
+	constants.CodexEngine:   CodexDefaultDomains,
+	constants.GeminiEngine:  GeminiDefaultDomains,
+}
+
+// getDefaultDomainsForEngine returns the engine's default required domains.
+// OpenCode domains are model/provider-specific, so they must be resolved via
+// GetOpenCodeDefaultDomains(model) rather than the static engineDefaultDomains map.
+// Falls back to an empty default domain list for unknown engines.
+func getDefaultDomainsForEngine(engine constants.EngineName, model string) []string {
+	if engine == constants.OpenCodeEngine {
+		return GetOpenCodeDefaultDomains(model)
+	}
+
+	return engineDefaultDomains[engine]
+}
+
+// GetAllowedDomainsForEngineWithModel merges the engine's default domains with
+// NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
+// For engines with model/provider-specific defaults (such as OpenCode), pass the
+// selected model so the correct default domains are included.
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's
+// --allow-domains flag.
+func GetAllowedDomainsForEngineWithModel(engine constants.EngineName, model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(getDefaultDomainsForEngine(engine, model), network, tools, runtimes)
 }
 
 // GetAllowedDomainsForEngine merges the engine's default domains with NetworkPermissions,
 // HTTP MCP server domains, and runtime ecosystem domains.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 // Falls back to an empty default domain list for unknown engines.
+// For model/provider-specific engines such as OpenCode, prefer
+// GetAllowedDomainsForEngineWithModel so provider domains are included.
 func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return mergeDomainsWithNetworkToolsAndRuntimes(engineDefaultDomains[engine], network, tools, runtimes)
+	return GetAllowedDomainsForEngineWithModel(engine, "", network, tools, runtimes)
 }
 
 // GetCopilotAllowedDomainsWithToolsAndRuntimes merges Copilot default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
@@ -807,7 +832,11 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 	case "gemini":
 		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "opencode":
-		base = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
+		model := ""
+		if data.EngineConfig != nil {
+			model = data.EngineConfig.Model
+		}
+		base = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)

@@ -9,7 +9,13 @@
 #
 # See: https://opencode.ai/docs/mcp-servers/
 
-set -e
+set -euo pipefail
+
+# Restrict permissions so credential-bearing files are not world-readable.
+# umask 077 ensures new files are created with mode 0600 (owner-only read/write)
+# even before a subsequent chmod, which would leave credential-bearing files
+# world-readable (mode 0644) with a typical umask of 022.
+umask 077
 
 # Required environment variables:
 # - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
@@ -109,6 +115,7 @@ else
 fi
 
 echo "OpenCode configuration written to $OPENCODE_CONFIG_FILE"
+chmod 600 "$OPENCODE_CONFIG_FILE"
 echo ""
 echo "Converted configuration:"
 cat "$OPENCODE_CONFIG_FILE"
