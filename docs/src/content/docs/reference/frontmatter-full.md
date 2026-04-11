@@ -3925,6 +3925,13 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # When true, adds workflows: write to the GitHub App token permissions. Required
+    # when allowed-files targets .github/workflows/ paths. Requires
+    # safe-outputs.github-app to be configured because the workflows permission is a
+    # GitHub App-only permission and cannot be granted via GITHUB_TOKEN.
+    # (optional)
+    allow-workflows: true
+
   # Option 2: Enable pull request creation with default configuration
   create-pull-request: null
 
@@ -4978,6 +4985,13 @@ safe-outputs:
     # authorship, and merge-resolution-only content.
     # (optional)
     patch-format: "am"
+
+    # When true, adds workflows: write to the GitHub App token permissions. Required
+    # when allowed-files targets .github/workflows/ paths. Requires
+    # safe-outputs.github-app to be configured because the workflows permission is a
+    # GitHub App-only permission and cannot be granted via GITHUB_TOKEN.
+    # (optional)
+    allow-workflows: true
 
   # Enable AI agents to minimize (hide) comments on issues or pull requests based on
   # relevance, spam detection, or moderation rules.

@@ -307,3 +307,52 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
 	return nil
 }
+
+var safeOutputsAllowWorkflowsValidationLog = newValidationLogger("safe_outputs_allow_workflows")
+
+// validateSafeOutputsAllowWorkflows validates that allow-workflows: true requires
+// a GitHub App to be configured in safe-outputs.github-app. The workflows permission
+// is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.
+func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
+	if safeOutputs == nil {
+		return nil
+	}
+
+	hasAllowWorkflows := false
+	var handlers []string
+
+	if safeOutputs.CreatePullRequests != nil && safeOutputs.CreatePullRequests.AllowWorkflows {
+		hasAllowWorkflows = true
+		handlers = append(handlers, "create-pull-request")
+	}
+	if safeOutputs.PushToPullRequestBranch != nil && safeOutputs.PushToPullRequestBranch.AllowWorkflows {
+		hasAllowWorkflows = true
+		handlers = append(handlers, "push-to-pull-request-branch")
+	}
+
+	if !hasAllowWorkflows {
+		return nil
+	}
+
+	safeOutputsAllowWorkflowsValidationLog.Printf("allow-workflows: true found on: %s", strings.Join(handlers, ", "))
+
+	// Check if GitHub App is configured with required fields
+	if safeOutputs.GitHubApp == nil || safeOutputs.GitHubApp.AppID == "" || safeOutputs.GitHubApp.PrivateKey == "" {
+		safeOutputsAllowWorkflowsValidationLog.Print("allow-workflows requires github-app but none configured")
+		return fmt.Errorf(
+			"safe-outputs.%s.allow-workflows: requires a GitHub App to be configured.\n"+
+				"The workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.\n\n"+
+				"Add a GitHub App configuration to safe-outputs:\n\n"+
+				"safe-outputs:\n"+
+				"  github-app:\n"+
+				"    app-id: ${{ vars.APP_ID }}\n"+
+				"    private-key: ${{ secrets.APP_PRIVATE_KEY }}\n"+
+				"  %s:\n"+
+				"    allow-workflows: true",
+			handlers[0], handlers[0],
+		)
+	}
+
+	safeOutputsAllowWorkflowsValidationLog.Print("allow-workflows validation passed")
+	return nil
+}

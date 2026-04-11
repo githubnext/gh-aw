@@ -130,10 +130,20 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 			safeOutputsPermissionsLog.Print("Adding permissions for create-pull-request")
 			permissions.Merge(NewPermissionsContentsWritePRWrite())
 		}
+		// Add workflows: write when allow-workflows is true (GitHub App-only permission)
+		if safeOutputs.CreatePullRequests.AllowWorkflows {
+			safeOutputsPermissionsLog.Print("Adding workflows: write for create-pull-request (allow-workflows: true)")
+			permissions.Set(PermissionWorkflows, PermissionWrite)
+		}
 	}
 	if safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch")
 		permissions.Merge(NewPermissionsContentsWritePRWrite())
+		// Add workflows: write when allow-workflows is true (GitHub App-only permission)
+		if safeOutputs.PushToPullRequestBranch.AllowWorkflows {
+			safeOutputsPermissionsLog.Print("Adding workflows: write for push-to-pull-request-branch (allow-workflows: true)")
+			permissions.Set(PermissionWorkflows, PermissionWrite)
+		}
 	}
 	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")

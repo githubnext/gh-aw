@@ -39,6 +39,7 @@ type CreatePullRequestsConfig struct {
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PreserveBranchName             bool     `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
+	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration

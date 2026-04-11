@@ -5767,6 +5767,12 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "allow-workflows": {
+                  "type": "boolean",
+                  "description": "When true, adds workflows: write to the GitHub App token permissions. Required when allowed-files targets .github/workflows/ paths. Requires safe-outputs.github-app to be configured because the workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.",
+                  "default": false,
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false,
@@ -6921,6 +6927,12 @@
                   "enum": ["am", "bundle"],
                   "default": "am",
                   "description": "Transport format for packaging changes. \"am\" (default) uses git format-patch/git am. \"bundle\" uses git bundle, which preserves merge commit topology, per-commit authorship, and merge-resolution-only content."
+                },
+                "allow-workflows": {
+                  "type": "boolean",
+                  "description": "When true, adds workflows: write to the GitHub App token permissions. Required when allowed-files targets .github/workflows/ paths. Requires safe-outputs.github-app to be configured because the workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.",
+                  "default": false,
+                  "examples": [true, false]
                 }
               },
               "additionalProperties": false
