@@ -86,6 +86,7 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 For each issue found:
 - Record the issue number, title, body, and closing date.
 - Check whether a DDUw-created PR (label `documentation automation`, title prefix `[docs]`) was merged that references or addresses the issue in the same time window. If such a PR exists, DDUw likely already handled it — skip this issue.
+- If no DDUw `[docs]` PR references the issue, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found, verify the documentation change it made is complete and skip the issue.
 
 If no unaddressed documentation issues are found, call `noop` and stop.
 
@@ -105,6 +106,14 @@ For each issue that was NOT addressed by DDUw:
 ```bash
 find docs/src/content/docs -name '*.md' -o -name '*.mdx'
 ```
+
+5. **Artifact constant check**: After reviewing recent commits, run:
+
+```bash
+grep -Pn "ArtifactName\s*=" pkg/constants/constants.go pkg/constants/job_constants.go
+```
+
+For each constant found, verify that the artifact name value is listed in `docs/src/content/docs/reference/artifacts.md`. If a constant is missing from the reference page, treat it as a documentation gap and add it.
 
 Only proceed with issues where you can confirm the documentation gap still exists.
 
