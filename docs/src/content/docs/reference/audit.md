@@ -131,6 +131,7 @@ gh aw logs --format markdown --repo owner/repo --count 10
 ## Related Documentation
 
 - [Cost Management](/gh-aw/reference/cost-management/) — Track token usage and inference spend
+- [Artifacts](/gh-aw/reference/artifacts/) — Artifact names, directory structures, and token usage file locations (`token-usage.jsonl` in `firewall-audit-logs`)
 - [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) — How effective tokens are computed
 - [Network](/gh-aw/reference/network/) — Firewall and domain allow/deny configuration
 - [MCP Gateway](/gh-aw/reference/mcp-gateway/) — MCP server health and debugging

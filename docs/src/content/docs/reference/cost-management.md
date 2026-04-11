@@ -225,6 +225,7 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 ## Related Documentation
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting
+- [Artifacts](/gh-aw/reference/artifacts/) - Artifact names, directory structures, and token usage file locations
 - [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/) - How effective token counts are computed
 - [Triggers](/gh-aw/reference/triggers/) - Configuring workflow triggers and skip conditions
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) - Preventing runaway workflows
