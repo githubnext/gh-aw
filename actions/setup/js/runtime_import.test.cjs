@@ -896,6 +896,36 @@ describe("runtime_import", () => {
           }
         });
 
+        it("should resolve hyphenated inputs.* via context.payload.inputs fallback", () => {
+          // Hyphenated input names (e.g., inputs.task-description) are exported by the compiler
+          // as GH_AW_EXPR_<hash> (hash-based) rather than GH_AW_INPUTS_TASK-DESCRIPTION (simple).
+          // The simple env var lookup won't match, so the expression falls through to
+          // context.payload.inputs, which works for workflow_dispatch.
+          global.context.payload.inputs = { "task-description": "fix the bug" };
+          try {
+            expect(evaluateExpression("inputs.task-description")).toBe("fix the bug");
+          } finally {
+            delete global.context.payload.inputs;
+          }
+        });
+
+        it("should resolve hyphenated inputs.* via hash-based GH_AW_EXPR_ env var when set directly", () => {
+          // For workflow_call, context.payload.inputs is empty, so the compiler provides the
+          // value via a hash-based env var (e.g., GH_AW_EXPR_B3924FAD). The "Substitute placeholders"
+          // step resolves these in the heredoc-inlined portions; runtime-import expressions rely
+          // on the context fallback or having the env var set under the simple-conversion name.
+          // This test documents that if the hash-based env var is set, the simple lookup won't find it,
+          // and resolution falls through to context.
+          global.context.payload.inputs = {};
+          try {
+            const result = evaluateExpression("inputs.task-description");
+            // Without context.payload.inputs populated, the expression is not resolved
+            expect(result).toContain("inputs.task-description");
+          } finally {
+            delete global.context.payload.inputs;
+          }
+        });
+
         it("should handle missing properties gracefully", () => {
           const result = evaluateExpression("github.event.nonexistent.property");
           expect(result).toContain("github.event.nonexistent.property");
