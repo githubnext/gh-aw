@@ -183,7 +183,7 @@ When `sandbox.agent` is a string, it MUST be one of the following values:
 | `default` | Alias for `awf` (backward compatibility) |
 | `false` | Disables the agent sandbox |
 
-When `sandbox.agent` is set to `false`, the firewall container is not started and the engine command runs directly on the runner host. The MCP gateway remains active.
+When `sandbox.agent` is set to `false`, the AWF firewall container SHALL NOT be started and the engine command SHALL run directly on the runner host without network isolation. The MCP gateway SHALL remain active.
 
 #### 4.2.2 Object Format
 
@@ -531,7 +531,7 @@ An engine definition MUST conform to the following structure:
 | `id` | string | Yes | Unique engine identifier (e.g., `"copilot"`, `"claude"`, `"codex"`, `"gemini"`, or a custom ID). |
 | `display-name` | string | No | Human-readable engine name (e.g., `"GitHub Copilot"`). |
 | `description` | string | No | Description of the engine's capabilities. |
-| `runtime-id` | string | No | Maps to a registered `CodingAgentEngine` in the `EngineRegistry`. Defaults to `id` when omitted. |
+| `runtime-id` | string | No | Maps to a registered runtime adapter in the engine registry. Defaults to `id` when omitted. |
 | `provider` | ProviderSelection | No | Inference provider configuration (see Section 8.2). |
 | `models` | ModelSelection | No | Default and supported model configuration (see Section 8.3). |
 | `auth` | AuthBinding[] | No | Authentication role-to-secret mappings. |
@@ -555,8 +555,8 @@ The default engine, when no `engine` field is specified, MUST be `copilot`.
 Engine resolution MUST follow this order:
 
 1. **Exact catalog match**: Look up the engine ID in the catalog definitions.
-2. **Runtime-ID prefix fallback**: If no exact match, attempt a prefix match against registered runtime adapters (for backward compatibility, e.g., `"codex-experimental"` matching the `"codex"` runtime).
-3. **Validation error**: If no match is found, return an error listing valid engines with optional fuzzy-match suggestions.
+2. **Runtime-ID prefix fallback**: If no exact match, attempt a case-sensitive prefix match against registered runtime adapter IDs (for backward compatibility, e.g., `"codex-experimental"` matching the `"codex"` runtime). If multiple adapters share the same prefix, the first match is used. This fallback exists solely for backward compatibility and SHOULD NOT be relied upon for new engine definitions.
+3. **Validation error**: If no match is found, return an error listing valid engine IDs with optional fuzzy-match suggestions.
 
 ### 8.2 Provider Selection
 
@@ -674,7 +674,7 @@ The `RequestShape` type describes non-standard URL and body transformations appl
 |-------|------|----------|-------------|
 | `path-template` | string | No | URL path template with `{model}` and other variable placeholders. |
 | `query` | map[string]string | No | Static or template query parameters appended to every request. |
-| `body-inject` | map[string]string | No | Key-value pairs injected into the JSON request body. Values MAY contain `{SECRET_NAME}` template references. |
+| `body-inject` | map[string]string | No | Key-value pairs injected into the JSON request body. Values MAY contain `{SECRET_NAME}` template references where `SECRET_NAME` MUST match the pattern `[A-Z][A-Z0-9_]*`. Literal braces MUST be escaped as `{{` and `}}`. Implementations MUST validate template references against the set of available secrets at compilation time. |
 
 **Example — Azure OpenAI with path-template and API version:**
 
@@ -785,7 +785,7 @@ For engines defined via inline definitions (Section 8.6) or custom engine catalo
 
 The AWF API proxy sidecar MUST intercept outbound requests to known LLM provider endpoints and inject authentication headers transparently. The agent process MUST NOT have direct access to raw API keys or tokens.
 
-Implementations MUST use `--exclude-env` (when supported) to prevent the agent from reading secret values via shell introspection commands (`env`, `printenv`).
+Implementations MUST prevent the agent from reading secret values via shell introspection commands (`env`, `printenv`). When the AWF version supports `--exclude-env` (≥ v0.25.3), implementations MUST use the `--exclude-env` flag for each secret-bearing environment variable. For earlier AWF versions, implementations SHOULD log a warning that environment variable exclusion is not available.
 
 ### 10.2 Network Egress
 
@@ -810,8 +810,9 @@ Implementations SHOULD upload audit logs as GitHub Actions artifacts for post-ru
 When SSL Bump is enabled, the AWF intercepts and decrypts HTTPS traffic for content inspection. This has the following implications:
 
 1. The AWF generates a dynamic CA certificate that MUST be injected into the container's trust store.
-2. Applications that pin certificates MAY fail if they do not trust the injected CA.
-3. SSL Bump SHOULD only be enabled when URL path-level filtering is required.
+2. Applications that perform certificate pinning MAY fail because the intercepted certificate chain differs from the expected pinned certificate. Implementations SHOULD provide diagnostic logging when TLS handshake failures occur to aid in identifying certificate pinning conflicts.
+3. SSL Bump SHOULD only be enabled when URL path-level filtering is required. Domain-only filtering (without SSL Bump) is sufficient for most use cases.
+4. Certificate pinning is NOT a supported configuration when SSL Bump is active. Workflows that require certificate pinning MUST NOT enable SSL Bump and SHOULD use domain-only filtering instead.
 
 ---
 
