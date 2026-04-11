@@ -1047,6 +1047,34 @@ describe("sendJobSetupSpan", () => {
     expect(resourceKeys).not.toContain("github.event_name");
   });
 
+  it("includes gh-aw.event_name as span attribute when GITHUB_EVENT_NAME is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_EVENT_NAME = "workflow_dispatch";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.attributes).toContainEqual({ key: "gh-aw.event_name", value: { stringValue: "workflow_dispatch" } });
+  });
+
+  it("omits gh-aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobSetupSpan();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.event_name");
+  });
+
   it("includes github.ref as resource attribute when GITHUB_REF is set", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1576,6 +1604,34 @@ describe("sendJobConclusionSpan", () => {
     const resourceAttrs = body.resourceSpans[0].resource.attributes;
     const resourceKeys = resourceAttrs.map(a => a.key);
     expect(resourceKeys).not.toContain("github.event_name");
+  });
+
+  it("includes gh-aw.event_name as span attribute when GITHUB_EVENT_NAME is set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.attributes).toContainEqual({ key: "gh-aw.event_name", value: { stringValue: "pull_request" } });
+  });
+
+  it("omits gh-aw.event_name span attribute when GITHUB_EVENT_NAME is not set", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const keys = span.attributes.map(a => a.key);
+    expect(keys).not.toContain("gh-aw.event_name");
   });
 
   it("includes github.ref as resource attribute when GITHUB_REF is set", async () => {
