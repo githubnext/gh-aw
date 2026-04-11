@@ -389,6 +389,8 @@ Create a new discussion with the comprehensive performance report.
 
 ### Discussion Format
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 **Title**: `[daily performance] Daily Performance Summary - YYYY-MM-DD`
 
 **Body**:

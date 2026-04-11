@@ -222,15 +222,17 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
 	}
 
-	// Add allowed domains. Pass the raw value so shellEscapeArg (via shellJoinArgs)
-	// single-quotes it, which safely handles wildcards like *.domain.com without
-	// shell glob expansion and without adding literal double-quote characters.
+	// Add allowed domains. When the value contains ${{ }} GitHub Actions expressions,
+	// shellEscapeArg (via shellJoinArgs) double-quotes it so the expression is preserved
+	// for GA evaluation. Otherwise it escapes or quotes only when needed (typically using
+	// single quotes for shell-special content), which safely handles wildcards like
+	// *.domain.com without shell glob expansion.
 	awfArgs = append(awfArgs, "--allow-domains", config.AllowedDomains)
 
 	// Add blocked domains if specified
 	blockedDomains := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 	if blockedDomains != "" {
-		// Same single-quoting rationale as --allow-domains above
+		// Same quoting rationale as --allow-domains above
 		awfArgs = append(awfArgs, "--block-domains", blockedDomains)
 		awfHelpersLog.Printf("Added blocked domains: %s", blockedDomains)
 	}

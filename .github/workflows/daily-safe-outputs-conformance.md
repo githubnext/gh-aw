@@ -177,6 +177,8 @@ If multiple similar issues are found (e.g., 3 handlers missing the same validati
 
 ## Phase 4: Summary Report
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 After processing all issues, provide a summary in the workflow output:
 
 ```markdown

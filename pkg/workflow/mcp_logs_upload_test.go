@@ -74,8 +74,8 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected 'Upload agent artifacts' step to be in generated workflow")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
-	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f") {
+	// Verify the upload step uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a") {
 		t.Error("Expected upload-artifact action to be used for artifact upload step")
 	}
 
@@ -176,8 +176,8 @@ This workflow does not use Playwright but should still have MCP logs upload.
 		t.Error("Expected MCP logs path in unified artifact upload even when Playwright is not used")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
-	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f") {
+	// Verify the upload step uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a") {
 		t.Error("Expected upload-artifact action to be used for artifact upload step")
 	}
 

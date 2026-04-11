@@ -9,6 +9,10 @@
 #
 # Each image is pulled with retry logic (3 attempts with exponential backoff).
 # The script fails if any image fails to download after all retry attempts.
+#
+# When images include a digest pin (e.g. image:tag@sha256:abc), the script
+# ensures the tag alias (image:tag) is created after pulling so that tools
+# referencing images by tag (such as AWF with --skip-pull) can find them.
 
 set -euo pipefail
 
@@ -23,6 +27,18 @@ docker_pull_with_retry() {
     
     if timeout 5m docker pull --quiet "$image" 2>&1; then
       echo "Successfully pulled $image"
+
+      # When pulling with a digest pin (image:tag@sha256:...), Docker may not
+      # create the tag alias automatically. Ensure the tag exists so that
+      # downstream tools (e.g. AWF --skip-pull) can find the image by tag.
+      if [[ "$image" == *"@sha256:"* ]]; then
+        local tag_ref="${image%%@sha256:*}"
+        if [[ "$tag_ref" == *":"* ]]; then
+          echo "Tagging digest-pinned image as $tag_ref"
+          docker tag "$image" "$tag_ref"
+        fi
+      fi
+
       return 0
     fi
     

@@ -292,6 +292,7 @@ For detailed information about secret usage patterns, see:
 
 ## Notes
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 - Focus on **trends and changes** rather than static inventory
 - Highlight **security concerns** prominently
 - Keep the report **concise but comprehensive**
