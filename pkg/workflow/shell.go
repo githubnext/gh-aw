@@ -56,7 +56,7 @@ func containsGitHubActionsExpression(s string) bool {
 	if openIdx < 0 {
 		return false
 	}
-	return strings.Index(s[openIdx:], "}}") >= 0
+	return strings.Contains(s[openIdx:], "}}")
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command
