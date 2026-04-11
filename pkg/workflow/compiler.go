@@ -194,6 +194,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate safe-outputs allow-workflows requires GitHub App
+	log.Printf("Validating safe-outputs allow-workflows")
+	if err := validateSafeOutputsAllowWorkflows(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate safe-job needs: declarations against known generated job IDs
 	log.Printf("Validating safe-job needs declarations")
 	if err := validateSafeJobNeeds(workflowData); err != nil {

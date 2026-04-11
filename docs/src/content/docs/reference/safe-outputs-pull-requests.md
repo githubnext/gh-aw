@@ -208,6 +208,27 @@ Patterns support `*` (any characters except `/`) and `**` (any characters includ
 > [!WARNING]
 > `allowed-files` should enumerate exactly the files the workflow legitimately manages. Overly broad patterns (e.g., `**`) disable all protection.
 
+### Allowing Workflow File Changes with `allow-workflows`
+
+When `allowed-files` targets `.github/workflows/` paths, pushing to those paths requires the GitHub Actions `workflows` permission. This is a **GitHub App-only permission** — it cannot be granted via `GITHUB_TOKEN`.
+
+Set `allow-workflows: true` on `create-pull-request` or `push-to-pull-request-branch` to add `workflows: write` to the minted GitHub App token. A `safe-outputs.github-app` configuration is required; the compiler will error if `allow-workflows: true` is set without one.
+
+```yaml wrap
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+  create-pull-request:
+    allow-workflows: true
+    allowed-files:
+      - ".github/workflows/*.lock.yml"
+    protected-files: allowed
+```
+
+> [!NOTE]
+> `allow-workflows` is intentionally explicit rather than auto-inferred from `allowed-files` patterns. This makes the elevated permission visible and auditable in the workflow source.
+
 ### Protected Files
 
 Protection covers three categories:
