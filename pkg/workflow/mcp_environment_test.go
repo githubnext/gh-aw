@@ -3,9 +3,11 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHasGitHubOIDCAuthInTools(t *testing.T) {
@@ -106,4 +108,70 @@ func TestHasGitHubOIDCAuthInTools(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "hasGitHubOIDCAuthInTools should return %v", tt.expected)
 		})
 	}
+}
+
+// TestOIDCEnvVarsInDockerCommand verifies that ACTIONS_ID_TOKEN_REQUEST_URL and
+// ACTIONS_ID_TOKEN_REQUEST_TOKEN are included as -e flags in the MCP Gateway docker
+// command when an HTTP MCP server uses auth.type: "github-oidc".
+func TestOIDCEnvVarsInDockerCommand(t *testing.T) {
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "local",
+			},
+			"oidc-server": map[string]any{
+				"type": "http",
+				"url":  "https://my-server.example.com/mcp",
+				"auth": map[string]any{
+					"type":     "github-oidc",
+					"audience": "https://my-server.example.com",
+				},
+			},
+		},
+	}
+
+	compiler := &Compiler{}
+	mockEngine := NewClaudeEngine()
+
+	var yaml strings.Builder
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData),
+		"generateMCPSetup should succeed")
+	output := yaml.String()
+
+	assert.Contains(t, output, "-e ACTIONS_ID_TOKEN_REQUEST_URL",
+		"Docker command should include -e ACTIONS_ID_TOKEN_REQUEST_URL when github-oidc auth is configured")
+	assert.Contains(t, output, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+		"Docker command should include -e ACTIONS_ID_TOKEN_REQUEST_TOKEN when github-oidc auth is configured")
+}
+
+// TestOIDCEnvVarsNotInDockerCommandWithoutOIDCAuth verifies that OIDC env vars are
+// NOT included in the docker command when no server uses auth.type: "github-oidc".
+func TestOIDCEnvVarsNotInDockerCommandWithoutOIDCAuth(t *testing.T) {
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"mode": "local",
+			},
+			"tavily": map[string]any{
+				"type": "http",
+				"url":  "https://mcp.tavily.com/mcp/",
+				"headers": map[string]any{
+					"Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}",
+				},
+			},
+		},
+	}
+
+	compiler := &Compiler{}
+	mockEngine := NewClaudeEngine()
+
+	var yaml strings.Builder
+	require.NoError(t, compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData),
+		"generateMCPSetup should succeed")
+	output := yaml.String()
+
+	assert.NotContains(t, output, "-e ACTIONS_ID_TOKEN_REQUEST_URL",
+		"Docker command should NOT include OIDC env vars without github-oidc auth")
+	assert.NotContains(t, output, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+		"Docker command should NOT include OIDC env vars without github-oidc auth")
 }
