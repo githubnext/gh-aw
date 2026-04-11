@@ -79,7 +79,7 @@ func migratePluginsToDependencies(lines []string) ([]string, bool) {
 
 	// Collect the original block lines and rewrite them.
 	block := lines[pluginsIdx:blockEnd]
-	rewritten, changed := rewritePluginsBlock(block)
+	rewritten, changed := rewritePluginsBlockToDependencies(block)
 	if !changed {
 		return lines, false
 	}
@@ -92,13 +92,13 @@ func migratePluginsToDependencies(lines []string) ([]string, bool) {
 	return result, true
 }
 
-// rewritePluginsBlock transforms the lines of a plugins block into a
+// rewritePluginsBlockToDependencies transforms the lines of a plugins block into a
 // dependencies block, handling both array format and object format.
 //
 // Object format detection: if the block contains a `repos:` sub-key the input
 // is in object format.  The `repos:` items become `packages:` children under
 // `dependencies:`; the `github-token:` key is preserved as-is.
-func rewritePluginsBlock(block []string) ([]string, bool) {
+func rewritePluginsBlockToDependencies(block []string) ([]string, bool) {
 	if len(block) == 0 {
 		return block, false
 	}
@@ -119,7 +119,7 @@ func rewritePluginsBlock(block []string) ([]string, bool) {
 	}
 
 	if isObjectFormat {
-		return rewriteObjectFormatPlugins(block, indent)
+		return rewriteObjectFormatPluginsToDependencies(block, indent)
 	}
 
 	// Array format – just rename the key and keep the body.
@@ -132,7 +132,7 @@ func rewritePluginsBlock(block []string) ([]string, bool) {
 	return result, true
 }
 
-// rewriteObjectFormatPlugins handles the object format:
+// rewriteObjectFormatPluginsToDependencies handles the object format:
 //
 //	plugins:
 //	  repos:
@@ -141,7 +141,7 @@ func rewritePluginsBlock(block []string) ([]string, bool) {
 //
 // It produces a `dependencies:` object block with `packages:` (renamed from `repos:`)
 // and preserves the `github-token:` key so APM can authenticate with the same token.
-func rewriteObjectFormatPlugins(block []string, indent string) ([]string, bool) {
+func rewriteObjectFormatPluginsToDependencies(block []string, indent string) ([]string, bool) {
 	var result []string
 	result = append(result, indent+"dependencies:")
 

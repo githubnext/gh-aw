@@ -145,68 +145,9 @@ func generateDispatchRepositoryTool(toolKey string, toolConfig *DispatchReposito
 	}
 
 	// Build input schema from the tool's inputs definition
-	properties := make(map[string]any)
-	required := []string{}
-
-	for inputName, inputDef := range toolConfig.Inputs {
-		inputDefMap, ok := inputDef.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		inputType := "string"
-		inputDescription := "Input parameter '" + inputName + "'"
-		inputRequired := false
-
-		if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
-			inputDescription = desc
-		}
-		if req, ok := inputDefMap["required"].(bool); ok {
-			inputRequired = req
-		}
-
-		// Map input types to JSON Schema types
-		if typeStr, ok := inputDefMap["type"].(string); ok {
-			switch typeStr {
-			case "number":
-				inputType = "number"
-			case "boolean":
-				inputType = "boolean"
-			case "choice":
-				inputType = "string"
-				if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
-					prop := map[string]any{
-						"type":        inputType,
-						"description": inputDescription,
-						"enum":        options,
-					}
-					if defaultVal, ok := inputDefMap["default"]; ok {
-						prop["default"] = defaultVal
-					}
-					properties[inputName] = prop
-					if inputRequired {
-						required = append(required, inputName)
-					}
-					continue
-				}
-			case "environment":
-				inputType = "string"
-			}
-		}
-
-		prop := map[string]any{
-			"type":        inputType,
-			"description": inputDescription,
-		}
-		if defaultVal, ok := inputDefMap["default"]; ok {
-			prop["default"] = defaultVal
-		}
-		properties[inputName] = prop
-
-		if inputRequired {
-			required = append(required, inputName)
-		}
-	}
+	properties, required := buildInputSchema(toolConfig.Inputs, func(inputName string) string {
+		return "Input parameter '" + inputName + "'"
+	})
 
 	tool := map[string]any{
 		"name":                      toolName,

@@ -142,7 +142,12 @@ function resolveFiles(request, allowedPaths, defaultInclude, defaultExclude) {
       return { files: [], error: `path must not traverse outside staging directory: ${reqPath}` };
     }
     if (!fs.existsSync(resolved)) {
-      return { files: [], error: `path does not exist in staging directory: ${reqPath}` };
+      const available = listFilesRecursive(STAGING_DIR, STAGING_DIR);
+      const hint =
+        available.length > 0
+          ? ` Available files: [${available.slice(0, 20).join(", ")}]${available.length > 20 ? ` … and ${available.length - 20} more` : ""}`
+          : " The staging directory is empty — did you forget to copy files to " + STAGING_DIR + "?";
+      return { files: [], error: `path does not exist in staging directory: ${reqPath}.${hint}` };
     }
     const stat = fs.lstatSync(resolved);
     if (stat.isSymbolicLink()) {

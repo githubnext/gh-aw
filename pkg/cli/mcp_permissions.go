@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -61,55 +60,6 @@ func hasWriteAccess(permission string) bool {
 	default:
 		return false
 	}
-}
-
-// validateMCPWorkflowName validates that a workflow name exists in the repository.
-// Returns nil if the workflow exists, or an error with suggestions if not.
-// Empty workflow names are considered valid (means "all workflows").
-//
-// Note: Unlike ValidateWorkflowName in validators.go (which enforces strict format
-// rules and rejects empty names), this MCP-specific function accepts empty names
-// because in the MCP context an empty workflow name is a valid wildcard meaning
-// "apply to all workflows". It also performs existence checks rather than format
-// checks, delegating to workflow.ResolveWorkflowName and the live workflow list.
-func validateMCPWorkflowName(workflowName string) error {
-	// Empty workflow name means "all workflows" - this is valid in the MCP context
-	if workflowName == "" {
-		return nil
-	}
-
-	mcpLog.Printf("Validating workflow name: %s", workflowName)
-
-	// Try to resolve as workflow ID first
-	resolvedName, err := workflow.ResolveWorkflowName(workflowName)
-	if err == nil {
-		mcpLog.Printf("Workflow name resolved successfully: %s -> %s", workflowName, resolvedName)
-		return nil
-	}
-
-	// Check if it's a valid GitHub Actions workflow name
-	agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
-	if nameErr == nil && slices.Contains(agenticWorkflowNames, workflowName) {
-		mcpLog.Printf("Workflow name is valid GitHub Actions workflow name: %s", workflowName)
-		return nil
-	}
-
-	// Workflow not found - build error with suggestions
-	mcpLog.Printf("Workflow name not found: %s", workflowName)
-
-	suggestions := []string{
-		"Use the 'status' tool to see all available workflows",
-		"Check for typos in the workflow name",
-		"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
-	}
-
-	// Add fuzzy match suggestions
-	similarNames := suggestWorkflowNames(workflowName)
-	if len(similarNames) > 0 {
-		suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
-	}
-
-	return fmt.Errorf("workflow '%s' not found. %s", workflowName, strings.Join(suggestions, " "))
 }
 
 // checkActorPermission validates if the actor has sufficient permissions for restricted tools.

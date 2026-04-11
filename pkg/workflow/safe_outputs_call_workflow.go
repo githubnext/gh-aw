@@ -81,70 +81,10 @@ func generateCallWorkflowTool(workflowName string, workflowInputs map[string]any
 	// Build the description
 	description := fmt.Sprintf("Call the '%s' reusable workflow via workflow_call. This workflow must support workflow_call and be in .github/workflows/ directory in the same repository.", workflowName)
 
-	// Build input schema properties
-	properties := make(map[string]any)
-	required := []string{}
-
-	// Convert GitHub Actions workflow_call inputs to MCP tool schema
-	for inputName, inputDef := range workflowInputs {
-		inputDefMap, ok := inputDef.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Extract input properties
-		inputType := "string" // Default type
-		inputDescription := fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
-		inputRequired := false
-
-		if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
-			inputDescription = desc
-		}
-
-		if req, ok := inputDefMap["required"].(bool); ok {
-			inputRequired = req
-		}
-
-		// GitHub Actions workflow_call supports: string, number, boolean, choice, environment
-		if typeStr, ok := inputDefMap["type"].(string); ok {
-			switch typeStr {
-			case "number":
-				inputType = "number"
-			case "boolean":
-				inputType = "boolean"
-			case "choice":
-				inputType = "string"
-				if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
-					properties[inputName] = map[string]any{
-						"type":        inputType,
-						"description": inputDescription,
-						"enum":        options,
-					}
-					if inputRequired {
-						required = append(required, inputName)
-					}
-					continue
-				}
-			case "environment":
-				inputType = "string"
-			}
-		}
-
-		prop := map[string]any{
-			"type":        inputType,
-			"description": inputDescription,
-		}
-
-		if defaultVal, ok := inputDefMap["default"]; ok {
-			prop["default"] = defaultVal
-		}
-
-		properties[inputName] = prop
-
-		if inputRequired {
-			required = append(required, inputName)
-		}
-	}
+	// Build input schema properties from workflow_call inputs
+	properties, required := buildInputSchema(workflowInputs, func(inputName string) string {
+		return fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
+	})
 
 	// Build the complete tool definition
 	tool := map[string]any{

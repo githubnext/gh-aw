@@ -12,7 +12,7 @@
 //   - validateFeatures() - Validates all feature flags in WorkflowData
 //   - validateActionTag() - Validates action-tag is a full SHA or version tag
 //   - isValidFullSHA() - Checks if a string is a valid 40-character SHA
-//   - isValidVersionTag() - Checks if a string is a valid version tag (in semver.go)
+//   - semverutil.IsActionVersionTag() - Checks if a string is a valid version tag (in pkg/semverutil)
 //
 // # When to Add Validation Here
 //
@@ -26,6 +26,8 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var featuresValidationLog = newValidationLogger("features")
@@ -84,7 +86,7 @@ func validateActionTag(value any) error {
 	}
 
 	// Accept version tags like "v0", "v1", "v1.0.0"
-	if isValidVersionTag(strVal) {
+	if semverutil.IsActionVersionTag(strVal) {
 		return nil
 	}
 

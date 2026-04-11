@@ -301,7 +301,24 @@ Use `sns.set_theme(style="darkgrid")` for a professional dark-grid look and `plt
 
 ## Step 5 — Upload Charts as Artifacts
 
-Stage each successfully generated chart from `/tmp/gh-aw/python/charts/*.png` into `/tmp/gh-aw/safeoutputs/upload-artifacts/`, then call the `upload_artifact` safe-output tool for each chart. Collect and record the returned `aw_*` ID for each chart.
+**You MUST copy the chart files to the staging directory before calling `upload_artifact`.**
+
+The `upload_artifact` tool only reads files from `/tmp/gh-aw/safeoutputs/upload-artifacts/`. Run these commands first:
+
+```bash
+mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts/
+cp /tmp/gh-aw/python/charts/*.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+```
+
+Then verify the files are in the staging directory:
+
+```bash
+ls -la /tmp/gh-aw/safeoutputs/upload-artifacts/
+```
+
+After confirming the files exist in the staging directory, call `upload_artifact` for each chart using the **filename only** (not a subdirectory path). For example, use `path: "api_calls_trend.png"` — NOT `path: "charts/api_calls_trend.png"`.
+
+Call `upload_artifact` once per chart (5 total). Collect and record the returned `aw_*` ID for each chart.
 
 ---
 

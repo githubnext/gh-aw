@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var runtimeSetupLog = logger.New("workflow:runtime_setup")
@@ -180,7 +181,7 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	}
 
 	// Compare versions and keep the higher one
-	if compareVersions(newVersion, existing.Version) > 0 {
+	if semverutil.Compare(newVersion, existing.Version) > 0 {
 		existing.Version = newVersion
 	}
 }
