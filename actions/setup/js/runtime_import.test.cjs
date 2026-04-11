@@ -909,17 +909,15 @@ describe("runtime_import", () => {
           }
         });
 
-        it("should resolve hyphenated inputs.* via hash-based GH_AW_EXPR_ env var when set directly", () => {
-          // For workflow_call, context.payload.inputs is empty, so the compiler provides the
-          // value via a hash-based env var (e.g., GH_AW_EXPR_B3924FAD). The "Substitute placeholders"
-          // step resolves these in the heredoc-inlined portions; runtime-import expressions rely
-          // on the context fallback or having the env var set under the simple-conversion name.
-          // This test documents that if the hash-based env var is set, the simple lookup won't find it,
-          // and resolution falls through to context.
+        it("should not resolve hyphenated inputs.* when context.payload.inputs is empty", () => {
+          // For workflow_call, context.payload.inputs is empty. Hyphenated input names
+          // can't be resolved via the simple env var conversion (which produces
+          // GH_AW_INPUTS_TASK-DESCRIPTION instead of the compiler's GH_AW_EXPR_<hash>).
+          // The compiler handles this via placeholder substitution in the heredoc-inlined
+          // prompt; runtime-import expressions rely on context.payload.inputs.
           global.context.payload.inputs = {};
           try {
             const result = evaluateExpression("inputs.task-description");
-            // Without context.payload.inputs populated, the expression is not resolved
             expect(result).toContain("inputs.task-description");
           } finally {
             delete global.context.payload.inputs;
