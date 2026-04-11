@@ -13,6 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// normalizeOutput applies all stable-comparison normalizations to compiled workflow output
+// before golden comparison: heredoc delimiter normalization and container pin normalization.
+// Mirrors normalize() in scripts/test-wasm-golden.mjs.
+func normalizeOutput(content string) string {
+	return normalizeContainerPins(normalizeHeredocDelimiters(content))
+}
+
 // TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API
 // (the same code path used by the wasm compiler) and compares against golden files.
 //
@@ -82,11 +89,10 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 			// testdata/ relative to the package root (not the fixtures dir).
 			require.NoError(t, os.Chdir(origDir))
 
-			// Normalize heredoc delimiters before comparing so golden files are
-			// stable across compilations (randomized token is replaced by a placeholder).
-			// Also normalize container pins since the action cache may or may not be
-			// available depending on the environment (native vs wasm).
-			golden.RequireEqual(t, normalizeContainerPins(normalizeHeredocDelimiters(yamlOutput)))
+			// Normalize heredoc delimiters and container pins before comparing so golden files
+			// are stable across compilations (randomized tokens and environment-specific pins
+			// are replaced by stable placeholders).
+			golden.RequireEqual(t, normalizeOutput(yamlOutput))
 		})
 	}
 }
