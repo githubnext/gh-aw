@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.7
-**Last Updated**: 2026-04-10
+**Version**: 5.8
+**Last Updated**: 2026-04-11
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2795,6 +2795,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v5.8 (2026-04-11): Maintenance tone scan — fixed 9 tone issues across 2 spec files: `engine-review-summary.md` (6 fixes: `### Strengths ⭐⭐⭐⭐⭐`→`### Strengths`, `### Interface Design: ⭐⭐⭐⭐⭐ (5/5)`→`### Interface Design`, removed Rating column from Implementation Quality table and replaced "Comprehensive single-file implementation" with "Single-file implementation", `### Security: ⭐⭐⭐⭐⭐ (5/5)`→`### Security`, `### Testing: ⭐⭐⭐⭐⭐ (5/5)`→`### Testing`, `### Documentation: ⭐⭐⭐⭐⭐ (5/5) - After Improvements`→`### Documentation - After Improvements`), `engine-architecture-review.md` (3 fixes: removed 3 `**Rating**: ⭐⭐⭐⭐⭐ (5/5)` lines from Copilot, Claude, Codex, and Custom engine sections). Coverage: 75 spec files (no new files).
 - v5.7 (2026-04-10): Maintenance tone scan — fixed 4 tone issues across 2 spec files: `oh-my-code.md` (3 fixes: "Deep Research Comparison"→"Technical Comparison", "Comprehensive Analysis"→"Analysis", "deep research comparison between"→"compares"), `mdflow-comparison.md` (1 fix: "detailed syntax comparison"→"syntax comparison"). Updated Related Documentation description for `oh-my-code.md`. Coverage: 75 spec files (no new files).
 - v5.6 (2026-04-09): Fixed 4 broken links in `scratchpad/README.md` (case-sensitive file name corrections: `MCP_LOGS_GUARDRAIL.md`→`mcp_logs_guardrails.md`, `SCHEMA_VALIDATION.md`→`schema-validation.md`, `SECURITY_REVIEW_TEMPLATE_INJECTION.md`→`security_review.md`; `campaigns-files.md` marked removed). Fixed 3 tone issues in `README.md` ("Detailed comparison"→"Comparison", "Detailed analysis"→"Analysis", "Complete deep-dive statistical analysis"→"Statistical analysis"). Updated `README.md` last-updated date. Added `README.md` to Related Documentation. Coverage: 75 spec files (no new files).
 - v5.5 (2026-04-08): Added WorkQueueOps and BatchOps design pattern subsections to Workflow Patterns (from PR #25178: four queue strategies — issue checklist, sub-issues, cache-memory, discussion-based; four batch strategies — chunked, matrix fan-out, rate-limit-aware, result aggregation). Added 2 new Related Documentation links for `docs/src/content/docs/patterns/workqueue-ops.md` and `batch-ops.md`. Coverage: 75 spec files (2 new pattern docs).

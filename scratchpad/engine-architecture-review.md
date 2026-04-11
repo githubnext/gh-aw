@@ -87,8 +87,6 @@ Key helper functions in `engine_helpers.go`:
 **Areas for improvement**:
 - None identified
 
-**Rating**: ⭐⭐⭐⭐⭐ (5/5)
-
 ### Claude Engine
 
 **File**: claude_engine.go (474 lines)
@@ -102,8 +100,6 @@ Key helper functions in `engine_helpers.go`:
 **Areas for improvement**:
 - None identified
 
-**Rating**: ⭐⭐⭐⭐⭐ (5/5)
-
 ### Codex Engine
 
 **Files**: 3 files (codex_engine.go, codex_mcp.go, codex_logs.go)
@@ -116,8 +112,6 @@ Key helper functions in `engine_helpers.go`:
 **Areas for improvement**:
 - None identified
 
-**Rating**: ⭐⭐⭐⭐⭐ (5/5)
-
 ### Custom Engine
 
 **File**: custom_engine.go (373 lines)
@@ -129,8 +123,6 @@ Key helper functions in `engine_helpers.go`:
 
 **Areas for improvement**:
 - None identified
-
-**Rating**: ⭐⭐⭐⭐⭐ (5/5)
 
 ## Extensibility Assessment
 
