@@ -1077,7 +1077,7 @@ jobs:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
       # Upload safe-outputs upload-artifact staging for the upload_artifact job
-      - name: Upload Upload-Artifact Staging
+      - name: Upload upload-artifact staging
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -1167,7 +1167,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
-      - name: Process No-Op Messages
+      - name: Process no-op messages
         id: noop
         uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         env:
