@@ -910,8 +910,8 @@ func TestGetActionPinWithData_V7ExactMatch(t *testing.T) {
 		t.Errorf("Expected v7 in result, got: %s", result)
 	}
 
-	// Check the SHA matches v7
-	expectedSHA := "bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
+	// Check the SHA matches v7 (resolves to v7.0.1 pin)
+	expectedSHA := "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 	if !strings.Contains(result, expectedSHA) {
 		t.Errorf("Expected SHA %s in result, got: %s", expectedSHA, result)
 	}

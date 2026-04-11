@@ -67,7 +67,8 @@ func TestLogsJSONOutputWithNoRuns(t *testing.T) {
 		// Skip this test if GitHub API is not accessible (e.g., no GH_TOKEN)
 		if strings.Contains(errText, "failed to authenticate: no auth token found") ||
 			strings.Contains(errText, "GitHub CLI authentication required. Run 'gh auth login' first") ||
-			strings.Contains(errText, "could not find any workflows named nonexistent-workflow-12345") {
+			strings.Contains(errText, "could not find any workflows named nonexistent-workflow-12345") ||
+			strings.Contains(errText, "HTTP 403") {
 			t.Skip("Skipping test: GitHub API behavior is not suitable for the no-runs scenario in this environment")
 		}
 		t.Fatalf("DownloadWorkflowLogs returned error: %v", err)
