@@ -240,11 +240,11 @@ func TestValidateStepsSecrets(t *testing.T) {
 			frontmatter: map[string]any{
 				"pre-steps": []any{
 					map[string]any{
-						"name": "Export creds",
+						"name": "Run pre-check with credentials",
 						"env": map[string]any{
 							"CIAM_CLIENT_ID": "${{ secrets.CIAM_CLIENT_ID }}",
 						},
-						"run": "echo CIAM_CLIENT_ID=${CIAM_CLIENT_ID} >> $GITHUB_ENV",
+						"run": "ciam-auth verify",
 					},
 				},
 			},

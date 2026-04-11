@@ -31,10 +31,10 @@ permissions:
   pull-requests: read
 engine: copilot
 steps:
-  - name: Export secret
+  - name: Run scan with secret
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    run: echo "SONAR_TOKEN=${SONAR_TOKEN}" >> "$GITHUB_ENV"
+    run: sonar-scanner
 ---
 
 # Step Env Secret Test
@@ -52,21 +52,21 @@ permissions:
   pull-requests: read
 engine: copilot
 steps:
-  - name: Export scan credentials
+  - name: Run scan with credentials
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       CORONA_TOKEN: ${{ secrets.CORONA_TOKEN }}
     run: |
-      echo "SONAR_TOKEN=${SONAR_TOKEN}" >> "$GITHUB_ENV"
-      echo "CORONA_TOKEN=${CORONA_TOKEN}" >> "$GITHUB_ENV"
-  - name: Export auth credentials
+      sonar-scanner
+      corona-lint check
+  - name: Run auth check
     env:
       CIAM_CLIENT_ID: ${{ secrets.CIAM_CLIENT_ID }}
       CIAM_CLIENT_SECRET: ${{ secrets.CIAM_CLIENT_SECRET }}
       SI_TOKEN: ${{ secrets.SI_TOKEN }}
     run: |
-      echo "CIAM_CLIENT_ID=${CIAM_CLIENT_ID}" >> "$GITHUB_ENV"
-      echo "SI_TOKEN=${SI_TOKEN}" >> "$GITHUB_ENV"
+      ciam-auth verify
+      si-tool check
 ---
 
 # Multi-Secret Step Env Test
@@ -84,11 +84,11 @@ permissions:
   pull-requests: read
 engine: copilot
 steps:
-  - name: Setup tokens
+  - name: Run tool with tokens
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       API_KEY: ${{ secrets.API_KEY }}
-    run: echo "API_KEY=${API_KEY}" >> "$GITHUB_ENV"
+    run: my-tool --authenticate
 ---
 
 # GITHUB_TOKEN Mixed Test
@@ -106,10 +106,10 @@ permissions:
   pull-requests: read
 engine: copilot
 pre-steps:
-  - name: Export tool credentials
+  - name: Run pre-check with credentials
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    run: echo "SONAR_TOKEN=${SONAR_TOKEN}" >> "$GITHUB_ENV"
+    run: sonar-scanner --pre-check
 ---
 
 # Pre-Steps Env Secret Test
