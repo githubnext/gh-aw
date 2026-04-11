@@ -6,8 +6,11 @@
  *
  * Validates artifact upload requests emitted by the model via the upload_artifact safe output
  * tool, then uploads the approved files directly via the @actions/artifact REST API client.
- * The model must have already copied the files it wants to upload to
- * /tmp/gh-aw/safeoutputs/upload-artifacts/ before calling the tool.
+ *
+ * Files can be pre-staged in /tmp/gh-aw/safeoutputs/upload-artifacts/ or referenced by their
+ * original path.  When a requested path is not found in the staging directory the handler
+ * automatically copies the file (or directory) from its original location — supporting
+ * absolute paths, workspace-relative paths, and cwd-relative paths.
  *
  * This handler follows the per-message handler pattern used by the safe_outputs handler loop.
  * main(config) returns a per-message handler function that:
@@ -112,8 +115,134 @@ function listFilesRecursive(dir, baseDir) {
 }
 
 /**
+ * Copy a single file to the staging directory, preserving the relative path structure.
+ * Rejects symlinks and creates intermediate directories as needed.
+ *
+ * @param {string} sourcePath - Absolute path to the source file
+ * @param {string} destRelPath - Relative path within the staging directory
+ * @returns {{ error: string|null }}
+ */
+function copySingleFileToStaging(sourcePath, destRelPath) {
+  const destPath = path.join(STAGING_DIR, destRelPath);
+  const stat = fs.lstatSync(sourcePath);
+  if (stat.isSymbolicLink()) {
+    return { error: `symlinks are not allowed: ${sourcePath}` };
+  }
+  if (!stat.isFile()) {
+    return { error: `not a regular file: ${sourcePath}` };
+  }
+  fs.mkdirSync(path.dirname(destPath), { recursive: true });
+  fs.copyFileSync(sourcePath, destPath);
+  return { error: null };
+}
+
+/**
+ * Recursively copy a directory into the staging directory.
+ * Skips symlinks and logs warnings for them.
+ *
+ * @param {string} sourceDir - Absolute path to the source directory
+ * @param {string} destRelDir - Relative directory path within the staging directory
+ * @returns {{ copiedCount: number, error: string|null }}
+ */
+function copyDirectoryToStaging(sourceDir, destRelDir) {
+  let copiedCount = 0;
+  const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcFull = path.join(sourceDir, entry.name);
+    const destRel = path.join(destRelDir, entry.name);
+    const stat = fs.lstatSync(srcFull);
+    if (stat.isSymbolicLink()) {
+      core.warning(`Skipping symlink during auto-copy: ${srcFull}`);
+      continue;
+    }
+    if (entry.isDirectory()) {
+      const sub = copyDirectoryToStaging(srcFull, destRel);
+      if (sub.error) return sub;
+      copiedCount += sub.copiedCount;
+    } else if (entry.isFile()) {
+      const result = copySingleFileToStaging(srcFull, destRel);
+      if (result.error) return { copiedCount, error: result.error };
+      copiedCount++;
+    }
+  }
+  return { copiedCount, error: null };
+}
+
+/**
+ * Attempt to locate the requested path outside the staging directory and copy it in.
+ *
+ * Search order for absolute paths:
+ *   1. Use the absolute path directly.
+ *
+ * Search order for relative paths:
+ *   1. GITHUB_WORKSPACE environment variable (GitHub Actions workspace).
+ *   2. Current working directory (process.cwd()).
+ *
+ * @param {string} reqPath - The path from the request (absolute or relative)
+ * @returns {{ copied: boolean, relPath: string, error: string|null }}
+ */
+function autoCopyToStaging(reqPath) {
+  if (path.isAbsolute(reqPath)) {
+    if (!fs.existsSync(reqPath)) {
+      return { copied: false, relPath: "", error: `absolute path does not exist: ${reqPath}` };
+    }
+    const stat = fs.lstatSync(reqPath);
+    if (stat.isSymbolicLink()) {
+      return { copied: false, relPath: "", error: `symlinks are not allowed: ${reqPath}` };
+    }
+    // Derive a relative destination path from the basename (or relative to filesystem root for nested paths).
+    const relPath = path.basename(reqPath);
+    if (stat.isDirectory()) {
+      const result = copyDirectoryToStaging(reqPath, relPath);
+      if (result.error) return { copied: false, relPath: "", error: result.error };
+      core.info(`Auto-copied directory ${reqPath} to staging (${result.copiedCount} file(s))`);
+    } else {
+      const result = copySingleFileToStaging(reqPath, relPath);
+      if (result.error) return { copied: false, relPath: "", error: result.error };
+      core.info(`Auto-copied file ${reqPath} to staging as ${relPath}`);
+    }
+    return { copied: true, relPath, error: null };
+  }
+
+  // Relative path: search in GITHUB_WORKSPACE, then cwd.
+  const searchRoots = [];
+  if (process.env.GITHUB_WORKSPACE) {
+    searchRoots.push(process.env.GITHUB_WORKSPACE);
+  }
+  const cwd = process.cwd();
+  if (!searchRoots.includes(cwd)) {
+    searchRoots.push(cwd);
+  }
+
+  for (const root of searchRoots) {
+    const candidate = path.resolve(root, reqPath);
+    if (!fs.existsSync(candidate)) continue;
+    const stat = fs.lstatSync(candidate);
+    if (stat.isSymbolicLink()) {
+      return { copied: false, relPath: "", error: `symlinks are not allowed: ${candidate}` };
+    }
+    if (stat.isDirectory()) {
+      const result = copyDirectoryToStaging(candidate, reqPath);
+      if (result.error) return { copied: false, relPath: "", error: result.error };
+      core.info(`Auto-copied directory ${candidate} to staging as ${reqPath} (${result.copiedCount} file(s))`);
+    } else {
+      const result = copySingleFileToStaging(candidate, reqPath);
+      if (result.error) return { copied: false, relPath: "", error: result.error };
+      core.info(`Auto-copied file ${candidate} to staging as ${reqPath}`);
+    }
+    return { copied: true, relPath: reqPath, error: null };
+  }
+
+  return { copied: false, relPath: "", error: null };
+}
+
+/**
  * Resolve the list of files to upload for a single request.
- * Applies: staging root → allowed-paths → request include/exclude → dedup + sort.
+ * Applies: staging root → auto-copy → allowed-paths → request include/exclude → dedup + sort.
+ *
+ * If a path-based request refers to a file that is not in the staging directory but exists
+ * elsewhere (absolute path, workspace, or cwd), the file is automatically copied into the
+ * staging directory before resolution continues.
  *
  * @param {Record<string, any>} request - Parsed upload_artifact record
  * @param {string[]} allowedPaths - Policy allowed-paths patterns
@@ -131,30 +260,50 @@ function resolveFiles(request, allowedPaths, defaultInclude, defaultExclude) {
   let candidateRelPaths;
 
   if ("path" in request) {
-    const reqPath = String(request.path);
-    // Reject absolute paths
+    let reqPath = String(request.path);
+
+    // For absolute paths, attempt auto-copy to staging.
     if (path.isAbsolute(reqPath)) {
-      return { files: [], error: `path must be relative (staging-dir-relative), got absolute path: ${reqPath}` };
+      const copyResult = autoCopyToStaging(reqPath);
+      if (copyResult.error) {
+        return { files: [], error: copyResult.error };
+      }
+      if (!copyResult.copied) {
+        return { files: [], error: `path must be relative (staging-dir-relative), got absolute path: ${reqPath}` };
+      }
+      // Switch to the relative path inside the staging directory.
+      reqPath = copyResult.relPath;
     }
+
     // Reject traversal
     const resolved = path.resolve(STAGING_DIR, reqPath);
     if (!isWithinRoot(resolved, STAGING_DIR)) {
       return { files: [], error: `path must not traverse outside staging directory: ${reqPath}` };
     }
+
+    // If the path does not exist in staging, try auto-copy from workspace/cwd.
     if (!fs.existsSync(resolved)) {
-      const available = listFilesRecursive(STAGING_DIR, STAGING_DIR);
-      const hint =
-        available.length > 0
-          ? ` Available files: [${available.slice(0, 20).join(", ")}]${available.length > 20 ? ` … and ${available.length - 20} more` : ""}`
-          : " The staging directory is empty — did you forget to copy files to " + STAGING_DIR + "?";
-      return { files: [], error: `path does not exist in staging directory: ${reqPath}.${hint}` };
+      const copyResult = autoCopyToStaging(reqPath);
+      if (copyResult.error) {
+        return { files: [], error: copyResult.error };
+      }
+      if (!copyResult.copied) {
+        const available = listFilesRecursive(STAGING_DIR, STAGING_DIR);
+        const hint =
+          available.length > 0
+            ? ` Available files: [${available.slice(0, 20).join(", ")}]${available.length > 20 ? ` … and ${available.length - 20} more` : ""}`
+            : " The staging directory is empty — did you forget to copy files to " + STAGING_DIR + "?";
+        return { files: [], error: `path does not exist in staging directory: ${reqPath}.${hint}` };
+      }
+      reqPath = copyResult.relPath;
     }
-    const stat = fs.lstatSync(resolved);
+
+    const stat = fs.lstatSync(path.resolve(STAGING_DIR, reqPath));
     if (stat.isSymbolicLink()) {
       return { files: [], error: `symlinks are not allowed: ${reqPath}` };
     }
     if (stat.isDirectory()) {
-      candidateRelPaths = listFilesRecursive(resolved, STAGING_DIR);
+      candidateRelPaths = listFilesRecursive(path.resolve(STAGING_DIR, reqPath), STAGING_DIR);
     } else {
       candidateRelPaths = [reqPath];
     }
