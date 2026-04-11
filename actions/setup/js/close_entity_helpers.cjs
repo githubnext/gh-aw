@@ -310,7 +310,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
     commentToPost = sanitizeContent(commentToPost);
 
     // 4. Target repository / entity number resolution
-    const targetResult = callbacks.resolveTarget(item, config);
+    const targetResult = callbacks.resolveTarget(item, config, resolvedTemporaryIds);
     if (!targetResult.success) {
       core.warning(`Skipping ${entityConfig.itemType}: ${targetResult.error}`);
       return { success: false, error: targetResult.error };

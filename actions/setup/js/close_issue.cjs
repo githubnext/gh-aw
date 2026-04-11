@@ -9,6 +9,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /**
  * Get issue details using REST API
@@ -101,7 +102,7 @@ async function main(config = {}) {
     config,
     ISSUE_CONFIG,
     {
-      resolveTarget(item) {
+      resolveTarget(item, _config, resolvedTemporaryIds) {
         // Resolve and validate target repository
         const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");
         if (!repoResult.success) {
@@ -112,9 +113,27 @@ async function main(config = {}) {
         // Determine issue number
         let issueNumber;
         if (item.issue_number !== undefined) {
-          issueNumber = parseInt(String(item.issue_number), 10);
-          if (isNaN(issueNumber)) {
-            return { success: false, error: `Invalid issue number: ${item.issue_number}` };
+          // Resolve temporary IDs if present
+          const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+          if (tempIdMap.size > 0) {
+            const resolvedTarget = resolveRepoIssueTarget(item.issue_number, tempIdMap, repoParts.owner, repoParts.repo);
+            if (resolvedTarget.wasTemporaryId && resolvedTarget.resolved) {
+              issueNumber = resolvedTarget.resolved.number;
+              core.info(`Resolved temporary ID '${item.issue_number}' to #${issueNumber}`);
+            } else if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+              return {
+                success: false,
+                deferred: true,
+                error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${item.issue_number}`,
+              };
+            }
+          }
+
+          if (issueNumber === undefined) {
+            issueNumber = parseInt(String(item.issue_number), 10);
+            if (isNaN(issueNumber)) {
+              return { success: false, error: `Invalid issue number: ${item.issue_number}` };
+            }
           }
         } else {
           const contextIssue = context.payload?.issue?.number;
