@@ -114,71 +114,10 @@ func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string
 	// Build the description
 	description := fmt.Sprintf("Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository.", workflowName)
 
-	// Build input schema properties
-	properties := make(map[string]any)
-	required := []string{} // No required fields by default
-
-	// Convert GitHub Actions workflow_dispatch inputs to MCP tool schema
-	for inputName, inputDef := range workflowInputs {
-		inputDefMap, ok := inputDef.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Extract input properties
-		inputType := "string" // Default type
-		inputDescription := fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
-		inputRequired := false
-
-		if desc, ok := inputDefMap["description"].(string); ok && desc != "" {
-			inputDescription = desc
-		}
-
-		if req, ok := inputDefMap["required"].(bool); ok {
-			inputRequired = req
-		}
-
-		// GitHub Actions workflow_dispatch supports: string, number, boolean, choice, environment
-		// Map these to JSON schema types
-		if typeStr, ok := inputDefMap["type"].(string); ok {
-			switch typeStr {
-			case "number":
-				inputType = "number"
-			case "boolean":
-				inputType = "boolean"
-			case "choice":
-				inputType = "string"
-				// Add enum if options are provided
-				if options, ok := inputDefMap["options"].([]any); ok && len(options) > 0 {
-					properties[inputName] = map[string]any{
-						"type":        inputType,
-						"description": inputDescription,
-						"enum":        options,
-					}
-					if inputRequired {
-						required = append(required, inputName)
-					}
-					continue
-				}
-			case "environment":
-				inputType = "string"
-			}
-		}
-
-		properties[inputName] = map[string]any{
-			"type":        inputType,
-			"description": inputDescription,
-		}
-
-		// Add default value if provided
-		if defaultVal, ok := inputDefMap["default"]; ok {
-			properties[inputName].(map[string]any)["default"] = defaultVal
-		}
-
-		if inputRequired {
-			required = append(required, inputName)
-		}
-	}
+	// Build input schema properties from workflow_dispatch inputs
+	properties, required := buildInputSchema(workflowInputs, func(inputName string) string {
+		return fmt.Sprintf("Input parameter '%s' for workflow %s", inputName, workflowName)
+	})
 
 	// Add internal workflow_name parameter (hidden from description but used internally)
 	// This will be injected by the safe output handler
