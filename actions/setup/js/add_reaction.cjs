@@ -4,7 +4,7 @@
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 
-/** Maps REST reaction names to GraphQL ReactionContent enum values */
+/** @type {Record<string, string>} Maps REST reaction names to GraphQL ReactionContent enum values */
 const REACTION_MAP = {
   "+1": "THUMBS_UP",
   "-1": "THUMBS_DOWN",
@@ -220,4 +220,4 @@ async function getDiscussionNodeId(owner, repo, discussionNumber) {
   return repository.discussion.id;
 }
 
-module.exports = { main };
+module.exports = { main, addReaction, addDiscussionReaction, getDiscussionNodeId, handleReactionError, REACTION_MAP };

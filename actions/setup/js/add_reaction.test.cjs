@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
-const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_NOT_FOUND, ERR_VALIDATION, ERR_API } = require("./error_codes.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -78,6 +78,11 @@ describe("add_reaction", () => {
     await main();
   }
 
+  // Helper to import module helpers directly
+  async function importHelpers() {
+    return import("./add_reaction.cjs?" + Date.now());
+  }
+
   describe("reaction validation", () => {
     it("should use 'eyes' as default reaction when GH_AW_REACTION is not set", async () => {
       await runScript();
@@ -114,6 +119,25 @@ describe("add_reaction", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
         expect(mockGithub.request).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ content: reaction }));
       }
+    });
+  });
+
+  describe("REACTION_MAP", () => {
+    it("should export REACTION_MAP with all 8 reaction types", async () => {
+      const { REACTION_MAP } = await importHelpers();
+      expect(Object.keys(REACTION_MAP)).toHaveLength(8);
+    });
+
+    it("should map all reactions to correct GraphQL enum values", async () => {
+      const { REACTION_MAP } = await importHelpers();
+      expect(REACTION_MAP["+1"]).toBe("THUMBS_UP");
+      expect(REACTION_MAP["-1"]).toBe("THUMBS_DOWN");
+      expect(REACTION_MAP["laugh"]).toBe("LAUGH");
+      expect(REACTION_MAP["confused"]).toBe("CONFUSED");
+      expect(REACTION_MAP["heart"]).toBe("HEART");
+      expect(REACTION_MAP["hooray"]).toBe("HOORAY");
+      expect(REACTION_MAP["rocket"]).toBe("ROCKET");
+      expect(REACTION_MAP["eyes"]).toBe("EYES");
     });
   });
 
@@ -509,6 +533,121 @@ describe("add_reaction", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "");
+    });
+
+    it("should stringify numeric reaction-id to string", async () => {
+      mockGithub.request.mockResolvedValueOnce({
+        data: { id: 42 },
+      });
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "42");
+    });
+  });
+
+  describe("addReaction (direct)", () => {
+    it("should call github.request with correct endpoint and content", async () => {
+      const { addReaction } = await importHelpers();
+      mockGithub.request.mockResolvedValueOnce({ data: { id: 111 } });
+
+      await addReaction("/repos/owner/repo/issues/1/reactions", "+1");
+
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/owner/repo/issues/1/reactions", {
+        content: "+1",
+        headers: { Accept: "application/vnd.github+json" },
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "111");
+    });
+
+    it("should set empty reaction-id when response has no id", async () => {
+      const { addReaction } = await importHelpers();
+      mockGithub.request.mockResolvedValueOnce({ data: {} });
+
+      await addReaction("/repos/owner/repo/issues/1/reactions", "eyes");
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "");
+    });
+
+    it("should log success message with reaction id", async () => {
+      const { addReaction } = await importHelpers();
+      mockGithub.request.mockResolvedValueOnce({ data: { id: 777 } });
+
+      await addReaction("/repos/owner/repo/issues/1/reactions", "rocket");
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("rocket"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("777"));
+    });
+  });
+
+  describe("addDiscussionReaction (direct)", () => {
+    it("should call github.graphql with correct mutation and content", async () => {
+      const { addDiscussionReaction } = await importHelpers();
+      mockGithub.graphql.mockResolvedValueOnce({
+        addReaction: { reaction: { id: "R_abc123", content: "THUMBS_UP" } },
+      });
+
+      await addDiscussionReaction("D_nodeId", "+1");
+
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addReaction"), { subjectId: "D_nodeId", content: "THUMBS_UP" });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "R_abc123");
+    });
+
+    it("should throw for unknown reaction type", async () => {
+      const { addDiscussionReaction } = await importHelpers();
+
+      await expect(addDiscussionReaction("D_nodeId", "unknown_reaction")).rejects.toThrow("Invalid reaction type for GraphQL");
+    });
+  });
+
+  describe("getDiscussionNodeId (direct)", () => {
+    it("should return node ID for a valid discussion", async () => {
+      const { getDiscussionNodeId } = await importHelpers();
+      mockGithub.graphql.mockResolvedValueOnce({
+        repository: { discussion: { id: "D_node123" } },
+      });
+
+      const id = await getDiscussionNodeId("owner", "repo", 42);
+
+      expect(id).toBe("D_node123");
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("discussion(number"), { owner: "owner", repo: "repo", num: 42 });
+    });
+
+    it("should throw ERR_NOT_FOUND when repository is null", async () => {
+      const { getDiscussionNodeId } = await importHelpers();
+      mockGithub.graphql.mockResolvedValueOnce({ repository: null });
+
+      await expect(getDiscussionNodeId("owner", "repo", 99)).rejects.toThrow(ERR_NOT_FOUND);
+    });
+
+    it("should throw ERR_NOT_FOUND when discussion is null", async () => {
+      const { getDiscussionNodeId } = await importHelpers();
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { discussion: null } });
+
+      await expect(getDiscussionNodeId("owner", "repo", 99)).rejects.toThrow(ERR_NOT_FOUND);
+    });
+  });
+
+  describe("handleReactionError (direct)", () => {
+    it("should silently ignore locked errors (status 403 + locked message)", async () => {
+      const { handleReactionError } = await importHelpers();
+      const lockedError = new Error("Issue is locked");
+      lockedError.status = 403;
+
+      handleReactionError(lockedError);
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked"));
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should call core.error and core.setFailed for non-locked errors", async () => {
+      const { handleReactionError } = await importHelpers();
+
+      handleReactionError(new Error("Some API error"));
+
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction: Some API error"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`${ERR_API}: Failed to add reaction`));
     });
   });
 });
