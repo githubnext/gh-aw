@@ -69,6 +69,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @adamhenson
 
+- #25345 _(direct issue)_
 - #24282 _(direct issue)_
 
 ### @adhikjoshi
@@ -110,6 +111,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bbonafed
 
+- #25224 _(direct issue)_
 - #24918 _(direct issue)_
 - #24896 _(direct issue)_
 - #24323 _(direct issue)_
@@ -128,6 +130,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @benvillalobos
 
+- #25717 _(direct issue)_
 - #20885 _(direct issue)_
 - [`network: { allowed: [] }` still allows infrastructure domains — same behavior as `network: {}`](https://github.com/github/gh-aw/issues/18557) _(direct issue)_
 - #18115 _(direct issue)_
@@ -144,11 +147,16 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bryanchen-d
 
+- #25719 _(direct issue)_
 - #23265 _(direct issue)_
 
 ### @BrandonLewis
 
 - #18263 _(direct issue)_
+
+### @bryanknox
+
+- #25351 _(direct issue)_
 
 ### @carlincherry
 
@@ -160,6 +168,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @chrisfregly
 
+- #25349 _(direct issue)_
 - #23963 _(direct issue)_
 
 ### @chrizbo
@@ -178,6 +187,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @corygehr
 
+- #25680 _(direct issue)_
 - #24355 _(direct issue)_
 - #23944 _(direct issue)_
 - #23753 _(direct issue)_
@@ -207,8 +217,14 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #17151 _(direct issue)_
 - #16360 _(direct issue)_
 
+### @dbudym-cs
+
+- #22913 _(direct issue)_
+
 ### @deyaaeldeen
 
+- #25573 _(direct issue)_
+- #25359 _(direct issue)_
 - #23198 _(direct issue)_
 - #23024 _(direct issue)_
 - #23020 _(direct issue)_
@@ -232,6 +248,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @DogeAmazed
 
 - #22703 _(direct issue)_
+
+### @drehelis
+
+- #25304 _(direct issue)_
 
 ### @DrPye
 
@@ -359,6 +379,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - [[Question] Can I not use a PAT for Copilot?](https://github.com/github/gh-aw/issues/19547) _(direct issue)_
 
+### @IEvangelist
+
+- #25467 _(direct issue)_
+
 ### @Infinnerty
 
 - #21957 _(direct issue)_
@@ -377,6 +401,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @JanKrivanek
 
+- #25439 _(direct issue)_
 - #20187 _(direct issue)_
 
 ### @jaroslawgajewski
@@ -408,6 +433,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @johnpreed
 
+- #25687 _(direct issue)_
 - #23777 _(direct issue)_
 - #23212 _(direct issue)_
 - #21334 _(direct issue)_
@@ -511,6 +537,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @Mossaka
 
+- #21644 _(direct issue)_
 - #21630 _(direct issue)_
 
 ### @mstrathman
@@ -534,6 +561,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @pholleran
 
+- #25313 _(direct issue)_
 - #23572 _(direct issue)_
 - #21313 _(direct issue)_
 
@@ -599,6 +627,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @salekseev
 
+- #25137 _(direct issue)_
 - #25122 _(direct issue)_
 - #24135 _(direct issue)_
 
@@ -773,11 +802,24 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @yskopets
 
+- #25363 _(direct issue)_
+- #25362 _(direct issue)_
+- #25125 _(direct issue)_
 - #24897 _(direct issue)_
 - #24573 _(direct issue)_
 - #23914 _(direct issue)_
 
 </details>
+
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not
+be automatically linked to a specific merged PR. Please verify whether they
+should be credited:
+
+- **@Henry-Shan** for Add agentic workflow: Proactive Dependency Auto-Remediation ([#23268](https://github.com/github/gh-aw/issues/23268)) — closed 2026-03-28, NOT_PLANNED
+- **@haritha-px** for Model version generation issue ([#21871](https://github.com/github/gh-aw/issues/21871)) — closed 2026-03-25, NOT_PLANNED
+- **@porada** for Support `.lock.yaml` files ([#21828](https://github.com/github/gh-aw/issues/21828)) — closed 2026-03-25, NOT_PLANNED
 
 ## Share Feedback
 
