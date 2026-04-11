@@ -10,6 +10,9 @@ import (
 
 var templateLog = logger.New("workflow:template")
 
+// templateConditionalPattern matches {{#if expression}} blocks (pre-compiled for performance)
+var templateConditionalPattern = regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
+
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
 // expressions in ${{ }}. For example:
 // {{#if github.event.issue.number}} becomes {{#if ${{ github.event.issue.number }} }}
@@ -21,7 +24,7 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 	//   - OR any character that's not }
 	// This allows matching ${{ github.event.issue.number }} as a unit while stopping at the
 	// closing }} of the conditional
-	re := regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
+	re := templateConditionalPattern
 
 	templateLog.Print("Wrapping expressions in template conditionals")
 
