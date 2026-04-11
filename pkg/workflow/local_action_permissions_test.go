@@ -86,34 +86,29 @@ strict: false
 
 			lockContentStr := string(lockContent)
 
-			// Verify the job exists
-			jobMarker := tt.jobName + ":"
-			if !strings.Contains(lockContentStr, jobMarker) {
+			// Verify the job exists and extract using exact YAML job marker
+			jobMarker := "\n  " + tt.jobName + ":\n"
+			markerIdx := strings.Index(lockContentStr, jobMarker)
+			if markerIdx == -1 {
 				t.Errorf("Expected %s job to be present", tt.jobName)
 				return
 			}
 
 			// Extract the job section
-			jobStart := strings.Index(lockContentStr, jobMarker)
-			if jobStart == -1 {
-				t.Fatalf("%s job not found in compiled workflow", tt.jobName)
-			}
+			jobStart := markerIdx + len("\n  ") // point to "jobName:\n"
 
 			// Find the next job or end of file
 			jobEnd := len(lockContentStr)
-			nextJobIdx := strings.Index(lockContentStr[jobStart+len(jobMarker):], "\n  ")
-			if nextJobIdx != -1 {
-				searchStart := jobStart + len(jobMarker) + nextJobIdx
-				for idx := searchStart; idx < len(lockContentStr); idx++ {
-					if lockContentStr[idx] == '\n' {
-						lineStart := idx + 1
-						if lineStart < len(lockContentStr) && lineStart+2 < len(lockContentStr) {
-							if lockContentStr[lineStart:lineStart+2] == "  " && lockContentStr[lineStart+2] != ' ' {
-								colonIdx := strings.Index(lockContentStr[lineStart:], ":")
-								if colonIdx > 0 && colonIdx < 50 {
-									jobEnd = idx
-									break
-								}
+			searchStart := markerIdx + len(jobMarker)
+			for idx := searchStart; idx < len(lockContentStr); idx++ {
+				if lockContentStr[idx] == '\n' {
+					lineStart := idx + 1
+					if lineStart+2 < len(lockContentStr) {
+						if lockContentStr[lineStart:lineStart+2] == "  " && lockContentStr[lineStart+2] != ' ' {
+							colonIdx := strings.Index(lockContentStr[lineStart:], ":")
+							if colonIdx > 0 && colonIdx < 50 {
+								jobEnd = idx
+								break
 							}
 						}
 					}

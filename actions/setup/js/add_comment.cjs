@@ -358,27 +358,30 @@ async function main(config = {}) {
     let itemNumber;
     let isDiscussion = false;
 
-    // Check if item_number was explicitly provided in the message
-    if (message.item_number !== undefined && message.item_number !== null) {
+    // Check if item_number or issue_number was explicitly provided in the message.
+    // item_number takes precedence over issue_number when both are present.
+    const explicitItemNumber = message.item_number != null ? message.item_number : message.issue_number != null ? message.issue_number : undefined;
+
+    if (explicitItemNumber !== undefined) {
       // Resolve temporary IDs if present
-      const resolvedTarget = resolveRepoIssueTarget(message.item_number, temporaryIdMap, repoParts.owner, repoParts.repo);
+      const resolvedTarget = resolveRepoIssueTarget(explicitItemNumber, temporaryIdMap, repoParts.owner, repoParts.repo);
 
       // Check if this is an unresolved temporary ID
       if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
-        core.info(`Deferring add_comment: unresolved temporary ID (${message.item_number})`);
+        core.info(`Deferring add_comment: unresolved temporary ID (${explicitItemNumber})`);
         return {
           success: false,
           deferred: true,
-          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${message.item_number}`,
+          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${explicitItemNumber}`,
         };
       }
 
       // Check for other resolution errors (including null resolved)
       if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-        core.warning(`Invalid item_number specified: ${message.item_number}`);
+        core.warning(`Invalid item_number/issue_number specified: ${explicitItemNumber}`);
         return {
           success: false,
-          error: `Invalid item_number specified: ${message.item_number}`,
+          error: `Invalid item_number/issue_number specified: ${explicitItemNumber}`,
         };
       }
 
@@ -444,8 +447,8 @@ async function main(config = {}) {
     // author so the second sanitization pass does not accidentally strip them.
     const parentAuthors = [];
     if (!isDiscussion) {
-      if (message.item_number !== undefined && message.item_number !== null) {
-        // Explicit item_number: fetch the issue/PR to get its author
+      if (explicitItemNumber !== undefined) {
+        // Explicit item_number/issue_number: fetch the issue/PR to get its author
         try {
           const { data: issueData } = await githubClient.rest.issues.get({
             owner: repoParts.owner,
@@ -596,7 +599,7 @@ async function main(config = {}) {
         // reply as a threaded comment to the triggering comment instead of posting top-level.
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
         // itself a reply, we resolve the top-level parent's node ID to use as replyToId.
-        const hasExplicitItemNumber = message.item_number !== undefined && message.item_number !== null;
+        const hasExplicitItemNumber = explicitItemNumber !== undefined;
         let replyToId;
         if (context.eventName === "discussion_comment" && !hasExplicitItemNumber) {
           // When triggered by a discussion_comment event, thread the reply under the triggering comment.
@@ -634,7 +637,7 @@ async function main(config = {}) {
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
-      if (is404 && !isDiscussion && message.item_number !== undefined && message.item_number !== null) {
+      if (is404 && !isDiscussion && explicitItemNumber !== undefined) {
         core.info(`Item #${itemNumber} not found as issue/PR, retrying as discussion...`);
 
         try {

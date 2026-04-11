@@ -12,6 +12,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /**
  * @typedef {Object} UpdateHandlerConfig
@@ -39,10 +40,28 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
 function createStandardResolveNumber(config) {
   const { itemType, itemNumberField, supportsPR, supportsIssue } = config;
 
-  return function resolveNumber(item, updateTarget, context) {
+  return function resolveNumber(item, updateTarget, context, resolvedTemporaryIds) {
+    // Resolve temporary IDs in the item number field before target resolution
+    let resolvedItem = item;
+    const itemNumberValue = item[itemNumberField];
+    if (resolvedTemporaryIds && itemNumberValue != null) {
+      const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+      const resolvedTarget = resolveRepoIssueTarget(itemNumberValue, tempIdMap, context.repo.owner, context.repo.repo);
+      if (resolvedTarget.wasTemporaryId && resolvedTarget.resolved) {
+        resolvedItem = { ...item, [itemNumberField]: resolvedTarget.resolved.number };
+        core.info(`Resolved temporary ID '${itemNumberValue}' to #${resolvedTarget.resolved.number}`);
+      } else if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+        return {
+          success: false,
+          deferred: true,
+          error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${itemNumberValue}`,
+        };
+      }
+    }
+
     const targetResult = resolveTarget({
       targetConfig: updateTarget,
-      item: { ...item, item_number: item[itemNumberField] },
+      item: { ...resolvedItem, item_number: resolvedItem[itemNumberField] },
       context: context,
       itemType: itemType,
       supportsPR: supportsPR,
@@ -178,6 +197,7 @@ function createUpdateHandlerFactory(handlerConfig) {
         core.warning(itemNumberResult.error);
         return {
           success: false,
+          deferred: itemNumberResult.deferred || false,
           error: itemNumberResult.error,
         };
       }

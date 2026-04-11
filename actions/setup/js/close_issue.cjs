@@ -9,6 +9,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
+const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 
 /**
  * Get issue details using REST API
@@ -101,7 +102,7 @@ async function main(config = {}) {
     config,
     ISSUE_CONFIG,
     {
-      resolveTarget(item) {
+      resolveTarget(item, _config, resolvedTemporaryIds) {
         // Resolve and validate target repository
         const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");
         if (!repoResult.success) {
@@ -109,22 +110,37 @@ async function main(config = {}) {
         }
         const { repo: entityRepo, repoParts } = repoResult;
 
-        // Determine issue number
-        let issueNumber;
+        // Determine issue number - either from explicit field or from context
         if (item.issue_number !== undefined) {
-          issueNumber = parseInt(String(item.issue_number), 10);
+          // Try to resolve as temporary ID first, then fall back to integer parsing
+          const tempIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+          const resolvedTarget = resolveRepoIssueTarget(item.issue_number, tempIdMap, repoParts.owner, repoParts.repo);
+          if (resolvedTarget.wasTemporaryId && resolvedTarget.resolved) {
+            const issueNumber = resolvedTarget.resolved.number;
+            core.info(`Resolved temporary ID '${item.issue_number}' to #${issueNumber}`);
+            return { success: true, entityNumber: issueNumber, owner: repoParts.owner, repo: repoParts.repo, entityRepo };
+          } else if (resolvedTarget.wasTemporaryId && !resolvedTarget.resolved) {
+            return {
+              success: false,
+              deferred: true,
+              error: resolvedTarget.errorMessage || `Unresolved temporary ID: ${item.issue_number}`,
+            };
+          }
+
+          // Not a temporary ID - parse as integer
+          const issueNumber = parseInt(String(item.issue_number), 10);
           if (isNaN(issueNumber)) {
             return { success: false, error: `Invalid issue number: ${item.issue_number}` };
           }
-        } else {
-          const contextIssue = context.payload?.issue?.number;
-          if (!contextIssue) {
-            return { success: false, error: "No issue number available" };
-          }
-          issueNumber = contextIssue;
+          return { success: true, entityNumber: issueNumber, owner: repoParts.owner, repo: repoParts.repo, entityRepo };
         }
 
-        return { success: true, entityNumber: issueNumber, owner: repoParts.owner, repo: repoParts.repo, entityRepo };
+        // Fall back to context issue number
+        const contextIssue = context.payload?.issue?.number;
+        if (!contextIssue) {
+          return { success: false, error: "No issue number available" };
+        }
+        return { success: true, entityNumber: contextIssue, owner: repoParts.owner, repo: repoParts.repo, entityRepo };
       },
 
       getDetails: getIssueDetails,

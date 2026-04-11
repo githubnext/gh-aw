@@ -134,28 +134,28 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Checkout in agent job should include token in trial mode
-		// Extract the agent job section first
-		agentJobStart := strings.Index(lockContent, "agent:")
-		if agentJobStart == -1 {
+		// Extract the agent job section using exact YAML job marker
+		agentJobMarker := "\n  agent:\n"
+		markerIdx := strings.Index(lockContent, agentJobMarker)
+		if markerIdx == -1 {
 			t.Error("Expected agent job in trial mode")
 			return
 		}
 
+		agentJobStart := markerIdx + len("\n  ") // point to "agent:\n"
+
 		// Find the end of the agent job (next job or end of file)
 		agentJobEnd := len(lockContent)
-		nextJobStart := strings.Index(lockContent[agentJobStart+6:], "\n  ")
-		if nextJobStart != -1 {
-			searchPos := agentJobStart + 6 + nextJobStart
-			for idx := searchPos; idx < len(lockContent); idx++ {
-				if lockContent[idx] == '\n' {
-					lineStart := idx + 1
-					if lineStart < len(lockContent) && lineStart+2 < len(lockContent) {
-						if lockContent[lineStart:lineStart+2] == "  " && lockContent[lineStart+2] != ' ' {
-							colonIdx := strings.Index(lockContent[lineStart:], ":")
-							if colonIdx > 0 && colonIdx < 50 {
-								agentJobEnd = idx
-								break
-							}
+		searchPos := markerIdx + len(agentJobMarker)
+		for idx := searchPos; idx < len(lockContent); idx++ {
+			if lockContent[idx] == '\n' {
+				lineStart := idx + 1
+				if lineStart+2 < len(lockContent) {
+					if lockContent[lineStart:lineStart+2] == "  " && lockContent[lineStart+2] != ' ' {
+						colonIdx := strings.Index(lockContent[lineStart:], ":")
+						if colonIdx > 0 && colonIdx < 50 {
+							agentJobEnd = idx
+							break
 						}
 					}
 				}

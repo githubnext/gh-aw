@@ -146,31 +146,27 @@ strict: false
 				}
 			} else {
 				// For other test cases, check if checkout step is present in the agent job
-				// Extract the agent job section
-				agentJobStart := strings.Index(lockContentStr, "agent:")
-				if agentJobStart == -1 {
+				// Extract the agent job section using exact YAML job marker
+				agentJobMarker := "\n  agent:\n"
+				markerIdx := strings.Index(lockContentStr, agentJobMarker)
+				if markerIdx == -1 {
 					t.Fatalf("Agent job not found in compiled workflow")
 				}
+				agentJobStart := markerIdx + len("\n  ") // point to "agent:\n"
 
 				// Find the next job or end of file to bound the agent job section
 				agentJobEnd := len(lockContentStr)
-				nextJobIdx := strings.Index(lockContentStr[agentJobStart+6:], "\n  ")
-				if nextJobIdx != -1 {
-					// Look for the start of the next job (a line starting with two spaces followed by a word and colon)
-					searchStart := agentJobStart + 6 + nextJobIdx
-					for idx := searchStart; idx < len(lockContentStr); idx++ {
-						if lockContentStr[idx] == '\n' {
-							// Check if the next line starts a new job (at same indentation level as "agent:")
-							lineStart := idx + 1
-							if lineStart < len(lockContentStr) && lineStart+2 < len(lockContentStr) {
-								if lockContentStr[lineStart:lineStart+2] == "  " && lockContentStr[lineStart+2] != ' ' {
-									// Found a line that starts with exactly 2 spaces (not more)
-									// and has a non-space character after, indicating a new job
-									colonIdx := strings.Index(lockContentStr[lineStart:], ":")
-									if colonIdx > 0 && colonIdx < 50 { // Job names are typically short
-										agentJobEnd = idx
-										break
-									}
+				// Search for next top-level job (line starting with exactly 2 spaces + non-space)
+				searchStart := markerIdx + len(agentJobMarker)
+				for idx := searchStart; idx < len(lockContentStr); idx++ {
+					if lockContentStr[idx] == '\n' {
+						lineStart := idx + 1
+						if lineStart+2 < len(lockContentStr) {
+							if lockContentStr[lineStart:lineStart+2] == "  " && lockContentStr[lineStart+2] != ' ' {
+								colonIdx := strings.Index(lockContentStr[lineStart:], ":")
+								if colonIdx > 0 && colonIdx < 50 {
+									agentJobEnd = idx
+									break
 								}
 							}
 						}

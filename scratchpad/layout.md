@@ -134,6 +134,7 @@ Common file paths referenced in workflow files:
 | `/tmp/gh-aw/cache-memory-focus-areas` | Directory | Focus areas cache | Cached focus area data |
 | `/tmp/gh-aw/cache-memory-repo-audits` | Directory | Repo audits cache | Cached repository audit data |
 | `/tmp/gh-aw/layout-cache` | Directory | Layout cache | Cached layout specification data |
+| `/tmp/gh-aw/logs-cache` | Directory | Logs tool cache | Content-addressed JSON summaries from the MCP logs tool |
 | `/tmp/gh-aw/prompt-cache` | Directory | Prompt cache | Cached prompt templates |
 | `/tmp/gh-aw/repo-memory/default` | Directory | Default repo memory | Default repository memory storage |
 | `/tmp/gh-aw/repo-memory/campaigns` | Directory | Campaigns repo memory | Campaign-specific repository memory |

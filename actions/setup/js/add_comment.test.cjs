@@ -1676,7 +1676,7 @@ describe("add_comment", () => {
       const result = await handler(message, resolvedTemporaryIds);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid item_number specified");
+      expect(result.error).toContain("Invalid item_number/issue_number specified");
     });
 
     it("should replace temporary IDs in comment body", async () => {
@@ -1714,6 +1714,92 @@ describe("add_comment", () => {
       expect(capturedBody).toContain("#200");
       expect(capturedBody).not.toContain("aw_test01");
       expect(capturedBody).not.toContain("aw_test02");
+    });
+
+    it("should resolve temporary ID in issue_number field", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        issue_number: "aw_report",
+        body: "Comment targeting issue via issue_number field",
+      };
+
+      const resolvedTemporaryIds = {
+        aw_report: { repo: "owner/repo", number: 55 },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(55);
+    });
+
+    it("should prefer item_number over issue_number when both are provided", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: "aw_primary",
+        issue_number: "aw_fallback",
+        body: "Comment with both fields",
+      };
+
+      const resolvedTemporaryIds = {
+        aw_primary: { repo: "owner/repo", number: 10 },
+        aw_fallback: { repo: "owner/repo", number: 20 },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(10);
+    });
+
+    it("should defer when issue_number has unresolved temporary ID", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        issue_number: "aw_pending",
+        body: "Comment with unresolved issue_number temporary ID",
+      };
+
+      const resolvedTemporaryIds = {};
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
+      expect(result.error).toContain("aw_pending");
     });
   });
 
