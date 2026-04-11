@@ -13,6 +13,9 @@ import (
 
 var workflowUpdateLog = logger.New("parser:workflow_update")
 
+// cronPattern matches unquoted cron expressions after "cron:" (pre-compiled for performance)
+var cronPattern = regexp.MustCompile(`(?m)^(\s*-?\s*cron:\s*)([0-9][^\n"']*)$`)
+
 // UpdateWorkflowFrontmatter updates the frontmatter of a workflow file using a callback function
 func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter map[string]any) error, verbose bool) error {
 	workflowUpdateLog.Printf("Updating workflow frontmatter: path=%s", workflowPath)
@@ -110,10 +113,6 @@ func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 // causes validation errors since they start with numbers but contain spaces and special chars.
 func QuoteCronExpressions(yamlContent string) string {
 	workflowUpdateLog.Print("Quoting cron expressions in YAML content")
-	// Pattern to match unquoted cron expressions after "cron:"
-	// Matches: cron: 0 14 * * 1-5
-	// Captures the cron value to be quoted
-	cronPattern := regexp.MustCompile(`(?m)^(\s*-?\s*cron:\s*)([0-9][^\n"']*)$`)
 
 	// Replace unquoted cron expressions with quoted versions
 	return cronPattern.ReplaceAllStringFunc(yamlContent, func(match string) string {

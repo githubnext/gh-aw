@@ -597,3 +597,109 @@ Test that GH_AW_SAFE_OUTPUTS is passed to the HTTP server startup step.
 	assert.Contains(t, yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG_PATH:",
 		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH should be in startup step env block")
 }
+
+// TestOIDCEnvVarsPassedToGatewayContainer verifies that ACTIONS_ID_TOKEN_REQUEST_URL and
+// ACTIONS_ID_TOKEN_REQUEST_TOKEN are passed to the MCP gateway container when an HTTP MCP server
+// uses auth.type: "github-oidc". This is required for the gateway to mint OIDC tokens (spec §7.6.1).
+func TestOIDCEnvVarsPassedToGatewayContainer(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  id-token: write
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+mcp-servers:
+  my-oidc-server:
+    type: http
+    url: "https://my-server.example.com/mcp"
+    auth:
+      type: github-oidc
+      audience: "https://my-server.example.com"
+    allowed: ["*"]
+---
+
+# Test OIDC Env Vars
+
+Test that OIDC env vars are forwarded to the MCP gateway container.
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify OIDC env vars are passed to the docker container via -e flags
+	assert.Contains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_URL",
+		"ACTIONS_ID_TOKEN_REQUEST_URL should be passed to gateway container via -e flag")
+	assert.Contains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should be passed to gateway container via -e flag")
+
+	// Verify the docker command includes both -e flags before the container image
+	dockerCmdPatternURL := `docker run.*-e ACTIONS_ID_TOKEN_REQUEST_URL.*ghcr\.io/github/gh-aw-mcpg`
+	assert.Regexp(t, dockerCmdPatternURL, yamlStr,
+		"Docker command should include -e ACTIONS_ID_TOKEN_REQUEST_URL before the container image")
+	dockerCmdPatternToken := `docker run.*-e ACTIONS_ID_TOKEN_REQUEST_TOKEN.*ghcr\.io/github/gh-aw-mcpg`
+	assert.Regexp(t, dockerCmdPatternToken, yamlStr,
+		"Docker command should include -e ACTIONS_ID_TOKEN_REQUEST_TOKEN before the container image")
+}
+
+// TestOIDCEnvVarsNotPassedWithoutOIDCAuth verifies that OIDC env vars are NOT added to the
+// docker command when no HTTP MCP server uses auth.type: "github-oidc".
+func TestOIDCEnvVarsNotPassedWithoutOIDCAuth(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+mcp-servers:
+  tavily:
+    type: http
+    url: "https://mcp.tavily.com/mcp/"
+    headers:
+      Authorization: "Bearer ${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
+
+# Test No OIDC
+
+Test that OIDC env vars are NOT added when no server uses github-oidc auth.
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify OIDC env vars are NOT in the docker command
+	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_URL",
+		"ACTIONS_ID_TOKEN_REQUEST_URL should NOT be in docker command without github-oidc auth")
+	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should NOT be in docker command without github-oidc auth")
+}

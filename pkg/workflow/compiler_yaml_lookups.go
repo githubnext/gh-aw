@@ -10,6 +10,9 @@ import (
 
 var compilerYamlLookupsLog = logger.New("workflow:compiler_yaml_lookups")
 
+// gitDescribeSHAPattern matches git-describe output ending with -N-gSHA (pre-compiled for performance)
+var gitDescribeSHAPattern = regexp.MustCompile(`-\d+-g([0-9a-f]+)$`)
+
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
 func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
@@ -69,8 +72,7 @@ func versionToGitRef(version string) string {
 	clean := strings.TrimSuffix(version, "-dirty")
 	// If the version looks like `git describe` output with -N-gSHA, extract the SHA.
 	// Pattern: anything ending with -<digits>-g<hexchars>
-	shaRe := regexp.MustCompile(`-\d+-g([0-9a-f]+)$`)
-	if m := shaRe.FindStringSubmatch(clean); m != nil {
+	if m := gitDescribeSHAPattern.FindStringSubmatch(clean); m != nil {
 		compilerYamlLookupsLog.Printf("Extracted SHA from git-describe version: %s -> %s", version, m[1])
 		return m[1]
 	}

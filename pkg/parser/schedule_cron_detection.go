@@ -9,6 +9,9 @@ import (
 // These pure functions analyze cron strings and determine their type without
 // depending on parser state.
 
+// cronFieldPattern matches valid cron field syntax (pre-compiled for performance)
+var cronFieldPattern = regexp.MustCompile(`^[\d\*\-/,]+$`)
+
 // IsDailyCron checks if a cron expression represents a daily schedule at a fixed time
 // (e.g., "0 0 * * *", "30 14 * * *", etc.)
 func IsDailyCron(cron string) bool {
@@ -138,7 +141,6 @@ func IsCronExpression(input string) bool {
 	}
 
 	// Each field should match cron syntax (numbers, *, /, -, ,)
-	cronFieldPattern := regexp.MustCompile(`^[\d\*\-/,]+$`)
 	for _, field := range fields {
 		if !cronFieldPattern.MatchString(field) {
 			return false

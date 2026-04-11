@@ -28,6 +28,10 @@ var heredocDelimiterRE = regexp.MustCompile(`GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF
 // placeholder so that two compilations of the same workflow compare as equal even though
 // each run embeds different random tokens.
 func normalizeHeredocDelimiters(content string) string {
+	// Fast path: skip regex if content contains no heredoc delimiters
+	if !strings.Contains(content, "GH_AW_") {
+		return content
+	}
 	return heredocDelimiterRE.ReplaceAllString(content, "GH_AW_${1}_NORM_EOF")
 }
 
@@ -627,6 +631,16 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 	return nil
 }
 
+// readLockFileFromHEAD reads a lock file from git HEAD using the compiler's cached
+// git root directory, avoiding the overhead of spawning a subprocess to re-discover
+// the repository root on every call.
+func (c *Compiler) readLockFileFromHEAD(lockFile string) (string, error) {
+	if c.gitRoot == "" {
+		return "", errors.New("git root not available (not in a git repository or git not installed)")
+	}
+	return gitutil.ReadFileFromHEADWithRoot(lockFile, c.gitRoot)
+}
+
 // CompileWorkflowData compiles pre-parsed workflow content into GitHub Actions YAML.
 // Unlike CompileWorkflow, this accepts already-parsed frontmatter and markdown content
 // rather than reading from disk. This is useful for testing and programmatic workflow generation.
@@ -688,7 +702,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			secretCount = len(cached.Secrets)
 		}
 		log.Printf("Using pre-cached gh-aw-manifest for %s: %d secret(s)", lockFile, secretCount)
-	} else if committedContent, readErr := gitutil.ReadFileFromHEAD(lockFile); readErr == nil {
+	} else if committedContent, readErr := c.readLockFileFromHEAD(lockFile); readErr == nil {
 		if m, parseErr := ExtractGHAWManifestFromLockFile(committedContent); parseErr == nil {
 			oldManifest = m
 			if oldManifest != nil {

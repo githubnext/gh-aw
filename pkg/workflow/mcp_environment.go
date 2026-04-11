@@ -191,3 +191,39 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 
 	return envVars
 }
+
+// hasGitHubOIDCAuthInTools checks if any HTTP MCP server in the tools configuration
+// uses auth.type: "github-oidc". This is used to determine whether the OIDC env vars
+// (ACTIONS_ID_TOKEN_REQUEST_URL, ACTIONS_ID_TOKEN_REQUEST_TOKEN) need to be forwarded
+// to the MCP gateway container.
+func hasGitHubOIDCAuthInTools(tools map[string]any) bool {
+	for toolName, toolValue := range tools {
+		// Skip standard tools that don't support auth config
+		if toolName == "github" || toolName == "playwright" ||
+			toolName == "cache-memory" || toolName == "agentic-workflows" ||
+			toolName == "safe-outputs" || toolName == "mcp-scripts" {
+			continue
+		}
+
+		toolConfig, ok := toolValue.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		hasMcp, _ := hasMCPConfig(toolConfig)
+		if !hasMcp {
+			continue
+		}
+
+		mcpConfig, err := getMCPConfig(toolConfig, toolName)
+		if err != nil {
+			continue
+		}
+
+		if mcpConfig.Type == "http" && mcpConfig.Auth != nil && mcpConfig.Auth.Type == "github-oidc" {
+			mcpEnvironmentLog.Printf("Found github-oidc auth on HTTP MCP server '%s'", toolName)
+			return true
+		}
+	}
+	return false
+}

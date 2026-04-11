@@ -737,6 +737,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerCmd.WriteString(" -e GITHUB_AW_OTEL_TRACE_ID")
 		containerCmd.WriteString(" -e GITHUB_AW_OTEL_PARENT_SPAN_ID")
 	}
+	// GitHub Actions OIDC env vars — required by the gateway to mint tokens
+	// for HTTP MCP servers with auth.type: "github-oidc" (spec §7.6.1).
+	// These are set automatically by GitHub Actions when permissions.id-token: write.
+	hasOIDCAuth := hasGitHubOIDCAuthInTools(tools)
+	if hasOIDCAuth {
+		containerCmd.WriteString(" -e ACTIONS_ID_TOKEN_REQUEST_URL")
+		containerCmd.WriteString(" -e ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+	}
 	if len(gatewayConfig.Env) > 0 {
 		// Using functional helper to extract map keys
 		envVarNames := sliceutil.MapToSlice(gatewayConfig.Env)
@@ -785,6 +793,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		if workflowData.OTLPEndpoint != "" {
 			addedEnvVars["GITHUB_AW_OTEL_TRACE_ID"] = true
 			addedEnvVars["GITHUB_AW_OTEL_PARENT_SPAN_ID"] = true
+		}
+		if hasOIDCAuth {
+			addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_URL"] = true
+			addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_TOKEN"] = true
 		}
 
 		// Mark gateway config environment variables as added
