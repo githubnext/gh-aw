@@ -360,21 +360,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Stop CLI proxy after AWF execution (always runs to ensure cleanup)
 	c.generateStopCliProxyStep(yaml, data)
 
-	// Add inference access error detection step for Copilot engine
-	// This step detects when the Copilot CLI fails due to the token lacking inference access
+	// Add Copilot error detection step (inference access + MCP policy)
+	// This single step detects both inference access errors and MCP policy errors
 	// It must run in the main job (not threat detection job) to avoid step ID conflicts
 	if _, ok := engine.(*CopilotEngine); ok {
-		detectionStep := generateInferenceAccessErrorDetectionStep()
+		detectionStep := generateCopilotErrorDetectionStep()
 		for _, line := range detectionStep {
-			yaml.WriteString(line + "\n")
-		}
-	}
-
-	// Add MCP policy error detection step for Copilot engine
-	// This step detects when MCP servers are blocked by enterprise/organization policy
-	if _, ok := engine.(*CopilotEngine); ok {
-		mcpPolicyStep := generateMCPPolicyErrorDetectionStep()
-		for _, line := range mcpPolicyStep {
 			yaml.WriteString(line + "\n")
 		}
 	}

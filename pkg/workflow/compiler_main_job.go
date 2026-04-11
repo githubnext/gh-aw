@@ -177,16 +177,16 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		compilerMainJobLog.Print("Skipped checkout_pr_success output (workflow lacks contents read access)")
 	}
 
-	// Add inference_access_error output for Copilot engine only
-	// This output is set by the detect-inference-error step when the Copilot CLI
-	// fails due to a token with invalid access to inference (policy access denied)
+	// Add inference_access_error and mcp_policy_error outputs for Copilot engine only
+	// These outputs are set by the detect-copilot-errors step which scans the agent
+	// stdio log for known error patterns in a single JavaScript step
 	engine, engineErr := c.getAgenticEngine(data.AI)
 	if engineErr == nil {
 		if _, ok := engine.(*CopilotEngine); ok {
-			outputs["inference_access_error"] = "${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}"
+			outputs["inference_access_error"] = "${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}"
 			compilerMainJobLog.Print("Added inference_access_error output (Copilot engine)")
 
-			outputs["mcp_policy_error"] = "${{ steps.detect-mcp-policy-error.outputs.mcp_policy_error || 'false' }}"
+			outputs["mcp_policy_error"] = "${{ steps.detect-copilot-errors.outputs.mcp_policy_error || 'false' }}"
 			compilerMainJobLog.Print("Added mcp_policy_error output (Copilot engine)")
 		}
 	}

@@ -441,32 +441,18 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	return steps
 }
 
-// generateInferenceAccessErrorDetectionStep generates a step that detects if the Copilot CLI
-// failed due to a token with invalid access to inference (policy access denied error).
-// The step always runs and checks the agent stdio log for known error patterns.
-func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
+// generateCopilotErrorDetectionStep generates a single step that detects known Copilot CLI
+// errors by scanning the agent stdio log. It sets two outputs:
+//   - inference_access_error: token lacks inference access (policy access denied)
+//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
+func generateCopilotErrorDetectionStep() GitHubActionStep {
 	var step []string
 
-	step = append(step, "      - name: Detect inference access error")
-	step = append(step, "        id: detect-inference-error")
+	step = append(step, "      - name: Detect Copilot errors")
+	step = append(step, "        id: detect-copilot-errors")
 	step = append(step, "        if: always()")
 	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh\"")
-
-	return GitHubActionStep(step)
-}
-
-// generateMCPPolicyErrorDetectionStep generates a step that detects if MCP servers
-// were blocked by enterprise/organization policy. The step always runs and checks
-// the agent stdio log for the "MCP servers were blocked by policy:" pattern.
-func generateMCPPolicyErrorDetectionStep() GitHubActionStep {
-	var step []string
-
-	step = append(step, "      - name: Detect MCP policy error")
-	step = append(step, "        id: detect-mcp-policy-error")
-	step = append(step, "        if: always()")
-	step = append(step, "        continue-on-error: true")
-	step = append(step, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/detect_mcp_policy_error.sh\"")
+	step = append(step, "        run: node \"${RUNNER_TEMP}/gh-aw/actions/detect_copilot_errors.cjs\"")
 
 	return GitHubActionStep(step)
 }

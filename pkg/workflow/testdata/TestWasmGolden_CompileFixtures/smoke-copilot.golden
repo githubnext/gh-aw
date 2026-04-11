@@ -315,7 +315,8 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: smokecopilot
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
-      inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
+      inference_access_error: ${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}
+      mcp_policy_error: ${{ steps.detect-copilot-errors.outputs.mcp_policy_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
     steps:
       - name: Checkout actions folder
@@ -584,11 +585,11 @@ jobs:
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           XDG_CONFIG_HOME: /home/runner
-      - name: Detect inference access error
-        id: detect-inference-error
+      - name: Detect Copilot errors
+        id: detect-copilot-errors
         if: always()
         continue-on-error: true
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh"
+        run: node "${RUNNER_TEMP}/gh-aw/actions/detect_copilot_errors.cjs"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
