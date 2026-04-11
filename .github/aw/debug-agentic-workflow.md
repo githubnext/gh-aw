@@ -278,7 +278,7 @@ When the user chooses to analyze existing logs:
 
    | Data | Artifact | Path | Content |
    |------|----------|------|---------|
-   | Per-request detail | `firewall-audit-logs` | `api-proxy-logs/token-usage.jsonl` | JSONL with per-API-call token counts, model, effective tokens |
+   | Per-request detail | `firewall-audit-logs` | `api-proxy-logs/token-usage.jsonl` | JSONL with per-API-call model and raw token counts |
    | Aggregated summary | `agent` | `agent_usage.json` | Total input/output/cache tokens, effective tokens |
    | Step summary | Job log | "Parse token usage" step | Markdown table in step summary |
 
@@ -294,7 +294,7 @@ When the user chooses to analyze existing logs:
    - `model`: Model name used (string, e.g. `"gpt-4.1"`)
    - `input_tokens`, `output_tokens`: Raw token counts (integers)
    - `cache_read_tokens`, `cache_write_tokens`: Cache-related tokens (integers; zero when caching is not used)
-   - `effective_tokens`: Cost-normalized token count (integer)
+   - Effective tokens are **not** stored per request in `token-usage.jsonl`; they are computed during aggregation and reported in `agent_usage.json` / the step summary
 
    > **Note on terminology:** "Firewall network logs" (domain allow/deny decisions, parsed by `parse_firewall_logs.cjs`) are different from the "firewall-audit-logs artifact" (which contains `token-usage.jsonl` and API proxy logs).
 
