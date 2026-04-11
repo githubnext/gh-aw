@@ -129,6 +129,9 @@ var typeConflictGotWantPattern = regexp.MustCompile(`(?:^|: )got (\w+), want (\w
 // messages. When all oneOf branches fail with type-mismatch errors (e.g., the user passes
 // an integer where a string or object is expected), these hints are appended to the
 // synthesized plain-English message to help the user fix the problem.
+//
+// The engine list mirrors the built-in engines in NewEngineCatalog.
+// Update this list when built-in engines change.
 var knownOneOfFieldHints = map[string]string{
 	"/engine": "Valid engine names: claude, codex, copilot, gemini.\n\nExample:\nengine: copilot",
 }
@@ -207,6 +210,10 @@ var typeConflictPattern = regexp.MustCompile(`got (\w+), want (\w+)`)
 // number, integer, boolean, null), to avoid misidentifying constraint violations
 // (e.g., "minItems: got 0, want 1") as type conflicts.
 func isTypeConflictLine(line string) bool {
+	// Fast-path: skip regex for lines that clearly aren't type conflicts
+	if !strings.Contains(line, "got ") || !strings.Contains(line, ", want ") {
+		return false
+	}
 	match := typeConflictPattern.FindStringSubmatch(line)
 	if match == nil {
 		return false
