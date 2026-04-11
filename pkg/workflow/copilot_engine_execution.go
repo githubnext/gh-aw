@@ -61,12 +61,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
-	// Add --no-ask-user to enable fully autonomous agentic runs (suppresses interactive prompts).
-	// Only emit for agent jobs (not detection jobs) and only when the Copilot CLI version
-	// supports it (v1.0.19+). Latest and unspecified versions always include the flag.
+	// Add --no-ask-user to enable fully autonomous runs (suppresses interactive prompts).
+	// Emitted for both agent and detection jobs when the Copilot CLI version supports it
+	// (v1.0.19+). Latest and unspecified versions always include the flag.
 	isDetectionJob := workflowData.SafeOutputs == nil
-	if !isDetectionJob && copilotSupportsNoAskUser(workflowData.EngineConfig) {
-		copilotExecLog.Print("Adding --no-ask-user for fully autonomous agentic run")
+	if copilotSupportsNoAskUser(workflowData.EngineConfig) {
+		copilotExecLog.Print("Adding --no-ask-user for fully autonomous run")
 		copilotArgs = append(copilotArgs, "--no-ask-user")
 	}
 

@@ -162,9 +162,9 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected --disable-builtin-mcps flag in command, got:\n%s", stepContent)
 	}
 
-	// Test that --no-ask-user is NOT present for detection jobs (SafeOutputs == nil)
-	if strings.Contains(stepContent, "--no-ask-user") {
-		t.Errorf("Expected --no-ask-user NOT to be present for detection jobs, got:\n%s", stepContent)
+	// Test that --no-ask-user IS present for detection jobs (SafeOutputs == nil)
+	if !strings.Contains(stepContent, "--no-ask-user") {
+		t.Errorf("Expected --no-ask-user to be present for detection jobs, got:\n%s", stepContent)
 	}
 
 	// Test that mkdir commands are present for --add-dir directories
@@ -1591,18 +1591,18 @@ func TestCopilotEngineNoAskUser(t *testing.T) {
 			description:  "1.0.0 < 1.0.19",
 		},
 		{
-			name:         "detection job never emits --no-ask-user",
+			name:         "detection job emits --no-ask-user with default version",
 			engineConfig: nil,
 			safeOutputs:  nil, // nil SafeOutputs = detection job
-			expectNoAsk:  false,
-			description:  "--no-ask-user is only for agent jobs, not detection jobs",
+			expectNoAsk:  true,
+			description:  "--no-ask-user is emitted for both agent and detection jobs",
 		},
 		{
-			name:         "detection job with old version never emits --no-ask-user",
+			name:         "detection job with old version does not emit --no-ask-user",
 			engineConfig: &EngineConfig{Version: "1.0.18"},
 			safeOutputs:  nil,
 			expectNoAsk:  false,
-			description:  "detection job never emits --no-ask-user regardless of version",
+			description:  "detection job with old version still respects version gate",
 		},
 	}
 
