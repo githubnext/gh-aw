@@ -1,4 +1,4 @@
-# ADR-0001: Version-Gated --no-ask-user Flag for Autonomous Copilot Agent Runs
+# ADR-25822: Version-Gated --no-ask-user Flag for Autonomous Copilot Agent Runs
 
 **Date**: 2026-04-11
 **Status**: Draft
