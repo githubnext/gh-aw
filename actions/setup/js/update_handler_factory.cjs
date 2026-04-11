@@ -197,6 +197,7 @@ function createUpdateHandlerFactory(handlerConfig) {
         core.warning(itemNumberResult.error);
         return {
           success: false,
+          deferred: itemNumberResult.deferred || false,
           error: itemNumberResult.error,
         };
       }

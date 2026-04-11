@@ -378,10 +378,10 @@ async function main(config = {}) {
 
       // Check for other resolution errors (including null resolved)
       if (resolvedTarget.errorMessage || !resolvedTarget.resolved) {
-        core.warning(`Invalid item_number specified: ${explicitItemNumber}`);
+        core.warning(`Invalid item_number/issue_number specified: ${explicitItemNumber}`);
         return {
           success: false,
-          error: `Invalid item_number specified: ${explicitItemNumber}`,
+          error: `Invalid item_number/issue_number specified: ${explicitItemNumber}`,
         };
       }
 

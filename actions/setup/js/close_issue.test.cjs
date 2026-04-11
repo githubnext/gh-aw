@@ -787,6 +787,7 @@ describe("close_issue", () => {
       );
 
       expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
       expect(result.error).toContain("aw_pending");
     });
   });

@@ -1676,7 +1676,7 @@ describe("add_comment", () => {
       const result = await handler(message, resolvedTemporaryIds);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Invalid item_number specified");
+      expect(result.error).toContain("Invalid item_number/issue_number specified");
     });
 
     it("should replace temporary IDs in comment body", async () => {
