@@ -84,7 +84,9 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 
 			// Normalize heredoc delimiters before comparing so golden files are
 			// stable across compilations (randomized token is replaced by a placeholder).
-			golden.RequireEqual(t, normalizeHeredocDelimiters(yamlOutput))
+			// Also normalize container pins since the action cache may or may not be
+			// available depending on the environment (native vs wasm).
+			golden.RequireEqual(t, normalizeContainerPins(normalizeHeredocDelimiters(yamlOutput)))
 		})
 	}
 }

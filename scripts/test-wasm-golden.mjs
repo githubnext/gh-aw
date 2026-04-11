@@ -140,6 +140,15 @@ function normalizeHeredocDelimiters(content) {
   return content.replace(/GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF/g, "GH_AW_$1_NORM_EOF");
 }
 
+// ── Normalize container pin digests ──────────────────────────────────
+// Strips @sha256:<64 hex chars> digest suffixes from Docker image references
+// so that compiled output compares equal regardless of whether the action cache
+// was loaded (native compilation has it, wasm does not).
+// Mirrors normalizeContainerPins() in pkg/workflow/compiler.go.
+function normalizeContainerPins(content) {
+  return content.replace(/@sha256:[0-9a-f]{64}/g, "");
+}
+
 // ── Load golden file ─────────────────────────────────────────────────
 function loadGoldenFile(testName) {
   // Golden files follow the charmbracelet/x/exp/golden convention:
@@ -222,8 +231,8 @@ async function main() {
         continue;
       }
 
-      const normalizedWasm = normalizeHeredocDelimiters(wasmYaml);
-      const normalizedGolden = normalizeHeredocDelimiters(goldenYaml);
+      const normalizedWasm = normalizeContainerPins(normalizeHeredocDelimiters(wasmYaml));
+      const normalizedGolden = normalizeContainerPins(normalizeHeredocDelimiters(goldenYaml));
 
       if (normalizedWasm === normalizedGolden) {
         console.log("PASS");
