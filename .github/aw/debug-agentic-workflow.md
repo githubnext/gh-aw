@@ -280,7 +280,7 @@ When the user chooses to analyze existing logs:
    |------|----------|------|---------|
    | Per-request detail | `firewall-audit-logs` | `api-proxy-logs/token-usage.jsonl` | JSONL with per-API-call model and raw token counts |
    | Aggregated summary | `agent` | `agent_usage.json` | Total input/output/cache tokens, effective tokens |
-   | Step summary | Job log | "Parse token usage" step | Markdown table in step summary |
+   | Step summary | Job log | "Parse token usage for step summary" step | Markdown table in step summary |
 
    > **Important:** Per-request token detail is in the `firewall-audit-logs` artifact, **not** the `agent` artifact. `agent_usage.json` contains aggregated totals only.
 
