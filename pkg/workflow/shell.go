@@ -8,8 +8,9 @@ import (
 
 var shellLog = logger.New("workflow:shell")
 
-// shellJoinArgs joins command arguments with proper shell escaping
-// Arguments containing special characters are wrapped in single quotes
+// shellJoinArgs joins command arguments with proper shell escaping.
+// Arguments containing ${{ }} GitHub Actions expressions are double-quoted;
+// other arguments with special shell characters are single-quoted.
 func shellJoinArgs(args []string) string {
 	shellLog.Printf("Joining %d shell arguments with escaping", len(args))
 	var escapedArgs []string
@@ -21,8 +22,9 @@ func shellJoinArgs(args []string) string {
 	return result
 }
 
-// shellEscapeArg escapes a single argument for safe use in shell commands
-// Arguments containing special characters are wrapped in single quotes
+// shellEscapeArg escapes a single argument for safe use in shell commands.
+// Arguments containing ${{ }} GitHub Actions expressions are double-quoted;
+// other arguments with special shell characters are single-quoted.
 func shellEscapeArg(arg string) string {
 	// If the argument contains GitHub Actions expressions (${{ }}), use double-quote
 	// wrapping. GitHub Actions evaluates ${{ }} at the YAML level before the shell runs,
