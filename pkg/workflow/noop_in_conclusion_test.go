@@ -63,10 +63,10 @@ Test that noop step is generated inside the conclusion job.
 		t.Error("Conclusion job should exist")
 	}
 
-	// Verify that "Process No-Op Messages" step is in the conclusion job
+	// Verify that "Process no-op messages" step is in the conclusion job
 	conclusionSection := extractJobSection(compiled, "conclusion")
-	if !strings.Contains(conclusionSection, "Process No-Op Messages") {
-		t.Error("Conclusion job should contain 'Process No-Op Messages' step")
+	if !strings.Contains(conclusionSection, "Process no-op messages") {
+		t.Error("Conclusion job should contain 'Process no-op messages' step")
 	}
 
 	// Verify that conclusion job has noop_message output
@@ -216,8 +216,8 @@ Test that both noop and missing_tool steps are generated inside the conclusion j
 
 	// Verify that conclusion job exists and contains both steps
 	conclusionSection := extractJobSection(compiled, "conclusion")
-	if !strings.Contains(conclusionSection, "Process No-Op Messages") {
-		t.Error("Conclusion job should contain 'Process No-Op Messages' step")
+	if !strings.Contains(conclusionSection, "Process no-op messages") {
+		t.Error("Conclusion job should contain 'Process no-op messages' step")
 	}
 	if !strings.Contains(conclusionSection, "Record missing tool") {
 		t.Error("Conclusion job should contain 'Record missing tool' step")

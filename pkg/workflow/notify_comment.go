@@ -87,7 +87,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 		// Build the merged noop step (without artifact downloads - already added above)
 		noopSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Process No-Op Messages",
+			StepName:      "Process no-op messages",
 			StepID:        "noop",
 			MainJobName:   mainJobName,
 			CustomEnvVars: noopEnvVars,
