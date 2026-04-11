@@ -106,6 +106,10 @@ func ReadFileFromHEAD(filePath string) (string, error) {
 // repository root, avoiding the subprocess overhead of calling FindGitRoot().
 // Use this when the caller already knows the git root (e.g. from a cached value).
 func ReadFileFromHEADWithRoot(filePath, gitRoot string) (string, error) {
+	if gitRoot == "" {
+		return "", fmt.Errorf("gitRoot must not be empty when reading %q from HEAD", filePath)
+	}
+
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve absolute path for %q: %w", filePath, err)
@@ -127,7 +131,7 @@ func ReadFileFromHEADWithRoot(filePath, gitRoot string) (string, error) {
 
 	log.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)
 
-	cmd := exec.Command("git", "show", "HEAD:"+relPath)
+	cmd := exec.Command("git", "-C", gitRoot, "show", "HEAD:"+relPath)
 	output, err := cmd.Output()
 	if err != nil {
 		log.Printf("File %q not found in HEAD commit: %v", filePath, err)

@@ -285,7 +285,8 @@ func TestReadFileFromHEADWithRoot(t *testing.T) {
 		gitRoot, err := FindGitRoot()
 		require.NoError(t, err, "must be inside a git repository")
 
-		_, err = ReadFileFromHEADWithRoot("/tmp/not-in-repo/file.yml", gitRoot)
+		outsidePath := filepath.Join(t.TempDir(), "file.yml")
+		_, err = ReadFileFromHEADWithRoot(outsidePath, gitRoot)
 		require.Error(t, err, "should fail for a file outside the git root")
 		assert.Contains(t, err.Error(), "outside the git repository root", "error should mention path is outside repo")
 	})
@@ -300,5 +301,11 @@ func TestReadFileFromHEADWithRoot(t *testing.T) {
 
 		assert.Equal(t, err1, err2, "both functions should return the same error")
 		assert.Equal(t, content1, content2, "both functions should return the same content")
+	})
+
+	t.Run("returns error for empty gitRoot", func(t *testing.T) {
+		_, err := ReadFileFromHEADWithRoot("some/file.yml", "")
+		require.Error(t, err, "should fail when gitRoot is empty")
+		assert.Contains(t, err.Error(), "gitRoot must not be empty", "error should mention empty gitRoot")
 	})
 }
