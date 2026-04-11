@@ -12,6 +12,9 @@ import (
 
 var scheduleLog = logger.New("parser:schedule_parser")
 
+// durationPattern matches short duration format: number followed by unit (pre-compiled for performance)
+var durationPattern = regexp.MustCompile(`^(\d+)([hdwm]|mo)$`)
+
 // ScheduleParser parses human-friendly schedule expressions into cron expressions
 type ScheduleParser struct {
 	input  string
@@ -102,7 +105,6 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		durationStr := p.tokens[1]
 
 		// Check if it matches the pattern: number followed by unit letter (h, m, d, w, mo)
-		durationPattern := regexp.MustCompile(`^(\d+)([hdwm]|mo)$`)
 		matches := durationPattern.FindStringSubmatch(durationStr)
 
 		if matches != nil {

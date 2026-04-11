@@ -11,12 +11,14 @@ import (
 
 func TestNewGHAWManifest(t *testing.T) {
 	tests := []struct {
-		name            string
-		secretNames     []string
-		actionRefs      []string
-		wantVersion     int
-		wantSecrets     []string
-		wantActionRepos []string
+		name                string
+		secretNames         []string
+		actionRefs          []string
+		containers          []GHAWManifestContainer
+		wantVersion         int
+		wantSecrets         []string
+		wantActionRepos     []string
+		wantContainerImages []string
 	}{
 		{
 			name:        "empty inputs",
@@ -72,11 +74,42 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantSecrets:     []string{},
 			wantActionRepos: []string{"actions/checkout"},
 		},
+		{
+			name: "containers are sorted and deduplicated",
+			containers: []GHAWManifestContainer{
+				{Image: "node:lts-alpine"},
+				{Image: "alpine:3.14"},
+				{Image: "node:lts-alpine"}, // duplicate
+			},
+			wantVersion:         1,
+			wantSecrets:         []string{},
+			wantContainerImages: []string{"alpine:3.14", "node:lts-alpine"},
+		},
+		{
+			name: "container with digest retained",
+			containers: []GHAWManifestContainer{
+				{
+					Image:       "node:lts-alpine",
+					Digest:      "sha256:abc123",
+					PinnedImage: "node:lts-alpine@sha256:abc123",
+				},
+			},
+			wantVersion:         1,
+			wantSecrets:         []string{},
+			wantContainerImages: []string{"node:lts-alpine"},
+		},
+		{
+			name:                "nil containers produces empty containers field",
+			containers:          nil,
+			wantVersion:         1,
+			wantSecrets:         []string{},
+			wantContainerImages: []string{},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.containers)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {
@@ -89,8 +122,50 @@ func TestNewGHAWManifest(t *testing.T) {
 				}
 				assert.Equal(t, tt.wantActionRepos, repos, "action repos")
 			}
+			if tt.wantContainerImages != nil {
+				images := make([]string, len(m.Containers))
+				for i, c := range m.Containers {
+					images[i] = c.Image
+				}
+				assert.Equal(t, tt.wantContainerImages, images, "container images")
+			}
 		})
 	}
+}
+
+func TestNewGHAWManifestContainerDigest(t *testing.T) {
+	containers := []GHAWManifestContainer{
+		{
+			Image:       "node:lts-alpine",
+			Digest:      "sha256:abc123",
+			PinnedImage: "node:lts-alpine@sha256:abc123",
+		},
+		{
+			Image: "alpine:3.14", // no digest
+		},
+	}
+	m := NewGHAWManifest(nil, nil, containers)
+	require.Len(t, m.Containers, 2, "should have two containers")
+
+	// Sorted: alpine before node
+	assert.Equal(t, "alpine:3.14", m.Containers[0].Image, "first container image")
+	assert.Empty(t, m.Containers[0].Digest, "alpine digest should be empty")
+	assert.Empty(t, m.Containers[0].PinnedImage, "alpine pinned_image should be empty")
+
+	assert.Equal(t, "node:lts-alpine", m.Containers[1].Image, "second container image")
+	assert.Equal(t, "sha256:abc123", m.Containers[1].Digest, "node digest")
+	assert.Equal(t, "node:lts-alpine@sha256:abc123", m.Containers[1].PinnedImage, "node pinned_image")
+
+	// JSON serialization: digest fields present only when non-empty (omitempty)
+	jsonStr, err := m.ToJSON()
+	require.NoError(t, err, "ToJSON should not fail")
+	assert.Contains(t, jsonStr, `"containers"`, "containers key in JSON")
+	assert.Contains(t, jsonStr, `"node:lts-alpine"`, "node image in JSON")
+	assert.Contains(t, jsonStr, `"sha256:abc123"`, "node digest in JSON")
+	assert.Contains(t, jsonStr, `"node:lts-alpine@sha256:abc123"`, "pinned_image in JSON")
+	// alpine has no digest/pinned_image — omitempty must suppress them
+	assert.NotContains(t, jsonStr, `"digest":""`, "empty digest must be omitted")
+	assert.NotContains(t, jsonStr, `"pinned_image":""`, "empty pinned_image must be omitted")
 }
 
 func TestGHAWManifestToJSON(t *testing.T) {

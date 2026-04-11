@@ -25,26 +25,39 @@ type GHAWManifestAction struct {
 	Version string `json:"version,omitempty"`
 }
 
-// GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
-// comment in generated lock files. It records the secrets and external actions that
-// were detected at the time the lock file was last compiled so that subsequent
-// compilations can detect newly introduced secrets when safe update mode is enabled.
-type GHAWManifest struct {
-	Version int                  `json:"version"`
-	Secrets []string             `json:"secrets"`
-	Actions []GHAWManifestAction `json:"actions"`
+// GHAWManifestContainer represents a Docker container image referenced in a compiled workflow.
+// It records the original mutable tag, the resolved SHA-256 digest (when available),
+// and the full pinned reference that combines both.
+type GHAWManifestContainer struct {
+	Image       string `json:"image"`                  // Original tag, e.g. "node:lts-alpine"
+	Digest      string `json:"digest,omitempty"`       // SHA-256 digest, e.g. "sha256:abc123..."
+	PinnedImage string `json:"pinned_image,omitempty"` // Full ref, e.g. "node:lts-alpine@sha256:abc123..."
 }
 
-// NewGHAWManifest builds a GHAWManifest from the raw secret names and action reference
-// strings produced by CollectSecretReferences and CollectActionReferences.
+// GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
+// comment in generated lock files. It records the secrets, external actions, and
+// container images that were detected at the time the lock file was last compiled
+// so that subsequent compilations can detect newly introduced secrets when safe
+// update mode is enabled.
+type GHAWManifest struct {
+	Version    int                     `json:"version"`
+	Secrets    []string                `json:"secrets"`
+	Actions    []GHAWManifestAction    `json:"actions"`
+	Containers []GHAWManifestContainer `json:"containers,omitempty"` // container images used, with digest when available
+}
+
+// NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
+// strings, and container image references produced at compile time.
 //
 // secretNames entries may include or omit the "secrets." prefix; the prefix is always
 // stripped before storage so the manifest contains plain names (e.g. "GITHUB_TOKEN").
 // actionRefs entries follow the format produced by CollectActionReferences, e.g.
 //
 //	"actions/checkout@abc1234 # v4"
-func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
-	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d", len(secretNames), len(actionRefs))
+//
+// containers is the list of container image entries with full digest info (when available).
+func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHAWManifestContainer) *GHAWManifest {
+	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
 	seen := make(map[string]bool)
@@ -59,12 +72,28 @@ func NewGHAWManifest(secretNames []string, actionRefs []string) *GHAWManifest {
 	sort.Strings(secrets)
 
 	actions := parseActionRefs(actionRefs)
-	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d", currentGHAWManifestVersion, len(secrets), len(actions))
+
+	// Deduplicate container entries by image name and sort for deterministic output.
+	seenContainers := make(map[string]bool, len(containers))
+	sortedContainers := make([]GHAWManifestContainer, 0, len(containers))
+	for _, c := range containers {
+		if c.Image != "" && !seenContainers[c.Image] {
+			seenContainers[c.Image] = true
+			sortedContainers = append(sortedContainers, c)
+		}
+	}
+	sort.Slice(sortedContainers, func(i, j int) bool {
+		return sortedContainers[i].Image < sortedContainers[j].Image
+	})
+
+	safeUpdateManifestLog.Printf("Manifest built: version=%d, secrets=%d, actions=%d, containers=%d",
+		currentGHAWManifestVersion, len(secrets), len(actions), len(sortedContainers))
 
 	return &GHAWManifest{
-		Version: currentGHAWManifestVersion,
-		Secrets: secrets,
-		Actions: actions,
+		Version:    currentGHAWManifestVersion,
+		Secrets:    secrets,
+		Actions:    actions,
+		Containers: sortedContainers,
 	}
 }
 

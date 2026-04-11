@@ -14,6 +14,7 @@ const { resolveTargetRepoConfig, parseRepoSlug, validateTargetRepo } = require("
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildAwContext } = require("./aw_context.cjs");
+const { loadTemporaryIdMapFromResolved, resolveIssueNumber, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
 /**
  * Main handler factory for dispatch_workflow
@@ -175,18 +176,47 @@ async function main(config = {}) {
       core.info(`Dispatching workflow: ${workflowName}`);
 
       // Prepare inputs - convert all values to strings as required by workflow_dispatch
+      // and resolve any #temporary_id references before dispatching
       /** @type {Record<string, string>} */
       const inputs = {};
       if (message.inputs && typeof message.inputs === "object") {
+        // Build a Map from resolvedTemporaryIds for use with replaceTemporaryIdReferences
+        const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
+
         for (const [key, value] of Object.entries(message.inputs)) {
           // Convert value to string
+          let strValue;
           if (value === null || value === undefined) {
-            inputs[key] = "";
+            strValue = "";
           } else if (typeof value === "object") {
-            inputs[key] = JSON.stringify(value);
+            strValue = JSON.stringify(value);
           } else {
-            inputs[key] = String(value);
+            strValue = String(value);
           }
+
+          // Resolve temporary ID references in string input values.
+          // If the entire value is a pure temporary ID (e.g. "#aw_slosync"), resolve it
+          // using the full temporaryIdMap (which retains repo context) so we can emit
+          // just the number for same-repo targets and "owner/repo#number" for cross-repo,
+          // consistent with how replaceTemporaryIdReferences handles embedded references.
+          // For text values with embedded references (e.g. "See #aw_xxx"), replace each
+          // reference with its cross-repository link (owner/repo#number).
+          if (strValue !== "") {
+            const pureIdResult = resolveIssueNumber(strValue, temporaryIdMap);
+            if (pureIdResult.wasTemporaryId) {
+              if (pureIdResult.errorMessage || !pureIdResult.resolved) {
+                core.warning(`Unresolved temporary ID in input "${key}": ${pureIdResult.errorMessage}`);
+              } else if (pureIdResult.resolved.repo === resolvedRepoSlug) {
+                strValue = String(pureIdResult.resolved.number);
+              } else {
+                strValue = `${pureIdResult.resolved.repo}#${pureIdResult.resolved.number}`;
+              }
+            } else if (temporaryIdMap.size > 0) {
+              strValue = replaceTemporaryIdReferences(strValue, temporaryIdMap, resolvedRepoSlug);
+            }
+          }
+
+          inputs[key] = strValue;
         }
       }
 

@@ -58,8 +58,9 @@ This workflow has a stop-after configuration.
 		// Verify safety checks are in pre_activation job, not agent job
 		// Note: With alphabetical job sorting, the order in the file is:
 		// activation, agent, pre_activation
-		preActivationStart := strings.Index(lockContentStr, "pre_activation:")
-		agentStart := strings.Index(lockContentStr, "agent:")
+		// Use indented job keys to avoid matching container image references in the header
+		preActivationStart := strings.Index(lockContentStr, "\n  pre_activation:\n")
+		agentStart := strings.Index(lockContentStr, "\n  agent:\n")
 		safetyChecksPos := strings.Index(lockContentStr, "Check stop-time limit")
 
 		if safetyChecksPos == -1 {
@@ -183,8 +184,13 @@ This workflow requires membership checks.
 			t.Error("Expected activation job")
 		}
 
-		activationIdx := strings.Index(lockContentStr, "activation:")
-		agentIdx := strings.Index(lockContentStr, "agent:")
+		// Use indented job keys to avoid matching container image references in the header
+		activationIdx := strings.Index(lockContentStr, "\n  activation:\n")
+		agentIdx := strings.Index(lockContentStr, "\n  agent:\n")
+
+		if activationIdx == -1 || agentIdx == -1 {
+			t.Fatal("Could not find activation or agent job keys in compiled output")
+		}
 
 		// Extract activation job section
 		activationSection := lockContentStr[activationIdx:agentIdx]

@@ -10,6 +10,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { validateTargetRepo, resolveTargetRepoConfig } = require("./repo_helpers.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -262,6 +263,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
   const maxCount = config.max || 10;
   const comment = config.comment || "";
   const isStaged = isStagedMode(config);
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   let processedCount = 0;
 
@@ -316,6 +318,14 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
     const { entityNumber, owner, repo: repoName, entityRepo } = targetResult;
     if (entityRepo) {
       core.info(`Target repository: ${entityRepo}`);
+    }
+
+    // 4b. Cross-repository allowlist validation (SEC-005)
+    const resolvedRepo = `${owner}/${repoName}`;
+    const repoValidation = validateTargetRepo(resolvedRepo, defaultTargetRepo, allowedRepos);
+    if (!repoValidation.valid) {
+      core.warning(`Skipping ${entityConfig.itemType}: cross-repo check failed for "${resolvedRepo}": ${repoValidation.error}`);
+      return { success: false, error: repoValidation.error };
     }
 
     try {

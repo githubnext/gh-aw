@@ -140,8 +140,8 @@ Test workflow without checkout (has permissions but checkout should be condition
 			// If PR checkout is expected, verify it uses actions/github-script with require()
 			if tt.expectPRCheckout {
 				// Check for actions/github-script usage
-				if !strings.Contains(lockStr, "uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3") {
-					t.Error("PR checkout step should use actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3")
+				if !strings.Contains(lockStr, "uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71") {
+					t.Error("PR checkout step should use actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71")
 				}
 				// Check for require() pattern to load the checkout module
 				if !strings.Contains(lockStr, "require(") {
@@ -207,8 +207,8 @@ Test workflow with pull_request triggers.
 	lockStr := string(lockContent)
 
 	// Verify the checkout uses actions/github-script
-	if !strings.Contains(lockStr, "uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3") {
-		t.Error("Expected PR checkout to use actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3")
+	if !strings.Contains(lockStr, "uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71") {
+		t.Error("Expected PR checkout to use actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71")
 	}
 
 	// Verify JavaScript loads the checkout module via require()

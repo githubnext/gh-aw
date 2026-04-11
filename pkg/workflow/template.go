@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -14,14 +13,9 @@ var templateLog = logger.New("workflow:template")
 // expressions in ${{ }}. For example:
 // {{#if github.event.issue.number}} becomes {{#if ${{ github.event.issue.number }} }}
 func wrapExpressionsInTemplateConditionals(markdown string) string {
-	// Pattern to match {{#if expression}} where expression is not already wrapped in ${{ }}
-	// This regex captures the entire {{#if ...}} block and handles nested }} within ${{ }} expressions
-	// The pattern (?:\$\{\{[^\}]*\}\}|[^\}])* matches either:
-	//   - A complete ${{ ... }} expression (where ... has no })
-	//   - OR any character that's not }
-	// This allows matching ${{ github.event.issue.number }} as a unit while stopping at the
-	// closing }} of the conditional
-	re := regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
+	// Reuse the centralized TemplateIfPattern from expression_patterns.go
+	// Pattern matches {{#if expression}} where expression may contain ${{ }} blocks
+	re := TemplateIfPattern
 
 	templateLog.Print("Wrapping expressions in template conditionals")
 

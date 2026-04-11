@@ -68,17 +68,17 @@ describe("action_conclusion_otlp.cjs", () => {
   });
 
   describe("when OTEL_EXPORTER_OTLP_ENDPOINT is not set", () => {
-    it("should log that the endpoint is not set and skip span", async () => {
+    it("should log that OTLP export is skipped and JSONL mirror will be attempted", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping conclusion span");
-      expect(mockSendJobConclusionSpan).not.toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OTLP export (will attempt JSONL mirror)");
     });
 
-    it("should not call sendJobConclusionSpan", async () => {
+    it("should still call sendJobConclusionSpan for JSONL mirror", async () => {
       await run();
 
-      expect(mockSendJobConclusionSpan).not.toHaveBeenCalled();
+      expect(mockSendJobConclusionSpan).toHaveBeenCalledOnce();
+      expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
     });
   });
 
@@ -93,10 +93,10 @@ describe("action_conclusion_otlp.cjs", () => {
       expect(mockSendJobConclusionSpan).toHaveBeenCalledOnce();
     });
 
-    it("should log the conclusion span as sent", async () => {
+    it("should log the conclusion span export as attempted", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] conclusion span sent");
+      expect(console.log).toHaveBeenCalledWith("[otlp] conclusion span export attempted");
     });
 
     it("should log the endpoint URL in the sending message", async () => {

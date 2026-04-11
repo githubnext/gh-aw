@@ -864,6 +864,66 @@ describe("runtime_import", () => {
           }
         });
 
+        it("should return env var value for inputs.* expressions when set (workflow_call)", () => {
+          process.env.GH_AW_INPUTS_ERRORS = "some error list";
+          try {
+            expect(evaluateExpression("inputs.errors")).toBe("some error list");
+          } finally {
+            delete process.env.GH_AW_INPUTS_ERRORS;
+          }
+        });
+
+        it("should return empty string for inputs.* env var set to empty", () => {
+          process.env.GH_AW_INPUTS_BRANCH = "";
+          try {
+            expect(evaluateExpression("inputs.branch")).toBe("");
+          } finally {
+            delete process.env.GH_AW_INPUTS_BRANCH;
+          }
+        });
+
+        it("should prefer env var over context.payload.inputs for inputs.* expressions", () => {
+          // When both env var and payload.inputs are set, env var should win
+          // This ensures workflow_call inputs (delivered via env vars) are resolved correctly
+          // even when workflow_dispatch also populates context.payload.inputs
+          global.context.payload.inputs = { repository: "context-value" };
+          process.env.GH_AW_INPUTS_REPOSITORY = "env-value";
+          try {
+            expect(evaluateExpression("inputs.repository")).toBe("env-value");
+          } finally {
+            delete process.env.GH_AW_INPUTS_REPOSITORY;
+            delete global.context.payload.inputs;
+          }
+        });
+
+        it("should resolve hyphenated inputs.* via context.payload.inputs fallback", () => {
+          // Hyphenated input names (e.g., inputs.task-description) are exported by the compiler
+          // as GH_AW_EXPR_<hash> (hash-based) rather than GH_AW_INPUTS_TASK-DESCRIPTION (simple).
+          // The simple env var lookup won't match, so the expression falls through to
+          // context.payload.inputs, which works for workflow_dispatch.
+          global.context.payload.inputs = { "task-description": "fix the bug" };
+          try {
+            expect(evaluateExpression("inputs.task-description")).toBe("fix the bug");
+          } finally {
+            delete global.context.payload.inputs;
+          }
+        });
+
+        it("should not resolve hyphenated inputs.* when context.payload.inputs is empty", () => {
+          // For workflow_call, context.payload.inputs is empty. Hyphenated input names
+          // can't be resolved via the simple env var conversion (which produces
+          // GH_AW_INPUTS_TASK-DESCRIPTION instead of the compiler's GH_AW_EXPR_<hash>).
+          // The compiler handles this via placeholder substitution in the heredoc-inlined
+          // prompt; runtime-import expressions rely on context.payload.inputs.
+          global.context.payload.inputs = {};
+          try {
+            const result = evaluateExpression("inputs.task-description");
+            expect(result).toContain("inputs.task-description");
+          } finally {
+            delete global.context.payload.inputs;
+          }
+        });
+
         it("should handle missing properties gracefully", () => {
           const result = evaluateExpression("github.event.nonexistent.property");
           expect(result).toContain("github.event.nonexistent.property");

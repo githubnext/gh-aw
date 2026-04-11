@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -93,7 +94,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
+			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
 				return err
 			}
 
@@ -146,7 +147,7 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
+func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
 		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
 
@@ -236,6 +237,21 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping action updates (--no-actions specified)"))
 			}
+		}
+	}
+
+	// Step 3b: Update container image digest pins (unless --no-fix or --no-actions is specified)
+	// Container pins are stored alongside action pins in .github/aw/actions-lock.json.
+	// Running this before compilation means the next compile step will embed the
+	// pinned @sha256: references in the generated lock files.
+	if !noFix && !noActions {
+		upgradeLog.Print("Updating container image digest pins")
+		if err := UpdateContainerPins(ctx, workflowDir, verbose); err != nil {
+			upgradeLog.Printf("Failed to update container pins: %v", err)
+			// Non-critical — Docker may not be available in all environments.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated container image pins"))
 		}
 	}
 

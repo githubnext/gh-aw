@@ -261,14 +261,17 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
-	// Note: PermissionDiscussions ("discussions") is intentionally NOT mapped to "permission-discussions"
-	// here. The actions/create-github-app-token action does NOT declare "permission-discussions" as a
-	// supported input (see the generated inputs in its action.yml). Passing an unsupported input would
-	// be silently ignored, meaning the discussions scope would never be explicitly set. GitHub App
-	// installation tokens inherit the full set of app-installation permissions by default, so the token
-	// will have discussions access whenever the GitHub App installation itself was granted that permission.
-	// Repository-level discussions operations should therefore work without an explicit permission-discussions
-	// field.
+	// Note: "permission-discussions" is not a declared input in actions/create-github-app-token's action.yml,
+	// but the action reads ALL INPUT_PERMISSION-* env vars via process.env (see lib/get-permissions-from-inputs.js).
+	// GitHub Actions sets INPUT_PERMISSION-DISCUSSIONS for any `with: permission-discussions:` field, so
+	// the value IS forwarded to the GitHub API despite the "Unexpected input" warning.
+	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those permissions
+	// (returning undefined → inherit-all only when zero permission-* inputs are present). Since the compiler
+	// always emits other permission-* fields, omitting permission-discussions causes the minted token to
+	// lack discussions access even when the GitHub App installation has that permission.
+	if level, ok := permissions.Get(PermissionDiscussions); ok {
+		fields["permission-discussions"] = string(level)
+	}
 
 	// GitHub App-only permissions (not available in GitHub Actions GITHUB_TOKEN).
 	// Use GetExplicit() so that shorthand permissions like "read-all" do not accidentally

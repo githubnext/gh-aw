@@ -406,6 +406,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 ### Report Guidelines
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 - Include all 6 visualization charts as embedded images
 - Upload charts using `upload asset` tool for permanent URLs
 - Provide brief analysis for each chart

@@ -657,6 +657,14 @@ describe("sendOTLPSpan JSONL mirror", () => {
 
     warnSpy.mockRestore();
   });
+
+  it("skips JSONL mirror when skipJSONL is true", async () => {
+    const payload = { resourceSpans: [{ note: "skip-test" }] };
+    await sendOTLPSpan("https://traces.example.com", payload, { skipJSONL: true });
+
+    expect(appendSpy).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -836,6 +844,15 @@ describe("sendJobSetupSpan", () => {
     expect(traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(spanId).toMatch(/^[0-9a-f]{16}$/);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("writes JSONL mirror even when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
+    await sendJobSetupSpan();
+    expect(appendSpy).toHaveBeenCalledOnce();
+    const [filePath, content] = appendSpy.mock.calls[0];
+    expect(filePath).toBe(OTEL_JSONL_PATH);
+    const payload = JSON.parse(content.trim());
+    expect(payload).toHaveProperty("resourceSpans");
   });
 
   it("returns the same trace ID when called with INPUT_TRACE_ID and no endpoint", async () => {
@@ -1360,9 +1377,14 @@ describe("sendJobConclusionSpan", () => {
     appendSpy.mockRestore();
   });
 
-  it("is a no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
+  it("skips OTLP export but writes JSONL mirror when OTEL_EXPORTER_OTLP_ENDPOINT is not set", async () => {
     await sendJobConclusionSpan("gh-aw.job.conclusion");
     expect(fetch).not.toHaveBeenCalled();
+    expect(appendSpy).toHaveBeenCalledOnce();
+    const [filePath, content] = appendSpy.mock.calls[0];
+    expect(filePath).toBe(OTEL_JSONL_PATH);
+    const payload = JSON.parse(content.trim());
+    expect(payload).toHaveProperty("resourceSpans");
   });
 
   it("sends a span with the given span name", async () => {

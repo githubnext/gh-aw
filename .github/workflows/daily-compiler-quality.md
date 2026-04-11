@@ -561,6 +561,8 @@ The compiler codebase maintains **good overall quality** with an average score o
 
 ## Important Guidelines
 
+- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 ### Analysis Best Practices
 
 - **Be Objective**: Use concrete metrics from Serena, not subjective opinions

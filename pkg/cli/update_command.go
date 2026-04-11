@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -72,7 +73,7 @@ Examples:
 				}
 			}
 
-			if err := RunUpdateWorkflows(args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile); err != nil {
+			if err := RunUpdateWorkflows(cmd.Context(), args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile); err != nil {
 				return err
 			}
 
@@ -109,7 +110,7 @@ Examples:
 
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
-func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool) error {
+func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool) error {
 	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump, noCompile)
 
 	var firstErr error
@@ -125,6 +126,13 @@ func RunUpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool,
 	if err := UpdateActions(allowMajor, verbose, disableReleaseBump); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
+	}
+
+	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
+	updateLog.Print("Updating container image digest pins")
+	if err := UpdateContainerPins(ctx, workflowsDir, verbose); err != nil {
+		// Non-fatal: Docker may not be available in all environments.
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
 	}
 
 	// Update action references in user-provided steps within workflow .md files.

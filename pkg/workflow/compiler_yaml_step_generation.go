@@ -164,9 +164,11 @@ func (c *Compiler) generateSetRuntimePathsStep() []string {
 		"      - name: Set runtime paths\n",
 		"        id: set-runtime-paths\n",
 		"        run: |\n",
-		"          echo \"GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl\" >> \"$GITHUB_OUTPUT\"\n",
-		"          echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" >> \"$GITHUB_OUTPUT\"\n",
-		"          echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json\" >> \"$GITHUB_OUTPUT\"\n",
+		"          {\n",
+		"            echo \"GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl\"\n",
+		"            echo \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\"\n",
+		"            echo \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json\"\n",
+		"          } >> \"$GITHUB_OUTPUT\"\n",
 	}
 }
 

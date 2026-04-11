@@ -438,13 +438,15 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			},
 		},
 		{
-			name: "discussions permission is NOT mapped (actions/create-github-app-token does not declare permission-discussions)",
+			name: "discussions permission IS mapped (actions/create-github-app-token reads all INPUT_PERMISSION-* env vars)",
 			permissions: func() *Permissions {
 				p := NewPermissions()
 				p.Set(PermissionDiscussions, PermissionWrite)
 				return p
 			}(),
-			absentFields: []string{"permission-discussions"},
+			expectedFields: map[string]string{
+				"permission-discussions": "write",
+			},
 		},
 		{
 			name: "models permission is NOT mapped (no GitHub App equivalent)",

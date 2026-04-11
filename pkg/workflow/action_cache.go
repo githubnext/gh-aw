@@ -27,11 +27,21 @@ type ActionCacheEntry struct {
 	ActionDescription string                      `json:"action_description,omitempty"` // cached description from action.yml
 }
 
+// ContainerPin holds a pinned Docker container image reference.
+// The pin maps a mutable image tag to its immutable SHA-256 digest,
+// ensuring supply-chain integrity by making the pull operation deterministic.
+type ContainerPin struct {
+	Image       string `json:"image"`        // Original tag, e.g. "node:lts-alpine"
+	Digest      string `json:"digest"`       // Bare digest, e.g. "sha256:abc123..."
+	PinnedImage string `json:"pinned_image"` // Resolved reference, e.g. "node:lts-alpine@sha256:abc123..."
+}
+
 // ActionCache manages cached action pin resolutions.
 type ActionCache struct {
-	Entries map[string]ActionCacheEntry `json:"entries"` // key: "repo@version"
-	path    string
-	dirty   bool // tracks if cache has unsaved changes
+	Entries       map[string]ActionCacheEntry `json:"entries"`              // key: "repo@version"
+	ContainerPins map[string]ContainerPin     `json:"containers,omitempty"` // key: image tag
+	path          string
+	dirty         bool // tracks if cache has unsaved changes
 }
 
 // NewActionCache creates a new action cache instance
@@ -39,9 +49,54 @@ func NewActionCache(repoRoot string) *ActionCache {
 	cachePath := filepath.Join(repoRoot, ".github", "aw", CacheFileName)
 	actionCacheLog.Printf("Creating action cache with path: %s", cachePath)
 	return &ActionCache{
-		Entries: make(map[string]ActionCacheEntry),
-		path:    cachePath,
+		Entries:       make(map[string]ActionCacheEntry),
+		ContainerPins: make(map[string]ContainerPin),
+		path:          cachePath,
 		// dirty is initialized to false (zero value)
+	}
+}
+
+// GetContainerPin returns the cached pin for the given image tag.
+// Returns the pin and true if a digest pin is present, otherwise empty pin and false.
+func (c *ActionCache) GetContainerPin(image string) (ContainerPin, bool) {
+	if c.ContainerPins == nil {
+		return ContainerPin{}, false
+	}
+	pin, ok := c.ContainerPins[image]
+	if !ok {
+		actionCacheLog.Printf("Container pin cache miss for image=%s", image)
+		return ContainerPin{}, false
+	}
+	actionCacheLog.Printf("Container pin cache hit for image=%s, pinned=%s", image, pin.PinnedImage)
+	return pin, true
+}
+
+// SetContainerPin stores a digest pin for the given image tag.
+// digest must be in the form "sha256:<hex>" and pinnedImage must be the full
+// reference including the digest (e.g., "node:lts-alpine@sha256:<hex>").
+func (c *ActionCache) SetContainerPin(image, digest, pinnedImage string) {
+	if c.ContainerPins == nil {
+		c.ContainerPins = make(map[string]ContainerPin)
+	}
+	c.ContainerPins[image] = ContainerPin{
+		Image:       image,
+		Digest:      digest,
+		PinnedImage: pinnedImage,
+	}
+	c.dirty = true
+	actionCacheLog.Printf("Set container pin: image=%s, digest=%s", image, digest)
+}
+
+// DeleteContainerPin removes the pin for the given image tag.
+// It is a no-op if the image has no cached pin.
+func (c *ActionCache) DeleteContainerPin(image string) {
+	if c.ContainerPins == nil {
+		return
+	}
+	if _, exists := c.ContainerPins[image]; exists {
+		delete(c.ContainerPins, image)
+		c.dirty = true
+		actionCacheLog.Printf("Deleted container pin for image=%s", image)
 	}
 }
 
@@ -64,10 +119,18 @@ func (c *ActionCache) Load() error {
 		return err
 	}
 
+	// Ensure maps are initialized even when absent from the JSON (backward compatibility).
+	if c.Entries == nil {
+		c.Entries = make(map[string]ActionCacheEntry)
+	}
+	if c.ContainerPins == nil {
+		c.ContainerPins = make(map[string]ContainerPin)
+	}
+
 	// Mark cache as clean after successful load (it matches disk state)
 	c.dirty = false
 
-	actionCacheLog.Printf("Successfully loaded cache with %d entries", len(c.Entries))
+	actionCacheLog.Printf("Successfully loaded cache with %d entries, %d container pins", len(c.Entries), len(c.ContainerPins))
 	return nil
 }
 
@@ -84,8 +147,8 @@ func (c *ActionCache) Save() error {
 
 	actionCacheLog.Printf("Saving action cache to: %s with %d entries", c.path, len(c.Entries))
 
-	// If cache is empty, skip saving and delete the file if it exists
-	if len(c.Entries) == 0 {
+	// If cache is empty (no entries and no container pins), skip saving and delete the file if it exists
+	if len(c.Entries) == 0 && len(c.ContainerPins) == 0 {
 		actionCacheLog.Print("Cache is empty, skipping file creation")
 		// Remove the file if it exists
 		if _, err := os.Stat(c.path); err == nil {
@@ -131,7 +194,7 @@ func (c *ActionCache) Save() error {
 
 // marshalSorted marshals the cache with entries sorted by key
 func (c *ActionCache) marshalSorted() ([]byte, error) {
-	// Extract and sort the keys
+	// Extract and sort the entry keys
 	keys := make([]string, 0, len(c.Entries))
 	for key := range c.Entries {
 		keys = append(keys, key)
@@ -162,7 +225,34 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 		result = append(result, '\n')
 	}
 
-	result = append(result, []byte("  }\n}")...)
+	result = append(result, []byte("  }")...)
+
+	// Add containers section if non-empty
+	if len(c.ContainerPins) > 0 {
+		pinKeys := make([]string, 0, len(c.ContainerPins))
+		for k := range c.ContainerPins {
+			pinKeys = append(pinKeys, k)
+		}
+		sort.Strings(pinKeys)
+
+		result = append(result, []byte(",\n  \"containers\": {\n")...)
+		for i, k := range pinKeys {
+			pin := c.ContainerPins[k]
+			pinJSON, err := json.MarshalIndent(pin, "    ", "  ")
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, []byte("    \""+k+"\": ")...)
+			result = append(result, pinJSON...)
+			if i < len(pinKeys)-1 {
+				result = append(result, ',')
+			}
+			result = append(result, '\n')
+		}
+		result = append(result, []byte("  }")...)
+	}
+
+	result = append(result, '\n', '}')
 	return result, nil
 }
 

@@ -4,7 +4,7 @@ import path from "path";
 const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } },
   mockContext = { eventName: "issues", runId: 12345, repo: { owner: "testowner", repo: "testrepo" }, payload: { issue: { number: 42 }, pull_request: { number: 100 }, repository: { html_url: "https://github.com/testowner/testrepo" } } };
 ((global.core = mockCore), (global.context = mockContext));
-const { checkLabelFilter, checkTitlePrefixFilter, parseEntityConfig, resolveEntityNumber, escapeMarkdownTitle, ISSUE_CONFIG, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
+const { checkLabelFilter, checkTitlePrefixFilter, parseEntityConfig, resolveEntityNumber, escapeMarkdownTitle, createCloseEntityHandler, ISSUE_CONFIG, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
 describe("close_entity_helpers", () => {
   (beforeEach(() => {
     (vi.clearAllMocks(),
@@ -236,6 +236,55 @@ describe("close_entity_helpers", () => {
 
         // System marker should still be present
         expect(withMarker).toContain("<!-- gh-aw-workflow-id: test -->");
+      });
+    }),
+    describe("createCloseEntityHandler cross-repo validation", () => {
+      const makeCallbacks = resolveTarget => ({
+        resolveTarget,
+        getDetails: vi.fn().mockResolvedValue({ number: 1, title: "t", labels: [], html_url: "u", state: "open" }),
+        validateLabels: () => ({ valid: true }),
+        buildCommentBody: body => body,
+        addComment: vi.fn().mockResolvedValue({ id: 1, html_url: "u" }),
+        closeEntity: vi.fn().mockResolvedValue({ number: 1, html_url: "u", title: "t" }),
+        buildSuccessResult: (entity, comment, wasClosed, commentPosted) => ({ success: true }),
+      });
+
+      it("should reject cross-repo target not in allowlist", async () => {
+        const config = { "target-repo": "testowner/testrepo", comment: "closing" };
+        const handler = createCloseEntityHandler(
+          config,
+          ISSUE_CONFIG,
+          makeCallbacks(() => ({ success: true, entityNumber: 1, owner: "other-org", repo: "other-repo" })),
+          {}
+        );
+        const result = await handler({ body: "test", type: "close_issue" });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("not in the allowed-repos list");
+        expect(mockCore.warning).toHaveBeenCalled();
+      });
+
+      it("should allow same-repo target", async () => {
+        const config = { "target-repo": "testowner/testrepo", comment: "closing" };
+        const handler = createCloseEntityHandler(
+          config,
+          ISSUE_CONFIG,
+          makeCallbacks(() => ({ success: true, entityNumber: 1, owner: "testowner", repo: "testrepo" })),
+          {}
+        );
+        const result = await handler({ body: "test", type: "close_issue" });
+        expect(result.success).toBe(true);
+      });
+
+      it("should allow cross-repo target when in allowlist", async () => {
+        const config = { "target-repo": "testowner/testrepo", allowed_repos: ["other-org/other-repo"], comment: "closing" };
+        const handler = createCloseEntityHandler(
+          config,
+          ISSUE_CONFIG,
+          makeCallbacks(() => ({ success: true, entityNumber: 1, owner: "other-org", repo: "other-repo" })),
+          {}
+        );
+        const result = await handler({ body: "test", type: "close_issue" });
+        expect(result.success).toBe(true);
       });
     }));
 });

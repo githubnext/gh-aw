@@ -1,0 +1,8 @@
+self-hosted-runner:
+  labels:
+    - aw-gpu-runner-T4
+
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      - '"copilot-requests" is not expected'

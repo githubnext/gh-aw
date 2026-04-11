@@ -12,13 +12,14 @@ import (
 
 // workflowCallRepo is the expression injected into the repository: field of the
 // activation-job checkout step when a workflow_call trigger is detected.
-// The resolve-host-repo step (which runs before checkout) parses GITHUB_WORKFLOW_REF
-// at runtime to determine the platform repo, correctly handling both pure workflow_call
-// relays and event-driven relays (e.g. on: issue_comment) where event_name != 'workflow_call'.
+// The resolve-host-repo step uses job.workflow_repository to identify
+// the platform repo, correctly handling all relay patterns including cross-repo
+// and cross-org scenarios.
 const workflowCallRepo = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 
 // workflowCallRef is the expression injected into the ref: field of the activation-job
 // checkout step when a workflow_call trigger is detected without inlined imports.
+// Uses job.workflow_sha for immutable pinning to the exact executing revision.
 const workflowCallRef = "${{ steps.resolve-host-repo.outputs.target_ref }}"
 
 func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
@@ -225,8 +226,8 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 	}
 }
 
-// TestGenerateResolveHostRepoStep verifies that the resolve-host-repo step is correctly
-// generated and does not contain the broken event_name-based expression.
+// TestGenerateResolveHostRepoStep verifies that the resolve-host-repo step uses
+// job.workflow_* context fields to resolve the platform repository.
 func TestGenerateResolveHostRepoStep(t *testing.T) {
 	c := NewCompilerWithVersion("dev")
 	c.SetActionMode(ActionModeDev)
@@ -242,11 +243,11 @@ func TestGenerateResolveHostRepoStep(t *testing.T) {
 	assert.Contains(t, result, "resolve_host_repo.cjs",
 		"step should require resolve_host_repo.cjs")
 
-	// Verify the broken event_name expression is NOT present
-	assert.NotContains(t, result, "github.event_name == 'workflow_call'",
-		"step must not use the broken event_name-based expression")
-	assert.NotContains(t, result, "github.action_repository",
-		"step must not use github.action_repository (unreliable for event-driven relays)")
+	// Values must be passed via env vars, not interpolated into script source
+	assert.Contains(t, result, "JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}",
+		"step should pass job.workflow_repository via env var")
+	assert.Contains(t, result, "JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}",
+		"step should pass job.workflow_sha via env var")
 }
 
 // TestCheckoutDoesNotUseEventNameExpression verifies that the checkout step for

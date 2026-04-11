@@ -19,6 +19,9 @@ import (
 
 var frontmatterHashLog = logger.New("parser:frontmatter_hash")
 
+// templateExpressionRegex matches ${{ ... }} expressions (pre-compiled for performance)
+var templateExpressionRegex = regexp.MustCompile(`\$\{\{(.*?)\}\}`)
+
 // parseBoolFromFrontmatter extracts a boolean value from a frontmatter map.
 // Returns false if the key is absent, the map is nil, or the value is not a bool.
 func parseBoolFromFrontmatter(m map[string]any, key string) bool {
@@ -199,8 +202,7 @@ func extractRelevantTemplateExpressions(markdown string) []string {
 	seen := make(map[string]bool)
 
 	// Regex to match ${{ ... }} expressions
-	expressionRegex := regexp.MustCompile(`\$\{\{(.*?)\}\}`)
-	matches := expressionRegex.FindAllStringSubmatch(markdown, -1)
+	matches := templateExpressionRegex.FindAllStringSubmatch(markdown, -1)
 
 	for _, match := range matches {
 		if len(match) < 2 {

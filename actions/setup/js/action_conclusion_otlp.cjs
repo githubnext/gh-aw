@@ -26,7 +26,8 @@
  *                                   execution window rather than this step's overhead.
  *   GITHUB_AW_OTEL_TRACE_ID       – parent trace ID (set by action_setup_otlp.cjs)
  *   GITHUB_AW_OTEL_PARENT_SPAN_ID – parent span ID (set by action_setup_otlp.cjs)
- *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (no-op when not set)
+ *   OTEL_EXPORTER_OTLP_ENDPOINT   – OTLP endpoint (HTTP export skipped when not set;
+ *                                    JSONL mirror write is attempted regardless)
  *
  * Runtime files read (optional):
  *   /tmp/gh-aw/github_rate_limits.jsonl – GitHub API rate-limit log written by
@@ -50,10 +51,6 @@ const { getActionInput } = require("./action_input_utils.cjs");
  */
 async function run() {
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-  if (!endpoint) {
-    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping conclusion span");
-    return;
-  }
 
   // Read the job-start timestamp written by action_setup_otlp so the conclusion
   // span duration covers the actual job execution window, not just this step's overhead.
@@ -62,10 +59,18 @@ async function run() {
 
   const jobName = getActionInput("JOB_NAME");
   const spanName = jobName ? `gh-aw.${jobName}.conclusion` : "gh-aw.job.conclusion";
-  console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
+
+  if (!endpoint) {
+    console.log("[otlp] OTEL_EXPORTER_OTLP_ENDPOINT not set, skipping OTLP export (will attempt JSONL mirror)");
+  } else {
+    console.log(`[otlp] sending conclusion span "${spanName}" to ${endpoint}`);
+  }
 
   await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
-  console.log(`[otlp] conclusion span sent`);
+
+  if (endpoint) {
+    console.log(`[otlp] conclusion span export attempted`);
+  }
 }
 
 module.exports = { run };
