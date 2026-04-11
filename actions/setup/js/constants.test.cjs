@@ -1,6 +1,18 @@
 // @ts-check
 import { describe, it, expect } from "vitest";
-const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH, COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_LABELS, MAX_ASSIGNEES, GATEWAY_JSONL_PATH, RPC_MESSAGES_PATH, MANIFEST_FILE_PATH, DETECTION_LOG_FILENAME } = require("./constants.cjs");
+const {
+  AGENT_OUTPUT_FILENAME,
+  TMP_GH_AW_PATH,
+  COPILOT_REVIEWER_BOT,
+  FAQ_CREATE_PR_PERMISSIONS_URL,
+  MAX_LABELS,
+  MAX_ASSIGNEES,
+  GATEWAY_JSONL_PATH,
+  RPC_MESSAGES_PATH,
+  MANIFEST_FILE_PATH,
+  TEMPORARY_ID_MAP_FILE_PATH,
+  DETECTION_LOG_FILENAME,
+} = require("./constants.cjs");
 
 describe("constants", () => {
   describe("file names", () => {
@@ -31,6 +43,11 @@ describe("constants", () => {
     it("should export MANIFEST_FILE_PATH under TMP_GH_AW_PATH", () => {
       expect(MANIFEST_FILE_PATH).toBe("/tmp/gh-aw/safe-output-items.jsonl");
       expect(MANIFEST_FILE_PATH.startsWith(TMP_GH_AW_PATH)).toBe(true);
+    });
+
+    it("should export TEMPORARY_ID_MAP_FILE_PATH under TMP_GH_AW_PATH", () => {
+      expect(TEMPORARY_ID_MAP_FILE_PATH).toBe("/tmp/gh-aw/temporary-id-map.json");
+      expect(TEMPORARY_ID_MAP_FILE_PATH.startsWith(TMP_GH_AW_PATH)).toBe(true);
     });
   });
 
@@ -74,6 +91,7 @@ describe("constants", () => {
         "GATEWAY_JSONL_PATH",
         "RPC_MESSAGES_PATH",
         "MANIFEST_FILE_PATH",
+        "TEMPORARY_ID_MAP_FILE_PATH",
         "DETECTION_LOG_FILENAME",
       ];
       for (const key of expectedKeys) {

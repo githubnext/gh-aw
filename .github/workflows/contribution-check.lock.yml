@@ -1231,6 +1231,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: safe-outputs-items
-          path: /tmp/gh-aw/safe-output-items.jsonl
+          path: |
+            /tmp/gh-aw/safe-output-items.jsonl
+            /tmp/gh-aw/temporary-id-map.json
           if-no-files-found: ignore
 

@@ -641,9 +641,10 @@ func buildDetectionPassedCondition() ConditionNode {
 }
 
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
-// items manifest as a separate artifact. The step always runs (if: always()) so
-// the manifest is available to the audit command even if some safe output steps fail.
-// The file is uploaded as a dedicated "safe-outputs-items" artifact (not merged into the
+// items manifest and temporary ID map as a separate artifact. The step always runs
+// (if: always()) so the files are available to the audit command even if some safe
+// output steps fail.
+// The files are uploaded as a dedicated "safe-outputs-items" artifact (not merged into the
 // "agent" artifact) to avoid a 409 Conflict when both the agent job and safe_outputs job
 // try to upload an artifact with the same name in the same workflow run.
 // prefix is prepended to the artifact name; use empty string for non-workflow_call workflows.
@@ -654,7 +655,9 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SafeOutputItemsArtifactName),
-		"          path: /tmp/gh-aw/safe-output-items.jsonl\n",
+		"          path: |\n",
+		"            /tmp/gh-aw/safe-output-items.jsonl\n",
+		fmt.Sprintf("            /tmp/gh-aw/%s\n", constants.TemporaryIdMapFilename),
 		"          if-no-files-found: ignore\n",
 	}
 }

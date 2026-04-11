@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { MANIFEST_FILE_PATH, CREATE_ITEM_TYPES, NOT_LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
+import { MANIFEST_FILE_PATH, TEMPORARY_ID_MAP_FILE_PATH, CREATE_ITEM_TYPES, NOT_LOGGED_TYPES, createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } from "./safe_output_manifest.cjs";
 
 describe("safe_output_manifest", () => {
   let testManifestFile;
@@ -296,6 +296,83 @@ describe("safe_output_manifest", () => {
       expect(item.number).toBeUndefined();
       expect(item.repo).toBeUndefined();
       expect(item.temporaryId).toBeUndefined();
+    });
+  });
+
+  describe("TEMPORARY_ID_MAP_FILE_PATH", () => {
+    it("should be the expected default path", () => {
+      expect(TEMPORARY_ID_MAP_FILE_PATH).toBe("/tmp/gh-aw/temporary-id-map.json");
+    });
+  });
+
+  describe("writeTemporaryIdMapFile", () => {
+    let testTempIdFile;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      testTempIdFile = `/tmp/test-temp-id-map-${testId}/temporary-id-map.json`;
+    });
+
+    afterEach(() => {
+      try {
+        const testDir = path.dirname(testTempIdFile);
+        if (fs.existsSync(testDir)) {
+          fs.rmSync(testDir, { recursive: true, force: true });
+        }
+      } catch (_err) {
+        // Ignore cleanup errors
+      }
+    });
+
+    it("should write an empty map as pretty-printed JSON", () => {
+      writeTemporaryIdMapFile({}, testTempIdFile);
+
+      const content = fs.readFileSync(testTempIdFile, "utf8");
+      expect(content).toBe("{}\n");
+    });
+
+    it("should write a map with entries as pretty-printed JSON", () => {
+      const tempIdMap = {
+        aw_abc123: { repo: "owner/repo", number: 42 },
+        aw_def456: { repo: "owner/repo", number: 100 },
+      };
+
+      writeTemporaryIdMapFile(tempIdMap, testTempIdFile);
+
+      const content = fs.readFileSync(testTempIdFile, "utf8");
+      const parsed = JSON.parse(content);
+      expect(parsed).toEqual(tempIdMap);
+      // Verify pretty-printing (contains newlines and indentation)
+      expect(content).toContain("\n");
+      expect(content).toContain("  ");
+      // Verify trailing newline
+      expect(content.endsWith("\n")).toBe(true);
+    });
+
+    it("should create parent directories if they do not exist", () => {
+      const deepPath = `/tmp/test-temp-id-deep-${Math.random().toString(36).substring(7)}/a/b/c/map.json`;
+      writeTemporaryIdMapFile({ aw_test: { repo: "o/r", number: 1 } }, deepPath);
+
+      expect(fs.existsSync(deepPath)).toBe(true);
+      const parsed = JSON.parse(fs.readFileSync(deepPath, "utf8"));
+      expect(parsed.aw_test).toEqual({ repo: "o/r", number: 1 });
+
+      // Cleanup
+      fs.rmSync(path.dirname(deepPath).split("/a/")[0] + "/a", { recursive: true, force: true });
+    });
+
+    it("should overwrite an existing file", () => {
+      writeTemporaryIdMapFile({ aw_old: { repo: "o/r", number: 1 } }, testTempIdFile);
+      writeTemporaryIdMapFile({ aw_new: { repo: "o/r", number: 2 } }, testTempIdFile);
+
+      const parsed = JSON.parse(fs.readFileSync(testTempIdFile, "utf8"));
+      expect(parsed.aw_old).toBeUndefined();
+      expect(parsed.aw_new).toEqual({ repo: "o/r", number: 2 });
+    });
+
+    it("should throw when the file cannot be written", () => {
+      // Use a path that cannot be created (root filesystem)
+      expect(() => writeTemporaryIdMapFile({}, "/proc/fake/map.json")).toThrow("Failed to write temporary ID map file");
     });
   });
 });

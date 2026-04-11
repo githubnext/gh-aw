@@ -1,9 +1,10 @@
 // @ts-check
 
 const fs = require("fs");
+const nodePath = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
-const { MANIFEST_FILE_PATH } = require("./constants.cjs");
+const { MANIFEST_FILE_PATH, TEMPORARY_ID_MAP_FILE_PATH } = require("./constants.cjs");
 
 /**
  * Safe output types that create new items in GitHub (these typically return a URL,
@@ -139,11 +140,34 @@ function extractCreatedItemFromResult(type, result) {
   };
 }
 
+/**
+ * Write the temporary ID map to a JSON file for inclusion in the safe-outputs-items artifact.
+ *
+ * The file contains a pretty-printed JSON object mapping temporary IDs to their resolved
+ * GitHub resource references for review and audit purposes.
+ *
+ * @param {Object} temporaryIdMap - The temporary ID map object (keys are temp IDs, values are {repo, number})
+ * @param {string} [filePath] - Path to the output file (defaults to TEMPORARY_ID_MAP_FILE_PATH)
+ */
+function writeTemporaryIdMapFile(temporaryIdMap, filePath = TEMPORARY_ID_MAP_FILE_PATH) {
+  try {
+    const dir = nodePath.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(temporaryIdMap, null, 2) + "\n");
+  } catch (error) {
+    throw new Error(`${ERR_SYSTEM}: Failed to write temporary ID map file: ${getErrorMessage(error)}`);
+  }
+}
+
 module.exports = {
   MANIFEST_FILE_PATH,
+  TEMPORARY_ID_MAP_FILE_PATH,
   CREATE_ITEM_TYPES,
   NOT_LOGGED_TYPES,
   createManifestLogger,
   ensureManifestExists,
   extractCreatedItemFromResult,
+  writeTemporaryIdMapFile,
 };

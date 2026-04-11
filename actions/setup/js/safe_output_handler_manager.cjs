@@ -21,7 +21,7 @@ const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorC
 const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult } = require("./safe_output_manifest.cjs");
+const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const nodePath = require("path");
@@ -1158,6 +1158,14 @@ async function main() {
     const temporaryIdMapJson = JSON.stringify(processingResult.temporaryIdMap);
     core.setOutput("temporary_id_map", temporaryIdMapJson);
     core.info(`Exported temporary ID map with ${Object.keys(processingResult.temporaryIdMap).length} mapping(s)`);
+
+    // Write temporary ID map to file for inclusion in the safe-outputs-items artifact.
+    // This allows reviewers and auditors to inspect the full map of temporary IDs
+    // to resolved GitHub resources (issue numbers, repos) without parsing step outputs.
+    if (!isStaged) {
+      writeTemporaryIdMapFile(processingResult.temporaryIdMap);
+      core.info(`Wrote temporary ID map to file for artifact upload`);
+    }
 
     // Export processed count for consistency with project handler
     core.setOutput("processed_count", successCount);
