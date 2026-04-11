@@ -156,6 +156,16 @@ func TestAllowWorkflowsValidationRequiresGitHubApp(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "allow-workflows with empty github-app config - error",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					AllowWorkflows: true,
+				},
+				GitHubApp: &GitHubAppConfig{},
+			},
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {

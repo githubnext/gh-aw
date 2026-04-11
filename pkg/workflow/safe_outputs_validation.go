@@ -336,8 +336,8 @@ func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
 
 	safeOutputsAllowWorkflowsValidationLog.Printf("allow-workflows: true found on: %s", strings.Join(handlers, ", "))
 
-	// Check if GitHub App is configured
-	if safeOutputs.GitHubApp == nil {
+	// Check if GitHub App is configured with required fields
+	if safeOutputs.GitHubApp == nil || safeOutputs.GitHubApp.AppID == "" || safeOutputs.GitHubApp.PrivateKey == "" {
 		safeOutputsAllowWorkflowsValidationLog.Print("allow-workflows requires github-app but none configured")
 		return fmt.Errorf(
 			"safe-outputs.%s: allow-workflows: true requires a GitHub App to be configured.\n"+
@@ -349,7 +349,7 @@ func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
 				"    private-key: ${{ secrets.APP_PRIVATE_KEY }}\n"+
 				"  %s:\n"+
 				"    allow-workflows: true",
-			handlers[0], handlers[0],
+			strings.Join(handlers, ", "), handlers[0],
 		)
 	}
 
