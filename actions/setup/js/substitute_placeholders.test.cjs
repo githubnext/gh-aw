@@ -18,6 +18,8 @@ describe("substitutePlaceholders", () => {
 
   afterEach(() => {
     if (fs.existsSync(testFile)) fs.unlinkSync(testFile);
+    const manifestFile = `${testFile}.placeholders`;
+    if (fs.existsSync(manifestFile)) fs.unlinkSync(manifestFile);
     if (fs.existsSync(tempDir)) fs.rmdirSync(tempDir);
   });
 
@@ -96,5 +98,26 @@ describe("substitutePlaceholders", () => {
       substitutions: { REPO: "test/repo", COMMENT: undefined, ISSUE: null },
     });
     expect(fs.readFileSync(testFile, "utf8")).toBe("Repo: test/repo\nComment: \nIssue: ");
+  });
+
+  it("should write a manifest file with substituted placeholder keys", async () => {
+    fs.writeFileSync(testFile, "Hello __NAME__!", "utf8");
+    await substitutePlaceholders({ file: testFile, substitutions: { NAME: "World" } });
+    const manifestFile = `${testFile}.placeholders`;
+    expect(fs.existsSync(manifestFile)).toBe(true);
+    expect(fs.readFileSync(manifestFile, "utf8")).toBe("__NAME__\n");
+  });
+
+  it("should write all keys to the manifest file", async () => {
+    fs.writeFileSync(testFile, "__A__ __B__ __C__", "utf8");
+    await substitutePlaceholders({
+      file: testFile,
+      substitutions: { A: "1", B: "2", C: "3" },
+    });
+    const manifestFile = `${testFile}.placeholders`;
+    const manifest = fs.readFileSync(manifestFile, "utf8");
+    expect(manifest).toContain("__A__");
+    expect(manifest).toContain("__B__");
+    expect(manifest).toContain("__C__");
   });
 });

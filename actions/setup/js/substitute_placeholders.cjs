@@ -50,6 +50,22 @@ const substitutePlaceholders = async ({ file, substitutions }) => {
     throw new Error(`${ERR_SYSTEM}: Failed to write file ${file}: ${errorMessage}`);
   }
 
+  // Write a manifest of substituted placeholder keys so the validator can check
+  // only for these specific placeholders instead of using a broad pattern match.
+  // This prevents false positives when substituted values contain __GH_AW_*__ patterns
+  // (e.g., issue titles mentioning placeholder names).
+  const manifestFile = `${file}.placeholders`;
+  try {
+    const manifest =
+      Object.keys(substitutions)
+        .map(key => `__${key}__`)
+        .join("\n") + "\n";
+    fs.writeFileSync(manifestFile, manifest, "utf8");
+  } catch (error) {
+    // Non-fatal: if manifest write fails, the validator will fall back to broad pattern matching
+    core.warning(`[substitutePlaceholders] Failed to write manifest ${manifestFile}: ${getErrorMessage(error)}`);
+  }
+
   return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
 };
 

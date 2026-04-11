@@ -5,6 +5,7 @@
 set -e
 
 PROMPT_FILE="${GH_AW_PROMPT:-/tmp/gh-aw/aw-prompts/prompt.txt}"
+MANIFEST_FILE="${PROMPT_FILE}.placeholders"
 
 if [ ! -f "$PROMPT_FILE" ]; then
     echo "❌ Error: Prompt file not found at $PROMPT_FILE"
@@ -14,14 +15,47 @@ fi
 echo "🔍 Validating prompt placeholders..."
 
 # Check for unreplaced environment variable placeholders (format: __GH_AW_*__)
-if grep -q "__GH_AW_" "$PROMPT_FILE"; then
-    echo "❌ Error: Found unreplaced placeholders in prompt file:"
-    echo ""
-    grep -n "__GH_AW_" "$PROMPT_FILE" | head -20
-    echo ""
-    echo "These placeholders should have been replaced with their actual values."
-    echo "This indicates a problem with the placeholder substitution step."
-    exit 1
+# If a manifest file exists (written by substitute_placeholders.cjs), check only
+# for the specific placeholders that were supposed to be substituted. This avoids
+# false positives when substituted values contain __GH_AW_*__ patterns (e.g., issue
+# titles that mention placeholder names).
+if [ -f "$MANIFEST_FILE" ]; then
+    FOUND_PLACEHOLDERS=""
+    while IFS= read -r placeholder; do
+        # Skip empty lines
+        [ -z "$placeholder" ] && continue
+        if grep -qF "$placeholder" "$PROMPT_FILE"; then
+            if [ -z "$FOUND_PLACEHOLDERS" ]; then
+                FOUND_PLACEHOLDERS="$placeholder"
+            else
+                FOUND_PLACEHOLDERS="$FOUND_PLACEHOLDERS
+$placeholder"
+            fi
+        fi
+    done < "$MANIFEST_FILE"
+
+    if [ -n "$FOUND_PLACEHOLDERS" ]; then
+        echo "❌ Error: Found unreplaced placeholders in prompt file:"
+        echo ""
+        echo "$FOUND_PLACEHOLDERS" | while IFS= read -r p; do
+            grep -nF "$p" "$PROMPT_FILE" | head -5
+        done
+        echo ""
+        echo "These placeholders should have been replaced with their actual values."
+        echo "This indicates a problem with the placeholder substitution step."
+        exit 1
+    fi
+else
+    # Fallback: no manifest file, use broad pattern matching (legacy behavior)
+    if grep -q "__GH_AW_" "$PROMPT_FILE"; then
+        echo "❌ Error: Found unreplaced placeholders in prompt file:"
+        echo ""
+        grep -n "__GH_AW_" "$PROMPT_FILE" | head -20
+        echo ""
+        echo "These placeholders should have been replaced with their actual values."
+        echo "This indicates a problem with the placeholder substitution step."
+        exit 1
+    fi
 fi
 
 # Check for unreplaced GitHub expression syntax (format: ${{ ... }})
