@@ -783,4 +783,62 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Engine Failure");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // buildMCPPolicyErrorContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildMCPPolicyErrorContext", () => {
+    let buildMCPPolicyErrorContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-mcp-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildMCPPolicyErrorContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when no MCP policy error", () => {
+      expect(buildMCPPolicyErrorContext(false)).toBe("");
+    });
+
+    it("returns template content when MCP policy error and template exists", () => {
+      const templateContent = "\n**🔒 MCP Servers Blocked by Policy**: Test message.\n";
+      fs.writeFileSync(path.join(promptsDir, "mcp_policy_error.md"), templateContent);
+      const result = buildMCPPolicyErrorContext(true);
+      expect(result).toContain("MCP Servers Blocked by Policy");
+    });
+
+    it("includes link to official documentation when template exists", () => {
+      const templateContent = "**🔒 MCP Servers Blocked by Policy**: See [docs](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access).\n";
+      fs.writeFileSync(path.join(promptsDir, "mcp_policy_error.md"), templateContent);
+      const result = buildMCPPolicyErrorContext(true);
+      expect(result).toContain("docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access");
+    });
+
+    it("returns inline fallback message when template is missing", () => {
+      // No template file written
+      const result = buildMCPPolicyErrorContext(true);
+      expect(result).toContain("MCP Servers Blocked by Policy");
+      expect(result).toContain("configure-mcp-server-access");
+    });
+  });
 });

@@ -689,6 +689,31 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
 }
 
 /**
+ * Build a context string when MCP servers were blocked by enterprise/organization policy.
+ * This is a persistent configuration error — retrying will not help.
+ * @param {boolean} hasMCPPolicyError - Whether an MCP policy error was detected
+ * @returns {string} Formatted context string, or empty string if no error
+ */
+function buildMCPPolicyErrorContext(hasMCPPolicyError) {
+  if (!hasMCPPolicyError) {
+    return "";
+  }
+
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/mcp_policy_error.md`;
+  try {
+    const template = fs.readFileSync(templatePath, "utf8");
+    return "\n" + template;
+  } catch {
+    // Template not available — return inline message
+    return (
+      "\n**🔒 MCP Servers Blocked by Policy**: The Copilot CLI blocked MCP server connections due to an organization or enterprise policy.\n\n" +
+      'An administrator must enable the **"MCP servers in Copilot"** policy. ' +
+      "See: [Configure MCP server access](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-mcp-usage/configure-mcp-server-access)\n"
+    );
+  }
+}
+
+/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -926,6 +951,7 @@ async function main() {
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
+    const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
@@ -973,6 +999,7 @@ async function main() {
     core.info(`Code push failure count: ${codePushFailureCount}`);
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
+    core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -1234,6 +1261,9 @@ async function main() {
         // Build inference access error context
         const inferenceAccessErrorContext = buildInferenceAccessErrorContext(inferenceAccessError);
 
+        // Build MCP policy error context
+        const mcpPolicyErrorContext = buildMCPPolicyErrorContext(mcpPolicyError);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1271,6 +1301,7 @@ async function main() {
           timeout_context: timeoutContext,
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
+          mcp_policy_error_context: mcpPolicyErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -1383,6 +1414,9 @@ async function main() {
         // Build inference access error context
         const inferenceAccessErrorContext = buildInferenceAccessErrorContext(inferenceAccessError);
 
+        // Build MCP policy error context
+        const mcpPolicyErrorContext = buildMCPPolicyErrorContext(mcpPolicyError);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1421,6 +1455,7 @@ async function main() {
           timeout_context: timeoutContext,
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
+          mcp_policy_error_context: mcpPolicyErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -1491,4 +1526,5 @@ module.exports = {
   buildAssignCopilotFailureContext,
   buildEngineFailureContext,
   buildReportIncompleteContext,
+  buildMCPPolicyErrorContext,
 };

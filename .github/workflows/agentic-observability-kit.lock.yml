@@ -305,6 +305,7 @@ jobs:
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
+      mcp_policy_error: ${{ steps.detect-mcp-policy-error.outputs.mcp_policy_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -778,6 +779,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh"
+      - name: Detect MCP policy error
+        id: detect-mcp-policy-error
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/detect_mcp_policy_error.sh"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1042,6 +1048,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
+          GH_AW_MCP_POLICY_ERROR: ${{ needs.agent.outputs.mcp_policy_error }}
           GH_AW_CREATE_DISCUSSION_ERRORS: ${{ needs.safe_outputs.outputs.create_discussion_errors }}
           GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}

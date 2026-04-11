@@ -224,6 +224,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
 	}
 
+	// Pass MCP policy error output for Copilot engine
+	// This detects when MCP servers are blocked by enterprise/organization policy
+	if _, ok := engine.(*CopilotEngine); ok {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MCP_POLICY_ERROR: ${{ needs.%s.outputs.mcp_policy_error }}\n", mainJobName))
+	}
+
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
 		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")

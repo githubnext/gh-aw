@@ -185,6 +185,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		if _, ok := engine.(*CopilotEngine); ok {
 			outputs["inference_access_error"] = "${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}"
 			compilerMainJobLog.Print("Added inference_access_error output (Copilot engine)")
+
+			outputs["mcp_policy_error"] = "${{ steps.detect-mcp-policy-error.outputs.mcp_policy_error || 'false' }}"
+			compilerMainJobLog.Print("Added mcp_policy_error output (Copilot engine)")
 		}
 	}
 

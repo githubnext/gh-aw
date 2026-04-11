@@ -307,6 +307,7 @@ jobs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       inference_access_error: ${{ steps.detect-inference-error.outputs.inference_access_error || 'false' }}
+      mcp_policy_error: ${{ steps.detect-mcp-policy-error.outputs.mcp_policy_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
     steps:
@@ -561,6 +562,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh"
+      - name: Detect MCP policy error
+        id: detect-mcp-policy-error
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/detect_mcp_policy_error.sh"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

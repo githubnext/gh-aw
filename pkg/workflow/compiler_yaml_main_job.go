@@ -370,6 +370,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Add MCP policy error detection step for Copilot engine
+	// This step detects when MCP servers are blocked by enterprise/organization policy
+	if _, ok := engine.(*CopilotEngine); ok {
+		mcpPolicyStep := generateMCPPolicyErrorDetectionStep()
+		for _, line := range mcpPolicyStep {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
 	// Mark that we've completed agent execution - step order validation starts from here
 	compilerYamlLog.Print("Marking agent execution as complete for step order tracking")
 	c.stepOrderTracker.MarkAgentExecutionComplete()

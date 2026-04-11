@@ -456,6 +456,21 @@ func generateInferenceAccessErrorDetectionStep() GitHubActionStep {
 	return GitHubActionStep(step)
 }
 
+// generateMCPPolicyErrorDetectionStep generates a step that detects if MCP servers
+// were blocked by enterprise/organization policy. The step always runs and checks
+// the agent stdio log for the "MCP servers were blocked by policy:" pattern.
+func generateMCPPolicyErrorDetectionStep() GitHubActionStep {
+	var step []string
+
+	step = append(step, "      - name: Detect MCP policy error")
+	step = append(step, "        id: detect-mcp-policy-error")
+	step = append(step, "        if: always()")
+	step = append(step, "        continue-on-error: true")
+	step = append(step, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/detect_mcp_policy_error.sh\"")
+
+	return GitHubActionStep(step)
+}
+
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string
