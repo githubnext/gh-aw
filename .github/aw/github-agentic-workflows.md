@@ -414,6 +414,7 @@ The YAML frontmatter supports these fields:
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
       api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
       command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
+      bare: true                        # Optional: disable automatic context loading (copilot: suppresses AGENTS.md/user instructions; claude: suppresses CLAUDE.md memory files). Unsupported engines emit a compiler warning. (default: false)
       token-weights:                    # Optional: custom token cost weights for effective token computation
         multipliers:
           my-custom-model: 2.5          # 2.5x the cost of claude-sonnet-4.5 (= 1.0)
