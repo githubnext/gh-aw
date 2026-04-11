@@ -260,6 +260,7 @@ func stripDetailLinePrefix(detail string) string {
 
 // validateWithSchemaAndLocation validates frontmatter against a JSON schema with location information
 func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, context, filePath string) error {
+	schemaCompilerLog.Printf("Validating with location info: context=%s, file=%s", context, filePath)
 	// First try the basic validation
 	err := validateWithSchema(frontmatter, schemaJSON, context)
 	if err == nil {
@@ -316,6 +317,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 	if isJSONSchemaError {
 		// Extract JSON path information from the validation error
 		jsonPaths := ExtractJSONPathFromValidationError(err)
+		schemaCompilerLog.Printf("Extracted %d JSON path(s) from validation error for %s", len(jsonPaths), context)
 
 		// If we have paths and frontmatter content, try to get precise locations
 		if len(jsonPaths) > 0 && frontmatterContent != "" {
