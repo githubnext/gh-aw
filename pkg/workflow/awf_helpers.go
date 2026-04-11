@@ -29,6 +29,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var awfHelpersLog = logger.New("workflow:awf_helpers")
@@ -640,9 +641,9 @@ func awfSupportsExcludeEnv(firewallConfig *FirewallConfig) bool {
 		return true
 	}
 
-	// Normalise the v-prefix for compareVersions.
+	// Normalise the v-prefix for semverutil.Compare.
 	minVersion := string(constants.AWFExcludeEnvMinVersion)
-	return compareVersions(versionStr, minVersion) >= 0
+	return semverutil.Compare(versionStr, minVersion) >= 0
 }
 
 // awfSupportsCliProxy returns true when the effective AWF version supports --difc-proxy-host
@@ -673,7 +674,7 @@ func awfSupportsCliProxy(firewallConfig *FirewallConfig) bool {
 		return true
 	}
 
-	// Normalise the v-prefix for compareVersions.
+	// Normalise the v-prefix for semverutil.Compare.
 	minVersion := string(constants.AWFCliProxyMinVersion)
-	return compareVersions(versionStr, minVersion) >= 0
+	return semverutil.Compare(versionStr, minVersion) >= 0
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var actionPinsLog = logger.New("workflow:action_pins")
@@ -118,13 +119,13 @@ func getActionPins() []ActionPin {
 		}
 		// The global sort above orders all pins together, so grouping them by repo
 		// does not guarantee per-repo ordering.  Re-sort each repo's slice using the
-		// semantic comparator (compareVersions) so that the index matches what
+		// semantic comparator (semverutil.Compare) so that the index matches what
 		// sortPinsByVersion would return for any subset of pins.
 		for repo, repoPins := range byRepo {
 			sort.Slice(repoPins, func(i, j int) bool {
 				v1 := strings.TrimPrefix(repoPins[i].Version, "v")
 				v2 := strings.TrimPrefix(repoPins[j].Version, "v")
-				return compareVersions(v1, v2) > 0
+				return semverutil.Compare(v1, v2) > 0
 			})
 			byRepo[repo] = repoPins
 		}
@@ -237,7 +238,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			var selectedPin ActionPin
 			foundCompatible := false
 			for _, pin := range matchingPins {
-				if isSemverCompatible(pin.Version, version) {
+				if semverutil.IsCompatible(pin.Version, version) {
 					selectedPin = pin
 					foundCompatible = true
 					break
