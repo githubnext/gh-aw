@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -103,6 +104,28 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 
 	safeOutputReflectionLog.Print("No safe outputs enabled")
 	return false
+}
+
+// getEnabledSafeOutputToolNames returns a sorted list of tool names enabled in the
+// SafeOutputsConfig. It uses reflection to check which pointer fields are non-nil
+// and maps them to their corresponding tool names via safeOutputFieldMapping.
+// This is used to generate individual --allow-tool arguments for MCP registry compliance.
+func getEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
+	if safeOutputs == nil {
+		return nil
+	}
+
+	var toolNames []string
+	val := reflect.ValueOf(safeOutputs).Elem()
+	for fieldName, toolName := range safeOutputFieldMapping {
+		field := val.FieldByName(fieldName)
+		if field.IsValid() && !field.IsNil() {
+			toolNames = append(toolNames, toolName)
+		}
+	}
+
+	sort.Strings(toolNames)
+	return toolNames
 }
 
 // builtinSafeOutputFields contains the struct field names for the built-in safe output types

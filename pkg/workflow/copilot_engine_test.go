@@ -266,7 +266,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "safeoutputs(create_issue)"},
 		},
 		{
 			name: "mixed tools",
@@ -292,7 +292,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "safeoutputs(create_issue)", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
 		},
 		{
 			name:  "safe outputs with safe_outputs config",
@@ -300,7 +300,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "safeoutputs(create_issue)"},
 		},
 		{
 			name:  "safe outputs with safe jobs",
@@ -321,7 +321,22 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"my-job": {Name: "test job"},
 				},
 			},
-			expected: []string{"--allow-tool", "safeoutputs"},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "safeoutputs(create_issue)"},
+		},
+		{
+			name:  "safe outputs with PR review tools allows individual tools",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{},
+				SubmitPullRequestReview:         &SubmitPullRequestReviewConfig{},
+				AddComments:                     &AddCommentsConfig{},
+			},
+			expected: []string{
+				"--allow-tool", "safeoutputs",
+				"--allow-tool", "safeoutputs(add_comment)",
+				"--allow-tool", "safeoutputs(create_pull_request_review_comment)",
+				"--allow-tool", "safeoutputs(submit_pull_request_review)",
+			},
 		},
 		{
 			name: "github tool with allowed tools",

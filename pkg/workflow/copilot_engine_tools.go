@@ -90,11 +90,19 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", "write")
 	}
 
-	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
+	// Handle safe_outputs MCP server - allow the server and individual tools
 	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
 		copilotEngineToolsLog.Print("Safe-outputs enabled, adding MCP server permission")
 		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID.String())
+
+		// Add individual tool permissions for MCP registry compliance.
+		// Copilot CLI's MCP registry restriction policy requires explicit tool-level
+		// permissions in addition to the server-level permission.
+		toolNames := getEnabledSafeOutputToolNames(safeOutputs)
+		for _, toolName := range toolNames {
+			args = append(args, "--allow-tool", fmt.Sprintf("%s(%s)", constants.SafeOutputsMCPServerID, toolName))
+		}
 	}
 
 	// Handle mcp_scripts MCP server - allow the server if mcp-scripts are configured and feature flag is enabled
