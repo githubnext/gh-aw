@@ -252,24 +252,6 @@ func TestFindGitRoot(t *testing.T) {
 	})
 }
 
-func TestReadFileFromHEAD(t *testing.T) {
-	t.Run("reads a committed file successfully", func(t *testing.T) {
-		// go.mod is always committed at the repo root, so it should be readable from HEAD.
-		gitRoot, err := FindGitRoot()
-		require.NoError(t, err, "must be inside a git repository")
-
-		content, err := ReadFileFromHEAD(filepath.Join(gitRoot, "go.mod"))
-		require.NoError(t, err, "go.mod should be readable from HEAD")
-		assert.NotEmpty(t, content, "go.mod content should not be empty")
-		assert.Contains(t, content, "module ", "go.mod should contain a module declaration")
-	})
-
-	t.Run("returns error for file not in HEAD", func(t *testing.T) {
-		_, err := ReadFileFromHEAD("/nonexistent/path/that/is/not/in/git/repo/file.yml")
-		assert.Error(t, err, "should fail for a file not tracked by git")
-	})
-}
-
 func TestReadFileFromHEADWithRoot(t *testing.T) {
 	t.Run("reads a committed file with pre-computed root", func(t *testing.T) {
 		gitRoot, err := FindGitRoot()
@@ -289,18 +271,6 @@ func TestReadFileFromHEADWithRoot(t *testing.T) {
 		_, err = ReadFileFromHEADWithRoot(outsidePath, gitRoot)
 		require.Error(t, err, "should fail for a file outside the git root")
 		assert.Contains(t, err.Error(), "outside the git repository root", "error should mention path is outside repo")
-	})
-
-	t.Run("returns same result as ReadFileFromHEAD", func(t *testing.T) {
-		gitRoot, err := FindGitRoot()
-		require.NoError(t, err, "must be inside a git repository")
-
-		goModPath := filepath.Join(gitRoot, "go.mod")
-		content1, err1 := ReadFileFromHEAD(goModPath)
-		content2, err2 := ReadFileFromHEADWithRoot(goModPath, gitRoot)
-
-		assert.Equal(t, err1, err2, "both functions should return the same error")
-		assert.Equal(t, content1, content2, "both functions should return the same content")
 	})
 
 	t.Run("returns error for empty gitRoot", func(t *testing.T) {

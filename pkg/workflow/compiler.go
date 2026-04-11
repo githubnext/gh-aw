@@ -35,17 +35,6 @@ func normalizeHeredocDelimiters(content string) string {
 	return heredocDelimiterRE.ReplaceAllString(content, "GH_AW_${1}_NORM_EOF")
 }
 
-// containerPinRE matches Docker image digest pins of the form @sha256:<64 hex chars>.
-// Used to normalize output that may or may not include container pins depending on
-// whether the action cache is available (native compilation has it, wasm does not).
-var containerPinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
-
-// normalizeContainerPins strips @sha256:… digest suffixes from Docker image references
-// so that compiled output compares equal regardless of whether the action cache was loaded.
-func normalizeContainerPins(content string) string {
-	return containerPinRE.ReplaceAllString(content, "")
-}
-
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (500KB)
 	MaxLockFileSize = 512000 // 500KB in bytes

@@ -81,27 +81,6 @@ func FindGitRoot() (string, error) {
 	return gitRoot, nil
 }
 
-// ReadFileFromHEAD returns the content of filePath as recorded in the most recent
-// git commit (HEAD). This is used in safe update mode so that the manifest baseline
-// comes from the committed version of the lock file, not from the working-tree copy,
-// preventing a local agent from tampering with the file to bypass enforcement.
-//
-// filePath may be absolute or relative; it is resolved to an absolute path before
-// computing its path relative to the git root.
-//
-// Returns an error when:
-//   - the current directory is not inside a git repository
-//   - the file does not exist in HEAD (e.g. it has never been committed)
-//   - the git command fails for another reason
-func ReadFileFromHEAD(filePath string) (string, error) {
-	gitRoot, err := FindGitRoot()
-	if err != nil {
-		return "", fmt.Errorf("cannot read %q from git HEAD: %w", filePath, err)
-	}
-
-	return ReadFileFromHEADWithRoot(filePath, gitRoot)
-}
-
 // ReadFileFromHEADWithRoot is like ReadFileFromHEAD but accepts a pre-computed git
 // repository root, avoiding the subprocess overhead of calling FindGitRoot().
 // Use this when the caller already knows the git root (e.g. from a cached value).
