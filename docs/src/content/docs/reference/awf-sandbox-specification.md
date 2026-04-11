@@ -248,6 +248,8 @@ When the AWF binary version is older than the minimum required, the caller MUST 
 
 ## 5. Network Filtering
 
+> **Note**: AWF does not interpret ecosystem identifiers (e.g., `"defaults"`, `"github"`, `"python"`). These are compiler constructs that are resolved into flat domain lists before AWF is invoked. AWF only sees the resulting comma-separated domain strings.
+
 ### 5.1 Domain List Format
 
 AWF receives domain lists as comma-separated strings via `--allow-domains` and `--block-domains`. Each entry in the list MUST be one of:
@@ -257,8 +259,6 @@ AWF receives domain lists as comma-separated strings via `--allow-domains` and `
 - **Protocol-qualified domain**: A domain prefixed with `https://` or `http://` to restrict to a specific protocol (e.g., `https://secure.api.example.com`).
 - **IP address**: A literal IP address (e.g., `172.30.0.1`) for direct IP-based access.
 - **Wildcard `*`**: Permits all outbound network traffic.
-
-> **Note**: AWF does not interpret ecosystem identifiers (e.g., `"defaults"`, `"github"`, `"python"`). These are compiler constructs that are resolved into flat domain lists before AWF is invoked. AWF only sees the resulting comma-separated domain strings.
 
 ### 5.2 Allow/Block Semantics
 
