@@ -423,6 +423,20 @@ describe("upload_artifact.cjs", () => {
       expect(content).toBe("staged version");
     });
 
+    it("does not overwrite pre-staged file when auto-copying from absolute path", async () => {
+      writeStaging("data.json", "original staged");
+      writeWorkspace("data.json", "workspace version");
+      const absFile = path.join(WORKSPACE_DIR, "data.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: absFile }]);
+
+      expect(results[0].success).toBe(true);
+      // The pre-staged file must not be overwritten.
+      const content = fs.readFileSync(path.join(STAGING_DIR, "data.json"), "utf8");
+      expect(content).toBe("original staged");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already exists in staging"));
+    });
+
     it("rejects symlinks during auto-copy from absolute path", async () => {
       writeWorkspace("real.txt", "real content");
       const linkPath = path.join(WORKSPACE_DIR, "link.txt");

@@ -124,6 +124,11 @@ function listFilesRecursive(dir, baseDir) {
  */
 function copySingleFileToStaging(sourcePath, destRelPath) {
   const destPath = path.join(STAGING_DIR, destRelPath);
+  // Never overwrite a file that is already staged — the pre-staged version takes precedence.
+  if (fs.existsSync(destPath)) {
+    core.info(`Skipping auto-copy for ${destRelPath}: already exists in staging directory`);
+    return { error: null };
+  }
   const stat = fs.lstatSync(sourcePath);
   if (stat.isSymbolicLink()) {
     return { error: `symlinks are not allowed: ${sourcePath}` };
