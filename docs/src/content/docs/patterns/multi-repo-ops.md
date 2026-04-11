@@ -9,11 +9,7 @@ MultiRepoOps extends operational automation patterns (IssueOps, ChatOps, etc.) a
 
 ## When to Use MultiRepoOps
 
-- **Feature synchronization** - Propagate changes from main repositories to sub-repos or forks
-- **Hub-and-spoke tracking** - Centralize issue tracking across component repositories
-- **Organization-wide enforcement** - Roll out security patches, policy updates, or dependency changes across all repos
-- **Monorepo alternatives** - Coordinate packages or services living in separate repositories
-- **Upstream/downstream workflows** - Sync features between upstream dependencies and downstream consumers
+Use MultiRepoOps for feature synchronization (main repo to sub-repos), hub-and-spoke issue tracking (components → central tracker), org-wide enforcement (security patches, policy rollouts), and upstream/downstream feature sync.
 
 ## How It Works
 
@@ -61,12 +57,7 @@ safe-outputs:
     target-repo: "org/tracking-repo"
 ```
 
-**Required Permissions:**
-
-The PAT needs permissions **only on target repositories** where you want to create resources, not on the source repository where the workflow runs.
-
-- Repository access to target repos (public or private)
-- `contents: write`, `issues: write`, `pull-requests: write` (depending on operations)
+The PAT needs permissions only on target repositories — `contents: write`, `issues: write`, or `pull-requests: write` depending on operations (not on the source repo).
 
 > [!TIP]
 > Security Best Practice
@@ -80,41 +71,13 @@ See [Using a GitHub App for Authentication](/gh-aw/reference/auth/#using-a-githu
 
 ## Common MultiRepoOps Patterns
 
-### Hub-and-Spoke Issue Tracking
+Three topologies cover most use cases:
 
-Central repository aggregates issues from multiple component repositories:
-
-```text
-Component Repo A ──┐
-Component Repo B ──┼──> Central Tracker
-Component Repo C ──┘
-```
-
-Each component workflow creates tracking issues in the central repo using `target-repo` parameter.
-
-### Upstream-to-Downstream Sync
-
-Main repository propagates changes to downstream repositories:
-
-```text
-Main Repo ──> Sub-Repo Alpha
-          ──> Sub-Repo Beta
-          ──> Sub-Repo Gamma
-```
-
-Use cross-repo pull requests with `create-pull-request` safe output and `target-repo` configuration.
-
-### Organization-Wide Coordination
-
-Single workflow creates issues across multiple repositories:
-
-```text
-Control Workflow ──> Repo 1 (tracking issue)
-                 ──> Repo 2 (tracking issue)
-                 ──> Repo 3 (tracking issue)
-```
-
-Agent generates multiple tracking issues with different `target-repo` values (up to configured `max` limit).
+| Pattern | Description |
+|---------|-------------|
+| **Hub-and-spoke** | Each component workflow creates tracking issues in a central repo via `target-repo` |
+| **Upstream-to-downstream** | Main repo propagates changes using `create-pull-request` with `target-repo` per downstream |
+| **Org-wide broadcast** | Single workflow creates issues in many repos up to the configured `max` limit |
 
 ## Cross-Repository Safe Outputs
 
@@ -199,21 +162,14 @@ Explore detailed MultiRepoOps examples:
 
 ## Best Practices
 
-- **Authentication**: Use GitHub Apps for automatic token revocation; scope PATs minimally to required repositories; store tokens as GitHub secrets
-- **Workflow design**: Set appropriate `max` limits; use meaningful title prefixes and consistent labels
-- **Error handling**: Handle rate limits and permission failures; monitor workflow execution across repositories
-- **Testing**: Start with public repositories, pilot a small subset, and verify configurations before full rollout
+Use GitHub Apps over PATs for automatic token revocation; scope tokens minimally to target repositories. Set appropriate `max` limits and consistent label/prefix conventions. Test against public repositories first before rolling out to private or org-wide targets.
 
-## Related Patterns
+## Related
 
-- **[IssueOps](/gh-aw/patterns/issue-ops/)** - Single-repo issue automation
-- **[ChatOps](/gh-aw/patterns/chat-ops/)** - Command-driven workflows
-- **[Orchestration](/gh-aw/patterns/orchestration/)** - Multi-issue initiative coordination
-
-## Related Documentation
-
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout and target-repo configuration
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
-- [GitHub Tools](/gh-aw/reference/github-tools/) - GitHub API toolsets
-- [Security Best Practices](/gh-aw/introduction/architecture/) - Authentication and token security
-- [Reusing Workflows](/gh-aw/guides/packaging-imports/) - Sharing workflows across repos
+- [IssueOps](/gh-aw/patterns/issue-ops/) — Single-repo issue automation
+- [ChatOps](/gh-aw/patterns/chat-ops/) — Command-driven workflows
+- [Orchestration](/gh-aw/patterns/orchestration/) — Multi-issue initiative coordination
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and `target-repo` configuration
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) — Complete safe output configuration
+- [GitHub Tools](/gh-aw/reference/github-tools/) — GitHub API toolsets
+- [Reusing Workflows](/gh-aw/guides/packaging-imports/) — Sharing workflows across repos
