@@ -283,6 +283,23 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: true,
 			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
 		},
+		{
+			name: "env-bound secret with GITHUB_ENV write in run is blocked in strict mode",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Leaky step",
+						"env": map[string]any{
+							"TOKEN": "${{ secrets.TOKEN }}",
+						},
+						"run": `echo "TOKEN=${TOKEN}" >> "$GITHUB_ENV"`,
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
+		},
 	}
 
 	for _, tt := range tests {
@@ -390,6 +407,30 @@ func TestClassifyStepSecrets(t *testing.T) {
 			},
 			expectedUnsafe: []string{"${{ secrets.ARRAY_TOKEN }}"},
 			expectedEnv:    nil,
+		},
+		{
+			name: "env-bound secret with GITHUB_ENV in run is reclassified as unsafe",
+			step: map[string]any{
+				"name": "Leaky step",
+				"env": map[string]any{
+					"TOKEN": "${{ secrets.TOKEN }}",
+				},
+				"run": `echo "TOKEN=${TOKEN}" >> "$GITHUB_ENV"`,
+			},
+			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
+			expectedEnv:    nil,
+		},
+		{
+			name: "env-bound secret without GITHUB_ENV reference stays env-bound",
+			step: map[string]any{
+				"name": "Safe step",
+				"env": map[string]any{
+					"TOKEN": "${{ secrets.TOKEN }}",
+				},
+				"run": "my-tool --authenticate",
+			},
+			expectedUnsafe: nil,
+			expectedEnv:    []string{"${{ secrets.TOKEN }}"},
 		},
 	}
 
@@ -505,6 +546,91 @@ func TestDeduplicateStringSlice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := sliceutil.Deduplicate(tt.input)
 			assert.Equal(t, tt.expected, result, "unexpected deduplication result")
+		})
+	}
+}
+
+func TestFilterBuiltinTokens(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "GITHUB_TOKEN is filtered out",
+			input:    []string{"${{ secrets.GITHUB_TOKEN }}"},
+			expected: []string{},
+		},
+		{
+			name:     "user secret is kept",
+			input:    []string{"${{ secrets.API_KEY }}"},
+			expected: []string{"${{ secrets.API_KEY }}"},
+		},
+		{
+			name:     "GITHUB_TOKEN_SUFFIX is NOT filtered (precise match)",
+			input:    []string{"${{ secrets.GITHUB_TOKEN_SUFFIX }}"},
+			expected: []string{"${{ secrets.GITHUB_TOKEN_SUFFIX }}"},
+		},
+		{
+			name:     "mixed expression with GITHUB_TOKEN and other secret is NOT filtered",
+			input:    []string{"${{ secrets.GITHUB_TOKEN && secrets.OTHER }}"},
+			expected: []string{"${{ secrets.GITHUB_TOKEN && secrets.OTHER }}"},
+		},
+		{
+			name:     "expression with only GITHUB_TOKEN references is filtered",
+			input:    []string{"${{ secrets.GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterBuiltinTokens(tt.input)
+			if len(tt.expected) == 0 {
+				assert.Empty(t, result, "expected all to be filtered")
+			} else {
+				assert.Equal(t, tt.expected, result, "unexpected filter result")
+			}
+		})
+	}
+}
+
+func TestStepReferencesGitHubEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		stepMap  map[string]any
+		expected bool
+	}{
+		{
+			name: "run with GITHUB_ENV reference",
+			stepMap: map[string]any{
+				"run": `echo "KEY=val" >> "$GITHUB_ENV"`,
+				"env": map[string]any{"K": "v"},
+			},
+			expected: true,
+		},
+		{
+			name: "run without GITHUB_ENV reference",
+			stepMap: map[string]any{
+				"run": "my-tool scan",
+				"env": map[string]any{"K": "v"},
+			},
+			expected: false,
+		},
+		{
+			name: "GITHUB_ENV in env field is ignored",
+			stepMap: map[string]any{
+				"run": "my-tool scan",
+				"env": map[string]any{"GITHUB_ENV": "/tmp/env"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := stepReferencesGitHubEnv(tt.stepMap)
+			assert.Equal(t, tt.expected, result, "unexpected GITHUB_ENV detection result")
 		})
 	}
 }

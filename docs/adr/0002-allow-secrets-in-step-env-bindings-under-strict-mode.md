@@ -1,4 +1,4 @@
-# ADR-0001: Allow Secrets in Step-Level env: Bindings Under Strict Mode
+# ADR-0002: Allow Secrets in Step-Level env: Bindings Under Strict Mode
 
 **Date**: 2026-04-11
 **Status**: Draft
@@ -56,10 +56,11 @@ A third option was to keep secrets blocked by default but allow authors to annot
 ### Secret Classification
 
 1. Implementations **MUST** classify each `${{ secrets.* }}` reference within a step by the name of the YAML field in which it appears.
-2. A secret reference found inside the `env:` field of a step **MUST** be classified as an *env-bound* reference.
-3. A secret reference found in any other step field (including but not limited to `run:`, `with:`, `name:`, `if:`) **MUST** be classified as an *unsafe* reference.
-4. A step value that is not a YAML map (e.g., a raw string) **MUST** treat all secret references within it as *unsafe* references.
-5. Implementations **MUST NOT** treat an *env-bound* reference as *unsafe*, nor vice versa.
+2. A secret reference found inside a well-formed `env:` mapping (i.e., the `env:` value is a YAML map of key-value pairs) **MUST** be classified as an *env-bound* reference.
+3. A secret reference found inside a malformed `env:` value (e.g., `env:` is a bare string or a YAML sequence) **MUST** be classified as an *unsafe* reference, because the runner cannot apply per-variable masking to such values.
+4. A secret reference found in any other step field (including but not limited to `run:`, `with:`, `name:`, `if:`) **MUST** be classified as an *unsafe* reference.
+5. A step value that is not a YAML map (e.g., a raw string) **MUST** treat all secret references within it as *unsafe* references.
+6. When a step contains *env-bound* secret references AND any non-`env:` field references `GITHUB_ENV`, implementations **MUST** reclassify all *env-bound* references in that step as *unsafe*, because writing to `GITHUB_ENV` persists secrets to subsequent steps (including the agent step).
 
 ### Strict Mode Enforcement
 
