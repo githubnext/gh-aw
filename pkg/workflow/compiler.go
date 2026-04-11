@@ -636,7 +636,7 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 // the repository root on every call.
 func (c *Compiler) readLockFileFromHEAD(lockFile string) (string, error) {
 	if c.gitRoot == "" {
-		return "", errors.New("not in a git repository")
+		return "", errors.New("git root not available (not in a git repository or git not installed)")
 	}
 	return gitutil.ReadFileFromHEADWithRoot(lockFile, c.gitRoot)
 }
