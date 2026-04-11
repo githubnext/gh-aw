@@ -157,18 +157,31 @@ Test content`,
 
 			// Check that notExpectedInJob is NOT in the agent job section
 			if tt.notExpectedInJob != "" {
-				// Extract agent job section
-				agentJobStart := strings.Index(string(lockContent), "agent:")
-				if agentJobStart == -1 {
+				content := string(lockContent)
+				// Use "\n  agent:\n" to find the actual YAML job definition,
+				// not bare "agent:" which also matches container image references in comments
+				jobMarker := "\n  agent:\n"
+				markerIdx := strings.Index(content, jobMarker)
+				if markerIdx == -1 {
 					t.Fatalf("Could not find agent job in compiled workflow")
 				}
-				// Find the next job (or end of file)
-				nextJobStart := strings.Index(string(lockContent)[agentJobStart+10:], "\n  ")
-				agentJobSection := ""
+				agentJobStart := markerIdx + 1 // skip leading newline, point to "  agent:\n"
+
+				// Find the next top-level job definition (a line with exactly 2-space indent)
+				searchFrom := agentJobStart + len("  agent:\n")
+				nextJobStart := -1
+				for i := searchFrom; i < len(content)-3; i++ {
+					if content[i] == '\n' && content[i+1] == ' ' && content[i+2] == ' ' && content[i+3] != ' ' {
+						nextJobStart = i
+						break
+					}
+				}
+
+				var agentJobSection string
 				if nextJobStart == -1 {
-					agentJobSection = string(lockContent)[agentJobStart:]
+					agentJobSection = content[agentJobStart:]
 				} else {
-					agentJobSection = string(lockContent)[agentJobStart : agentJobStart+10+nextJobStart]
+					agentJobSection = content[agentJobStart:nextJobStart]
 				}
 
 				if strings.Contains(agentJobSection, tt.notExpectedInJob) {
