@@ -19,9 +19,10 @@ const (
 	CharsPerToken = 4
 
 	// mcpLogsCacheDir is the directory where MCP logs data files are cached.
-	// This is separate from the artifact download directory so that these
-	// JSON summary files are not included in artifact uploads.
-	mcpLogsCacheDir = "/tmp/gh-aw-logs-cache"
+	// This lives under /tmp/gh-aw/ so that agents can read the files, but
+	// is separate from the artifact download directory (/tmp/gh-aw/aw-mcp/logs)
+	// so that these JSON summary files are not included in artifact uploads.
+	mcpLogsCacheDir = "/tmp/gh-aw/logs-cache"
 )
 
 // MCPLogsGuardrailResponse represents the response returned by the logs tool.
@@ -46,7 +47,7 @@ func buildLogsFileResponse(outputStr string) string {
 			return buildLogsFileErrorResponse(fmt.Sprintf("logs cache path %q is a symlink; refusing to use it", mcpLogsCacheDir))
 		}
 	} else if os.IsNotExist(err) {
-		if mkErr := os.Mkdir(mcpLogsCacheDir, 0700); mkErr != nil && !os.IsExist(mkErr) {
+		if mkErr := os.MkdirAll(mcpLogsCacheDir, 0700); mkErr != nil && !os.IsExist(mkErr) {
 			mcpLogsGuardrailLog.Printf("Failed to create logs cache directory: %v", mkErr)
 			return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache directory: %v", mkErr))
 		}
