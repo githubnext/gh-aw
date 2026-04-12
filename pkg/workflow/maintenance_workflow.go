@@ -498,16 +498,24 @@ jobs:
         with:
           persist-credentials: false
 
-`)
-
-	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
-
-	yaml.WriteString(`      - name: Setup Scripts
+      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
 
+      - name: Check admin/maintainer permissions
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
 `)
+
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 
 	yaml.WriteString(`      - name: Validate workflows and file issue on findings
         uses: ` + GetActionPin("actions/github-script") + `
