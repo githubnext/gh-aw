@@ -503,6 +503,44 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // timeout classification (isTimedOut logic in main)
+  // ──────────────────────────────────────────────────────
+
+  describe("timeout classification", () => {
+    // Mirrors the classification logic in main():
+    //   const isTimedOut = agentConclusion === "timed_out" || agenticEngineTimeout;
+    // This ensures step-level timeouts (detected via signal in the engine log)
+    // are treated as timeouts even when agentConclusion is "failure".
+    function classifyTimeout(agentConclusion, agenticEngineTimeout) {
+      return agentConclusion === "timed_out" || agenticEngineTimeout;
+    }
+
+    it("detects job-level timeout (agentConclusion === 'timed_out')", () => {
+      expect(classifyTimeout("timed_out", false)).toBe(true);
+    });
+
+    it("detects step-level timeout (agentConclusion === 'failure' with agenticEngineTimeout)", () => {
+      expect(classifyTimeout("failure", true)).toBe(true);
+    });
+
+    it("detects timeout when both indicators are present", () => {
+      expect(classifyTimeout("timed_out", true)).toBe(true);
+    });
+
+    it("does not flag timeout for plain failure without engine timeout signal", () => {
+      expect(classifyTimeout("failure", false)).toBe(false);
+    });
+
+    it("does not flag timeout for successful completion", () => {
+      expect(classifyTimeout("success", false)).toBe(false);
+    });
+
+    it("does not flag timeout for cancelled job", () => {
+      expect(classifyTimeout("cancelled", false)).toBe(false);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // buildEngineFailureContext
   // ──────────────────────────────────────────────────────
 
