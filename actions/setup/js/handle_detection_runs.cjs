@@ -7,7 +7,7 @@ const { ERR_API } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
-const { formatET } = require("./effective_tokens.cjs");
+const { getEffectiveTokensSuffix } = require("./effective_tokens.cjs");
 
 /**
  * Search for or create the parent issue for all agentic workflow detection runs.
@@ -110,9 +110,7 @@ async function main() {
     const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/detection_runs_comment.md`;
 
     // Compute effective tokens suffix from environment variable (set by parse_token_usage.cjs / parse_mcp_gateway_log.cjs)
-    const rawET = process.env.GH_AW_EFFECTIVE_TOKENS;
-    const parsedET = rawET ? parseInt(rawET, 10) : NaN;
-    const effectiveTokensSuffix = !isNaN(parsedET) && parsedET > 0 ? ` · ● ${formatET(parsedET)}` : "";
+    const effectiveTokensSuffix = getEffectiveTokensSuffix();
 
     const commentBody = renderTemplateFromFile(commentTemplatePath, {
       workflow_name: workflowName,
