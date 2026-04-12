@@ -520,7 +520,7 @@ async function main(config = {}) {
           const repository = process.env.GITHUB_REPOSITORY || "";
           const runId = process.env.GITHUB_RUN_ID || "";
           if (repository && runId) {
-            artifactUrl = `${serverUrl}/${repository}/actions/runs/${runId}/artifacts/${artifactId}`;
+            artifactUrl = new URL(`/${repository}/actions/runs/${runId}/artifacts/${artifactId}`, serverUrl).toString();
             core.info(`Artifact URL: ${artifactUrl}`);
           }
         }
