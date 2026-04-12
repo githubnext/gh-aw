@@ -180,8 +180,9 @@ func ExtractEnvExpressionsFromValue(value string) map[string]string {
 
 // gitHubContextExprPattern matches ${{ github.PROPERTY }} expressions where PROPERTY is a
 // simple dotted identifier (e.g., github.workflow, github.ref_name, github.run_id).
-// Complex expressions with operators (||, &&) or nested event payloads (github.event.issue.title)
-// are excluded because they may not map to well-known runner environment variables.
+// Complex expressions with operators (||, &&) are excluded by the regex. Nested dotted
+// properties such as github.event.issue.title may still match this pattern, but are only
+// accepted later if they are present in gitHubContextEnvVarMap.
 var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-9_.]*)\s*\}\}`)
 
 // gitHubContextEnvVarMap maps common github.* context properties to their corresponding
@@ -214,13 +215,14 @@ var gitHubContextEnvVarMap = map[string]string{
 
 // ExtractGitHubContextExpressionsFromValue extracts all simple ${{ github.X }} expressions from a
 // string value and maps them to their corresponding GitHub Actions runner environment variable names.
-// Only well-known context properties that have a corresponding GITHUB_* env var are extracted.
+// Only well-known context properties present in gitHubContextEnvVarMap are extracted; nested
+// properties like github.event.issue.title are matched by the regex but filtered out by the map.
 // Returns a map of env var name -> full expression.
 //
 // Examples:
 //   - "${{ github.workflow }}" -> {"GITHUB_WORKFLOW": "${{ github.workflow }}"}
 //   - "${{ github.ref_name }}" -> {"GITHUB_REF_NAME": "${{ github.ref_name }}"}
-//   - "${{ github.event.issue.title }}" -> {} (not a well-known property, skipped)
+//   - "${{ github.event.issue.title }}" -> {} (not in gitHubContextEnvVarMap, skipped)
 func ExtractGitHubContextExpressionsFromValue(value string) map[string]string {
 	result := make(map[string]string)
 

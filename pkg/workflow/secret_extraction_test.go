@@ -443,7 +443,7 @@ func TestExtractGitHubContextExpressionsFromValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExtractGitHubContextExpressionsFromValue(tt.value)
 
-			assert.Equal(t, len(tt.expected), len(result), "Should extract expected number of GitHub context expressions")
+			assert.Len(t, result, len(tt.expected), "Should extract expected number of GitHub context expressions")
 
 			for varName, expr := range tt.expected {
 				assert.Equal(t, expr, result[varName], "Env var %q should map to the correct expression", varName)

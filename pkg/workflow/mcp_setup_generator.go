@@ -221,17 +221,23 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// GitHub context vars already exist as GITHUB_* env vars on the runner, but
 		// we still list them in env: for clarity and to satisfy static-analysis tools
 		// (zizmor, CodeQL) that flag any ${{ }} outside env:/with: blocks.
+		//
+		// Secrets take precedence over context vars when both maps share a key
+		// (e.g. a secret named GITHUB_WORKFLOW would shadow the context var).
 		hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0
 		if hasEnvVars {
 			yaml.WriteString("        env:\n")
 			envKeys := make([]string, 0, len(configSecrets)+len(configContextVars))
 			envValues := make(map[string]string, len(configSecrets)+len(configContextVars))
-			for k, v := range configSecrets {
+			// Add context vars first so secrets overwrite them on collision.
+			for k, v := range configContextVars {
 				envKeys = append(envKeys, k)
 				envValues[k] = v
 			}
-			for k, v := range configContextVars {
-				envKeys = append(envKeys, k)
+			for k, v := range configSecrets {
+				if _, exists := envValues[k]; !exists {
+					envKeys = append(envKeys, k)
+				}
 				envValues[k] = v
 			}
 			sort.Strings(envKeys)
