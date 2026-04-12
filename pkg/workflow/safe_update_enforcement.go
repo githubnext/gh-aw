@@ -124,7 +124,9 @@ var runtimeActionRepos map[string]bool
 func init() {
 	runtimeActionRepos = make(map[string]bool, len(knownRuntimes))
 	for _, rt := range knownRuntimes {
-		runtimeActionRepos[rt.ActionRepo] = true
+		if rt.ActionRepo != "" {
+			runtimeActionRepos[rt.ActionRepo] = true
+		}
 	}
 }
 
