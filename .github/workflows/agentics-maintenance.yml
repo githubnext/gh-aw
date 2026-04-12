@@ -63,7 +63,7 @@ permissions: {}
 jobs:
   close-expired-entities:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       discussions: write
       issues: write
@@ -110,7 +110,7 @@ jobs:
 
   cleanup-cache-memory:
     if: ${{ (!(github.event.repository.fork)) && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories') }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       actions: write
     steps:
@@ -137,7 +137,7 @@ jobs:
 
   run_operation:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       actions: write
       contents: write
@@ -188,7 +188,7 @@ jobs:
 
   apply_safe_outputs:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: write
@@ -233,7 +233,7 @@ jobs:
 
   create_labels:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -281,7 +281,7 @@ jobs:
 
   validate_workflows:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -329,7 +329,7 @@ jobs:
 
   compile-workflows:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -369,7 +369,7 @@ jobs:
 
   zizmor-scan:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     needs: compile-workflows
     permissions:
       contents: read
@@ -393,7 +393,7 @@ jobs:
 
   secret-validation:
     if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:

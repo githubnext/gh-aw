@@ -714,8 +714,8 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 			t.Errorf("Expected 'runs-on: my-custom-runner' in generated workflow, got:\n%s", yaml)
 		}
 		// Default runner must not appear
-		if strings.Contains(yaml, "runs-on: ubuntu-slim") {
-			t.Errorf("Generated workflow must not use default runner 'ubuntu-slim' when overridden; got:\n%s", yaml)
+		if strings.Contains(yaml, "runs-on: ubuntu-latest") {
+			t.Errorf("Generated workflow must not use default runner 'ubuntu-latest' when overridden; got:\n%s", yaml)
 		}
 	})
 

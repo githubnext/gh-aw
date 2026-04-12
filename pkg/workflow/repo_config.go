@@ -9,7 +9,7 @@
 //	{
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner" // string or string[] – runner label(s) for all
-//	  }                            // maintenance jobs (default: ubuntu-slim)
+//	  }                            // maintenance jobs (default: ubuntu-latest)
 //	}
 //
 //	{
