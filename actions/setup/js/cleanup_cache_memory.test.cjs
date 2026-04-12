@@ -36,7 +36,10 @@ describe("cleanup_cache_memory", () => {
         },
         rateLimit: {
           get: vi.fn().mockResolvedValue({
-            data: { rate: { remaining: 5000 } },
+            data: {
+              rate: { remaining: 5000, limit: 5000, used: 0 },
+              resources: {},
+            },
           }),
         },
       },
@@ -44,42 +47,33 @@ describe("cleanup_cache_memory", () => {
     global.github = mockGithub;
   });
 
-  describe("extractRunId", () => {
-    it("should extract run ID from standard cache key", async () => {
-      const { extractRunId } = await import("./cleanup_cache_memory.cjs");
-      expect(extractRunId("memory-none-nopolicy-workflow-12345")).toBe(12345);
+  describe("parseCacheKey", () => {
+    it("should extract run ID and group key from standard cache key", async () => {
+      const { parseCacheKey } = await import("./cleanup_cache_memory.cjs");
+      const result = parseCacheKey("memory-none-nopolicy-workflow-12345");
+      expect(result.runId).toBe(12345);
+      expect(result.groupKey).toBe("memory-none-nopolicy-workflow");
     });
 
-    it("should extract run ID from integrity-aware cache key", async () => {
-      const { extractRunId } = await import("./cleanup_cache_memory.cjs");
-      expect(extractRunId("memory-unapproved-7e4d9f12-session-workflow-67890")).toBe(67890);
+    it("should extract run ID and group key from integrity-aware cache key", async () => {
+      const { parseCacheKey } = await import("./cleanup_cache_memory.cjs");
+      const result = parseCacheKey("memory-unapproved-7e4d9f12-session-workflow-67890");
+      expect(result.runId).toBe(67890);
+      expect(result.groupKey).toBe("memory-unapproved-7e4d9f12-session-workflow");
     });
 
-    it("should return null when no numeric segment exists", async () => {
-      const { extractRunId } = await import("./cleanup_cache_memory.cjs");
-      expect(extractRunId("memory-none-nopolicy-workflow")).toBeNull();
+    it("should return null runId when no numeric segment exists", async () => {
+      const { parseCacheKey } = await import("./cleanup_cache_memory.cjs");
+      const result = parseCacheKey("memory-none-nopolicy-workflow");
+      expect(result.runId).toBeNull();
+      expect(result.groupKey).toBe("memory-none-nopolicy-workflow");
     });
 
     it("should handle cache key with only run ID as numeric part", async () => {
-      const { extractRunId } = await import("./cleanup_cache_memory.cjs");
-      expect(extractRunId("memory-abc-def-99999")).toBe(99999);
-    });
-  });
-
-  describe("deriveGroupKey", () => {
-    it("should derive group key by removing run ID suffix", async () => {
-      const { deriveGroupKey } = await import("./cleanup_cache_memory.cjs");
-      expect(deriveGroupKey("memory-none-nopolicy-workflow-12345")).toBe("memory-none-nopolicy-workflow");
-    });
-
-    it("should handle integrity-aware keys", async () => {
-      const { deriveGroupKey } = await import("./cleanup_cache_memory.cjs");
-      expect(deriveGroupKey("memory-unapproved-7e4d9f12-session-67890")).toBe("memory-unapproved-7e4d9f12-session");
-    });
-
-    it("should return full key when no numeric segment found", async () => {
-      const { deriveGroupKey } = await import("./cleanup_cache_memory.cjs");
-      expect(deriveGroupKey("memory-none-nopolicy-workflow")).toBe("memory-none-nopolicy-workflow");
+      const { parseCacheKey } = await import("./cleanup_cache_memory.cjs");
+      const result = parseCacheKey("memory-abc-def-99999");
+      expect(result.runId).toBe(99999);
+      expect(result.groupKey).toBe("memory-abc-def");
     });
   });
 
@@ -181,8 +175,11 @@ describe("cleanup_cache_memory", () => {
     it("should skip cleanup when rate limit is below threshold", async () => {
       const module = await import("./cleanup_cache_memory.cjs");
 
-      mockGithub.rest.rateLimit.get.mockResolvedValueOnce({
-        data: { rate: { remaining: 50 } },
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          rate: { remaining: 50, limit: 5000, used: 4950 },
+          resources: {},
+        },
       });
 
       await module.main({ deleteDelayMs: 0, listDelayMs: 0 });
@@ -287,7 +284,7 @@ describe("cleanup_cache_memory", () => {
     it("should handle paginated cache list results", async () => {
       const module = await import("./cleanup_cache_memory.cjs");
 
-      // First page - full page of 100 items (simulated with 2 for testing)
+      // First page - full page of 100 items
       const page1Caches = [];
       for (let i = 0; i < 100; i++) {
         page1Caches.push({ id: i + 1, key: `memory-none-nopolicy-wf-${1000 + i}` });
@@ -330,9 +327,31 @@ describe("cleanup_cache_memory", () => {
         data: { total_count: 15, actions_caches: caches },
       });
 
-      // First rate limit check: OK (initial check before starting)
-      // After 10 deletions: rate limit is too low
-      mockGithub.rest.rateLimit.get.mockResolvedValueOnce({ data: { rate: { remaining: 5000 } } }).mockResolvedValueOnce({ data: { rate: { remaining: 50 } } });
+      // Rate limit calls:
+      // 1. fetchAndLogRateLimit at start of main → rateLimit.get
+      // 2-3. checkRateLimit (initial) → fetchAndLogRateLimit + rateLimit.get
+      // ... 10 deletions ...
+      // 4-5. checkRateLimit (periodic) → fetchAndLogRateLimit + rateLimit.get
+      // We want call 4 or 5 to return low rate limit to trigger early stop
+      let callCount = 0;
+      mockGithub.rest.rateLimit.get.mockImplementation(() => {
+        callCount++;
+        // Return low rate limit starting from the periodic check (call 4+)
+        if (callCount >= 4) {
+          return Promise.resolve({
+            data: {
+              rate: { remaining: 50, limit: 5000, used: 4950 },
+              resources: {},
+            },
+          });
+        }
+        return Promise.resolve({
+          data: {
+            rate: { remaining: 5000, limit: 5000, used: 0 },
+            resources: {},
+          },
+        });
+      });
 
       mockGithub.rest.actions.deleteActionsCacheById.mockResolvedValue({});
 
@@ -341,6 +360,83 @@ describe("cleanup_cache_memory", () => {
       // Should have stopped after 10 deletions (checked rate limit, it was low)
       expect(mockGithub.rest.actions.deleteActionsCacheById).toHaveBeenCalledTimes(10);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Rate limit getting low"));
+    });
+  });
+
+  describe("main - logging", () => {
+    it("should log kept entries with their keys", async () => {
+      const module = await import("./cleanup_cache_memory.cjs");
+
+      mockGithub.rest.actions.getActionsCacheList.mockResolvedValueOnce({
+        data: {
+          total_count: 2,
+          actions_caches: [
+            { id: 1, key: "memory-none-nopolicy-wf-100" },
+            { id: 2, key: "memory-none-nopolicy-wf-200" },
+          ],
+        },
+      });
+
+      mockGithub.rest.actions.deleteActionsCacheById.mockResolvedValue({});
+
+      await module.main({ deleteDelayMs: 0, listDelayMs: 0 });
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Keeping: memory-none-nopolicy-wf-200"));
+    });
+
+    it("should log repository info", async () => {
+      const module = await import("./cleanup_cache_memory.cjs");
+
+      mockGithub.rest.actions.getActionsCacheList.mockResolvedValueOnce({
+        data: { total_count: 0, actions_caches: [] },
+      });
+
+      await module.main({ deleteDelayMs: 0, listDelayMs: 0 });
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Repository: testowner/testrepo"));
+    });
+  });
+
+  describe("listMemoryCaches - sort order", () => {
+    it("should request caches sorted by last_accessed_at descending", async () => {
+      const module = await import("./cleanup_cache_memory.cjs");
+
+      mockGithub.rest.actions.getActionsCacheList.mockResolvedValueOnce({
+        data: { total_count: 0, actions_caches: [] },
+      });
+
+      await module.listMemoryCaches(mockGithub, "testowner", "testrepo", 0);
+
+      expect(mockGithub.rest.actions.getActionsCacheList).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sort: "last_accessed_at",
+          direction: "desc",
+        })
+      );
+    });
+  });
+
+  describe("listMemoryCaches - upper bound", () => {
+    it("should respect MAX_LIST_PAGES limit", async () => {
+      const { listMemoryCaches, MAX_LIST_PAGES } = await import("./cleanup_cache_memory.cjs");
+
+      // Return full pages forever
+      mockGithub.rest.actions.getActionsCacheList.mockImplementation(({ page }) => {
+        const caches = [];
+        for (let i = 0; i < 100; i++) {
+          caches.push({ id: page * 100 + i, key: `memory-none-nopolicy-wf-${page * 1000 + i}` });
+        }
+        return Promise.resolve({
+          data: { total_count: 10000, actions_caches: caches },
+        });
+      });
+
+      const result = await listMemoryCaches(mockGithub, "testowner", "testrepo", 0);
+
+      // Should stop at MAX_LIST_PAGES
+      expect(mockGithub.rest.actions.getActionsCacheList).toHaveBeenCalledTimes(MAX_LIST_PAGES);
+      expect(result.length).toBe(MAX_LIST_PAGES * 100);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("maximum page limit"));
     });
   });
 });

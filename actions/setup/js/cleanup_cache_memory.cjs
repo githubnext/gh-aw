@@ -2,37 +2,9 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-
-/**
- * Delay execution for a given number of milliseconds.
- * Used to avoid GitHub API throttling between requests.
- * @param {number} ms - Milliseconds to wait
- * @returns {Promise<void>}
- */
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Check the current rate limit and determine if we should continue.
- * Returns the remaining requests count, or -1 if we couldn't check.
- * @param {any} github - GitHub REST client
- * @returns {Promise<number>} Remaining requests, or -1 on error
- */
-async function getRateLimitRemaining(github) {
-  try {
-    const { data } = await github.rest.rateLimit.get();
-    return data.rate.remaining;
-  } catch {
-    return -1;
-  }
-}
-
-/**
- * Minimum rate limit remaining before we skip further operations.
- * This reserves capacity for other workflow jobs and API consumers.
- */
-const MIN_RATE_LIMIT_REMAINING = 100;
+const { delay } = require("./expired_entity_cleanup_helpers.cjs");
+const { checkRateLimit, MIN_RATE_LIMIT_REMAINING } = require("./rate_limit_helpers.cjs");
+const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 /**
  * Default delay in ms between delete operations to avoid throttling.
@@ -45,41 +17,30 @@ const DELETE_DELAY_MS = 250;
 const LIST_DELAY_MS = 100;
 
 /**
- * Extract the run ID from a cache key.
- * Cache keys follow the pattern: memory-{parts}-{runID}
- * where runID is the last numeric segment.
- *
- * @param {string} key - Cache key string
- * @returns {number | null} The extracted run ID, or null if not found
+ * Maximum number of pages to fetch when listing caches.
+ * At 100 caches per page this allows up to 5000 caches.
  */
-function extractRunId(key) {
-  const parts = key.split("-");
-  // Walk backwards to find the last purely numeric segment
-  for (let i = parts.length - 1; i >= 0; i--) {
-    if (/^\d+$/.test(parts[i])) {
-      return parseInt(parts[i], 10);
-    }
-  }
-  return null;
-}
+const MAX_LIST_PAGES = 50;
 
 /**
- * Derive the group key from a cache key by removing the run ID suffix.
- * This groups caches that differ only by their run ID.
+ * Parse a cache key to extract the run ID and group key in a single pass.
+ * Cache keys follow the pattern: memory-{parts}-{runID}
+ * where runID is the last purely numeric segment.
  *
  * @param {string} key - Cache key string
- * @returns {string} The group key (everything before the run ID)
+ * @returns {{ runId: number | null, groupKey: string }}
  */
-function deriveGroupKey(key) {
+function parseCacheKey(key) {
   const parts = key.split("-");
-  // Walk backwards to find the last purely numeric segment and strip it
   for (let i = parts.length - 1; i >= 0; i--) {
     if (/^\d+$/.test(parts[i])) {
-      return parts.slice(0, i).join("-");
+      return {
+        runId: parseInt(parts[i], 10),
+        groupKey: parts.slice(0, i).join("-"),
+      };
     }
   }
-  // If no numeric segment found, return the full key
-  return key;
+  return { runId: null, groupKey: key };
 }
 
 /**
@@ -92,6 +53,7 @@ function deriveGroupKey(key) {
 
 /**
  * List all caches starting with "memory-" prefix, handling pagination.
+ * Results are sorted newest-first by last_accessed_at from the API.
  *
  * @param {any} github - GitHub REST client
  * @param {string} owner - Repository owner
@@ -105,15 +67,16 @@ async function listMemoryCaches(github, owner, repo, listDelayMs = LIST_DELAY_MS
   let page = 1;
   const perPage = 100;
 
-  while (true) {
+  while (page <= MAX_LIST_PAGES) {
+    core.info(`   Fetching cache list page ${page}...`);
     const response = await github.rest.actions.getActionsCacheList({
       owner,
       repo,
       key: "memory-",
       per_page: perPage,
       page,
-      sort: "key",
-      direction: "asc",
+      sort: "last_accessed_at",
+      direction: "desc",
     });
 
     const actionsCaches = response.data.actions_caches;
@@ -125,13 +88,11 @@ async function listMemoryCaches(github, owner, repo, listDelayMs = LIST_DELAY_MS
       if (!cache.key || !cache.key.startsWith("memory-")) {
         continue;
       }
-      caches.push({
-        id: cache.id,
-        key: cache.key,
-        runId: extractRunId(cache.key),
-        groupKey: deriveGroupKey(cache.key),
-      });
+      const { runId, groupKey } = parseCacheKey(cache.key);
+      caches.push({ id: cache.id, key: cache.key, runId, groupKey });
     }
+
+    core.info(`   Page ${page}: ${actionsCaches.length} cache(s) fetched (${caches.length} total)`);
 
     if (actionsCaches.length < perPage) {
       break;
@@ -140,6 +101,10 @@ async function listMemoryCaches(github, owner, repo, listDelayMs = LIST_DELAY_MS
     page++;
     // Throttle between list pages
     await delay(listDelayMs);
+  }
+
+  if (page > MAX_LIST_PAGES) {
+    core.warning(`⚠️ Reached maximum page limit (${MAX_LIST_PAGES}). Some caches may not have been listed.`);
   }
 
   return caches;
@@ -212,10 +177,14 @@ async function main(options = {}) {
   const repo = context.repo.repo;
 
   core.info("🧹 Starting cache-memory cleanup");
+  core.info(`   Repository: ${owner}/${repo}`);
+
+  // Log initial rate limit snapshot for observability
+  await fetchAndLogRateLimit(github, "cleanup_cache_memory_start");
 
   // Check rate limit before starting
-  const initialRemaining = await getRateLimitRemaining(github);
-  if (initialRemaining !== -1 && initialRemaining < MIN_RATE_LIMIT_REMAINING) {
+  const { ok: rateLimitOk, remaining: initialRemaining } = await checkRateLimit(github, "cleanup_cache_memory_initial");
+  if (!rateLimitOk) {
     core.warning(`⚠️ Rate limit too low (${initialRemaining} remaining, minimum: ${MIN_RATE_LIMIT_REMAINING}). Skipping cache cleanup.`);
     core.summary.addRaw(`## Cache Memory Cleanup\n\n⚠️ Skipped: Rate limit too low (${initialRemaining} remaining, minimum required: ${MIN_RATE_LIMIT_REMAINING})\n`);
     await core.summary.write();
@@ -249,6 +218,9 @@ async function main(options = {}) {
   const { toDelete, kept } = identifyCachesToDelete(caches);
 
   core.info(`   Groups with latest entries kept: ${kept.length}`);
+  for (const entry of kept) {
+    core.info(`     ✓ Keeping: ${entry.key} (run ID: ${entry.runId})`);
+  }
   core.info(`   Outdated entries to delete: ${toDelete.length}`);
 
   if (toDelete.length === 0) {
@@ -268,12 +240,13 @@ async function main(options = {}) {
   for (const cache of toDelete) {
     // Check rate limit periodically (every 10 deletions)
     if (deletedCount > 0 && deletedCount % 10 === 0) {
-      const remaining = await getRateLimitRemaining(github);
-      if (remaining !== -1 && remaining < MIN_RATE_LIMIT_REMAINING) {
+      const { ok, remaining } = await checkRateLimit(github, "cleanup_cache_memory_periodic");
+      if (!ok) {
         core.warning(`⚠️ Rate limit getting low (${remaining} remaining). Stopping deletion early.`);
         core.warning(`   Deleted ${deletedCount} of ${toDelete.length} caches before stopping.`);
         break;
       }
+      core.info(`   Rate limit check: ${remaining} remaining`);
     }
 
     try {
@@ -294,6 +267,9 @@ async function main(options = {}) {
     // Throttle between deletions
     await delay(deleteDelayMs);
   }
+
+  // Log final rate limit snapshot for observability
+  await fetchAndLogRateLimit(github, "cleanup_cache_memory_end");
 
   // Summary
   core.info(`\n📊 Cache cleanup complete:`);
@@ -327,9 +303,8 @@ async function main(options = {}) {
 
 module.exports = {
   main,
-  extractRunId,
-  deriveGroupKey,
+  parseCacheKey,
   identifyCachesToDelete,
   listMemoryCaches,
-  MIN_RATE_LIMIT_REMAINING,
+  MAX_LIST_PAGES,
 };
