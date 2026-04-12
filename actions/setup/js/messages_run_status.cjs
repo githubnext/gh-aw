@@ -150,8 +150,9 @@ function getDetectionWarningMessage(ctx) {
     parse_error: "The threat detection results could not be parsed.",
   };
   const reasonText = reasonDescriptions[ctx.reason] || "The threat detection analysis could not be completed.";
-  const cautionBlock = `> [!CAUTION]\n> **Security scanning requires review** for [${ctx.workflowName}](${ctx.runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${ctx.runUrl}) for details.\n> </details>`;
-  return cautionBlock;
+  const defaultTemplate =
+    "> [!CAUTION]\n> **Security scanning requires review** for [{workflow_name}]({run_url})\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>";
+  return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText });
 }
 
 module.exports = {

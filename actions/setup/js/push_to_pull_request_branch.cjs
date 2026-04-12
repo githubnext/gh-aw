@@ -599,8 +599,9 @@ async function main(config = {}) {
       if (detectionConclusionEnv === "warning") {
         core.info("⚠️ Threat detection warning: creating review PR instead of direct push");
 
-        // Create a review branch name based on the original branch
-        const reviewBranchName = `${branchName}-review-${Date.now()}`;
+        // Create a review branch name based on the original branch, using
+        // normalizeBranchName to enforce valid git ref characters + max length.
+        const reviewBranchName = normalizeBranchName(`${branchName}-review`, String(Date.now()));
         try {
           // Rename current local branch to review branch
           await exec.exec("git", ["checkout", "-b", reviewBranchName]);
