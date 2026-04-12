@@ -34,7 +34,7 @@ describe("handler_scaffold", () => {
       const config = { max: 7, allowed: ["a", "b"] };
       await factory(config);
 
-      expect(setupSpy).toHaveBeenCalledWith(config, 7);
+      expect(setupSpy).toHaveBeenCalledWith(config, 7, false);
     });
 
     it("should default maxCount to 10 when not specified", async () => {
@@ -46,7 +46,7 @@ describe("handler_scaffold", () => {
       });
 
       await factory({});
-      expect(setupSpy).toHaveBeenCalledWith({}, 10);
+      expect(setupSpy).toHaveBeenCalledWith({}, 10, false);
     });
 
     it("should fall back to 10 when max is 0", async () => {
@@ -58,7 +58,21 @@ describe("handler_scaffold", () => {
       });
 
       await factory({ max: 0 });
-      expect(setupSpy).toHaveBeenCalledWith({ max: 0 }, 10);
+      expect(setupSpy).toHaveBeenCalledWith({ max: 0 }, 10, false);
+    });
+
+    it("should pass isStaged as true when config.staged is true", async () => {
+      const setupSpy = vi.fn().mockResolvedValue(async () => ({ success: true }));
+
+      const factory = createCountGatedHandler({
+        handlerType: "test_handler",
+        setup: setupSpy,
+      });
+
+      const config = { max: 5, staged: true };
+      await factory(config);
+
+      expect(setupSpy).toHaveBeenCalledWith(config, 5, true);
     });
 
     it("should delegate to handleItem when under the limit", async () => {

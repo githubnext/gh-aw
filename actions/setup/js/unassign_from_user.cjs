@@ -8,7 +8,7 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolveIssueNumber, extractAssignees, isStagedMode } = require("./safe_output_helpers.cjs");
+const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
@@ -23,7 +23,7 @@ const HANDLER_TYPE = "unassign_from_user";
  */
 const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
-  setup: async (config, maxCount) => {
+  setup: async (config, maxCount, isStaged) => {
     // Extract configuration
     const allowedAssignees = config.allowed || [];
     const blockedAssignees = config.blocked || [];
@@ -31,9 +31,6 @@ const main = createCountGatedHandler({
     // Resolve target repository configuration
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
-
-    // Check if we're in staged mode
-    const isStaged = isStagedMode(config);
 
     core.info(`Unassign from user configuration: max=${maxCount}`);
     if (allowedAssignees.length > 0) {

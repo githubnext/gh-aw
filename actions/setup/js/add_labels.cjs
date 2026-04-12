@@ -19,7 +19,6 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
 const { MAX_LABELS } = require("./constants.cjs");
@@ -32,11 +31,10 @@ const { createCountGatedHandler } = require("./handler_scaffold.cjs");
  */
 const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
-  setup: async (config, maxCount) => {
+  setup: async (config, maxCount, isStaged) => {
     const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
-    const isStaged = isStagedMode(config);
 
     core.info(`Add labels configuration: max=${maxCount}`);
     if (allowedLabels.length > 0) core.info(`Allowed labels: ${allowedLabels.join(", ")}`);

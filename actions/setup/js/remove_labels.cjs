@@ -12,7 +12,6 @@ const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
-const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveRepoIssueTarget, loadTemporaryIdMapFromResolved } = require("./temporary_id.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
@@ -24,15 +23,12 @@ const { createCountGatedHandler } = require("./handler_scaffold.cjs");
  */
 const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
-  setup: async (config, maxCount) => {
+  setup: async (config, maxCount, isStaged) => {
     // Extract configuration
     const allowedLabels = config.allowed || [];
     const blockedPatterns = config.blocked || [];
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
-
-    // Check if we're in staged mode
-    const isStaged = isStagedMode(config);
 
     core.info(`Remove labels configuration: max=${maxCount}`);
     if (allowedLabels.length > 0) {

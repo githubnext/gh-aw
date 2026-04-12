@@ -8,7 +8,7 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolveIssueNumber, extractAssignees, isStagedMode } = require("./safe_output_helpers.cjs");
+const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -24,16 +24,13 @@ const HANDLER_TYPE = "assign_to_user";
  */
 const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
-  setup: async (config, maxCount) => {
+  setup: async (config, maxCount, isStaged) => {
     // Extract configuration
     const allowedAssignees = config.allowed ?? [];
     const blockedAssignees = config.blocked ?? [];
     const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
     const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
     const githubClient = await createAuthenticatedGitHubClient(config);
-
-    // Check if we're in staged mode
-    const isStaged = isStagedMode(config);
 
     core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
     if (allowedAssignees.length > 0) {
