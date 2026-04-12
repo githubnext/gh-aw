@@ -99,7 +99,7 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "steps with secret in with field in strict mode fails",
+			name: "steps with secret in with field for uses action step in strict mode is allowed",
 			frontmatter: map[string]any{
 				"steps": []any{
 					map[string]any{
@@ -111,8 +111,40 @@ func TestValidateStepsSecrets(t *testing.T) {
 				},
 			},
 			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "steps with secret in with field without uses in strict mode fails",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Step without uses",
+						"with": map[string]any{
+							"token": "${{ secrets.MY_API_TOKEN }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
 			expectError: true,
 			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
+		},
+		{
+			name: "vault-style action with multiple secrets in with is allowed in strict mode",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"uses": "my-org/secrets-action@v2",
+						"with": map[string]any{
+							"username":   "${{ secrets.VAULT_USERNAME }}",
+							"password":   "${{ secrets.VAULT_PASSWORD }}",
+							"secret_map": "${{ inputs.secret_map }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
 		},
 		{
 			name: "post-steps with secret in strict mode fails",
@@ -300,6 +332,50 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: true,
 			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
 		},
+		{
+			name: "pre-steps with secret in with for uses action step is allowed in strict mode",
+			frontmatter: map[string]any{
+				"pre-steps": []any{
+					map[string]any{
+						"uses": "my-org/vault-action@v1",
+						"with": map[string]any{
+							"token": "${{ secrets.VAULT_TOKEN }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "post-steps with secret in with for uses action step is allowed in strict mode",
+			frontmatter: map[string]any{
+				"post-steps": []any{
+					map[string]any{
+						"uses": "my-org/notify-action@v1",
+						"with": map[string]any{
+							"webhook": "${{ secrets.SLACK_WEBHOOK }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "error message suggests with: inputs for uses: action steps",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Leaky step",
+						"run":  "echo ${{ secrets.TOKEN }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "with: inputs (for uses: action steps)",
+		},
 	}
 
 	for _, tt := range tests {
@@ -322,10 +398,11 @@ func TestValidateStepsSecrets(t *testing.T) {
 
 func TestClassifyStepSecrets(t *testing.T) {
 	tests := []struct {
-		name           string
-		step           any
-		expectedUnsafe []string
-		expectedEnv    []string
+		name              string
+		step              any
+		expectedUnsafe    []string
+		expectedEnv       []string
+		unorderedEnvMatch bool // use ElementsMatch instead of Equal for env
 	}{
 		{
 			name:           "non-map step classifies all as unsafe",
@@ -367,15 +444,75 @@ func TestClassifyStepSecrets(t *testing.T) {
 			expectedEnv:    []string{"${{ secrets.SAFE }}"},
 		},
 		{
-			name: "secret in with field is unsafe",
+			name: "secret in with field for uses action step is classified as safe",
 			step: map[string]any{
 				"uses": "some/action@v1",
 				"with": map[string]any{
 					"token": "${{ secrets.MY_TOKEN }}",
 				},
 			},
+			expectedUnsafe: nil,
+			expectedEnv:    []string{"${{ secrets.MY_TOKEN }}"},
+		},
+		{
+			name: "secret in with field without uses is unsafe",
+			step: map[string]any{
+				"name": "Step without uses",
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
 			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
 			expectedEnv:    nil,
+		},
+		{
+			name: "malformed string with in uses action step is unsafe",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"with": "${{ secrets.TOKEN }}",
+			},
+			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
+			expectedEnv:    nil,
+		},
+		{
+			name: "malformed slice with in uses action step is unsafe",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"with": []any{
+					"${{ secrets.ARRAY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.ARRAY_TOKEN }}"},
+			expectedEnv:    nil,
+		},
+		{
+			name: "multiple secrets in with for uses action step are safe",
+			step: map[string]any{
+				"uses": "my-org/secrets-action@v2",
+				"with": map[string]any{
+					"username":   "${{ secrets.VAULT_USERNAME }}",
+					"password":   "${{ secrets.VAULT_PASSWORD }}",
+					"secret_map": "static-value",
+				},
+			},
+			expectedUnsafe:    nil,
+			expectedEnv:       []string{"${{ secrets.VAULT_USERNAME }}", "${{ secrets.VAULT_PASSWORD }}"},
+			unorderedEnvMatch: true,
+		},
+		{
+			name: "secrets in both env and with for uses action step are safe",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"env": map[string]any{
+					"SAFE_ENV": "${{ secrets.ENV_SECRET }}",
+				},
+				"with": map[string]any{
+					"token": "${{ secrets.WITH_SECRET }}",
+				},
+			},
+			expectedUnsafe:    nil,
+			expectedEnv:       []string{"${{ secrets.ENV_SECRET }}", "${{ secrets.WITH_SECRET }}"},
+			unorderedEnvMatch: true,
 		},
 		{
 			name: "step with no secrets returns empty",
@@ -444,6 +581,8 @@ func TestClassifyStepSecrets(t *testing.T) {
 			}
 			if len(tt.expectedEnv) == 0 {
 				assert.Empty(t, env, "expected no env secrets")
+			} else if tt.unorderedEnvMatch {
+				assert.ElementsMatch(t, tt.expectedEnv, env, "unexpected env secrets")
 			} else {
 				assert.Equal(t, tt.expectedEnv, env, "unexpected env secrets")
 			}
