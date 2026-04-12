@@ -388,6 +388,76 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
   });
 
+  it("should allow re-assignment when agent is already assigned but pull_request_repo differs", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/default-pr-repo";
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/other-platform-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+          pull_request_repo: "test-owner/other-platform-repo",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      // Get global PR repository ID and default branch
+      .mockResolvedValueOnce({
+        repository: {
+          id: "default-pr-repo-id",
+          defaultBranchRef: { name: "main" },
+        },
+      })
+      // Get per-item PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "other-platform-repo-id",
+        },
+      })
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details - agent is already assigned
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: {
+              nodes: [{ id: "agent-id", login: "copilot-swe-agent" }],
+            },
+          },
+        },
+      })
+      // Assign agent (should proceed despite already being assigned)
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+    // Should NOT see "already assigned" skip message
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("is already assigned to issue #42"));
+    // Should see successful assignment
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned copilot coding agent to issue #42"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+    // Verify the mutation was called with the per-item PR repo ID
+    const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastGraphQLCall[0]).toContain("agentAssignment");
+    expect(lastGraphQLCall[1].targetRepoId).toBe("other-platform-repo-id");
+  });
+
   it("should handle API errors gracefully", async () => {
     setAgentOutput({
       items: [
