@@ -737,7 +737,7 @@ func buildNotDispatchOrEmptyOperation() ConditionNode {
 
 // buildNotForkAndScheduledOrOperation creates a condition for jobs that run on
 // schedule (or empty operation) AND when a specific operation is selected.
-// Condition: !fork && (not_dispatch || operation == '' || operation == op)
+// Condition: !fork && (not_dispatch || operation == ” || operation == op)
 func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
 	return BuildAnd(
 		buildNotForkCondition(),
@@ -753,7 +753,7 @@ func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
 
 // buildRunOperationCondition creates the condition for the unified run_operation
 // job that handles all dispatch operations except the ones with dedicated jobs.
-// Condition: dispatch && operation != '' && operation != each excluded && !fork.
+// Condition: dispatch && operation != ” && operation != each excluded && !fork.
 func buildRunOperationCondition(excludedOperations ...string) ConditionNode {
 	// Start with: event is workflow_dispatch AND operation is not empty
 	condition := BuildAnd(
