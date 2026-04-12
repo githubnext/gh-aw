@@ -281,7 +281,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
-	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels'`
+	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'validate'`
 	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels'`
 
@@ -341,6 +341,18 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		}
 	}
 
+	// validate_workflows job should be triggered when operation == 'validate'
+	validateCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate'`
+	validateIdx := strings.Index(yaml, "\n  validate_workflows:")
+	if validateIdx == -1 {
+		t.Errorf("Job validate_workflows not found in generated workflow")
+	} else {
+		validateSection := yaml[validateIdx : validateIdx+runOpSectionSearchRange]
+		if !strings.Contains(validateSection, validateCondition) {
+			t.Errorf("Job validate_workflows should have the activation condition %q in:\n%s", validateCondition, validateSection)
+		}
+	}
+
 	// Verify create_labels is an option in the operation choices
 	if !strings.Contains(yaml, "- 'create_labels'") {
 		t.Error("workflow_dispatch operation choices should include 'create_labels'")
@@ -349,6 +361,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify safe_outputs is an option in the operation choices
 	if !strings.Contains(yaml, "- 'safe_outputs'") {
 		t.Error("workflow_dispatch operation choices should include 'safe_outputs'")
+	}
+
+	// Verify validate is an option in the operation choices
+	if !strings.Contains(yaml, "- 'validate'") {
+		t.Error("workflow_dispatch operation choices should include 'validate'")
 	}
 
 	// Verify run_url input exists in workflow_dispatch
@@ -589,12 +606,12 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
 		yaml := string(content)
-		// run_operation, create_labels, and compile_workflows should use the same setup-go version
-		// (all use GetActionPin, not hardcoded pins). Exactly 3 occurrences expected.
+		// run_operation, create_labels, validate_workflows, and compile_workflows should use the same setup-go version
+		// (all use GetActionPin, not hardcoded pins). Exactly 4 occurrences expected.
 		setupGoPin := GetActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
-		if occurrences != 3 {
-			t.Errorf("Expected exactly 3 occurrences of pinned setup-go ref %q (run_operation + create_labels + compile_workflows), got %d in:\n%s",
+		if occurrences != 4 {
+			t.Errorf("Expected exactly 4 occurrences of pinned setup-go ref %q (run_operation + create_labels + validate_workflows + compile_workflows), got %d in:\n%s",
 				setupGoPin, occurrences, yaml)
 		}
 	})
