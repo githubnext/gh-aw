@@ -381,7 +381,7 @@ jobs:
             await main();
 `)
 
-	// Add unified run_operation job for all dispatch operations except safe_outputs, create_labels, clean_cache_memories, and validate
+	// Add unified run_operation job for all dispatch operations except those with dedicated jobs (safe_outputs, create_labels, clean_cache_memories, validate)
 	yaml.WriteString(`
   run_operation:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
