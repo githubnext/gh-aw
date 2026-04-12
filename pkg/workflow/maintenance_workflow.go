@@ -343,6 +343,43 @@ jobs:
             await main();
 `)
 
+	// Add cleanup-cache-memory job for scheduled runs
+	// This job lists all caches starting with "memory-", groups them by key prefix,
+	// keeps the latest run ID per group, and deletes the rest.
+	yaml.WriteString(`
+  cleanup-cache-memory:
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      actions: write
+    steps:
+`)
+
+	// Add checkout step only in dev/script mode (for local action paths)
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Cleanup outdated cache-memory entries
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/cleanup_cache_memory.cjs');
+            await main();
+`)
+
 	// Add unified run_operation job for all dispatch operations except safe_outputs, create_labels, and validate
 	yaml.WriteString(`
   run_operation:
