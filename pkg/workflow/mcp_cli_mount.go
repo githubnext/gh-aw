@@ -22,18 +22,17 @@ import (
 
 // internalMCPServerNames lists the MCP servers that are internal infrastructure and
 // should not be exposed as user-facing CLI tools.
-// Include both config-key and rendered server-ID variants where they differ.
+// Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
+// when mount-as-clis is enabled, as they provide safe-output and script tools
+// that the agent should invoke via CLI wrappers.
 var internalMCPServerNames = map[string]bool{
-	"safeoutputs": true,
-	"mcp-scripts": true,
-	"mcpscripts":  true,
-	"github":      true, // GitHub MCP server is handled differently and should not be CLI-mounted
+	"github": true, // GitHub MCP server is handled differently and should not be CLI-mounted
 }
 
 // getMCPCLIServerNames returns the sorted list of MCP server names that will be
-// mounted as CLI tools. It includes standard MCP tools (playwright, etc.)
-// and custom MCP servers, but excludes internal infrastructure servers and the
-// GitHub MCP server (which is handled differently).
+// mounted as CLI tools. It includes standard MCP tools (playwright, etc.),
+// custom MCP servers, and always includes safeoutputs and mcpscripts when enabled.
+// The GitHub MCP server is excluded (handled differently).
 // Returns nil if tools.mount-as-clis is not set to true.
 func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data == nil {
@@ -81,6 +80,16 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 				servers = append(servers, name)
 			}
 		}
+	}
+
+	// Always include safeoutputs and mcpscripts when they are enabled.
+	// These servers use their gateway server-ID form (no hyphens) so the CLI
+	// wrapper names match the manifest entries.
+	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
+		servers = append(servers, constants.SafeOutputsMCPServerID.String())
+	}
+	if IsMCPScriptsEnabled(data.MCPScripts, data) && !slices.Contains(servers, constants.MCPScriptsMCPServerID.String()) {
+		servers = append(servers, constants.MCPScriptsMCPServerID.String())
 	}
 
 	sort.Strings(servers)

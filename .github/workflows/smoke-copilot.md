@@ -136,6 +136,8 @@ This workflow uses `mount-as-clis: true`. The following MCP servers are **NOT av
 - **`playwright`** — use `playwright <tool> [--param value...]` in bash (e.g. `playwright browser_navigate --url ...`)
 - **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
 - **`agenticworkflows`** — use `agenticworkflows <tool> [--param value...]` in bash
+- **`safeoutputs`** — use `safeoutputs <tool> [--param value...]` in bash (e.g. `safeoutputs add_comment --body "..."`)
+- **`mcpscripts`** — use `mcpscripts <tool> [--param value...]` in bash (e.g. `mcpscripts mcpscripts-gh --args "..."`)
 
 The `github` MCP server is **NOT** CLI-mounted — it remains available as a normal MCP tool.
 

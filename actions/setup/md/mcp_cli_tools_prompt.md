@@ -29,6 +29,19 @@ playwright browser_navigate --url https://example.com
 playwright browser_snapshot                        # capture page accessibility tree
 ```
 
+**Example** — using the `safeoutputs` CLI (safe outputs):
+```bash
+safeoutputs --help                                 # list all safe-output tools
+safeoutputs add_comment --body "Analysis complete"
+safeoutputs upload_artifact --path "report.json"
+```
+
+**Example** — using the `mcpscripts` CLI (mcp-scripts):
+```bash
+mcpscripts --help                                  # list all script tools
+mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
+```
+
 **Example** — using a custom server CLI:
 ```bash
 tavily --help                                      # list all tools

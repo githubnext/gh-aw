@@ -31,8 +31,10 @@ const RUNNER_TEMP = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
 const CLI_BIN_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/bin`;
 const TOOLS_DIR = `${RUNNER_TEMP}/gh-aw/mcp-cli/tools`;
 
-/** MCP servers that are internal infrastructure or handled differently and should not be user-facing CLIs */
-const INTERNAL_SERVERS = new Set(["safeoutputs", "mcp-scripts", "mcpscripts", "github"]);
+/** MCP servers that are handled differently and should not be user-facing CLIs.
+ *  Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
+ *  when mount-as-clis is enabled. */
+const INTERNAL_SERVERS = new Set(["github"]);
 
 /** Default timeout (ms) for HTTP calls to the local MCP gateway */
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
