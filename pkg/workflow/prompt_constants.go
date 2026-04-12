@@ -26,6 +26,7 @@ const (
 	agenticWorkflowsGuideFile               = "agentic_workflows_guide.md"
 	githubMCPToolsPromptFile                = "github_mcp_tools_prompt.md"
 	githubMCPToolsWithSafeOutputsPromptFile = "github_mcp_tools_with_safeoutputs_prompt.md"
+	mcpCLIToolsPromptFile                   = "mcp_cli_tools_prompt.md"
 	cliProxyPromptFile                      = "cli_proxy_prompt.md"
 	cliProxyWithSafeOutputsPromptFile       = "cli_proxy_with_safeoutputs_prompt.md"
 )

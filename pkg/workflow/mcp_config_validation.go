@@ -72,6 +72,7 @@ var builtInToolNames = map[string]bool{
 	"safety-prompt":     true,
 	"timeout":           true,
 	"startup-timeout":   true,
+	"mount-as-clis":     true,
 }
 
 // builtInToolNamesForError is the sorted, comma-separated list of built-in tool names

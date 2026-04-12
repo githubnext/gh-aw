@@ -646,6 +646,20 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Export engine type
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
 
+	// Export the list of CLI-mounted server names (JSON array) so that conversion scripts
+	// can exclude them from the agent's final MCP config while still letting the gateway
+	// start their Docker containers (needed to populate the CLI manifest).
+	// The variable must be persisted to $GITHUB_ENV (not just exported) because
+	// convert_gateway_config_*.sh runs in a subsequent step and would otherwise see an
+	// empty variable, causing no servers to be filtered from the agent's MCP config.
+	if cliServers := getMCPCLIServerNames(workflowData); len(cliServers) > 0 {
+		cliServersJSON, err := json.Marshal(cliServers)
+		if err == nil {
+			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS='" + string(cliServersJSON) + "'\n")
+			yaml.WriteString("          echo 'GH_AW_MCP_CLI_SERVERS=" + string(cliServersJSON) + "' >> \"$GITHUB_ENV\"\n")
+		}
+	}
+
 	// For Copilot engine with GitHub remote MCP, export GITHUB_PERSONAL_ACCESS_TOKEN
 	// This is needed because the MCP gateway validates ${VAR} references in headers at config load time
 	// and the Copilot MCP config uses ${GITHUB_PERSONAL_ACCESS_TOKEN} in the Authorization header

@@ -84,8 +84,8 @@ persistence = "none"
 
 TOML_EOF
 
-jq -r --arg urlPrefix "$URL_PREFIX" '
-  .mcpServers | to_entries[] |
+jq -r --arg urlPrefix "$URL_PREFIX" --argjson cliServers "${GH_AW_MCP_CLI_SERVERS:-[]}" '
+  .mcpServers | to_entries[] | select(.key | IN($cliServers[]) | not) |
   "[mcp_servers.\(.key)]\n" +
   "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
   "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"

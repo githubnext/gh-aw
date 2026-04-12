@@ -307,6 +307,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		return fmt.Errorf("failed to generate MCP setup: %w", err)
 	}
 
+	// Mount MCP servers as CLI tools (runs after gateway is started)
+	c.generateMCPCLIMountStep(yaml, data)
+
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 

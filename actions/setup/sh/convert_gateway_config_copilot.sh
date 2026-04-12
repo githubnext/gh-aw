@@ -76,8 +76,9 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 # Build the correct URL prefix using the configured domain and port
 URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 
-jq --arg urlPrefix "$URL_PREFIX" '
+jq --arg urlPrefix "$URL_PREFIX" --argjson cliServers "${GH_AW_MCP_CLI_SERVERS:-[]}" '
   .mcpServers |= with_entries(
+    select(.key | IN($cliServers[]) | not) |
     .value |= (
       # Add tools field if not present
       (if .tools then . else . + {"tools": ["*"]} end) |
