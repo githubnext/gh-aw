@@ -49,6 +49,18 @@ describe("handler_scaffold", () => {
       expect(setupSpy).toHaveBeenCalledWith({}, 10);
     });
 
+    it("should fall back to 10 when max is 0", async () => {
+      const setupSpy = vi.fn().mockResolvedValue(async () => ({ success: true }));
+
+      const factory = createCountGatedHandler({
+        handlerType: "test_handler",
+        setup: setupSpy,
+      });
+
+      await factory({ max: 0 });
+      expect(setupSpy).toHaveBeenCalledWith({ max: 0 }, 10);
+    });
+
     it("should delegate to handleItem when under the limit", async () => {
       const handleItem = vi.fn().mockResolvedValue({ success: true, data: "result" });
 

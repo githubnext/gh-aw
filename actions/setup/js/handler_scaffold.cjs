@@ -30,7 +30,7 @@
  */
 function createCountGatedHandler({ handlerType, setup }) {
   return async function main(config = {}) {
-    const maxCount = config.max ?? 10;
+    const maxCount = config.max || 10;
     let processedCount = 0;
 
     const handleItem = await setup(config, maxCount);
