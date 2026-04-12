@@ -260,6 +260,9 @@ func ensureCheckoutStepFirst(steps []any) []any {
 	defaultCheckoutStep := map[string]any{
 		"name": "Checkout code",
 		"uses": "actions/checkout@v6",
+		"with": map[string]any{
+			"persist-credentials": false,
+		},
 	}
 	steps = append([]any{defaultCheckoutStep}, steps...)
 	return steps
