@@ -83,9 +83,7 @@ This pattern is useful when you want a workflow that can be triggered both manua
 
 ## Filtering Command Events
 
-By default, command triggers respond to `/command-name` mentions in **all** comment-related contexts: issue bodies, issue comments, PR bodies, PR comments, PR review comments, discussion bodies, and discussion comments. This means every PR open/edit event triggers the workflow even if it gets skipped at the activation gate — showing up as skipped runs in the Actions UI.
-
-Use the `events:` field to restrict where commands are active and eliminate unnecessary workflow runs:
+By default, command triggers listen to all comment-related events, which can create skipped runs in the Actions UI. Use the `events:` field to restrict where commands are active:
 
 ```yaml wrap
 on:
@@ -94,103 +92,30 @@ on:
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
 
-### Supported event identifiers
-
-| Event identifier | Description |
-|---|---|
-| `issues` | Issue bodies (opened, edited, reopened) |
-| `issue_comment` | Comments on issues only (excludes PR comments) |
-| `pull_request` | Pull request bodies (opened, edited, reopened) |
-| `pull_request_comment` | Comments on pull requests only (excludes issue comments) |
-| `pull_request_review_comment` | Pull request review comments |
-| `discussion` | Discussion bodies |
-| `discussion_comment` | Discussion comments |
-| `*` | All comment-related events (default when `events:` is omitted) |
+**Supported events:** `issues`, `issue_comment`, `pull_request`, `pull_request_comment`, `pull_request_review_comment`, `discussion`, `discussion_comment`, or `*` (all, default).
 
 :::note
-Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event but with automatic filtering to distinguish between issue comments and PR comments. This provides precise control over where your commands are active.
+Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event with automatic filtering to distinguish between issue and PR comments.
 :::
 
-### Issue-only commands
+### Example command workflow
 
-For workflows where the slash command only makes sense on issues (e.g., bug investigation pipelines), restrict events to `issues` and `issue_comment` to avoid generating skipped runs from pull request activity:
+Issue-only command (avoids skipped runs from PR events):
 
-```aw wrap
----
+```yaml wrap
 on:
   slash_command:
     name: investigate
-    events: [issues, issue_comment]  # Skip PR events entirely
-permissions:
-  contents: read
-  issues: write
-tools:
-  github:
-    toolsets: [issues]
----
-
-# Bug Investigator
-
-When someone mentions /investigate in an issue or issue comment,
-analyze the reported bug and provide an investigation summary.
-
-The current context is: "${{ steps.sanitized.outputs.text }}"
+    events: [issues, issue_comment]
 ```
 
-Without the `events` filter, this workflow would trigger on every PR open and edit event, immediately get skipped at the pre-activation gate, and show up as a cancelled run in the Actions tab.
+PR-only command:
 
-### PR-only commands
-
-For commands that only apply to pull requests and PR comments:
-
-```aw wrap
----
+```yaml wrap
 on:
   slash_command:
     name: code-review
     events: [pull_request, pull_request_comment]
-permissions:
-  contents: read
-tools:
-  github:
-    toolsets: [pull_requests]
-safe-outputs:
-  add-comment:
-    max: 5
-timeout-minutes: 10
----
-
-# Code Review Assistant
-
-When someone mentions /code-review in a pull request or PR comment,
-analyze the code changes and provide detailed feedback.
-
-The current context is: "${{ steps.sanitized.outputs.text }}"
-
-Review the pull request changes and add helpful review comments on specific
-lines of code where improvements can be made.
-```
-
-### General command workflow
-
-Using object format without event filtering (responds to all comment-related events):
-
-```aw wrap
----
-on:
-  slash_command:
-    name: summarize-issue
-tools:
-  github:
-    toolsets: [issues]
----
-
-# Issue Summarizer
-
-When someone mentions /summarize-issue in an issue or comment, 
-analyze and provide a helpful summary.
-
-The current context text is: "${{ steps.sanitized.outputs.text }}"
 ```
 
 ## Context Text
