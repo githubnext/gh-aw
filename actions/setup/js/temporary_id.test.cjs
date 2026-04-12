@@ -189,6 +189,57 @@ describe("temporary_id.cjs", () => {
     });
   });
 
+  describe("replaceTemporaryIdReferencesInPatch", () => {
+    it("should replace #aw_ID in text context within patch content", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123", { repo: "owner/repo", number: 100 }]]);
+      const text = '+    [QuarantinedTest("#aw_abc123")]';
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "owner/repo")).toBe('+    [QuarantinedTest("#100")]');
+    });
+
+    it("should replace #aw_ID in URL context without '#' prefix", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_navqry1", { repo: "dotnet/aspnetcore", number: 66195 }]]);
+      const text = '+    [QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/#aw_navqry1")]';
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "dotnet/aspnetcore")).toBe('+    [QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/66195")]');
+    });
+
+    it("should handle mixed URL and text context references", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_issue1", { repo: "owner/repo", number: 42 }]]);
+      const text = "URL: https://github.com/owner/repo/issues/#aw_issue1 and ref #aw_issue1";
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "owner/repo")).toBe("URL: https://github.com/owner/repo/issues/42 and ref #42");
+    });
+
+    it("should preserve unresolved references in patch content", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "+    link: https://github.com/owner/repo/issues/#aw_unknown1";
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "owner/repo")).toBe("+    link: https://github.com/owner/repo/issues/#aw_unknown1");
+    });
+
+    it("should handle cross-repo references in text context", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123", { repo: "other/repo", number: 100 }]]);
+      const text = "See #aw_abc123 for details";
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "owner/repo")).toBe("See other/repo#100 for details");
+    });
+
+    it("should be case-insensitive for URL context", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123", { repo: "owner/repo", number: 100 }]]);
+      const text = "https://github.com/owner/repo/issues/#AW_ABC123";
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "owner/repo")).toBe("https://github.com/owner/repo/issues/100");
+    });
+
+    it("should handle multiline patch content", async () => {
+      const { replaceTemporaryIdReferencesInPatch } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_navqry1", { repo: "dotnet/aspnetcore", number: 66195 }]]);
+      const text = ["diff --git a/test.cs b/test.cs", "--- a/test.cs", "+++ b/test.cs", "@@ -1,3 +1,4 @@", " existing line", '+[QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/#aw_navqry1")]', " another line"].join("\n");
+      expect(replaceTemporaryIdReferencesInPatch(text, map, "dotnet/aspnetcore")).toContain('QuarantinedTest("https://github.com/dotnet/aspnetcore/issues/66195")');
+    });
+  });
+
   describe("getOrGenerateTemporaryId", () => {
     it("should auto-generate a temporary ID when not provided", async () => {
       const { getOrGenerateTemporaryId } = await import("./temporary_id.cjs");

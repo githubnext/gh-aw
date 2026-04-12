@@ -52,7 +52,6 @@ tools:
     max-file-count: 50
   bash: [":*"]
   web-fetch:
-  web-search:
 
 jobs:
   post-issue:

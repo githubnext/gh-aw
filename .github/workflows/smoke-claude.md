@@ -52,6 +52,9 @@ tools:
 runtimes:
   go:
     version: "1.25"
+checkout:
+  fetch: ["*"]
+  fetch-depth: 0
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -87,6 +90,7 @@ safe-outputs:
     push-to-pull-request-branch:
       staged: true
       target: "*"
+      labels: [smoke-claude]
       if-no-changes: "warn"
       allowed-files:
         - "smoke-test-files/smoke-claude-push-test.md"

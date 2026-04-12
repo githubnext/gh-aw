@@ -18,9 +18,7 @@ permissions:
 network:
   allowed:
     - defaults
-    - proxy.golang.org
-    - sum.golang.org
-    - pkg.go.dev
+    - go
 
 safe-outputs:
   close-issue:

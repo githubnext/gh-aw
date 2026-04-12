@@ -20,7 +20,7 @@ network:
   allowed:
     - defaults
     - github
-    - nodejs.org
+    - node
 
 imports:
   - ../skills/documentation/SKILL.md

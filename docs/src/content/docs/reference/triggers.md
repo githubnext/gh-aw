@@ -281,7 +281,18 @@ See the [Security Architecture](/gh-aw/introduction/architecture/) for details.
 
 ### Command Triggers (`slash_command:`)
 
-The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation including event filtering, context text, reactions, and examples.
+The `slash_command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments.
+
+By default, command triggers listen to **all** comment-related events, which can create noise from skipped runs. Use the `events:` field to restrict where commands are active:
+
+```yaml wrap
+on:
+  slash_command:
+    name: investigate
+    events: [issues, issue_comment]  # Only respond in issue contexts
+```
+
+See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation including event filtering, context text, reactions, and examples.
 
 ### Label Command Trigger (`label_command:`)
 
