@@ -97,6 +97,27 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, noopSteps...)
 	}
 
+	// Add detection runs logging step if threat detection is enabled.
+	// This posts a comment to the "[aw] Detection Runs" tracking issue whenever
+	// the detection job produces a warning or failure conclusion.
+	if IsDetectionJobEnabled(data.SafeOutputs) {
+		var detectionRunsEnvVars []string
+		detectionRunsEnvVars = append(detectionRunsEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		detectionRunsEnvVars = append(detectionRunsEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+		detectionRunsEnvVars = append(detectionRunsEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
+		detectionRunsEnvVars = append(detectionRunsEnvVars, fmt.Sprintf("          GH_AW_DETECTION_REASON: ${{ needs.%s.outputs.detection_reason }}\n", constants.DetectionJobName))
+
+		detectionRunsSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Log detection run",
+			StepID:        "detection_runs",
+			MainJobName:   mainJobName,
+			CustomEnvVars: detectionRunsEnvVars,
+			ScriptFile:    "handle_detection_runs.cjs",
+		})
+		steps = append(steps, detectionRunsSteps...)
+		notifyCommentLog.Print("Added detection runs logging step to conclusion job")
+	}
+
 	// Add missing_tool processing step if missing-tool is configured
 	if data.SafeOutputs.MissingTool != nil {
 		// Build custom environment variables specific to missing-tool
@@ -358,10 +379,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
-	// Pass detection conclusion if threat detection is enabled (in separate detection job)
+	// Pass detection conclusion and reason if threat detection is enabled (in separate detection job)
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
-		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_REASON: ${{ needs.%s.outputs.detection_reason }}\n", constants.DetectionJobName))
+		notifyCommentLog.Print("Added detection conclusion and reason environment variables to conclusion job")
 	}
 
 	// Pass assignment error count to the conclusion step so the status comment reflects assignment failures

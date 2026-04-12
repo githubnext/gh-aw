@@ -592,6 +592,81 @@ async function main(config = {}) {
         }
       } // end else (patch path)
 
+      // When threat detection produced a warning, create a review PR instead of pushing
+      // directly to the existing PR branch. This allows manual review of the changes
+      // before they are merged into the target PR.
+      const detectionConclusionEnv = process.env.GH_AW_DETECTION_CONCLUSION;
+      if (detectionConclusionEnv === "warning") {
+        core.info("⚠️ Threat detection warning: creating review PR instead of direct push");
+
+        // Create a review branch name based on the original branch, using
+        // normalizeBranchName to enforce valid git ref characters + max length.
+        const reviewBranchName = normalizeBranchName(`${branchName}-review`, String(Date.now()));
+        try {
+          // Rename current local branch to review branch
+          await exec.exec("git", ["checkout", "-b", reviewBranchName]);
+          core.info(`Created review branch: ${reviewBranchName}`);
+
+          // Push the review branch
+          await exec.exec("git", ["push", "origin", reviewBranchName], {
+            env: { ...process.env, ...gitAuthEnv },
+          });
+          core.info(`Pushed review branch: ${reviewBranchName}`);
+
+          // Create PR from review branch to original branch
+          const detectionReasonEnv = process.env.GH_AW_DETECTION_REASON || "unknown";
+          const prBody = [
+            "> [!CAUTION]",
+            "> **This PR requires manual review** because threat detection produced a warning.",
+            ">",
+            `> **Reason:** ${detectionReasonEnv}`,
+            ">",
+            `> Review the [workflow run logs](${buildWorkflowRunUrl(context, context.repo)}) for details.`,
+            "",
+            `This PR contains changes that were originally intended for PR #${pullNumber} (\`${branchName}\`).`,
+            "Please review the changes carefully before merging.",
+          ].join("\n");
+
+          const { data: reviewPR } = await githubClient.rest.pulls.create({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            title: `[review] ${prTitle || `Changes for #${pullNumber}`}`,
+            body: prBody,
+            head: reviewBranchName,
+            base: branchName,
+          });
+
+          core.info(`Created review PR #${reviewPR.number}: ${reviewPR.html_url}`);
+
+          // Try to add needs-review label to the review PR
+          try {
+            await githubClient.rest.issues.addLabels({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              issue_number: reviewPR.number,
+              labels: ["needs-review"],
+            });
+            core.info('Added "needs-review" label to review PR');
+          } catch (labelError) {
+            core.warning(`Failed to add "needs-review" label to review PR: ${getErrorMessage(labelError)}`);
+          }
+
+          // Update activation comment with review PR link
+          await updateActivationComment(github, context, core, reviewPR.html_url, reviewPR.number, "pull_request");
+
+          return {
+            success: true,
+            review_pr: true,
+            branch_name: reviewBranchName,
+            pr_number: reviewPR.number,
+            pr_url: reviewPR.html_url,
+          };
+        } catch (reviewError) {
+          core.error(`Failed to create review PR: ${getErrorMessage(reviewError)}`);
+          return { success: false, error: `Failed to create review PR: ${getErrorMessage(reviewError)}` };
+        }
+      }
+
       // Push the applied commits to the branch using signed GraphQL commits (outside patch try/catch so push failures are not misattributed)
       try {
         await pushSignedCommits({

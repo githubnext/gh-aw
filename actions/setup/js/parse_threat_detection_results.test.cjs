@@ -441,8 +441,9 @@ describe("main", () => {
     vi.clearAllMocks();
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockReturnValue("");
-    // Reset RUN_DETECTION environment variable
+    // Reset environment variables
     delete process.env.RUN_DETECTION;
+    delete process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR;
     // Re-import to get fresh module with mocks
     mod = await import("./parse_threat_detection_results.cjs");
   });
@@ -484,13 +485,26 @@ describe("main", () => {
       process.env.RUN_DETECTION = "true";
     });
 
-    it("should fail when detection log file does not exist", async () => {
+    it("should warn when detection log file does not exist (default continue-on-error)", async () => {
+      mockExistsSync.mockReturnValue(false);
+
+      await mod.main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "warning");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when detection log file does not exist (continue-on-error false)", async () => {
+      process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "false";
       mockExistsSync.mockReturnValue(false);
 
       await mod.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
     });
 

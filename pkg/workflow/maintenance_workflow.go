@@ -262,6 +262,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'clean_cache_memories'
           - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
@@ -343,10 +344,49 @@ jobs:
             await main();
 `)
 
-	// Add unified run_operation job for all dispatch operations except safe_outputs, create_labels, and validate
+	// Add cleanup-cache-memory job for scheduled runs and clean_cache_memories operation
+	// This job lists all caches starting with "memory-", groups them by key prefix,
+	// keeps the latest run ID per group, and deletes the rest.
+	cleanupCacheCondition := buildNotForkAndScheduledOrOperation("clean_cache_memories")
+	yaml.WriteString(`
+  cleanup-cache-memory:
+    if: ${{ ` + RenderCondition(cleanupCacheCondition) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      actions: write
+    steps:
+`)
+
+	// Add checkout step only in dev/script mode (for local action paths)
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Cleanup outdated cache-memory entries
+        uses: ` + GetActionPin("actions/github-script") + `
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/cleanup_cache_memory.cjs');
+            await main();
+`)
+
+	// Add unified run_operation job for all dispatch operations except those with dedicated jobs (safe_outputs, create_labels, clean_cache_memories, validate)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "clean_cache_memories", "validate")
 	yaml.WriteString(`
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: write
@@ -671,4 +711,70 @@ jobs:
 
 	maintenanceLog.Print("Maintenance workflow generated successfully")
 	return nil
+}
+
+// buildNotForkCondition creates a condition to check the repository is not a fork.
+func buildNotForkCondition() ConditionNode {
+	return &NotNode{
+		Child: BuildPropertyAccess("github.event.repository.fork"),
+	}
+}
+
+// buildNotDispatchOrEmptyOperation creates a condition that is true when the event
+// is not a workflow_dispatch or the operation input is empty.
+func buildNotDispatchOrEmptyOperation() ConditionNode {
+	return BuildOr(
+		BuildNotEquals(
+			BuildPropertyAccess("github.event_name"),
+			BuildStringLiteral("workflow_dispatch"),
+		),
+		BuildEquals(
+			BuildPropertyAccess("github.event.inputs.operation"),
+			BuildStringLiteral(""),
+		),
+	)
+}
+
+// buildNotForkAndScheduledOrOperation creates a condition for jobs that run on
+// schedule (or empty operation) AND when a specific operation is selected.
+// Condition: !fork && (not_dispatch || operation == '' || operation == op)
+func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		BuildOr(
+			buildNotDispatchOrEmptyOperation(),
+			BuildEquals(
+				BuildPropertyAccess("github.event.inputs.operation"),
+				BuildStringLiteral(operation),
+			),
+		),
+	)
+}
+
+// buildRunOperationCondition creates the condition for the unified run_operation
+// job that handles all dispatch operations except the ones with dedicated jobs.
+// Condition: dispatch && operation != '' && operation != each excluded && !fork.
+func buildRunOperationCondition(excludedOperations ...string) ConditionNode {
+	// Start with: event is workflow_dispatch AND operation is not empty
+	condition := BuildAnd(
+		BuildEventTypeEquals("workflow_dispatch"),
+		BuildNotEquals(
+			BuildPropertyAccess("github.event.inputs.operation"),
+			BuildStringLiteral(""),
+		),
+	)
+
+	// Exclude each dedicated operation
+	for _, op := range excludedOperations {
+		condition = BuildAnd(
+			condition,
+			BuildNotEquals(
+				BuildPropertyAccess("github.event.inputs.operation"),
+				BuildStringLiteral(op),
+			),
+		)
+	}
+
+	// AND not a fork
+	return BuildAnd(condition, buildNotForkCondition())
 }

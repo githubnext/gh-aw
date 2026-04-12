@@ -50,6 +50,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'clean_cache_memories'
           - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
@@ -107,8 +108,35 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/close_expired_pull_requests.cjs');
             await main();
 
+  cleanup-cache-memory:
+    if: ${{ (!(github.event.repository.fork)) && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories') }}
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Cleanup outdated cache-memory entries
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/cleanup_cache_memory.cjs');
+            await main();
+
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -253,7 +281,7 @@ jobs:
 
   validate_workflows:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate' && !github.event.repository.fork }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write

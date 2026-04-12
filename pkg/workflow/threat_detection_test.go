@@ -155,6 +155,28 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				RunsOn: "self-hosted",
 			},
 		},
+		{
+			name: "object with continue-on-error true",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"continue-on-error": true,
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				ContinueOnError: boolPtr(true),
+			},
+		},
+		{
+			name: "object with continue-on-error false",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"continue-on-error": false,
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				ContinueOnError: boolPtr(false),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -185,6 +207,47 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 
 			if result.RunsOn != tt.expectedConfig.RunsOn {
 				t.Errorf("Expected RunsOn %q, got %q", tt.expectedConfig.RunsOn, result.RunsOn)
+			}
+
+			if (result.ContinueOnError == nil) != (tt.expectedConfig.ContinueOnError == nil) {
+				t.Errorf("Expected ContinueOnError nil=%v, got nil=%v", tt.expectedConfig.ContinueOnError == nil, result.ContinueOnError == nil)
+			} else if result.ContinueOnError != nil && tt.expectedConfig.ContinueOnError != nil {
+				if *result.ContinueOnError != *tt.expectedConfig.ContinueOnError {
+					t.Errorf("Expected ContinueOnError %v, got %v", *tt.expectedConfig.ContinueOnError, *result.ContinueOnError)
+				}
+			}
+		})
+	}
+}
+
+func TestIsContinueOnError(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *ThreatDetectionConfig
+		expected bool
+	}{
+		{
+			name:     "default (nil) continues on error",
+			config:   &ThreatDetectionConfig{},
+			expected: true,
+		},
+		{
+			name:     "explicit true continues on error",
+			config:   &ThreatDetectionConfig{ContinueOnError: boolPtr(true)},
+			expected: true,
+		},
+		{
+			name:     "explicit false does not continue on error",
+			config:   &ThreatDetectionConfig{ContinueOnError: boolPtr(false)},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.config.IsContinueOnError()
+			if result != tt.expected {
+				t.Errorf("Expected IsContinueOnError() = %v, got %v", tt.expected, result)
 			}
 		})
 	}

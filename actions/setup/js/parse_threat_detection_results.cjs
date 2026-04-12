@@ -262,13 +262,36 @@ async function main() {
   const threatDetectionDir = "/tmp/gh-aw/threat-detection";
   const logPath = path.join(threatDetectionDir, DETECTION_LOG_FILENAME);
   const runDetection = process.env.RUN_DETECTION;
+  const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== "false";
+  const isWarnMode = continueOnError;
 
   core.info("════════════════════════════════════════════════════════");
   core.info("🛡️  Threat Detection: Parse Results & Conclude");
   core.info("════════════════════════════════════════════════════════");
   core.info(`📋 RUN_DETECTION env: ${JSON.stringify(runDetection)}`);
+  core.info(`📋 continue-on-error: ${continueOnError}`);
   core.info(`📁 Threat detection directory: ${threatDetectionDir}`);
   core.info(`📄 Detection log path: ${logPath}`);
+
+  /**
+   * Helper to set detection failure/warning outputs based on continue-on-error mode.
+   * In warn mode: sets conclusion=warning, success=false, does NOT fail the job.
+   * In error mode: sets conclusion=failure, success=false, fails the job.
+   * @param {string} reason - Categorized reason (e.g. "threat_detected", "agent_failure", "parse_error")
+   * @param {string} message - Human-readable error message
+   */
+  function setDetectionFailure(reason, message) {
+    core.setOutput("reason", reason);
+    if (isWarnMode) {
+      core.warning(`⚠️ ${message}`);
+      core.setOutput("conclusion", "warning");
+      core.setOutput("success", "false");
+    } else {
+      core.setOutput("conclusion", "failure");
+      core.setOutput("success", "false");
+      core.setFailed(message);
+    }
+  }
 
   // ── Step 1: Check whether detection was needed ──────────────────────────
   if (runDetection !== "true") {
@@ -277,6 +300,7 @@ async function main() {
     core.info("   Setting conclusion=skipped, success=true.");
     core.setOutput("conclusion", "skipped");
     core.setOutput("success", "true");
+    core.setOutput("reason", "");
     core.info("✅ Detection skipped — no threats to evaluate.");
     return;
   }
@@ -298,9 +322,7 @@ async function main() {
     } catch {
       core.warning("   ⚠️  Could not list files in " + threatDetectionDir);
     }
-    core.setOutput("conclusion", "failure");
-    core.setOutput("success", "false");
-    core.setFailed(`${ERR_SYSTEM}: ❌ Detection log file not found at: ${logPath}`);
+    setDetectionFailure("agent_failure", `${ERR_SYSTEM}: ❌ Detection log file not found at: ${logPath}`);
     return;
   }
 
@@ -312,9 +334,7 @@ async function main() {
     logContent = fs.readFileSync(logPath, "utf8");
   } catch (/** @type {any} */ readError) {
     core.error("❌ Failed to read detection log: " + getErrorMessage(readError));
-    core.setOutput("conclusion", "failure");
-    core.setOutput("success", "false");
-    core.setFailed(`${ERR_SYSTEM}: ❌ Failed to read detection log: ${getErrorMessage(readError)}`);
+    setDetectionFailure("agent_failure", `${ERR_SYSTEM}: ❌ Failed to read detection log: ${getErrorMessage(readError)}`);
     return;
   }
 
@@ -339,9 +359,7 @@ async function main() {
     core.error("❌ Failed to parse detection result: " + errorMsg);
     core.info("💡 This usually means the AI engine did not produce the expected output format.");
     core.info('   Expected format: THREAT_DETECTION_RESULT:{"prompt_injection":bool,"secret_leak":bool,"malicious_patch":bool,"reasons":[...]}');
-    core.setOutput("conclusion", "failure");
-    core.setOutput("success", "false");
-    core.setFailed(`${ERR_PARSE}: ❌ ${errorMsg}`);
+    setDetectionFailure("parse_error", `${ERR_PARSE}: ❌ ${errorMsg}`);
     return;
   }
 
@@ -373,13 +391,12 @@ async function main() {
       core.error("   Reasons: " + verdict.reasons.join("; "));
     }
 
-    core.setOutput("conclusion", "failure");
-    core.setOutput("success", "false");
-    core.setFailed(`${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
+    setDetectionFailure("threat_detected", `${ERR_VALIDATION}: ❌ Security threats detected: ${threats.join(", ")}${reasonsText}`);
   } else {
     core.info("✅ No security threats detected. Safe outputs may proceed.");
     core.setOutput("conclusion", "success");
     core.setOutput("success", "true");
+    core.setOutput("reason", "");
   }
 
   core.info("════════════════════════════════════════════════════════");

@@ -281,15 +281,16 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
-	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'validate'`
+	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate'`
 	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels'`
+	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories'`
 
 	const jobSectionSearchRange = 300
-	const runOpSectionSearchRange = 400
+	const runOpSectionSearchRange = 500
 
-	// Jobs that should be disabled when operation is set
-	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "zizmor-scan:", "secret-validation:"}
+	// Jobs that should be disabled when any non-dedicated operation is set (cleanup-cache-memory has its own dedicated operation)
+	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "secret-validation:", "zizmor-scan:"}
 	for _, job := range disabledJobs {
 		// Find the if: condition for each job
 		jobIdx := strings.Index(yaml, "\n  "+job)
@@ -301,6 +302,17 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		jobSection := yaml[jobIdx : jobIdx+jobSectionSearchRange]
 		if !strings.Contains(jobSection, operationSkipCondition) {
 			t.Errorf("Job %q is missing the operation skip condition %q in:\n%s", job, operationSkipCondition, jobSection)
+		}
+	}
+
+	// cleanup-cache-memory job should run on schedule, empty operation, or clean_cache_memories operation
+	cleanupCacheIdx := strings.Index(yaml, "\n  cleanup-cache-memory:")
+	if cleanupCacheIdx == -1 {
+		t.Errorf("Job cleanup-cache-memory not found in generated workflow")
+	} else {
+		cleanupCacheSection := yaml[cleanupCacheIdx : cleanupCacheIdx+jobSectionSearchRange]
+		if !strings.Contains(cleanupCacheSection, cleanCacheMemoriesCondition) {
+			t.Errorf("Job cleanup-cache-memory should have the clean_cache_memories condition %q in:\n%s", cleanCacheMemoriesCondition, cleanupCacheSection)
 		}
 	}
 
@@ -361,6 +373,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify safe_outputs is an option in the operation choices
 	if !strings.Contains(yaml, "- 'safe_outputs'") {
 		t.Error("workflow_dispatch operation choices should include 'safe_outputs'")
+	}
+
+	// Verify clean_cache_memories is an option in the operation choices
+	if !strings.Contains(yaml, "- 'clean_cache_memories'") {
+		t.Error("workflow_dispatch operation choices should include 'clean_cache_memories'")
 	}
 
 	// Verify validate is an option in the operation choices

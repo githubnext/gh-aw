@@ -601,6 +601,13 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	// Note: Asset upload configuration is not needed here because upload_assets
 	// is now handled as a separate job (see buildUploadAssetsJob)
 
+	// Pass detection conclusion and reason to safe outputs when threat detection is enabled.
+	// This allows handlers (e.g., push-to-pull-request-branch) to adjust behavior on warnings.
+	if IsDetectionJobEnabled(data.SafeOutputs) {
+		envVars["GH_AW_DETECTION_CONCLUSION"] = fmt.Sprintf("${{ needs.%s.outputs.detection_conclusion }}", constants.DetectionJobName)
+		envVars["GH_AW_DETECTION_REASON"] = fmt.Sprintf("${{ needs.%s.outputs.detection_reason }}", constants.DetectionJobName)
+	}
+
 	return envVars
 }
 

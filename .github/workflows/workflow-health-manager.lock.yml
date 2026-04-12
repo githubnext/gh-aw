@@ -995,6 +995,22 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_noop_message.cjs');
             await main();
+      - name: Log detection run
+        id: detection_runs
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Workflow Health Manager - Meta-Orchestrator"
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
+          GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/handle_detection_runs.cjs');
+            await main();
       - name: Record missing tool
         id: missing_tool
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -1067,6 +1083,7 @@ jobs:
       contents: read
     outputs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
+      detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
     steps:
       - name: Checkout actions folder
@@ -1211,6 +1228,7 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1358,6 +1376,8 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/workflow-health-manager"
+      GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
+      GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}

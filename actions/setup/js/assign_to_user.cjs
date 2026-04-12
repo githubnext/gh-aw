@@ -8,176 +8,162 @@
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { resolveIssueNumber, extractAssignees, isStagedMode } = require("./safe_output_helpers.cjs");
+const { resolveIssueNumber, extractAssignees } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_to_user";
 
 /**
  * Main handler factory for assign_to_user
- * Returns a message handler function that processes individual assign_to_user messages
+ * Uses shared count-gated scaffold for max-limit enforcement.
  * @type {HandlerFactoryFunction}
  */
-async function main(config = {}) {
-  // Extract configuration
-  const allowedAssignees = config.allowed ?? [];
-  const blockedAssignees = config.blocked ?? [];
-  const maxCount = config.max ?? 10;
-  const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
-  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
-  const githubClient = await createAuthenticatedGitHubClient(config);
+const main = createCountGatedHandler({
+  handlerType: HANDLER_TYPE,
+  setup: async (config, maxCount, isStaged) => {
+    // Extract configuration
+    const allowedAssignees = config.allowed ?? [];
+    const blockedAssignees = config.blocked ?? [];
+    const unassignFirst = parseBoolTemplatable(config.unassign_first, false);
+    const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+    const githubClient = await createAuthenticatedGitHubClient(config);
 
-  // Check if we're in staged mode
-  const isStaged = isStagedMode(config);
-
-  core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
-  if (allowedAssignees.length > 0) {
-    core.info(`Allowed assignees: ${allowedAssignees.join(", ")}`);
-  }
-  if (blockedAssignees.length > 0) {
-    core.info(`Blocked assignees: ${blockedAssignees.join(", ")}`);
-  }
-  core.info(`Default target repo: ${defaultTargetRepo}`);
-  if (allowedRepos.size > 0) {
-    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-  }
-
-  // Track how many items we've processed for max limit
-  let processedCount = 0;
-
-  /**
-   * Message handler function that processes a single assign_to_user message
-   * @param {Object} message - The assign_to_user message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status
-   */
-  return async function handleAssignToUser(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping assign_to_user: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
+    core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
+    if (allowedAssignees.length > 0) {
+      core.info(`Allowed assignees: ${allowedAssignees.join(", ")}`);
+    }
+    if (blockedAssignees.length > 0) {
+      core.info(`Blocked assignees: ${blockedAssignees.join(", ")}`);
+    }
+    core.info(`Default target repo: ${defaultTargetRepo}`);
+    if (allowedRepos.size > 0) {
+      core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
     }
 
-    processedCount++;
-
-    // Resolve and validate target repository
-    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "assignee");
-    if (!repoResult.success) {
-      core.warning(`Skipping assign_to_user: ${repoResult.error}`);
-      return {
-        success: false,
-        error: repoResult.error,
-      };
-    }
-    const { repo: itemRepo, repoParts } = repoResult;
-    core.info(`Target repository: ${itemRepo}`);
-
-    const assignItem = message;
-
-    // Determine issue number using shared helper
-    const issueResult = resolveIssueNumber(assignItem);
-    if (!issueResult.success) {
-      core.warning(`Skipping assign_to_user: ${issueResult.error}`);
-      return {
-        success: false,
-        error: issueResult.error,
-      };
-    }
-    const issueNumber = issueResult.issueNumber;
-
-    // Extract assignees using shared helper
-    const requestedAssignees = extractAssignees(assignItem);
-
-    core.info(`Requested assignees: ${JSON.stringify(requestedAssignees)}`);
-
-    // Use shared helper to filter, sanitize, dedupe, and limit
-    const uniqueAssignees = processItems(requestedAssignees, allowedAssignees, maxCount, blockedAssignees);
-
-    if (uniqueAssignees.length === 0) {
-      core.info("No assignees to add");
-      return {
-        success: true,
-        issueNumber: issueNumber,
-        assigneesAdded: [],
-        message: "No valid assignees found",
-      };
-    }
-
-    core.info(`Assigning ${uniqueAssignees.length} users to issue #${issueNumber} in ${itemRepo}: ${JSON.stringify(uniqueAssignees)}`);
-
-    // If in staged mode, preview without executing
-    if (isStaged) {
-      logStagedPreviewInfo(`Would assign users to issue #${issueNumber} in ${itemRepo}`);
-      if (unassignFirst) {
-        logStagedPreviewInfo(`Would unassign all current assignees first`);
+    /**
+     * Message handler function that processes a single assign_to_user message
+     * @param {Object} message - The assign_to_user message to process
+     * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+     * @returns {Promise<Object>} Result with success/error status
+     */
+    return async function handleAssignToUser(message, resolvedTemporaryIds) {
+      // Resolve and validate target repository
+      const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "assignee");
+      if (!repoResult.success) {
+        core.warning(`Skipping assign_to_user: ${repoResult.error}`);
+        return {
+          success: false,
+          error: repoResult.error,
+        };
       }
-      return {
-        success: true,
-        staged: true,
-        previewInfo: {
-          issueNumber,
-          repo: itemRepo,
-          assignees: uniqueAssignees,
-          unassignFirst,
-        },
-      };
-    }
+      const { repo: itemRepo, repoParts } = repoResult;
+      core.info(`Target repository: ${itemRepo}`);
 
-    try {
-      // If unassign_first is enabled, get current assignees and remove them first
-      if (unassignFirst) {
-        core.info(`Fetching current assignees for issue #${issueNumber} to unassign them first`);
-        const issue = await githubClient.rest.issues.get({
-          owner: repoParts.owner,
-          repo: repoParts.repo,
-          issue_number: issueNumber,
-        });
+      const assignItem = message;
 
-        const currentAssignees = issue.data.assignees?.map(a => a.login) || [];
-        if (currentAssignees.length > 0) {
-          core.info(`Unassigning ${currentAssignees.length} current assignee(s): ${JSON.stringify(currentAssignees)}`);
-          await githubClient.rest.issues.removeAssignees({
+      // Determine issue number using shared helper
+      const issueResult = resolveIssueNumber(assignItem);
+      if (!issueResult.success) {
+        core.warning(`Skipping assign_to_user: ${issueResult.error}`);
+        return {
+          success: false,
+          error: issueResult.error,
+        };
+      }
+      const issueNumber = issueResult.issueNumber;
+
+      // Extract assignees using shared helper
+      const requestedAssignees = extractAssignees(assignItem);
+
+      core.info(`Requested assignees: ${JSON.stringify(requestedAssignees)}`);
+
+      // Use shared helper to filter, sanitize, dedupe, and limit
+      const uniqueAssignees = processItems(requestedAssignees, allowedAssignees, maxCount, blockedAssignees);
+
+      if (uniqueAssignees.length === 0) {
+        core.info("No assignees to add");
+        return {
+          success: true,
+          issueNumber: issueNumber,
+          assigneesAdded: [],
+          message: "No valid assignees found",
+        };
+      }
+
+      core.info(`Assigning ${uniqueAssignees.length} users to issue #${issueNumber} in ${itemRepo}: ${JSON.stringify(uniqueAssignees)}`);
+
+      // If in staged mode, preview without executing
+      if (isStaged) {
+        logStagedPreviewInfo(`Would assign users to issue #${issueNumber} in ${itemRepo}`);
+        if (unassignFirst) {
+          logStagedPreviewInfo(`Would unassign all current assignees first`);
+        }
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            issueNumber,
+            repo: itemRepo,
+            assignees: uniqueAssignees,
+            unassignFirst,
+          },
+        };
+      }
+
+      try {
+        // If unassign_first is enabled, get current assignees and remove them first
+        if (unassignFirst) {
+          core.info(`Fetching current assignees for issue #${issueNumber} to unassign them first`);
+          const issue = await githubClient.rest.issues.get({
             owner: repoParts.owner,
             repo: repoParts.repo,
             issue_number: issueNumber,
-            assignees: currentAssignees,
           });
-          core.info(`Successfully unassigned current assignees`);
-        } else {
-          core.info(`No current assignees to unassign`);
+
+          const currentAssignees = issue.data.assignees?.map(a => a.login) || [];
+          if (currentAssignees.length > 0) {
+            core.info(`Unassigning ${currentAssignees.length} current assignee(s): ${JSON.stringify(currentAssignees)}`);
+            await githubClient.rest.issues.removeAssignees({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              issue_number: issueNumber,
+              assignees: currentAssignees,
+            });
+            core.info(`Successfully unassigned current assignees`);
+          } else {
+            core.info(`No current assignees to unassign`);
+          }
         }
+
+        // Add assignees to the issue
+        await githubClient.rest.issues.addAssignees({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: issueNumber,
+          assignees: uniqueAssignees,
+        });
+
+        core.info(`Successfully assigned ${uniqueAssignees.length} user(s) to issue #${issueNumber} in ${itemRepo}`);
+
+        return {
+          success: true,
+          issueNumber: issueNumber,
+          assigneesAdded: uniqueAssignees,
+        };
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        core.error(`Failed to assign users: ${errorMessage}`);
+        return {
+          success: false,
+          error: errorMessage,
+        };
       }
-
-      // Add assignees to the issue
-      await githubClient.rest.issues.addAssignees({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        issue_number: issueNumber,
-        assignees: uniqueAssignees,
-      });
-
-      core.info(`Successfully assigned ${uniqueAssignees.length} user(s) to issue #${issueNumber} in ${itemRepo}`);
-
-      return {
-        success: true,
-        issueNumber: issueNumber,
-        assigneesAdded: uniqueAssignees,
-      };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      core.error(`Failed to assign users: ${errorMessage}`);
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
-  };
-}
+    };
+  },
+});
 
 module.exports = { main };

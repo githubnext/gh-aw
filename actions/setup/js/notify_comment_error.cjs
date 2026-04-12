@@ -6,7 +6,7 @@
 // It also processes noop messages and adds them to the activation comment.
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
+const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage, getDetectionWarningMessage } = require("./messages_run_status.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -51,6 +51,39 @@ function collectGeneratedAssets() {
   return assets;
 }
 
+/**
+ * Attempt to add a "needs-review" label to the triggering issue/PR.
+ * This is a best-effort operation — failures are logged but do not fail the workflow.
+ * @param {string|undefined} commentRepo - Repository in "owner/repo" format
+ */
+async function tryAddNeedsReviewLabel(commentRepo) {
+  try {
+    const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+    const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+    const issueNumber = context.payload?.issue?.number || context.payload?.pull_request?.number;
+
+    if (!issueNumber) {
+      core.info("No issue/PR number found — skipping needs-review label");
+      return;
+    }
+
+    core.info(`Adding "needs-review" label to ${repoOwner}/${repoName}#${issueNumber}`);
+    await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/labels", {
+      owner: repoOwner,
+      repo: repoName,
+      issue_number: issueNumber,
+      labels: ["needs-review"],
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
+    });
+    core.info('Successfully added "needs-review" label');
+  } catch (/** @type {any} */ error) {
+    // Best-effort: label might not exist in the repo, or permissions may be insufficient
+    core.warning(`Failed to add "needs-review" label: ${getErrorMessage(error)}`);
+  }
+}
+
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
   const commentRepo = process.env.GH_AW_COMMENT_REPO;
@@ -58,6 +91,7 @@ async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const assignToAgentErrorCount = parseInt(process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0", 10);
 
   const messagesConfig = getMessages();
@@ -130,13 +164,47 @@ async function main() {
 
   // Determine the message based on agent conclusion using custom messages if configured
   let message;
+  let detectionWarningMessage = "";
 
   // Check if detection job failed (if detection job exists)
   if (detectionConclusion && detectionConclusion === "failure") {
-    // Detection job failed - report this prominently
+    // Detection job failed in error mode - report this prominently
     message = getDetectionFailureMessage({
       workflowName,
       runUrl,
+    });
+  } else if (detectionConclusion && detectionConclusion === "warning") {
+    // Detection job produced a warning (continue-on-error mode)
+    // Show success message but append caution section with progressive disclosure
+    if (agentConclusion === "success" && assignToAgentErrorCount === 0) {
+      message = getRunSuccessMessage({
+        workflowName,
+        runUrl,
+      });
+    } else {
+      let statusText;
+      if (agentConclusion === "success" && assignToAgentErrorCount > 0) {
+        statusText = "failed to assign the coding agent";
+      } else if (agentConclusion === "cancelled") {
+        statusText = "was cancelled";
+      } else if (agentConclusion === "skipped") {
+        statusText = "was skipped";
+      } else if (agentConclusion === "timed_out") {
+        statusText = "timed out";
+      } else {
+        statusText = "failed";
+      }
+      message = getRunFailureMessage({
+        workflowName,
+        runUrl,
+        status: statusText,
+      });
+    }
+    // Build the caution section for detection warning
+    detectionWarningMessage = getDetectionWarningMessage({
+      workflowName,
+      runUrl,
+      reason: detectionReason,
     });
   } else if (agentConclusion === "success" && assignToAgentErrorCount === 0) {
     message = getRunSuccessMessage({
@@ -166,6 +234,11 @@ async function main() {
     });
   }
 
+  // Append detection warning caution section if present
+  if (detectionWarningMessage) {
+    message += "\n\n" + detectionWarningMessage;
+  }
+
   // Add noop messages to the comment if any
   if (noopMessages.length > 0) {
     message += "\n\n";
@@ -183,6 +256,11 @@ async function main() {
     generatedAssets.forEach(url => {
       message += `${url}\n`;
     });
+  }
+
+  // Add "needs-review" label when detection produced a warning
+  if (detectionConclusion === "warning") {
+    await tryAddNeedsReviewLabel(commentRepo);
   }
 
   // Append-only mode: create a new comment instead of updating the activation comment.

@@ -7743,6 +7743,11 @@
                 "runs-on": {
                   "type": "string",
                   "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
+                },
+                "continue-on-error": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "When true (default), detection failures produce warnings and allow safe outputs to proceed with a caution notice and 'needs-review' label. When false, detection failures block safe outputs entirely."
                 }
               },
               "additionalProperties": false
