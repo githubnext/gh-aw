@@ -443,7 +443,7 @@ describe("main", () => {
     mockReadFileSync.mockReturnValue("");
     // Reset environment variables
     delete process.env.RUN_DETECTION;
-    delete process.env.GH_AW_DETECTION_ON_FAILURE;
+    delete process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR;
     // Re-import to get fresh module with mocks
     mod = await import("./parse_threat_detection_results.cjs");
   });
@@ -485,7 +485,7 @@ describe("main", () => {
       process.env.RUN_DETECTION = "true";
     });
 
-    it("should warn when detection log file does not exist (default warn mode)", async () => {
+    it("should warn when detection log file does not exist (default continue-on-error)", async () => {
       mockExistsSync.mockReturnValue(false);
 
       await mod.main();
@@ -496,8 +496,8 @@ describe("main", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should fail when detection log file does not exist (error mode)", async () => {
-      process.env.GH_AW_DETECTION_ON_FAILURE = "error";
+    it("should fail when detection log file does not exist (continue-on-error false)", async () => {
+      process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "false";
       mockExistsSync.mockReturnValue(false);
 
       await mod.main();

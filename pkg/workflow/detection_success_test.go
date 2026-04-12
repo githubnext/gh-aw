@@ -66,9 +66,9 @@ Create an issue.
 		t.Error("Detection job missing detection_reason output")
 	}
 
-	// Check that the detection conclusion step has GH_AW_DETECTION_ON_FAILURE env var
-	if !strings.Contains(detectionSection, "GH_AW_DETECTION_ON_FAILURE:") {
-		t.Error("Detection conclusion step missing GH_AW_DETECTION_ON_FAILURE env var")
+	// Check that the detection conclusion step has GH_AW_DETECTION_CONTINUE_ON_ERROR env var
+	if !strings.Contains(detectionSection, "GH_AW_DETECTION_CONTINUE_ON_ERROR:") {
+		t.Error("Detection conclusion step missing GH_AW_DETECTION_CONTINUE_ON_ERROR env var")
 	}
 
 	// Check that the combined parse-and-conclude step has ID detection_conclusion

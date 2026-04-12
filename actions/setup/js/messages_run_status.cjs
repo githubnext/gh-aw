@@ -139,7 +139,7 @@ function getCommitPushedMessage(ctx) {
 
 /**
  * Get the detection-warning message with progressive disclosure via details/summary.
- * Used when on-failure mode is "warn" instead of "error".
+ * Used when continue-on-error is true (default) instead of false.
  * @param {DetectionWarningContext} ctx - Context for detection-warning message generation
  * @returns {string} Detection-warning message with caution admonition
  */

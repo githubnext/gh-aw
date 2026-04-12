@@ -262,19 +262,19 @@ async function main() {
   const threatDetectionDir = "/tmp/gh-aw/threat-detection";
   const logPath = path.join(threatDetectionDir, DETECTION_LOG_FILENAME);
   const runDetection = process.env.RUN_DETECTION;
-  const onFailureMode = process.env.GH_AW_DETECTION_ON_FAILURE || "warn";
-  const isWarnMode = onFailureMode === "warn";
+  const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== "false";
+  const isWarnMode = continueOnError;
 
   core.info("════════════════════════════════════════════════════════");
   core.info("🛡️  Threat Detection: Parse Results & Conclude");
   core.info("════════════════════════════════════════════════════════");
   core.info(`📋 RUN_DETECTION env: ${JSON.stringify(runDetection)}`);
-  core.info(`📋 ON_FAILURE mode: ${onFailureMode}`);
+  core.info(`📋 continue-on-error: ${continueOnError}`);
   core.info(`📁 Threat detection directory: ${threatDetectionDir}`);
   core.info(`📄 Detection log path: ${logPath}`);
 
   /**
-   * Helper to set detection failure/warning outputs based on on-failure mode.
+   * Helper to set detection failure/warning outputs based on continue-on-error mode.
    * In warn mode: sets conclusion=warning, success=false, does NOT fail the job.
    * In error mode: sets conclusion=failure, success=false, fails the job.
    * @param {string} reason - Categorized reason (e.g. "threat_detected", "agent_failure", "parse_error")

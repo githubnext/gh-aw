@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -12,27 +13,21 @@ import (
 
 var threatLog = logger.New("workflow:threat_detection")
 
-// ThreatDetectionOnFailureWarn is the default on-failure behavior: detection failures
-// produce a warning instead of blocking safe outputs.
-const ThreatDetectionOnFailureWarn = "warn"
-
-// ThreatDetectionOnFailureError makes detection failures block safe outputs (strict mode).
-const ThreatDetectionOnFailureError = "error"
-
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Prompt         string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
-	Steps          []any         `yaml:"steps,omitempty"`         // Array of extra job steps to run before engine execution
-	PostSteps      []any         `yaml:"post-steps,omitempty"`    // Array of extra job steps to run after engine execution
-	EngineConfig   *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
-	EngineDisabled bool          `yaml:"-"`                       // Internal flag: true when engine is explicitly set to false
-	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
-	OnFailure      string        `yaml:"on-failure,omitempty"`    // Behavior on detection failure: "warn" (default) or "error"
+	Prompt          string        `yaml:"prompt,omitempty"`            // Additional custom prompt instructions to append
+	Steps           []any         `yaml:"steps,omitempty"`             // Array of extra job steps to run before engine execution
+	PostSteps       []any         `yaml:"post-steps,omitempty"`        // Array of extra job steps to run after engine execution
+	EngineConfig    *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
+	EngineDisabled  bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
+	RunsOn          string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
+	ContinueOnError *bool         `yaml:"continue-on-error,omitempty"` // When true (default), detection failures produce warnings instead of blocking safe outputs
 }
 
-// IsWarnMode reports whether detection failures should produce warnings instead of errors.
-func (td *ThreatDetectionConfig) IsWarnMode() bool {
-	return td.OnFailure != ThreatDetectionOnFailureError
+// IsContinueOnError reports whether detection failures should produce warnings instead of errors.
+// Defaults to true (continue) when not explicitly set.
+func (td *ThreatDetectionConfig) IsContinueOnError() bool {
+	return td.ContinueOnError == nil || *td.ContinueOnError
 }
 
 // HasRunnableDetection reports whether this config will produce a detection job
@@ -144,15 +139,11 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				}
 			}
 
-			// Parse on-failure field (default: "warn")
-			if onFailure, exists := configMap["on-failure"]; exists {
-				if onFailureStr, ok := onFailure.(string); ok {
-					if onFailureStr == ThreatDetectionOnFailureError || onFailureStr == ThreatDetectionOnFailureWarn {
-						threatConfig.OnFailure = onFailureStr
-						threatLog.Printf("Threat detection on-failure set to: %s", onFailureStr)
-					} else {
-						threatLog.Printf("Invalid on-failure value %q, using default (warn)", onFailureStr)
-					}
+			// Parse continue-on-error field (default: true)
+			if coe, exists := configMap["continue-on-error"]; exists {
+				if coeBool, ok := coe.(bool); ok {
+					threatConfig.ContinueOnError = &coeBool
+					threatLog.Printf("Threat detection continue-on-error set to: %v", coeBool)
 				}
 			}
 
@@ -356,12 +347,10 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 // The RUN_DETECTION env var lets the script short-circuit with conclusion=skipped when
 // the detection guard determined there was no output to analyze.
 func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
-	// Determine on-failure mode (default: warn)
-	onFailureMode := ThreatDetectionOnFailureWarn
+	// Determine continue-on-error mode (default: true — detection failures produce warnings)
+	continueOnError := true
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		if data.SafeOutputs.ThreatDetection.OnFailure == ThreatDetectionOnFailureError {
-			onFailureMode = ThreatDetectionOnFailureError
-		}
+		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
 	}
 
 	steps := []string{
@@ -371,7 +360,7 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
-		fmt.Sprintf("          GH_AW_DETECTION_ON_FAILURE: %q\n", onFailureMode),
+		fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError)),
 		"        with:\n",
 		"          script: |\n",
 	}

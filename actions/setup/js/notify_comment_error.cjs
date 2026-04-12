@@ -174,7 +174,7 @@ async function main() {
       runUrl,
     });
   } else if (detectionConclusion && detectionConclusion === "warning") {
-    // Detection job produced a warning (on-failure: warn mode)
+    // Detection job produced a warning (continue-on-error mode)
     // Show success message but append caution section with progressive disclosure
     if (agentConclusion === "success" && assignToAgentErrorCount === 0) {
       message = getRunSuccessMessage({

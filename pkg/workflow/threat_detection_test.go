@@ -156,36 +156,25 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "object with on-failure warn",
+			name: "object with continue-on-error true",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
-					"on-failure": "warn",
+					"continue-on-error": true,
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				OnFailure: "warn",
+				ContinueOnError: boolPtr(true),
 			},
 		},
 		{
-			name: "object with on-failure error",
+			name: "object with continue-on-error false",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
-					"on-failure": "error",
+					"continue-on-error": false,
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				OnFailure: "error",
-			},
-		},
-		{
-			name: "object with invalid on-failure value uses default",
-			outputMap: map[string]any{
-				"threat-detection": map[string]any{
-					"on-failure": "invalid",
-				},
-			},
-			expectedConfig: &ThreatDetectionConfig{
-				OnFailure: "",
+				ContinueOnError: boolPtr(false),
 			},
 		},
 	}
@@ -220,41 +209,45 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				t.Errorf("Expected RunsOn %q, got %q", tt.expectedConfig.RunsOn, result.RunsOn)
 			}
 
-			if result.OnFailure != tt.expectedConfig.OnFailure {
-				t.Errorf("Expected OnFailure %q, got %q", tt.expectedConfig.OnFailure, result.OnFailure)
+			if (result.ContinueOnError == nil) != (tt.expectedConfig.ContinueOnError == nil) {
+				t.Errorf("Expected ContinueOnError nil=%v, got nil=%v", tt.expectedConfig.ContinueOnError == nil, result.ContinueOnError == nil)
+			} else if result.ContinueOnError != nil && tt.expectedConfig.ContinueOnError != nil {
+				if *result.ContinueOnError != *tt.expectedConfig.ContinueOnError {
+					t.Errorf("Expected ContinueOnError %v, got %v", *tt.expectedConfig.ContinueOnError, *result.ContinueOnError)
+				}
 			}
 		})
 	}
 }
 
-func TestIsWarnMode(t *testing.T) {
+func TestIsContinueOnError(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   *ThreatDetectionConfig
 		expected bool
 	}{
 		{
-			name:     "default (empty) is warn mode",
+			name:     "default (nil) continues on error",
 			config:   &ThreatDetectionConfig{},
 			expected: true,
 		},
 		{
-			name:     "explicit warn is warn mode",
-			config:   &ThreatDetectionConfig{OnFailure: ThreatDetectionOnFailureWarn},
+			name:     "explicit true continues on error",
+			config:   &ThreatDetectionConfig{ContinueOnError: boolPtr(true)},
 			expected: true,
 		},
 		{
-			name:     "explicit error is not warn mode",
-			config:   &ThreatDetectionConfig{OnFailure: ThreatDetectionOnFailureError},
+			name:     "explicit false does not continue on error",
+			config:   &ThreatDetectionConfig{ContinueOnError: boolPtr(false)},
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.config.IsWarnMode()
+			result := tt.config.IsContinueOnError()
 			if result != tt.expected {
-				t.Errorf("Expected IsWarnMode() = %v, got %v", tt.expected, result)
+				t.Errorf("Expected IsContinueOnError() = %v, got %v", tt.expected, result)
 			}
 		})
 	}

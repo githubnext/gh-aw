@@ -1287,7 +1287,7 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}
-          GH_AW_DETECTION_ON_FAILURE: "warn"
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
