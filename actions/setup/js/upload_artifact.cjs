@@ -445,7 +445,7 @@ async function main(config = {}) {
    * @param {Object} message - The upload_artifact message from the model
    * @param {Object} resolvedTemporaryIds - Map of already-resolved temporary IDs (unused here)
    * @param {Map<string, any>} temporaryIdMap - Shared temp-ID map; the handler does not modify it
-   * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, tmpId?: string, artifactName?: string, slotIndex?: number}>}
+   * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, tmpId?: string, artifactName?: string, artifactId?: number, artifactUrl?: string, slotIndex?: number}>}
    */
   return async function handleUploadArtifact(message, resolvedTemporaryIds, temporaryIdMap) {
     if (slotIndex >= maxUploads) {
