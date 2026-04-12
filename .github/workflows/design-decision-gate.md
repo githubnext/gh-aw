@@ -23,8 +23,6 @@ safe-outputs:
       - docs/adr/**
     patch-format: bundle
     commit-title-suffix: " [design-decision-gate]"
-  submit-pull-request-review:
-    max: 1
   noop:
   messages:
     footer: "> 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
@@ -255,18 +253,7 @@ All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g.
 
 </details>
 
-> 🔒 *This PR has been marked as requesting changes. It cannot merge until an ADR is linked in the PR body.*
-```
-
-### Request Changes to Block Merge
-
-Submit a pull request review with `REQUEST_CHANGES` to block the merge:
-
-```json
-{
-  "event": "REQUEST_CHANGES",
-  "body": "This PR requires an Architecture Decision Record (ADR) before it can merge. A draft ADR has been generated and committed to your branch. Please review, complete, and link it in the PR body. See the comment above for instructions."
-}
+> 🔒 *This PR cannot merge until an ADR is linked in the PR body.*
 ```
 
 ## Step 4b: If ADR Found — Verify Implementation Matches
@@ -307,14 +294,6 @@ The implementation in this PR aligns with the stated Architecture Decision Recor
 The design decision has been recorded and the implementation follows it. Great work! 🏗️
 ```
 
-Submit an APPROVE review:
-```json
-{
-  "event": "APPROVE",
-  "body": "Implementation verified: code aligns with the linked Architecture Decision Record."
-}
-```
-
 **If there are DIVERGENCES**:
 
 Post a comment describing the discrepancies:
@@ -336,14 +315,6 @@ Either:
 2. **Update the ADR** to reflect the revised decision (and document why the approach changed)
 
 The ADR and implementation must be in sync before this PR can merge.
-```
-
-Submit a REQUEST_CHANGES review:
-```json
-{
-  "event": "REQUEST_CHANGES",
-  "body": "Implementation diverges from the linked ADR. See the comment above for specific divergences. Please align the code with the ADR or update the ADR to reflect the actual decision."
-}
 ```
 
 ## Important: Always Call a Safe Output
