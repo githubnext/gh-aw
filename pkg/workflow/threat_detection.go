@@ -12,6 +12,13 @@ import (
 
 var threatLog = logger.New("workflow:threat_detection")
 
+// ThreatDetectionOnFailureWarn is the default on-failure behavior: detection failures
+// produce a warning instead of blocking safe outputs.
+const ThreatDetectionOnFailureWarn = "warn"
+
+// ThreatDetectionOnFailureError makes detection failures block safe outputs (strict mode).
+const ThreatDetectionOnFailureError = "error"
+
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
 	Prompt         string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
@@ -20,6 +27,12 @@ type ThreatDetectionConfig struct {
 	EngineConfig   *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
 	EngineDisabled bool          `yaml:"-"`                       // Internal flag: true when engine is explicitly set to false
 	RunsOn         string        `yaml:"runs-on,omitempty"`       // Runner override for the detection job
+	OnFailure      string        `yaml:"on-failure,omitempty"`    // Behavior on detection failure: "warn" (default) or "error"
+}
+
+// IsWarnMode reports whether detection failures should produce warnings instead of errors.
+func (td *ThreatDetectionConfig) IsWarnMode() bool {
+	return td.OnFailure != ThreatDetectionOnFailureError
 }
 
 // HasRunnableDetection reports whether this config will produce a detection job
@@ -131,6 +144,18 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				}
 			}
 
+			// Parse on-failure field (default: "warn")
+			if onFailure, exists := configMap["on-failure"]; exists {
+				if onFailureStr, ok := onFailure.(string); ok {
+					if onFailureStr == ThreatDetectionOnFailureError || onFailureStr == ThreatDetectionOnFailureWarn {
+						threatConfig.OnFailure = onFailureStr
+						threatLog.Printf("Threat detection on-failure set to: %s", onFailureStr)
+					} else {
+						threatLog.Printf("Invalid on-failure value %q, using default (warn)", onFailureStr)
+					}
+				}
+			}
+
 			// Parse engine field (supports string, object, and boolean false formats)
 			if engine, exists := configMap["engine"]; exists {
 				// Handle boolean false to disable AI engine
@@ -215,7 +240,7 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
 	// Step 9: Parse results, log extensively, and set job conclusion (single JS step)
-	steps = append(steps, c.buildDetectionConclusionStep()...)
+	steps = append(steps, c.buildDetectionConclusionStep(data)...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
 	return steps
@@ -330,7 +355,15 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 // It always runs (always()) so that job outputs are set regardless of prior step outcomes.
 // The RUN_DETECTION env var lets the script short-circuit with conclusion=skipped when
 // the detection guard determined there was no output to analyze.
-func (c *Compiler) buildDetectionConclusionStep() []string {
+func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
+	// Determine on-failure mode (default: warn)
+	onFailureMode := ThreatDetectionOnFailureWarn
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		if data.SafeOutputs.ThreatDetection.OnFailure == ThreatDetectionOnFailureError {
+			onFailureMode = ThreatDetectionOnFailureError
+		}
+	}
+
 	steps := []string{
 		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
@@ -338,6 +371,7 @@ func (c *Compiler) buildDetectionConclusionStep() []string {
 		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
+		fmt.Sprintf("          GH_AW_DETECTION_ON_FAILURE: %q\n", onFailureMode),
 		"        with:\n",
 		"          script: |\n",
 	}
@@ -680,6 +714,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{
 		"detection_success":    "${{ steps.detection_conclusion.outputs.success }}",
 		"detection_conclusion": "${{ steps.detection_conclusion.outputs.conclusion }}",
+		"detection_reason":     "${{ steps.detection_conclusion.outputs.reason }}",
 	}
 
 	// Detection job depends on agent job and activation job (for trace ID)

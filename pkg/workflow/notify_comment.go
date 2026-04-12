@@ -352,10 +352,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
-	// Pass detection conclusion if threat detection is enabled (in separate detection job)
+	// Pass detection conclusion and reason if threat detection is enabled (in separate detection job)
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
-		notifyCommentLog.Print("Added detection conclusion environment variable to conclusion job")
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DETECTION_REASON: ${{ needs.%s.outputs.detection_reason }}\n", constants.DetectionJobName))
+		notifyCommentLog.Print("Added detection conclusion and reason environment variables to conclusion job")
 	}
 
 	// Pass assignment error count to the conclusion step so the status comment reflects assignment failures

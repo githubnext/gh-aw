@@ -7743,6 +7743,12 @@
                 "runs-on": {
                   "type": "string",
                   "description": "Runner specification for the detection job. Overrides agent.runs-on for the detection job only. Defaults to agent.runs-on."
+                },
+                "on-failure": {
+                  "type": "string",
+                  "enum": ["warn", "error"],
+                  "default": "warn",
+                  "description": "Behavior when threat detection fails. 'warn' (default) allows safe outputs to proceed with a caution notice and 'needs-review' label. 'error' blocks safe outputs entirely."
                 }
               },
               "additionalProperties": false

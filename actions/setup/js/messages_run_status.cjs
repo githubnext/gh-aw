@@ -130,11 +130,36 @@ function getCommitPushedMessage(ctx) {
   return renderConfiguredMessage("commitPushed", "Commit pushed: [`{short_sha}`]({commit_url})", ctx);
 }
 
+/**
+ * @typedef {Object} DetectionWarningContext
+ * @property {string} workflowName - Name of the workflow
+ * @property {string} runUrl - URL of the workflow run
+ * @property {string} reason - Categorized reason for the warning (e.g. "threat_detected", "agent_failure", "parse_error")
+ */
+
+/**
+ * Get the detection-warning message with progressive disclosure via details/summary.
+ * Used when on-failure mode is "warn" instead of "error".
+ * @param {DetectionWarningContext} ctx - Context for detection-warning message generation
+ * @returns {string} Detection-warning message with caution admonition
+ */
+function getDetectionWarningMessage(ctx) {
+  const reasonDescriptions = {
+    threat_detected: "Potential security threats were detected in the agent output.",
+    agent_failure: "The threat detection engine failed to produce results.",
+    parse_error: "The threat detection results could not be parsed.",
+  };
+  const reasonText = reasonDescriptions[ctx.reason] || "The threat detection analysis could not be completed.";
+  const cautionBlock = `> [!CAUTION]\n> **Security scanning requires review** for [${ctx.workflowName}](${ctx.runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${ctx.runUrl}) for details.\n> </details>`;
+  return cautionBlock;
+}
+
 module.exports = {
   getRunStartedMessage,
   getRunSuccessMessage,
   getRunFailureMessage,
   getDetectionFailureMessage,
+  getDetectionWarningMessage,
   getPullRequestCreatedMessage,
   getIssueCreatedMessage,
   getCommitPushedMessage,
