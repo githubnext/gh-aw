@@ -72,8 +72,13 @@ function execGitSync(args, options = {}) {
 
   if (result.error) {
     // Detect ENOBUFS (buffer overflow) and provide a more actionable message
-    if (result.error.code === "ENOBUFS") {
-      const bufferError = new Error(`${ERR_SYSTEM}: Git command output exceeded buffer limit (ENOBUFS). The output from '${args[0]}' is too large for the configured maxBuffer. Consider reducing the diff size or increasing maxBuffer.`);
+    /** @type {NodeJS.ErrnoException} */
+    const spawnError = /** @type {NodeJS.ErrnoException} */ result.error;
+    if (spawnError.code === "ENOBUFS") {
+      /** @type {NodeJS.ErrnoException} */
+      const bufferError = /** @type {NodeJS.ErrnoException} */ new Error(
+        `${ERR_SYSTEM}: Git command output exceeded buffer limit (ENOBUFS). The output from '${args[0]}' is too large for the configured maxBuffer. Consider reducing the diff size or increasing maxBuffer.`
+      );
       bufferError.code = "ENOBUFS";
       core.error(`Git command buffer overflow: ${gitCommand}`);
       throw bufferError;
