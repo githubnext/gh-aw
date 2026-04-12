@@ -46,7 +46,7 @@ tools:
 steps:
   - name: Install gh CLI
     run: |
-      bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
+      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
 
   - name: Setup working directories
     id: check-cache
@@ -67,7 +67,7 @@ steps:
       if [ -f "$CACHE_TIMESTAMP_FILE" ]; then
         CACHE_AGE=$(($(date +%s) - $(cat "$CACHE_TIMESTAMP_FILE")))
         # 24 hours = 86400 seconds
-        if [ $CACHE_AGE -lt 86400 ]; then
+        if [ "$CACHE_AGE" -lt 86400 ]; then
           echo "✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)"
           CACHE_VALID=true
         else

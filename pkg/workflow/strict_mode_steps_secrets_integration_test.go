@@ -138,6 +138,50 @@ post-steps:
 Post-steps with secrets in env bindings.
 `,
 		},
+		{
+			name: "secrets in with for uses action step compile in strict mode",
+			content: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+steps:
+  - uses: my-org/secrets-action@v2
+    with:
+      username: ${{ secrets.VAULT_USERNAME }}
+      password: ${{ secrets.VAULT_PASSWORD }}
+      secret_map: static-value
+---
+
+# With Secrets in Uses Action Test
+
+Action steps with secrets in with: inputs should compile in strict mode.
+`,
+		},
+		{
+			name: "mixed env and with secrets for uses action step compile in strict mode",
+			content: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+steps:
+  - uses: my-org/secrets-action@v2
+    env:
+      EXTRA_TOKEN: ${{ secrets.EXTRA_TOKEN }}
+    with:
+      username: ${{ secrets.VAULT_USERNAME }}
+---
+
+# Mixed Env and With Secrets Test
+
+Both env: and with: secrets in a uses: action step should compile.
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -165,8 +209,8 @@ Post-steps with secrets in env bindings.
 }
 
 // TestStrictModeStepUnsafeSecretsBlocked tests that secrets in non-env step
-// fields (run, with, etc.) are still blocked in strict mode during full
-// compilation.
+// fields (run, etc.) are still blocked in strict mode during full compilation.
+// Note: secrets in with: for uses: action steps are now allowed (safe binding).
 func TestStrictModeStepUnsafeSecretsBlocked(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -194,7 +238,7 @@ This should fail because secrets are used inline in run.
 			errorMsg: "strict mode: secrets expressions detected in 'steps' section",
 		},
 		{
-			name: "secret in with field is blocked in strict mode",
+			name: "secret in with field without uses is blocked in strict mode",
 			content: `---
 on: workflow_dispatch
 permissions:
@@ -203,14 +247,15 @@ permissions:
   pull-requests: read
 engine: copilot
 steps:
-  - uses: some/action@v1
+  - name: Step with with but no uses
     with:
       token: ${{ secrets.MY_API_TOKEN }}
+    run: echo hi
 ---
 
-# Unsafe With Secret Test
+# Unsafe With Secret Test (no uses)
 
-This should fail because secrets are used in with field.
+This should fail because with: without uses: is not a safe binding.
 `,
 			errorMsg: "strict mode: secrets expressions detected in 'steps' section",
 		},
@@ -294,6 +339,9 @@ Check that error suggests env bindings.
 	}
 	if !strings.Contains(err.Error(), "env: bindings") {
 		t.Errorf("Expected error to suggest env: bindings, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "with: inputs") {
+		t.Errorf("Expected error to suggest with: inputs for action steps, got: %v", err)
 	}
 }
 

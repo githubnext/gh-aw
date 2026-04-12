@@ -40,12 +40,12 @@ const (
 	// safe outputs, token usage, and agent-side github_rate_limits.jsonl.
 	ArtifactSetAgent ArtifactSet = "agent"
 
-	// ArtifactSetMCP downloads the firewall-audit-logs artifact to access MCP
+	// ArtifactSetMCP downloads the agent artifact which now includes MCP
 	// gateway traffic logs (gateway.jsonl, rpc-messages.jsonl) containing tool
 	// calls, server negotiations, and RPC request/response pairs.
 	ArtifactSetMCP ArtifactSet = "mcp"
 
-	// ArtifactSetFirewall downloads the firewall-audit-logs artifact to access
+	// ArtifactSetFirewall downloads the agent artifact which now includes
 	// AWF network policy data: domain allow/deny decisions, firewall audit trail,
 	// and token-usage proxy logs.
 	ArtifactSetFirewall ArtifactSet = "firewall"
@@ -68,8 +68,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
 	ArtifactSetActivation: {constants.ActivationArtifactName},
 	ArtifactSetAgent:      {constants.AgentArtifactName},
-	ArtifactSetMCP:        {constants.FirewallAuditArtifactName},
-	ArtifactSetFirewall:   {constants.FirewallAuditArtifactName},
+	ArtifactSetMCP:        {constants.AgentArtifactName},
+	ArtifactSetFirewall:   {constants.AgentArtifactName},
 	ArtifactSetDetection:  {constants.DetectionArtifactName},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.
 	ArtifactSetGitHubAPI: {constants.ActivationArtifactName, constants.AgentArtifactName},

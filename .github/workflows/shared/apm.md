@@ -72,7 +72,7 @@ steps:
       path: /tmp/gh-aw/apm-bundle
   - name: Find APM bundle path
     id: apm_bundle
-    run: echo "path=$(ls /tmp/gh-aw/apm-bundle/*.tar.gz | head -1)" >> "$GITHUB_OUTPUT"
+    run: echo "path=$(find /tmp/gh-aw/apm-bundle -name '*.tar.gz' | head -1)" >> "$GITHUB_OUTPUT"
   - name: Restore APM packages
     uses: microsoft/apm-action@v1.4.1
     with:

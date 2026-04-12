@@ -107,7 +107,9 @@ func cleanOneOfMessage(message string) string {
 	}
 
 	if len(meaningful) == 0 {
-		return message // Return original if we cannot simplify
+		// All sub-errors were type conflicts — synthesize a plain-English message
+		// instead of returning raw JSON Schema jargon.
+		return synthesizeOneOfTypeConflictMessage(lines)
 	}
 
 	// Strip "- at '/path':" prefixes and format each remaining constraint
@@ -119,22 +121,104 @@ func cleanOneOfMessage(message string) string {
 	return strings.Join(cleaned, "; ")
 }
 
+// typeConflictGotWantPattern extracts "got X, want Y" components from type-conflict lines.
+// Matches both bare "got X, want Y" and embedded "- at '/path': got X, want Y" forms.
+var typeConflictGotWantPattern = regexp.MustCompile(`(?:^|: )got (\w+), want (\w+)$`)
+
+// knownOneOfFieldHints provides field-specific guidance for oneOf type-conflict fallback
+// messages. When all oneOf branches fail with type-mismatch errors (e.g., the user passes
+// an integer where a string or object is expected), these hints are appended to the
+// synthesized plain-English message to help the user fix the problem.
+//
+// The engine list mirrors the built-in engines in NewEngineCatalog.
+// Update this list when built-in engines change.
+var knownOneOfFieldHints = map[string]string{
+	"/engine": "Valid engine names: claude, codex, copilot, gemini.\n\nExample:\nengine: copilot",
+}
+
+// synthesizeOneOfTypeConflictMessage produces a plain-English error message when every
+// sub-error of a oneOf constraint is a type conflict (e.g., "got number, want string"
+// and "got number, want object"). It extracts the actual and expected types from the
+// conflict lines and, for well-known fields, appends guidance with valid values.
+func synthesizeOneOfTypeConflictMessage(lines []string) string {
+	var gotType string
+	var wantTypes []string
+	var path string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !isTypeConflictLine(trimmed) {
+			continue
+		}
+		// Extract path from "- at '/path': got X, want Y"
+		if match := atPathPattern.FindStringSubmatch(trimmed); match != nil {
+			if path == "" {
+				path = match[1]
+			}
+		}
+		// Extract got/want types
+		if match := typeConflictGotWantPattern.FindStringSubmatch(trimmed); match != nil {
+			if gotType == "" {
+				gotType = match[1]
+			}
+			wantTypes = append(wantTypes, match[2])
+		}
+	}
+
+	if gotType == "" || len(wantTypes) == 0 {
+		return "schema validation failed"
+	}
+
+	// Deduplicate expected types (e.g., multiple "object" branches in oneOf)
+	seen := make(map[string]bool)
+	var uniqueWantTypes []string
+	for _, t := range wantTypes {
+		if !seen[t] {
+			seen[t] = true
+			uniqueWantTypes = append(uniqueWantTypes, t)
+		}
+	}
+
+	result := fmt.Sprintf("expected %s, got %s", strings.Join(uniqueWantTypes, " or "), gotType)
+
+	// Add field-specific hints for known fields
+	if hint, ok := knownOneOfFieldHints[path]; ok {
+		result += ". " + hint
+	}
+
+	return result
+}
+
+// jsonTypeNames is the set of valid JSON Schema type names. Used to distinguish
+// actual type conflicts ("got number, want string") from constraint violations
+// ("minItems: got 0, want 1") in oneOf error messages.
+var jsonTypeNames = map[string]bool{
+	"string": true, "object": true, "array": true, "number": true,
+	"integer": true, "boolean": true, "null": true,
+}
+
+// typeConflictPattern matches "got TYPE, want TYPE" where TYPE must be a JSON type name.
+// This avoids false positives on constraint violations like "minItems: got 0, want 1".
+var typeConflictPattern = regexp.MustCompile(`got (\w+), want (\w+)`)
+
 // isTypeConflictLine returns true for "got X, want Y" lines that arise from the
 // wrong branch of a oneOf constraint. These lines are generated when the user's value
 // matches one branch's type but not the other, and they are confusing to display.
 // Handles both bare "got X, want Y" and embedded "- at '/path': got X, want Y" forms.
+//
+// Only matches when both X and Y are JSON Schema type names (string, object, array,
+// number, integer, boolean, null), to avoid misidentifying constraint violations
+// (e.g., "minItems: got 0, want 1") as type conflicts.
 func isTypeConflictLine(line string) bool {
-	// Direct "got X, want Y" format (bare form)
-	if strings.HasPrefix(line, "got ") && strings.Contains(line, ", want ") {
-		return true
+	// Fast-path: skip regex for lines that clearly aren't type conflicts
+	if !strings.Contains(line, "got ") || !strings.Contains(line, ", want ") {
+		return false
 	}
-	// Embedded form: "- at '/path': got X, want Y"
-	// Look for ": got " followed by ", want " later in the line
-	if _, after, ok := strings.Cut(line, ": got "); ok {
-		afterGot := after
-		return strings.Contains(afterGot, ", want ")
+	match := typeConflictPattern.FindStringSubmatch(line)
+	if match == nil {
+		return false
 	}
-	return false
+	return jsonTypeNames[match[1]] && jsonTypeNames[match[2]]
 }
 
 // stripAtPathPrefix removes "- at '/path': " or "at '/path': " prefixes from schema error lines

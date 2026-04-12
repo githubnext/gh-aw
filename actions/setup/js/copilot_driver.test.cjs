@@ -87,6 +87,60 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
+  describe("MCP policy blocked detection pattern", () => {
+    const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+
+    it("matches the exact error from the issue report", () => {
+      const errorOutput = "! 2 MCP servers were blocked by policy: 'github', 'safeoutputs'";
+      expect(MCP_POLICY_BLOCKED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches with different server names", () => {
+      expect(MCP_POLICY_BLOCKED_PATTERN.test("! 1 MCP servers were blocked by policy: 'github'")).toBe(true);
+      expect(MCP_POLICY_BLOCKED_PATTERN.test("MCP servers were blocked by policy: 'custom-server'")).toBe(true);
+    });
+
+    it("does not match unrelated errors", () => {
+      expect(MCP_POLICY_BLOCKED_PATTERN.test("Error: MCP server connection failed")).toBe(false);
+      expect(MCP_POLICY_BLOCKED_PATTERN.test("MCP server timeout")).toBe(false);
+      expect(MCP_POLICY_BLOCKED_PATTERN.test("Access denied by policy settings")).toBe(false);
+      expect(MCP_POLICY_BLOCKED_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("MCP policy error prevents retry", () => {
+    // Inline the same retry logic as the driver, including MCP policy check
+    const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @returns {boolean}
+     */
+    function shouldRetry(result, attempt) {
+      if (result.exitCode === 0) return false;
+      // MCP policy errors are persistent — never retry
+      if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
+      return attempt < MAX_RETRIES && result.hasOutput;
+    }
+
+    it("does not retry when MCP servers are blocked by policy", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "! 2 MCP servers were blocked by policy: 'github', 'safeoutputs'" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry MCP policy error even on first attempt with output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Some output\nMCP servers were blocked by policy: 'github'\nMore output" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("still retries non-policy errors with output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+  });
+
   describe("retry configuration", () => {
     it("has sensible default values", () => {
       // These match the constants in copilot_driver.cjs

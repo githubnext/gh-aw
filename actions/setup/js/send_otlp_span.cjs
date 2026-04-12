@@ -496,6 +496,9 @@ async function sendJobSetupSpan(options = {}) {
   if (engineId) {
     attributes.push(buildAttr("gh-aw.engine.id", engineId));
   }
+  if (eventName) {
+    attributes.push(buildAttr("gh-aw.event_name", eventName));
+  }
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
   if (repository && runId) {
@@ -707,6 +710,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (jobName) attributes.push(buildAttr("gh-aw.job.name", jobName));
   if (engineId) attributes.push(buildAttr("gh-aw.engine.id", engineId));
   if (model) attributes.push(buildAttr("gh-aw.model", model));
+  if (eventName) attributes.push(buildAttr("gh-aw.event_name", eventName));
   attributes.push(buildAttr("gh-aw.staged", staged));
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));

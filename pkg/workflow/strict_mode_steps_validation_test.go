@@ -99,7 +99,7 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "steps with secret in with field in strict mode fails",
+			name: "steps with secret in with field for uses action step in strict mode is allowed",
 			frontmatter: map[string]any{
 				"steps": []any{
 					map[string]any{
@@ -111,8 +111,40 @@ func TestValidateStepsSecrets(t *testing.T) {
 				},
 			},
 			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "steps with secret in with field without uses in strict mode fails",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Step without uses",
+						"with": map[string]any{
+							"token": "${{ secrets.MY_API_TOKEN }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
 			expectError: true,
 			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
+		},
+		{
+			name: "vault-style action with multiple secrets in with is allowed in strict mode",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"uses": "my-org/secrets-action@v2",
+						"with": map[string]any{
+							"username":   "${{ secrets.VAULT_USERNAME }}",
+							"password":   "${{ secrets.VAULT_PASSWORD }}",
+							"secret_map": "${{ inputs.secret_map }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
 		},
 		{
 			name: "post-steps with secret in strict mode fails",
@@ -300,6 +332,50 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: true,
 			errorMsg:    "strict mode: secrets expressions detected in 'steps' section",
 		},
+		{
+			name: "pre-steps with secret in with for uses action step is allowed in strict mode",
+			frontmatter: map[string]any{
+				"pre-steps": []any{
+					map[string]any{
+						"uses": "my-org/vault-action@v1",
+						"with": map[string]any{
+							"token": "${{ secrets.VAULT_TOKEN }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "post-steps with secret in with for uses action step is allowed in strict mode",
+			frontmatter: map[string]any{
+				"post-steps": []any{
+					map[string]any{
+						"uses": "my-org/notify-action@v1",
+						"with": map[string]any{
+							"webhook": "${{ secrets.SLACK_WEBHOOK }}",
+						},
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
+			name: "error message suggests with: inputs for uses: action steps",
+			frontmatter: map[string]any{
+				"steps": []any{
+					map[string]any{
+						"name": "Leaky step",
+						"run":  "echo ${{ secrets.TOKEN }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "with: inputs (for uses: action steps)",
+		},
 	}
 
 	for _, tt := range tests {
@@ -322,16 +398,17 @@ func TestValidateStepsSecrets(t *testing.T) {
 
 func TestClassifyStepSecrets(t *testing.T) {
 	tests := []struct {
-		name           string
-		step           any
-		expectedUnsafe []string
-		expectedEnv    []string
+		name               string
+		step               any
+		expectedUnsafe     []string
+		expectedSafe       []string
+		unorderedSafeMatch bool // use ElementsMatch instead of Equal for safe refs
 	}{
 		{
 			name:           "non-map step classifies all as unsafe",
 			step:           "echo ${{ secrets.TOKEN }}",
 			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
-			expectedEnv:    nil,
+			expectedSafe:   nil,
 		},
 		{
 			name: "secret in run field is unsafe",
@@ -340,10 +417,10 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run":  "echo ${{ secrets.API_KEY }}",
 			},
 			expectedUnsafe: []string{"${{ secrets.API_KEY }}"},
-			expectedEnv:    nil,
+			expectedSafe:   nil,
 		},
 		{
-			name: "secret in env field is classified as env",
+			name: "secret in env field is classified as safe",
 			step: map[string]any{
 				"name": "Env step",
 				"env": map[string]any{
@@ -352,7 +429,7 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run": "echo hi",
 			},
 			expectedUnsafe: nil,
-			expectedEnv:    []string{"${{ secrets.TOKEN }}"},
+			expectedSafe:   []string{"${{ secrets.TOKEN }}"},
 		},
 		{
 			name: "secrets in both env and run are classified separately",
@@ -364,18 +441,122 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run": "curl ${{ secrets.LEAKED }}",
 			},
 			expectedUnsafe: []string{"${{ secrets.LEAKED }}"},
-			expectedEnv:    []string{"${{ secrets.SAFE }}"},
+			expectedSafe:   []string{"${{ secrets.SAFE }}"},
 		},
 		{
-			name: "secret in with field is unsafe",
+			name: "secret in with field for uses action step is classified as safe",
 			step: map[string]any{
 				"uses": "some/action@v1",
 				"with": map[string]any{
 					"token": "${{ secrets.MY_TOKEN }}",
 				},
 			},
+			expectedUnsafe: nil,
+			expectedSafe:   []string{"${{ secrets.MY_TOKEN }}"},
+		},
+		{
+			name: "secret in with field without uses is unsafe",
+			step: map[string]any{
+				"name": "Step without uses",
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
 			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
-			expectedEnv:    nil,
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with nil uses is unsafe",
+			step: map[string]any{
+				"uses": nil,
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with empty uses is unsafe",
+			step: map[string]any{
+				"uses": "",
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with whitespace-only uses is unsafe",
+			step: map[string]any{
+				"uses": "   ",
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with non-string uses is unsafe",
+			step: map[string]any{
+				"uses": 42,
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "malformed string with in uses action step is unsafe",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"with": "${{ secrets.TOKEN }}",
+			},
+			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "malformed slice with in uses action step is unsafe",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"with": []any{
+					"${{ secrets.ARRAY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.ARRAY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "multiple secrets in with for uses action step are safe",
+			step: map[string]any{
+				"uses": "my-org/secrets-action@v2",
+				"with": map[string]any{
+					"username":   "${{ secrets.VAULT_USERNAME }}",
+					"password":   "${{ secrets.VAULT_PASSWORD }}",
+					"secret_map": "static-value",
+				},
+			},
+			expectedUnsafe:     nil,
+			expectedSafe:       []string{"${{ secrets.VAULT_USERNAME }}", "${{ secrets.VAULT_PASSWORD }}"},
+			unorderedSafeMatch: true,
+		},
+		{
+			name: "secrets in both env and with for uses action step are safe",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"env": map[string]any{
+					"SAFE_ENV": "${{ secrets.ENV_SECRET }}",
+				},
+				"with": map[string]any{
+					"token": "${{ secrets.WITH_SECRET }}",
+				},
+			},
+			expectedUnsafe:     nil,
+			expectedSafe:       []string{"${{ secrets.ENV_SECRET }}", "${{ secrets.WITH_SECRET }}"},
+			unorderedSafeMatch: true,
 		},
 		{
 			name: "step with no secrets returns empty",
@@ -384,7 +565,7 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run":  "echo hello",
 			},
 			expectedUnsafe: nil,
-			expectedEnv:    nil,
+			expectedSafe:   nil,
 		},
 		{
 			name: "secret in malformed string env is unsafe",
@@ -394,7 +575,7 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run":  "echo hi",
 			},
 			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
-			expectedEnv:    nil,
+			expectedSafe:   nil,
 		},
 		{
 			name: "secret in malformed slice env is unsafe",
@@ -406,7 +587,7 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run": "echo hi",
 			},
 			expectedUnsafe: []string{"${{ secrets.ARRAY_TOKEN }}"},
-			expectedEnv:    nil,
+			expectedSafe:   nil,
 		},
 		{
 			name: "env-bound secret with GITHUB_ENV in run is reclassified as unsafe",
@@ -418,10 +599,10 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run": `echo "TOKEN=${TOKEN}" >> "$GITHUB_ENV"`,
 			},
 			expectedUnsafe: []string{"${{ secrets.TOKEN }}"},
-			expectedEnv:    nil,
+			expectedSafe:   nil,
 		},
 		{
-			name: "env-bound secret without GITHUB_ENV reference stays env-bound",
+			name: "env-bound secret without GITHUB_ENV reference stays safe",
 			step: map[string]any{
 				"name": "Safe step",
 				"env": map[string]any{
@@ -430,22 +611,36 @@ func TestClassifyStepSecrets(t *testing.T) {
 				"run": "my-tool --authenticate",
 			},
 			expectedUnsafe: nil,
-			expectedEnv:    []string{"${{ secrets.TOKEN }}"},
+			expectedSafe:   []string{"${{ secrets.TOKEN }}"},
+		},
+		{
+			name: "GITHUB_ENV string in with field does not trigger reclassification",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"with": map[string]any{
+					"path":  "GITHUB_ENV",
+					"token": "${{ secrets.TOKEN }}",
+				},
+			},
+			expectedUnsafe: nil,
+			expectedSafe:   []string{"${{ secrets.TOKEN }}"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			unsafe, env := classifyStepSecrets(tt.step)
+			unsafe, safe := classifyStepSecrets(tt.step)
 			if len(tt.expectedUnsafe) == 0 {
 				assert.Empty(t, unsafe, "expected no unsafe secrets")
 			} else {
 				assert.Equal(t, tt.expectedUnsafe, unsafe, "unexpected unsafe secrets")
 			}
-			if len(tt.expectedEnv) == 0 {
-				assert.Empty(t, env, "expected no env secrets")
+			if len(tt.expectedSafe) == 0 {
+				assert.Empty(t, safe, "expected no safe secrets")
+			} else if tt.unorderedSafeMatch {
+				assert.ElementsMatch(t, tt.expectedSafe, safe, "unexpected safe secrets")
 			} else {
-				assert.Equal(t, tt.expectedEnv, env, "unexpected env secrets")
+				assert.Equal(t, tt.expectedSafe, safe, "unexpected safe secrets")
 			}
 		})
 	}
@@ -622,6 +817,14 @@ func TestStepReferencesGitHubEnv(t *testing.T) {
 			stepMap: map[string]any{
 				"run": "my-tool scan",
 				"env": map[string]any{"GITHUB_ENV": "/tmp/env"},
+			},
+			expected: false,
+		},
+		{
+			name: "GITHUB_ENV in with field is ignored",
+			stepMap: map[string]any{
+				"run":  "my-tool scan",
+				"with": map[string]any{"path": "GITHUB_ENV"},
 			},
 			expected: false,
 		},

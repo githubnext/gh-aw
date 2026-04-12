@@ -50,6 +50,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
         required: false
@@ -80,7 +81,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Close expired discussions
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -89,7 +90,7 @@ jobs:
             await main();
 
       - name: Close expired issues
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -98,7 +99,7 @@ jobs:
             await main();
 
       - name: Close expired pull requests
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -107,7 +108,7 @@ jobs:
             await main();
 
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -125,7 +126,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -144,7 +145,7 @@ jobs:
         run: make build
 
       - name: Run operation
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_OPERATION: ${{ github.event.inputs.operation }}
@@ -180,7 +181,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -190,7 +191,7 @@ jobs:
             await main();
 
       - name: Apply Safe Outputs
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_RUN_URL: ${{ github.event.inputs.run_url }}
@@ -220,7 +221,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -239,7 +240,7 @@ jobs:
         run: make build
 
       - name: Create missing labels
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_CMD_PREFIX: ./gh-aw
         with:
@@ -248,6 +249,59 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/create_labels.cjs');
+            await main();
+
+  validate_workflows:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate' && !github.event.repository.fork }}
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Start Docker daemon
+        run: |
+          sudo systemctl start docker
+          docker info
+
+      - name: Validate workflows and file issue on findings
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_AW_CMD_PREFIX: ./gh-aw
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/run_validate_workflows.cjs');
             await main();
 
   compile-workflows:
@@ -282,7 +336,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check for out-of-sync workflows and create issue if needed
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -338,7 +392,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Validate Secrets
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           # GitHub tokens
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}

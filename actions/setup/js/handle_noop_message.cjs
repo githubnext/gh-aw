@@ -72,7 +72,7 @@ async function ensureAgentRunsIssue() {
 
 /**
  * Process no-op safe outputs and optionally post to the no-op runs issue.
- * This merged step replaces the separate "Process No-Op Messages" + "Handle No-Op Message"
+ * This merged step replaces the separate "Process no-op messages" + "Handle No-Op Message"
  * steps, eliminating the cross-step output dependency on GH_AW_NOOP_MESSAGE.
  *
  * Behaviour:

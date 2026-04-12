@@ -178,6 +178,71 @@ func ExtractEnvExpressionsFromValue(value string) map[string]string {
 	return envExpressions
 }
 
+// gitHubContextExprPattern matches ${{ github.PROPERTY }} expressions where PROPERTY is a
+// simple dotted identifier (e.g., github.workflow, github.ref_name, github.run_id).
+// Complex expressions with operators (||, &&) are excluded by the regex. Nested dotted
+// properties such as github.event.issue.title may still match this pattern, but are only
+// accepted later if they are present in gitHubContextEnvVarMap.
+var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-9_.]*)\s*\}\}`)
+
+// gitHubContextEnvVarMap maps common github.* context properties to their corresponding
+// GitHub Actions runner environment variables (always available on all runners).
+// See: https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+var gitHubContextEnvVarMap = map[string]string{
+	"workflow":         "GITHUB_WORKFLOW",
+	"run_id":           "GITHUB_RUN_ID",
+	"run_number":       "GITHUB_RUN_NUMBER",
+	"run_attempt":      "GITHUB_RUN_ATTEMPT",
+	"actor":            "GITHUB_ACTOR",
+	"repository":       "GITHUB_REPOSITORY",
+	"event_name":       "GITHUB_EVENT_NAME",
+	"sha":              "GITHUB_SHA",
+	"ref":              "GITHUB_REF",
+	"ref_name":         "GITHUB_REF_NAME",
+	"ref_type":         "GITHUB_REF_TYPE",
+	"head_ref":         "GITHUB_HEAD_REF",
+	"base_ref":         "GITHUB_BASE_REF",
+	"server_url":       "GITHUB_SERVER_URL",
+	"job":              "GITHUB_JOB",
+	"action":           "GITHUB_ACTION",
+	"workspace":        "GITHUB_WORKSPACE",
+	"workflow_ref":     "GITHUB_WORKFLOW_REF",
+	"workflow_sha":     "GITHUB_WORKFLOW_SHA",
+	"repository_owner": "GITHUB_REPOSITORY_OWNER",
+	"triggering_actor": "GITHUB_TRIGGERING_ACTOR",
+	"token":            "GITHUB_TOKEN",
+}
+
+// ExtractGitHubContextExpressionsFromValue extracts all simple ${{ github.X }} expressions from a
+// string value and maps them to their corresponding GitHub Actions runner environment variable names.
+// Only well-known context properties present in gitHubContextEnvVarMap are extracted; nested
+// properties like github.event.issue.title are matched by the regex but filtered out by the map.
+// Returns a map of env var name -> full expression.
+//
+// Examples:
+//   - "${{ github.workflow }}" -> {"GITHUB_WORKFLOW": "${{ github.workflow }}"}
+//   - "${{ github.ref_name }}" -> {"GITHUB_REF_NAME": "${{ github.ref_name }}"}
+//   - "${{ github.event.issue.title }}" -> {} (not in gitHubContextEnvVarMap, skipped)
+func ExtractGitHubContextExpressionsFromValue(value string) map[string]string {
+	result := make(map[string]string)
+
+	matches := gitHubContextExprPattern.FindAllStringSubmatch(value, -1)
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		property := match[1]
+		fullExpr := match[0]
+
+		if envVar, known := gitHubContextEnvVarMap[property]; known {
+			result[envVar] = fullExpr
+			secretLog.Printf("Extracted GitHub context expression: %s -> %s", fullExpr, envVar)
+		}
+	}
+
+	return result
+}
+
 // ReplaceTemplateExpressionsWithEnvVars replaces all template expressions with environment variable references
 // Handles: secrets.*, env.*, and github.workspace
 // Examples:

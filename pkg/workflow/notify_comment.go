@@ -87,7 +87,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 		// Build the merged noop step (without artifact downloads - already added above)
 		noopSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-			StepName:      "Process No-Op Messages",
+			StepName:      "Process no-op messages",
 			StepID:        "noop",
 			MainJobName:   mainJobName,
 			CustomEnvVars: noopEnvVars,
@@ -222,6 +222,18 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// This detects when the Copilot CLI fails due to the token lacking inference access
 	if _, ok := engine.(*CopilotEngine); ok {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
+	}
+
+	// Pass MCP policy error output for Copilot engine
+	// This detects when MCP servers are blocked by enterprise/organization policy
+	if _, ok := engine.(*CopilotEngine); ok {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MCP_POLICY_ERROR: ${{ needs.%s.outputs.mcp_policy_error }}\n", mainJobName))
+	}
+
+	// Pass agentic engine timeout output for Copilot engine
+	// This detects when the engine process was killed by a signal (step timeout)
+	if _, ok := engine.(*CopilotEngine); ok {
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))
 	}
 
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured

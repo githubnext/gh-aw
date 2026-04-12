@@ -318,8 +318,8 @@ ls -lh /tmp/gh-aw/mcp-logs/playwright/
 
 1. Stage each screenshot file to the artifact upload directory:
    ```bash
-   mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
-   cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts
+   cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
    ```
 2. Call the `upload_artifact` safe-output tool for each file
 3. Record the returned `aw_*` ID for each screenshot to include in the PR description

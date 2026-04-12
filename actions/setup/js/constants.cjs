@@ -81,6 +81,15 @@ const RPC_MESSAGES_PATH = `${TMP_GH_AW_PATH}/mcp-logs/rpc-messages.jsonl`;
 const MANIFEST_FILE_PATH = `${TMP_GH_AW_PATH}/safe-output-items.jsonl`;
 
 /**
+ * Path to the temporary ID map JSON file.
+ * This file stores the mapping of temporary IDs (e.g., aw_abc123) to their resolved
+ * GitHub resource references ({repo, number}) for review and audit purposes.
+ * The file is uploaded as part of the safe-outputs-items artifact.
+ * @type {string}
+ */
+const TEMPORARY_ID_MAP_FILE_PATH = `${TMP_GH_AW_PATH}/temporary-id-map.json`;
+
+/**
  * Path to the OTLP telemetry mirror file.
  * Every OTLP span payload is appended here as a JSON line for artifact inspection.
  * @type {string}
@@ -113,6 +122,7 @@ module.exports = {
   GATEWAY_JSONL_PATH,
   RPC_MESSAGES_PATH,
   MANIFEST_FILE_PATH,
+  TEMPORARY_ID_MAP_FILE_PATH,
   OTEL_JSONL_PATH,
   GITHUB_RATE_LIMITS_JSONL_PATH,
   DETECTION_LOG_FILENAME,

@@ -209,18 +209,40 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// AND exceeds 21,000 characters total.
 		yaml.WriteString("      - name: Write Safe Outputs Config\n")
 
-		// SECURITY: extract any ${{ secrets.* }} from config.json content and pass them
-		// as env vars so the shell treats the values as data, not syntax.
+		// SECURITY: extract ${{ secrets.* }} and ${{ github.* }} expressions from
+		// config.json content and pass them as env vars so the shell treats the
+		// values as data, not syntax.  This prevents template-injection
+		// vulnerabilities flagged by zizmor/CodeQL for run: blocks.
 		configSecrets := ExtractSecretsFromValue(safeOutputConfig)
-		if len(configSecrets) > 0 {
+		configContextVars := ExtractGitHubContextExpressionsFromValue(safeOutputConfig)
+
+		// Build the combined env: block from secrets and GitHub context expressions.
+		// Secrets MUST be set explicitly (the runner doesn't expose them as env vars).
+		// GitHub context vars already exist as GITHUB_* env vars on the runner, but
+		// we still list them in env: for clarity and to satisfy static-analysis tools
+		// (zizmor, CodeQL) that flag any ${{ }} outside env:/with: blocks.
+		//
+		// Secrets take precedence over context vars when both maps share a key
+		// (e.g. a secret named GITHUB_WORKFLOW would shadow the context var).
+		hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0
+		if hasEnvVars {
 			yaml.WriteString("        env:\n")
-			secretKeys := make([]string, 0, len(configSecrets))
-			for k := range configSecrets {
-				secretKeys = append(secretKeys, k)
+			envKeys := make([]string, 0, len(configSecrets)+len(configContextVars))
+			envValues := make(map[string]string, len(configSecrets)+len(configContextVars))
+			// Add context vars first so secrets overwrite them on collision.
+			for k, v := range configContextVars {
+				envKeys = append(envKeys, k)
+				envValues[k] = v
 			}
-			sort.Strings(secretKeys)
-			for _, varName := range secretKeys {
-				yaml.WriteString("          " + varName + ": " + configSecrets[varName] + "\n")
+			for k, v := range configSecrets {
+				if _, exists := envValues[k]; !exists {
+					envKeys = append(envKeys, k)
+				}
+				envValues[k] = v
+			}
+			sort.Strings(envKeys)
+			for _, varName := range envKeys {
+				yaml.WriteString("          " + varName + ": " + envValues[varName] + "\n")
 			}
 		}
 
@@ -240,12 +262,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Write the safe-outputs configuration to config.json
 		delimiter := GenerateHeredocDelimiterFromSeed("SAFE_OUTPUTS_CONFIG", workflowData.FrontmatterHash)
 		if safeOutputConfig != "" {
-			if len(configSecrets) > 0 {
-				// Replace ${{ secrets.X }} with ${X} and use unquoted heredoc so the
-				// shell expands the env var references we set above.
+			if hasEnvVars {
+				// Replace ${{ ... }} expressions with ${VAR} shell references and use
+				// an unquoted heredoc so the shell expands them at runtime.
 				sanitizedConfig := safeOutputConfig
 				for varName, secretExpr := range configSecrets {
 					sanitizedConfig = strings.ReplaceAll(sanitizedConfig, secretExpr, "${"+varName+"}")
+				}
+				for varName, ctxExpr := range configContextVars {
+					sanitizedConfig = strings.ReplaceAll(sanitizedConfig, ctxExpr, "${"+varName+"}")
 				}
 				yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << " + delimiter + "\n")
 				yaml.WriteString("          " + sanitizedConfig + "\n")

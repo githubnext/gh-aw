@@ -80,6 +80,15 @@ describe("git_helpers.cjs", () => {
       expect(result).toContain("git version");
     });
 
+    it("should throw actionable ENOBUFS error when maxBuffer is exceeded", async () => {
+      const { execGitSync } = await import("./git_helpers.cjs");
+
+      // Use a tiny maxBuffer to trigger ENOBUFS on any git output
+      expect(() => {
+        execGitSync(["--version"], { maxBuffer: 1 });
+      }).toThrow(/ENOBUFS|buffer limit/i);
+    });
+
     it("should return stdout from successful commands", async () => {
       const { execGitSync } = await import("./git_helpers.cjs");
 

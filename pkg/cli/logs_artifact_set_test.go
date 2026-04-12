@@ -123,19 +123,19 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"agent"},
 		},
 		{
-			name:     "mcp resolves to firewall-audit-logs artifact",
+			name:     "mcp resolves to agent artifact",
 			sets:     []string{"mcp"},
-			expected: []string{"firewall-audit-logs"},
+			expected: []string{"agent"},
 		},
 		{
-			name:     "firewall resolves to firewall-audit-logs artifact",
+			name:     "firewall resolves to agent artifact",
 			sets:     []string{"firewall"},
-			expected: []string{"firewall-audit-logs"},
+			expected: []string{"agent"},
 		},
 		{
-			name:     "mcp and firewall both deduplicate to single firewall-audit-logs",
+			name:     "mcp and firewall both deduplicate to single agent",
 			sets:     []string{"mcp", "firewall"},
-			expected: []string{"firewall-audit-logs"},
+			expected: []string{"agent"},
 		},
 		{
 			name:     "detection resolves to detection artifact",

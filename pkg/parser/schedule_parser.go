@@ -385,6 +385,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 	case "hourly":
 		// hourly -> FUZZY:HOURLY/1 (fuzzy hourly schedule, equivalent to "every 1h")
 		// hourly on weekdays -> FUZZY:HOURLY_WEEKDAYS/1 (fuzzy hourly schedule, Mon-Fri only)
+		scheduleLog.Printf("Parsing hourly schedule: weekdays=%v", hasWeekdaysSuffix)
 		if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
 			if hasWeekdaysSuffix {
 				return "FUZZY:HOURLY_WEEKDAYS/1 * * *", nil
@@ -399,6 +400,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 		// weekly on <weekday> -> FUZZY:WEEKLY:DOW (fuzzy schedule on specific weekday)
 		// weekly on <weekday> at HH:MM -> MM HH * * DOW
 		// weekly on <weekday> around HH:MM -> FUZZY:WEEKLY_AROUND:DOW:HH:MM
+		scheduleLog.Printf("Parsing weekly schedule: token_count=%d", len(p.tokens))
 		if len(p.tokens) == 1 {
 			// Just "weekly" with no day specified - this is a fuzzy schedule
 			return "FUZZY:WEEKLY * * *", nil
@@ -453,6 +455,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 	case "monthly":
 		// monthly on <day> -> rejected (use cron directly)
 		// monthly on <day> at HH:MM -> rejected (use cron directly)
+		scheduleLog.Printf("Parsing monthly schedule: token_count=%d", len(p.tokens))
 		if len(p.tokens) < 3 || p.tokens[1] != "on" {
 			return "", errors.New("monthly schedule requires 'on <day>'")
 		}

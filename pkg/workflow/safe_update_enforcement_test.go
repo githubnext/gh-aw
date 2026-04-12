@@ -243,6 +243,27 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			wantErr:     true,
 			wantErrMsgs: []string{"evil-org/bad-action"},
 		},
+		// gh-aw infrastructure action exemption tests.
+		{
+			name: "gh aw upgrade: gh-aw-actions/setup added after manifest had gh-aw/actions/setup",
+			manifest: &GHAWManifest{
+				Version: 1,
+				Secrets: []string{},
+				Actions: []GHAWManifestAction{
+					{Repo: "github/gh-aw/actions/setup", SHA: "abc1234", Version: "v0.66.1"},
+				},
+			},
+			secretNames: []string{},
+			actionRefs:  []string{"github/gh-aw-actions/setup@def5678 # v0.68.1"},
+			wantErr:     false,
+		},
+		{
+			name:        "gh-aw-actions allowed on first compile with nil manifest",
+			manifest:    nil,
+			secretNames: []string{},
+			actionRefs:  []string{"github/gh-aw-actions/setup@abc1234 # v0.68.1"},
+			wantErr:     false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -367,6 +388,37 @@ func TestCollectActionViolations(t *testing.T) {
 			}},
 			actionRefs:  []string{"actions/setup-node@def5678 # v4", "evil-org/bad-action@deadbeef # v1"},
 			wantAdded:   []string{"evil-org/bad-action"},
+			wantRemoved: nil,
+		},
+		// gh-aw infrastructure action exemption tests.
+		{
+			name:        "new github/gh-aw-actions/ action is not an addition violation",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{}},
+			actionRefs:  []string{"github/gh-aw-actions/setup@abc1234 # v0.68.1"},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name:        "new github/gh-aw/actions/ action is not an addition violation",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{}},
+			actionRefs:  []string{"github/gh-aw/actions/setup@abc1234 # v0.68.1"},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name:        "removal of github/gh-aw-actions/ action from manifest is not a removal violation",
+			manifest:    &GHAWManifest{Actions: []GHAWManifestAction{{Repo: "github/gh-aw-actions/setup", SHA: "abc1234", Version: "v0.66.1"}}},
+			actionRefs:  []string{},
+			wantAdded:   nil,
+			wantRemoved: nil,
+		},
+		{
+			name: "gh-aw-actions replacement of gh-aw/actions is not a violation",
+			manifest: &GHAWManifest{Actions: []GHAWManifestAction{
+				{Repo: "github/gh-aw/actions/setup", SHA: "abc1234", Version: "v0.66.1"},
+			}},
+			actionRefs:  []string{"github/gh-aw-actions/setup@def5678 # v0.68.1"},
+			wantAdded:   nil,
 			wantRemoved: nil,
 		},
 	}

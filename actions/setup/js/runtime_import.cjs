@@ -650,20 +650,20 @@ function wrapExpressionsInTemplateConditionals(content) {
       return match;
     }
 
+    // Boolean/null literals are self-evaluating — the template renderer's isTruthy()
+    // handles them directly. Wrapping them would create __GH_AW_TRUE__/__GH_AW_FALSE__/__GH_AW_NULL__
+    // placeholders that cannot be resolved at runtime (no corresponding env var is set),
+    // causing the placeholder validator to flag them as unsubstituted.
+    if (trimmed === "true" || trimmed === "false" || trimmed === "null") {
+      return match;
+    }
+
     // Only wrap expressions that look like GitHub Actions expressions
     // GitHub Actions expressions typically start with a letter and contain dots
-    // (e.g., github.actor, github.event.issue.number) or specific keywords (true, false, null).
+    // (e.g., github.actor, github.event.issue.number).
     // Expressions starting with non-alphabetic characters (e.g., "...") are NOT GitHub expressions.
     const looksLikeGitHubExpr =
-      (/^[a-zA-Z]/.test(trimmed) && trimmed.includes(".")) ||
-      trimmed === "true" ||
-      trimmed === "false" ||
-      trimmed === "null" ||
-      trimmed.startsWith("github.") ||
-      trimmed.startsWith("needs.") ||
-      trimmed.startsWith("steps.") ||
-      trimmed.startsWith("env.") ||
-      trimmed.startsWith("inputs.");
+      (/^[a-zA-Z]/.test(trimmed) && trimmed.includes(".")) || trimmed.startsWith("github.") || trimmed.startsWith("needs.") || trimmed.startsWith("steps.") || trimmed.startsWith("env.") || trimmed.startsWith("inputs.");
 
     if (!looksLikeGitHubExpr) {
       // Not a GitHub Actions expression, leave as-is

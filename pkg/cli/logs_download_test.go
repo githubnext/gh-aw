@@ -222,9 +222,8 @@ func TestIsDockerBuildArtifact(t *testing.T) {
 func TestCriticalArtifactNames(t *testing.T) {
 	// Verify the list of critical artifacts includes the expected names
 	expected := map[string]bool{
-		"activation":          true,
-		"agent":               true,
-		"firewall-audit-logs": true,
+		"activation": true,
+		"agent":      true,
 	}
 
 	if len(criticalArtifactNames) != len(expected) {

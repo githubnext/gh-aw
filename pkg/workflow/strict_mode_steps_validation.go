@@ -2,9 +2,9 @@
 //
 // It validates that secrets expressions are not used in custom steps (steps and
 // post-steps injected in the agent job). In strict mode, secrets in step-level
-// env: bindings are allowed (controlled binding, masked by GitHub Actions),
-// while secrets in other fields (run, with, etc.) are treated as errors.
-// In non-strict mode a warning is emitted instead.
+// env: bindings and with: inputs for uses: action steps are allowed (controlled
+// binding, masked by GitHub Actions), while secrets in other fields (run, etc.)
+// are treated as errors. In non-strict mode a warning is emitted instead.
 //
 // The goal is to minimise the number of secrets present in the agent job: the
 // only secrets that should appear there are those required to configure the
@@ -27,8 +27,9 @@ import (
 // validateStepsSecrets checks the "pre-steps", "steps", and "post-steps" frontmatter sections
 // for secrets expressions (e.g. ${{ secrets.MY_SECRET }}).
 //
-// In strict mode, secrets in step-level env: bindings are allowed (controlled,
-// masked binding), while secrets in other fields (run, with, etc.) are errors.
+// In strict mode, secrets in step-level env: bindings and with: inputs for
+// uses: action steps are allowed (controlled, masked binding), while secrets
+// in other fields (run, etc.) are errors.
 // In non-strict mode a warning is emitted for all secrets.
 func (c *Compiler) validateStepsSecrets(frontmatter map[string]any) error {
 	for _, sectionName := range []string{"pre-steps", "steps", "post-steps"} {
@@ -42,9 +43,10 @@ func (c *Compiler) validateStepsSecrets(frontmatter map[string]any) error {
 // validateStepsSectionSecrets inspects a single steps section (named by sectionName)
 // inside frontmatter for any secrets.* expressions.
 //
-// In strict mode, secrets in step-level env: bindings are allowed because they are
-// controlled bindings that are automatically masked by GitHub Actions. Secrets in
-// other step fields (run, with, etc.) are still treated as errors.
+// In strict mode, secrets in step-level env: bindings and with: inputs for
+// uses: action steps are allowed because they are controlled bindings that are
+// automatically masked by GitHub Actions. Secrets in other step fields (run,
+// etc.) are still treated as errors.
 func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, sectionName string) error {
 	rawValue, exists := frontmatter[sectionName]
 	if !exists {
@@ -58,37 +60,37 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 		return nil
 	}
 
-	// Separate secrets found in step-level env: bindings (safe, controlled)
-	// from secrets found in other fields (unsafe, potential leak).
+	// Separate secrets found in safe bindings (env: maps, with: maps in uses:
+	// action steps) from secrets found in other fields (unsafe, potential leak).
 	var unsafeSecretRefs []string
-	var envSecretRefs []string
+	var safeSecretRefs []string
 	for _, step := range steps {
-		unsafe, envOnly := classifyStepSecrets(step)
+		unsafe, safe := classifyStepSecrets(step)
 		unsafeSecretRefs = append(unsafeSecretRefs, unsafe...)
-		envSecretRefs = append(envSecretRefs, envOnly...)
+		safeSecretRefs = append(safeSecretRefs, safe...)
 	}
 
 	// Filter out the built-in GITHUB_TOKEN: it is already present in every runner
 	// environment and is not a user-defined secret that could be accidentally leaked.
 	unsafeSecretRefs = filterBuiltinTokens(unsafeSecretRefs)
-	envSecretRefs = filterBuiltinTokens(envSecretRefs)
+	safeSecretRefs = filterBuiltinTokens(safeSecretRefs)
 
-	allSecretRefs := append(unsafeSecretRefs, envSecretRefs...)
+	allSecretRefs := append(unsafeSecretRefs, safeSecretRefs...)
 
 	if len(allSecretRefs) == 0 {
 		strictModeValidationLog.Printf("No secrets found in %s section", sectionName)
 		return nil
 	}
 
-	strictModeValidationLog.Printf("Found %d secret expression(s) in %s section: %d unsafe, %d in env bindings",
-		len(allSecretRefs), sectionName, len(unsafeSecretRefs), len(envSecretRefs))
+	strictModeValidationLog.Printf("Found %d secret expression(s) in %s section: %d unsafe, %d in safe bindings",
+		len(allSecretRefs), sectionName, len(unsafeSecretRefs), len(safeSecretRefs))
 
 	if c.strictMode {
-		// In strict mode, secrets in step-level env: bindings are allowed
-		// (controlled binding, masked by GitHub Actions). Only block secrets
-		// found in other fields (run, with, etc.).
+		// In strict mode, secrets in step-level env: bindings and with: inputs
+		// for uses: action steps are allowed (controlled binding, masked by
+		// GitHub Actions). Only block secrets found in other fields (run, etc.).
 		if len(unsafeSecretRefs) == 0 {
-			strictModeValidationLog.Printf("All secrets in %s section are in env bindings (allowed in strict mode)", sectionName)
+			strictModeValidationLog.Printf("All secrets in %s section are in safe bindings (allowed in strict mode)", sectionName)
 			return nil
 		}
 
@@ -97,7 +99,7 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 		return fmt.Errorf(
 			"strict mode: secrets expressions detected in '%s' section may be leaked to the agent job. Found: %s. "+
 				"Operations requiring secrets must be moved to a separate job outside the agent job, "+
-				"or use step-level env: bindings instead",
+				"or use step-level env: bindings (for run: steps) or with: inputs (for uses: action steps) instead",
 			sectionName, strings.Join(unsafeSecretRefs, ", "),
 		)
 	}
@@ -122,32 +124,52 @@ func (c *Compiler) validateStepsSectionSecrets(frontmatter map[string]any, secti
 var githubEnvWritePattern = regexp.MustCompile(`(?i)GITHUB_ENV`)
 
 // classifyStepSecrets separates secrets found in a step into two categories:
-//   - unsafeRefs: secrets found in fields other than "env" (e.g. run, with),
-//     or secrets in env: bindings when the step also writes to $GITHUB_ENV
-//   - envRefs: secrets found in step-level env: bindings (controlled, masked)
+//   - unsafeRefs: secrets found in fields other than "env" or "with" (for uses:
+//     action steps), or secrets in env:/with: bindings when the step also writes
+//     to $GITHUB_ENV
+//   - safeRefs: secrets found in step-level env: bindings (controlled, masked),
+//     or in with: inputs for uses: action steps (passed to external actions,
+//     masked by the runner)
 //
-// Only secrets in well-formed env: mappings (map[string]any) are classified as
-// envRefs. Malformed env values (string, slice, etc.) are treated as unsafe to
-// prevent strict-mode bypass via invalid YAML like `env: "${{ secrets.TOKEN }}"`.
+// Only secrets in well-formed mappings (map[string]any) are classified as safe.
+// Malformed values (string, slice, etc.) are treated as unsafe to prevent
+// strict-mode bypass via invalid YAML like `env: "${{ secrets.TOKEN }}"`.
 //
 // Steps that reference $GITHUB_ENV in their run: command while also using
-// env-bound secrets are treated as entirely unsafe, because writing to
+// safe-bound secrets are treated as entirely unsafe, because writing to
 // $GITHUB_ENV would leak the secret to subsequent steps (including the agent).
-func classifyStepSecrets(step any) (unsafeRefs, envRefs []string) {
+func classifyStepSecrets(step any) (unsafeRefs, safeRefs []string) {
 	stepMap, ok := step.(map[string]any)
 	if !ok {
 		// Non-map steps: all secrets are considered unsafe.
 		return extractSecretsFromStepValue(step), nil
 	}
 
-	var localUnsafe, localEnv []string
+	// Check if this is a uses: action step. For action steps, with: inputs are
+	// passed to the external action (not interpolated into shell scripts), and
+	// the GitHub Actions runner masks with: values derived from secrets.
+	// Only treat with: as safe when uses is a valid non-empty string reference.
+	usesVal, hasUses := stepMap["uses"]
+	if hasUses {
+		usesStr, isString := usesVal.(string)
+		hasUses = isString && strings.TrimSpace(usesStr) != ""
+	}
+
+	var localUnsafe, localSafe []string
 	for key, val := range stepMap {
 		refs := extractSecretsFromStepValue(val)
 		if key == "env" {
 			if _, isMap := val.(map[string]any); isMap {
-				localEnv = append(localEnv, refs...)
+				localSafe = append(localSafe, refs...)
 			} else {
 				// Malformed env (string, slice, etc.): treat as unsafe.
+				localUnsafe = append(localUnsafe, refs...)
+			}
+		} else if key == "with" && hasUses {
+			if _, isMap := val.(map[string]any); isMap {
+				localSafe = append(localSafe, refs...)
+			} else {
+				// Malformed with (string, slice, etc.): treat as unsafe.
 				localUnsafe = append(localUnsafe, refs...)
 			}
 		} else {
@@ -155,15 +177,15 @@ func classifyStepSecrets(step any) (unsafeRefs, envRefs []string) {
 		}
 	}
 
-	// If the step has env-bound secrets AND references $GITHUB_ENV in any
-	// non-env field, reclassify all env refs as unsafe. Writing to
+	// If the step has safe-bound secrets AND references $GITHUB_ENV in any
+	// non-env/non-with field, reclassify all safe refs as unsafe. Writing to
 	// $GITHUB_ENV would persist the secret to subsequent steps.
-	if len(localEnv) > 0 && stepReferencesGitHubEnv(stepMap) {
-		localUnsafe = append(localUnsafe, localEnv...)
-		localEnv = nil
+	if len(localSafe) > 0 && stepReferencesGitHubEnv(stepMap) {
+		localUnsafe = append(localUnsafe, localSafe...)
+		localSafe = nil
 	}
 
-	return localUnsafe, localEnv
+	return localUnsafe, localSafe
 }
 
 // extractSecretsFromStepValue recursively walks a step value (which may be a map,
@@ -215,11 +237,13 @@ func filterBuiltinTokens(refs []string) []string {
 	return out
 }
 
-// stepReferencesGitHubEnv returns true if any non-env field in the step map
-// contains a reference to GITHUB_ENV (e.g. in a run: command that writes to it).
+// stepReferencesGitHubEnv returns true if any non-env, non-with field in the
+// step map contains a reference to GITHUB_ENV (e.g. in a run: command that
+// writes to it). Both env: and with: are safe binding surfaces, so their
+// values are excluded from GITHUB_ENV leak detection.
 func stepReferencesGitHubEnv(stepMap map[string]any) bool {
 	for key, val := range stepMap {
-		if key == "env" {
+		if key == "env" || key == "with" {
 			continue
 		}
 		if valueReferencesGitHubEnv(val) {

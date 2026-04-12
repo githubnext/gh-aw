@@ -114,6 +114,36 @@ function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
 }
 
 /**
+ * Replace temporary ID references in patch content with actual issue numbers.
+ * Handles both URL-context and text-context replacements:
+ * - URL context: /issues/#aw_XXX → /issues/NUMBER (no '#' prefix, avoids broken fragment anchors)
+ * - Text context: #aw_XXX → #NUMBER (standard GitHub issue shorthand)
+ *
+ * @param {string} text - The patch content to process
+ * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
+ * @param {string} [currentRepo] - Current repository slug for same-repo references
+ * @returns {string} Patch content with temporary IDs replaced
+ */
+function replaceTemporaryIdReferencesInPatch(text, tempIdMap, currentRepo) {
+  // First pass: URL-context replacement — /<path>/#aw_XXX → /<path>/NUMBER
+  // This must run before the standard replacement to avoid leaving a '#' in URLs
+  const urlContextPattern = /\/(#aw_[A-Za-z0-9_]{3,12})\b/gi;
+  let result = text.replace(urlContextPattern, (match, tempIdWithHash) => {
+    const tempId = tempIdWithHash.substring(1); // strip leading '#'
+    const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
+    if (resolved !== undefined) {
+      return `/${resolved.number}`;
+    }
+    return match;
+  });
+
+  // Second pass: standard text-context replacement — #aw_XXX → #NUMBER
+  result = replaceTemporaryIdReferences(result, tempIdMap, currentRepo);
+
+  return result;
+}
+
+/**
  * Replace temporary ID references in text with actual issue numbers (legacy format)
  * This is a compatibility function that works with Map<string, number>
  * Format: #aw_XXXX (or #aw_XXXXXXXX) -> #123
@@ -610,6 +640,7 @@ module.exports = {
   normalizeTemporaryId,
   getOrGenerateTemporaryId,
   replaceTemporaryIdReferences,
+  replaceTemporaryIdReferencesInPatch,
   replaceTemporaryIdReferencesLegacy,
   loadTemporaryIdMap,
   loadTemporaryIdMapFromResolved,

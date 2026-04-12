@@ -444,12 +444,16 @@ func ValidatePermissions(perms map[string]string) error {
 
 ### Secrets in Custom Steps Validation
 
-The compiler validates that `secrets.*` expressions are not used in `steps` and `post-steps` frontmatter sections (introduced in PR #24450).
+The compiler validates that `secrets.*` expressions are not used unsafely in `steps` and `post-steps` frontmatter sections (introduced in PR #24450).
 
-**Purpose**: Minimize secrets exposed to the agent job. The only secrets that should appear in the agent job are those required to configure the agentic engine itself. Steps or post-steps that need secrets should be moved to a separate GitHub Actions job outside the agent job.
+**Purpose**: Minimize secrets exposed to the agent job. The only secrets that should appear in the agent job are those required to configure the agentic engine itself.
+
+**Safe bindings** (allowed in strict mode):
+- Step-level `env:` bindings (controlled, masked by GitHub Actions)
+- `with:` inputs for `uses:` action steps (passed to external actions, masked by the runner)
 
 **Behavior**:
-- **Strict mode** (`--strict`): compilation fails with an error listing the found expressions
+- **Strict mode** (`--strict`): compilation fails with an error for secrets in unsafe fields (e.g., `run:`); secrets in `env:` and `with:` (for `uses:` action steps) are allowed
 - **Non-strict mode**: a warning is emitted and the warning counter is incremented
 - `${{ secrets.GITHUB_TOKEN }}` is exempt — it is the built-in runner token, automatically available in every runner environment, and not a user-defined secret
 
@@ -459,17 +463,30 @@ The compiler validates that `secrets.*` expressions are not used in `steps` and 
 ```
 strict mode: secrets expressions detected in 'steps' section may be leaked to the agent job.
 Found: ${{ secrets.MY_SECRET }}.
-Operations requiring secrets must be moved to a separate job outside the agent job
+Operations requiring secrets must be moved to a separate job outside the agent job,
+or use step-level env: bindings (for run: steps) or with: inputs (for uses: action steps) instead
 ```
 
-**Migration**:
+**Examples**:
 ```yaml
-# ❌ Avoid: secret in custom step leaks into agent job
+# ❌ Avoid: secret in run: field leaks into agent job
+steps:
+  - name: Deploy
+    run: curl -H "Authorization: ${{ secrets.DEPLOY_KEY }}" https://example.com
+
+# ✅ Correct: secret in env: binding (safe, masked)
 steps:
   - name: Deploy
     env:
       API_KEY: ${{ secrets.DEPLOY_KEY }}
     run: ./deploy.sh
+
+# ✅ Correct: secret in with: for uses: action step (safe, masked)
+steps:
+  - uses: my-org/secrets-action@v2
+    with:
+      username: ${{ secrets.VAULT_USERNAME }}
+      password: ${{ secrets.VAULT_PASSWORD }}
 
 # ✅ Correct: secrets in a separate job outside the agent job
 jobs:

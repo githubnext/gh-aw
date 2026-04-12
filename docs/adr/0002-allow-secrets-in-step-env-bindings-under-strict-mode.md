@@ -14,7 +14,7 @@ The workflow compiler enforces a "strict mode" that restricts what GitHub Action
 
 ### Decision
 
-We will introduce a per-field classification of secret references within a step, distinguishing "safe" bindings (`env:` fields, which are automatically masked by GitHub Actions) from "unsafe" inline interpolations (`run:`, `with:`, and all other step fields). In strict mode, only unsafe secret references will be treated as errors; secrets that appear exclusively in `env:` bindings will be permitted. We implement this via a new `classifyStepSecrets()` helper that partitions a step's secret references, and update `validateStepsSectionSecrets()` to only block the unsafe partition under strict mode.
+We will introduce a per-field classification of secret references within a step, distinguishing "safe" bindings (`env:` fields, which are automatically masked by GitHub Actions, and `with:` inputs for `uses:` action steps, which are passed to external actions and masked by the runner) from "unsafe" inline interpolations (`run:` and all other step fields). In strict mode, only unsafe secret references will be treated as errors; secrets that appear exclusively in safe bindings will be permitted. We implement this via a new `classifyStepSecrets()` helper that partitions a step's secret references, and update `validateStepsSectionSecrets()` to only block the unsafe partition under strict mode.
 
 ### Alternatives Considered
 
@@ -33,19 +33,20 @@ A third option was to keep secrets blocked by default but allow authors to annot
 ### Consequences
 
 #### Positive
-- Workflows that supply tool credentials via `env:` bindings no longer need to disable strict mode entirely, preserving all other strict-mode protections.
+- Workflows that supply tool credentials via `env:` bindings or `with:` inputs (for `uses:` action steps) no longer need to disable strict mode entirely, preserving all other strict-mode protections.
 - The enforcement policy now mirrors how the framework's own generated jobs handle secrets, making the security model internally consistent.
-- The error message for blocked secrets now explicitly suggests `env:` bindings as an alternative, improving the developer experience.
-- The behavior aligns with GitHub Actions' native masking guarantee: `env:` bindings are masked by the runner before command execution.
+- The error message for blocked secrets now explicitly suggests `env:` bindings and `with:` inputs as alternatives, improving the developer experience.
+- The behavior aligns with GitHub Actions' native masking guarantee: `env:` bindings and `with:` inputs are masked by the runner before command execution.
+- Enterprise workflows that use centralized secret managers (e.g., Conjur, HashiCorp Vault) via dedicated GitHub Actions can now use strict mode, passing authentication credentials via `with:` inputs.
 
 #### Negative
-- The security policy is now more nuanced: reviewers must understand the `env:` vs. inline distinction rather than a simple blanket rule, increasing the surface area to reason about.
+- The security policy is now more nuanced: reviewers must understand the `env:`/`with:` vs. inline distinction rather than a simple blanket rule, increasing the surface area to reason about.
 - The `classifyStepSecrets()` function must be kept accurate as the step data model evolves; an incorrectly classified field could silently downgrade a secret from "unsafe" to "safe".
-- Non-strict mode still emits a warning for all secrets (including `env:`-bound ones), which may be slightly misleading now that `env:` bindings are considered safe in strict mode.
+- Non-strict mode still emits a warning for all secrets (including safe-bound ones), which may be slightly misleading now that safe bindings are permitted in strict mode.
 
 #### Neutral
-- Existing workflows that used `strict: false` specifically to allow `env:` bindings can now remove that override and adopt strict mode, but this migration is voluntary.
-- Unit and integration tests must now cover both the "env-only" allowed path and the "mixed env + run" blocked path to maintain adequate coverage.
+- Existing workflows that used `strict: false` specifically to allow safe bindings can now remove that override and adopt strict mode, but this migration is voluntary.
+- Unit and integration tests must now cover both the "safe-binding-only" allowed path and the "mixed safe + run" blocked path to maintain adequate coverage.
 
 ---
 
@@ -56,18 +57,21 @@ A third option was to keep secrets blocked by default but allow authors to annot
 ### Secret Classification
 
 1. Implementations **MUST** classify each `${{ secrets.* }}` reference within a step by the name of the YAML field in which it appears.
-2. A secret reference found inside a well-formed `env:` mapping (i.e., the `env:` value is a YAML map of key-value pairs) **MUST** be classified as an *env-bound* reference.
+2. A secret reference found inside a well-formed `env:` mapping (i.e., the `env:` value is a YAML map of key-value pairs) **MUST** be classified as a *safe* reference.
 3. A secret reference found inside a malformed `env:` value (e.g., `env:` is a bare string or a YAML sequence) **MUST** be classified as an *unsafe* reference, because the runner cannot apply per-variable masking to such values.
-4. A secret reference found in any other step field (including but not limited to `run:`, `with:`, `name:`, `if:`) **MUST** be classified as an *unsafe* reference.
-5. A step value that is not a YAML map (e.g., a raw string) **MUST** treat all secret references within it as *unsafe* references.
-6. When a step contains *env-bound* secret references AND any non-`env:` field references `GITHUB_ENV`, implementations **MUST** reclassify all *env-bound* references in that step as *unsafe*, because writing to `GITHUB_ENV` persists secrets to subsequent steps (including the agent step).
+4. A secret reference found inside a well-formed `with:` mapping in a step that also has a `uses:` field **MUST** be classified as a *safe* reference, because `with:` inputs are passed to the external action (not interpolated into shell scripts) and the runner masks values derived from secrets.
+5. A secret reference found inside a `with:` mapping in a step that does NOT have a `uses:` field **MUST** be classified as an *unsafe* reference.
+6. A secret reference found inside a malformed `with:` value (e.g., `with:` is a bare string or a YAML sequence) **MUST** be classified as an *unsafe* reference.
+7. A secret reference found in any other step field (including but not limited to `run:`, `name:`, `if:`) **MUST** be classified as an *unsafe* reference.
+8. A step value that is not a YAML map (e.g., a raw string) **MUST** treat all secret references within it as *unsafe* references.
+9. When a step contains *safe* secret references AND any non-`env:`/non-`with:` field references `GITHUB_ENV`, implementations **MUST** reclassify all *safe* references in that step as *unsafe*, because writing to `GITHUB_ENV` persists secrets to subsequent steps (including the agent step).
 
 ### Strict Mode Enforcement
 
 1. When strict mode is active, implementations **MUST** return an error if one or more *unsafe* secret references are found in a `pre-steps`, `steps`, or `post-steps` section.
-2. When strict mode is active, implementations **MUST NOT** return an error solely because *env-bound* secret references are present in a section.
-3. The error message for blocked secrets in strict mode **SHOULD** suggest the use of step-level `env:` bindings as an alternative to inline interpolation.
-4. The built-in `GITHUB_TOKEN` **MUST** be filtered out from both *unsafe* and *env-bound* reference lists before strict-mode enforcement, as it is present in every runner environment by default.
+2. When strict mode is active, implementations **MUST NOT** return an error solely because *safe* secret references are present in a section.
+3. The error message for blocked secrets in strict mode **SHOULD** suggest the use of step-level `env:` bindings (for `run:` steps) or `with:` inputs (for `uses:` action steps) as alternatives to inline interpolation.
+4. The built-in `GITHUB_TOKEN` **MUST** be filtered out from both *unsafe* and *safe* reference lists before strict-mode enforcement, as it is present in every runner environment by default.
 
 ### Non-Strict Mode Behavior
 
@@ -77,7 +81,7 @@ A third option was to keep secrets blocked by default but allow authors to annot
 
 ### Conformance
 
-An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance. In particular: permitting *unsafe* secret references in strict mode, or blocking *env-bound* references in strict mode, are both non-conformant behaviors.
+An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance. In particular: permitting *unsafe* secret references in strict mode, or blocking *safe* references in strict mode, are both non-conformant behaviors.
 
 ---
 

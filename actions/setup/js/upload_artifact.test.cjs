@@ -7,7 +7,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Paths match what upload_artifact.cjs computes at runtime (uses /tmp/gh-aw/ base).
+// Paths match what upload_artifact.cjs computes at runtime.
+// When RUNNER_TEMP is unset (test default), STAGING_DIR falls back to /tmp/gh-aw/.
 const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
 const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
 
@@ -86,6 +87,8 @@ describe("upload_artifact.cjs", () => {
     originalEnv = { ...process.env };
 
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    // Clear RUNNER_TEMP so the handler falls back to /tmp, matching the test's STAGING_DIR
+    delete process.env.RUNNER_TEMP;
 
     // Ensure staging dir exists and is clean
     if (fs.existsSync(STAGING_DIR)) {
@@ -164,9 +167,9 @@ describe("upload_artifact.cjs", () => {
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
-    it("fails when absolute path is provided", async () => {
-      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "/etc/passwd" }]);
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be relative"));
+    it("fails when absolute path does not exist", async () => {
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "/nonexistent/path/file.json" }]);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("absolute path does not exist"));
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
@@ -332,6 +335,168 @@ describe("upload_artifact.cjs", () => {
       const keys = Object.keys(resolver);
       expect(keys.length).toBe(1);
       expect(keys[0]).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+    });
+  });
+
+  describe("auto-copy from outside staging directory", () => {
+    const WORKSPACE_DIR = "/tmp/gh-aw-test-workspace";
+
+    beforeEach(() => {
+      if (fs.existsSync(WORKSPACE_DIR)) {
+        fs.rmSync(WORKSPACE_DIR, { recursive: true });
+      }
+      fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(WORKSPACE_DIR)) {
+        fs.rmSync(WORKSPACE_DIR, { recursive: true });
+      }
+    });
+
+    /**
+     * Write a file into the test workspace directory.
+     * @param {string} relPath
+     * @param {string} content
+     */
+    function writeWorkspace(relPath, content = "workspace content") {
+      const fullPath = path.join(WORKSPACE_DIR, relPath);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, content);
+    }
+
+    it("auto-copies a file from an absolute path", async () => {
+      const absFile = path.join(WORKSPACE_DIR, "report.json");
+      writeWorkspace("report.json", '{"ok":true}');
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: absFile }]);
+
+      expect(results[0].success).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+      // The file should have been copied into the staging directory.
+      expect(fs.existsSync(path.join(STAGING_DIR, "report.json"))).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-copied file"));
+    });
+
+    it("auto-copies a directory from an absolute path", async () => {
+      writeWorkspace("output/a.txt", "aaa");
+      writeWorkspace("output/sub/b.txt", "bbb");
+      const absDir = path.join(WORKSPACE_DIR, "output");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: absDir }]);
+
+      expect(results[0].success).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(STAGING_DIR, "output/a.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(STAGING_DIR, "output/sub/b.txt"))).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-copied directory"));
+    });
+
+    it("auto-copies a relative path from GITHUB_WORKSPACE", async () => {
+      process.env.GITHUB_WORKSPACE = WORKSPACE_DIR;
+      writeWorkspace("data/results.csv", "col1,col2");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "data/results.csv" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(STAGING_DIR, "data/results.csv"))).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-copied file"));
+    });
+
+    it("fails for an absolute path that does not exist", async () => {
+      const absFile = path.join(WORKSPACE_DIR, "missing.json");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: absFile }]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("absolute path does not exist"));
+    });
+
+    it("still prefers files already in the staging directory", async () => {
+      process.env.GITHUB_WORKSPACE = WORKSPACE_DIR;
+      writeStaging("report.json", "staged version");
+      writeWorkspace("report.json", "workspace version");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      // Verify the staged version was used (not overwritten by the workspace version).
+      const content = fs.readFileSync(path.join(STAGING_DIR, "report.json"), "utf8");
+      expect(content).toBe("staged version");
+    });
+
+    it("does not overwrite pre-staged file when auto-copying from absolute path", async () => {
+      writeStaging("data.json", "original staged");
+      writeWorkspace("data.json", "workspace version");
+      const absFile = path.join(WORKSPACE_DIR, "data.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: absFile }]);
+
+      expect(results[0].success).toBe(true);
+      // The pre-staged file must not be overwritten.
+      const content = fs.readFileSync(path.join(STAGING_DIR, "data.json"), "utf8");
+      expect(content).toBe("original staged");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("already exists in staging"));
+    });
+
+    it("rejects symlinks during auto-copy from absolute path", async () => {
+      writeWorkspace("real.txt", "real content");
+      const linkPath = path.join(WORKSPACE_DIR, "link.txt");
+      fs.symlinkSync(path.join(WORKSPACE_DIR, "real.txt"), linkPath);
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: linkPath }]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("symlinks are not allowed"));
+    });
+  });
+
+  describe("RUNNER_TEMP staging directory", () => {
+    const CUSTOM_TEMP = "/tmp/gh-aw-test-runner-temp";
+    const CUSTOM_STAGING = path.join(CUSTOM_TEMP, "gh-aw", "safeoutputs", "upload-artifacts");
+
+    beforeEach(() => {
+      // Set RUNNER_TEMP so the handler uses a custom staging dir
+      process.env.RUNNER_TEMP = CUSTOM_TEMP;
+      if (fs.existsSync(CUSTOM_STAGING)) {
+        fs.rmSync(CUSTOM_STAGING, { recursive: true });
+      }
+      fs.mkdirSync(CUSTOM_STAGING, { recursive: true });
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(CUSTOM_STAGING)) {
+        fs.rmSync(CUSTOM_STAGING, { recursive: true });
+      }
+    });
+
+    it("uses RUNNER_TEMP as the staging directory base", async () => {
+      const filePath = path.join(CUSTOM_STAGING, "custom-report.json");
+      fs.writeFileSync(filePath, '{"ok": true}');
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "custom-report.json" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+      const [, files, rootDir] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(files).toContain(path.join(CUSTOM_STAGING, "custom-report.json"));
+      expect(rootDir).toBe(CUSTOM_STAGING + path.sep);
+    });
+
+    it("falls back to /tmp when RUNNER_TEMP is unset", async () => {
+      // Clear RUNNER_TEMP to verify the fallback
+      delete process.env.RUNNER_TEMP;
+
+      writeStaging("fallback-report.json", '{"ok": true}');
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "fallback-report.json" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(results[0].success).toBe(true);
+      const [, files, rootDir] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(files).toContain(path.join(STAGING_DIR, "fallback-report.json"));
+      expect(rootDir).toBe(STAGING_DIR);
     });
   });
 });

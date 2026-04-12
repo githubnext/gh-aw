@@ -50,7 +50,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// navigate directly to the problem location.
 		engineLine := findFrontmatterFieldLine(result.FrontmatterLines, result.FrontmatterStart, "engine")
 		if engineLine > 0 {
-			return nil, formatCompilerErrorWithPosition(cleanPath, engineLine, 1, "error", err.Error(), err)
+			// Read source context lines (±3 lines around the error) for Rust-style rendering
+			contextLines := readSourceContextLines(content, engineLine)
+			return nil, formatCompilerErrorWithContext(cleanPath, engineLine, 1, "error", err.Error(), err, contextLines)
 		}
 		return nil, formatCompilerError(cleanPath, "error", err.Error(), err)
 	}

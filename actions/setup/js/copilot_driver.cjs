@@ -39,6 +39,10 @@ const MAX_DELAY_MS = 60000;
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 
+// Pattern to detect MCP servers blocked by enterprise/organization policy.
+// This is a persistent policy configuration error — retrying will not help.
+const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+
 /**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[copilot-driver]" so they are easy to
@@ -57,6 +61,16 @@ function log(message) {
  */
 function isTransientCAPIError(output) {
   return CAPI_ERROR_400_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates MCP servers were blocked by policy.
+ * This is a persistent configuration error that cannot be resolved by retrying.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isMCPPolicyError(output) {
+  return MCP_POLICY_BLOCKED_PATTERN.test(output);
 }
 
 /**
@@ -230,8 +244,16 @@ async function main() {
     // Retry whenever the session was partially executed (hasOutput), using --resume so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
     // transient case, but any partial-execution failure is eligible for a resume retry.
+    // Exception: MCP policy errors are persistent configuration issues — never retry.
     const isCAPIError = isTransientCAPIError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const isMCPPolicy = isMCPPolicyError(result.output);
+    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` isMCPPolicyError=${isMCPPolicy}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+
+    // MCP policy errors are persistent — retrying will not help.
+    if (isMCPPolicy) {
+      log(`attempt ${attempt + 1}: MCP servers blocked by policy — not retrying (this is a policy configuration issue, not a transient error)`);
+      break;
+    }
 
     if (attempt < MAX_RETRIES && result.hasOutput) {
       const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";

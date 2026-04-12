@@ -368,9 +368,9 @@ print("Velocity metrics chart saved!")
 Stage and upload all three charts as artifacts with 30-day retention:
 1. Copy charts to the upload staging directory:
    ```bash
-   cp /tmp/gh-aw/python/charts/activity_overview.png /tmp/gh-aw/safeoutputs/upload-artifacts/
-   cp /tmp/gh-aw/python/charts/resolution_metrics.png /tmp/gh-aw/safeoutputs/upload-artifacts/
-   cp /tmp/gh-aw/python/charts/velocity_metrics.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/activity_overview.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/resolution_metrics.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/velocity_metrics.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
    ```
 2. Call the `upload_artifact` safe-output tool for each chart
 3. Record the returned `aw_*` IDs for each chart

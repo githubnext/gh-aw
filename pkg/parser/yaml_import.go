@@ -205,8 +205,12 @@ func extractStepsFromCopilotSetup(workflow map[string]any) (string, error) {
 		return "", errors.New("steps field is not a list in copilot-setup-steps job")
 	}
 
-	// Ensure checkout step is always included and placed first
-	stepsSlice = ensureCheckoutStepFirst(stepsSlice)
+	// Strip checkout steps from the imported copilot-setup-steps. The compiler
+	// generates its own secure checkout (with persist-credentials: false) via
+	// CheckoutManager.GenerateDefaultCheckoutStep, so the imported checkout is
+	// redundant and can introduce artipacked findings when the same job uploads
+	// artifacts.
+	stepsSlice = stripCheckoutSteps(stepsSlice)
 
 	// Marshal steps array directly to YAML format (without "steps:" wrapper)
 	// This matches the format expected by the compiler which unmarshals into []any
@@ -215,52 +219,30 @@ func extractStepsFromCopilotSetup(workflow map[string]any) (string, error) {
 		return "", fmt.Errorf("failed to marshal steps to YAML: %w", err)
 	}
 
-	yamlImportLog.Printf("Extracted steps from copilot-setup-steps job (YAML array format) with checkout step ensured")
+	yamlImportLog.Printf("Extracted steps from copilot-setup-steps job (YAML array format) with checkout steps stripped")
 	return string(stepsYAML), nil
 }
 
-// ensureCheckoutStepFirst ensures a checkout step exists and is placed first in the steps list
-// If a checkout step exists, it's moved to the beginning. If not, one is added.
-func ensureCheckoutStepFirst(steps []any) []any {
-	// Find existing checkout step index
-	checkoutIndex := -1
-	for i, step := range steps {
+// stripCheckoutSteps removes any actions/checkout steps from the imported
+// copilot-setup-steps. The compiler generates its own secure checkout step
+// (with persist-credentials: false), so the imported checkout is redundant.
+// Stripping it prevents the artipacked finding where checkout + artifact
+// upload coexist with persisted credentials, and avoids a duplicate checkout
+// in the compiled lock file.
+func stripCheckoutSteps(steps []any) []any {
+	result := make([]any, 0, len(steps))
+	for _, step := range steps {
 		if stepMap, ok := step.(map[string]any); ok {
 			if uses, hasUses := stepMap["uses"]; hasUses {
 				if usesStr, ok := uses.(string); ok {
-					// Check if this is a checkout action (actions/checkout@... or exactly "actions/checkout")
 					if strings.HasPrefix(usesStr, "actions/checkout@") || usesStr == "actions/checkout" {
-						checkoutIndex = i
-						break
+						yamlImportLog.Printf("Stripping checkout step from copilot-setup-steps: %s", usesStr)
+						continue
 					}
 				}
 			}
 		}
+		result = append(result, step)
 	}
-
-	// If checkout step exists and is already first, no changes needed
-	if checkoutIndex == 0 {
-		yamlImportLog.Print("Checkout step already at beginning of copilot-setup-steps")
-		return steps
-	}
-
-	// If checkout step exists but not first, move it to the beginning
-	if checkoutIndex > 0 {
-		yamlImportLog.Printf("Moving existing checkout step from position %d to beginning", checkoutIndex)
-		checkoutStep := steps[checkoutIndex]
-		// Remove from current position
-		steps = append(steps[:checkoutIndex], steps[checkoutIndex+1:]...)
-		// Prepend to beginning
-		steps = append([]any{checkoutStep}, steps...)
-		return steps
-	}
-
-	// No checkout step found, add a default one at the beginning
-	yamlImportLog.Print("No checkout step found in copilot-setup-steps, adding default checkout step at beginning")
-	defaultCheckoutStep := map[string]any{
-		"name": "Checkout code",
-		"uses": "actions/checkout@v6",
-	}
-	steps = append([]any{defaultCheckoutStep}, steps...)
-	return steps
+	return result
 }

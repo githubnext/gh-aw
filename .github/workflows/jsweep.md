@@ -36,8 +36,7 @@ safe-outputs:
     if-no-changes: "ignore"
 network:
   allowed:
-    - proxy.golang.org
-    - sum.golang.org
+    - go
 timeout-minutes: 20
 strict: true
 ---

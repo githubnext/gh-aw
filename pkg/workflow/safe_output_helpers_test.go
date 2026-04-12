@@ -34,7 +34,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Setup agent output environment variable",
 				"- name: Test Step",
 				"id: test_step",
-				"uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71",
+				"uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553",
 				"env:",
 				"GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}",
 				"with:",
@@ -63,7 +63,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Setup agent output environment variable",
 				"- name: Create Issue",
 				"id: create_issue",
-				"uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71",
+				"uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553",
 				"GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}",
 				"GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"",
 				"GH_AW_ISSUE_LABELS: \"automation,ai\"",
@@ -140,8 +140,8 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 			if !strings.Contains(stepsStr, "id:") {
 				t.Error("Expected step to have 'id:' field")
 			}
-			if !strings.Contains(stepsStr, "uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71") {
-				t.Error("Expected step to use actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71")
+			if !strings.Contains(stepsStr, "uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553") {
+				t.Error("Expected step to use actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553")
 			}
 			if !strings.Contains(stepsStr, "env:") {
 				t.Error("Expected step to have 'env:' section")

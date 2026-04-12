@@ -272,7 +272,33 @@ When the user chooses to analyze existing logs:
    - Provides JSON output with metrics, errors, and summaries
    - Includes token usage, cost estimates, and execution time
 
-2. **Analyze the Results**
+2. **Token Usage Data Locations**
+
+   Token usage data is split across two separate artifacts. Always check the right one:
+
+   | Data | Artifact | Path | Content |
+   |------|----------|------|---------|
+   | Per-request detail | `firewall-audit-logs` | `api-proxy-logs/token-usage.jsonl` | JSONL with per-API-call model and raw token counts |
+   | Aggregated summary | `agent` | `agent_usage.json` | Total input/output/cache tokens, effective tokens |
+   | Step summary | Job log | "Parse token usage for step summary" step | Markdown table in step summary |
+
+   > **Important:** Per-request token detail is in the `firewall-audit-logs` artifact, **not** the `agent` artifact. `agent_usage.json` contains aggregated totals only.
+
+   ```bash
+   # Download per-request token usage data
+   gh run download <run-id> -n firewall-audit-logs
+   cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
+   ```
+
+   The `token-usage.jsonl` file contains one JSON object per API request with fields:
+   - `model`: Model name used (string, e.g. `"gpt-4.1"`)
+   - `input_tokens`, `output_tokens`: Raw token counts (integers)
+   - `cache_read_tokens`, `cache_write_tokens`: Cache-related tokens (integers; zero when caching is not used)
+   - Effective tokens are **not** stored per request in `token-usage.jsonl`; they are computed during aggregation and reported in `agent_usage.json` / the step summary
+
+   > **Note on terminology:** "Firewall network logs" (domain allow/deny decisions, parsed by `parse_firewall_logs.cjs`) are different from the "firewall-audit-logs artifact" (which contains `token-usage.jsonl` and API proxy logs).
+
+3. **Analyze the Results**
    
    Review the JSON output and identify:
    - **Errors and Warnings**: Look for error patterns in logs
@@ -281,7 +307,7 @@ When the user chooses to analyze existing logs:
    - **Execution Time**: Identify slow steps or timeouts
    - **Success/Failure Patterns**: Analyze workflow conclusions
 
-3. **Provide Insights**
+4. **Provide Insights**
    
    Based on the analysis, provide:
    - Clear explanation of what went wrong (if failures exist)
@@ -289,7 +315,7 @@ When the user chooses to analyze existing logs:
    - Suggested workflow changes (frontmatter or prompt modifications)
    - Command to apply fixes: `gh aw compile <workflow-name>`
 
-4. **Iterative Refinement**
+5. **Iterative Refinement**
    
    If changes are made:
    - Help user edit the workflow file

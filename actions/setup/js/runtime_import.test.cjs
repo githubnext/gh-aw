@@ -1498,14 +1498,17 @@ describe("runtime_import", () => {
       it("should wrap {{#if steps.foo.outputs.bar}}", () => {
         expect(wrapExpressionsInTemplateConditionals("{{#if steps.foo.outputs.bar}}body{{/if}}")).toBe("{{#if ${{ steps.foo.outputs.bar }} }}body{{/if}}");
       });
-      it("should wrap {{#if true}}", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if true}}body{{/if}}")).toBe("{{#if ${{ true }} }}body{{/if}}");
+    });
+
+    describe("boolean/null literals — must be left unchanged for direct isTruthy() evaluation", () => {
+      it("should leave {{#if true}} unchanged", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if true}}body{{/if}}")).toBe("{{#if true}}body{{/if}}");
       });
-      it("should wrap {{#if false}}", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if false}}body{{/if}}")).toBe("{{#if ${{ false }} }}body{{/if}}");
+      it("should leave {{#if false}} unchanged", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if false}}body{{/if}}")).toBe("{{#if false}}body{{/if}}");
       });
-      it("should wrap {{#if null}}", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if null}}body{{/if}}")).toBe("{{#if ${{ null }} }}body{{/if}}");
+      it("should leave {{#if null}} unchanged", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if null}}body{{/if}}")).toBe("{{#if null}}body{{/if}}");
       });
     });
 

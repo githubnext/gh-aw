@@ -1408,3 +1408,107 @@ func TestWorkspaceCheckoutStepOrdering(t *testing.T) {
 		t.Error("Workspace checkout step should appear before detection guard step")
 	}
 }
+
+func TestCleanFirewallDirsStepPresent(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionJobSteps(data)
+	stepsString := strings.Join(steps, "")
+
+	// The cleanup step should be present
+	if !strings.Contains(stepsString, "Clean stale firewall files from agent artifact") {
+		t.Error("Expected 'Clean stale firewall files from agent artifact' step in detection steps")
+	}
+
+	// It should remove the firewall logs and audit directories
+	if !strings.Contains(stepsString, constants.AWFProxyLogsDir) {
+		t.Errorf("Expected cleanup step to reference %s", constants.AWFProxyLogsDir)
+	}
+	if !strings.Contains(stepsString, constants.AWFAuditDir) {
+		t.Errorf("Expected cleanup step to reference %s", constants.AWFAuditDir)
+	}
+}
+
+func TestCleanFirewallDirsStepOrdering(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionJobSteps(data)
+	stepsString := strings.Join(steps, "")
+
+	cleanIdx := strings.Index(stepsString, "Clean stale firewall files from agent artifact")
+	guardIdx := strings.Index(stepsString, "Check if detection needed")
+
+	if cleanIdx < 0 {
+		t.Fatal("Expected 'Clean stale firewall files from agent artifact' step")
+	}
+	if guardIdx < 0 {
+		t.Fatal("Expected 'Check if detection needed' step")
+	}
+
+	// The cleanup step must come before the detection guard
+	if cleanIdx > guardIdx {
+		t.Error("Cleanup firewall dirs step should appear before detection guard step")
+	}
+}
+
+func TestBuildPullAWFContainersStepPropagatesFeatures(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("cli-proxy image included when feature flag is enabled", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			Features: map[string]any{
+				string(constants.CliProxyFeatureFlag): true,
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		}
+
+		steps := compiler.buildPullAWFContainersStep(data)
+		stepsString := strings.Join(steps, "")
+
+		if !strings.Contains(stepsString, "cli-proxy") {
+			t.Error("Expected cli-proxy image in pull step when cli-proxy feature flag is enabled")
+		}
+	})
+
+	t.Run("cli-proxy image excluded when feature flag is not set", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			Features: map[string]any{},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		}
+
+		steps := compiler.buildPullAWFContainersStep(data)
+		stepsString := strings.Join(steps, "")
+
+		if strings.Contains(stepsString, "cli-proxy") {
+			t.Error("Expected no cli-proxy image in pull step when cli-proxy feature flag is not set")
+		}
+	})
+}

@@ -35,7 +35,7 @@ steps:
     run: |
       set -e
       make build
-      $GITHUB_WORKSPACE/gh-aw --version
+      "$GITHUB_WORKSPACE/gh-aw" --version
   - name: Pull static analysis Docker images
     run: |
       set -e
@@ -79,7 +79,7 @@ steps:
       
       # Run compile with all security scanner flags to download Docker images
       # Store the output in a file for inspection
-      $GITHUB_WORKSPACE/gh-aw compile --zizmor --poutine --actionlint --runner-guard 2>&1 | tee /tmp/gh-aw/compile-output.txt
+      "$GITHUB_WORKSPACE/gh-aw" compile --zizmor --poutine --actionlint --runner-guard 2>&1 | tee /tmp/gh-aw/compile-output.txt
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"

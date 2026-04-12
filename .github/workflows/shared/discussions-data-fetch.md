@@ -14,7 +14,7 @@ tools:
 steps:
   - name: Install gh CLI
     run: |
-      bash ${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh
+      bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
 
   - name: Fetch discussions
     env:

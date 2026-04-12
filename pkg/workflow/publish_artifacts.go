@@ -178,7 +178,7 @@ func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *Wo
 	prefix := artifactPrefixExprForDownstreamJob(data)
 
 	builder.WriteString("      # Upload safe-outputs upload-artifact staging for the upload_artifact job\n")
-	builder.WriteString("      - name: Upload Upload-Artifact Staging\n")
+	builder.WriteString("      - name: Upload upload-artifact staging\n")
 	builder.WriteString("        if: always()\n")
 	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	builder.WriteString("        with:\n")

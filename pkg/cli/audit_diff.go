@@ -700,10 +700,11 @@ func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname 
 		}
 	}
 
-	// Analyze firewall logs only when firewall-audit-logs was included in the filter.
+	// Analyze firewall logs only when the agent artifact was included in the filter.
+	// Firewall audit logs are now included in the unified agent artifact.
 	// Skip silently when the artifact was intentionally excluded to avoid spurious warnings.
 	var analysis *FirewallAnalysis
-	if artifactMatchesFilter(constants.FirewallAuditArtifactName, artifactFilter) {
+	if artifactMatchesFilter(constants.AgentArtifactName, artifactFilter) {
 		var err error
 		analysis, err = analyzeFirewallLogs(runOutputDir, verbose)
 		if err != nil {

@@ -213,6 +213,8 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 // The index parameter identifies the checkout's position in the ordered list, used to
 // reference the correct app token minting step when app authentication is configured.
 func generateCheckoutStepLines(entry *resolvedCheckout, index int, getActionPin func(string) string) []string {
+	checkoutManagerLog.Printf("Generating checkout step lines: index=%d, repo=%q, path=%q, ref=%q, appAuth=%v",
+		index, entry.key.repository, entry.key.path, entry.ref, entry.githubApp != nil)
 	name := "Checkout " + checkoutStepName(entry.key)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "      - name: %s\n", name)
@@ -313,6 +315,8 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	if len(entry.fetchRefs) == 0 {
 		return ""
 	}
+
+	checkoutManagerLog.Printf("Generating fetch step for index=%d, refs=%v", index, entry.fetchRefs)
 
 	// Build step name
 	name := "Fetch additional refs"

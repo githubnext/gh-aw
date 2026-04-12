@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestSharedExtractSecretName tests the shared ExtractSecretName utility function
@@ -374,6 +376,77 @@ func TestSharedExtractSecretsFromValueEdgeCases(t *testing.T) {
 				if result[varName] != expr {
 					t.Errorf("Expected secret %q to have expression %q, got %q", varName, expr, result[varName])
 				}
+			}
+		})
+	}
+}
+
+func TestExtractGitHubContextExpressionsFromValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected map[string]string
+	}{
+		{
+			name:     "simple github.workflow",
+			value:    `"branch":"assets/${{ github.workflow }}"`,
+			expected: map[string]string{"GITHUB_WORKFLOW": "${{ github.workflow }}"},
+		},
+		{
+			name:     "github.ref_name",
+			value:    `"base-branch":"${{ github.ref_name }}"`,
+			expected: map[string]string{"GITHUB_REF_NAME": "${{ github.ref_name }}"},
+		},
+		{
+			name:     "github.run_id",
+			value:    `"key":"cache-${{ github.run_id }}"`,
+			expected: map[string]string{"GITHUB_RUN_ID": "${{ github.run_id }}"},
+		},
+		{
+			name:     "multiple expressions",
+			value:    `"branch":"${{ github.workflow }}/run-${{ github.run_id }}"`,
+			expected: map[string]string{"GITHUB_WORKFLOW": "${{ github.workflow }}", "GITHUB_RUN_ID": "${{ github.run_id }}"},
+		},
+		{
+			name:     "no expressions",
+			value:    `"branch":"assets/my-workflow"`,
+			expected: map[string]string{},
+		},
+		{
+			name:     "secrets are not extracted",
+			value:    `"token":"${{ secrets.MY_TOKEN }}"`,
+			expected: map[string]string{},
+		},
+		{
+			name:     "complex event payload not extracted",
+			value:    `"title":"${{ github.event.issue.title }}"`,
+			expected: map[string]string{},
+		},
+		{
+			name:     "expression with spaces",
+			value:    `"branch":"assets/${{  github.workflow  }}"`,
+			expected: map[string]string{"GITHUB_WORKFLOW": "${{  github.workflow  }}"},
+		},
+		{
+			name:     "github.actor",
+			value:    `"actor":"${{ github.actor }}"`,
+			expected: map[string]string{"GITHUB_ACTOR": "${{ github.actor }}"},
+		},
+		{
+			name:     "github.repository",
+			value:    `"repo":"${{ github.repository }}"`,
+			expected: map[string]string{"GITHUB_REPOSITORY": "${{ github.repository }}"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractGitHubContextExpressionsFromValue(tt.value)
+
+			assert.Len(t, result, len(tt.expected), "Should extract expected number of GitHub context expressions")
+
+			for varName, expr := range tt.expected {
+				assert.Equal(t, expr, result[varName], "Env var %q should map to the correct expression", varName)
 			}
 		})
 	}

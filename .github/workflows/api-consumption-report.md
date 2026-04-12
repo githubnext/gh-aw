@@ -303,17 +303,17 @@ Use `sns.set_theme(style="darkgrid")` for a professional dark-grid look and `plt
 
 **You MUST copy the chart files to the staging directory before calling `upload_artifact`.**
 
-The `upload_artifact` tool only reads files from `/tmp/gh-aw/safeoutputs/upload-artifacts/`. Run these commands first:
+The `upload_artifact` tool only reads files from `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/`. Run these commands first:
 
 ```bash
-mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts/
-cp /tmp/gh-aw/python/charts/*.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
+cp /tmp/gh-aw/python/charts/*.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
 ```
 
 Then verify the files are in the staging directory:
 
 ```bash
-ls -la /tmp/gh-aw/safeoutputs/upload-artifacts/
+ls -la "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
 ```
 
 After confirming the files exist in the staging directory, call `upload_artifact` for each chart using the **filename only** (not a subdirectory path). For example, use `path: "api_calls_trend.png"` — NOT `path: "charts/api_calls_trend.png"`.

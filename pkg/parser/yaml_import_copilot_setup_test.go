@@ -92,9 +92,9 @@ func TestExtractStepsFromCopilotSetup(t *testing.T) {
 	// Verify the YAML contains the expected content (as a YAML array, not with "steps:" wrapper)
 	assert.NotContains(t, stepsYAML, "steps:", "Should NOT contain steps field wrapper")
 	assert.Contains(t, stepsYAML, "Install gh-aw extension", "Should contain install step")
-	assert.Contains(t, stepsYAML, "Checkout code", "Should contain checkout step")
+	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain checkout step (stripped during import)")
+	assert.NotContains(t, stepsYAML, "actions/checkout@v4", "Should NOT contain checkout action (stripped during import)")
 	assert.Contains(t, stepsYAML, "Set up Node.js", "Should contain Node.js setup step")
-	assert.Contains(t, stepsYAML, "actions/checkout@v4", "Should contain checkout action")
 	assert.Contains(t, stepsYAML, "actions/setup-node@v4", "Should contain Node.js setup action")
 
 	// Verify it's formatted as a YAML array (starts with "- name:")
@@ -143,8 +143,8 @@ func TestExtractStepsFromCopilotSetup_NoSteps(t *testing.T) {
 	assert.Contains(t, err.Error(), "no steps found", "Error should mention missing steps")
 }
 
-func TestExtractStepsFromCopilotSetup_EnsuresCheckoutFirst(t *testing.T) {
-	// Test workflow with checkout step NOT first
+func TestExtractStepsFromCopilotSetup_StripsCheckoutStep(t *testing.T) {
+	// Test workflow with checkout step NOT first — checkout should be stripped
 	workflow := map[string]any{
 		"name": "Copilot Setup Steps",
 		"on":   "workflow_dispatch",
@@ -176,7 +176,11 @@ func TestExtractStepsFromCopilotSetup_EnsuresCheckoutFirst(t *testing.T) {
 	require.NoError(t, err, "Should extract steps without error")
 	require.NotEmpty(t, stepsYAML, "Should return non-empty steps YAML")
 
-	// Verify checkout step is first
+	// Verify checkout step is stripped (compiler handles checkout securely)
+	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain checkout step")
+	assert.NotContains(t, stepsYAML, "actions/checkout", "Should NOT contain checkout action")
+
+	// Verify first step is now the install step (checkout was removed)
 	lines := strings.Split(stepsYAML, "\n")
 	var firstStepName string
 	for _, line := range lines {
@@ -185,23 +189,16 @@ func TestExtractStepsFromCopilotSetup_EnsuresCheckoutFirst(t *testing.T) {
 			break
 		}
 	}
-	assert.Contains(t, firstStepName, "Checkout code", "First step should be the checkout step")
+	assert.Contains(t, firstStepName, "Install gh-aw extension", "First step should be the install step after checkout is stripped")
 
-	// Verify all steps are present
+	// Verify non-checkout steps are preserved
 	assert.Contains(t, stepsYAML, "Install gh-aw extension", "Should contain install step")
-	assert.Contains(t, stepsYAML, "Checkout code", "Should contain checkout step")
 	assert.Contains(t, stepsYAML, "Set up Node.js", "Should contain Node.js setup step")
-
-	// Verify checkout comes before install (order should be: checkout, install, node)
-	checkoutIndex := strings.Index(stepsYAML, "Checkout code")
-	installIndex := strings.Index(stepsYAML, "Install gh-aw extension")
-	nodeIndex := strings.Index(stepsYAML, "Set up Node.js")
-	assert.Less(t, checkoutIndex, installIndex, "Checkout should come before install")
-	assert.Less(t, installIndex, nodeIndex, "Install should come before Node.js setup")
 }
 
-func TestExtractStepsFromCopilotSetup_AddsCheckoutIfMissing(t *testing.T) {
-	// Test workflow without any checkout step
+func TestExtractStepsFromCopilotSetup_NoCheckoutStaysClean(t *testing.T) {
+	// Test workflow without any checkout step — should remain without checkout
+	// since the compiler handles checkout generation securely
 	workflow := map[string]any{
 		"name": "Copilot Setup Steps",
 		"on":   "workflow_dispatch",
@@ -226,11 +223,15 @@ func TestExtractStepsFromCopilotSetup_AddsCheckoutIfMissing(t *testing.T) {
 	require.NoError(t, err, "Should extract steps without error")
 	require.NotEmpty(t, stepsYAML, "Should return non-empty steps YAML")
 
-	// Verify checkout step was added
-	assert.Contains(t, stepsYAML, "Checkout code", "Should contain added checkout step")
-	assert.Contains(t, stepsYAML, "actions/checkout@v6", "Should contain checkout action")
+	// Verify no checkout step was added (compiler handles it)
+	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain a checkout step")
+	assert.NotContains(t, stepsYAML, "actions/checkout", "Should NOT contain checkout action")
 
-	// Verify checkout step is first
+	// Verify original steps are still present
+	assert.Contains(t, stepsYAML, "Install dependencies", "Should contain original install step")
+	assert.Contains(t, stepsYAML, "Run linter", "Should contain original linter step")
+
+	// Verify first step is Install dependencies
 	lines := strings.Split(stepsYAML, "\n")
 	var firstStepName string
 	for _, line := range lines {
@@ -239,22 +240,11 @@ func TestExtractStepsFromCopilotSetup_AddsCheckoutIfMissing(t *testing.T) {
 			break
 		}
 	}
-	assert.Contains(t, firstStepName, "Checkout code", "First step should be the checkout step")
-
-	// Verify original steps are still present
-	assert.Contains(t, stepsYAML, "Install dependencies", "Should contain original install step")
-	assert.Contains(t, stepsYAML, "Run linter", "Should contain original linter step")
-
-	// Verify checkout comes before other steps
-	checkoutIndex := strings.Index(stepsYAML, "Checkout code")
-	installIndex := strings.Index(stepsYAML, "Install dependencies")
-	lintIndex := strings.Index(stepsYAML, "Run linter")
-	assert.Less(t, checkoutIndex, installIndex, "Checkout should come before install")
-	assert.Less(t, checkoutIndex, lintIndex, "Checkout should come before lint")
+	assert.Contains(t, firstStepName, "Install dependencies", "First step should be the install step")
 }
 
-func TestExtractStepsFromCopilotSetup_CheckoutAlreadyFirst(t *testing.T) {
-	// Test workflow with checkout step already first
+func TestExtractStepsFromCopilotSetup_CheckoutFirstIsStripped(t *testing.T) {
+	// Test workflow with checkout step already first — it should still be stripped
 	workflow := map[string]any{
 		"name": "Copilot Setup Steps",
 		"on":   "workflow_dispatch",
@@ -283,7 +273,15 @@ func TestExtractStepsFromCopilotSetup_CheckoutAlreadyFirst(t *testing.T) {
 	require.NoError(t, err, "Should extract steps without error")
 	require.NotEmpty(t, stepsYAML, "Should return non-empty steps YAML")
 
-	// Verify checkout step is first
+	// Verify checkout step is stripped
+	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain checkout step")
+	assert.NotContains(t, stepsYAML, "actions/checkout", "Should NOT contain checkout action")
+
+	// Verify non-checkout steps are present
+	assert.Contains(t, stepsYAML, "Install dependencies", "Should contain install step")
+	assert.Contains(t, stepsYAML, "Run tests", "Should contain test step")
+
+	// Verify first step is now Install dependencies
 	lines := strings.Split(stepsYAML, "\n")
 	var firstStepName string
 	for _, line := range lines {
@@ -292,18 +290,11 @@ func TestExtractStepsFromCopilotSetup_CheckoutAlreadyFirst(t *testing.T) {
 			break
 		}
 	}
-	assert.Contains(t, firstStepName, "Checkout code", "First step should be the checkout step")
+	assert.Contains(t, firstStepName, "Install dependencies", "First step should be install after checkout is stripped")
 
-	// Verify all steps are present
-	assert.Contains(t, stepsYAML, "Checkout code", "Should contain checkout step")
-	assert.Contains(t, stepsYAML, "Install dependencies", "Should contain install step")
-	assert.Contains(t, stepsYAML, "Run tests", "Should contain test step")
-
-	// Verify order is maintained
-	checkoutIndex := strings.Index(stepsYAML, "Checkout code")
+	// Verify order of remaining steps
 	installIndex := strings.Index(stepsYAML, "Install dependencies")
 	testIndex := strings.Index(stepsYAML, "Run tests")
-	assert.Less(t, checkoutIndex, installIndex, "Checkout should come before install")
 	assert.Less(t, installIndex, testIndex, "Install should come before tests")
 }
 
@@ -353,7 +344,7 @@ jobs:
 	// Verify the steps YAML contains expected content (as a YAML array)
 	assert.NotContains(t, stepsYAML, "steps:", "Should NOT contain steps field wrapper")
 	assert.Contains(t, stepsYAML, "Install gh-aw extension", "Should contain install step")
-	assert.Contains(t, stepsYAML, "Checkout code", "Should contain checkout step")
+	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain checkout step (stripped)")
 	assert.Contains(t, stepsYAML, "Set up Node.js", "Should contain Node.js setup step")
 	assert.Contains(t, stepsYAML, "Set up Go", "Should contain Go setup step")
 

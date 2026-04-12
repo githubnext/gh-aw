@@ -23,11 +23,11 @@ steps:
       fi
       gh aw --version
       # Copy the gh-aw binary to ${RUNNER_TEMP}/gh-aw for MCP server containerization
-      mkdir -p ${RUNNER_TEMP}/gh-aw
+      mkdir -p "${RUNNER_TEMP}/gh-aw"
       GH_AW_BIN=$(which gh-aw 2>/dev/null || find ~/.local/share/gh/extensions/gh-aw -name 'gh-aw' -type f 2>/dev/null | head -1)
       if [ -n "$GH_AW_BIN" ] && [ -f "$GH_AW_BIN" ]; then
-        cp "$GH_AW_BIN" ${RUNNER_TEMP}/gh-aw/gh-aw
-        chmod +x ${RUNNER_TEMP}/gh-aw/gh-aw
+        cp "$GH_AW_BIN" "${RUNNER_TEMP}/gh-aw/gh-aw"
+        chmod +x "${RUNNER_TEMP}/gh-aw/gh-aw"
         echo "Copied gh-aw binary to ${RUNNER_TEMP}/gh-aw/gh-aw"
       else
         echo "::error::Failed to find gh-aw binary for MCP server"
