@@ -104,6 +104,7 @@ const SPAN_KIND_CONSUMER = 5;
  * @property {number} [statusCode]      - OTLP status code: 0=UNSET, 1=OK, 2=ERROR (defaults to 1)
  * @property {string} [statusMessage]   - Human-readable status message (included when statusCode is 2)
  * @property {number} [kind]            - OTLP SpanKind: use SPAN_KIND_* constants. Defaults to SPAN_KIND_INTERNAL (1).
+ * @property {Array<{timeUnixNano: string, name: string, attributes: Array<{key: string, value: object}>}>} [events] - Span events following the OTel events spec (e.g. exception events).
  */
 
 /**
@@ -112,7 +113,7 @@ const SPAN_KIND_CONSUMER = 5;
  * @param {OTLPSpanOptions} opts
  * @returns {object} - Ready to be serialised as JSON and POSTed to `/v1/traces`
  */
-function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL }) {
+function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, endMs, serviceName, scopeVersion, attributes, resourceAttributes, statusCode, statusMessage, kind = SPAN_KIND_INTERNAL, events }) {
   const code = typeof statusCode === "number" ? statusCode : 1; // STATUS_CODE_OK
   /** @type {{ code: number, message?: string }} */
   const status = { code };
@@ -144,6 +145,7 @@ function buildOTLPPayload({ traceId, spanId, parentSpanId, spanName, startMs, en
                 endTimeUnixNano: toNanoString(endMs),
                 status,
                 attributes,
+                ...(events && events.length > 0 ? { events } : {}),
               },
             ],
           },
@@ -762,6 +764,22 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
   resourceAttributes.push(buildAttr("deployment.environment", staged ? "staging" : "production"));
 
+  // Build OTel exception span events — one per error — following the
+  // OpenTelemetry semantic convention for exceptions.  Each event has
+  // name="exception" and an "exception.message" attribute, making individual
+  // errors queryable in backends like Grafana Tempo, Honeycomb, and Datadog.
+  const errorTimeNano = toNanoString(nowMs());
+  const spanEvents = isAgentFailure
+    ? outputErrors
+        .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
+        .filter(Boolean)
+        .map(msg => ({
+          timeUnixNano: errorTimeNano,
+          name: "exception",
+          attributes: [buildAttr("exception.message", msg.slice(0, MAX_ATTR_VALUE_LENGTH))],
+        }))
+    : [];
+
   const payload = buildOTLPPayload({
     traceId,
     spanId: generateSpanId(),
@@ -775,6 +793,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     resourceAttributes,
     statusCode,
     statusMessage,
+    events: spanEvents,
   });
 
   // Always mirror to JSONL — the artifact is useful even without a live collector.
