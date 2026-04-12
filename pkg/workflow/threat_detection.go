@@ -240,6 +240,7 @@ func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 				Type: SandboxTypeAWF,
 			},
 		},
+		ActionCache: data.ActionCache, // Propagate cache so container digest pins are applied
 	}
 
 	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
