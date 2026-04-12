@@ -27,11 +27,13 @@ var internalMCPServerNames = map[string]bool{
 	"safeoutputs": true,
 	"mcp-scripts": true,
 	"mcpscripts":  true,
+	"github":      true, // GitHub MCP server is handled differently and should not be CLI-mounted
 }
 
 // getMCPCLIServerNames returns the sorted list of MCP server names that will be
-// mounted as CLI tools. It includes standard MCP tools (github, playwright, etc.)
-// and custom MCP servers, but excludes internal infrastructure servers.
+// mounted as CLI tools. It includes standard MCP tools (playwright, etc.)
+// and custom MCP servers, but excludes internal infrastructure servers and the
+// GitHub MCP server (which is handled differently).
 // Returns nil if tools.mount-as-clis is not set to true.
 func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data == nil {
@@ -52,8 +54,9 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 			continue
 		}
 		// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
+		// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
 		switch toolName {
-		case "github", "playwright", "qmd":
+		case "playwright", "qmd":
 			servers = append(servers, toolName)
 		case "agentic-workflows":
 			// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.

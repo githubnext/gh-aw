@@ -133,10 +133,11 @@ strict: false
 
 This workflow uses `mount-as-clis: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
 
-- **`github`** — use `github <tool> [--param value...]` in bash (e.g. `github pull_request_read --method list ...`)
 - **`playwright`** — use `playwright <tool> [--param value...]` in bash (e.g. `playwright browser_navigate --url ...`)
 - **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
 - **`agenticworkflows`** — use `agenticworkflows <tool> [--param value...]` in bash
+
+The `github` MCP server is **NOT** CLI-mounted — it remains available as a normal MCP tool.
 
 Run `<server> --help` to list all available tools for a server, or `<server> <tool> --help` for detailed parameter info.
 
@@ -144,10 +145,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 
 ## Test Requirements
 
-1. **GitHub CLI Testing**: Use the `github` CLI command (via bash) to list the last 2 merged pull requests in ${{ github.repository }}:
-   ```bash
-   github pull_request_read --method list --owner <owner> --repo <repo> --state closed --per_page 2
-   ```
+1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
 3. **Serena CLI Testing**: 
    - Use bash to run `serena activate_project --path ${{ github.workspace }}` to initialize the workspace and verify it succeeds (do NOT use bash to run go commands - use the serena CLI only)
@@ -164,7 +162,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 10. **Upload gh-aw binary as artifact**: After a successful build, use bash to copy the `./gh-aw` binary into the staging directory (`mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts && cp ./gh-aw $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw`), then call the `upload_artifact` safe-output tool with `path: "gh-aw"`. The `upload_artifact` tool is available and configured in this workflow run — use it directly, do NOT use `missing_tool` for it. Mark this test as ❌ if the build in step 9 failed.
 11. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
 12. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
-13. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. To test `reply_to_pull_request_review_comment`: use bash to run the `github` CLI command (`github pull_request_read --method get_review_comments --owner <owner> --repo <repo> --pullNumber ${{ github.event.pull_request.number }}`) to fetch the PR's existing review comments, then reply to the most recent one using `reply_to_pull_request_review_comment` with its actual numeric `id` as the `comment_id`. Note: `create_pull_request_review_comment` does not return a `comment_id` — you must fetch existing comment IDs via the `github` CLI. If the PR has no existing review comments, skip the reply sub-test.
+13. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`. To test `reply_to_pull_request_review_comment`: use the `pull_request_read` tool (with `method: "get_review_comments"` and `pullNumber: ${{ github.event.pull_request.number }}`) to fetch the PR's existing review comments, then reply to the most recent one using `reply_to_pull_request_review_comment` with its actual numeric `id` as the `comment_id`. Note: `create_pull_request_review_comment` does not return a `comment_id` — you must fetch existing comment IDs from the GitHub API. If the PR has no existing review comments, skip the reply sub-test.
 
 ## Output
 

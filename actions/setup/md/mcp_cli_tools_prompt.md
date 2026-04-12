@@ -22,18 +22,17 @@ Each server is a standalone executable on your `PATH`. Invoke it from bash like 
 <server-name> <tool-name> --param1 value1 --param2 value2
 ```
 
-**Example** — using the `github` CLI:
-```bash
-github --help                                      # list all github tools
-github issue_read --help                           # show parameters for issue_read
-github issue_read --method get --owner octocat --repo Hello-World --issue_number 1
-```
-
 **Example** — using the `playwright` CLI:
 ```bash
 playwright --help                                  # list all browser tools
 playwright browser_navigate --url https://example.com
 playwright browser_snapshot                        # capture page accessibility tree
+```
+
+**Example** — using a custom server CLI:
+```bash
+tavily --help                                      # list all tools
+tavily search --query "latest AI news"             # call a tool
 ```
 
 ### Notes
