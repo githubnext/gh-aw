@@ -182,39 +182,44 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	// Comment separator
 	steps = append(steps, "      # --- Threat Detection ---\n")
 
-	// Step 0: Pull AWF container images - the detection engine runs inside AWF (firewall),
+	// Step 0: Clean stale firewall files left by the agent artifact download.
+	// The agent artifact populates sandbox/firewall/logs and sandbox/firewall/audit
+	// with files that cause the squid container to crash on start-up.
+	steps = append(steps, c.buildCleanFirewallDirsStep()...)
+
+	// Step 1: Pull AWF container images - the detection engine runs inside AWF (firewall),
 	// so pre-pulling the containers speeds up execution and avoids on-demand pulls.
 	steps = append(steps, c.buildPullAWFContainersStep(data)...)
 
-	// Step 1: Detection guard - determines whether detection should run
+	// Step 2: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
 
-	// Step 2: Clear MCP configuration files so the detection engine runs without MCP servers
+	// Step 3: Clear MCP configuration files so the detection engine runs without MCP servers
 	steps = append(steps, c.buildClearMCPConfigStep()...)
 
-	// Step 3: Prepare files - copies agent output files to expected paths
+	// Step 4: Prepare files - copies agent output files to expected paths
 	steps = append(steps, c.buildPrepareDetectionFilesStep()...)
 
-	// Step 4: Custom pre-steps if configured (run before engine execution)
+	// Step 5: Custom pre-steps if configured (run before engine execution)
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 5: Setup threat detection (github-script)
+	// Step 6: Setup threat detection (github-script)
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
-	// Step 6: Engine execution (AWF, no network)
+	// Step 7: Engine execution (AWF, no network)
 	steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
 
-	// Step 7: Custom post-steps if configured (run after engine execution)
+	// Step 8: Custom post-steps if configured (run after engine execution)
 	if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
 	}
 
-	// Step 8: Upload detection-artifact
+	// Step 9: Upload detection-artifact
 	steps = append(steps, c.buildUploadDetectionLogStep(data)...)
 
-	// Step 9: Parse results, log extensively, and set job conclusion (single JS step)
+	// Step 10: Parse results, log extensively, and set job conclusion (single JS step)
 	steps = append(steps, c.buildDetectionConclusionStep()...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
@@ -241,6 +246,7 @@ func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 			},
 		},
 		ActionCache: data.ActionCache, // Propagate cache so container digest pins are applied
+		Features:    data.Features,    // Propagate features so cli-proxy image is included when enabled
 	}
 
 	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
@@ -297,6 +303,22 @@ func (c *Compiler) buildClearMCPConfigStep() []string {
 		"          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json\n",
 		"          rm -f /home/runner/.copilot/mcp-config.json\n",
 		"          rm -f \"$GITHUB_WORKSPACE/.gemini/settings.json\"\n",
+	}
+}
+
+// buildCleanFirewallDirsStep creates a step that removes stale firewall files
+// from the directories populated by the agent artifact download. When the agent
+// artifact is extracted to /tmp/gh-aw/, it pre-populates the sandbox/firewall/logs
+// and sandbox/firewall/audit directories with files from the agent job (squid.conf,
+// cache.log, access.log, etc.). If these files are present when AWF starts the
+// squid container in the detection job, squid fails to initialise (exit code 1).
+// Cleaning these directories before pulling containers avoids the crash.
+func (c *Compiler) buildCleanFirewallDirsStep() []string {
+	return []string{
+		"      - name: Clean stale firewall files from agent artifact\n",
+		"        run: |\n",
+		fmt.Sprintf("          rm -rf %s\n", constants.AWFProxyLogsDir),
+		fmt.Sprintf("          rm -rf %s\n", constants.AWFAuditDir),
 	}
 }
 
