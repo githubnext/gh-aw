@@ -768,12 +768,13 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // OpenTelemetry semantic convention for exceptions.  Each event has
   // name="exception" and an "exception.message" attribute, making individual
   // errors queryable in backends like Grafana Tempo, Honeycomb, and Datadog.
+  const errorTimeNano = toNanoString(nowMs());
   const spanEvents = isAgentFailure
     ? outputErrors
         .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
         .filter(Boolean)
         .map(msg => ({
-          timeUnixNano: toNanoString(nowMs()),
+          timeUnixNano: errorTimeNano,
           name: "exception",
           attributes: [buildAttr("exception.message", msg.slice(0, MAX_ATTR_VALUE_LENGTH))],
         }))
