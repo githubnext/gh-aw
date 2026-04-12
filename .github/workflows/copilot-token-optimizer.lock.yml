@@ -341,13 +341,7 @@ jobs:
             echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"
             echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json"
           } >> "$GITHUB_OUTPUT"
-      - name: Create gh-aw temp directory
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
-      - name: Configure gh CLI for GitHub Enterprise
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -365,6 +359,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'actions/setup/js/package-lock.json'
           package-manager-cache: false
+      - name: Create gh-aw temp directory
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
+      - name: Configure gh CLI for GitHub Enterprise
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Install gh-aw extension
         run: curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash
       - name: Install npm dependencies
