@@ -952,7 +952,7 @@ async function main() {
     const timeoutMinutes = process.env.GH_AW_TIMEOUT_MINUTES || "";
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
-    const copilotTimeout = process.env.GH_AW_COPILOT_TIMEOUT === "true";
+    const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
@@ -1001,7 +1001,7 @@ async function main() {
     core.info(`Checkout PR success: ${checkoutPRSuccess}`);
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
-    core.info(`Copilot timeout: ${copilotTimeout}`);
+    core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -1009,10 +1009,10 @@ async function main() {
 
     // Check if the agent timed out.
     // A job-level timeout sets agentConclusion to "timed_out".
-    // A step-level timeout (timeout-minutes on the Copilot CLI step) is detected by
+    // A step-level timeout (timeout-minutes on the engine execution step) is detected by
     // the detect-copilot-errors step which checks for SIGTERM/SIGKILL/SIGINT signals
-    // in the copilot-driver output and sets the copilot_timeout output.
-    const isTimedOut = agentConclusion === "timed_out" || copilotTimeout;
+    // in the engine output and sets the agentic_engine_timeout output.
+    const isTimedOut = agentConclusion === "timed_out" || agenticEngineTimeout;
 
     // Check if there are assignment errors (regardless of agent job status)
     const hasAssignmentErrors = parseInt(assignmentErrorCount, 10) > 0;

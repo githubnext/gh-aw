@@ -454,7 +454,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 // errors by scanning the agent stdio log. It sets three outputs:
 //   - inference_access_error: token lacks inference access (policy access denied)
 //   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
-//   - copilot_timeout: process killed by signal (SIGTERM/SIGKILL/SIGINT), typically step timeout
+//   - agentic_engine_timeout: process killed by signal (SIGTERM/SIGKILL/SIGINT), typically step timeout
 func generateCopilotErrorDetectionStep() GitHubActionStep {
 	var step []string
 

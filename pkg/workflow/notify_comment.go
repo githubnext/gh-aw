@@ -230,10 +230,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MCP_POLICY_ERROR: ${{ needs.%s.outputs.mcp_policy_error }}\n", mainJobName))
 	}
 
-	// Pass copilot timeout output for Copilot engine
-	// This detects when the Copilot CLI process was killed by a signal (step timeout)
+	// Pass agentic engine timeout output for Copilot engine
+	// This detects when the engine process was killed by a signal (step timeout)
 	if _, ok := engine.(*CopilotEngine); ok {
-		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_COPILOT_TIMEOUT: ${{ needs.%s.outputs.copilot_timeout }}\n", mainJobName))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))
 	}
 
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured
