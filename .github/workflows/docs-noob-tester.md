@@ -173,8 +173,8 @@ For each confusing or broken area:
 - Note the page URL and specific section
 - Stage and upload the screenshot:
   ```bash
-  mkdir -p /tmp/gh-aw/safeoutputs/upload-artifacts
-  cp /tmp/gh-aw/screenshots/<filename>.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+  mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts
+  cp /tmp/gh-aw/screenshots/<filename>.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
   ```
   Then call the `upload_artifact` safe-output tool with `path: "<filename>.png"`.
   Record the returned `aw_*` ID.

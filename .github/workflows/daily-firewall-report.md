@@ -106,8 +106,8 @@ Generate exactly **2 high-quality trend charts**:
 
 1. Stage both charts into the upload directory:
    ```bash
-   cp /tmp/gh-aw/python/charts/firewall_trends.png /tmp/gh-aw/safeoutputs/upload-artifacts/
-   cp /tmp/gh-aw/python/charts/blocked_domains.png /tmp/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/firewall_trends.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
+   cp /tmp/gh-aw/python/charts/blocked_domains.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
    ```
 2. Call the `upload_artifact` safe-output tool for each chart
 3. Record the returned `aw_*` IDs

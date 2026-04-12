@@ -224,7 +224,7 @@ cat /tmp/gh-aw/approach-validator/agent4-dead-end-detector.md
 Write the full compiled report to a file for artifact upload (using the run ID for uniqueness):
 
 ```bash
-cat > /tmp/gh-aw/safeoutputs/upload-artifacts/approach-validation-report-${{ github.run_id }}.md << 'REPORT_EOF'
+cat > $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/approach-validation-report-${{ github.run_id }}.md << 'REPORT_EOF'
 [Full compiled report — see structure below]
 REPORT_EOF
 ```
