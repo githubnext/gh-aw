@@ -109,7 +109,7 @@ jobs:
             await main();
 
   cleanup-cache-memory:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories') }}
+    if: ${{ (!(github.event.repository.fork)) && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories') }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -136,7 +136,7 @@ jobs:
             await main();
 
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
