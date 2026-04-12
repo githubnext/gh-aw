@@ -496,13 +496,34 @@ async function main(config = {}) {
 
     core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
 
+    /** @type {number|undefined} */
+    let artifactId;
+    /** @type {string} */
+    let artifactUrl = "";
+
     if (!isStaged) {
       // Upload files directly via @actions/artifact REST API.
       const absoluteFiles = files.map(f => path.join(STAGING_DIR, f));
       const client = await getArtifactClient();
       try {
-        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, { retentionDays });
-        core.info(`Uploaded artifact "${artifactName}" (id=${uploadResult.id ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
+        const uploadOpts = { retentionDays };
+        if (skipArchive) {
+          uploadOpts.skipArchive = true;
+        }
+        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, uploadOpts);
+        artifactId = uploadResult.id;
+        core.info(`Uploaded artifact "${artifactName}" (id=${artifactId ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
+
+        // Construct the artifact URL from the artifact ID and GitHub context.
+        if (artifactId) {
+          const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+          const repository = process.env.GITHUB_REPOSITORY || "";
+          const runId = process.env.GITHUB_RUN_ID || "";
+          if (repository && runId) {
+            artifactUrl = `${serverUrl}/${repository}/actions/runs/${runId}/artifacts/${artifactId}`;
+            core.info(`Artifact URL: ${artifactUrl}`);
+          }
+        }
       } catch (err) {
         return {
           success: false,
@@ -517,6 +538,12 @@ async function main(config = {}) {
     core.setOutput(`slot_${i}_tmp_id`, tmpId);
     core.setOutput(`slot_${i}_file_count`, String(files.length));
     core.setOutput(`slot_${i}_size_bytes`, String(totalSize));
+    if (artifactId !== undefined) {
+      core.setOutput(`slot_${i}_artifact_id`, String(artifactId));
+    }
+    if (artifactUrl) {
+      core.setOutput(`slot_${i}_artifact_url`, artifactUrl);
+    }
 
     slotIndex++;
 
@@ -536,6 +563,8 @@ async function main(config = {}) {
       success: true,
       tmpId,
       artifactName,
+      artifactId,
+      artifactUrl,
       slotIndex: i,
     };
   };
