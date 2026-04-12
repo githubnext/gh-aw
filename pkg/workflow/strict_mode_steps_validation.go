@@ -148,7 +148,12 @@ func classifyStepSecrets(step any) (unsafeRefs, safeRefs []string) {
 	// Check if this is a uses: action step. For action steps, with: inputs are
 	// passed to the external action (not interpolated into shell scripts), and
 	// the GitHub Actions runner masks with: values derived from secrets.
-	_, hasUses := stepMap["uses"]
+	// Only treat with: as safe when uses is a valid non-empty string reference.
+	usesVal, hasUses := stepMap["uses"]
+	if hasUses {
+		usesStr, isString := usesVal.(string)
+		hasUses = isString && strings.TrimSpace(usesStr) != ""
+	}
 
 	var localUnsafe, localSafe []string
 	for key, val := range stepMap {
@@ -232,11 +237,13 @@ func filterBuiltinTokens(refs []string) []string {
 	return out
 }
 
-// stepReferencesGitHubEnv returns true if any non-env field in the step map
-// contains a reference to GITHUB_ENV (e.g. in a run: command that writes to it).
+// stepReferencesGitHubEnv returns true if any non-env, non-with field in the
+// step map contains a reference to GITHUB_ENV (e.g. in a run: command that
+// writes to it). Both env: and with: are safe binding surfaces, so their
+// values are excluded from GITHUB_ENV leak detection.
 func stepReferencesGitHubEnv(stepMap map[string]any) bool {
 	for key, val := range stepMap {
-		if key == "env" {
+		if key == "env" || key == "with" {
 			continue
 		}
 		if valueReferencesGitHubEnv(val) {

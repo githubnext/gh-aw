@@ -466,6 +466,50 @@ func TestClassifyStepSecrets(t *testing.T) {
 			expectedSafe:   nil,
 		},
 		{
+			name: "secret in with field with nil uses is unsafe",
+			step: map[string]any{
+				"uses": nil,
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with empty uses is unsafe",
+			step: map[string]any{
+				"uses": "",
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with whitespace-only uses is unsafe",
+			step: map[string]any{
+				"uses": "   ",
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
+			name: "secret in with field with non-string uses is unsafe",
+			step: map[string]any{
+				"uses": 42,
+				"with": map[string]any{
+					"token": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			expectedUnsafe: []string{"${{ secrets.MY_TOKEN }}"},
+			expectedSafe:   nil,
+		},
+		{
 			name: "malformed string with in uses action step is unsafe",
 			step: map[string]any{
 				"uses": "some/action@v1",
@@ -565,6 +609,18 @@ func TestClassifyStepSecrets(t *testing.T) {
 					"TOKEN": "${{ secrets.TOKEN }}",
 				},
 				"run": "my-tool --authenticate",
+			},
+			expectedUnsafe: nil,
+			expectedSafe:   []string{"${{ secrets.TOKEN }}"},
+		},
+		{
+			name: "GITHUB_ENV string in with field does not trigger reclassification",
+			step: map[string]any{
+				"uses": "some/action@v1",
+				"with": map[string]any{
+					"path":  "GITHUB_ENV",
+					"token": "${{ secrets.TOKEN }}",
+				},
 			},
 			expectedUnsafe: nil,
 			expectedSafe:   []string{"${{ secrets.TOKEN }}"},
@@ -761,6 +817,14 @@ func TestStepReferencesGitHubEnv(t *testing.T) {
 			stepMap: map[string]any{
 				"run": "my-tool scan",
 				"env": map[string]any{"GITHUB_ENV": "/tmp/env"},
+			},
+			expected: false,
+		},
+		{
+			name: "GITHUB_ENV in with field is ignored",
+			stepMap: map[string]any{
+				"run":  "my-tool scan",
+				"with": map[string]any{"path": "GITHUB_ENV"},
 			},
 			expected: false,
 		},
