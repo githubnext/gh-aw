@@ -525,10 +525,12 @@ jobs:
 `)
 
 	// Add validate_workflows job for workflow_dispatch with operation == 'validate'
+	// This job uses ubuntu-latest by default (needs full runner for CLI installation).
+	validateRunsOnValue := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
 	yaml.WriteString(`
   validate_workflows:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate' && !github.event.repository.fork }}
-    runs-on: ` + runsOnValue + `
+    runs-on: ` + validateRunsOnValue + `
     permissions:
       contents: read
       issues: write
