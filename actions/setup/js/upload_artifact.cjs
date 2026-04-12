@@ -38,8 +38,12 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
-/** Staging directory where the model places files to be uploaded. */
-const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
+/**
+ * Staging directory where the model places files to be uploaded.
+ * Uses RUNNER_TEMP to match the path used by the compiled workflow when
+ * downloading the staging artifact in the safe_outputs job.
+ */
+const STAGING_DIR = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts") + path.sep;
 
 /** Path where the resolver mapping (tmpId → artifact name) is written. */
 const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";

@@ -851,13 +851,13 @@
   },
   {
     "name": "upload_artifact",
-    "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be pre-staged in /tmp/gh-aw/safeoutputs/upload-artifacts/ or referenced by their original path — files not already in the staging directory are automatically copied there before upload. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorised step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
+    "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be pre-staged in $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ or referenced by their original path — files not already in the staging directory are automatically copied there before upload. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorised step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "path": {
           "type": "string",
-          "description": "Path to the file or directory to upload. Can be relative to /tmp/gh-aw/safeoutputs/upload-artifacts/, an absolute path, or a path relative to the workspace. Files not already in the staging directory are automatically copied there. Required unless filters is provided."
+          "description": "Path to the file or directory to upload. Can be relative to $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/, an absolute path, or a path relative to the workspace. Files not already in the staging directory are automatically copied there. Required unless filters is provided."
         },
         "filters": {
           "type": "object",
