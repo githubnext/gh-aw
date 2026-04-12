@@ -11,7 +11,7 @@ const { getTrackerID } = require("./get_tracker_id.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { replaceTemporaryIdReferences, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences, replaceTemporaryIdReferencesInPatch, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
@@ -991,6 +991,18 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
 
       // Apply the patch using git CLI (skip if empty)
       if (!isEmpty) {
+        // Resolve temporary ID references in patch content before applying
+        // This handles references like #aw_XXX in committed source code
+        if (resolvedTemporaryIds && Object.keys(resolvedTemporaryIds).length > 0) {
+          const tempIdMap = new Map(Object.entries(resolvedTemporaryIds));
+          const originalPatchContent = patchContent;
+          patchContent = replaceTemporaryIdReferencesInPatch(patchContent, tempIdMap, itemRepo);
+          if (patchContent !== originalPatchContent) {
+            core.info("Resolved temporary ID references in patch content");
+            fs.writeFileSync(patchFilePath, patchContent, "utf8");
+          }
+        }
+
         core.info("Applying patch...");
         const patchLines = patchContent.split("\n");
         const previewLineCount = Math.min(500, patchLines.length);
