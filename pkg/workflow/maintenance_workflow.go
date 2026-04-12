@@ -262,6 +262,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'clean_cache_memories'
           - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
@@ -343,12 +344,12 @@ jobs:
             await main();
 `)
 
-	// Add cleanup-cache-memory job for scheduled runs
+	// Add cleanup-cache-memory job for scheduled runs and clean_cache_memories operation
 	// This job lists all caches starting with "memory-", groups them by key prefix,
 	// keeps the latest run ID per group, and deletes the rest.
 	yaml.WriteString(`
   cleanup-cache-memory:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories') }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: write
@@ -380,10 +381,10 @@ jobs:
             await main();
 `)
 
-	// Add unified run_operation job for all dispatch operations except safe_outputs, create_labels, and validate
+	// Add unified run_operation job for all dispatch operations except safe_outputs, create_labels, clean_cache_memories, and validate
 	yaml.WriteString(`
   run_operation:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate' && !github.event.repository.fork }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: write
