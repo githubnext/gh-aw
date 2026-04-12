@@ -855,7 +855,7 @@ jobs:
           path: /tmp/gh-aw/apm-bundle
       - id: apm_bundle
         name: Find APM bundle path
-        run: echo "path=$(ls /tmp/gh-aw/apm-bundle/*.tar.gz | head -1)" >> "$GITHUB_OUTPUT"
+        run: echo "path=$(find /tmp/gh-aw/apm-bundle -name '*.tar.gz' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Restore APM packages
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         with:
@@ -2905,7 +2905,7 @@ jobs:
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
       - name: Configure Safe Outputs Custom Scripts
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_dae07f2089a4b2eb_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs" << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_dae07f2089a4b2eb_EOF'
           // @ts-check
           /// <reference types="./safe-output-script" />
           // Auto-generated safe-output script handler: post-slack-message

@@ -787,7 +787,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig, frontmatte
 			return nil, fmt.Errorf("safe-output script %q: %w", scriptName, err)
 		}
 
-		steps = append(steps, fmt.Sprintf("          cat > %s << '%s'\n", filePath, delimiter))
+		steps = append(steps, fmt.Sprintf("          cat > \"%s\" << '%s'\n", filePath, delimiter))
 		for line := range strings.SplitSeq(scriptContent, "\n") {
 			steps = append(steps, "          "+line+"\n")
 		}

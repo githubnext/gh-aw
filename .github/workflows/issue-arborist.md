@@ -39,7 +39,7 @@ steps:
       
       # Fetch the last 100 open issues that don't have a parent issue
       # Using search filter to exclude issues that are already sub-issues
-      gh issue list --repo $GITHUB_REPOSITORY \
+      gh issue list --repo "$GITHUB_REPOSITORY" \
         --search "-parent-issue:*" \
         --state open \
         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
