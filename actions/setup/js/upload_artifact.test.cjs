@@ -483,5 +483,20 @@ describe("upload_artifact.cjs", () => {
       expect(files).toContain(path.join(CUSTOM_STAGING, "custom-report.json"));
       expect(rootDir).toBe(CUSTOM_STAGING + path.sep);
     });
+
+    it("falls back to /tmp when RUNNER_TEMP is unset", async () => {
+      // Clear RUNNER_TEMP to verify the fallback
+      delete process.env.RUNNER_TEMP;
+
+      writeStaging("fallback-report.json", '{"ok": true}');
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "fallback-report.json" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(results[0].success).toBe(true);
+      const [, files, rootDir] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(files).toContain(path.join(STAGING_DIR, "fallback-report.json"));
+      expect(rootDir).toBe(STAGING_DIR);
+    });
   });
 });

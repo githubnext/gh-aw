@@ -42,6 +42,8 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
  * Staging directory where the model places files to be uploaded.
  * Uses RUNNER_TEMP to match the path used by the compiled workflow when
  * downloading the staging artifact in the safe_outputs job.
+ * Note: Computed once at module load time. RUNNER_TEMP must be set before
+ * this module is required/evaluated.
  */
 const STAGING_DIR = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts") + path.sep;
 
