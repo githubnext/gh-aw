@@ -7,7 +7,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Paths match what upload_artifact.cjs computes at runtime (uses /tmp/gh-aw/ base).
+// Paths match what upload_artifact.cjs computes at runtime.
+// When RUNNER_TEMP is unset (test default), STAGING_DIR falls back to /tmp/gh-aw/.
 const STAGING_DIR = "/tmp/gh-aw/safeoutputs/upload-artifacts/";
 const RESOLVER_FILE = "/tmp/gh-aw/artifact-resolver.json";
 
@@ -86,6 +87,8 @@ describe("upload_artifact.cjs", () => {
     originalEnv = { ...process.env };
 
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    // Clear RUNNER_TEMP so the handler falls back to /tmp, matching the test's STAGING_DIR
+    delete process.env.RUNNER_TEMP;
 
     // Ensure staging dir exists and is clean
     if (fs.existsSync(STAGING_DIR)) {
@@ -445,6 +448,40 @@ describe("upload_artifact.cjs", () => {
       await runHandler(buildConfig(), [{ type: "upload_artifact", path: linkPath }]);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("symlinks are not allowed"));
+    });
+  });
+
+  describe("RUNNER_TEMP staging directory", () => {
+    const CUSTOM_TEMP = "/tmp/gh-aw-test-runner-temp";
+    const CUSTOM_STAGING = path.join(CUSTOM_TEMP, "gh-aw", "safeoutputs", "upload-artifacts");
+
+    beforeEach(() => {
+      // Set RUNNER_TEMP so the handler uses a custom staging dir
+      process.env.RUNNER_TEMP = CUSTOM_TEMP;
+      if (fs.existsSync(CUSTOM_STAGING)) {
+        fs.rmSync(CUSTOM_STAGING, { recursive: true });
+      }
+      fs.mkdirSync(CUSTOM_STAGING, { recursive: true });
+    });
+
+    afterEach(() => {
+      if (fs.existsSync(CUSTOM_STAGING)) {
+        fs.rmSync(CUSTOM_STAGING, { recursive: true });
+      }
+    });
+
+    it("uses RUNNER_TEMP as the staging directory base", async () => {
+      const filePath = path.join(CUSTOM_STAGING, "custom-report.json");
+      fs.writeFileSync(filePath, '{"ok": true}');
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "custom-report.json" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(results[0].success).toBe(true);
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+      const [, files, rootDir] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(files).toContain(path.join(CUSTOM_STAGING, "custom-report.json"));
+      expect(rootDir).toBe(CUSTOM_STAGING + path.sep);
     });
   });
 });
