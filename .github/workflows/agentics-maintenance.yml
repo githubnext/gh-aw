@@ -287,6 +287,11 @@ jobs:
       - name: Build gh-aw
         run: make build
 
+      - name: Start Docker daemon
+        run: |
+          sudo systemctl start docker
+          docker info
+
       - name: Validate workflows and file issue on findings
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
