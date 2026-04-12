@@ -92,8 +92,8 @@ func TestExtractStepsFromCopilotSetup(t *testing.T) {
 	// Verify the YAML contains the expected content (as a YAML array, not with "steps:" wrapper)
 	assert.NotContains(t, stepsYAML, "steps:", "Should NOT contain steps field wrapper")
 	assert.Contains(t, stepsYAML, "Install gh-aw extension", "Should contain install step")
-	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain checkout step (stripped by compiler)")
-	assert.NotContains(t, stepsYAML, "actions/checkout@v4", "Should NOT contain checkout action (stripped by compiler)")
+	assert.NotContains(t, stepsYAML, "Checkout code", "Should NOT contain checkout step (stripped during import)")
+	assert.NotContains(t, stepsYAML, "actions/checkout@v4", "Should NOT contain checkout action (stripped during import)")
 	assert.Contains(t, stepsYAML, "Set up Node.js", "Should contain Node.js setup step")
 	assert.Contains(t, stepsYAML, "actions/setup-node@v4", "Should contain Node.js setup action")
 
