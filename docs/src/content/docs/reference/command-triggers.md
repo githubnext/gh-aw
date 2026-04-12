@@ -83,7 +83,9 @@ This pattern is useful when you want a workflow that can be triggered both manua
 
 ## Filtering Command Events
 
-By default, command triggers respond to `/command-name` mentions in all comment-related contexts. Use the `events:` field to restrict where commands are active:
+By default, command triggers respond to `/command-name` mentions in **all** comment-related contexts: issue bodies, issue comments, PR bodies, PR comments, PR review comments, discussion bodies, and discussion comments. This means every PR open/edit event triggers the workflow even if it gets skipped at the activation gate — showing up as skipped runs in the Actions UI.
+
+Use the `events:` field to restrict where commands are active and eliminate unnecessary workflow runs:
 
 ```yaml wrap
 on:
@@ -92,31 +94,54 @@ on:
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
 
-**Supported events:** `issues` (issue bodies), `issue_comment` (issue comments only), `pull_request_comment` (PR comments only), `pull_request` (PR bodies), `pull_request_review_comment` (PR review comments), `discussion` (discussion bodies), `discussion_comment` (discussion comments), or `*` (all comment events, default).
+### Supported event identifiers
 
-### Example command workflow
+| Event identifier | Description |
+|---|---|
+| `issues` | Issue bodies (opened, edited, reopened) |
+| `issue_comment` | Comments on issues only (excludes PR comments) |
+| `pull_request` | Pull request bodies (opened, edited, reopened) |
+| `pull_request_comment` | Comments on pull requests only (excludes issue comments) |
+| `pull_request_review_comment` | Pull request review comments |
+| `discussion` | Discussion bodies |
+| `discussion_comment` | Discussion comments |
+| `*` | All comment-related events (default when `events:` is omitted) |
 
-Using object format:
+:::note
+Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event but with automatic filtering to distinguish between issue comments and PR comments. This provides precise control over where your commands are active.
+:::
+
+### Issue-only commands
+
+For workflows where the slash command only makes sense on issues (e.g., bug investigation pipelines), restrict events to `issues` and `issue_comment` to avoid generating skipped runs from pull request activity:
 
 ```aw wrap
 ---
 on:
   slash_command:
-    name: summarize-issue
+    name: investigate
+    events: [issues, issue_comment]  # Skip PR events entirely
+permissions:
+  contents: read
+  issues: write
 tools:
   github:
     toolsets: [issues]
 ---
 
-# Issue Summarizer
+# Bug Investigator
 
-When someone mentions /summarize-issue in an issue or comment, 
-analyze and provide a helpful summary.
+When someone mentions /investigate in an issue or issue comment,
+analyze the reported bug and provide an investigation summary.
 
-The current context text is: "${{ steps.sanitized.outputs.text }}"
+The current context is: "${{ steps.sanitized.outputs.text }}"
 ```
 
-PR-focused example using event filtering to restrict to pull requests and PR comments:
+Without the `events` filter, this workflow would trigger on every PR open and edit event, immediately get skipped at the pre-activation gate, and show up as a cancelled run in the Actions tab.
+
+### PR-only commands
+
+For commands that only apply to pull requests and PR comments:
 
 ```aw wrap
 ---
@@ -144,6 +169,28 @@ The current context is: "${{ steps.sanitized.outputs.text }}"
 
 Review the pull request changes and add helpful review comments on specific
 lines of code where improvements can be made.
+```
+
+### General command workflow
+
+Using object format without event filtering (responds to all comment-related events):
+
+```aw wrap
+---
+on:
+  slash_command:
+    name: summarize-issue
+tools:
+  github:
+    toolsets: [issues]
+---
+
+# Issue Summarizer
+
+When someone mentions /summarize-issue in an issue or comment, 
+analyze and provide a helpful summary.
+
+The current context text is: "${{ steps.sanitized.outputs.text }}"
 ```
 
 ## Context Text
