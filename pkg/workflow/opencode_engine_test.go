@@ -39,7 +39,20 @@ func TestOpenCodeEngine(t *testing.T) {
 			Tools:       map[string]any{},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for Copilot routing")
+		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should require COPILOT_GITHUB_TOKEN for Copilot routing")
+	})
+
+	t.Run("required secrets with copilot-requests feature", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:        "test",
+			ParsedTools: &ToolsConfig{},
+			Tools:       map[string]any{},
+			Features: map[string]any{
+				"copilot-requests": true,
+			},
+		}
+		secrets := engine.GetRequiredSecretNames(workflowData)
+		assert.NotContains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should not require COPILOT_GITHUB_TOKEN when copilot-requests is enabled")
 	})
 
 	t.Run("required secrets with MCP servers", func(t *testing.T) {
@@ -53,7 +66,7 @@ func TestOpenCodeEngine(t *testing.T) {
 			},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should require OPENAI_API_KEY for Copilot routing")
+		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should require COPILOT_GITHUB_TOKEN for Copilot routing")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY", "Should require MCP_GATEWAY_API_KEY when MCP servers present")
 		assert.Contains(t, secrets, "GITHUB_MCP_SERVER_TOKEN", "Should require GITHUB_MCP_SERVER_TOKEN for GitHub tool")
 	})
@@ -70,7 +83,7 @@ func TestOpenCodeEngine(t *testing.T) {
 			},
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.Contains(t, secrets, "OPENAI_API_KEY", "Should still require OPENAI_API_KEY for Copilot routing")
+		assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "Should still require COPILOT_GITHUB_TOKEN for Copilot routing")
 		assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "Should add ANTHROPIC_API_KEY from engine.env")
 	})
 
@@ -153,8 +166,23 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "opencode run", "Should invoke opencode run command")
 		assert.Contains(t, stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
-		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", "Should set OPENAI_API_KEY env var")
+		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should set OPENAI_API_KEY from COPILOT_GITHUB_TOKEN")
 		assert.Contains(t, stepContent, "NO_PROXY: localhost,127.0.0.1", "Should set NO_PROXY env var")
+	})
+
+	t.Run("basic execution with copilot-requests", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Features: map[string]any{
+				"copilot-requests": true,
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate config step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ github.token }}", "Should set OPENAI_API_KEY from github.token when copilot-requests is enabled")
 	})
 
 	t.Run("with model", func(t *testing.T) {
@@ -239,7 +267,7 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 
 		// The user-provided value should override the default token expression
 		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.MY_ORG_OPENAI_KEY }}", "engine.env should override the default OPENAI_API_KEY expression")
-		assert.NotContains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", "Default OPENAI_API_KEY expression should be replaced by engine.env")
+		assert.NotContains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Default COPILOT_GITHUB_TOKEN expression should be replaced by engine.env")
 	})
 
 	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {

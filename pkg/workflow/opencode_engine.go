@@ -45,11 +45,18 @@ func (e *OpenCodeEngine) GetModelEnvVarName() string {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the OpenCode engine.
-// By default, OpenCode routes through the Copilot API (OpenAI-compatible) using OPENAI_API_KEY.
+// By default, OpenCode routes through the Copilot API using COPILOT_GITHUB_TOKEN
+// (or ${{ github.token }} when copilot-requests feature is enabled).
 // Additional provider API keys can be added via engine.env overrides.
 func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	opencodeLog.Print("Collecting required secrets for OpenCode engine")
-	secrets := []string{"OPENAI_API_KEY"} // Default: Copilot routing via OpenAI-compatible API
+	var secrets []string
+
+	// Default: Copilot routing via COPILOT_GITHUB_TOKEN.
+	// When copilot-requests feature is enabled, no secret is needed (uses github.token).
+	if !isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
+		secrets = append(secrets, "COPILOT_GITHUB_TOKEN")
+	}
 
 	// Allow additional provider API keys from engine.env overrides
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
@@ -99,6 +106,21 @@ func (e *OpenCodeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitH
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+}
+
+// GetSecretValidationStep returns the secret validation step for the OpenCode engine.
+// Returns an empty step if copilot-requests feature is enabled (uses GitHub Actions token).
+func (e *OpenCodeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
+		opencodeLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
+		return GitHubActionStep{}
+	}
+	return BuildDefaultSecretValidationStep(
+		workflowData,
+		[]string{"COPILOT_GITHUB_TOKEN"},
+		"OpenCode CLI",
+		"https://github.github.com/gh-aw/reference/engines/#opencode",
+	)
 }
 
 // GetDeclaredOutputFiles returns the output files that OpenCode may produce.
@@ -168,9 +190,21 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", opencodeCommand, logFile)
 	}
 
-	// Environment variables — default to Copilot routing (OpenAI-compatible API)
+	// Environment variables — default to Copilot routing (OpenAI-compatible API).
+	// OPENAI_API_KEY is set from COPILOT_GITHUB_TOKEN (or github.token with copilot-requests).
+	// #nosec G101 -- These are NOT hardcoded credentials. They are GitHub Actions expression templates
+	// that the runtime replaces with actual values.
+	var openaiAPIKey string
+	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
+	if useCopilotRequests {
+		openaiAPIKey = "${{ github.token }}"
+		opencodeLog.Print("Using GitHub Actions token as OPENAI_API_KEY (copilot-requests feature enabled)")
+	} else {
+		openaiAPIKey = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	}
+
 	env := map[string]string{
-		"OPENAI_API_KEY":   "${{ secrets.OPENAI_API_KEY }}",
+		"OPENAI_API_KEY":   openaiAPIKey,
 		"GH_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 		"NO_PROXY":         "localhost,127.0.0.1",

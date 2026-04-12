@@ -8,7 +8,7 @@ engine:
     name: opencode
   auth:
     - role: api-key
-      secret: OPENAI_API_KEY
+      secret: COPILOT_GITHUB_TOKEN
 ---
 
 <!-- # OpenCode CLI

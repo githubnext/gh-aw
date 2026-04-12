@@ -89,7 +89,7 @@ var EngineOptions = []EngineOption{
 		Value:              string(OpenCodeEngine),
 		Label:              "OpenCode",
 		Description:        "OpenCode multi-provider AI coding agent (BYOK)",
-		SecretName:         "OPENAI_API_KEY",
+		SecretName:         "COPILOT_GITHUB_TOKEN",
 		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "GOOGLE_API_KEY"},
 		KeyURL:             "https://opencode.ai/docs/get-started/",
 		WhenNeeded:         "OpenCode engine workflows (default: Copilot routing)",
