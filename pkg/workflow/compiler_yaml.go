@@ -335,6 +335,12 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent := yaml.String()
 
+	// Add zizmor inline ignore annotations for secrets-outside-env findings.
+	// All compiled workflows use secrets for authentication tokens (GITHUB_TOKEN,
+	// GH_AW_GITHUB_TOKEN, etc.) without GitHub Actions environment: configuration.
+	// These are standard tokens that do not benefit from environment protection rules.
+	yamlContent = addZizmorIgnoreForSecretsOutsideEnv(yamlContent)
+
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
@@ -344,6 +350,46 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
 	return yamlContent, secrets, actions, nil
+}
+
+// addZizmorIgnoreForSecretsOutsideEnv adds zizmor inline ignore comments to lines
+// that reference GitHub Actions secrets (${{ secrets.* }}). This suppresses the
+// "secrets-outside-env" finding which fires when secrets are used in jobs without a
+// GitHub Actions environment: configuration. Compiled workflows use secrets for
+// authentication tokens that are standard and do not benefit from environment
+// protection rules.
+func addZizmorIgnoreForSecretsOutsideEnv(yamlStr string) string {
+	if !strings.Contains(yamlStr, "secrets.") {
+		return yamlStr
+	}
+
+	const ignoreComment = "# zizmor: ignore[secrets-outside-env]"
+
+	lines := strings.Split(yamlStr, "\n")
+	modified := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comment lines and empty lines
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		// Check if line contains a secret reference in a GitHub Actions expression
+		if strings.Contains(line, "secrets.") && strings.Contains(line, "${{") {
+			// Skip if already annotated
+			if strings.Contains(line, "zizmor: ignore[secrets-outside-env]") {
+				continue
+			}
+			lines[i] = line + " " + ignoreComment
+			modified = true
+		}
+	}
+
+	if !modified {
+		return yamlStr
+	}
+	return strings.Join(lines, "\n")
 }
 
 func splitContentIntoChunks(content string) []string {

@@ -163,3 +163,92 @@ func TestJobHasWorkflowRunSafetyChecks(t *testing.T) {
 		})
 	}
 }
+
+func TestAddZizmorIgnoreForSecretsOutsideEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "env var with secret gets annotation",
+			input: `    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`,
+			expected: `    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+		},
+		{
+			name: "multiple secrets on same line",
+			input: `    env:
+      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`,
+			expected: `    env:
+      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+		},
+		{
+			name: "no secrets present",
+			input: `    env:
+      NODE_ENV: production`,
+			expected: `    env:
+      NODE_ENV: production`,
+		},
+		{
+			name: "comment lines are not modified",
+			input: `# secrets.GITHUB_TOKEN is used here
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}`,
+			expected: `# secrets.GITHUB_TOKEN is used here
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+		},
+		{
+			name: "already annotated lines are not modified",
+			input: `    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+			expected: `    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+		},
+		{
+			name: "github-token input gets annotation",
+			input: `      - uses: actions/checkout@v4
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`,
+			expected: `      - uses: actions/checkout@v4
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+		},
+		{
+			name:     "empty string returns unchanged",
+			input:    "",
+			expected: "",
+		},
+		{
+			name: "secrets without expression syntax not modified",
+			input: `    # This mentions secrets.GITHUB_TOKEN but not in an expression
+    env:
+      FOO: bar`,
+			expected: `    # This mentions secrets.GITHUB_TOKEN but not in an expression
+    env:
+      FOO: bar`,
+		},
+		{
+			name: "multiple lines with secrets all get annotations",
+			input: `    env:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`,
+			expected: `    env:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]
+      GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }} # zizmor: ignore[secrets-outside-env]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := addZizmorIgnoreForSecretsOutsideEnv(tt.input)
+			if result != tt.expected {
+				t.Errorf("Expected:\n%s\n\nGot:\n%s", tt.expected, result)
+			}
+		})
+	}
+}
