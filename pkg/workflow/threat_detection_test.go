@@ -155,6 +155,39 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				RunsOn: "self-hosted",
 			},
 		},
+		{
+			name: "object with on-failure warn",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"on-failure": "warn",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				OnFailure: "warn",
+			},
+		},
+		{
+			name: "object with on-failure error",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"on-failure": "error",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				OnFailure: "error",
+			},
+		},
+		{
+			name: "object with invalid on-failure value uses default",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"on-failure": "invalid",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				OnFailure: "",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -185,6 +218,43 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 
 			if result.RunsOn != tt.expectedConfig.RunsOn {
 				t.Errorf("Expected RunsOn %q, got %q", tt.expectedConfig.RunsOn, result.RunsOn)
+			}
+
+			if result.OnFailure != tt.expectedConfig.OnFailure {
+				t.Errorf("Expected OnFailure %q, got %q", tt.expectedConfig.OnFailure, result.OnFailure)
+			}
+		})
+	}
+}
+
+func TestIsWarnMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *ThreatDetectionConfig
+		expected bool
+	}{
+		{
+			name:     "default (empty) is warn mode",
+			config:   &ThreatDetectionConfig{},
+			expected: true,
+		},
+		{
+			name:     "explicit warn is warn mode",
+			config:   &ThreatDetectionConfig{OnFailure: ThreatDetectionOnFailureWarn},
+			expected: true,
+		},
+		{
+			name:     "explicit error is not warn mode",
+			config:   &ThreatDetectionConfig{OnFailure: ThreatDetectionOnFailureError},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.config.IsWarnMode()
+			if result != tt.expected {
+				t.Errorf("Expected IsWarnMode() = %v, got %v", tt.expected, result)
 			}
 		})
 	}

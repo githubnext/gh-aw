@@ -62,6 +62,14 @@ Create an issue.
 	if !strings.Contains(yaml, "detection_conclusion:") {
 		t.Error("Detection job missing detection_conclusion output")
 	}
+	if !strings.Contains(yaml, "detection_reason:") {
+		t.Error("Detection job missing detection_reason output")
+	}
+
+	// Check that the detection conclusion step has GH_AW_DETECTION_ON_FAILURE env var
+	if !strings.Contains(detectionSection, "GH_AW_DETECTION_ON_FAILURE:") {
+		t.Error("Detection conclusion step missing GH_AW_DETECTION_ON_FAILURE env var")
+	}
 
 	// Check that the combined parse-and-conclude step has ID detection_conclusion
 	if !strings.Contains(detectionSection, "id: detection_conclusion") {
