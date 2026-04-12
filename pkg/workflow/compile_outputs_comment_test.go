@@ -277,7 +277,7 @@ This workflow tests the safe_outputs job generation.
 	}
 
 	// Verify the job uses github-script
-	if !strings.Contains(lockContent, "uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71") {
+	if !strings.Contains(lockContent, "uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553") {
 		t.Error("Expected github-script action to be used in safe_outputs job")
 	}
 
