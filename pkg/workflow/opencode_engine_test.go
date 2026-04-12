@@ -91,6 +91,26 @@ func TestOpenCodeEngine(t *testing.T) {
 		outputFiles := engine.GetDeclaredOutputFiles()
 		assert.Empty(t, outputFiles, "Should have no declared output files")
 	})
+
+	t.Run("secret validation step without copilot-requests", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test",
+		}
+		step := engine.GetSecretValidationStep(workflowData)
+		stepContent := strings.Join(step, "\n")
+		assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN", "Should validate COPILOT_GITHUB_TOKEN")
+	})
+
+	t.Run("secret validation step with copilot-requests", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test",
+			Features: map[string]any{
+				"copilot-requests": true,
+			},
+		}
+		step := engine.GetSecretValidationStep(workflowData)
+		assert.Empty(t, step, "Should skip secret validation when copilot-requests is enabled")
+	})
 }
 
 func TestOpenCodeEngineInstallation(t *testing.T) {
