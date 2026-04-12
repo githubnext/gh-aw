@@ -87,20 +87,67 @@ The maintenance workflow searches for items with this expiration format (checked
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete documentation.
 
+### Cache-Memory Cleanup
+
+The maintenance workflow automatically cleans up outdated [cache-memory](/gh-aw/reference/cache-memory/) entries on every scheduled run. Cache keys follow the pattern `memory-{workflow}-{run-id}`, and the cleanup job groups caches by workflow prefix, keeps the latest run ID per group, and deletes older entries. This prevents cache storage from growing unboundedly as workflows run repeatedly.
+
+The cleanup includes rate-limit awareness — it pauses early if the GitHub API rate limit is running low — and produces a job summary table showing how many caches were found, kept, and deleted.
+
+You can also trigger cleanup manually using the `clean_cache_memories` operation (see [Manual maintenance operations](#manual-maintenance-operations) below).
+
 ### Manual Maintenance Operations
 
-The generated `agentics-maintenance.yml` workflow also supports manual bulk operations via `workflow_dispatch`. Admin or maintainer users can trigger it from the GitHub Actions UI or the CLI. The operation is restricted to admin and maintainer roles and is not available on forks.
+The generated `agentics-maintenance.yml` workflow supports manual bulk operations via `workflow_dispatch`. Admin or maintainer users can trigger operations from the GitHub Actions UI or the CLI. All operations are restricted to admin and maintainer roles and are not available on forks.
 
 Available operations:
 
 | Operation | Description |
 |-----------|-------------|
-| `safe_outputs` | Auto-close expired issues, discussions, and pull requests |
 | `disable` | Disable all agentic workflows in the repository |
 | `enable` | Re-enable all agentic workflows in the repository |
-| `create_labels` | Create any repository labels referenced in safe-outputs that do not yet exist. Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. |
+| `update` | Recompile workflows and create a PR if files changed |
+| `upgrade` | Upgrade agentic workflows to the latest version and create a PR if files changed |
+| `safe_outputs` | Replay safe outputs from a specific workflow run (requires a run URL or run ID) |
+| `create_labels` | Create any repository labels referenced in safe-outputs that do not yet exist |
+| `clean_cache_memories` | Clean up outdated cache-memory entries (same as the automated scheduled cleanup) |
+| `validate` | Run full workflow validation with all linters and file an issue if findings are detected |
 
-The `create_labels` operation requires `issues: write` permission and runs in a dedicated job. It is useful when adding new workflows that reference labels that have not yet been created in the repository.
+**Operation details:**
+
+- **`update` / `upgrade`**: Runs `gh aw update` or `gh aw upgrade`, stages changed files, and opens a pull request for review. After merging, recompile lock files with `gh aw compile`. See [Upgrading Agentic Workflows](/gh-aw/guides/upgrading/) for the manual upgrade process.
+- **`safe_outputs`**: Replays safe output processing from a previous workflow run. Provide a run URL or numeric run ID in the `run_url` input field. Useful when safe outputs were not applied correctly on the original run.
+- **`create_labels`**: Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. Requires `issues: write` permission.
+- **`validate`**: Runs `gh aw compile --validate --no-emit --zizmor --actionlint --poutine --verbose`. If errors or warnings are found, creates or updates a GitHub issue titled `[aw] workflow validation findings` with the full output.
+- **`clean_cache_memories`**: Lists all caches with the `memory-` prefix, groups them by workflow, keeps the latest per group, and deletes older entries.
+
+### Maintenance Configuration
+
+You can customize the maintenance workflow runner or disable maintenance entirely using the `aw.json` configuration file at `.github/workflows/aw.json`.
+
+**Customize the runner:**
+
+```json
+{
+  "maintenance": {
+    "runs_on": "ubuntu-latest"
+  }
+}
+```
+
+The `runs_on` field accepts a single string or an array of strings for multi-label runners (e.g., `["self-hosted", "linux"]`). The default runner is `ubuntu-slim`.
+
+**Disable maintenance entirely:**
+
+```json
+{
+  "maintenance": false
+}
+```
+
+When maintenance is disabled, the compiler deletes any existing `agentics-maintenance.yml` file and emits a warning for workflows that use the `expires` field, since expiration depends on the maintenance workflow to run.
+
+> [!WARNING]
+> Disabling maintenance prevents automatic expiration of issues, discussions, and pull requests. Any `expires` configuration in your workflows will become a no-op until maintenance is re-enabled.
 
 ### Close Older Issues
 
