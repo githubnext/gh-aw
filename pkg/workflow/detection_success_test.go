@@ -145,3 +145,70 @@ Create outputs.
 		t.Error("Safe output jobs don't check detection result via detection job result")
 	}
 }
+
+// TestDetectionRunsStepInConclusionJob verifies that when threat detection is enabled,
+// the conclusion job contains a "Log detection run" step.
+func TestDetectionRunsStepInConclusionJob(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+
+	frontmatter := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: claude
+safe-outputs:
+  create-issue:
+---
+
+# Test
+
+Create an issue.
+`
+
+	if err := os.WriteFile(workflowPath, []byte(frontmatter), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile: %v", err)
+	}
+
+	// Read the compiled YAML
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	yamlBytes, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled YAML: %v", err)
+	}
+	yaml := string(yamlBytes)
+
+	// Verify conclusion job exists
+	conclusionSection := extractJobSection(yaml, "conclusion")
+	if conclusionSection == "" {
+		t.Fatal("Conclusion job not found in compiled YAML")
+	}
+
+	// Verify that "Log detection run" step is in the conclusion job
+	if !strings.Contains(conclusionSection, "Log detection run") {
+		t.Error("Conclusion job should contain 'Log detection run' step")
+	}
+
+	// Verify step has detection conclusion/reason env vars
+	if !strings.Contains(conclusionSection, "GH_AW_DETECTION_CONCLUSION:") {
+		t.Error("Detection runs step missing GH_AW_DETECTION_CONCLUSION env var")
+	}
+	if !strings.Contains(conclusionSection, "GH_AW_DETECTION_REASON:") {
+		t.Error("Detection runs step missing GH_AW_DETECTION_REASON env var")
+	}
+
+	// Verify step has run URL
+	if !strings.Contains(conclusionSection, "GH_AW_RUN_URL:") {
+		t.Error("Detection runs step missing GH_AW_RUN_URL env var")
+	}
+
+	// Verify the step uses handle_detection_runs.cjs
+	if !strings.Contains(conclusionSection, "handle_detection_runs.cjs") {
+		t.Error("Detection runs step should use handle_detection_runs.cjs")
+	}
+}
