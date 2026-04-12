@@ -203,7 +203,8 @@ describe("run_validate_workflows", () => {
     const { main } = await import("./run_validate_workflows.cjs");
     await main();
 
-    expect(mockExec.exec).toHaveBeenCalledWith("gh", expect.arrayContaining(["aw", "compile", "--validate", "--no-emit", "--zizmor", "--actionlint", "--poutine", "--verbose"]), expect.any(Object));
+    const expectedArgs = ["aw", "compile", "--validate", "--no-emit", "--zizmor", "--actionlint", "--poutine", "--verbose"];
+    expect(mockExec.exec).toHaveBeenCalledWith("gh", expect.arrayContaining(expectedArgs), expect.any(Object));
   });
 
   it("should truncate very large output in issues", async () => {
