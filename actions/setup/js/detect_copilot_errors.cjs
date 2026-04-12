@@ -10,6 +10,9 @@
  *     access to inference (e.g., "Access denied by policy settings").
  *   - mcp_policy_error: MCP servers were blocked by enterprise/organization
  *     policy (e.g., "MCP servers were blocked by policy: 'github', 'safeoutputs'").
+ *   - copilot_timeout: The Copilot CLI process was killed by a signal
+ *     (SIGTERM/SIGKILL/SIGINT), typically due to the step timeout-minutes
+ *     limit being reached.
  *
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
@@ -30,21 +33,29 @@ const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid
 // Pattern: MCP servers blocked by enterprise/organization policy
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
+// Pattern: Copilot CLI process killed by signal (timeout).
+// When GitHub Actions cancels a step due to timeout-minutes, the runner sends
+// SIGINT/SIGTERM/SIGKILL to the process group.  The copilot_driver.cjs logs
+// the signal in its close handler:
+//   [copilot-driver] attempt 1: process closed exitCode=1 signal=SIGTERM ...
+const COPILOT_TIMEOUT_PATTERN = /\[copilot-driver\].*signal=SIG(?:TERM|KILL|INT)/;
+
 /**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, copilotTimeout: boolean }}
  */
 function detectErrors(logContent) {
   return {
     inferenceAccessError: INFERENCE_ACCESS_ERROR_PATTERN.test(logContent),
     mcpPolicyError: MCP_POLICY_BLOCKED_PATTERN.test(logContent),
+    copilotTimeout: COPILOT_TIMEOUT_PATTERN.test(logContent),
   };
 }
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, copilotTimeout: boolean }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -53,7 +64,7 @@ function writeOutputs(results) {
     return;
   }
 
-  const lines = [`inference_access_error=${results.inferenceAccessError}`, `mcp_policy_error=${results.mcpPolicyError}`];
+  const lines = [`inference_access_error=${results.inferenceAccessError}`, `mcp_policy_error=${results.mcpPolicyError}`, `copilot_timeout=${results.copilotTimeout}`];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
 
@@ -74,10 +85,13 @@ function main() {
   if (results.mcpPolicyError) {
     process.stderr.write("[detect-copilot-errors] Detected MCP policy error in agent log\n");
   }
+  if (results.copilotTimeout) {
+    process.stderr.write("[detect-copilot-errors] Detected timeout: Copilot CLI process was killed by signal (step timeout-minutes likely exceeded)\n");
+  }
 
   writeOutputs(results);
 }
 
 main();
 
-module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN };
+module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, COPILOT_TIMEOUT_PATTERN };

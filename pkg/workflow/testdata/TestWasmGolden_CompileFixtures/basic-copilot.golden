@@ -234,6 +234,7 @@ jobs:
       GH_AW_WORKFLOW_ID_SANITIZED: basiccopilot
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
+      copilot_timeout: ${{ steps.detect-copilot-errors.outputs.copilot_timeout || 'false' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       inference_access_error: ${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}
       mcp_policy_error: ${{ steps.detect-copilot-errors.outputs.mcp_policy_error || 'false' }}
