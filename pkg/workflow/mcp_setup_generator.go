@@ -220,7 +220,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Secrets MUST be set explicitly (the runner doesn't expose them as env vars).
 		// GitHub context vars already exist as GITHUB_* env vars on the runner, but
 		// we still list them in env: for clarity and to satisfy static-analysis tools
-		// that flag any ${{ }} outside env:/with: blocks.
+		// (zizmor, CodeQL) that flag any ${{ }} outside env:/with: blocks.
 		hasEnvVars := len(configSecrets) > 0 || len(configContextVars) > 0
 		if hasEnvVars {
 			yaml.WriteString("        env:\n")

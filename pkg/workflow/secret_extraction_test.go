@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestSharedExtractSecretName tests the shared ExtractSecretName utility function
@@ -441,14 +443,10 @@ func TestExtractGitHubContextExpressionsFromValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExtractGitHubContextExpressionsFromValue(tt.value)
 
-			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d results, got %d: %v", len(tt.expected), len(result), result)
-			}
+			assert.Equal(t, len(tt.expected), len(result), "Should extract expected number of GitHub context expressions")
 
 			for varName, expr := range tt.expected {
-				if result[varName] != expr {
-					t.Errorf("Expected %q to have expression %q, got %q", varName, expr, result[varName])
-				}
+				assert.Equal(t, expr, result[varName], "Env var %q should map to the correct expression", varName)
 			}
 		})
 	}

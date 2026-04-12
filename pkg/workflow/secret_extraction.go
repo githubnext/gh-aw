@@ -186,6 +186,7 @@ var gitHubContextExprPattern = regexp.MustCompile(`\$\{\{\s*github\.([a-z][a-z0-
 
 // gitHubContextEnvVarMap maps common github.* context properties to their corresponding
 // GitHub Actions runner environment variables (always available on all runners).
+// See: https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
 var gitHubContextEnvVarMap = map[string]string{
 	"workflow":         "GITHUB_WORKFLOW",
 	"run_id":           "GITHUB_RUN_ID",
