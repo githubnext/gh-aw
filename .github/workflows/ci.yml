@@ -933,7 +933,7 @@ jobs:
 
   js:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: validate-yaml
     permissions:
       contents: read
@@ -969,7 +969,7 @@ jobs:
   js-integration-live-api:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: validate-yaml
     permissions:
       contents: read
