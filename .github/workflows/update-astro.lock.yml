@@ -851,13 +851,17 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           node-version: "24"
       - name: Check for npm updates in docs
@@ -875,6 +879,8 @@ jobs:
             echo "has_updates=false" >> "$GITHUB_OUTPUT"
             echo "No npm updates available in docs folder, skipping agent job"
           fi
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         working-directory: ./docs
 
   conclusion:
@@ -933,6 +939,7 @@ jobs:
         id: noop
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
           GH_AW_WORKFLOW_NAME: "Update Astro"
@@ -951,6 +958,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Update Astro"
@@ -966,6 +974,7 @@ jobs:
         id: report_incomplete
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Update Astro"
@@ -982,6 +991,7 @@ jobs:
         if: always()
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Update Astro"
           GH_AW_TRACKER_ID: "update-astro"
@@ -1308,7 +1318,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9

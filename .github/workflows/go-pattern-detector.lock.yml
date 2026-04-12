@@ -908,9 +908,11 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           persist-credentials: false
       - name: Install ast-grep
@@ -918,6 +920,8 @@ jobs:
           # Install ast-grep using cargo for better version control and security
           cargo install ast-grep --locked
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Detect Go patterns
         id: detect
         run: |
@@ -936,6 +940,8 @@ jobs:
             echo "found_patterns=false" >> "$GITHUB_OUTPUT"
             echo "::notice::No Go patterns matching json:\"-\" found"
           fi
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
 
   conclusion:
     needs:
@@ -992,6 +998,7 @@ jobs:
         id: noop
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
           GH_AW_WORKFLOW_NAME: "Go Pattern Detector"
@@ -1009,6 +1016,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Go Pattern Detector"
@@ -1023,6 +1031,7 @@ jobs:
         id: report_incomplete
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Go Pattern Detector"
@@ -1038,6 +1047,7 @@ jobs:
         if: always()
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Go Pattern Detector"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -1296,7 +1306,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9

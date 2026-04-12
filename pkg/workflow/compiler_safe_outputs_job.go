@@ -91,7 +91,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// The safe-outputs job runs as an independent GitHub Actions job and does not
 	// inherit GITHUB_ENV from the agent job. User-provided steps (below) and future
 	// safe-output handlers that invoke the gh CLI need GH_HOST to target the
-	// correct enterprise instance.
+	// correct enterprise instance. The step writes to GITHUB_OUTPUT, so subsequent
+	// steps receive GH_HOST via step-scoped env injection.
 	steps = append(steps, generateGHESHostConfigurationStep())
 
 	// Add user-provided steps after checkout/setup, before safe-output code
@@ -107,6 +108,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
+			// Inject GH_HOST from the ghes-host-config step output so the
+			// gh CLI targets the correct enterprise instance.
+			injectGHESHostEnv(typedStep)
 			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
 			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {

@@ -18,8 +18,8 @@ func TestGenerateGHESHostConfigurationStep(t *testing.T) {
 	assert.Contains(t, step, "shell: bash", "step should explicitly set shell to bash for Windows runner compatibility")
 	assert.Contains(t, step, "GITHUB_SERVER_URL", "step should reference GITHUB_SERVER_URL")
 	assert.Contains(t, step, "GH_HOST=", "step should set GH_HOST")
-	assert.Contains(t, step, "GITHUB_ENV", "step should write to GITHUB_ENV so all subsequent steps inherit GH_HOST")
-	assert.NotContains(t, step, "GITHUB_OUTPUT", "step should not write to GITHUB_OUTPUT (GITHUB_ENV makes it available to all steps)")
+	assert.Contains(t, step, "GITHUB_OUTPUT", "step should write to GITHUB_OUTPUT for step-scoped propagation")
+	assert.NotContains(t, step, "GITHUB_ENV", "step should not write to GITHUB_ENV (avoids github-env security finding)")
 	assert.Contains(t, step, "${GITHUB_SERVER_URL#https://}", "step should strip https:// prefix")
 	assert.Contains(t, step, "${GH_HOST#http://}", "step should also strip http:// prefix")
 
@@ -30,6 +30,12 @@ func TestGenerateGHESHostConfigurationStep(t *testing.T) {
 		}
 		assert.True(t, strings.HasPrefix(line, "      "), "each line should be indented at step level (6 spaces): %q", line)
 	}
+}
+
+func TestGHESHostStepConstants(t *testing.T) {
+	assert.Equal(t, "ghes-host-config", GHESHostStepID, "step ID constant should match expected value")
+	assert.Equal(t, "${{ steps.ghes-host-config.outputs.GH_HOST }}", GHESHostOutputExpr,
+		"output expression should reference the correct step ID and output name")
 }
 
 func TestGHESHostStepInCustomJobs(t *testing.T) {
@@ -64,9 +70,13 @@ func TestGHESHostStepInCustomJobs(t *testing.T) {
 	assert.Contains(t, job.Steps[0], "Configure GH_HOST for enterprise compatibility",
 		"first step should be the GH_HOST configuration step")
 
-	// Second step should be the user's custom step
+	// Second step should be the user's custom step with GH_HOST env injected
 	assert.Contains(t, job.Steps[1], "My custom step",
 		"second step should be the user's custom step")
+	assert.Contains(t, job.Steps[1], "GH_HOST",
+		"user step should have GH_HOST env var injected from ghes-host-config output")
+	assert.Contains(t, job.Steps[1], GHESHostOutputExpr,
+		"user step should reference GH_HOST from ghes-host-config step output")
 }
 
 func TestGHESHostStepNotInReusableWorkflowJobs(t *testing.T) {
@@ -92,4 +102,32 @@ func TestGHESHostStepNotInReusableWorkflowJobs(t *testing.T) {
 
 	// Reusable workflow jobs should have no steps (they use `uses:`)
 	assert.Empty(t, job.Steps, "reusable workflow jobs should have no steps")
+}
+
+func TestInjectGHESHostEnv(t *testing.T) {
+	t.Run("injects GH_HOST into step with no existing env", func(t *testing.T) {
+		step := &WorkflowStep{
+			Name: "test step",
+			Run:  "echo hello",
+		}
+		injectGHESHostEnv(step)
+		require.NotNil(t, step.Env, "env map should be initialized")
+		assert.Equal(t, GHESHostOutputExpr, step.Env["GH_HOST"],
+			"GH_HOST should reference the ghes-host-config step output")
+	})
+
+	t.Run("preserves existing env vars when injecting GH_HOST", func(t *testing.T) {
+		step := &WorkflowStep{
+			Name: "test step",
+			Run:  "echo hello",
+			Env: map[string]string{
+				"MY_VAR": "my-value",
+			},
+		}
+		injectGHESHostEnv(step)
+		assert.Equal(t, GHESHostOutputExpr, step.Env["GH_HOST"],
+			"GH_HOST should be injected")
+		assert.Equal(t, "my-value", step.Env["MY_VAR"],
+			"existing env vars should be preserved")
+	})
 }

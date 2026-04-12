@@ -161,6 +161,10 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// Environment variables section
 	steps = append(steps, "        env:\n")
 
+	// Propagate GH_HOST from ghes-host-config step output so the gh CLI
+	// (if invoked via exec) targets the correct enterprise instance.
+	steps = append(steps, fmt.Sprintf("          GH_HOST: %s\n", GHESHostOutputExpr))
+
 	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
 	// instead of directly from job outputs which may be masked by GitHub Actions
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
@@ -217,6 +221,10 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
+
+	// Propagate GH_HOST from ghes-host-config step output so the gh CLI
+	// (if invoked via exec) targets the correct enterprise instance.
+	steps = append(steps, fmt.Sprintf("          GH_HOST: %s\n", GHESHostOutputExpr))
 
 	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
 	// instead of directly from job outputs which may be masked by GitHub Actions

@@ -2427,7 +2427,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Prepare APM package list
         id: apm_prep
         run: |
@@ -2439,10 +2439,12 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         env:
           AW_APM_PACKAGES: "[\"microsoft/apm-sample-package\"]"
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
       - name: Pack APM packages
         id: apm_pack
         uses: microsoft/apm-action@a190b0b1a91031057144dc136acf9757a59c9e4d # v1.4.1
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GITHUB_TOKEN: ${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           archive: "true"
@@ -2454,6 +2456,8 @@ jobs:
       - name: Upload APM bundle artifact
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
         with:
           name: ${{ needs.activation.outputs.artifact_prefix }}apm
           path: ${{ steps.apm_pack.outputs.bundle-path }}
@@ -2519,6 +2523,7 @@ jobs:
         id: noop
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
@@ -2536,6 +2541,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
@@ -2550,6 +2556,7 @@ jobs:
         id: report_incomplete
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
@@ -2565,6 +2572,7 @@ jobs:
         if: always()
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Smoke Claude"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -2592,6 +2600,7 @@ jobs:
         id: conclusion
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
+          GH_HOST: ${{ steps.ghes-host-config.outputs.GH_HOST }}
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
@@ -2894,7 +2903,7 @@ jobs:
           # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
-          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_OUTPUT"
       - name: Configure Safe Outputs Custom Scripts
         run: |
           cat > "${RUNNER_TEMP}/gh-aw/actions/safe_output_script_post_slack_message.cjs" << 'GH_AW_SAFE_OUTPUT_SCRIPT_POST_SLACK_MESSAGE_dae07f2089a4b2eb_EOF'
