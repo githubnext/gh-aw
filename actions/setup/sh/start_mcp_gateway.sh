@@ -386,19 +386,19 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    node ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.cjs
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.cjs"
     ;;
   codex)
     echo "Using Codex converter..."
-    node ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.cjs
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.cjs"
     ;;
   claude)
     echo "Using Claude converter..."
-    node ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.cjs
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.cjs"
     ;;
   gemini)
     echo "Using Gemini converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.sh
+    bash "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.sh"
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
@@ -448,7 +448,7 @@ else
 fi
 echo ""
 
-# Save CLI manifest for mount_mcp_as_cli.sh before gateway config is deleted
+# Save CLI manifest for mount_mcp_as_cli.cjs before gateway config is deleted
 # The manifest contains server names and their local localhost URLs
 echo "Saving MCP CLI manifest..."
 mkdir -p /tmp/gh-aw/mcp-cli

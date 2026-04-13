@@ -17,7 +17,7 @@ echo "🔍 Validating prompt placeholders..."
 # Strip inline code spans (`...`) before checking, since backtick-quoted occurrences
 # are documentation/code examples (e.g., in PR descriptions) and not actual placeholders.
 STRIPPED_PROMPT=$(sed 's/`[^`]*`//g' "$PROMPT_FILE")
-if echo "$STRIPPED_PROMPT" | grep -q "__GH_AW_"; then
+if printf '%s\n' "$STRIPPED_PROMPT" | grep -q "__GH_AW_"; then
     echo "❌ Error: Found unreplaced placeholders in prompt file:"
     echo ""
     grep -n "__GH_AW_" "$PROMPT_FILE" | grep -v '`[^`]*__GH_AW_' | head -20
