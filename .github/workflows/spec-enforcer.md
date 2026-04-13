@@ -284,8 +284,8 @@ go test -v -run "TestSpec" ./pkg/<package>/
 If tests fail:
 1. Re-read the specification section that the test maps to
 2. Verify the test matches the specification (not implementation)
-3. If the specification is ambiguous, add a comment noting the ambiguity
-4. If the implementation doesn't match the specification, note this as a spec-implementation mismatch
+3. If the specification is ambiguous, add a `// SPEC_AMBIGUITY: <description>` comment in the test
+4. If the implementation doesn't match the specification, add a `// SPEC_MISMATCH: <description>` comment and document it in the PR body
 
 ## Phase 5: Save Cache and Create PR
 

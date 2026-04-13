@@ -333,7 +333,7 @@ The following specifications are outdated:
 
 ## Success Criteria
 
-- ✅ All 20 packages under `pkg/` audited
+- ✅ All packages under `pkg/` audited
 - ✅ Coverage metrics calculated (packages with/without specs)
 - ✅ Staleness detected for outdated specifications
 - ✅ Cross-package consistency verified

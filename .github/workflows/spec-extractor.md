@@ -360,7 +360,7 @@ This PR updates README.md specifications for the following packages:
 
 ## Success Criteria
 
-- ✅ 3-4 packages analyzed per run
+- ✅ 3-4 packages analyzed per run (from all packages under `pkg/`)
 - ✅ README.md created or updated for each analyzed package
 - ✅ All documented APIs verified against source code
 - ✅ Cache memory updated with extraction state
