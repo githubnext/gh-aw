@@ -150,15 +150,6 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
-	// Validate integrity-reactions feature configuration
-	var gatewayConfig *MCPGatewayRuntimeConfig
-	if workflowData.SandboxConfig != nil {
-		gatewayConfig = workflowData.SandboxConfig.MCP
-	}
-	if err := validateIntegrityReactions(workflowData.ParsedTools, workflowData.Name, workflowData, gatewayConfig); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
 	// Setup action cache and resolver
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.ActionCache = actionCache
@@ -176,6 +167,15 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 			return nil, fmt.Errorf("failed to merge features from imports: %w", err)
 		}
 		workflowData.Features = mergedFeatures
+	}
+
+	// Validate integrity-reactions feature configuration (after features are merged so imports are visible)
+	var gatewayConfig *MCPGatewayRuntimeConfig
+	if workflowData.SandboxConfig != nil {
+		gatewayConfig = workflowData.SandboxConfig.MCP
+	}
+	if err := validateIntegrityReactions(workflowData.ParsedTools, workflowData.Name, workflowData, gatewayConfig); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
 	// Process and merge custom steps

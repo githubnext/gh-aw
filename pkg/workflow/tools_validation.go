@@ -201,7 +201,7 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 	// Reaction fields require the integrity-reactions feature flag
 	if !isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data) {
 		toolsValidationLog.Printf("Reaction fields present but integrity-reactions feature flag not enabled in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'endorsement-reactions', 'disapproval-reactions', 'disapproval-integrity', and 'endorser-min-integrity' require the 'integrity-reactions' feature flag to be enabled. Add 'features: integrity-reactions: true' to your workflow")
+		return errors.New("invalid guard policy: 'tools.github.endorsement-reactions', 'tools.github.disapproval-reactions', 'tools.github.disapproval-integrity', and 'tools.github.endorser-min-integrity' require the 'integrity-reactions' feature flag to be enabled. Add the following to your workflow frontmatter:\nfeatures:\n  integrity-reactions: true")
 	}
 
 	// Reaction fields require MCPG >= v0.2.18
@@ -215,10 +215,10 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 			constants.MCPGIntegrityReactionsMinVersion, version)
 	}
 
-	// Reaction fields require min-integrity to be set
-	if (hasEndorsementReactions || hasDisapprovalReactions) && github.MinIntegrity == "" {
-		toolsValidationLog.Printf("endorsement-reactions/disapproval-reactions without min-integrity in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'endorsement-reactions' and 'disapproval-reactions' require 'github.min-integrity' to be set")
+	// Integrity reaction fields require min-integrity to be set so the allow-only guard policy is rendered
+	if (hasEndorsementReactions || hasDisapprovalReactions || hasDisapprovalIntegrity || hasEndorserMinIntegrity) && github.MinIntegrity == "" {
+		toolsValidationLog.Printf("integrity reaction fields without min-integrity in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'endorsement-reactions', 'disapproval-reactions', 'disapproval-integrity', and 'endorser-min-integrity' require 'github.min-integrity' to be set")
 	}
 
 	// Validate endorsement-reactions values

@@ -695,6 +695,22 @@ func TestMCPGSupportsIntegrityReactions(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "non-semver branch name returns false",
+			gatewayConfig: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/test/mcpg",
+				Version:   "main",
+			},
+			want: false,
+		},
+		{
+			name: "non-semver tag returns false",
+			gatewayConfig: &MCPGatewayRuntimeConfig{
+				Container: "ghcr.io/test/mcpg",
+				Version:   "feature-branch",
+			},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -878,7 +894,7 @@ func TestValidateIntegrityReactions(t *testing.T) {
 			errorContains: "none",
 		},
 		{
-			name: "only disapproval-integrity (no reaction arrays) without min-integrity is OK",
+			name: "only disapproval-integrity (no reaction arrays) without min-integrity fails",
 			tools: &Tools{
 				GitHub: &GitHubToolConfig{
 					DisapprovalIntegrity: "none",
@@ -886,7 +902,8 @@ func TestValidateIntegrityReactions(t *testing.T) {
 			},
 			data:          makeDataWithFeature(true),
 			gatewayConfig: newGatewayConfig,
-			shouldError:   false, // disapproval-integrity alone doesn't require min-integrity
+			shouldError:   true,
+			errorContains: "min-integrity",
 		},
 	}
 

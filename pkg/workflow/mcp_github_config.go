@@ -341,6 +341,11 @@ func mcpgSupportsIntegrityReactions(gatewayConfig *MCPGatewayRuntimeConfig) bool
 		return true
 	}
 
+	if !semverutil.IsValid(version) {
+		// Branch names and non-semver tags are treated conservatively as not supporting the feature.
+		return false
+	}
+
 	minVersion := string(constants.MCPGIntegrityReactionsMinVersion)
 	return semverutil.Compare(version, minVersion) >= 0
 }
