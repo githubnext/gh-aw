@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"c6a3f4c1233714c024d91fc9b1c524d86770132bae2044a11ce34b31aeaaa870","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b98e3c517540ddc6787d7a128a47bb71cdfe6b43d14630b29ab3c9a907111631","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.18","digest":"sha256:c77e8c26bab6c39e8568d8e2f8c17015944849a8cbcdfb4bd9725d8893725ca2","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.18@sha256:c77e8c26bab6c39e8568d8e2f8c17015944849a8cbcdfb4bd9725d8893725ca2"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18","digest":"sha256:d16a40a3ca6e989896d0cef9f31b9412bb1fcc8755bafcafb95012ae1078539b","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18@sha256:d16a40a3ca6e989896d0cef9f31b9412bb1fcc8755bafcafb95012ae1078539b"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.18","digest":"sha256:eb102afcfbae26ffcec016adebb74d3be7b0a5bf376ba306599cdf3effbe288e","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.18@sha256:eb102afcfbae26ffcec016adebb74d3be7b0a5bf376ba306599cdf3effbe288e"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.17","digest":"sha256:a6dec6ec535a11c565d982afa2f98589805ed0598862b9ea9d3c751fc71afae8","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.17@sha256:a6dec6ec535a11c565d982afa2f98589805ed0598862b9ea9d3c751fc71afae8"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -163,14 +163,14 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_c5fafbe77bac02c3_EOF'
+          cat << 'GH_AW_PROMPT_8a59bfc260cb8f0e_EOF'
           <system>
-          GH_AW_PROMPT_c5fafbe77bac02c3_EOF
+          GH_AW_PROMPT_8a59bfc260cb8f0e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_c5fafbe77bac02c3_EOF'
+          cat << 'GH_AW_PROMPT_8a59bfc260cb8f0e_EOF'
           <safe-output-tools>
           Tools: add_comment(max:10), create_issue, add_labels(max:4), missing_tool, missing_data, noop
           </safe-output-tools>
@@ -202,12 +202,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_c5fafbe77bac02c3_EOF
+          GH_AW_PROMPT_8a59bfc260cb8f0e_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_c5fafbe77bac02c3_EOF'
+          cat << 'GH_AW_PROMPT_8a59bfc260cb8f0e_EOF'
           </system>
           {{#runtime-import .github/workflows/contribution-check.md}}
-          GH_AW_PROMPT_c5fafbe77bac02c3_EOF
+          GH_AW_PROMPT_8a59bfc260cb8f0e_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -338,6 +338,23 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Start DIFC proxy for pre-agent gh calls
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          DIFC_PROXY_POLICY: '{"allow-only":{"min-integrity":"none","repos":"all"}}'
+          DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.17'
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
+      - name: Set GH_REPO for proxied steps
+        run: |
+          echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Fetch and filter PRs
+        run: "# Fetch open PRs from the target repository opened in the last 24 hours\nSINCE=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\\n        || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')\n\necho \"Fetching open PRs from $TARGET_REPOSITORY created since $SINCE...\"\nALL_PRS=$(gh pr list \\\n  --repo \"$TARGET_REPOSITORY\" \\\n  --state open \\\n  --limit 100 \\\n  --json number,createdAt \\\n  --jq \"[.[] | select(.createdAt >= \\\"$SINCE\\\")]\" \\\n  2>/dev/null || echo \"[]\")\n\nTOTAL=$(echo \"$ALL_PRS\" | jq 'length')\necho \"Found $TOTAL open PRs created in the last 24 hours\"\n\n# Cap the number of PRs to evaluate at 10\nMAX_EVALUATE=10\nEVALUATED=$(echo \"$ALL_PRS\" | jq --argjson max \"$MAX_EVALUATE\" '[.[0:$max][] | .number]')\nEVALUATED_COUNT=$(echo \"$EVALUATED\" | jq 'length')\nSKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))\n\n# Write results to workspace root\njq -n \\\n  --argjson pr_numbers \"$EVALUATED\" \\\n  --argjson skipped_count \"$SKIPPED_COUNT\" \\\n  --argjson evaluated_count \"$EVALUATED_COUNT\" \\\n  '{pr_numbers: $pr_numbers, skipped_count: $skipped_count, evaluated_count: $evaluated_count}' \\\n  > \"$GITHUB_WORKSPACE/pr-filter-results.json\"\n\necho \"✓ Wrote pr-filter-results.json: $EVALUATED_COUNT to evaluate, $SKIPPED_COUNT skipped\"\ncat \"$GITHUB_WORKSPACE/pr-filter-results.json\""
+
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -378,6 +395,10 @@ jobs:
           GH_AW_TRUSTED_USERS_VAR: ${{ vars.GH_AW_GITHUB_TRUSTED_USERS || '' }}
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh"
+      - name: Stop DIFC proxy
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh"
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.18@sha256:c77e8c26bab6c39e8568d8e2f8c17015944849a8cbcdfb4bd9725d8893725ca2 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18@sha256:d16a40a3ca6e989896d0cef9f31b9412bb1fcc8755bafcafb95012ae1078539b ghcr.io/github/gh-aw-firewall/squid:0.25.18@sha256:eb102afcfbae26ffcec016adebb74d3be7b0a5bf376ba306599cdf3effbe288e ghcr.io/github/gh-aw-mcpg:v0.2.17@sha256:a6dec6ec535a11c565d982afa2f98589805ed0598862b9ea9d3c751fc71afae8 ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28 node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b
       - name: Write Safe Outputs Config
@@ -385,9 +406,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_6bec1d2b7f53adff_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_92d185d0bb1731a8_EOF'
           {"add_comment":{"hide_older_comments":true,"max":10,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"add_labels":{"allowed":["spam","needs-work","outdated","lgtm"],"max":4,"target":"*","target-repo":"${{ vars.TARGET_REPOSITORY }}"},"create_issue":{"close_older_issues":true,"expires":24,"group_by_day":true,"labels":["contribution-report"],"max":1,"title_prefix":"[Contribution Check Report]"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_6bec1d2b7f53adff_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_92d185d0bb1731a8_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -619,7 +640,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.17'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_2eaf8996402089a2_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
+          cat << GH_AW_MCP_CONFIG_51099f0b654e28c7_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "github": {
@@ -663,7 +684,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_2eaf8996402089a2_EOF
+          GH_AW_MCP_CONFIG_51099f0b654e28c7_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
