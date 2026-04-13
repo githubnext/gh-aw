@@ -189,11 +189,12 @@ func GetSafeOutputTypeKeys() ([]string, error) {
 	return keys, nil
 }
 
-// normalizeForJSONSchema recursively converts YAML-native Go types to JSON-compatible
-// types for JSON schema validation. goccy/go-yaml produces uint64 for positive integers
-// and int64 for negative integers, but JSON schema validators expect float64 for all
-// numbers (matching encoding/json's unmarshaling behavior). This avoids the overhead
-// of a json.Marshal + json.Unmarshal roundtrip.
+// normalizeForJSONSchema recursively returns a normalized copy of v with YAML-native
+// Go types converted to JSON-compatible types for JSON schema validation. It does
+// not mutate the caller's maps or slices. goccy/go-yaml produces uint64 for
+// positive integers and int64 for negative integers, but JSON schema validators
+// expect float64 for all numbers (matching encoding/json's unmarshaling behavior).
+// This avoids the overhead of a json.Marshal + json.Unmarshal roundtrip.
 func normalizeForJSONSchema(v any) any {
 	switch val := v.(type) {
 	case map[string]any:
@@ -267,7 +268,7 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	// Normalize YAML-native Go types to JSON-compatible types for schema validation.
 	// goccy/go-yaml produces uint64/int64 for integers, but JSON schema validators
 	// expect float64 for all numbers (matching encoding/json's behavior).
-	// This in-place normalization avoids the overhead of a json.Marshal/Unmarshal roundtrip.
+	// This avoids the overhead of a json.Marshal/Unmarshal roundtrip.
 	var normalized any
 	if frontmatter == nil {
 		normalized = make(map[string]any)
