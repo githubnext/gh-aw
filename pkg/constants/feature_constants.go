@@ -49,4 +49,14 @@ const (
 	//	features:
 	//	  copilot-integration-id: true
 	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
+	// IntegrityReactionsFeatureFlag enables reaction-based integrity promotion/demotion
+	// in the MCPG allow-only policy. When enabled, the compiler injects
+	// endorsement-reactions and disapproval-reactions fields into the allow-only policy.
+	// Requires MCPG >= v0.2.18.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  integrity-reactions: true
+	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
 )

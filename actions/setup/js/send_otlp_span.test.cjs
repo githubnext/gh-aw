@@ -491,6 +491,53 @@ describe("sanitizeOTLPPayload", () => {
     const payload = { custom: "data" };
     expect(sanitizeOTLPPayload(payload), "payload without resourceSpans should be returned as-is").toBe(payload);
   });
+
+  it("redacts sensitive keys in span event attributes", () => {
+    const payload = makePayload([]);
+    // Manually add events with sensitive attributes to the span
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    span.events = [
+      {
+        timeUnixNano: "1000000000",
+        name: "exception",
+        attributes: [buildAttr("exception.message", "safe message"), buildAttr("auth_token", "super-secret-token")],
+      },
+    ];
+    const sanitized = sanitizeOTLPPayload(payload);
+    const events = sanitized.resourceSpans[0].scopeSpans[0].spans[0].events;
+    expect(events).toHaveLength(1);
+    const msgAttr = events[0].attributes.find(a => a.key === "exception.message");
+    expect(msgAttr.value.stringValue, "non-sensitive event attribute should be unchanged").toBe("safe message");
+    const tokenAttr = events[0].attributes.find(a => a.key === "auth_token");
+    expect(tokenAttr.value.stringValue, "sensitive event attribute should be redacted").toBe("[REDACTED]");
+  });
+
+  it("truncates long string values in span event attributes", () => {
+    const payload = makePayload([]);
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    const longValue = "y".repeat(2000);
+    span.events = [
+      {
+        timeUnixNano: "1000000000",
+        name: "exception",
+        attributes: [buildAttr("exception.message", longValue)],
+      },
+    ];
+    const sanitized = sanitizeOTLPPayload(payload);
+    const events = sanitized.resourceSpans[0].scopeSpans[0].spans[0].events;
+    const msgAttr = events[0].attributes.find(a => a.key === "exception.message");
+    expect(msgAttr.value.stringValue.length, "long event attribute should be truncated").toBe(1024);
+  });
+
+  it("preserves span events without attributes unchanged", () => {
+    const payload = makePayload([]);
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    span.events = [{ timeUnixNano: "1000000000", name: "custom-event" }];
+    const sanitized = sanitizeOTLPPayload(payload);
+    const events = sanitized.resourceSpans[0].scopeSpans[0].spans[0].events;
+    expect(events).toHaveLength(1);
+    expect(events[0].name).toBe("custom-event");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -2040,8 +2087,10 @@ describe("sendJobConclusionSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(2);
       expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "Rate limit exceeded" } });
       expect(span.events[1].name).toBe("exception");
+      expect(span.events[1].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
       expect(span.events[1].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "Tool call failed" } });
     });
 
@@ -2121,6 +2170,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.events).toHaveLength(7);
       for (let i = 0; i < 7; i++) {
         expect(span.events[i].name).toBe("exception");
+        expect(span.events[i].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
         expect(span.events[i].attributes).toContainEqual({ key: "exception.message", value: { stringValue: `Error ${i + 1}` } });
       }
     });
@@ -2145,6 +2195,128 @@ describe("sendJobConclusionSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       expect(span.events[0].timeUnixNano).toMatch(/^\d+$/);
+    });
+
+    it("extracts exception.type from colon-prefixed error messages", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "push_to_pull_request_branch:Cannot push to remote" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pull_request_branch");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
+    });
+
+    it("normalizes uppercase exception.type prefix to lowercase", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Push_To_PR:Cannot push to remote" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pr");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
+    });
+
+    it("falls back to gh-aw.AgentError when message has no colon prefix", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Something went wrong" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Something went wrong");
+    });
+
+    it("falls back to gh-aw.AgentError when colon prefix contains invalid characters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Error with spaces:details here" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      // Full original message kept when type extraction fails
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Error with spaces:details here");
+    });
+
+    it("falls back to gh-aw.AgentError when colon prefix exceeds 64 characters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      const longPrefix = "a".repeat(65);
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: `${longPrefix}:some error` }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
     });
   });
 

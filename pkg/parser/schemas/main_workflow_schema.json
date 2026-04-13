@@ -3674,6 +3674,40 @@
                     }
                   ]
                 },
+                "endorsement-reactions": {
+                  "type": "array",
+                  "description": "Guard policy: GitHub reaction types that promote a content item's integrity to 'approved' when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP gateway mode because reaction authors cannot be identified. Optional; defaults to [\"THUMBS_UP\", \"HEART\"] when the integrity-reactions feature flag is enabled. Requires 'min-integrity' to be set and MCPG >= v0.2.18.",
+                  "items": {
+                    "type": "string",
+                    "description": "GitHub ReactionContent enum value",
+                    "enum": ["THUMBS_UP", "THUMBS_DOWN", "HEART", "HOORAY", "CONFUSED", "ROCKET", "EYES", "LAUGH"]
+                  },
+                  "default": ["THUMBS_UP", "HEART"],
+                  "examples": [["THUMBS_UP", "HEART"]]
+                },
+                "disapproval-reactions": {
+                  "type": "array",
+                  "description": "Guard policy: GitHub reaction types that demote content integrity when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP gateway mode because reaction authors cannot be identified. Optional; defaults to [\"THUMBS_DOWN\", \"CONFUSED\"] when the integrity-reactions feature flag is enabled. Disapproval overrides endorsement (safe default). Requires 'min-integrity' to be set and MCPG >= v0.2.18.",
+                  "items": {
+                    "type": "string",
+                    "description": "GitHub ReactionContent enum value",
+                    "enum": ["THUMBS_UP", "THUMBS_DOWN", "HEART", "HOORAY", "CONFUSED", "ROCKET", "EYES", "LAUGH"]
+                  },
+                  "default": ["THUMBS_DOWN", "CONFUSED"],
+                  "examples": [["THUMBS_DOWN", "CONFUSED"]]
+                },
+                "disapproval-integrity": {
+                  "type": "string",
+                  "description": "Guard policy: integrity level assigned when a disapproval reaction is present. Optional, defaults to 'none'. Requires the 'integrity-reactions' feature flag and MCPG >= v0.2.18.",
+                  "enum": ["none", "unapproved", "approved", "merged"],
+                  "default": "none"
+                },
+                "endorser-min-integrity": {
+                  "type": "string",
+                  "description": "Guard policy: minimum integrity level required for an endorser (reactor) to promote content. Optional, defaults to 'approved'. Requires the 'integrity-reactions' feature flag and MCPG >= v0.2.18.",
+                  "enum": ["unapproved", "approved", "merged"],
+                  "default": "approved"
+                },
                 "github-app": {
                   "$ref": "#/$defs/github_app",
                   "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements."

@@ -226,6 +226,26 @@ describe("upload_artifact.cjs", () => {
       expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
     });
 
+    it("passes skipArchive option to artifact client when skip-archive=true", async () => {
+      writeStaging("chart.png", "png data");
+
+      await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const [, , , opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(opts.skipArchive).toBe(true);
+    });
+
+    it("does not pass skipArchive option when skip-archive is false", async () => {
+      writeStaging("report.json");
+
+      await runHandler(buildConfig({ "skip-archive": false }), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const [, , , opts] = mockArtifactClient.uploadArtifact.mock.calls[0];
+      expect(opts.skipArchive).toBeUndefined();
+    });
+
     it("ignores skip_archive in the message (agent cannot override)", async () => {
       writeStaging("app.bin", "binary data");
 
@@ -236,6 +256,52 @@ describe("upload_artifact.cjs", () => {
       expect(results[0].success).toBe(true);
       // No skip-archive error since config says false (so no single-file constraint check triggers)
       expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("artifact URL output", () => {
+    it("outputs artifact_id and artifact_url when upload succeeds", async () => {
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+      process.env.GITHUB_REPOSITORY = "owner/repo";
+      process.env.GITHUB_RUN_ID = "12345";
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].artifactId).toBe(42);
+      expect(results[0].artifactUrl).toBe("https://github.com/owner/repo/actions/runs/12345/artifacts/42");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_artifact_id", "42");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_artifact_url", "https://github.com/owner/repo/actions/runs/12345/artifacts/42");
+    });
+
+    it("does not output artifact_url when env vars are missing", async () => {
+      delete process.env.GITHUB_SERVER_URL;
+      delete process.env.GITHUB_REPOSITORY;
+      delete process.env.GITHUB_RUN_ID;
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].artifactId).toBe(42);
+      expect(results[0].artifactUrl).toBe("");
+    });
+
+    it("does not output artifact_id or artifact_url in staged mode", async () => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+      process.env.GITHUB_REPOSITORY = "owner/repo";
+      process.env.GITHUB_RUN_ID = "12345";
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].artifactUrl).toBe("");
+      const setOutputCalls = mockCore.setOutput.mock.calls.map(c => c[0]);
+      expect(setOutputCalls).not.toContain("slot_0_artifact_id");
+      expect(setOutputCalls).not.toContain("slot_0_artifact_url");
     });
   });
 

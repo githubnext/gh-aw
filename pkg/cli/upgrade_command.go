@@ -51,13 +51,6 @@ Use --audit to check dependency health without performing upgrades. This include
 
 The --audit flag skips the normal upgrade process.
 
-The upgrade process ensures:
-- Dispatcher agent is current (.github/agents/agentic-workflows.agent.md)
-- All workflows use the latest syntax and configuration options
-- Deprecated fields are automatically migrated across all workflows
-- GitHub Actions are pinned to the latest versions
-- All workflows are compiled and lock files are up-to-date
-
 This command always upgrades all Markdown files in .github/workflows.
 
 Examples:

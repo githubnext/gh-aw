@@ -63,7 +63,7 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 		{
 			name:           "remove command has optional pattern",
 			command:        removeCmd,
-			expectedUse:    "remove [pattern]",
+			expectedUse:    "remove [filter]",
 			argsValidator:  "no validator (all optional)",
 			shouldValidate: func(cmd *cobra.Command) error { return nil },
 		},

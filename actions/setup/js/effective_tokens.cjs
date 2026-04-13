@@ -208,6 +208,21 @@ function _resetCache() {
   _parsedMultipliers = undefined;
 }
 
+/**
+ * Read effective tokens from the GH_AW_EFFECTIVE_TOKENS environment variable and return
+ * a pre-formatted suffix string suitable for appending to footer text.
+ * Returns "" when the variable is absent or the parsed value is not a positive integer.
+ * @returns {string} Suffix string, e.g. " · ● 12.5K" or ""
+ */
+function getEffectiveTokensSuffix() {
+  const raw = process.env.GH_AW_EFFECTIVE_TOKENS;
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  if (!isNaN(parsed) && parsed > 0) {
+    return ` · ● ${formatET(parsed)}`;
+  }
+  return "";
+}
+
 module.exports = {
   defaultTokenClassWeights,
   getTokenClassWeights,
@@ -215,5 +230,6 @@ module.exports = {
   computeBaseWeightedTokens,
   computeEffectiveTokens,
   formatET,
+  getEffectiveTokensSuffix,
   _resetCache,
 };

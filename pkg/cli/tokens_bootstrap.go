@@ -24,12 +24,6 @@ func newSecretsBootstrapSubcommand() *cobra.Command {
 are required, check which ones are already configured, and interactively
 prompt for any missing required secrets.
 
-This command:
-- Discovers all workflow files in .github/workflows/
-- Analyzes required secrets for each workflow's engine
-- Checks which secrets already exist in the repository
-- Interactively prompts for missing required secrets (unless --non-interactive)
-
 Only required secrets are prompted for. Optional secrets are not shown.
 
 For full details, including precedence rules, see the GitHub Tokens
