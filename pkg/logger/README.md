@@ -164,6 +164,44 @@ var parseLog = logger.New("parse")
 var validateLog = logger.New("validate")
 ```
 
+## slog Integration
+
+The package includes a bridge to Go's standard `log/slog` library for libraries that expect a `slog.Logger` instead of the custom `Logger` type.
+
+### `SlogHandler`
+
+`SlogHandler` implements `slog.Handler` by delegating to an existing `Logger`. It respects the logger's enabled state, formats attributes as `key=value` pairs, and prefixes each message with the slog level (`[DEBUG]`, `[INFO]`, `[WARN]`, `[ERROR]`).
+
+### `NewSlogHandler(logger *Logger) *SlogHandler`
+
+Creates a new `slog.Handler` wrapping the provided `Logger`.
+
+```go
+import "github.com/github/gh-aw/pkg/logger"
+
+var log = logger.New("myapp:feature")
+handler := logger.NewSlogHandler(log)
+slogLogger := slog.New(handler)
+slogLogger.Info("using slog interface", "key", "value")
+```
+
+### `NewSlogLoggerWithHandler(logger *Logger) *slog.Logger`
+
+Convenience constructor that creates both the `SlogHandler` and the `slog.Logger` in one call.
+
+```go
+var log = logger.New("myapp:feature")
+slogLogger := logger.NewSlogLoggerWithHandler(log)
+slogLogger.Warn("something unusual happened", "count", 42)
+```
+
+### Behavior
+
+- **Enabled check**: `SlogHandler.Enabled` returns `false` when the underlying `Logger` is disabled (i.e. the namespace does not match the `DEBUG` pattern). This prevents expensive attribute collection for disabled loggers.
+- **Attribute formatting**: All record attributes are appended as `key=value` pairs after the message.
+- **Groups and persistent attributes**: `WithAttrs` and `WithGroup` return the handler unchanged — attributes are not persisted across calls. This keeps the adapter lightweight.
+- **Output destination**: All output goes to `stderr` via the underlying `Logger`.
+
 ## Implementation Notes
 
 - The `DEBUG` environment variable is read once when the package is initialized
