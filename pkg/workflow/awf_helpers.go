@@ -315,6 +315,21 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Printf("Added --copilot-api-target=%s", copilotTarget)
 	}
 
+	// Add Gemini API target for the LLM gateway proxy.
+	// Unlike OpenAI/Anthropic/Copilot where AWF has built-in default routing,
+	// Gemini requires an explicit target so the proxy knows where to forward requests.
+	// Defaults to generativelanguage.googleapis.com when the engine is Gemini.
+	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
+		awfArgs = append(awfArgs, "--gemini-api-target", geminiTarget)
+		awfHelpersLog.Printf("Added --gemini-api-target=%s", geminiTarget)
+	}
+
+	geminiBasePath := extractAPIBasePath(config.WorkflowData, "GEMINI_API_BASE_URL")
+	if geminiBasePath != "" {
+		awfArgs = append(awfArgs, "--gemini-api-base-path", geminiBasePath)
+		awfHelpersLog.Printf("Added --gemini-api-base-path=%s", geminiBasePath)
+	}
+
 	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 	sslBumpArgs := getSSLBumpArgs(firewallConfig)
 	awfArgs = append(awfArgs, sslBumpArgs...)
@@ -491,6 +506,7 @@ func extractAPIBasePath(workflowData *WorkflowData, envVar string) string {
 //   - Codex:    OPENAI_BASE_URL     → --openai-api-target
 //   - Claude:   ANTHROPIC_BASE_URL  → --anthropic-api-target
 //   - Copilot:  GITHUB_COPILOT_BASE_URL → --copilot-api-target (fallback when api-target not set)
+//   - Gemini:   GEMINI_API_BASE_URL → --gemini-api-target (default: generativelanguage.googleapis.com)
 //
 // Returns empty string if neither source is configured.
 func GetCopilotAPITarget(workflowData *WorkflowData) string {
@@ -501,6 +517,33 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
 	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
+}
+
+// DefaultGeminiAPITarget is the default Gemini API endpoint hostname.
+// AWF's proxy sidecar needs this target to forward Gemini API requests, since
+// unlike OpenAI/Anthropic/Copilot, the proxy has no built-in default handler for Gemini.
+const DefaultGeminiAPITarget = "generativelanguage.googleapis.com"
+
+// GetGeminiAPITarget returns the effective Gemini API target hostname for the LLM gateway proxy.
+// Unlike other engines where AWF has built-in default routing, Gemini requires an explicit target.
+//
+// Resolution order:
+//  1. GEMINI_API_BASE_URL in engine.env (custom endpoint)
+//  2. Default: generativelanguage.googleapis.com (when engine is "gemini")
+//
+// Returns empty string if the engine is not Gemini and no custom GEMINI_API_BASE_URL is configured.
+func GetGeminiAPITarget(workflowData *WorkflowData, engineName string) string {
+	// Check for custom GEMINI_API_BASE_URL in engine.env
+	if customTarget := extractAPITargetHost(workflowData, "GEMINI_API_BASE_URL"); customTarget != "" {
+		return customTarget
+	}
+
+	// Default to the standard Gemini API endpoint when engine is Gemini
+	if engineName == "gemini" {
+		return DefaultGeminiAPITarget
+	}
+
+	return ""
 }
 
 // ComputeAWFExcludeEnvVarNames returns the list of environment variable names that must be

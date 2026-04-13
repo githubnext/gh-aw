@@ -751,6 +751,12 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		base = mergeAPITargetDomains(base, copilotAPITarget)
 	}
 
+	// Add Gemini API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.
+	// Resolved from GEMINI_API_BASE_URL in engine.env or default generativelanguage.googleapis.com.
+	if geminiAPITarget := GetGeminiAPITarget(data, engineID); geminiAPITarget != "" {
+		base = mergeAPITargetDomains(base, geminiAPITarget)
+	}
+
 	return base
 }
 

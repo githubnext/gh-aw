@@ -919,3 +919,218 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 		})
 	}
 }
+
+// TestGetGeminiAPITarget tests the GetGeminiAPITarget helper that resolves the effective
+// Gemini API target from GEMINI_API_BASE_URL in engine.env or the default endpoint.
+func TestGetGeminiAPITarget(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		engineName   string
+		expected     string
+	}{
+		{
+			name: "returns default target for gemini engine with no custom URL",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "gemini",
+				},
+			},
+			engineName: "gemini",
+			expected:   "generativelanguage.googleapis.com",
+		},
+		{
+			name: "custom GEMINI_API_BASE_URL takes precedence over default",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "gemini",
+					Env: map[string]string{
+						"GEMINI_API_BASE_URL": "https://gemini-proxy.internal.company.com/v1",
+					},
+				},
+			},
+			engineName: "gemini",
+			expected:   "gemini-proxy.internal.company.com",
+		},
+		{
+			name: "returns empty for non-gemini engine without custom URL",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+				},
+			},
+			engineName: "claude",
+			expected:   "",
+		},
+		{
+			name:         "returns empty when workflowData is nil",
+			workflowData: nil,
+			engineName:   "gemini",
+			expected:     "generativelanguage.googleapis.com",
+		},
+		{
+			name: "returns custom target for non-gemini engine with GEMINI_API_BASE_URL",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "custom",
+					Env: map[string]string{
+						"GEMINI_API_BASE_URL": "https://custom-proxy.example.com",
+					},
+				},
+			},
+			engineName: "custom",
+			expected:   "custom-proxy.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetGeminiAPITarget(tt.workflowData, tt.engineName)
+			assert.Equal(t, tt.expected, result, "GetGeminiAPITarget should return expected hostname")
+		})
+	}
+}
+
+// TestAWFGeminiAPITargetFlags tests that BuildAWFArgs includes --gemini-api-target flag
+// for the Gemini engine with default and custom endpoints.
+func TestAWFGeminiAPITargetFlags(t *testing.T) {
+	t.Run("includes default gemini-api-target flag for gemini engine", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "gemini",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--gemini-api-target", "Should include --gemini-api-target flag")
+		assert.Contains(t, argsStr, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+	})
+
+	t.Run("includes custom gemini-api-target flag when GEMINI_API_BASE_URL is configured", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+				Env: map[string]string{
+					"GEMINI_API_BASE_URL": "https://gemini-proxy.internal.company.com/v1",
+					"GEMINI_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "gemini",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--gemini-api-target", "Should include --gemini-api-target flag")
+		assert.Contains(t, argsStr, "gemini-proxy.internal.company.com", "Should include custom Gemini hostname")
+	})
+
+	t.Run("does not include gemini-api-target for non-gemini engine without custom URL", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not include --gemini-api-target for non-gemini engine")
+	})
+
+	t.Run("includes gemini-api-base-path when custom URL has path component", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+				Env: map[string]string{
+					"GEMINI_API_BASE_URL": "https://gemini-proxy.company.com/serving-endpoints",
+					"GEMINI_API_KEY":      "${{ secrets.GEMINI_PROXY_KEY }}",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "gemini",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--gemini-api-base-path", "Should include --gemini-api-base-path flag")
+		assert.Contains(t, argsStr, "/serving-endpoints", "Should include the path component")
+	})
+}
+
+// TestGeminiEngineIncludesGeminiAPITarget tests that the Gemini engine execution
+// step includes --gemini-api-target when firewall is enabled.
+func TestGeminiEngineIncludesGeminiAPITarget(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "gemini",
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	engine := NewGeminiEngine()
+	steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+	if len(steps) < 2 {
+		t.Fatal("Expected at least two execution steps (settings + execution)")
+	}
+
+	// steps[0] = Write Gemini Settings, steps[1] = Execute Gemini CLI
+	stepContent := strings.Join(steps[1], "\n")
+
+	assert.Contains(t, stepContent, "--gemini-api-target", "Should include --gemini-api-target flag")
+	assert.Contains(t, stepContent, "generativelanguage.googleapis.com", "Should include default Gemini API hostname")
+}
