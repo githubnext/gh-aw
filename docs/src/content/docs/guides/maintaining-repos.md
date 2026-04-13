@@ -1,11 +1,16 @@
 ---
 title: Maintaining Repos with Agentic Workflows
-description: How to use repo-assist and integrity filtering to manage an open-source repository at scale — triaging incoming work, protecting against untrusted input, and debugging failures.
+description: How to use repo-assist, safe-outputs, and integrity filtering to manage an open-source repository at scale — controlling what agents can do, filtering untrusted input, and debugging failures.
 sidebar:
   order: 20
 ---
 
-Open-source maintainers face a unique challenge when running agentic workflows: anyone can open an issue or PR, triggering agent runs that consume compute and tokens — but not every contributor is equally trustworthy. This guide shows how to use **repo-assist** as the primary entry point for managing incoming work, and how to configure **integrity filtering** so that downstream agents only act on trusted content.
+Open-source maintainers face a unique challenge when running agentic workflows: anyone can open an issue or PR, triggering agent runs that consume compute and tokens — but not every contributor is equally trustworthy. gh-aw addresses this with two complementary safety mechanisms:
+
+- **Safe-outputs** — The primary mechanism for controlling *what an agent can do*. Every GitHub mutation (opening issues, commenting, creating PRs) must be explicitly declared; anything not listed is blocked.
+- **Integrity filtering** — The primary mechanism for controlling *what content the agent sees*. Content from untrusted authors is filtered from the agent's context before the run starts.
+
+Together they form a defense-in-depth model: integrity filtering keeps untrusted content out of the agent's context, and safe-outputs ensure the agent can only produce authorized side-effects. This guide shows how to use **repo-assist** as the primary entry point for managing incoming work, and how to configure both mechanisms so your repository scales safely.
 
 ## Repo-Assist as Your Triage Layer
 
@@ -45,7 +50,7 @@ Review the newly opened issue. Based on the issue content:
 5. Otherwise, post a comment thanking the contributor and explaining what information is still needed.
 ```
 
-`min-integrity: unapproved` allows repo-assist to see all community content — first-time contributors, external users, everyone. Because repo-assist only labels and comments (never opens PRs or modifies code), it is safe to run at this lower integrity level.
+`min-integrity: unapproved` allows repo-assist to see all community content — first-time contributors, external users, everyone. The `safe-outputs` block limits what repo-assist can do in response: it can only apply labels and post comments. Any other GitHub mutation (opening PRs, merging, closing issues) is blocked by the runtime, regardless of what the agent attempts.
 
 ### Routing to Downstream Agents
 
@@ -90,9 +95,46 @@ implement a minimal fix, and open a pull request.
 
 This separation means compute-intensive agents only run after repo-assist has classified and approved the work.
 
-## Configuring Integrity Filtering
+## Controlling Workflow Outputs with Safe-Outputs
 
-Integrity filtering controls which content the agent sees based on author trust level. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see all incoming issues.
+Safe-outputs is the primary mechanism for controlling what a workflow can do. Every action that produces a side-effect on GitHub — labeling an issue, posting a comment, opening a pull request, merging — must be explicitly declared in the `safe-outputs:` block. If an action isn't listed, the runtime blocks it before it reaches the API.
+
+This is what makes it safe to run repo-assist with `min-integrity: unapproved`: even if the agent were to generate an instruction to open a PR or close an issue, the runtime would reject it because those outputs weren't declared.
+
+The available safe-outputs map directly to GitHub actions:
+
+| Safe-output | What it allows |
+|------------|---------------|
+| `label-issue` | Apply or remove labels on an issue |
+| `comment-issue` | Post a comment on an issue |
+| `comment-pull-request` | Post a comment on a pull request |
+| `create-pull-request` | Open a new pull request |
+| `merge-pull-request` | Merge a pull request |
+| `close-issue` | Close an issue |
+| `create-issue` | Open a new issue |
+| `assign-issue` | Assign an issue to a user or team |
+
+**Principle of least privilege**: Declare only the outputs the workflow actually needs. A repo-assist workflow that classifies issues should declare `label-issue` and `comment-issue`, not `create-pull-request`.
+
+```aw wrap
+# Repo-assist: can only label and comment
+safe-outputs:
+  label-issue:
+  comment-issue:
+```
+
+```aw wrap
+# Code fix agent: can create and update pull requests
+safe-outputs:
+  create-pull-request:
+  comment-pull-request:
+```
+
+When a safe-output validation failure appears in your audit logs, it means the agent attempted an action that wasn't declared. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for format requirements and complete output type documentation.
+
+## Controlling Workflow Inputs with Integrity Filtering
+
+Integrity filtering is the primary mechanism for controlling what content the agent sees. It evaluates the author of each issue, PR, or comment and removes items that don't meet the configured trust threshold — before the agent's context is assembled. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see all incoming issues.
 
 The four configurable levels, from most to least restrictive:
 
@@ -311,9 +353,9 @@ Fixes:
 - Add `approval-labels` to allow label-based promotion.
 - Use `gh aw logs --filtered-integrity` to find all runs with filtering events.
 
-**Safe output validation failures**
+**Safe-output validation failures**
 
-The agent produced output in the wrong format or called a tool that isn't enabled.
+The agent attempted a GitHub action (label, comment, PR, etc.) that wasn't declared in the `safe-outputs:` block. Safe-outputs is the primary output safety mechanism — only declared actions are permitted.
 
 Fixes:
 - Review `safe-outputs:` configuration in frontmatter.
@@ -463,11 +505,11 @@ Open an issue for each finding with severity, location, and remediation steps.
 
 ## Related Documentation
 
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) — Complete output type documentation and format requirements
 - [Integrity Filtering Reference](/gh-aw/reference/integrity/) — Complete `min-integrity` and policy configuration
 - [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) — Preventing runaway workflows
 - [Cost Management](/gh-aw/reference/cost-management/) — Token budget tracking and optimization
 - [Audit Commands](/gh-aw/reference/audit/) — `gh aw audit` and `gh aw logs` reference
 - [Debugging Workflows](/gh-aw/troubleshooting/debugging/) — Detailed debugging procedures
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) — Structured output configuration
 - [Network Configuration Guide](/gh-aw/guides/network-configuration/) — Firewall and domain setup
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` options

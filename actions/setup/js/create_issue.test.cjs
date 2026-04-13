@@ -452,7 +452,7 @@ describe("create_issue", () => {
       const result = await handler({ title: "Test" });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("API Error");
+      expect(result.error).toContain("API Error");
     });
   });
 
@@ -665,6 +665,97 @@ describe("create_issue", () => {
 
       // Neither call should have created an issue
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("retry on rate limit errors", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should retry issue creation on transient rate limit error and succeed", async () => {
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockResolvedValue({
+          data: {
+            number: 456,
+            html_url: "https://github.com/owner/repo/issues/456",
+            title: "Retried Issue",
+          },
+        });
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Retried Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(456);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("should fail after exhausting retries on persistent rate limit error", async () => {
+      mockGithub.rest.issues.create = vi.fn().mockRejectedValue(new Error("Secondary rate limit hit"));
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Failing Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      // 1 initial + 3 retries = 4 calls
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(4);
+    });
+
+    it("should have retry delays that never exceed maxDelayMs + jitterMs", async () => {
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockResolvedValue({
+          data: {
+            number: 789,
+            html_url: "https://github.com/owner/repo/issues/789",
+            title: "Bounded Delay Issue",
+          },
+        });
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Bounded Delay Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      // create_issue uses { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 }
+      // Maximum possible delay per retry = maxDelayMs + jitterMs = 55000ms
+      const maxBound = 55000;
+      // Filter out short setTimeout calls (e.g. from test infrastructure) to isolate retry delays
+      const sleepDelays = setTimeoutSpy.mock.calls.filter(([, ms]) => ms > 1000).map(([, ms]) => ms);
+
+      for (const delay of sleepDelays) {
+        expect(delay).toBeLessThanOrEqual(maxBound);
+      }
+
+      setTimeoutSpy.mockRestore();
     });
   });
 });
