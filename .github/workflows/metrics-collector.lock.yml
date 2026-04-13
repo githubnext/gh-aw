@@ -453,7 +453,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
-          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
           
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"

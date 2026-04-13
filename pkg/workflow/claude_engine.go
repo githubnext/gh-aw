@@ -132,7 +132,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
 		claudeLog.Print("Adding MCP configuration")
-		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Add allowed tools configuration
@@ -292,7 +292,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
+		env["GH_AW_MCP_CONFIG"] = "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json"
 	}
 
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit

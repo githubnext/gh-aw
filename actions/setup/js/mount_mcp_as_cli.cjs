@@ -24,7 +24,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
-const MANIFEST_FILE = "/tmp/gh-aw/mcp-cli/manifest.json";
+const MANIFEST_FILE = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_temp", "gh-aw/mcp-cli/manifest.json");
 // Use RUNNER_TEMP so the bin and tools directories are inside the AWF sandbox mount
 // (AWF mounts ${RUNNER_TEMP}/gh-aw read-only; /tmp/gh-aw is not accessible inside AWF)
 const RUNNER_TEMP = process.env.RUNNER_TEMP || "/home/runner/work/_temp";

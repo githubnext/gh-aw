@@ -7,12 +7,13 @@
  * Converts the MCP gateway's standard HTTP-based configuration to the JSON
  * format expected by Claude. Reads the gateway output JSON, filters out
  * CLI-mounted servers, sets type:"http", rewrites URLs to use the correct
- * domain, and writes the result to /tmp/gh-aw/mcp-config/mcp-servers.json.
+ * domain, and writes the result to ${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json.
  *
  * Required environment variables:
  * - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
  * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
  * - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
+ * - RUNNER_TEMP: GitHub Actions runner temp directory
  *
  * Optional:
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
@@ -21,7 +22,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const OUTPUT_PATH = "/tmp/gh-aw/mcp-config/mcp-servers.json";
+const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json");
 
 /**
  * Rewrite a gateway URL to use the configured domain and port.

@@ -7,12 +7,13 @@
  * Converts the MCP gateway's standard HTTP-based configuration to the TOML
  * format expected by Codex. Reads the gateway output JSON, filters out
  * CLI-mounted servers, resolves host.docker.internal to 172.30.0.1 for Rust
- * DNS compatibility, and writes the result to /tmp/gh-aw/mcp-config/config.toml.
+ * DNS compatibility, and writes the result to ${RUNNER_TEMP}/gh-aw/mcp-config/config.toml.
  *
  * Required environment variables:
  * - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
  * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
  * - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
+ * - RUNNER_TEMP: GitHub Actions runner temp directory
  *
  * Optional:
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
@@ -21,7 +22,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const OUTPUT_PATH = "/tmp/gh-aw/mcp-config/config.toml";
+const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/config.toml");
 
 function main() {
   const gatewayOutput = process.env.MCP_GATEWAY_OUTPUT;

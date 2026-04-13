@@ -614,7 +614,7 @@ jobs:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
-          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
           
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
@@ -1086,7 +1086,7 @@ jobs:
       - name: Clear MCP configuration for detection
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
-          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json
+          rm -f "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"
           rm -f /home/runner/.copilot/mcp-config.json
           rm -f "$GITHUB_WORKSPACE/.gemini/settings.json"
       - name: Prepare threat detection files

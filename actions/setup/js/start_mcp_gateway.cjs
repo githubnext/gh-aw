@@ -139,16 +139,22 @@ async function main() {
   // -----------------------------------------------------------------------
   // Create directories
   // -----------------------------------------------------------------------
+  // Config and CLI manifest are stored under ${RUNNER_TEMP}/gh-aw/ to prevent
+  // tampering.  RUNNER_TEMP is a per-runner directory that is not
+  // world-writable, unlike /tmp.  Logs remain under /tmp/gh-aw/mcp-logs/
+  // because the Docker gateway container mounts -v /tmp:/tmp:rw and writes
+  // there via MCP_GATEWAY_LOG_DIR.
+  const configDir = path.join(runnerTemp || "/tmp", "gh-aw/mcp-config");
+  const cliDir = path.join(runnerTemp || "/tmp", "gh-aw/mcp-cli");
+
   fs.mkdirSync("/tmp/gh-aw/mcp-logs", { recursive: true });
 
-  // Symlink attack prevention on /tmp/gh-aw and /tmp/gh-aw/mcp-config
-  assertNotSymlink("/tmp/gh-aw");
-  assertNotSymlink("/tmp/gh-aw/mcp-config");
-  fs.mkdirSync("/tmp/gh-aw/mcp-config", { recursive: true });
+  // Symlink attack prevention on the config directory
+  assertNotSymlink(configDir);
+  fs.mkdirSync(configDir, { recursive: true });
   // Post-creation check
-  assertNotSymlink("/tmp/gh-aw");
-  assertNotSymlink("/tmp/gh-aw/mcp-config");
-  fs.chmodSync("/tmp/gh-aw/mcp-config", 0o700);
+  assertNotSymlink(configDir);
+  fs.chmodSync(configDir, 0o700);
 
   // -----------------------------------------------------------------------
   // Validate container syntax
@@ -241,7 +247,7 @@ async function main() {
   // Start gateway container
   // -----------------------------------------------------------------------
   const logDir = "/tmp/gh-aw/mcp-logs/";
-  const outputPath = "/tmp/gh-aw/mcp-config/gateway-output.json";
+  const outputPath = path.join(configDir, "gateway-output.json");
   const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
   console.log(`Starting gateway with container: ${dockerCommand}`);
@@ -533,9 +539,9 @@ async function main() {
   if (!engineType) {
     if (fs.existsSync("/home/runner/.copilot") || process.env.GITHUB_COPILOT_CLI_MODE) {
       engineType = "copilot";
-    } else if (fs.existsSync("/tmp/gh-aw/mcp-config/config.toml")) {
+    } else if (fs.existsSync(path.join(configDir, "config.toml"))) {
       engineType = "codex";
-    } else if (fs.existsSync("/tmp/gh-aw/mcp-config/mcp-servers.json")) {
+    } else if (fs.existsSync(path.join(configDir, "mcp-servers.json"))) {
       engineType = "claude";
     } else {
       engineType = "unknown";
@@ -621,7 +627,7 @@ async function main() {
   // Save CLI manifest for mount_mcp_as_cli.cjs
   // -----------------------------------------------------------------------
   console.log("Saving MCP CLI manifest...");
-  fs.mkdirSync("/tmp/gh-aw/mcp-cli", { recursive: true });
+  fs.mkdirSync(cliDir, { recursive: true });
 
   try {
     const gwOut = JSON.parse(fs.readFileSync(outputPath, "utf8"));
@@ -630,7 +636,7 @@ async function main() {
         .filter(([, v]) => typeof v.url === "string")
         .map(([name, v]) => ({ name, url: v.url }));
       const manifest = JSON.stringify({ servers }, null, 2);
-      fs.writeFileSync("/tmp/gh-aw/mcp-cli/manifest.json", manifest, {
+      fs.writeFileSync(path.join(cliDir, "manifest.json"), manifest, {
         mode: 0o600,
       });
       console.log(`CLI manifest saved with ${servers.length} server(s)`);
