@@ -147,8 +147,10 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// All subsequent field extractions use the pre-parsed result.
 	// When inputs are present we parse the already-substituted content so that all
 	// frontmatter fields (runtimes, mcp-servers, etc.) reflect the resolved values.
-	// For builtin files, use the process-level cache to avoid redundant YAML re-parsing
-	// (processIncludedFileWithVisited already populated this cache).
+	// For builtin files without inputs, use the process-level cache to avoid redundant
+	// YAML re-parsing (processIncludedFileWithVisited already populated this cache).
+	// Builtin files WITH inputs must skip the cache because input substitution modifies
+	// the content, so the cached (unsubstituted) result would be stale.
 	var parsed *FrontmatterResult
 	var err error
 	if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) && len(item.inputs) == 0 {
