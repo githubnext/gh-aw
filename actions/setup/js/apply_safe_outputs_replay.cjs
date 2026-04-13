@@ -23,7 +23,6 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { getGhEnv } = require("./git_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 
@@ -78,7 +77,7 @@ async function downloadAgentArtifact(runId, destDir, repoSlug) {
     args.push("--repo", repoSlug);
   }
 
-  const exitCode = await exec.exec("gh", args, { env: getGhEnv() });
+  const exitCode = await exec.exec("gh", args);
   if (exitCode !== 0) {
     throw new Error(`${ERR_SYSTEM}: Failed to download agent artifact from run ${runId}`);
   }
