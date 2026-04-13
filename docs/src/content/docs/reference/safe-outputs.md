@@ -58,7 +58,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Update Project**](#project-board-updates-update-project) (`update-project`) - Manage GitHub Projects boards (max: 10, same-repo only)
 - [**Create Project Status Update**](#project-status-updates-create-project-status-update) (`create-project-status-update`) - Create project status updates
 - [**Update Release**](#release-updates-update-release) (`update-release`) - Update GitHub release descriptions (max: 1)
-- [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) - Upload files to orphaned git branch (max: 10, same-repo only)
+- [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) - Upload files to orphaned git branch (max: 10, same-repo only). **Prefer `upload-artifact` with `skip-archive` instead.**
 
 ### Security & Agent Tasks
 
@@ -818,6 +818,10 @@ safe-outputs:
 Agent output format: `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "..."}`. The `tag` field is optional for release events (inferred from context). Workflow needs read access; only the generated job receives write permissions.
 
 ### Asset Uploads (`upload-asset:`)
+
+:::caution[Prefer `upload-artifact` with `skip-archive`]
+For uploading images, charts, and screenshots, prefer using `upload-artifact` with `skip-archive: true` instead (see the [shared upload-artifact configuration](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/safe-output-upload-artifact.md)). It puts less pressure on the git storage system and automatically destroys the image once the artifact expires. Use `upload-asset` only when you need persistent, publicly addressable URLs that survive artifact expiration.
+:::
 
 Uploads files (screenshots, charts, reports) to orphaned git branch with predictable URLs: `https://github.com/{owner}/{repo}/blob/{branch}/{filename}?raw=true`. Agent registers files via `upload_asset` tool; separate job with `contents: write` commits them.
 

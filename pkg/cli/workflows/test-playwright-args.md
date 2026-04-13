@@ -5,7 +5,10 @@ permissions: read-all
 engine: claude
 safe-outputs:
   staged: true
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-issue:
     title-prefix: "[test] "
 tools:
@@ -26,7 +29,7 @@ Please perform the following tasks:
 2. Wait for the page to fully load
 3. Take a screenshot of the page
 4. Save the screenshot to `/tmp/gh-aw/example-screenshot.png`
-5. Use the `upload asset` tool to upload the screenshot
+5. Use the `upload_artifact` tool to upload the screenshot
 6. Create an issue with the screenshot URL and confirm that Playwright is working with the custom args
 
 The args field allows passing additional command-line arguments to the Playwright MCP server, such as browser selection or custom flags for testing scenarios.

@@ -8,7 +8,10 @@ on:
       - pelikhan/*
 safe-outputs:
   staged: true
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-issue:
     title-prefix: "[docs] "
 engine: 
@@ -68,7 +71,7 @@ Please follow these steps:
 4. Save the screenshot to a file (e.g., `/tmp/gh-aw/docs-screenshot.png`)
 
 ## Step 4: Upload Screenshot
-1. Use the `upload asset` tool from safe-outputs to upload the screenshot file
+1. Use the `upload_artifact` tool from safe-outputs to upload the screenshot file
 2. The tool will return a URL for the uploaded screenshot that can be included in the issue
 
 ## Step 5: Accessibility Analysis

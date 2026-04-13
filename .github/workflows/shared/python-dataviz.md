@@ -10,8 +10,8 @@
 # - Python environment setup with directory structure
 # - Scientific library installation (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
 # - Automatic artifact upload for charts and source files
-# - Asset upload capability via safe-outputs (upload-assets)
-# - Instructions on data visualization best practices including asset uploads
+# - Upload artifact capability via safe-outputs (upload-artifact with skip-archive)
+# - Instructions on data visualization best practices including artifact uploads
 #
 # Note: This configuration ensures data separation by enforcing external data storage.
 
@@ -26,7 +26,6 @@ network:
     - python
 
 safe-outputs:
-  upload-asset:
   upload-artifact:
     max-uploads: 5
     retention-days: 30
@@ -174,9 +173,9 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 
 There are two approaches to include chart images in reports (issues, discussions, step summaries):
 
-### Approach 1: Upload Artifact with skip-archive (Recommended for inline images)
+### Upload Artifact with skip-archive (Recommended)
 
-Use the `upload_artifact` safe output tool with `skip-archive: true` to upload individual chart images. The tool returns an artifact URL that can be embedded directly in markdown.
+Use the `upload_artifact` safe output tool with `skip-archive: true` to upload individual chart images. The tool returns an artifact URL that can be embedded directly in markdown. This approach is preferred because it puts less pressure on the git storage system and automatically destroys the image once the artifact expires.
 
 #### Step 1: Generate Chart
 ```python
@@ -207,32 +206,6 @@ The chart above shows...
 The artifact URL follows the format: `https://github.com/{owner}/{repo}/actions/runs/{run_id}/artifacts/{artifact_id}`
 
 > **Note**: Artifact URLs require GitHub authentication to access. They work in issues, pull requests, and discussions for authenticated users.
-
-### Approach 2: Upload Asset (Alternative for public URLs)
-
-Use the `upload asset` tool to make images URL-addressable via a public raw content URL:
-
-#### Step 1: Generate and Upload Chart
-```python
-# Generate your chart
-plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-```
-
-#### Step 2: Upload as Asset
-Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-
-#### Step 3: Include in Markdown Report
-When creating your discussion or issue, include the image using markdown:
-
-```markdown
-## Visualization Results
-
-![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-
-The chart above shows...
-```
-
-**Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
 
 ## Cache Memory Integration
 

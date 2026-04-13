@@ -14,7 +14,10 @@ tools:
 imports:
   - shared/charts-with-trending.md
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-discussion:
     expires: 1d
     category: "artifacts"
