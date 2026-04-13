@@ -23,6 +23,19 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// guard policy is configured and no GitHub App token is in use.
 	// The determine-automatic-lockdown step outputs min_integrity and repos for public repos.
 	explicitGuardPolicies := getGitHubGuardPolicies(githubTool)
+	// Inject integrity reaction fields into the allow-only policy when the feature flag is
+	// enabled and the MCPG version supports it.
+	if len(explicitGuardPolicies) > 0 {
+		if toolConfig, ok := githubTool.(map[string]any); ok {
+			if allowOnly, ok := explicitGuardPolicies["allow-only"].(map[string]any); ok {
+				var gatewayConfig *MCPGatewayRuntimeConfig
+				if workflowData != nil && workflowData.SandboxConfig != nil {
+					gatewayConfig = workflowData.SandboxConfig.MCP
+				}
+				injectIntegrityReactionFields(allowOnly, toolConfig, workflowData, gatewayConfig)
+			}
+		}
+	}
 	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0 && !hasGitHubApp(githubTool)
 
 	toolsets := getGitHubToolsets(githubTool)

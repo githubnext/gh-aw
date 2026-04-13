@@ -331,6 +331,34 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			}
 		}
 
+		// Parse reaction-based integrity fields (requires integrity-reactions feature flag + MCPG >= v0.2.18)
+		if endorsementReactions, ok := configMap["endorsement-reactions"].([]any); ok {
+			config.EndorsementReactions = make([]string, 0, len(endorsementReactions))
+			for _, item := range endorsementReactions {
+				if str, ok := item.(string); ok {
+					config.EndorsementReactions = append(config.EndorsementReactions, str)
+				}
+			}
+		} else if endorsementReactions, ok := configMap["endorsement-reactions"].([]string); ok {
+			config.EndorsementReactions = endorsementReactions
+		}
+		if disapprovalReactions, ok := configMap["disapproval-reactions"].([]any); ok {
+			config.DisapprovalReactions = make([]string, 0, len(disapprovalReactions))
+			for _, item := range disapprovalReactions {
+				if str, ok := item.(string); ok {
+					config.DisapprovalReactions = append(config.DisapprovalReactions, str)
+				}
+			}
+		} else if disapprovalReactions, ok := configMap["disapproval-reactions"].([]string); ok {
+			config.DisapprovalReactions = disapprovalReactions
+		}
+		if disapprovalIntegrity, ok := configMap["disapproval-integrity"].(string); ok {
+			config.DisapprovalIntegrity = disapprovalIntegrity
+		}
+		if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
+			config.EndorserMinIntegrity = endorserMinIntegrity
+		}
+
 		return config
 	}
 

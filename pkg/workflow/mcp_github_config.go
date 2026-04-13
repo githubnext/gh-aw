@@ -68,6 +68,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var githubConfigLog = logger.New("workflow:mcp_github_config")
@@ -285,6 +286,63 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 		}
 	}
 	return nil
+}
+
+// injectIntegrityReactionFields adds endorsement-reactions, disapproval-reactions,
+// disapproval-integrity, and endorser-min-integrity into an existing allow-only policy
+// map when the integrity-reactions feature flag is enabled and the MCPG version supports it.
+//   - policy is the inner allow-only map (not the outer allow-only wrapper).
+//   - toolConfig is the raw github tool configuration map.
+//   - data contains workflow data including feature flags used to check if integrity-reactions is enabled.
+//   - gatewayConfig contains MCP gateway version configuration used to version-gate the injection.
+//
+// No-op when the feature flag is disabled or the MCPG version is too old.
+func injectIntegrityReactionFields(policy map[string]any, toolConfig map[string]any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) {
+	if !isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data) {
+		return
+	}
+	if !mcpgSupportsIntegrityReactions(gatewayConfig) {
+		return
+	}
+	if endorsement, ok := toolConfig["endorsement-reactions"]; ok {
+		policy["endorsement-reactions"] = endorsement
+	}
+	if disapproval, ok := toolConfig["disapproval-reactions"]; ok {
+		policy["disapproval-reactions"] = disapproval
+	}
+	if disapprovalIntegrity, ok := toolConfig["disapproval-integrity"]; ok {
+		policy["disapproval-integrity"] = disapprovalIntegrity
+	}
+	if endorserMinIntegrity, ok := toolConfig["endorser-min-integrity"]; ok {
+		policy["endorser-min-integrity"] = endorserMinIntegrity
+	}
+}
+
+// mcpgSupportsIntegrityReactions returns true when the effective MCPG version supports
+// endorsement-reactions and disapproval-reactions in the allow-only policy (>= v0.2.18).
+//
+// Special cases:
+//   - gatewayConfig is nil or has no Version: use DefaultMCPGatewayVersion for comparison.
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string >= MCPGIntegrityReactionsMinVersion: returns true.
+//   - Any semver string < MCPGIntegrityReactionsMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func mcpgSupportsIntegrityReactions(gatewayConfig *MCPGatewayRuntimeConfig) bool {
+	var version string
+	if gatewayConfig != nil && gatewayConfig.Version != "" {
+		version = gatewayConfig.Version
+	} else {
+		// No override → use the default version for comparison.
+		version = string(constants.DefaultMCPGatewayVersion)
+	}
+
+	// "latest" means the newest release — always supports the field.
+	if strings.EqualFold(version, "latest") {
+		return true
+	}
+
+	minVersion := string(constants.MCPGIntegrityReactionsMinVersion)
+	return semverutil.Compare(version, minVersion) >= 0
 }
 
 // deriveSafeOutputsGuardPolicyFromGitHub generates a safeoutputs guard-policy from GitHub guard-policy.
