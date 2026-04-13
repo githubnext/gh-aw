@@ -189,6 +189,53 @@ func GetSafeOutputTypeKeys() ([]string, error) {
 	return keys, nil
 }
 
+// normalizeForJSONSchema recursively converts YAML-native Go types to JSON-compatible
+// types for JSON schema validation. goccy/go-yaml produces uint64 for positive integers
+// and int64 for negative integers, but JSON schema validators expect float64 for all
+// numbers (matching encoding/json's unmarshaling behavior). This avoids the overhead
+// of a json.Marshal + json.Unmarshal roundtrip.
+func normalizeForJSONSchema(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		normalized := make(map[string]any, len(val))
+		for k, elem := range val {
+			normalized[k] = normalizeForJSONSchema(elem)
+		}
+		return normalized
+	case []any:
+		normalized := make([]any, len(val))
+		for i, elem := range val {
+			normalized[i] = normalizeForJSONSchema(elem)
+		}
+		return normalized
+	case int:
+		return float64(val)
+	case int8:
+		return float64(val)
+	case int16:
+		return float64(val)
+	case int32:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case uint:
+		return float64(val)
+	case uint8:
+		return float64(val)
+	case uint16:
+		return float64(val)
+	case uint32:
+		return float64(val)
+	case uint64:
+		return float64(val)
+	case float32:
+		return float64(val)
+	default:
+		// string, bool, float64, nil pass through unchanged
+		return v
+	}
+}
+
 func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) error {
 	schemaCompilerLog.Printf("Validating frontmatter against schema for context: %s (%d fields)", context, len(frontmatter))
 
@@ -217,27 +264,19 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 		return fmt.Errorf("schema validation error for %s: %w", context, err)
 	}
 
-	// Convert frontmatter to JSON and back to normalize types for validation
-	// Handle nil frontmatter as empty object to satisfy schema validation
-	var frontmatterToValidate map[string]any
+	// Normalize YAML-native Go types to JSON-compatible types for schema validation.
+	// goccy/go-yaml produces uint64/int64 for integers, but JSON schema validators
+	// expect float64 for all numbers (matching encoding/json's behavior).
+	// This in-place normalization avoids the overhead of a json.Marshal/Unmarshal roundtrip.
+	var normalized any
 	if frontmatter == nil {
-		frontmatterToValidate = make(map[string]any)
+		normalized = make(map[string]any)
 	} else {
-		frontmatterToValidate = frontmatter
-	}
-
-	frontmatterJSON, err := json.Marshal(frontmatterToValidate)
-	if err != nil {
-		return fmt.Errorf("schema validation error for %s: failed to marshal frontmatter: %w", context, err)
-	}
-
-	var normalizedFrontmatter any
-	if err := json.Unmarshal(frontmatterJSON, &normalizedFrontmatter); err != nil {
-		return fmt.Errorf("schema validation error for %s: failed to unmarshal frontmatter: %w", context, err)
+		normalized = normalizeForJSONSchema(frontmatter)
 	}
 
 	// Validate the normalized frontmatter
-	if err := schema.Validate(normalizedFrontmatter); err != nil {
+	if err := schema.Validate(normalized); err != nil {
 		schemaCompilerLog.Printf("Schema validation failed for %s: %v", context, err)
 		return err
 	}
