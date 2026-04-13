@@ -288,13 +288,41 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 	return nil
 }
 
+// DefaultEndorsementReactions are the default endorsement reactions injected when the
+// integrity-reactions feature flag is enabled but no explicit endorsement-reactions are set.
+var DefaultEndorsementReactions = []string{"THUMBS_UP", "HEART"}
+
+// DefaultDisapprovalReactions are the default disapproval reactions injected when the
+// integrity-reactions feature flag is enabled but no explicit disapproval-reactions are set.
+var DefaultDisapprovalReactions = []string{"THUMBS_DOWN", "CONFUSED"}
+
+// hasReactionFieldsInToolConfig returns true if any reaction-based integrity fields are
+// explicitly set in the raw tool configuration map.
+func hasReactionFieldsInToolConfig(toolConfig map[string]any) bool {
+	_, hasEndorsement := toolConfig["endorsement-reactions"]
+	_, hasDisapproval := toolConfig["disapproval-reactions"]
+	_, hasDisapprovalIntegrity := toolConfig["disapproval-integrity"]
+	_, hasEndorserMin := toolConfig["endorser-min-integrity"]
+	return hasEndorsement || hasDisapproval || hasDisapprovalIntegrity || hasEndorserMin
+}
+
 // injectIntegrityReactionFields adds endorsement-reactions, disapproval-reactions,
 // disapproval-integrity, and endorser-min-integrity into an existing allow-only policy
 // map when the integrity-reactions feature flag is enabled and the MCPG version supports it.
+//
+// This function is used exclusively for proxy mode (DIFC proxy / CLI proxy). Reaction-based
+// integrity is not supported in MCP gateway mode because the GitHub MCP server protocol does
+// not expose reaction author information, which is required for integrity decisions.
+//
 //   - policy is the inner allow-only map (not the outer allow-only wrapper).
 //   - toolConfig is the raw github tool configuration map.
 //   - data contains workflow data including feature flags used to check if integrity-reactions is enabled.
 //   - gatewayConfig contains MCP gateway version configuration used to version-gate the injection.
+//
+// When the feature flag is enabled and endorsement-reactions or disapproval-reactions are
+// not explicitly set in toolConfig, sensible defaults are injected:
+//   - endorsement-reactions: ["THUMBS_UP", "HEART"]
+//   - disapproval-reactions: ["THUMBS_DOWN", "CONFUSED"]
 //
 // No-op when the feature flag is disabled or the MCPG version is too old.
 func injectIntegrityReactionFields(policy map[string]any, toolConfig map[string]any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) {
@@ -306,9 +334,13 @@ func injectIntegrityReactionFields(policy map[string]any, toolConfig map[string]
 	}
 	if endorsement, ok := toolConfig["endorsement-reactions"]; ok {
 		policy["endorsement-reactions"] = endorsement
+	} else {
+		policy["endorsement-reactions"] = DefaultEndorsementReactions
 	}
 	if disapproval, ok := toolConfig["disapproval-reactions"]; ok {
 		policy["disapproval-reactions"] = disapproval
+	} else {
+		policy["disapproval-reactions"] = DefaultDisapprovalReactions
 	}
 	if disapprovalIntegrity, ok := toolConfig["disapproval-integrity"]; ok {
 		policy["disapproval-integrity"] = disapprovalIntegrity

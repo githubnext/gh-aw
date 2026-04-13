@@ -3676,24 +3676,24 @@
                 },
                 "endorsement-reactions": {
                   "type": "array",
-                  "description": "Guard policy: GitHub reaction types that promote a content item's integrity to 'approved' when added by maintainers. Requires the 'integrity-reactions' feature flag, 'min-integrity' to be set, and MCPG >= v0.2.18.",
+                  "description": "Guard policy: GitHub reaction types that promote a content item's integrity to 'approved' when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP gateway mode because reaction authors cannot be identified. Optional; defaults to [\"THUMBS_UP\", \"HEART\"] when the integrity-reactions feature flag is enabled. Requires 'min-integrity' to be set and MCPG >= v0.2.18.",
                   "items": {
                     "type": "string",
                     "description": "GitHub ReactionContent enum value",
                     "enum": ["THUMBS_UP", "THUMBS_DOWN", "HEART", "HOORAY", "CONFUSED", "ROCKET", "EYES", "LAUGH"]
                   },
-                  "minItems": 1,
+                  "default": ["THUMBS_UP", "HEART"],
                   "examples": [["THUMBS_UP", "HEART"]]
                 },
                 "disapproval-reactions": {
                   "type": "array",
-                  "description": "Guard policy: GitHub reaction types that demote content integrity when added by maintainers. Disapproval overrides endorsement (safe default). Requires the 'integrity-reactions' feature flag, 'min-integrity' to be set, and MCPG >= v0.2.18.",
+                  "description": "Guard policy: GitHub reaction types that demote content integrity when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP gateway mode because reaction authors cannot be identified. Optional; defaults to [\"THUMBS_DOWN\", \"CONFUSED\"] when the integrity-reactions feature flag is enabled. Disapproval overrides endorsement (safe default). Requires 'min-integrity' to be set and MCPG >= v0.2.18.",
                   "items": {
                     "type": "string",
                     "description": "GitHub ReactionContent enum value",
                     "enum": ["THUMBS_UP", "THUMBS_DOWN", "HEART", "HOORAY", "CONFUSED", "ROCKET", "EYES", "LAUGH"]
                   },
-                  "minItems": 1,
+                  "default": ["THUMBS_DOWN", "CONFUSED"],
                   "examples": [["THUMBS_DOWN", "CONFUSED"]]
                 },
                 "disapproval-integrity": {

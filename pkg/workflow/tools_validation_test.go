@@ -878,15 +878,37 @@ func TestValidateIntegrityReactions(t *testing.T) {
 			errorContains: "none",
 		},
 		{
-			name: "only disapproval-integrity (no reaction arrays) without min-integrity is OK",
+			name: "only disapproval-integrity (no reaction arrays) with min-integrity is valid",
 			tools: &Tools{
 				GitHub: &GitHubToolConfig{
+					MinIntegrity:         GitHubIntegrityApproved,
 					DisapprovalIntegrity: "none",
 				},
 			},
 			data:          makeDataWithFeature(true),
 			gatewayConfig: newGatewayConfig,
-			shouldError:   false, // disapproval-integrity alone doesn't require min-integrity
+			shouldError:   false,
+		},
+		{
+			name: "feature flag enabled with min-integrity but no explicit reactions — valid (defaults used)",
+			tools: &Tools{
+				GitHub: &GitHubToolConfig{
+					MinIntegrity: GitHubIntegrityApproved,
+				},
+			},
+			data:          makeDataWithFeature(true),
+			gatewayConfig: newGatewayConfig,
+			shouldError:   false,
+		},
+		{
+			name: "feature flag enabled without min-integrity — error even without explicit reactions",
+			tools: &Tools{
+				GitHub: &GitHubToolConfig{},
+			},
+			data:          makeDataWithFeature(true),
+			gatewayConfig: newGatewayConfig,
+			shouldError:   true,
+			errorContains: "min-integrity",
 		},
 	}
 
@@ -977,6 +999,30 @@ func TestGetDIFCProxyPolicyJSONWithReactions(t *testing.T) {
 			data:             makeDataWithFeature(true),
 			gatewayConfig:    newGatewayConfig,
 			expectedContains: []string{`"disapproval-integrity"`, `"endorser-min-integrity"`},
+		},
+		{
+			name: "defaults injected when feature enabled but no explicit reactions",
+			githubTool: map[string]any{
+				"min-integrity": "approved",
+			},
+			data:          makeDataWithFeature(true),
+			gatewayConfig: newGatewayConfig,
+			expectedContains: []string{
+				`"endorsement-reactions"`, "THUMBS_UP", "HEART",
+				`"disapproval-reactions"`, "THUMBS_DOWN", "CONFUSED",
+			},
+		},
+		{
+			name: "explicit reactions override defaults",
+			githubTool: map[string]any{
+				"min-integrity":         "approved",
+				"endorsement-reactions": []any{"ROCKET"},
+				"disapproval-reactions": []any{"EYES"},
+			},
+			data:             makeDataWithFeature(true),
+			gatewayConfig:    newGatewayConfig,
+			expectedContains: []string{"ROCKET", "EYES"},
+			expectedAbsent:   []string{"HEART", "CONFUSED"},
 		},
 	}
 

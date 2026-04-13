@@ -3,10 +3,12 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 )
 
@@ -23,16 +25,17 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// guard policy is configured and no GitHub App token is in use.
 	// The determine-automatic-lockdown step outputs min_integrity and repos for public repos.
 	explicitGuardPolicies := getGitHubGuardPolicies(githubTool)
-	// Inject integrity reaction fields into the allow-only policy when the feature flag is
-	// enabled and the MCPG version supports it.
-	if len(explicitGuardPolicies) > 0 {
+	// Integrity reaction fields are only supported in proxy mode (DIFC/CLI proxy),
+	// not in gateway mode. The MCP gateway cannot identify reaction authors because
+	// the GitHub MCP server protocol does not expose that information. Warn if the
+	// user configured reactions with the gateway path.
+	if isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, workflowData) {
 		if toolConfig, ok := githubTool.(map[string]any); ok {
-			if allowOnly, ok := explicitGuardPolicies["allow-only"].(map[string]any); ok {
-				var gatewayConfig *MCPGatewayRuntimeConfig
-				if workflowData != nil && workflowData.SandboxConfig != nil {
-					gatewayConfig = workflowData.SandboxConfig.MCP
-				}
-				injectIntegrityReactionFields(allowOnly, toolConfig, workflowData, gatewayConfig)
+			if hasReactionFieldsInToolConfig(toolConfig) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					"integrity-reactions: endorsement/disapproval reactions are ignored in MCP gateway mode because "+
+						"reaction authors cannot be identified from the GitHub MCP server. Reactions are only enforced "+
+						"in proxy mode (DIFC proxy / CLI proxy)."))
 			}
 		}
 	}

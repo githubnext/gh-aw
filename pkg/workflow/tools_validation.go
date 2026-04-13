@@ -178,7 +178,7 @@ var validEndorserMinIntegrityLevels = map[string]bool{
 // validateIntegrityReactions validates the integrity-reactions feature configuration.
 // It checks that:
 //   - endorsement-reactions and disapproval-reactions contain valid ReactionContent values
-//   - endorsement-reactions and disapproval-reactions require min-integrity to be set
+//   - the integrity-reactions feature flag requires min-integrity to be set (defaults will be injected)
 //   - disapproval-integrity and endorser-min-integrity use valid integrity levels
 //   - the integrity-reactions feature flag requires MCPG >= v0.2.18
 func validateIntegrityReactions(tools *Tools, workflowName string, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) error {
@@ -192,19 +192,21 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 	hasDisapprovalReactions := len(github.DisapprovalReactions) > 0
 	hasDisapprovalIntegrity := github.DisapprovalIntegrity != ""
 	hasEndorserMinIntegrity := github.EndorserMinIntegrity != ""
+	hasExplicitReactionFields := hasEndorsementReactions || hasDisapprovalReactions || hasDisapprovalIntegrity || hasEndorserMinIntegrity
+	featureEnabled := isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data)
 
-	// If none of the reaction fields are set, nothing to validate
-	if !hasEndorsementReactions && !hasDisapprovalReactions && !hasDisapprovalIntegrity && !hasEndorserMinIntegrity {
+	// If none of the reaction fields are set and the feature flag is not enabled, nothing to validate
+	if !hasExplicitReactionFields && !featureEnabled {
 		return nil
 	}
 
-	// Reaction fields require the integrity-reactions feature flag
-	if !isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data) {
+	// Explicit reaction fields require the integrity-reactions feature flag
+	if hasExplicitReactionFields && !featureEnabled {
 		toolsValidationLog.Printf("Reaction fields present but integrity-reactions feature flag not enabled in workflow: %s", workflowName)
 		return errors.New("invalid guard policy: 'endorsement-reactions', 'disapproval-reactions', 'disapproval-integrity', and 'endorser-min-integrity' require the 'integrity-reactions' feature flag to be enabled. Add 'features: integrity-reactions: true' to your workflow")
 	}
 
-	// Reaction fields require MCPG >= v0.2.18
+	// Feature flag requires MCPG >= v0.2.18
 	if !mcpgSupportsIntegrityReactions(gatewayConfig) {
 		version := string(constants.DefaultMCPGatewayVersion)
 		if gatewayConfig != nil && gatewayConfig.Version != "" {
@@ -215,13 +217,13 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 			constants.MCPGIntegrityReactionsMinVersion, version)
 	}
 
-	// Reaction fields require min-integrity to be set
-	if (hasEndorsementReactions || hasDisapprovalReactions) && github.MinIntegrity == "" {
-		toolsValidationLog.Printf("endorsement-reactions/disapproval-reactions without min-integrity in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'endorsement-reactions' and 'disapproval-reactions' require 'github.min-integrity' to be set")
+	// Feature flag requires min-integrity (defaults for reaction lists will be injected at compile time)
+	if github.MinIntegrity == "" {
+		toolsValidationLog.Printf("integrity-reactions feature flag enabled without min-integrity in workflow: %s", workflowName)
+		return errors.New("invalid guard policy: 'integrity-reactions' feature flag requires 'github.min-integrity' to be set")
 	}
 
-	// Validate endorsement-reactions values
+	// Validate endorsement-reactions values (if explicitly provided)
 	for i, reaction := range github.EndorsementReactions {
 		if !validReactionContents[reaction] {
 			toolsValidationLog.Printf("Invalid endorsement-reactions value '%s' at index %d in workflow: %s", reaction, i, workflowName)
@@ -229,7 +231,7 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 		}
 	}
 
-	// Validate disapproval-reactions values
+	// Validate disapproval-reactions values (if explicitly provided)
 	for i, reaction := range github.DisapprovalReactions {
 		if !validReactionContents[reaction] {
 			toolsValidationLog.Printf("Invalid disapproval-reactions value '%s' at index %d in workflow: %s", reaction, i, workflowName)

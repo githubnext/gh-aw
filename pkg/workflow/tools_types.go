@@ -318,13 +318,15 @@ type GitHubToolConfig struct {
 	// Set when the approval-labels field is a string expression rather than a literal array.
 	ApprovalLabelsExpr string `yaml:"-"`
 	// EndorsementReactions is an optional list of GitHub reaction types that promote content
-	// integrity to "approved" when added by maintainers. Requires integrity-reactions feature flag
-	// and MCPG >= v0.2.18.
+	// integrity to "approved" when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy);
+	// ignored in MCP gateway mode. Requires integrity-reactions feature flag and MCPG >= v0.2.18.
+	// When the feature flag is enabled and this field is not set, defaults to ["THUMBS_UP", "HEART"].
 	// Valid values: THUMBS_UP, THUMBS_DOWN, HEART, HOORAY, CONFUSED, ROCKET, EYES, LAUGH
 	EndorsementReactions []string `yaml:"endorsement-reactions,omitempty"`
 	// DisapprovalReactions is an optional list of GitHub reaction types that demote content
-	// integrity when added by maintainers. Requires integrity-reactions feature flag
-	// and MCPG >= v0.2.18.
+	// integrity when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy);
+	// ignored in MCP gateway mode. Requires integrity-reactions feature flag and MCPG >= v0.2.18.
+	// When the feature flag is enabled and this field is not set, defaults to ["THUMBS_DOWN", "CONFUSED"].
 	// Valid values: THUMBS_UP, THUMBS_DOWN, HEART, HOORAY, CONFUSED, ROCKET, EYES, LAUGH
 	DisapprovalReactions []string `yaml:"disapproval-reactions,omitempty"`
 	// DisapprovalIntegrity is the integrity level assigned when a disapproval reaction is present.
