@@ -165,7 +165,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://github.github.com/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Cross-repo setup guidance
+      - name: Print cross-repo setup guidance
         if: failure() && steps.resolve-host-repo.outputs.target_repo != github.repository
         run: |
           echo "::error::COPILOT_GITHUB_TOKEN must be configured in the CALLER repository's secrets."
