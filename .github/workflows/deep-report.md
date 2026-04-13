@@ -36,7 +36,7 @@ safe-outputs:
     expires: 2d
     title-prefix: "[deep-report] "
     labels: [automation, improvement, quick-win, cookie]
-    max: 3
+    max: 7
     group: true
 
 tools:
@@ -73,7 +73,7 @@ Continuously review and aggregate information from the various reports created a
 3. **Flag interesting activity** - Highlight noteworthy discoveries, improvements, or anomalies
 4. **Detect suspicious patterns** - Identify potential security concerns or concerning behaviors
 5. **Surface exciting developments** - Celebrate wins, improvements, and positive trends
-6. **Extract actionable tasks** - Identify exactly 3 specific, high-impact tasks that can be assigned to agents for quick wins
+6. **Extract actionable tasks** - Identify exactly 7 specific, high-impact tasks that can be assigned to agents for quick wins
 
 ## Data Sources
 
@@ -217,7 +217,7 @@ Connect the dots between different data sources:
 
 ### Step 3.5: Extract Actionable Agentic Tasks
 
-**CRITICAL**: Based on your analysis, identify exactly **3 actionable tasks** (quick wins) and **CREATE GITHUB ISSUES** for each one:
+**CRITICAL**: Based on your analysis, identify exactly **7 actionable tasks** (quick wins) and **CREATE GITHUB ISSUES** for each one:
 
 1. **Prioritize by impact and effort**: Look for high-impact, low-effort improvements
 2. **Be specific**: Tasks should be concrete with clear success criteria
@@ -300,7 +300,7 @@ Based on trend analysis, provide:
 
 ### ✅ Actionable Agentic Tasks (Quick Wins)
 
-**CRITICAL**: Identify exactly **3 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
+**CRITICAL**: Identify exactly **7 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
 - **Specific and well-defined** - Clear scope with measurable outcome
 - **Achievable by an agent** - Can be automated or assisted by AI
 - **High impact, low effort** - Maximum benefit with minimal implementation time
@@ -328,7 +328,7 @@ Based on trend analysis, provide:
 - "Optimize token usage in verbose agent prompts (identified 4 candidates)"
 - "Add missing documentation for 2 frequently-used MCP tools"
 
-**Remember**: The maximum is 3 issues. Choose the most impactful tasks.
+**Remember**: The maximum is 7 issues. Choose the most impactful tasks.
 
 ### 📚 Source Attribution
 
@@ -357,7 +357,7 @@ List all reports and data sources analyzed:
 
 ## Final Steps
 
-1. **Create GitHub Issues**: For each of the 3 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
+1. **Create GitHub Issues**: For each of the 7 actionable tasks identified (if any), create a GitHub issue using the safe-outputs create-issue capability
 2. **Create Discussion Report**: Create a new GitHub discussion titled "DeepReport Intelligence Briefing - [Today's Date]" in the "reports" category with your full analysis (including the identified actionable tasks)
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.

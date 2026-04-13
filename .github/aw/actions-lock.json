@@ -33,20 +33,20 @@
       "version": "v4.1.0",
       "sha": "a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
     },
-    "actions/cache/restore@v5.0.4": {
+    "actions/cache/restore@v5.0.5": {
       "repo": "actions/cache/restore",
-      "version": "v5.0.4",
-      "sha": "668228422ae6a00e4ad889ee87cd7109ec5666a7"
+      "version": "v5.0.5",
+      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
     },
-    "actions/cache/save@v5.0.4": {
+    "actions/cache/save@v5.0.5": {
       "repo": "actions/cache/save",
-      "version": "v5.0.4",
-      "sha": "668228422ae6a00e4ad889ee87cd7109ec5666a7"
+      "version": "v5.0.5",
+      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
     },
-    "actions/cache@v5.0.4": {
+    "actions/cache@v5.0.5": {
       "repo": "actions/cache",
-      "version": "v5.0.4",
-      "sha": "668228422ae6a00e4ad889ee87cd7109ec5666a7"
+      "version": "v5.0.5",
+      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
     },
     "actions/checkout@v6.0.2": {
       "repo": "actions/checkout",
@@ -148,10 +148,10 @@
       "version": "v4.35.1",
       "sha": "0e9f55954318745b37b7933c693bc093f7336125"
     },
-    "github/gh-aw-actions/setup@v0.68.1": {
+    "github/gh-aw-actions/setup@v0.68.2": {
       "repo": "github/gh-aw-actions/setup",
-      "version": "v0.68.1",
-      "sha": "2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc"
+      "version": "v0.68.2",
+      "sha": "19c436149e80e5be4f0adbd9cdeb391acea5fa91"
     },
     "github/stale-repos@v9.0.8": {
       "repo": "github/stale-repos",

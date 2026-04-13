@@ -163,6 +163,13 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 		compileCompilerSetupLog.Print("Safe update mode force-enabled via --safe-update flag: compilations introducing new restricted secrets or unapproved action additions/removals will emit a warning prompt requesting agent review and a PR security note")
 	}
 
+	// Set require docker flag: when set, container image validation fails instead of
+	// silently skipping when Docker is not available.
+	compiler.SetRequireDocker(config.ValidateImages)
+	if config.ValidateImages {
+		compileCompilerSetupLog.Print("Container image validation requires Docker (--validate-images flag)")
+	}
+
 	// Load pre-cached manifests from file (written by MCP server at startup).
 	// These take precedence over git HEAD / filesystem reads for safe update enforcement.
 	if config.PriorManifestFile != "" {
