@@ -908,8 +908,6 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "myorg.ghe.com" }) }));
-
-      process.env.GITHUB_SERVER_URL = "https://github.com";
     });
 
     it("should strip https:// protocol from GITHUB_SERVER_URL when deriving GH_HOST", async () => {
@@ -929,8 +927,6 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
-
-      process.env.GITHUB_SERVER_URL = "https://github.com";
     });
   });
 });

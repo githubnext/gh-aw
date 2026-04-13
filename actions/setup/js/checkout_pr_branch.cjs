@@ -183,7 +183,7 @@ async function main() {
       // which doesn't match any git remote (origin points to github.com or a GHE host).
       // We must use the real GitHub host so gh pr checkout can resolve the repository.
       const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const ghHost = serverUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      const ghHost = serverUrl.replace(/^https?:\/\/|\/+$/g, "");
       await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
         env: { ...process.env, GH_HOST: ghHost },
       });
