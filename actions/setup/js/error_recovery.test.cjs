@@ -147,6 +147,45 @@ describe("error_recovery", () => {
       expect(operation).toHaveBeenCalledTimes(1);
       expect(shouldRetry).toHaveBeenCalled();
     });
+
+    it("should add random jitter to delay when jitterMs is configured", async () => {
+      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
+      const config = {
+        maxRetries: 2,
+        initialDelayMs: 100,
+        backoffMultiplier: 2,
+        maxDelayMs: 10000,
+        jitterMs: 1000,
+      };
+
+      await withRetry(operation, config, "test-operation");
+
+      // Base delay after first failure: 100 * 2 = 200ms
+      // Jitter: Math.floor(0.5 * 1000) = 500ms
+      // Total: 200 + 500 = 700ms
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("after 700ms delay"));
+
+      randomSpy.mockRestore();
+    });
+
+    it("should not add jitter when jitterMs is 0", async () => {
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
+      const config = {
+        maxRetries: 2,
+        initialDelayMs: 100,
+        backoffMultiplier: 2,
+        maxDelayMs: 10000,
+        jitterMs: 0,
+      };
+
+      await withRetry(operation, config, "test-operation");
+
+      // Base delay after first failure: 100 * 2 = 200ms, no jitter
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("after 200ms delay"));
+    });
   });
 
   describe("enhanceError", () => {
@@ -288,6 +327,7 @@ describe("error_recovery", () => {
       expect(DEFAULT_RETRY_CONFIG.initialDelayMs).toBe(1000);
       expect(DEFAULT_RETRY_CONFIG.maxDelayMs).toBe(10000);
       expect(DEFAULT_RETRY_CONFIG.backoffMultiplier).toBe(2);
+      expect(DEFAULT_RETRY_CONFIG.jitterMs).toBe(0);
       expect(DEFAULT_RETRY_CONFIG.shouldRetry).toBe(isTransientError);
     });
   });
