@@ -44,9 +44,13 @@ safe-outputs:
     max: 10
     group: true
   upload-artifact:
-    max-uploads: 3
+    max-uploads: 5
     retention-days: 30
     skip-archive: true
+    allowed-paths:
+      - "**/*.png"
+      - "**/*.jpg"
+      - "**/*.svg"
   messages:
     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."
