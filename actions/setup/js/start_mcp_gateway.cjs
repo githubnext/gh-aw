@@ -136,6 +136,19 @@ async function main() {
     process.exit(1);
   }
 
+  // Validate port is numeric to prevent injection in shell commands and URLs
+  if (gatewayPort && !/^\d+$/.test(gatewayPort)) {
+    console.error(`ERROR: MCP_GATEWAY_PORT must be a numeric value, got: '${gatewayPort}'`);
+    process.exit(1);
+  }
+
+  console.log("=== MCP Gateway Startup ===");
+  console.log(`Engine: ${process.env.GH_AW_ENGINE || "(auto-detect)"}`);
+  console.log(`Runner temp: ${runnerTemp || "(not set)"}`);
+  console.log(`Gateway port: ${gatewayPort || "(not set)"}`);
+  console.log(`Gateway domain: ${gatewayDomain || "(not set)"}`);
+  console.log("");
+
   // -----------------------------------------------------------------------
   // Create directories
   // -----------------------------------------------------------------------
@@ -428,7 +441,9 @@ async function main() {
     console.error("");
     console.error("Checking network connectivity to gateway port...");
     try {
-      execSync(`netstat -tlnp 2>/dev/null | grep ":${gatewayPort}" || ss -tlnp 2>/dev/null | grep ":${gatewayPort}" || echo "Port ${gatewayPort} does not appear to be listening"`, { stdio: "inherit" });
+      // Validate gatewayPort is numeric to prevent shell injection
+      const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
+      execSync(`netstat -tlnp 2>/dev/null | grep ":${safePort}" || ss -tlnp 2>/dev/null | grep ":${safePort}" || echo "Port ${safePort} does not appear to be listening"`, { stdio: "inherit" });
     } catch {
       // ignore
     }
@@ -604,8 +619,11 @@ async function main() {
   if (fs.existsSync(checkScript)) {
     console.log("Running MCP server checks...");
     // Store diagnostics in /tmp/gh-aw/mcp-logs/start-gateway.log
+    // Pass apiKey via MCP_GATEWAY_API_KEY env var (already set) rather than
+    // as a shell argument to avoid shell metacharacter injection risks.
+    const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
     try {
-      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${gatewayPort}" "${apiKey}" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log`, { stdio: "inherit" });
+      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log`, { stdio: "inherit", env: process.env });
     } catch {
       console.error("ERROR: MCP server checks failed - no servers could be connected");
       console.error("Gateway process will be terminated");
@@ -632,14 +650,26 @@ async function main() {
   try {
     const gwOut = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     if (gwOut.mcpServers && typeof gwOut.mcpServers === "object") {
-      const servers = Object.entries(/** @type {Record<string, Record<string, unknown>>} */ gwOut.mcpServers)
-        .filter(([, v]) => typeof v.url === "string")
+      const allEntries = Object.entries(/** @type {Record<string, Record<string, unknown>>} */ gwOut.mcpServers);
+      const servers = allEntries
+        .filter(([name, v]) => {
+          if (typeof v.url !== "string") {
+            console.log(`  Skipping server '${name}' from manifest: missing url`);
+            return false;
+          }
+          // Validate server name — only alphanumeric, hyphen, underscore
+          if (!/^[a-zA-Z0-9_-]+$/.test(name) || name.length > 64) {
+            console.log(`  Skipping server '${name}' from manifest: invalid name`);
+            return false;
+          }
+          return true;
+        })
         .map(([name, v]) => ({ name, url: v.url }));
       const manifest = JSON.stringify({ servers }, null, 2);
       fs.writeFileSync(path.join(cliDir, "manifest.json"), manifest, {
         mode: 0o600,
       });
-      console.log(`CLI manifest saved with ${servers.length} server(s)`);
+      console.log(`CLI manifest saved with ${servers.length} server(s): ${servers.map(s => s.name).join(", ")}`);
     } else {
       console.log("WARNING: No mcpServers in gateway output, CLI manifest not created");
     }

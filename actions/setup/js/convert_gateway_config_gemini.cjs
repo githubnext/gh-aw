@@ -76,6 +76,9 @@ function main() {
 
   /** @type {Set<string>} */
   const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+  if (cliServers.size > 0) {
+    console.log(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
+  }
 
   /** @type {Record<string, unknown>} */
   const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
@@ -109,6 +112,11 @@ function main() {
   };
 
   const output = JSON.stringify(settings, null, 2);
+
+  const serverCount = Object.keys(result).length;
+  const totalCount = Object.keys(servers).length;
+  const filteredCount = totalCount - serverCount;
+  console.log(`Servers: ${serverCount} included, ${filteredCount} filtered (CLI-mounted)`);
 
   // Create .gemini directory in the workspace (project-level settings)
   const settingsDir = path.join(workspace, ".gemini");

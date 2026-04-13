@@ -63,6 +63,9 @@ function main() {
 
   /** @type {Set<string>} */
   const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+  if (cliServers.size > 0) {
+    console.log(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
+  }
 
   /** @type {Record<string, unknown>} */
   const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
@@ -84,6 +87,10 @@ function main() {
     toml += `http_headers = { Authorization = "${authKey}" }\n`;
     toml += "\n";
   }
+
+  const includedCount = Object.keys(servers).length - [...Object.keys(servers)].filter(k => cliServers.has(k)).length;
+  const filteredCount = Object.keys(servers).length - includedCount;
+  console.log(`Servers: ${includedCount} included, ${filteredCount} filtered (CLI-mounted)`);
 
   // Ensure output directory exists
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
