@@ -256,6 +256,33 @@ describe("apply_safe_outputs_replay", () => {
     });
   });
 
+  describe("main", () => {
+    it("calls setFailed when GH_AW_RUN_URL is not set", async () => {
+      const { main } = await import("./apply_safe_outputs_replay.cjs");
+      delete process.env.GH_AW_RUN_URL;
+      await main();
+      expect(global.core.setFailed, "should call setFailed when no run URL").toHaveBeenCalledOnce();
+      expect(global.core.setFailed.mock.calls[0][0], "should mention GH_AW_RUN_URL").toMatch(/GH_AW_RUN_URL/);
+    });
+
+    it("calls setFailed for an invalid GH_AW_RUN_URL", async () => {
+      const { main } = await import("./apply_safe_outputs_replay.cjs");
+      process.env.GH_AW_RUN_URL = "not-a-valid-run-url";
+      await main();
+      expect(global.core.setFailed, "should call setFailed for unparseable URL").toHaveBeenCalledOnce();
+      expect(global.core.setFailed.mock.calls[0][0], "should describe the parse error").toMatch(/Cannot parse run ID/);
+    });
+
+    it("calls setFailed when exec fails to download the artifact", async () => {
+      const { main } = await import("./apply_safe_outputs_replay.cjs");
+      process.env.GH_AW_RUN_URL = "23560193313";
+      global.exec.exec = vi.fn().mockResolvedValue(1); // non-zero exit code
+      await main();
+      expect(global.core.setFailed, "should call setFailed on download failure").toHaveBeenCalledOnce();
+      expect(global.core.setFailed.mock.calls[0][0], "error should mention ERR_SYSTEM").toMatch(/Failed to download agent artifact/);
+    });
+  });
+
   describe("parseRunUrl (additional edge cases)", () => {
     it("throws for null input", async () => {
       const { parseRunUrl } = await import("./apply_safe_outputs_replay.cjs");
