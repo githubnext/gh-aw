@@ -17,6 +17,7 @@ tools:
 
 mcp-servers:
   mempalace:
+    type: stdio
     command: "python"
     args:
       - "-m"
