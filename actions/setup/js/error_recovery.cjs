@@ -16,6 +16,7 @@ const { ERR_API } = require("./error_codes.cjs");
  * @property {number} initialDelayMs - Initial delay in milliseconds (default: 1000)
  * @property {number} maxDelayMs - Maximum delay in milliseconds (default: 10000)
  * @property {number} backoffMultiplier - Backoff multiplier for exponential backoff (default: 2)
+ * @property {number} jitterMs - Maximum random jitter in milliseconds added to each retry delay (default: 100)
  * @property {(error: any) => boolean} shouldRetry - Function to determine if error is retryable
  */
 
@@ -28,6 +29,7 @@ const DEFAULT_RETRY_CONFIG = {
   initialDelayMs: 1000,
   maxDelayMs: 10000,
   backoffMultiplier: 2,
+  jitterMs: 100,
   shouldRetry: isTransientError,
 };
 
@@ -95,8 +97,10 @@ async function withRetry(operation, config = {}, operationName = "operation") {
   for (let attempt = 0; attempt <= fullConfig.maxRetries; attempt++) {
     try {
       if (attempt > 0) {
-        core.info(`Retry attempt ${attempt}/${fullConfig.maxRetries} for ${operationName} after ${delay}ms delay`);
-        await sleep(delay);
+        const jitter = fullConfig.jitterMs > 0 ? Math.floor(Math.random() * fullConfig.jitterMs) : 0;
+        const delayWithJitter = delay + jitter;
+        core.info(`Retry attempt ${attempt}/${fullConfig.maxRetries} for ${operationName} after ${delayWithJitter}ms delay`);
+        await sleep(delayWithJitter);
       }
 
       const result = await operation();

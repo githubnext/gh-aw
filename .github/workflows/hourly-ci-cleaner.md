@@ -1,8 +1,6 @@
 ---
-description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs twice daily (6am, 6pm UTC) to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption.
+description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Schedule disabled (issue #26015); use workflow_dispatch to trigger manually.
 on:
-  schedule:
-    - cron: '15 6,18 * * *'  # Twice daily (~6am, ~6pm UTC, offset to avoid thundering herd)
   workflow_dispatch:
 permissions:
   contents: read

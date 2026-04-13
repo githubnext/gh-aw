@@ -598,7 +598,7 @@ jobs:
 		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 		yaml.WriteString(`      - name: Compile workflows
         run: |
-          ` + getCLICmdPrefix(actionMode) + ` compile --validate --verbose
+          ` + getCLICmdPrefix(actionMode) + ` compile --validate --validate-images --verbose
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts

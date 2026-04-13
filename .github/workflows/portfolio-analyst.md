@@ -35,7 +35,10 @@ steps:
       mkdir -p /tmp/portfolio-logs
       gh aw logs --start-date -30d -c 5000 -o /tmp/portfolio-logs --json > /tmp/portfolio-logs/summary.json
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
 timeout-minutes: 20
 imports:
   - uses: shared/daily-audit-discussion.md
