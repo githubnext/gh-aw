@@ -719,7 +719,7 @@ jobs:
     needs:
       - activation
       - agent
-    if: always() && needs.agent.result == 'success'
+    if: always() && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim
     permissions:
       contents: write

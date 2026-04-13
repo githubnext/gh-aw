@@ -1281,3 +1281,46 @@ func TestPushRepoMemoryJobConcurrencyKey(t *testing.T) {
 	assert.NotContains(t, pushJob.Concurrency, "push-repo-memory-${{ github.repository }}\"",
 		"Concurrency key should not be the old repo-wide-only key format")
 }
+
+// TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped verifies that the push_repo_memory
+// job condition uses needs.agent.result != 'skipped' so the job does not run on no-op
+// workflow invocations (e.g. bot comments where pre_activation is skipped).
+func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
+	data := &WorkflowData{
+		RepoMemoryConfig: &RepoMemoryConfig{
+			Memories: []RepoMemoryEntry{
+				{ID: "default", BranchName: "memory/my-workflow"},
+			},
+		},
+	}
+
+	compiler := NewCompiler()
+
+	t.Run("without threat detection", func(t *testing.T) {
+		pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
+		require.NoError(t, err, "Should build push job without error")
+		require.NotNil(t, pushJob, "Should produce a push job")
+
+		assert.Contains(t, pushJob.If, "always()",
+			"Condition should contain always() to bypass normal skip propagation")
+		assert.Contains(t, pushJob.If, "!= 'skipped'",
+			"Condition should check agent result != 'skipped' to gate on agent having run")
+		assert.NotContains(t, pushJob.If, "== 'success'",
+			"Condition should NOT use == 'success' — agent failures should still push memory")
+	})
+
+	t.Run("with threat detection", func(t *testing.T) {
+		pushJob, err := compiler.buildPushRepoMemoryJob(data, true)
+		require.NoError(t, err, "Should build push job without error")
+		require.NotNil(t, pushJob, "Should produce a push job")
+
+		assert.Contains(t, pushJob.If, "always()",
+			"Condition should contain always()")
+		assert.Contains(t, pushJob.If, "!= 'skipped'",
+			"Condition should check agent result != 'skipped'")
+		assert.Contains(t, pushJob.If, "needs.detection.result",
+			"Condition should still check detection result when threat detection is enabled")
+		assert.NotContains(t, pushJob.If, "needs.agent.result == 'success'",
+			"Condition should NOT use == 'success' for agent check")
+	})
+}

@@ -736,21 +736,26 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 	}
 
-	// Job condition: only run if the agent job succeeded (do not push repo memory when agent
-	// failed or was skipped). Using always() so the job still runs even when upstream jobs
-	// are skipped (e.g. detection is skipped when agent produces no outputs).
-	agentSucceeded := BuildEquals(
+	// Job condition: only run when the agent actually executed (not skipped).
+	// Using always() so the job still runs even when upstream jobs are skipped
+	// (e.g. detection is skipped when agent produces no outputs).
+	// We check != 'skipped' rather than == 'success' so that repo-memory is
+	// pushed even when the agent fails — partial memory data is still valuable.
+	// Crucially, this prevents the job from running on no-op workflow invocations
+	// (e.g. bot comments) where pre_activation is skipped and the skip cascades
+	// through activation → agent → detection.
+	agentRan := BuildNotEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
-		BuildStringLiteral("success"),
+		BuildStringLiteral("skipped"),
 	)
 	jobNeeds := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	var jobCondition string
 	if threatDetectionEnabled {
 		// When threat detection is enabled, also require detection passed (succeeded or skipped).
-		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()), agentSucceeded))
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()), agentRan))
 		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
 	} else {
-		jobCondition = RenderCondition(BuildAnd(BuildFunctionCall("always"), agentSucceeded))
+		jobCondition = RenderCondition(BuildAnd(BuildFunctionCall("always"), agentRan))
 	}
 
 	// Build outputs map for validation failures from all memory steps
