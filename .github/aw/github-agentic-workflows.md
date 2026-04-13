@@ -408,25 +408,27 @@ The YAML frontmatter supports these fields:
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
       max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
-      max-concurrency: 3                # Optional: max concurrent workflows across all workflows (default: 3)
+      max-continuations: 3              # Optional: max autopilot continuations (copilot only; >1 enables --autopilot mode, default: 1)
+      concurrency: "gh-aw-${{ github.workflow }}"  # Optional: agent job concurrency group (string or GitHub Actions concurrency object)
       env:                              # Optional: custom environment variables (object)
         DEBUG_MODE: "true"
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
       api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
       command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
-      bare: true                        # Optional: disable automatic context loading (copilot: suppresses AGENTS.md/user instructions; claude: suppresses CLAUDE.md memory files). Unsupported engines emit a compiler warning. (default: false)
+      bare: true                        # Optional: disable automatic context loading (copilot: --no-custom-instructions; claude: --bare; codex: --no-system-prompt; gemini: GEMINI_SYSTEM_MD=/dev/null). Default: false
+      user-agent: "myapp/1.0"           # Optional: custom user agent string (codex engine only)
+      config: |                         # Optional: additional TOML config appended to config.toml (codex engine only)
+        [extra]
+        key = "value"
       token-weights:                    # Optional: custom token cost weights for effective token computation
         multipliers:
           my-custom-model: 2.5          # 2.5x the cost of claude-sonnet-4.5 (= 1.0)
         token-class-weights:
           output: 6.0                   # Override output token weight (default: 4.0)
           cached-input: 0.05            # Override cached input weight (default: 0.1)
-      error_patterns:                   # Optional: custom error pattern recognition (array)
-        - pattern: "ERROR: (.+)"
-          level_group: 1
     ```
 
-  - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
 
 - **`network:`** - Network access control for AI engines (top-level field)
