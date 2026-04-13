@@ -1283,8 +1283,9 @@ func TestPushRepoMemoryJobConcurrencyKey(t *testing.T) {
 }
 
 // TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped verifies that the push_repo_memory
-// job condition uses needs.agent.result != 'skipped' so the job does not run on no-op
-// workflow invocations (e.g. bot comments where pre_activation is skipped).
+// job condition uses needs.agent.result != 'skipped' and !cancelled() so the job does not
+// run on no-op workflow invocations (e.g. bot comments where pre_activation is skipped)
+// or after workflow cancellation.
 func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
 	data := &WorkflowData{
 		RepoMemoryConfig: &RepoMemoryConfig{
@@ -1301,12 +1302,11 @@ func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
 		require.NoError(t, err, "Should build push job without error")
 		require.NotNil(t, pushJob, "Should produce a push job")
 
-		assert.Contains(t, pushJob.If, "always()",
-			"Condition should contain always() to bypass normal skip propagation")
-		assert.Contains(t, pushJob.If, "!= 'skipped'",
-			"Condition should check agent result != 'skipped' to gate on agent having run")
-		assert.NotContains(t, pushJob.If, "== 'success'",
-			"Condition should NOT use == 'success' — agent failures should still push memory")
+		assert.Equal(t,
+			"always() && (!cancelled()) && needs.agent.result != 'skipped'",
+			pushJob.If,
+			"Condition should use always() && (!cancelled()) && agent != skipped",
+		)
 	})
 
 	t.Run("with threat detection", func(t *testing.T) {
@@ -1316,7 +1316,9 @@ func TestPushRepoMemoryJobConditionGatesOnAgentNotSkipped(t *testing.T) {
 
 		assert.Contains(t, pushJob.If, "always()",
 			"Condition should contain always()")
-		assert.Contains(t, pushJob.If, "!= 'skipped'",
+		assert.Contains(t, pushJob.If, "!cancelled()",
+			"Condition should contain !cancelled() to prevent running after cancellation")
+		assert.Contains(t, pushJob.If, "needs.agent.result != 'skipped'",
 			"Condition should check agent result != 'skipped'")
 		assert.Contains(t, pushJob.If, "needs.detection.result",
 			"Condition should still check detection result when threat detection is enabled")
