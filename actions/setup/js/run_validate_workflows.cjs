@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Run full workflow validation using gh-aw compile --validate and all known
@@ -89,6 +90,7 @@ async function main() {
       core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
       const truncatedOutput = combinedOutput.substring(0, 50000) + (combinedOutput.length > 50000 ? "\n\n... (output truncated)" : "");
+      const sanitizedOutput = sanitizeContent(truncatedOutput);
 
       const xmlMarker = generateXMLMarker(workflowName, runUrl);
       const commentBody = `Validation still has findings (exit code: ${exitCode}).
@@ -97,7 +99,7 @@ async function main() {
 <summary>Validation output</summary>
 
 \`\`\`
-${truncatedOutput}
+${sanitizedOutput}
 \`\`\`
 
 </details>
@@ -130,6 +132,7 @@ ${xmlMarker}`;
   core.info("No existing issue found, creating a new issue with validation findings");
 
   const truncatedOutput = combinedOutput.substring(0, 50000) + (combinedOutput.length > 50000 ? "\n\n... (output truncated)" : "");
+  const sanitizedOutput = sanitizeContent(truncatedOutput);
 
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
   const issueBody = `## Problem
@@ -145,7 +148,7 @@ Workflow validation found errors or warnings that need to be addressed.
 <summary>Full output</summary>
 
 \`\`\`
-${truncatedOutput}
+${sanitizedOutput}
 \`\`\`
 
 </details>
