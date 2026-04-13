@@ -2,6 +2,9 @@
 name: Daily Documentation Updater
 description: Automatically reviews and updates documentation to ensure accuracy and completeness
 on:
+  schedule:
+    # Every day around 2am PST (10:00 UTC)
+    - cron: daily around 10:00
   workflow_dispatch:
 
 permissions:
