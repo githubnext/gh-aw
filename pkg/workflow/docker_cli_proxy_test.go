@@ -11,7 +11,7 @@ import (
 
 func TestCollectDockerImages_CliProxy(t *testing.T) {
 	// Use a version without "v" prefix — getAWFImageTag strips it
-	awfImageTag := "0.25.18"
+	awfImageTag := "0.25.20"
 
 	t.Run("includes cli-proxy image when feature flag is enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
