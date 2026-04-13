@@ -2222,6 +2222,30 @@ describe("sendJobConclusionSpan", () => {
       expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
     });
 
+    it("normalizes uppercase exception.type prefix to lowercase", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Push_To_PR:Cannot push to remote" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pr");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
+    });
+
     it("falls back to gh-aw.AgentError when message has no colon prefix", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
