@@ -5,7 +5,7 @@
  * mount_mcp_as_cli.cjs
  *
  * Mounts MCP servers as local CLI tools by reading the manifest written by
- * start_mcp_gateway.sh, querying each server for its tool list, and generating
+ * start_mcp_gateway.cjs, querying each server for its tool list, and generating
  * a standalone bash wrapper script per server in ${RUNNER_TEMP}/gh-aw/mcp-cli/bin/.
  *
  * The bin directory is locked (chmod 555) so the agent cannot modify or inject

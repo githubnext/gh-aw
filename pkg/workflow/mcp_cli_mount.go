@@ -14,7 +14,7 @@ import (
 //
 // After the MCP gateway is started, this step runs mount_mcp_as_cli.cjs via
 // actions/github-script which:
-//   - Reads the CLI manifest saved by start_mcp_gateway.sh
+//   - Reads the CLI manifest saved by start_mcp_gateway.cjs
 //   - Queries each server for its tools/list via JSON-RPC
 //   - Writes a standalone CLI wrapper script for each server to ${RUNNER_TEMP}/gh-aw/mcp-cli/bin/
 //   - Locks the bin directory (chmod 555) so the agent cannot modify the scripts

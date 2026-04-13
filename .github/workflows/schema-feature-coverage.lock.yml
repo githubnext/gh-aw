@@ -623,7 +623,7 @@ jobs:
           GH_AW_MCP_CONFIG_79d8d57369ee664c_EOF
           
           # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_79d8d57369ee664c_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
+          cat << GH_AW_MCP_CONFIG_79d8d57369ee664c_EOF | node "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
