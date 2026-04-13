@@ -3,9 +3,9 @@
 
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, getCloseKeyMarkerContent } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { buildMarkerSearchQuery, filterByMarker, logFilterSummary } = require("./close_older_search_helpers.cjs");
 
 /**
  * Maximum number of older discussions to close
@@ -44,27 +44,13 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
     return [];
   }
 
-  // Build GraphQL search query.
-  // When a close-older-key is provided it becomes the primary search term; otherwise
-  // fall back to the workflow-id marker.
-  let searchQuery;
-  let exactMarker;
-  if (closeOlderKey) {
-    const closeKeyMarkerContent = getCloseKeyMarkerContent(closeOlderKey);
-    const escapedMarker = closeKeyMarkerContent.replace(/"/g, '\\"');
-    searchQuery = `repo:${owner}/${repo} is:open "${escapedMarker}" in:body`;
-    exactMarker = generateCloseKeyMarker(closeOlderKey);
-    core.info(`  Using close-older-key for search: "${escapedMarker}" in:body`);
-  } else {
-    // Build GraphQL search query
-    // Search for open discussions with the workflow-id marker in the body
-    const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
-    // Escape quotes in workflow ID to prevent query injection
-    const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
-    searchQuery = `repo:${owner}/${repo} is:open "${escapedMarker}" in:body`;
-    exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
-    core.info(`  Added workflow ID marker filter to query: "${escapedMarker}" in:body`);
-  }
+  const { searchQuery, exactMarker } = buildMarkerSearchQuery({
+    owner,
+    repo,
+    workflowId,
+    callerWorkflowId,
+    closeOlderKey,
+  });
   core.info(`Executing GitHub search with query: ${searchQuery}`);
 
   const result = await github.graphql(
@@ -96,73 +82,39 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
     return [];
   }
 
-  // Filter results:
-  // 1. Must not be the excluded discussion (newly created one)
-  // 2. Must not be already closed
-  // 3. If categoryId is specified, must match
-  // 4. Body must contain the exact marker. When closeOlderKey is set the close-key marker
-  //    is used. Otherwise, when callerWorkflowId is set, match `gh-aw-workflow-call-id` so
-  //    that callers sharing the same reusable workflow do not close each other's discussions.
-  //    Fall back to `gh-aw-workflow-id` for backward compat with older discussions.
   core.info("Filtering search results...");
-  let filteredCount = 0;
-  let excludedCount = 0;
-  let closedCount = 0;
-  let markerMismatchCount = 0;
 
-  const filtered = result.search.nodes
-    .filter(
-      /** @param {any} d */ d => {
-        if (!d) {
-          return false;
-        }
-
-        // Exclude the newly created discussion
-        if (d.number === excludeNumber) {
-          excludedCount++;
-          core.info(`  Excluding discussion #${d.number} (the newly created discussion)`);
-          return false;
-        }
-
-        // Exclude already closed discussions
-        if (d.closed) {
-          closedCount++;
-          return false;
-        }
-
-        // Check category if specified
-        if (categoryId && (!d.category || d.category.id !== categoryId)) {
-          return false;
-        }
-
-        // Exact-match the marker in the discussion body to prevent GitHub search
-        // substring tokenization from matching related workflow IDs
-        // (e.g. "foo" would otherwise match discussions from "foo-bar")
-        if (!d.body?.includes(exactMarker)) {
-          markerMismatchCount++;
-          core.info(`  Excluding discussion #${d.number} (body does not contain exact marker)`);
-          return false;
-        }
-
-        filteredCount++;
-        core.info(`  ✓ Discussion #${d.number} matches criteria: ${d.title}`);
-        return true;
+  const { filtered: filteredItems, counters } = filterByMarker({
+    items: result.search.nodes,
+    excludeNumber,
+    exactMarker,
+    entityType: "discussion",
+    additionalFilter: (d, extra) => {
+      if (d.closed) {
+        extra.closedCount = (extra.closedCount || 0) + 1;
+        return false;
       }
-    )
-    .map(
-      /** @param {any} d */ d => ({
-        id: d.id,
-        number: d.number,
-        title: d.title,
-        url: d.url,
-      })
-    );
+      if (categoryId && (!d.category || d.category.id !== categoryId)) {
+        return false;
+      }
+      return true;
+    },
+  });
 
-  core.info(`Filtering complete:`);
-  core.info(`  - Matched discussions: ${filteredCount}`);
-  core.info(`  - Excluded new discussion: ${excludedCount}`);
-  core.info(`  - Excluded closed discussions: ${closedCount}`);
-  core.info(`  - Excluded marker mismatch: ${markerMismatchCount}`);
+  const filtered = filteredItems.map(
+    /** @param {any} d */ d => ({
+      id: d.id,
+      number: d.number,
+      title: d.title,
+      url: d.url,
+    })
+  );
+
+  logFilterSummary({
+    entityTypePlural: "discussions",
+    counters,
+    extraLabels: [["closedCount", "Excluded closed discussions"]],
+  });
 
   return filtered;
 }

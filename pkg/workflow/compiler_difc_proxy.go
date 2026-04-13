@@ -157,8 +157,12 @@ func hasPreAgentStepsWithGHToken(data *WorkflowData) bool {
 // compile time: min-integrity and repos. This is because the proxy starts before the
 // parse-guard-vars step that produces those dynamic outputs.
 //
+// When the integrity-reactions feature flag is enabled and the MCPG version supports it,
+// reaction fields (endorsement-reactions, disapproval-reactions, disapproval-integrity,
+// endorser-min-integrity) are also included in the proxy policy.
+//
 // Returns an empty string if no guard policy fields are found.
-func getDIFCProxyPolicyJSON(githubTool any) string {
+func getDIFCProxyPolicyJSON(githubTool any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) string {
 	toolConfig, ok := githubTool.(map[string]any)
 	if !ok {
 		return ""
@@ -187,6 +191,9 @@ func getDIFCProxyPolicyJSON(githubTool any) string {
 	if hasIntegrity {
 		policy["min-integrity"] = integrity
 	}
+
+	// Inject reaction fields when the feature flag is enabled and MCPG supports it.
+	injectIntegrityReactionFields(policy, toolConfig, data, gatewayConfig)
 
 	guardPolicy := map[string]any{
 		"allow-only": policy,
@@ -224,7 +231,9 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
 	// Build the simplified guard policy JSON (static fields only)
-	policyJSON := getDIFCProxyPolicyJSON(githubTool)
+	// (plus reaction fields when integrity-reactions feature flag is enabled)
+	ensureDefaultMCPGatewayConfig(data)
+	policyJSON := getDIFCProxyPolicyJSON(githubTool, data, data.SandboxConfig.MCP)
 	if policyJSON == "" {
 		difcProxyLog.Print("Could not build DIFC proxy policy JSON, skipping proxy start")
 		return ""
@@ -232,7 +241,6 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 
 	// Resolve the container image from the MCP gateway configuration
 	// (proxy uses the same image as the gateway, just in "proxy" mode)
-	ensureDefaultMCPGatewayConfig(data)
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
@@ -379,18 +387,18 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	customGitHubToken := getGitHubToken(githubTool)
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
-	// Build the guard policy JSON (static fields only).
+	// Build the guard policy JSON (static fields only, plus reaction fields when enabled).
 	// The CLI proxy requires a policy to forward requests — without one, all API
 	// calls return HTTP 503 ("proxy enforcement not configured"). Use the default
 	// permissive policy when no guard policy is configured in the frontmatter.
-	policyJSON := getDIFCProxyPolicyJSON(githubTool)
+	ensureDefaultMCPGatewayConfig(data)
+	policyJSON := getDIFCProxyPolicyJSON(githubTool, data, data.SandboxConfig.MCP)
 	if policyJSON == "" {
 		policyJSON = defaultCliProxyPolicyJSON
 		difcProxyLog.Print("No guard policy configured, using default CLI proxy policy")
 	}
 
 	// Resolve the container image from the MCP gateway configuration
-	ensureDefaultMCPGatewayConfig(data)
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder

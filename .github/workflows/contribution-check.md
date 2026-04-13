@@ -35,6 +35,44 @@ safe-outputs:
     target: "*"
     target-repo: ${{ vars.TARGET_REPOSITORY }}
     hide-older-comments: true
+steps:
+  - name: Fetch and filter PRs
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      # Fetch open PRs from the target repository opened in the last 24 hours
+      SINCE=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+              || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+
+      echo "Fetching open PRs from $TARGET_REPOSITORY created since $SINCE..."
+      ALL_PRS=$(gh pr list \
+        --repo "$TARGET_REPOSITORY" \
+        --state open \
+        --limit 100 \
+        --json number,createdAt \
+        --jq "[.[] | select(.createdAt >= \"$SINCE\")]" \
+        2>/dev/null || echo "[]")
+
+      TOTAL=$(echo "$ALL_PRS" | jq 'length')
+      echo "Found $TOTAL open PRs created in the last 24 hours"
+
+      # Cap the number of PRs to evaluate at 10
+      MAX_EVALUATE=10
+      EVALUATED=$(echo "$ALL_PRS" | jq --argjson max "$MAX_EVALUATE" '[.[0:$max][] | .number]')
+      EVALUATED_COUNT=$(echo "$EVALUATED" | jq 'length')
+      SKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))
+
+      # Write results to workspace root
+      jq -n \
+        --argjson pr_numbers "$EVALUATED" \
+        --argjson skipped_count "$SKIPPED_COUNT" \
+        --argjson evaluated_count "$EVALUATED_COUNT" \
+        '{pr_numbers: $pr_numbers, skipped_count: $skipped_count, evaluated_count: $evaluated_count}' \
+        > "$GITHUB_WORKSPACE/pr-filter-results.json"
+
+      echo "✓ Wrote pr-filter-results.json: $EVALUATED_COUNT to evaluate, $SKIPPED_COUNT skipped"
+      cat "$GITHUB_WORKSPACE/pr-filter-results.json"
 ---
 
 ## Target Repository

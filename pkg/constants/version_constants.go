@@ -70,6 +70,10 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.2.17"
 
+// MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
+// endorsement-reactions and disapproval-reactions in the allow-only policy.
+const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
+
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.70"
 

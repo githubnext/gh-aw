@@ -1,9 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getWorkflowIdMarkerContent, generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, getCloseKeyMarkerContent } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { buildMarkerSearchQuery, filterByMarker, logFilterSummary } = require("./close_older_search_helpers.cjs");
 
 /**
  * Maximum number of older issues to close
@@ -41,26 +41,14 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
     return [];
   }
 
-  // Build REST API search query.
-  // When a close-older-key is provided it becomes the primary search term; otherwise
-  // fall back to the workflow-id marker.
-  let searchQuery;
-  let exactMarker;
-  if (closeOlderKey) {
-    const closeKeyMarkerContent = getCloseKeyMarkerContent(closeOlderKey);
-    const escapedMarker = closeKeyMarkerContent.replace(/"/g, '\\"');
-    searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
-    exactMarker = generateCloseKeyMarker(closeOlderKey);
-    core.info(`  Using close-older-key for search: "${escapedMarker}" in:body`);
-  } else {
-    // Search for open issues with the workflow-id marker in the body
-    const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
-    // Escape quotes in workflow ID to prevent query injection
-    const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
-    searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
-    exactMarker = callerWorkflowId ? generateWorkflowCallIdMarker(callerWorkflowId) : generateWorkflowIdMarker(workflowId);
-    core.info(`  Added workflow-id marker filter to query: "${escapedMarker}" in:body`);
-  }
+  const { searchQuery, exactMarker } = buildMarkerSearchQuery({
+    owner,
+    repo,
+    workflowId,
+    callerWorkflowId,
+    closeOlderKey,
+    entityQualifier: "is:issue",
+  });
   core.info(`Executing GitHub search with query: ${searchQuery}`);
 
   const result = await github.rest.search.issuesAndPullRequests({
@@ -75,60 +63,35 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
     return [];
   }
 
-  // Filter results:
-  // 1. Must not be the excluded issue (newly created one)
-  // 2. Must not be a pull request
-  // 3. Body must contain the exact marker. When closeOlderKey is set the close-key marker
-  //    is used. Otherwise, when callerWorkflowId is set, match `gh-aw-workflow-call-id` so
-  //    that callers sharing the same reusable workflow do not close each other's issues.
-  //    Fall back to `gh-aw-workflow-id` for backward compat with older issues.
   core.info("Filtering search results...");
-  let filteredCount = 0;
-  let pullRequestCount = 0;
-  let excludedCount = 0;
-  let markerMismatchCount = 0;
 
-  const filtered = result.data.items
-    .filter(item => {
-      // Exclude pull requests
+  const { filtered: filteredItems, counters } = filterByMarker({
+    items: result.data.items,
+    excludeNumber,
+    exactMarker,
+    entityType: "issue",
+    additionalFilter: (item, extra) => {
       if (item.pull_request) {
-        pullRequestCount++;
+        extra.pullRequestCount = (extra.pullRequestCount || 0) + 1;
         return false;
       }
-
-      // Exclude the newly created issue
-      if (item.number === excludeNumber) {
-        excludedCount++;
-        core.info(`  Excluding issue #${item.number} (the newly created issue)`);
-        return false;
-      }
-
-      // Exact-match the marker in the issue body to prevent GitHub search
-      // substring tokenization from matching related workflow IDs
-      // (e.g. "foo" would otherwise match issues from "foo-bar")
-      if (!item.body?.includes(exactMarker)) {
-        markerMismatchCount++;
-        core.info(`  Excluding issue #${item.number} (body does not contain exact marker)`);
-        return false;
-      }
-
-      filteredCount++;
-      core.info(`  ✓ Issue #${item.number} matches criteria: ${item.title}`);
       return true;
-    })
-    .map(item => ({
-      number: item.number,
-      title: item.title,
-      html_url: item.html_url,
-      labels: item.labels || [],
-      created_at: item.created_at,
-    }));
+    },
+  });
 
-  core.info(`Filtering complete:`);
-  core.info(`  - Matched issues: ${filteredCount}`);
-  core.info(`  - Excluded pull requests: ${pullRequestCount}`);
-  core.info(`  - Excluded new issue: ${excludedCount}`);
-  core.info(`  - Excluded marker mismatch: ${markerMismatchCount}`);
+  const filtered = filteredItems.map(item => ({
+    number: item.number,
+    title: item.title,
+    html_url: item.html_url,
+    labels: item.labels || [],
+    created_at: item.created_at,
+  }));
+
+  logFilterSummary({
+    entityTypePlural: "issues",
+    counters,
+    extraLabels: [["pullRequestCount", "Excluded pull requests"]],
+  });
 
   return filtered;
 }

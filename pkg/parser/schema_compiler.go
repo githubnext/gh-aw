@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -189,6 +190,73 @@ func GetSafeOutputTypeKeys() ([]string, error) {
 	return keys, nil
 }
 
+// normalizeForJSONSchema recursively returns a normalized copy of v with YAML-native
+// Go types converted to JSON-compatible types for JSON schema validation. It does
+// not mutate the caller's maps or slices. goccy/go-yaml produces uint64 for
+// positive integers and int64 for negative integers, but JSON schema validators
+// expect float64 for all numbers (matching encoding/json's unmarshaling behavior).
+// goccy/go-yaml may also produce typed slices (e.g. []string) instead of []any;
+// the reflection fallback converts these so the schema validator sees []any.
+// This avoids the overhead of a json.Marshal + json.Unmarshal roundtrip.
+func normalizeForJSONSchema(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		normalized := make(map[string]any, len(val))
+		for k, elem := range val {
+			normalized[k] = normalizeForJSONSchema(elem)
+		}
+		return normalized
+	case []any:
+		normalized := make([]any, len(val))
+		for i, elem := range val {
+			normalized[i] = normalizeForJSONSchema(elem)
+		}
+		return normalized
+	case int:
+		return float64(val)
+	case int8:
+		return float64(val)
+	case int16:
+		return float64(val)
+	case int32:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case uint:
+		return float64(val)
+	case uint8:
+		return float64(val)
+	case uint16:
+		return float64(val)
+	case uint32:
+		return float64(val)
+	case uint64:
+		return float64(val)
+	case float32:
+		return float64(val)
+	default:
+		// Use reflection to handle typed slices (e.g. []string) and typed maps
+		// that goccy/go-yaml may produce instead of []any / map[string]any.
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Slice:
+			normalized := make([]any, rv.Len())
+			for i := range rv.Len() {
+				normalized[i] = normalizeForJSONSchema(rv.Index(i).Interface())
+			}
+			return normalized
+		case reflect.Map:
+			normalized := make(map[string]any, rv.Len())
+			for _, key := range rv.MapKeys() {
+				normalized[key.String()] = normalizeForJSONSchema(rv.MapIndex(key).Interface())
+			}
+			return normalized
+		}
+		// string, bool, float64, nil pass through unchanged
+		return v
+	}
+}
+
 func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) error {
 	schemaCompilerLog.Printf("Validating frontmatter against schema for context: %s (%d fields)", context, len(frontmatter))
 
@@ -217,27 +285,19 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 		return fmt.Errorf("schema validation error for %s: %w", context, err)
 	}
 
-	// Convert frontmatter to JSON and back to normalize types for validation
-	// Handle nil frontmatter as empty object to satisfy schema validation
-	var frontmatterToValidate map[string]any
+	// Normalize YAML-native Go types to JSON-compatible types for schema validation.
+	// goccy/go-yaml produces uint64/int64 for integers, but JSON schema validators
+	// expect float64 for all numbers (matching encoding/json's behavior).
+	// This avoids the overhead of a json.Marshal/Unmarshal roundtrip.
+	var normalized any
 	if frontmatter == nil {
-		frontmatterToValidate = make(map[string]any)
+		normalized = make(map[string]any)
 	} else {
-		frontmatterToValidate = frontmatter
-	}
-
-	frontmatterJSON, err := json.Marshal(frontmatterToValidate)
-	if err != nil {
-		return fmt.Errorf("schema validation error for %s: failed to marshal frontmatter: %w", context, err)
-	}
-
-	var normalizedFrontmatter any
-	if err := json.Unmarshal(frontmatterJSON, &normalizedFrontmatter); err != nil {
-		return fmt.Errorf("schema validation error for %s: failed to unmarshal frontmatter: %w", context, err)
+		normalized = normalizeForJSONSchema(frontmatter)
 	}
 
 	// Validate the normalized frontmatter
-	if err := schema.Validate(normalizedFrontmatter); err != nil {
+	if err := schema.Validate(normalized); err != nil {
 		schemaCompilerLog.Printf("Schema validation failed for %s: %v", context, err)
 		return err
 	}

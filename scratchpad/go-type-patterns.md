@@ -37,7 +37,7 @@ type Version string
 - Self-documenting code - the type name explains the purpose
 - Type safety - prevents mixing different concepts that share the same underlying type
 - Clear intent - signals to readers what the value represents
-- Easy refactoring - can change underlying implementation without affecting API
+- Supports refactoring - can change underlying implementation without affecting API
 
 ### Examples in Codebase
 

@@ -14,10 +14,13 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw init`](#init) | Set up your repository for agentic workflows |
 | [`gh aw add-wizard`](#add-wizard) | Add workflows with interactive guided setup |
 | [`gh aw add`](#add) | Add workflows from other repositories (non-interactive) |
+| [`gh aw new`](#new) | Create a new workflow from scratch |
 | [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML |
 | [`gh aw list`](#list) | Quick listing of all workflows |
 | [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions |
 | [`gh aw status`](#status) | Check current state of all workflows |
+| [`gh aw logs`](#logs) | Download and analyze workflow logs |
+| [`gh aw audit`](#audit) | Debug a failed workflow run |
 
 ## Installation
 
