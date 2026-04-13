@@ -82,7 +82,8 @@ function generateTemporaryArtifactId() {
 function resolveTemporaryArtifactId(message) {
   const declared = message.temporary_id;
   if (declared && typeof declared === "string") {
-    const normalized = declared.trim().startsWith("#") ? declared.trim().substring(1).trim() : declared.trim();
+    const trimmed = declared.trim();
+    const normalized = trimmed.startsWith("#") ? trimmed.substring(1) : trimmed;
     if (isTemporaryId(normalized)) {
       return normalizeTemporaryId(normalized);
     }

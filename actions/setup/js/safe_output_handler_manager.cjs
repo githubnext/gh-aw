@@ -967,7 +967,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
 
           try {
             // Replace artifact URL references first, then issue number references
-            let updatedContent = artifactUrlMap && artifactUrlMap.size > 0 ? replaceArtifactUrlReferences(contentToCheck, artifactUrlMap) : contentToCheck;
+            let updatedContent = replaceArtifactUrlReferences(contentToCheck, artifactUrlMap);
             updatedContent = replaceTemporaryIdReferences(updatedContent, temporaryIdMap, tracked.result.repo);
 
             // Update based on the original type
