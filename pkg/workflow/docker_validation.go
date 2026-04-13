@@ -108,7 +108,7 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 	_, err := exec.LookPath("docker")
 	if err != nil {
 		if requireDocker {
-			return fmt.Errorf("docker not installed - could not validate container image '%s'. Install Docker or remove --validate-images to skip container image validation", image)
+			return fmt.Errorf("docker not installed - could not validate container image '%s'. Install Docker or omit the --validate-images flag to skip container image validation", image)
 		}
 		dockerValidationLog.Print("Docker not installed, skipping container image validation")
 		return nil
@@ -121,7 +121,7 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 	// When requireDocker is true, return an error instead of skipping.
 	if !isDockerDaemonRunning() {
 		if requireDocker {
-			return fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or remove --validate-images to skip container image validation", image)
+			return fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or omit the --validate-images flag to skip container image validation", image)
 		}
 		dockerValidationLog.Print("Docker daemon not running, skipping container image validation")
 		return nil
