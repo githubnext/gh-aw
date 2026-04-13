@@ -398,7 +398,7 @@ case "$ENGINE_TYPE" in
     ;;
   gemini)
     echo "Using Gemini converter..."
-    bash "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.sh"
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.cjs"
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
