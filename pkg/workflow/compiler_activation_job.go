@@ -182,7 +182,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// (issue_comment/push → workflow_call) where the event_name is the originating event.
 	if hasWorkflowCallTrigger(data.On) {
 		compilerActivationJobLog.Print("Adding cross-repo setup guidance step for workflow_call trigger")
-		steps = append(steps, "      - name: Cross-repo setup guidance\n")
+		steps = append(steps, "      - name: Print cross-repo setup guidance\n")
 		steps = append(steps, "        if: failure() && steps.resolve-host-repo.outputs.target_repo != github.repository\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          echo \"::error::COPILOT_GITHUB_TOKEN must be configured in the CALLER repository's secrets.\"\n")
