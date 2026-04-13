@@ -291,8 +291,11 @@ func getGitHubGuardPolicies(githubTool any) map[string]any {
 // injectIntegrityReactionFields adds endorsement-reactions, disapproval-reactions,
 // disapproval-integrity, and endorser-min-integrity into an existing allow-only policy
 // map when the integrity-reactions feature flag is enabled and the MCPG version supports it.
-// policy is the inner allow-only map (not the outer allow-only wrapper).
-// toolConfig is the raw github tool configuration map.
+//   - policy is the inner allow-only map (not the outer allow-only wrapper).
+//   - toolConfig is the raw github tool configuration map.
+//   - data contains workflow data including feature flags used to check if integrity-reactions is enabled.
+//   - gatewayConfig contains MCP gateway version configuration used to version-gate the injection.
+//
 // No-op when the feature flag is disabled or the MCPG version is too old.
 func injectIntegrityReactionFields(policy map[string]any, toolConfig map[string]any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) {
 	if !isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data) {

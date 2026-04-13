@@ -195,7 +195,6 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 
 	// If none of the reaction fields are set, nothing to validate
 	if !hasEndorsementReactions && !hasDisapprovalReactions && !hasDisapprovalIntegrity && !hasEndorserMinIntegrity {
-		// Also validate: if integrity-reactions feature flag is enabled, warn but it's OK with no fields
 		return nil
 	}
 
