@@ -1,6 +1,9 @@
 // @ts-check
 "use strict";
 
+// Ensures global.core is available when running outside github-script context
+require("./shim.cjs");
+
 /**
  * convert_gateway_config_copilot.cjs
  *
@@ -41,32 +44,32 @@ function main() {
   const port = process.env.MCP_GATEWAY_PORT;
 
   if (!gatewayOutput) {
-    console.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
     process.exit(1);
   }
   if (!fs.existsSync(gatewayOutput)) {
-    console.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
+    core.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
     process.exit(1);
   }
   if (!domain) {
-    console.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
     process.exit(1);
   }
   if (!port) {
-    console.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
     process.exit(1);
   }
 
-  console.log("Converting gateway configuration to Copilot format...");
-  console.log(`Input: ${gatewayOutput}`);
-  console.log(`Target domain: ${domain}:${port}`);
+  core.info("Converting gateway configuration to Copilot format...");
+  core.info(`Input: ${gatewayOutput}`);
+  core.info(`Target domain: ${domain}:${port}`);
 
   const urlPrefix = `http://${domain}:${port}`;
 
   /** @type {Set<string>} */
   const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
   if (cliServers.size > 0) {
-    console.log(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
+    core.info(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
   }
 
   /** @type {Record<string, unknown>} */
@@ -97,7 +100,7 @@ function main() {
   const serverCount = Object.keys(result).length;
   const totalCount = Object.keys(servers).length;
   const filteredCount = totalCount - serverCount;
-  console.log(`Servers: ${serverCount} included, ${filteredCount} filtered (CLI-mounted)`);
+  core.info(`Servers: ${serverCount} included, ${filteredCount} filtered (CLI-mounted)`);
 
   // Ensure output directory exists
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
@@ -107,10 +110,10 @@ function main() {
   // raw JSON-RPC calls directly to the gateway.
   fs.writeFileSync(OUTPUT_PATH, output, { mode: 0o600 });
 
-  console.log(`Copilot configuration written to ${OUTPUT_PATH}`);
-  console.log("");
-  console.log("Converted configuration:");
-  console.log(output);
+  core.info(`Copilot configuration written to ${OUTPUT_PATH}`);
+  core.info("");
+  core.info("Converted configuration:");
+  core.info(output);
 }
 
 main();

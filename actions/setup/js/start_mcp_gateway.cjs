@@ -1,6 +1,9 @@
 // @ts-check
 "use strict";
 
+// Ensures global.core is available when running outside github-script context
+require("./shim.cjs");
+
 /**
  * start_mcp_gateway.cjs
  *
@@ -43,7 +46,7 @@ function nowMs() {
  */
 function printTiming(startMs, label) {
   const elapsed = nowMs() - startMs;
-  console.log(`⏱️  TIMING: ${label} took ${elapsed}ms`);
+  core.info(`⏱️  TIMING: ${label} took ${elapsed}ms`);
 }
 
 // ---------------------------------------------------------------------------
@@ -105,7 +108,7 @@ function assertNotSymlink(p) {
   try {
     const stat = fs.lstatSync(p);
     if (stat.isSymbolicLink()) {
-      console.error(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
+      core.error(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
       process.exit(1);
     }
   } catch {
@@ -132,22 +135,22 @@ async function main() {
   // Validate required env vars
   // -----------------------------------------------------------------------
   if (!dockerCommand) {
-    console.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)");
+    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)");
     process.exit(1);
   }
 
   // Validate port is numeric to prevent injection in shell commands and URLs
   if (gatewayPort && !/^\d+$/.test(gatewayPort)) {
-    console.error(`ERROR: MCP_GATEWAY_PORT must be a numeric value, got: '${gatewayPort}'`);
+    core.error(`ERROR: MCP_GATEWAY_PORT must be a numeric value, got: '${gatewayPort}'`);
     process.exit(1);
   }
 
-  console.log("=== MCP Gateway Startup ===");
-  console.log(`Engine: ${process.env.GH_AW_ENGINE || "(auto-detect)"}`);
-  console.log(`Runner temp: ${runnerTemp || "(not set)"}`);
-  console.log(`Gateway port: ${gatewayPort || "(not set)"}`);
-  console.log(`Gateway domain: ${gatewayDomain || "(not set)"}`);
-  console.log("");
+  core.info("=== MCP Gateway Startup ===");
+  core.info(`Engine: ${process.env.GH_AW_ENGINE || "(auto-detect)"}`);
+  core.info(`Runner temp: ${runnerTemp || "(not set)"}`);
+  core.info(`Gateway port: ${gatewayPort || "(not set)"}`);
+  core.info(`Gateway domain: ${gatewayDomain || "(not set)"}`);
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Create directories
@@ -173,21 +176,21 @@ async function main() {
   // Validate container syntax
   // -----------------------------------------------------------------------
   if (!/^docker run/.test(dockerCommand)) {
-    console.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax");
-    console.error("Expected: docker run command with image and arguments");
-    console.error(`Got: ${dockerCommand}`);
+    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax");
+    core.error("Expected: docker run command with image and arguments");
+    core.error(`Got: ${dockerCommand}`);
     process.exit(1);
   }
   if (!/-i/.test(dockerCommand)) {
-    console.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -i flag for interactive mode");
+    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -i flag for interactive mode");
     process.exit(1);
   }
   if (!/--rm/.test(dockerCommand)) {
-    console.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --rm flag for cleanup");
+    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --rm flag for cleanup");
     process.exit(1);
   }
   if (!/--network/.test(dockerCommand)) {
-    console.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network flag for networking");
+    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network flag for networking");
     process.exit(1);
   }
 
@@ -196,17 +199,17 @@ async function main() {
   // -----------------------------------------------------------------------
   const scriptStartTime = nowMs();
 
-  console.log("Reading MCP configuration from stdin...");
+  core.info("Reading MCP configuration from stdin...");
   const configReadStart = nowMs();
   const mcpConfig = fs.readFileSync(0, "utf8"); // fd 0 = stdin
   printTiming(configReadStart, "Configuration read from stdin");
-  console.log("");
+  core.info("");
 
   // Log configuration for debugging
-  console.log("-------START MCP CONFIG-----------");
-  console.log(mcpConfig);
-  console.log("-------END MCP CONFIG-----------");
-  console.log("");
+  core.info("-------START MCP CONFIG-----------");
+  core.info(mcpConfig);
+  core.info("-------END MCP CONFIG-----------");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Validate JSON
@@ -217,44 +220,44 @@ async function main() {
   try {
     configObj = JSON.parse(mcpConfig);
   } catch (err) {
-    console.error("ERROR: Configuration is not valid JSON");
-    console.error("");
-    console.error("JSON validation error:");
-    console.error(/** @type {Error} */ err.message);
-    console.error("");
-    console.error("Configuration content:");
+    core.error("ERROR: Configuration is not valid JSON");
+    core.error("");
+    core.error("JSON validation error:");
+    core.error(/** @type {Error} */ err.message);
+    core.error("");
+    core.error("Configuration content:");
     const lines = mcpConfig.split("\n");
-    console.error(lines.slice(0, 50).join("\n"));
+    core.error(lines.slice(0, 50).join("\n"));
     if (lines.length > 50) {
-      console.error("... (truncated, showing first 50 lines)");
+      core.error("... (truncated, showing first 50 lines)");
     }
     process.exit(1);
   }
 
   // Validate gateway section
-  console.log("Validating gateway configuration...");
+  core.info("Validating gateway configuration...");
   const gw = /** @type {Record<string, unknown> | undefined} */ configObj.gateway;
   if (!gw) {
-    console.error("ERROR: Configuration is missing required 'gateway' section");
-    console.error("Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required");
+    core.error("ERROR: Configuration is missing required 'gateway' section");
+    core.error("Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required");
     process.exit(1);
   }
   if (gw.port == null) {
-    console.error("ERROR: Gateway configuration is missing required 'port' field");
+    core.error("ERROR: Gateway configuration is missing required 'port' field");
     process.exit(1);
   }
   if (gw.domain == null) {
-    console.error("ERROR: Gateway configuration is missing required 'domain' field");
+    core.error("ERROR: Gateway configuration is missing required 'domain' field");
     process.exit(1);
   }
   if (gw.apiKey == null) {
-    console.error("ERROR: Gateway configuration is missing required 'apiKey' field");
+    core.error("ERROR: Gateway configuration is missing required 'apiKey' field");
     process.exit(1);
   }
 
-  console.log("Configuration validated successfully");
+  core.info("Configuration validated successfully");
   printTiming(configValidationStart, "Configuration validation");
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Start gateway container
@@ -263,9 +266,9 @@ async function main() {
   const outputPath = path.join(configDir, "gateway-output.json");
   const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
-  console.log(`Starting gateway with container: ${dockerCommand}`);
-  console.log(`Full docker command: ${dockerCommand}`);
-  console.log("");
+  core.info(`Starting gateway with container: ${dockerCommand}`);
+  core.info(`Full docker command: ${dockerCommand}`);
+  core.info("");
 
   const gatewayStartTime = nowMs();
 
@@ -291,87 +294,87 @@ async function main() {
 
   const gatewayPid = child.pid;
   if (!gatewayPid) {
-    console.error("ERROR: Failed to start gateway container");
+    core.error("ERROR: Failed to start gateway container");
     process.exit(1);
   }
 
-  console.log(`Gateway started with PID: ${gatewayPid}`);
+  core.info(`Gateway started with PID: ${gatewayPid}`);
   printTiming(gatewayStartTime, "Gateway container launch");
-  console.log("Verifying gateway process is running...");
+  core.info("Verifying gateway process is running...");
 
   if (isProcessAlive(gatewayPid)) {
-    console.log(`Gateway process confirmed running (PID: ${gatewayPid})`);
+    core.info(`Gateway process confirmed running (PID: ${gatewayPid})`);
   } else {
-    console.error("ERROR: Gateway process exited immediately after start");
-    console.error("");
-    console.error("Gateway stdout output:");
+    core.error("ERROR: Gateway process exited immediately after start");
+    core.error("");
+    core.error("Gateway stdout output:");
     try {
-      console.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(fs.readFileSync(outputPath, "utf8"));
     } catch {
-      console.error("No stdout output available");
+      core.error("No stdout output available");
     }
-    console.error("");
-    console.error("Gateway stderr logs:");
+    core.error("");
+    core.error("Gateway stderr logs:");
     try {
-      console.error(fs.readFileSync(stderrLogPath, "utf8"));
+      core.error(fs.readFileSync(stderrLogPath, "utf8"));
     } catch {
-      console.error("No stderr logs available");
+      core.error("No stderr logs available");
     }
     process.exit(1);
   }
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Wait for gateway to initialise
   // -----------------------------------------------------------------------
-  console.log("Waiting for gateway to initialize...");
+  core.info("Waiting for gateway to initialize...");
   await sleep(5000);
-  console.log("Checking if gateway process is still alive after initialization...");
+  core.info("Checking if gateway process is still alive after initialization...");
 
   if (!isProcessAlive(gatewayPid)) {
-    console.error(`ERROR: Gateway process (PID: ${gatewayPid}) exited during initialization`);
-    console.error("");
-    console.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
+    core.error(`ERROR: Gateway process (PID: ${gatewayPid}) exited during initialization`);
+    core.error("");
+    core.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
     try {
-      console.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(fs.readFileSync(outputPath, "utf8"));
     } catch {
-      console.error("No stdout output available");
+      core.error("No stdout output available");
     }
-    console.error("");
-    console.error("Gateway stderr logs (debug output):");
+    core.error("");
+    core.error("Gateway stderr logs (debug output):");
     try {
-      console.error(fs.readFileSync(stderrLogPath, "utf8"));
+      core.error(fs.readFileSync(stderrLogPath, "utf8"));
     } catch {
-      console.error("No stderr logs available");
+      core.error("No stderr logs available");
     }
     process.exit(1);
   }
-  console.log(`Gateway process is still running (PID: ${gatewayPid})`);
-  console.log("");
+  core.info(`Gateway process is still running (PID: ${gatewayPid})`);
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Health check loop
   // -----------------------------------------------------------------------
-  console.log("Waiting for gateway to be ready...");
+  core.info("Waiting for gateway to be ready...");
   const healthCheckStart = nowMs();
   const healthHost = "localhost";
   const healthUrl = `http://${healthHost}:${gatewayPort}/health`;
 
-  console.log(`Health endpoint: ${healthUrl}`);
-  console.log(`(Note: MCP_GATEWAY_DOMAIN is '${gatewayDomain}' for container access)`);
-  console.log("Retrying up to 120 times with 1s delay (120s total timeout)");
-  console.log("");
+  core.info(`Health endpoint: ${healthUrl}`);
+  core.info(`(Note: MCP_GATEWAY_DOMAIN is '${gatewayDomain}' for container access)`);
+  core.info("Retrying up to 120 times with 1s delay (120s total timeout)");
+  core.info("");
 
   const maxRetries = 120;
   let httpCode = 0;
   let healthBody = "";
   let succeeded = false;
 
-  console.log("=== Health Check Progress ===");
+  core.info("=== Health Check Progress ===");
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const elapsedSec = Math.floor((nowMs() - healthCheckStart) / 1000);
     if (attempt % 10 === 1 || attempt === 1) {
-      console.log(`Attempt ${attempt}/${maxRetries} (${elapsedSec}s elapsed)...`);
+      core.info(`Attempt ${attempt}/${maxRetries} (${elapsedSec}s elapsed)...`);
     }
 
     try {
@@ -379,7 +382,7 @@ async function main() {
       httpCode = res.statusCode;
       healthBody = res.body;
       if (httpCode === 200 && healthBody) {
-        console.log(`✓ Health check succeeded on attempt ${attempt} (${elapsedSec}s elapsed)`);
+        core.info(`✓ Health check succeeded on attempt ${attempt} (${elapsedSec}s elapsed)`);
         succeeded = true;
         break;
       }
@@ -391,55 +394,55 @@ async function main() {
       await sleep(1000);
     }
   }
-  console.log("=== End Health Check Progress ===");
-  console.log("");
+  core.info("=== End Health Check Progress ===");
+  core.info("");
 
-  console.log(`Final HTTP code: ${httpCode}`);
-  console.log(`Total attempts: ${maxRetries}`);
+  core.info(`Final HTTP code: ${httpCode}`);
+  core.info(`Total attempts: ${maxRetries}`);
   if (healthBody) {
-    console.log(`Health response body: ${healthBody}`);
+    core.info(`Health response body: ${healthBody}`);
   } else {
-    console.log("Health response body: (empty)");
+    core.info("Health response body: (empty)");
   }
 
   if (succeeded) {
-    console.log("Gateway is ready!");
+    core.info("Gateway is ready!");
     printTiming(healthCheckStart, "Health check wait");
   } else {
-    console.error("");
-    console.error("ERROR: Gateway failed to become ready");
-    console.error(`Last HTTP code: ${httpCode}`);
-    console.error(`Last health response: ${healthBody || "(empty)"}`);
-    console.error("");
-    console.error("Checking if gateway process is still alive...");
+    core.error("");
+    core.error("ERROR: Gateway failed to become ready");
+    core.error(`Last HTTP code: ${httpCode}`);
+    core.error(`Last health response: ${healthBody || "(empty)"}`);
+    core.error("");
+    core.error("Checking if gateway process is still alive...");
     if (isProcessAlive(gatewayPid)) {
-      console.error(`Gateway process (PID: ${gatewayPid}) is still running`);
+      core.error(`Gateway process (PID: ${gatewayPid}) is still running`);
     } else {
-      console.error(`Gateway process (PID: ${gatewayPid}) has exited`);
+      core.error(`Gateway process (PID: ${gatewayPid}) has exited`);
     }
-    console.error("");
-    console.error("Docker container status:");
+    core.error("");
+    core.error("Docker container status:");
     try {
       execSync("docker ps -a 2>/dev/null | head -20", { stdio: "inherit" });
     } catch {
-      console.error("Could not list docker containers");
+      core.error("Could not list docker containers");
     }
-    console.error("");
-    console.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
+    core.error("");
+    core.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
     try {
-      console.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(fs.readFileSync(outputPath, "utf8"));
     } catch {
-      console.error("No stdout output available");
+      core.error("No stdout output available");
     }
-    console.error("");
-    console.error("Gateway stderr logs (debug output):");
+    core.error("");
+    core.error("Gateway stderr logs (debug output):");
     try {
-      console.error(fs.readFileSync(stderrLogPath, "utf8"));
+      core.error(fs.readFileSync(stderrLogPath, "utf8"));
     } catch {
-      console.error("No stderr logs available");
+      core.error("No stderr logs available");
     }
-    console.error("");
-    console.error("Checking network connectivity to gateway port...");
+    core.error("");
+    core.error("Checking network connectivity to gateway port...");
     try {
       // Validate gatewayPort is numeric to prevent shell injection
       const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
@@ -454,19 +457,19 @@ async function main() {
     }
     process.exit(1);
   }
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Wait for gateway output (rewritten configuration)
   // -----------------------------------------------------------------------
-  console.log("Reading gateway output configuration...");
+  core.info("Reading gateway output configuration...");
   const outputWaitStart = nowMs();
   const waitAttempts = 10;
   for (let i = 0; i < waitAttempts; i++) {
     try {
       const stat = fs.statSync(outputPath);
       if (stat.size > 0) {
-        console.log("Gateway output received!");
+        core.info("Gateway output received!");
         break;
       }
     } catch {
@@ -477,7 +480,7 @@ async function main() {
     }
   }
   printTiming(outputWaitStart, "Gateway output wait");
-  console.log("");
+  core.info("");
 
   // Verify output was written
   let outputSize = 0;
@@ -487,20 +490,20 @@ async function main() {
     // file doesn't exist
   }
   if (outputSize === 0) {
-    console.error("ERROR: Gateway did not write output configuration");
-    console.error("");
-    console.error("Gateway stdout (should contain error or config):");
+    core.error("ERROR: Gateway did not write output configuration");
+    core.error("");
+    core.error("Gateway stdout (should contain error or config):");
     try {
-      console.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(fs.readFileSync(outputPath, "utf8"));
     } catch {
-      console.error("No stdout output available");
+      core.error("No stdout output available");
     }
-    console.error("");
-    console.error("Gateway stderr logs:");
+    core.error("");
+    core.error("Gateway stderr logs:");
     try {
-      console.error(fs.readFileSync(stderrLogPath, "utf8"));
+      core.error(fs.readFileSync(stderrLogPath, "utf8"));
     } catch {
-      console.error("No stderr logs available");
+      core.error("No stderr logs available");
     }
     try {
       process.kill(gatewayPid);
@@ -516,16 +519,16 @@ async function main() {
   // Check for error payload
   const gatewayOutput = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   if (gatewayOutput.error) {
-    console.error("ERROR: Gateway returned an error payload instead of configuration");
-    console.error("");
-    console.error("Gateway error details:");
-    console.error(JSON.stringify(gatewayOutput, null, 2));
-    console.error("");
-    console.error("Gateway stderr logs:");
+    core.error("ERROR: Gateway returned an error payload instead of configuration");
+    core.error("");
+    core.error("Gateway error details:");
+    core.error(JSON.stringify(gatewayOutput, null, 2));
+    core.error("");
+    core.error("Gateway stderr logs:");
     try {
-      console.error(fs.readFileSync(stderrLogPath, "utf8"));
+      core.error(fs.readFileSync(stderrLogPath, "utf8"));
     } catch {
-      console.error("No stderr logs available");
+      core.error("No stderr logs available");
     }
     try {
       process.kill(gatewayPid);
@@ -538,14 +541,14 @@ async function main() {
   // -----------------------------------------------------------------------
   // Convert gateway output to agent-specific format
   // -----------------------------------------------------------------------
-  console.log("Converting gateway configuration to agent format...");
+  core.info("Converting gateway configuration to agent format...");
   const configConvertStart = nowMs();
   process.env.MCP_GATEWAY_OUTPUT = outputPath;
 
   // Validate MCP_GATEWAY_API_KEY
   if (!apiKey) {
-    console.error("ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts");
-    console.error("This variable should be set in the workflow before calling start_mcp_gateway.cjs");
+    core.error("ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts");
+    core.error("This variable should be set in the workflow before calling start_mcp_gateway.cjs");
     process.exit(1);
   }
 
@@ -563,7 +566,7 @@ async function main() {
     }
   }
 
-  console.log(`Detected engine type: ${engineType}`);
+  core.info(`Detected engine type: ${engineType}`);
 
   const converters = {
     copilot: "convert_gateway_config_copilot.cjs",
@@ -574,12 +577,12 @@ async function main() {
 
   const converterFile = converters[/** @type {keyof typeof converters} */ engineType];
   if (converterFile) {
-    console.log(`Using ${engineType} converter...`);
+    core.info(`Using ${engineType} converter...`);
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);
     execSync(`node "${converterPath}"`, { stdio: "inherit", env: process.env });
   } else {
-    console.log(`No agent-specific converter found for engine: ${engineType}`);
-    console.log("Using gateway output directly");
+    core.info(`No agent-specific converter found for engine: ${engineType}`);
+    core.info("Using gateway output directly");
     // Default fallback – copy to most common location, filtering CLI-mounted servers
     fs.mkdirSync("/home/runner/.copilot", { recursive: true });
     const cliServersRaw = process.env.GH_AW_MCP_CLI_SERVERS;
@@ -597,27 +600,27 @@ async function main() {
         }
         fs.writeFileSync("/home/runner/.copilot/mcp-config.json", JSON.stringify(filtered, null, 2), { mode: 0o600 });
       } catch {
-        console.error("ERROR: Failed to filter CLI-mounted servers from agent MCP config");
-        console.log("Falling back to unfiltered config");
+        core.error("ERROR: Failed to filter CLI-mounted servers from agent MCP config");
+        core.info("Falling back to unfiltered config");
         fs.copyFileSync(outputPath, "/home/runner/.copilot/mcp-config.json");
       }
     } else {
       fs.copyFileSync(outputPath, "/home/runner/.copilot/mcp-config.json");
     }
-    console.log(fs.readFileSync("/home/runner/.copilot/mcp-config.json", "utf8"));
+    core.info(fs.readFileSync("/home/runner/.copilot/mcp-config.json", "utf8"));
   }
   printTiming(configConvertStart, "Configuration conversion");
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Check MCP server functionality
   // -----------------------------------------------------------------------
-  console.log("Checking MCP server functionality...");
+  core.info("Checking MCP server functionality...");
   const mcpCheckStart = nowMs();
   const checkScript = path.join(runnerTemp || "", "gh-aw/actions/check_mcp_servers.sh");
 
   if (fs.existsSync(checkScript)) {
-    console.log("Running MCP server checks...");
+    core.info("Running MCP server checks...");
     // Store diagnostics in /tmp/gh-aw/mcp-logs/start-gateway.log
     // Pass apiKey via MCP_GATEWAY_API_KEY env var (already set) rather than
     // as a shell argument to avoid shell metacharacter injection risks.
@@ -625,8 +628,8 @@ async function main() {
     try {
       execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log`, { stdio: "inherit", env: process.env });
     } catch {
-      console.error("ERROR: MCP server checks failed - no servers could be connected");
-      console.error("Gateway process will be terminated");
+      core.error("ERROR: MCP server checks failed - no servers could be connected");
+      core.error("Gateway process will be terminated");
       try {
         process.kill(gatewayPid);
       } catch {
@@ -636,15 +639,15 @@ async function main() {
     }
     printTiming(mcpCheckStart, "MCP server connectivity checks");
   } else {
-    console.log(`WARNING: MCP server check script not found at ${checkScript}`);
-    console.log("Skipping MCP server functionality checks");
+    core.info(`WARNING: MCP server check script not found at ${checkScript}`);
+    core.info("Skipping MCP server functionality checks");
   }
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Save CLI manifest for mount_mcp_as_cli.cjs
   // -----------------------------------------------------------------------
-  console.log("Saving MCP CLI manifest...");
+  core.info("Saving MCP CLI manifest...");
   fs.mkdirSync(cliDir, { recursive: true });
 
   try {
@@ -654,12 +657,12 @@ async function main() {
       const servers = allEntries
         .filter(([name, v]) => {
           if (typeof v.url !== "string") {
-            console.log(`  Skipping server '${name}' from manifest: missing url`);
+            core.info(`  Skipping server '${name}' from manifest: missing url`);
             return false;
           }
           // Validate server name — only alphanumeric, hyphen, underscore
           if (!/^[a-zA-Z0-9_-]+$/.test(name) || name.length > 64) {
-            console.log(`  Skipping server '${name}' from manifest: invalid name`);
+            core.info(`  Skipping server '${name}' from manifest: invalid name`);
             return false;
           }
           return true;
@@ -669,37 +672,37 @@ async function main() {
       fs.writeFileSync(path.join(cliDir, "manifest.json"), manifest, {
         mode: 0o600,
       });
-      console.log(`CLI manifest saved with ${servers.length} server(s): ${servers.map(s => s.name).join(", ")}`);
+      core.info(`CLI manifest saved with ${servers.length} server(s): ${servers.map(s => s.name).join(", ")}`);
     } else {
-      console.log("WARNING: No mcpServers in gateway output, CLI manifest not created");
+      core.info("WARNING: No mcpServers in gateway output, CLI manifest not created");
     }
   } catch {
-    console.log("WARNING: No mcpServers in gateway output, CLI manifest not created");
+    core.info("WARNING: No mcpServers in gateway output, CLI manifest not created");
   }
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Delete gateway configuration file
   // -----------------------------------------------------------------------
-  console.log("Cleaning up gateway configuration file...");
+  core.info("Cleaning up gateway configuration file...");
   try {
     fs.unlinkSync(outputPath);
-    console.log("Gateway configuration file deleted");
+    core.info("Gateway configuration file deleted");
   } catch {
-    console.log("Gateway configuration file not found (already deleted or never created)");
+    core.info("Gateway configuration file not found (already deleted or never created)");
   }
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Summary
   // -----------------------------------------------------------------------
-  console.log("MCP gateway is running:");
-  console.log(`  - From host: http://localhost:${gatewayPort}`);
-  console.log(`  - From containers: http://${gatewayDomain}:${gatewayPort}`);
-  console.log(`Gateway PID: ${gatewayPid}`);
+  core.info("MCP gateway is running:");
+  core.info(`  - From host: http://localhost:${gatewayPort}`);
+  core.info(`  - From containers: http://${gatewayDomain}:${gatewayPort}`);
+  core.info(`Gateway PID: ${gatewayPid}`);
 
   printTiming(scriptStartTime, "Overall gateway startup");
-  console.log("");
+  core.info("");
 
   // -----------------------------------------------------------------------
   // Write GitHub Actions step outputs
@@ -711,8 +714,7 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error("FATAL:", err);
-  process.exit(1);
+  core.setFailed(`FATAL: ${err instanceof Error ? err.message : String(err)}`);
 });
 
 module.exports = {};

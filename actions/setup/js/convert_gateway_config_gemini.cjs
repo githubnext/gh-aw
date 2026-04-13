@@ -1,6 +1,9 @@
 // @ts-check
 "use strict";
 
+// Ensures global.core is available when running outside github-script context
+require("./shim.cjs");
+
 /**
  * convert_gateway_config_gemini.cjs
  *
@@ -48,36 +51,36 @@ function main() {
   const workspace = process.env.GITHUB_WORKSPACE;
 
   if (!gatewayOutput) {
-    console.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
     process.exit(1);
   }
   if (!fs.existsSync(gatewayOutput)) {
-    console.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
+    core.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
     process.exit(1);
   }
   if (!domain) {
-    console.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
     process.exit(1);
   }
   if (!port) {
-    console.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
     process.exit(1);
   }
   if (!workspace) {
-    console.error("ERROR: GITHUB_WORKSPACE environment variable is required");
+    core.error("ERROR: GITHUB_WORKSPACE environment variable is required");
     process.exit(1);
   }
 
-  console.log("Converting gateway configuration to Gemini format...");
-  console.log(`Input: ${gatewayOutput}`);
-  console.log(`Target domain: ${domain}:${port}`);
+  core.info("Converting gateway configuration to Gemini format...");
+  core.info(`Input: ${gatewayOutput}`);
+  core.info(`Target domain: ${domain}:${port}`);
 
   const urlPrefix = `http://${domain}:${port}`;
 
   /** @type {Set<string>} */
   const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
   if (cliServers.size > 0) {
-    console.log(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
+    core.info(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
   }
 
   /** @type {Record<string, unknown>} */
@@ -116,7 +119,7 @@ function main() {
   const serverCount = Object.keys(result).length;
   const totalCount = Object.keys(servers).length;
   const filteredCount = totalCount - serverCount;
-  console.log(`Servers: ${serverCount} included, ${filteredCount} filtered (CLI-mounted)`);
+  core.info(`Servers: ${serverCount} included, ${filteredCount} filtered (CLI-mounted)`);
 
   // Create .gemini directory in the workspace (project-level settings)
   const settingsDir = path.join(workspace, ".gemini");
@@ -129,10 +132,10 @@ function main() {
   // JSON-RPC calls directly to the gateway.
   fs.writeFileSync(settingsFile, output, { mode: 0o600 });
 
-  console.log(`Gemini configuration written to ${settingsFile}`);
-  console.log("");
-  console.log("Converted configuration:");
-  console.log(output);
+  core.info(`Gemini configuration written to ${settingsFile}`);
+  core.info("");
+  core.info("Converted configuration:");
+  core.info(output);
 }
 
 main();

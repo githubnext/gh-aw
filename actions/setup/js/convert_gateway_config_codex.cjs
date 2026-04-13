@@ -1,6 +1,9 @@
 // @ts-check
 "use strict";
 
+// Ensures global.core is available when running outside github-script context
+require("./shim.cjs");
+
 /**
  * convert_gateway_config_codex.cjs
  *
@@ -30,25 +33,25 @@ function main() {
   const port = process.env.MCP_GATEWAY_PORT;
 
   if (!gatewayOutput) {
-    console.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
     process.exit(1);
   }
   if (!fs.existsSync(gatewayOutput)) {
-    console.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
+    core.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
     process.exit(1);
   }
   if (!domain) {
-    console.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
     process.exit(1);
   }
   if (!port) {
-    console.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
+    core.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
     process.exit(1);
   }
 
-  console.log("Converting gateway configuration to Codex TOML format...");
-  console.log(`Input: ${gatewayOutput}`);
-  console.log(`Target domain: ${domain}:${port}`);
+  core.info("Converting gateway configuration to Codex TOML format...");
+  core.info(`Input: ${gatewayOutput}`);
+  core.info(`Target domain: ${domain}:${port}`);
 
   // For host.docker.internal, resolve to the gateway IP to avoid DNS resolution
   // issues in Rust
@@ -56,7 +59,7 @@ function main() {
   if (domain === "host.docker.internal") {
     // AWF network gateway IP is always 172.30.0.1
     resolvedDomain = "172.30.0.1";
-    console.log(`Resolving host.docker.internal to gateway IP: ${resolvedDomain}`);
+    core.info(`Resolving host.docker.internal to gateway IP: ${resolvedDomain}`);
   }
 
   const urlPrefix = `http://${resolvedDomain}:${port}`;
@@ -64,7 +67,7 @@ function main() {
   /** @type {Set<string>} */
   const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
   if (cliServers.size > 0) {
-    console.log(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
+    core.info(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
   }
 
   /** @type {Record<string, unknown>} */
@@ -90,7 +93,7 @@ function main() {
 
   const includedCount = Object.keys(servers).length - [...Object.keys(servers)].filter(k => cliServers.has(k)).length;
   const filteredCount = Object.keys(servers).length - includedCount;
-  console.log(`Servers: ${includedCount} included, ${filteredCount} filtered (CLI-mounted)`);
+  core.info(`Servers: ${includedCount} included, ${filteredCount} filtered (CLI-mounted)`);
 
   // Ensure output directory exists
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
@@ -100,10 +103,10 @@ function main() {
   // to the gateway.
   fs.writeFileSync(OUTPUT_PATH, toml, { mode: 0o600 });
 
-  console.log(`Codex configuration written to ${OUTPUT_PATH}`);
-  console.log("");
-  console.log("Converted configuration:");
-  console.log(toml);
+  core.info(`Codex configuration written to ${OUTPUT_PATH}`);
+  core.info("");
+  core.info("Converted configuration:");
+  core.info(toml);
 }
 
 main();
