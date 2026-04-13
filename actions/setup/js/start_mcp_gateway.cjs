@@ -714,7 +714,10 @@ async function main() {
 }
 
 main().catch(err => {
-  core.setFailed(`FATAL: ${err instanceof Error ? err.message : String(err)}`);
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  if (stack) core.error(stack);
+  core.setFailed(`FATAL: ${message}`);
 });
 
 module.exports = {};
