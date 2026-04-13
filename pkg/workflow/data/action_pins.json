@@ -220,6 +220,11 @@
       "digest": "sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"
     },
+    "ghcr.io/github/gh-aw-mcpg:v0.2.19": {
+      "image": "ghcr.io/github/gh-aw-mcpg:v0.2.19",
+      "digest": "sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd",
+      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"
+    },
     "ghcr.io/github/github-mcp-server:v0.32.0": {
       "image": "ghcr.io/github/github-mcp-server:v0.32.0",
       "digest": "sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28",
@@ -279,11 +284,6 @@
       "image": "semgrep/semgrep:latest",
       "digest": "sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2",
       "pinned_image": "semgrep/semgrep:latest@sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2"
-    },
-    "ghcr.io/github/gh-aw-mcpg:v0.2.19": {
-      "image": "ghcr.io/github/gh-aw-mcpg:v0.2.19",
-      "digest": "sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd",
-      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"
     }
   }
 }

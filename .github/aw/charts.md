@@ -78,7 +78,10 @@ steps:
       retention-days: 30
 
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
 ```
 
 ### Agent Instructions
@@ -142,7 +145,10 @@ network:
     - python
 
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
 
 steps:
   - name: Setup Python environment
@@ -312,7 +318,10 @@ tools:
     key: charts-trending-${{ github.workflow }}-${{ github.run_id }}
 
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
 ```
 
 ### Agent Instructions

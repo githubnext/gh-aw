@@ -38,7 +38,10 @@ tools:
     - "pwd*"     # Print working directory
     - "cd*"      # Change directory
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-issue:
     expires: 2d
     labels: [cookie]
