@@ -140,13 +140,13 @@ function getGitHubHost() {
  * @param {Object} [extraEnv] - Additional environment variables to set (e.g. { GH_TOKEN: token })
  * @returns {Object} Environment object suitable for exec.exec options
  */
-function getGhEnv(extraEnv) {
+function getGhEnvBypassingIntegrityFilteringForGitOps(extraEnv) {
   return { ...process.env, ...extraEnv, GH_HOST: getGitHubHost() };
 }
 
 module.exports = {
   execGitSync,
-  getGhEnv,
+  getGhEnvBypassingIntegrityFilteringForGitOps,
   getGitAuthEnv,
   getGitHubHost,
 };

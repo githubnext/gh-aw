@@ -26,7 +26,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { getGhEnv } = require("./git_helpers.cjs");
+const { getGhEnvBypassingIntegrityFilteringForGitOps } = require("./git_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
@@ -182,7 +182,7 @@ async function main() {
       // the repository from git remotes. The DIFC proxy may have set GH_HOST to
       // localhost:18443 which doesn't match any remote.
       await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-        env: getGhEnv(),
+        env: getGhEnvBypassingIntegrityFilteringForGitOps(),
       });
 
       // Log the resulting branch after checkout
