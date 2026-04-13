@@ -1,5 +1,5 @@
 ---
-description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Schedule disabled due to persistent failures (see issue #26015). Can be triggered manually via workflow_dispatch. Includes early exit when CI is passing to prevent unnecessary token consumption.
+description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Schedule disabled (issue #26015); use workflow_dispatch to trigger manually.
 on:
   workflow_dispatch:
 permissions:
