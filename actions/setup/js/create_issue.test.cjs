@@ -748,6 +748,7 @@ describe("create_issue", () => {
       // create_issue uses { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 }
       // Maximum possible delay per retry = maxDelayMs + jitterMs = 55000ms
       const maxBound = 55000;
+      // Filter out short setTimeout calls (e.g. from test infrastructure) to isolate retry delays
       const sleepDelays = setTimeoutSpy.mock.calls.filter(([, ms]) => ms > 1000).map(([, ms]) => ms);
 
       for (const delay of sleepDelays) {
