@@ -17,7 +17,7 @@ import (
 func TestValidateDockerImage_SkipsWhenDockerUnavailable(t *testing.T) {
 	// If docker is not installed or daemon not running, validation should
 	// silently pass — no error, no warning.
-	if _, err := exec.LookPath("docker"); err != nil {
+	if _, lookErr := exec.LookPath("docker"); lookErr != nil {
 		err := validateDockerImage("ghcr.io/some/image:latest", false)
 		assert.NoError(t, err, "should silently skip when Docker is not installed")
 		return
