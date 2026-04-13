@@ -110,6 +110,7 @@ describe("error_recovery", () => {
         initialDelayMs: 100,
         backoffMultiplier: 2,
         maxDelayMs: 1000,
+        jitterMs: 0,
       };
 
       await withRetry(operation, config, "test-operation");
@@ -130,6 +131,7 @@ describe("error_recovery", () => {
         initialDelayMs: 1000,
         backoffMultiplier: 10,
         maxDelayMs: 2000, // Cap at 2000ms
+        jitterMs: 0,
       };
 
       await withRetry(operation, config, "test-operation");
@@ -327,7 +329,7 @@ describe("error_recovery", () => {
       expect(DEFAULT_RETRY_CONFIG.initialDelayMs).toBe(1000);
       expect(DEFAULT_RETRY_CONFIG.maxDelayMs).toBe(10000);
       expect(DEFAULT_RETRY_CONFIG.backoffMultiplier).toBe(2);
-      expect(DEFAULT_RETRY_CONFIG.jitterMs).toBe(0);
+      expect(DEFAULT_RETRY_CONFIG.jitterMs).toBe(100);
       expect(DEFAULT_RETRY_CONFIG.shouldRetry).toBe(isTransientError);
     });
   });

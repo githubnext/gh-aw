@@ -29,7 +29,7 @@ const DEFAULT_RETRY_CONFIG = {
   initialDelayMs: 1000,
   maxDelayMs: 10000,
   backoffMultiplier: 2,
-  jitterMs: 0,
+  jitterMs: 100,
   shouldRetry: isTransientError,
 };
 
