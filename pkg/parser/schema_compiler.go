@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -194,6 +195,8 @@ func GetSafeOutputTypeKeys() ([]string, error) {
 // not mutate the caller's maps or slices. goccy/go-yaml produces uint64 for
 // positive integers and int64 for negative integers, but JSON schema validators
 // expect float64 for all numbers (matching encoding/json's unmarshaling behavior).
+// goccy/go-yaml may also produce typed slices (e.g. []string) instead of []any;
+// the reflection fallback converts these so the schema validator sees []any.
 // This avoids the overhead of a json.Marshal + json.Unmarshal roundtrip.
 func normalizeForJSONSchema(v any) any {
 	switch val := v.(type) {
@@ -232,6 +235,23 @@ func normalizeForJSONSchema(v any) any {
 	case float32:
 		return float64(val)
 	default:
+		// Use reflection to handle typed slices (e.g. []string) and typed maps
+		// that goccy/go-yaml may produce instead of []any / map[string]any.
+		rv := reflect.ValueOf(v)
+		switch rv.Kind() {
+		case reflect.Slice:
+			normalized := make([]any, rv.Len())
+			for i := range rv.Len() {
+				normalized[i] = normalizeForJSONSchema(rv.Index(i).Interface())
+			}
+			return normalized
+		case reflect.Map:
+			normalized := make(map[string]any, rv.Len())
+			for _, key := range rv.MapKeys() {
+				normalized[key.String()] = normalizeForJSONSchema(rv.MapIndex(key).Interface())
+			}
+			return normalized
+		}
 		// string, bool, float64, nil pass through unchanged
 		return v
 	}

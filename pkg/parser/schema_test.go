@@ -437,6 +437,51 @@ func TestNormalizeForJSONSchema_Slice(t *testing.T) {
 	}
 }
 
+// TestNormalizeForJSONSchema_TypedSlice verifies that typed slices (e.g. []string)
+// are converted to []any, since goccy/go-yaml may produce typed slices that the
+// JSON schema validator does not recognize.
+func TestNormalizeForJSONSchema_TypedSlice(t *testing.T) {
+	input := []string{"a", "b", "c"}
+
+	result := normalizeForJSONSchema(input)
+	resultSlice, ok := result.([]any)
+	if !ok {
+		t.Fatalf("expected []any, got %T", result)
+	}
+
+	if len(resultSlice) != 3 {
+		t.Fatalf("length mismatch: got %d, want 3", len(resultSlice))
+	}
+	for i, want := range []string{"a", "b", "c"} {
+		if resultSlice[i] != want {
+			t.Errorf("[%d]: got %T(%v), want %T(%v)", i, resultSlice[i], resultSlice[i], want, want)
+		}
+	}
+}
+
+// TestValidateWithSchema_YAMLTypedSlice verifies that validateWithSchema accepts
+// typed slices (e.g. []string) that goccy/go-yaml produces for array fields.
+func TestValidateWithSchema_YAMLTypedSlice(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"tags": {"type": "array", "items": {"type": "string"}},
+			"name": {"type": "string"}
+		},
+		"additionalProperties": false
+	}`
+
+	frontmatter := map[string]any{
+		"tags": []string{"v1", "v2"},
+		"name": "test",
+	}
+
+	err := validateWithSchema(frontmatter, schema, "yaml typed slice")
+	if err != nil {
+		t.Errorf("validateWithSchema should accept typed slices, got: %v", err)
+	}
+}
+
 // TestValidateWithSchema_YAMLIntegerTypes verifies that validateWithSchema accepts
 // YAML-native integer types (uint64/int64) when the schema expects number/integer.
 func TestValidateWithSchema_YAMLIntegerTypes(t *testing.T) {
