@@ -888,17 +888,25 @@ If the pull request is still open, verify that:
 
   describe("GH_HOST override for gh pr checkout", () => {
     it("should override DIFC proxy GH_HOST (localhost:18443) with actual GitHub host", async () => {
-      // Simulate active DIFC proxy that set GH_HOST=localhost:18443 in env
-      process.env.GH_HOST = "localhost:18443";
-      process.env.GITHUB_SERVER_URL = "https://github.com";
-      mockContext.eventName = "issue_comment";
+      const previousGhHost = process.env.GH_HOST;
 
-      await runScript();
+      try {
+        // Simulate active DIFC proxy that set GH_HOST=localhost:18443 in env
+        process.env.GH_HOST = "localhost:18443";
+        process.env.GITHUB_SERVER_URL = "https://github.com";
+        mockContext.eventName = "issue_comment";
 
-      // GH_HOST should be overridden to github.com, not localhost:18443
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+        await runScript();
 
-      delete process.env.GH_HOST;
+        // GH_HOST should be overridden to github.com, not localhost:18443
+        expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      } finally {
+        if (previousGhHost === undefined) {
+          delete process.env.GH_HOST;
+        } else {
+          process.env.GH_HOST = previousGhHost;
+        }
+      }
     });
 
     it("should use GHE host from GITHUB_SERVER_URL for gh pr checkout", async () => {
