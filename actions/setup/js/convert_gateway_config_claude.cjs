@@ -68,7 +68,10 @@ function main() {
 
   /** @type {Record<string, unknown>} */
   const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
-  const servers = /** @type {Record<string, Record<string, unknown>>} */ config.mcpServers || {};
+  const rawServers = config.mcpServers;
+  const servers =
+    /** @type {Record<string, Record<string, unknown>>} */
+    rawServers && typeof rawServers === "object" && !Array.isArray(rawServers) ? rawServers : {};
 
   /** @type {Record<string, Record<string, unknown>>} */
   const result = {};
