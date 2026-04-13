@@ -30,7 +30,7 @@ Workflows from different repositories:
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
 
 Repository mode examples:
-  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo         # Run directly in myorg/myrepo (no simulation)
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo myorg/myrepo         # Use myorg/myrepo as host for trial execution
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
@@ -127,7 +127,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation if it already exists")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	cmd.Flags().Bool("dry-run", false, "Show what would be done without making any changes")
-	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (e.g., 30 for 30 minutes)")
+	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")

@@ -59,7 +59,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 				fmt.Fprintf(os.Stderr, "  %s\n", name)
 			}
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUsage: %s remove <pattern>", string(constants.CLIExtensionPrefix))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUsage: %s remove <filter>", string(constants.CLIExtensionPrefix))))
 		return nil
 	}
 

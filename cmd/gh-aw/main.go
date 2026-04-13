@@ -86,11 +86,12 @@ var rootCmd = &cobra.Command{
 
 Common Tasks:
   gh aw init                  # Set up a new repository
+  gh aw add-wizard            # Add workflows with interactive guided setup
   gh aw new my-workflow       # Create your first workflow
   gh aw compile               # Compile all workflows
   gh aw run my-workflow       # Execute a workflow
   gh aw logs my-workflow      # View execution logs
-  gh aw audit <run-id>        # Debug a failed run
+  gh aw audit <run-id-or-url> # Debug a failed run
 
 For detailed help on any command, use:
   gh aw [command] --help`,
@@ -163,19 +164,19 @@ Examples:
 }
 
 var removeCmd = &cobra.Command{
-	Use:   "remove [pattern]",
-	Short: "Remove agentic workflow files matching the given pattern",
-	Long: `Remove agentic workflow files matching the given workflow-id pattern.
+	Use:   "remove [filter]",
+	Short: "Remove agentic workflow files matching the given filter",
+	Long: `Remove agentic workflow files matching the given filter.
 
 The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
+You can provide a substring to match multiple workflows, or a specific workflow-id.
 
 By default, this command also removes orphaned include files that are no longer referenced
 by any workflow. Use --keep-orphans to skip this cleanup.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow              # Remove specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows starting with 'test-'
+  ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows containing 'test-' in name
   ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans      # Remove workflows but keep orphaned includes
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow --dir .github/workflows/shared  # Remove from custom directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
