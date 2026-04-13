@@ -272,8 +272,9 @@ function sanitizeAttrs(attrs) {
 /**
  * Sanitize an OTLP traces payload before sending it over the wire.
  *
- * Walks the `resourceSpans[].resource.attributes` and
- * `resourceSpans[].scopeSpans[].spans[].attributes` arrays and applies
+ * Walks the `resourceSpans[].resource.attributes`,
+ * `resourceSpans[].scopeSpans[].spans[].attributes`, and
+ * `resourceSpans[].scopeSpans[].spans[].events[].attributes` arrays and applies
  * {@link sanitizeAttrs} to each, redacting values for sensitive keys and
  * truncating excessively long string values.
  *
@@ -292,7 +293,13 @@ function sanitizeOTLPPayload(payload) {
       scopeSpans: Array.isArray(rs.scopeSpans)
         ? rs.scopeSpans.map(ss => ({
             ...ss,
-            spans: Array.isArray(ss.spans) ? ss.spans.map(span => ({ ...span, attributes: sanitizeAttrs(span.attributes) })) : ss.spans,
+            spans: Array.isArray(ss.spans)
+              ? ss.spans.map(span => ({
+                  ...span,
+                  attributes: sanitizeAttrs(span.attributes),
+                  events: Array.isArray(span.events) ? span.events.map(ev => ({ ...ev, attributes: sanitizeAttrs(ev.attributes) })) : span.events,
+                }))
+              : ss.spans,
           }))
         : rs.scopeSpans,
     })),
@@ -766,18 +773,25 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   // Build OTel exception span events — one per error — following the
   // OpenTelemetry semantic convention for exceptions.  Each event has
-  // name="exception" and an "exception.message" attribute, making individual
-  // errors queryable in backends like Grafana Tempo, Honeycomb, and Datadog.
+  // name="exception" with "exception.type" and "exception.message" attributes,
+  // making individual errors queryable and classifiable in backends like
+  // Grafana Tempo, Honeycomb, and Datadog.
   const errorTimeNano = toNanoString(nowMs());
   const spanEvents = isAgentFailure
     ? outputErrors
         .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
         .filter(Boolean)
-        .map(msg => ({
-          timeUnixNano: errorTimeNano,
-          name: "exception",
-          attributes: [buildAttr("exception.message", msg.slice(0, MAX_ATTR_VALUE_LENGTH))],
-        }))
+        .map(msg => {
+          // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")
+          const colonIdx = msg.indexOf(":");
+          const exceptionType = colonIdx > 0 && colonIdx < 64 && /^[a-z_][a-z0-9_.]*$/i.test(msg.slice(0, colonIdx)) ? `gh-aw.${msg.slice(0, colonIdx)}` : "gh-aw.AgentError";
+          const exceptionMessage = (colonIdx > 0 && exceptionType !== "gh-aw.AgentError" ? msg.slice(colonIdx + 1).trim() : msg).slice(0, MAX_ATTR_VALUE_LENGTH);
+          return {
+            timeUnixNano: errorTimeNano,
+            name: "exception",
+            attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)],
+          };
+        })
     : [];
 
   const payload = buildOTLPPayload({
