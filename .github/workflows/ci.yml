@@ -1363,7 +1363,7 @@ jobs:
           path: |
             audit.json
             audit_output.txt
-          retention-days: 30
+          retention-days: 14
 
   actions-build:
     runs-on: ubuntu-latest
@@ -1706,107 +1706,6 @@ jobs:
 
       - name: Run ${{ matrix.tool.name }} security scan on poem workflow
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
-
-  logs-token-check:
-    if: false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    concurrency:
-      group: ci-${{ github.ref }}-logs-token-check
-      cancel-in-progress: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up Go
-        id: setup-go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Build gh-aw
-        run: make build
-
-      - name: Run logs command with JSON output
-        id: logs_check
-        run: |
-          set -e  # Fail on first error
-          # Run the logs command and capture only stdout (JSON output)
-          # stderr is not redirected, so warning messages go to console
-          ./gh-aw logs smoke-copilot -c 2 --json --verbose > logs_output.json
-          
-          # Display the output for debugging
-          echo "Logs command output:"
-          cat logs_output.json
-          
-          # Check if the JSON structure is valid
-          echo "## Validating JSON Structure"
-          
-          # Check if token count is found in the JSON output
-          if jq -e '.summary.total_tokens' logs_output.json > /dev/null 2>&1; then
-            TOKEN_COUNT=$(jq '.summary.total_tokens' logs_output.json)
-            echo "✅ Token count found: $TOKEN_COUNT"
-
-            # Validate that token count is greater than 0
-            if [ "$TOKEN_COUNT" -gt 0 ]; then
-              echo "✅ Token count is greater than 0: $TOKEN_COUNT"
-              echo "token_count=$TOKEN_COUNT" >> $GITHUB_OUTPUT
-            else
-              echo "❌ Token count is 0 - expected tokens to be parsed from logs"
-              exit 1
-            fi
-          else
-            echo "❌ Token count not found in JSON output"
-            exit 1
-          fi
-          
-          # Check if runs array exists (even if empty)
-          if jq -e '.runs' logs_output.json > /dev/null 2>&1; then
-            RUNS_COUNT=$(jq '.runs | length' logs_output.json)
-            echo "✅ Runs array found: $RUNS_COUNT runs"
-          else
-            echo "❌ Runs array not found in JSON output"
-            exit 1
-          fi
-          
-          # If there are runs, validate that key fields are resolved
-          if [ "$RUNS_COUNT" -gt 0 ]; then
-            # Check if agent (engine_id) field exists in first run
-            if jq -e '.runs[0] | has("agent")' logs_output.json > /dev/null 2>&1; then
-              AGENT=$(jq -r '.runs[0].agent // "null"' logs_output.json)
-              echo "✅ Agent field found in run: $AGENT"
-            else
-              echo "❌ Agent field not found in run data"
-              exit 1
-            fi
-            
-            # Check if workflow_path field exists in first run
-            if jq -e '.runs[0] | has("workflow_path")' logs_output.json > /dev/null 2>&1; then
-              WORKFLOW_PATH=$(jq -r '.runs[0].workflow_path // "null"' logs_output.json)
-              echo "✅ Workflow path field found in run: $WORKFLOW_PATH"
-            else
-              echo "❌ Workflow path field not found in run data"
-              exit 1
-            fi
-            
-            # Check if workflow_name is present
-            if jq -e '.runs[0].workflow_name' logs_output.json > /dev/null 2>&1; then
-              WORKFLOW_NAME=$(jq -r '.runs[0].workflow_name' logs_output.json)
-              echo "✅ Workflow name found in run: $WORKFLOW_NAME"
-            else
-              echo "❌ Workflow name not found in run data"
-              exit 1
-            fi
-          else
-            echo "ℹ️ No runs found to validate (this is ok)"
-          fi
-          
-          echo "✅ All JSON structure validations passed"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   health-smoke-copilot:
     runs-on: ubuntu-latest

@@ -45,13 +45,6 @@ When a job URL is provided:
 - If no step number, finds and extracts the first failing step's output
 - Saves job logs to the output directory
 
-This command:
-- Downloads artifacts and logs for the specified run ID
-- Detects errors and warnings in the logs
-- Analyzes MCP tool usage statistics
-- Extracts missing tool reports
-- Generates a concise Markdown report
-
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890     # Audit run with ID 1234567890
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL

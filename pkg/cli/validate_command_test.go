@@ -28,4 +28,5 @@ func TestNewValidateCommand(t *testing.T) {
 	require.NotNil(t, cmd.Flags().Lookup("fail-fast"), "validate command should have a --fail-fast flag")
 	require.NotNil(t, cmd.Flags().Lookup("stats"), "validate command should have a --stats flag")
 	require.NotNil(t, cmd.Flags().Lookup("no-check-update"), "validate command should have a --no-check-update flag")
+	require.NotNil(t, cmd.Flags().Lookup("validate-images"), "validate command should have a --validate-images flag")
 }

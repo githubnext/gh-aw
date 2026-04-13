@@ -350,7 +350,7 @@ jobs:
 
       - name: Compile workflows
         run: |
-          ./gh-aw compile --validate --verbose
+          ./gh-aw compile --validate --validate-images --verbose
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts

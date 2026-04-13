@@ -785,8 +785,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
           // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")
           const colonIdx = msg.indexOf(":");
           const prefix = msg.slice(0, colonIdx);
-          const exceptionType = colonIdx > 0 && colonIdx < 64 && /^[a-z_][a-z0-9_.]*$/i.test(prefix) ? `gh-aw.${prefix.toLowerCase()}` : "gh-aw.AgentError";
-          const exceptionMessage = (colonIdx > 0 && exceptionType !== "gh-aw.AgentError" ? msg.slice(colonIdx + 1).trim() : msg).slice(0, MAX_ATTR_VALUE_LENGTH);
+          const hasValidPrefix = colonIdx > 0 && colonIdx < 64 && /^[a-z_][a-z0-9_.]*$/i.test(prefix);
+          const exceptionType = hasValidPrefix ? `gh-aw.${prefix.toLowerCase()}` : "gh-aw.AgentError";
+          const exceptionMessage = (hasValidPrefix ? msg.slice(colonIdx + 1).trim() : msg).slice(0, MAX_ATTR_VALUE_LENGTH);
           return {
             timeUnixNano: errorTimeNano,
             name: "exception",

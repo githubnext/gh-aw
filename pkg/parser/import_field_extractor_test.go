@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestComputeImportRelPath verifies that computeImportRelPath produces the correct
@@ -199,4 +200,86 @@ imports:
 	assert.NotEmpty(t, importsResult.MergedJobs, "MergedJobs should be populated from shared .md import")
 	assert.Contains(t, importsResult.MergedJobs, "apm", "MergedJobs should contain the 'apm' job")
 	assert.Contains(t, importsResult.MergedJobs, "ubuntu-slim", "MergedJobs should contain the job runner")
+}
+
+// TestExtractAllImportFields_BuiltinCacheHit verifies that extractAllImportFields uses the
+// process-level builtin frontmatter cache for builtin files without inputs.
+func TestExtractAllImportFields_BuiltinCacheHit(t *testing.T) {
+	builtinPath := BuiltinPathPrefix + "test/cache-hit.md"
+	content := []byte(`---
+tools:
+  bash: ["echo"]
+engine: claude
+---
+
+# Cache Hit Test
+`)
+
+	// Register the builtin virtual file
+	RegisterBuiltinVirtualFile(builtinPath, content)
+
+	// Warm the cache by parsing once
+	cachedResult, err := ExtractFrontmatterFromBuiltinFile(builtinPath, content)
+	require.NoError(t, err, "should parse builtin file without error")
+	assert.NotNil(t, cachedResult, "cached result should not be nil")
+
+	// Verify the cache is populated
+	cached, ok := GetBuiltinFrontmatterCache(builtinPath)
+	assert.True(t, ok, "builtin cache should have an entry for the path")
+	assert.Equal(t, cachedResult, cached, "cached result should match")
+
+	// Call extractAllImportFields with no inputs — should hit the cache
+	acc := newImportAccumulator()
+	item := importQueueItem{
+		fullPath:    builtinPath,
+		importPath:  "test/cache-hit.md",
+		sectionName: "",
+		inputs:      nil,
+	}
+	visited := map[string]bool{builtinPath: true}
+
+	err = acc.extractAllImportFields(content, item, visited)
+	require.NoError(t, err, "extractAllImportFields should succeed for builtin file without inputs")
+
+	// Verify engine was extracted from the cached frontmatter
+	assert.NotEmpty(t, acc.engines, "engines should be populated from cached builtin file")
+	assert.Contains(t, acc.engines[0], "claude", "engine should be 'claude' from the builtin file")
+}
+
+// TestExtractAllImportFields_BuiltinWithInputsBypassesCache verifies that builtin files
+// with inputs bypass the cache and use the substituted content.
+func TestExtractAllImportFields_BuiltinWithInputsBypassesCache(t *testing.T) {
+	builtinPath := BuiltinPathPrefix + "test/cache-bypass.md"
+	content := []byte(`---
+tools:
+  bash: ["echo"]
+engine: copilot
+---
+
+# Cache Bypass Test
+`)
+
+	// Register the builtin virtual file
+	RegisterBuiltinVirtualFile(builtinPath, content)
+
+	// Warm the cache
+	_, err := ExtractFrontmatterFromBuiltinFile(builtinPath, content)
+	require.NoError(t, err, "should parse builtin file without error")
+
+	// Call extractAllImportFields WITH inputs — should bypass the cache
+	acc := newImportAccumulator()
+	item := importQueueItem{
+		fullPath:    builtinPath,
+		importPath:  "test/cache-bypass.md",
+		sectionName: "",
+		inputs:      map[string]any{"key": "value"},
+	}
+	visited := map[string]bool{builtinPath: true}
+
+	err = acc.extractAllImportFields(content, item, visited)
+	require.NoError(t, err, "extractAllImportFields should succeed for builtin file with inputs")
+
+	// Verify engine was still extracted (from direct parse, not cache)
+	assert.NotEmpty(t, acc.engines, "engines should be populated even when bypassing cache")
+	assert.Contains(t, acc.engines[0], "copilot", "engine should be 'copilot' from the builtin file")
 }

@@ -262,7 +262,7 @@ func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getDIFCProxyPolicyJSON(tt.githubTool)
+			got := getDIFCProxyPolicyJSON(tt.githubTool, nil, nil)
 
 			if tt.expectEmpty {
 				assert.Empty(t, got, "policy JSON should be empty for: %s", tt.name)
