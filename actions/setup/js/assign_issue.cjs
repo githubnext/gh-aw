@@ -3,6 +3,7 @@
 
 const { getAgentName, getIssueDetails, findAgent, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getGhEnv } = require("./git_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PERMISSION } = require("./error_codes.cjs");
 
 /**
@@ -79,7 +80,7 @@ async function main() {
     } else {
       // Use gh CLI for regular user assignment
       await exec.exec("gh", ["issue", "edit", String(issueNum), "--add-assignee", trimmedAssignee], {
-        env: { ...process.env, GH_TOKEN: ghToken },
+        env: getGhEnv({ GH_TOKEN: ghToken }),
       });
     }
 

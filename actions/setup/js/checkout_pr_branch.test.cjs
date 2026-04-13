@@ -153,6 +153,9 @@ If the pull request is still open, verify that:
       if (module === "./error_codes.cjs") {
         return require("./error_codes.cjs");
       }
+      if (module === "./git_helpers.cjs") {
+        return require("./git_helpers.cjs");
+      }
       throw new Error(`Module ${module} not mocked in test`);
     };
 
