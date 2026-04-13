@@ -1,53 +1,122 @@
 ---
 title: Maintaining Repos with Agentic Workflows
-description: How to manage a repository with agentic workflows at scale — filtering untrusted input, prioritizing trusted work, and debugging failures.
+description: How to use repo-assist and integrity filtering to manage an open-source repository at scale — triaging incoming work, protecting against untrusted input, and debugging failures.
 sidebar:
   order: 20
 ---
 
-Running agentic workflows on a public or active repository introduces three practical challenges: managing the volume of incoming issues and PRs from unknown users, ensuring agents prioritize trusted work, and diagnosing failures efficiently. This guide ties together integrity filtering, repo-assist, and the debugging toolchain from a maintainer's perspective.
+Open-source maintainers face a unique challenge when running agentic workflows: anyone can open an issue or PR, triggering agent runs that consume compute and tokens — but not every contributor is equally trustworthy. This guide shows how to use **repo-assist** as the primary entry point for managing incoming work, and how to configure **integrity filtering** so that downstream agents only act on trusted content.
 
-## Filtering Input with Integrity Levels
+## Repo-Assist as Your Triage Layer
 
-Every public repository workflow automatically applies `min-integrity: approved` as a baseline unless you override it. This means the agent only sees content from repository owners, members, collaborators, and non-fork PRs — filtering out first-time contributors and anonymous users by default.
+Repo-assist is a workflow that runs on every new issue or PR, classifies the content, and routes work to the right place. It is the recommended starting point for any public repository because it:
 
-The four configurable integrity levels, from most to least restrictive:
+- Sees all incoming content (including from untrusted users), so nothing is silently ignored.
+- Applies lightweight, low-cost classification (labels, comments) rather than heavy agent actions.
+- Acts as a gate that downstream code-modifying agents depend on before they run.
+
+A minimal repo-assist workflow:
+
+```aw wrap
+---
+description: Triage incoming issues and route to appropriate agents
+on:
+  issues:
+    types: [opened]
+engine: copilot
+tools:
+  github:
+    toolsets: [issues, labels]
+    min-integrity: unapproved
+safe-outputs:
+  label-issue:
+  comment-issue:
+permissions:
+  issues: write
+  contents: read
+---
+
+Review the newly opened issue. Based on the issue content:
+
+1. Apply the most relevant label from the existing label set.
+2. If the issue is a quality bug report with a clear reproduction, add the label `needs-investigation`.
+3. If the issue is from a maintainer or collaborator, add `trusted-contributor` and consider assigning the Copilot coding agent to investigate.
+4. If the issue appears to be spam or off-topic, add `invalid` and post a brief explanation comment.
+5. Otherwise, post a comment thanking the contributor and explaining what information is still needed.
+```
+
+`min-integrity: unapproved` allows repo-assist to see all community content — first-time contributors, external users, everyone. Because repo-assist only labels and comments (never opens PRs or modifies code), it is safe to run at this lower integrity level.
+
+### Routing to Downstream Agents
+
+Downstream agents that do heavier work (code fixes, PR reviews, issue resolution) are triggered by the labels repo-assist applies. They use stricter integrity filtering to ensure they only act on trusted input:
+
+```text
+Issue opened (any author)
+  → Repo-assist (min-integrity: unapproved)
+      Classifies content and applies labels
+      Adds "trusted-contributor" for owners/members/collaborators
+      Assigns Copilot if label indicates ready work
+  → Code fix agent (min-integrity: approved, approval-labels: ["needs-investigation"])
+      Triggered by label, runs only when repo-assist has approved the issue
+      Safe from untrusted input by construction
+```
+
+The code fix agent:
+
+```aw wrap
+---
+on:
+  issues:
+    types: [labeled]
+engine: copilot
+tools:
+  github:
+    toolsets: [issues, pull_requests]
+    min-integrity: approved
+    approval-labels:
+      - "needs-investigation"
+safe-outputs:
+  create-pull-request:
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+---
+
+The issue labeled `needs-investigation` needs a fix. Reproduce the bug,
+implement a minimal fix, and open a pull request.
+```
+
+This separation means compute-intensive agents only run after repo-assist has classified and approved the work.
+
+## Configuring Integrity Filtering
+
+Integrity filtering controls which content the agent sees based on author trust level. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see all incoming issues.
+
+The four configurable levels, from most to least restrictive:
 
 | Level | Who qualifies |
 |-------|--------------|
 | `merged` | PRs merged into the default branch; commits reachable from main |
-| `approved` | Owners, members, collaborators; non-fork PRs on public repos; all content in private repos; recognized bots (`dependabot`, `github-actions`) |
+| `approved` | Owners, members, collaborators; non-fork PRs on public repos; recognized bots (`dependabot`, `github-actions`) |
 | `unapproved` | Contributors who have had a PR merged before; first-time contributors |
 | `none` | All content including users with no prior relationship |
 
 Choose based on what the workflow does:
 
-- **Code-modifying workflows** (open PRs, apply patches, close issues): use `approved` or `merged`. These workflows act on your behalf, so restrict them to trusted input.
-- **Triage and labeling workflows**: use `unapproved`. These workflows classify without acting, so seeing community contributions is valuable.
-- **Spam detection or analytics**: use `none`. These workflows process all input but produce no direct GitHub mutations.
-
-```aw wrap
-# Code review workflow — only trusted contributors
-tools:
-  github:
-    min-integrity: approved
-```
-
-```aw wrap
-# Triage workflow — include community contributors
-tools:
-  github:
-    min-integrity: unapproved
-```
+- **Repo-assist / triage workflows**: `unapproved` — classify all community content without acting on it.
+- **Code-modifying workflows** (open PRs, apply patches, close issues): `approved` or `merged` — only act on trusted input.
+- **Spam detection or analytics**: `none` — see everything, but produce no direct GitHub mutations.
 
 > [!NOTE]
 > Setting `min-integrity: none` on a public repository disables the automatic protection. Only use it when the workflow is designed to handle untrusted input safely.
 
 ### Fine-Grained Trust Controls
 
-Beyond the global level, three per-item overrides let you handle edge cases:
+Beyond the global level, three per-item overrides let you handle edge cases without changing the baseline.
 
-**`trusted-users`** — Elevate specific accounts (contractors, partners, bots) to `approved` regardless of their GitHub author association:
+**`trusted-users`** — Elevate specific accounts (contractors, bots) to `approved` regardless of their GitHub author association:
 
 ```aw wrap
 tools:
@@ -58,7 +127,7 @@ tools:
       - "partner-org-bot"
 ```
 
-**`approval-labels`** — Let a human reviewer label content to pass it through a stricter filter:
+**`approval-labels`** — Let repo-assist (or a human reviewer) label content to pass it through a stricter downstream filter:
 
 ```aw wrap
 tools:
@@ -66,7 +135,7 @@ tools:
     min-integrity: approved
     approval-labels:
       - "agent-approved"
-      - "human-reviewed"
+      - "needs-investigation"
 ```
 
 **`blocked-users`** — Unconditionally block known-bad accounts regardless of `min-integrity`:
@@ -91,7 +160,7 @@ The runtime automatically merges per-workflow values with the variable. Set thes
 
 ### Reactions as Trust Signals
 
-Starting from MCPG v0.2.18, maintainers can use GitHub reactions (👍, ❤️) to dynamically promote or demote content integrity without modifying labels. This is an opt-in feature:
+Starting from MCPG v0.2.18, maintainers can use GitHub reactions (👍, ❤️) to promote content past the integrity filter without modifying labels. This is useful in repo-assist workflows where a maintainer wants to fast-track an external contribution:
 
 ```aw wrap
 features:
@@ -118,61 +187,11 @@ When a trusted member (at or above `endorser-min-integrity`) adds an endorsement
 
 See the [Integrity Filtering Reference](/gh-aw/reference/integrity/) for complete configuration details.
 
-## Triage Layer with Repo-Assist
-
-For repositories receiving high volumes of issues and PRs, a triage workflow acts as a router: it classifies incoming content and decides which specialized agent (if any) should act on it. This pattern is sometimes called "repo-assist."
-
-A minimal triage workflow that handles routing:
-
-```aw wrap
----
-description: Triage incoming issues and route to appropriate agents
-on:
-  issues:
-    types: [opened]
-engine: copilot
-tools:
-  github:
-    toolsets: [issues, labels]
-    min-integrity: unapproved
-safe-outputs:
-  label-issue:
-  comment-issue:
-permissions:
-  issues: write
-  contents: read
----
-
-Review the newly opened issue. Based on the issue content:
-
-1. Apply the most relevant label from the existing label set.
-2. If the issue is a bug report with a clear reproduction, add the label `needs-investigation`.
-3. If the issue is from an `approved`-integrity author (owner, member, or collaborator), add `trusted-contributor` and consider assigning the Copilot agent to investigate.
-4. If the issue appears to be spam or off-topic, add `invalid` and post a brief explanation comment.
-5. Otherwise, post a comment thanking the contributor and explaining what information is still needed.
-```
-
-### Combining Triage with Code-Modifying Agents
-
-The triage workflow uses `min-integrity: unapproved` so it sees all community issues. Downstream specialized agents use stricter filtering. The triage workflow's output (labels, assignments) becomes the signal that downstream agents rely on:
-
-```text
-Issue opened (any author)
-  → Triage agent (min-integrity: unapproved)
-    Adds label: "trusted-contributor" if author is approved
-    Assigns Copilot if label is set
-  → Code review agent (min-integrity: approved)
-    Only triggered when Copilot is assigned
-    Safe from untrusted input
-```
-
-This separation means compute-intensive agents only run on content that has passed human-or-automation review.
-
 ## Scaling Strategies
 
 ### Token Budget Awareness
 
-Integrity filtering directly reduces token consumption: items filtered by the gateway never appear in the agent's context window. On a busy public repository, `min-integrity: approved` can reduce context size by 60–90% compared to `min-integrity: none`.
+Integrity filtering directly reduces token consumption: items filtered by the gateway never appear in the agent's context window. On a busy public repository, `min-integrity: approved` on downstream agents can reduce context size dramatically compared to seeing all activity.
 
 Use `gh aw logs --format markdown --count 20` to track token trends over time. The cross-run report surfaces cost spikes, anomalous token usage, and per-run breakdowns so you can detect regressions before they accumulate.
 
@@ -190,7 +209,7 @@ See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full 
 
 ### Concurrency Controls
 
-Workflows automatically use dual concurrency control (per-workflow and per-engine). For triage workflows, you may want a higher concurrency limit so issues are processed in parallel rather than queued:
+Workflows automatically use dual concurrency control (per-workflow and per-engine). For repo-assist, you may want higher concurrency so multiple issues are triaged in parallel rather than queued:
 
 ```aw wrap
 concurrency:
@@ -330,11 +349,11 @@ Fixes:
 
 ## Worked Examples
 
-### Public Repository
+### Public Open-Source Repository
 
-A public repository receives issues from anonymous users, contributors, and maintainers. The goal is to triage all issues, but only have the code-modifying agent act on trusted input.
+A public repository receives issues from anonymous users, contributors, and maintainers. Repo-assist triages all issues; a code fix agent only acts on issues that repo-assist has labeled as ready.
 
-**Triage workflow** (`issue-triage.md`):
+**Repo-assist** (`repo-assist.md`):
 
 ```aw wrap
 ---
@@ -355,10 +374,10 @@ permissions:
 ---
 
 Classify the issue and apply one label from the existing label set.
-If the issue is a quality bug report, also add the label `agent-ready`.
+If the issue is a quality bug report with a clear reproduction, also add the label `agent-ready`.
 ```
 
-**Code fix workflow** (`auto-fix.md`):
+**Code fix agent** (`auto-fix.md`):
 
 ```aw wrap
 ---
@@ -384,7 +403,7 @@ The issue labeled `agent-ready` needs a fix. Reproduce the bug,
 implement a minimal fix, and open a pull request.
 ```
 
-The triage workflow labels issues as `agent-ready` when they meet quality criteria. The code fix workflow only runs on labeled issues and uses `approval-labels` to ensure it processes even external issues that a maintainer has approved.
+Repo-assist applies `agent-ready` when an issue meets quality criteria. The code fix agent uses `approval-labels` so even external issues promoted by repo-assist (or a maintainer) can be processed — while issues that haven't been approved are never seen by the code fix agent.
 
 ### Inner-Source Repository
 
