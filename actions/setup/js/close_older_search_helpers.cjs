@@ -81,15 +81,16 @@ function filterByMarker({ items, excludeNumber, exactMarker, entityType, additio
       return false;
     }
 
-    // Run entity-specific filters first (e.g. pull_request, closed, category)
-    if (additionalFilter && !additionalFilter(item, extraCounters)) {
-      return false;
-    }
-
-    // Exclude the newly created entity
+    // Exclude the newly created entity before running any other filters so
+    // counters/logs consistently attribute this item to the dedicated exclusion.
     if (item.number === excludeNumber) {
       excludedCount++;
       core.info(`  Excluding ${entityType} #${item.number} (the newly created ${entityType})`);
+      return false;
+    }
+
+    // Run entity-specific filters next (e.g. pull_request, closed, category)
+    if (additionalFilter && !additionalFilter(item, extraCounters)) {
       return false;
     }
 
