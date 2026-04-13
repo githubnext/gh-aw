@@ -51,7 +51,7 @@ Your task is to post a poetic, whimsical fact about the ${{ github.repository }}
 Before gathering repository activity, check what has already been celebrated in the palace to avoid repetition.
 
 1. Call `mempalace_status` to confirm the palace is ready.
-2. Call `mempalace_search` with `query: "gh-aw daily fact"` to retrieve the most recent facts that have been posted (wing: `daily-facts`, if already indexed).
+2. Call `mempalace_search` with `query: "gh-aw daily fact"` and `wing: "daily-facts"` to retrieve recently posted facts. On the very first run the palace will be empty — that is fine, proceed without results.
 3. Note any PR numbers, issue numbers, release tags, or contributor handles that appear in the results — **do not repeat those topics today**.
 
 ## Data Sources
@@ -115,7 +115,12 @@ After posting the comment, store the fact in the palace so it will be excluded f
 
 Call `mempalace_add_drawer` with:
 - `wing`: `"daily-facts"`
-- `room`: the type of fact (e.g., `"pr"`, `"release"`, `"issue"`, `"contributor"`)
+- `room`: the category of the fact — use one of these canonical values:
+  - `"pr"` — a merged pull request
+  - `"release"` — a release or version tag
+  - `"issue"` — a closed issue
+  - `"contributor"` — a community contributor highlight
+  - `"pattern"` — a code pattern or architectural observation
 - `content`: a short record containing the PR/issue/release identifier and a one-line summary of the fact posted today
 
 This ensures tomorrow's verse celebrates something new.
