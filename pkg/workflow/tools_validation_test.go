@@ -3,8 +3,11 @@
 package workflow
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -639,21 +642,26 @@ func TestValidateReposScopeWithStringSlice(t *testing.T) {
 
 // TestMCPGSupportsIntegrityReactions verifies the version gate for integrity-reactions.
 func TestMCPGSupportsIntegrityReactions(t *testing.T) {
+	// Compute expected result for default-version cases dynamically so the test
+	// doesn't break every time DefaultMCPGatewayVersion is bumped.
+	defaultVersion := string(constants.DefaultMCPGatewayVersion)
+	minVersion := string(constants.MCPGIntegrityReactionsMinVersion)
+	defaultSupported := semverutil.Compare(defaultVersion, minVersion) >= 0
+
 	tests := []struct {
 		name          string
 		gatewayConfig *MCPGatewayRuntimeConfig
 		want          bool
 	}{
 		{
-			name:          "nil gateway config uses default (v0.2.17, below min)",
+			name:          fmt.Sprintf("nil gateway config uses default (%s)", defaultVersion),
 			gatewayConfig: nil,
-			// DefaultMCPGatewayVersion = "v0.2.17" < MCPGIntegrityReactionsMinVersion = "v0.2.18"
-			want: false,
+			want:          defaultSupported,
 		},
 		{
-			name:          "empty version uses default (v0.2.17, below min)",
+			name:          fmt.Sprintf("empty version uses default (%s)", defaultVersion),
 			gatewayConfig: &MCPGatewayRuntimeConfig{Container: "ghcr.io/test/mcpg"},
-			want:          false,
+			want:          defaultSupported,
 		},
 		{
 			name: "version exactly at minimum (v0.2.18)",
