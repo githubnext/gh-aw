@@ -20,7 +20,7 @@
 //   - If the Docker daemon is not running, validation is silently skipped (debug log only)
 //   - If an image cannot be pulled due to authentication (private repo), validation passes
 //   - If an image truly doesn't exist, returns an error
-//   - Verbose mode provides detailed validation feedback
+//   - Detailed validation logging is available via debug logging when enabled
 //
 // This design ensures that `gh aw compile --validate` does not require Docker
 // at compile time. Docker availability is a runtime concern.
@@ -89,9 +89,11 @@ func isDockerDaemonRunning() bool {
 // validateDockerImage checks if a Docker image exists and is accessible.
 // When Docker is not installed or the daemon is not running, validation is
 // silently skipped (returns nil) so that compile-time validation does not
-// depend on Docker availability. Returns an error only when Docker is
-// available and the image cannot be found. The caller treats these as warnings.
-func validateDockerImage(image string, verbose bool) error {
+// depend on Docker availability. If requireDocker is true, returns an error
+// instead of skipping when Docker is unavailable. Returns an error only when
+// Docker is available and the image cannot be found. The caller treats these
+// as warnings.
+func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 	dockerValidationLog.Printf("Validating Docker image: %s", image)
 
 	// Reject names starting with '-' to prevent argument injection
@@ -102,8 +104,12 @@ func validateDockerImage(image string, verbose bool) error {
 	// Check if docker CLI is available on PATH.
 	// If Docker is not installed, skip validation silently — compile is a source
 	// transformation step and should not require Docker at authoring time.
+	// When requireDocker is true, return an error instead of skipping.
 	_, err := exec.LookPath("docker")
 	if err != nil {
+		if requireDocker {
+			return fmt.Errorf("docker not installed - could not validate container image '%s'. Install Docker or remove --validate-images to skip container image validation", image)
+		}
 		dockerValidationLog.Print("Docker not installed, skipping container image validation")
 		return nil
 	}
@@ -112,7 +118,11 @@ func validateDockerImage(image string, verbose bool) error {
 	// If the daemon is not running (common on CI runners like ubuntu-slim, or when
 	// Docker Desktop is stopped), skip validation silently instead of emitting a
 	// warning. Image accessibility is a runtime concern, not a compile-time one.
+	// When requireDocker is true, return an error instead of skipping.
 	if !isDockerDaemonRunning() {
+		if requireDocker {
+			return fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or remove --validate-images to skip container image validation", image)
+		}
 		dockerValidationLog.Print("Docker daemon not running, skipping container image validation")
 		return nil
 	}

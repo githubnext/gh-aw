@@ -89,6 +89,7 @@ type Compiler struct {
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
+	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -143,6 +144,13 @@ func NewCompilerWithVersion(version string) *Compiler {
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// SetRequireDocker configures whether Docker must be available for container image validation.
+// When true, validation fails with an error if Docker is not installed or the daemon is not running.
+// When false (default), validation is silently skipped when Docker is unavailable.
+func (c *Compiler) SetRequireDocker(require bool) {
+	c.requireDocker = require
 }
 
 // SetQuiet configures whether to suppress success messages (for interactive mode)

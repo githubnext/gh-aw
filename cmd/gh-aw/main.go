@@ -287,6 +287,7 @@ Examples:
 		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
 		safeUpdate, _ := cmd.Flags().GetBool("safe-update")
+		validateImages, _ := cmd.Flags().GetBool("validate-images")
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
@@ -343,6 +344,7 @@ Examples:
 			FailFast:               failFast,
 			ScheduleSeed:           scheduleSeed,
 			SafeUpdate:             safeUpdate,
+			ValidateImages:         validateImages,
 			PriorManifestFile:      priorManifestFile,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
@@ -691,6 +693,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. 'github/gh-aw'). Bypasses git remote detection entirely. Use this when your git remote is not named 'origin' and you have multiple remotes configured")
 	compileCmd.Flags().Bool("safe-update", false, "Force-enable safe update mode independently of strict mode. Safe update mode is normally equivalent to strict mode: it emits a warning prompt when compilations introduce new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to enable safe update enforcement on a workflow that has strict: false in its frontmatter")
+	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
 		// Non-fatal: flag is registered even if MarkHidden fails

@@ -110,7 +110,7 @@ func TestValidateDockerImage_RejectsHyphenPrefix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDockerImage(tt.image, false)
+			err := validateDockerImage(tt.image, false, false)
 			if err == nil {
 				t.Errorf("expected error for image %q but got none", tt.image)
 				return
