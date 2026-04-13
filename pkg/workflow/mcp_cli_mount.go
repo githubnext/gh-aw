@@ -23,68 +23,75 @@ import (
 // internalMCPServerNames lists the MCP servers that are internal infrastructure and
 // should not be exposed as user-facing CLI tools.
 // Note: safeoutputs and mcpscripts are NOT excluded — they are always CLI-mounted
-// when mount-as-clis is enabled, as they provide safe-output and script tools
+// (regardless of mount-as-clis setting), as they provide safe-output and script tools
 // that the agent should invoke via CLI wrappers.
 var internalMCPServerNames = map[string]bool{
 	"github": true, // GitHub MCP server is handled differently and should not be CLI-mounted
 }
 
+// alwaysCLIMountedServers lists MCP servers that are always CLI-mounted when enabled,
+// regardless of the mount-as-clis setting. These servers remain available as MCP tools
+// too (dual access), but the prompt instructs the agent to prefer the CLI wrappers.
+var alwaysCLIMountedServers = map[string]bool{
+	"safeoutputs": true,
+	"mcpscripts":  true,
+}
+
 // getMCPCLIServerNames returns the sorted list of MCP server names that will be
-// mounted as CLI tools. It includes standard MCP tools (playwright, etc.),
-// custom MCP servers, and always includes safeoutputs and mcpscripts when enabled.
+// mounted as CLI tools. It includes:
+//   - safeoutputs and mcpscripts ALWAYS (when enabled), regardless of mount-as-clis
+//   - standard MCP tools (playwright, etc.) and custom MCP servers when mount-as-clis is true
+//
 // The GitHub MCP server is excluded (handled differently).
-// Returns nil if tools.mount-as-clis is not set to true.
 func getMCPCLIServerNames(data *WorkflowData) []string {
 	if data == nil {
 		return nil
 	}
 
-	// Only mount if tools.mount-as-clis: true is set.
-	// Also returns nil when tools configuration is missing entirely.
-	if data.ParsedTools == nil || !data.ParsedTools.MountAsCLIs {
-		return nil
-	}
-
 	var servers []string
 
-	// Collect user-facing standard MCP tools from the raw Tools map
-	for toolName, toolValue := range data.Tools {
-		if toolValue == false {
-			continue
-		}
-		// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
-		// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
-		switch toolName {
-		case "playwright", "qmd":
-			servers = append(servers, toolName)
-		case "agentic-workflows":
-			// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
-			// Using the gateway ID here ensures GH_AW_MCP_CLI_SERVERS matches the manifest entries.
-			servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
-		default:
-			// Include custom MCP servers (not in the internal list)
-			if !internalMCPServerNames[toolName] {
-				if mcpConfig, ok := toolValue.(map[string]any); ok {
-					if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-						servers = append(servers, toolName)
+	// When mount-as-clis is enabled, include all user-facing standard MCP tools
+	// and custom MCP servers.
+	if data.ParsedTools != nil && data.ParsedTools.MountAsCLIs {
+		// Collect user-facing standard MCP tools from the raw Tools map
+		for toolName, toolValue := range data.Tools {
+			if toolValue == false {
+				continue
+			}
+			// Only include tools that have MCP servers (skip bash, web-fetch, web-search, edit, cache-memory, etc.)
+			// Note: "github" is excluded — it is handled differently and should not be CLI-mounted.
+			switch toolName {
+			case "playwright", "qmd":
+				servers = append(servers, toolName)
+			case "agentic-workflows":
+				// The gateway and manifest use "agenticworkflows" (no hyphen) as the server ID.
+				// Using the gateway ID here ensures GH_AW_MCP_CLI_SERVERS matches the manifest entries.
+				servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
+			default:
+				// Include custom MCP servers (not in the internal list)
+				if !internalMCPServerNames[toolName] {
+					if mcpConfig, ok := toolValue.(map[string]any); ok {
+						if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+							servers = append(servers, toolName)
+						}
 					}
+				}
+			}
+		}
+
+		// Also check ParsedTools.Custom for custom MCP servers
+		if data.ParsedTools != nil {
+			for name := range data.ParsedTools.Custom {
+				if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
+					servers = append(servers, name)
 				}
 			}
 		}
 	}
 
-	// Also check ParsedTools.Custom for custom MCP servers
-	if data.ParsedTools != nil {
-		for name := range data.ParsedTools.Custom {
-			if !internalMCPServerNames[name] && !slices.Contains(servers, name) {
-				servers = append(servers, name)
-			}
-		}
-	}
-
-	// Always include safeoutputs and mcpscripts when they are enabled.
-	// These servers use their gateway server-ID form (no hyphens) so the CLI
-	// wrapper names match the manifest entries.
+	// Always include safeoutputs and mcpscripts when they are enabled,
+	// regardless of mount-as-clis setting. These servers use their gateway
+	// server-ID form (no hyphens) so the CLI wrapper names match the manifest entries.
 	if HasSafeOutputsEnabled(data.SafeOutputs) && !slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
 		servers = append(servers, constants.SafeOutputsMCPServerID.String())
 	}
@@ -92,8 +99,38 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 		servers = append(servers, constants.MCPScriptsMCPServerID.String())
 	}
 
+	if len(servers) == 0 {
+		return nil
+	}
+
 	sort.Strings(servers)
 	return servers
+}
+
+// getMCPCLIExcludeFromAgentConfig returns the sorted list of MCP server names that
+// should be excluded from the agent's MCP config (because they are CLI-only).
+// safeoutputs and mcpscripts are NOT excluded — they remain available as both
+// MCP tools and CLI commands (dual access). The prompt instructs the agent to
+// prefer the CLI wrappers for these servers.
+func getMCPCLIExcludeFromAgentConfig(data *WorkflowData) []string {
+	allCLI := getMCPCLIServerNames(data)
+	if len(allCLI) == 0 {
+		return nil
+	}
+
+	var exclude []string
+	for _, name := range allCLI {
+		if !alwaysCLIMountedServers[name] {
+			exclude = append(exclude, name)
+		}
+	}
+
+	if len(exclude) == 0 {
+		return nil
+	}
+
+	sort.Strings(exclude)
+	return exclude
 }
 
 // generateMCPCLIMountStep generates the "Mount MCP servers as CLIs" workflow step.

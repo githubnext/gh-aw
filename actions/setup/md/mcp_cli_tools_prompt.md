@@ -1,11 +1,13 @@
 <mcp-clis>
 ## MCP Servers Mounted as Shell CLI Commands
 
-> **IMPORTANT**: The following MCP servers are **NOT available as MCP tools** in your agent context. They have been mounted exclusively as shell (bash) CLI commands. You **must** call them via the shell — do **not** attempt to use them as MCP protocol tools.
-
 The following servers are available as CLI commands on `PATH`:
 
 __GH_AW_MCP_CLI_SERVERS_LIST__
+
+> **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** listed above instead of the equivalent MCP tools. The CLI wrappers are the preferred interface — do **not** call their MCP tools directly even though they may appear in your tool list.
+>
+> For all other servers listed here, they are **only** available as CLI commands and are **not** available as MCP tools.
 
 ### How to Use
 
