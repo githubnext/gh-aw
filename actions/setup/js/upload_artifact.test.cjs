@@ -124,6 +124,16 @@ describe("upload_artifact.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("upload_artifact_count", "1");
     });
 
+    it("returns temporaryId matching tmpId in the result", async () => {
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBeDefined();
+      expect(results[0].temporaryId).toBe(results[0].tmpId);
+    });
+
     it("uses default retention of 30 when retention-days not in config", async () => {
       writeStaging("report.json");
 

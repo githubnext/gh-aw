@@ -99,18 +99,66 @@ describe("emitSafeOutputActionOutputs", () => {
     expect(outputs["push_commit_url"]).toBe("https://github.com/owner/repo/commit/abc123");
   });
 
+  it("emits upload_artifact_tmp_id and upload_artifact_url for upload_artifact result", () => {
+    emitSafeOutputActionOutputs({
+      results: [
+        {
+          success: true,
+          type: "upload_artifact",
+          // temporaryId is the field used by emitSafeOutputActionOutputs; tmpId is the legacy alias
+          result: { temporaryId: "aw_chart1", artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/42" },
+        },
+      ],
+    });
+
+    expect(outputs["upload_artifact_tmp_id"]).toBe("aw_chart1");
+    expect(outputs["upload_artifact_url"]).toBe("https://github.com/owner/repo/actions/runs/1/artifacts/42");
+  });
+
+  it("emits only the first successful upload_artifact result", () => {
+    emitSafeOutputActionOutputs({
+      results: [
+        { success: true, type: "upload_artifact", result: { temporaryId: "aw_first", artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/10" } },
+        { success: true, type: "upload_artifact", result: { temporaryId: "aw_second", artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/20" } },
+      ],
+    });
+
+    expect(outputs["upload_artifact_tmp_id"]).toBe("aw_first");
+    expect(outputs["upload_artifact_url"]).toBe("https://github.com/owner/repo/actions/runs/1/artifacts/10");
+  });
+
+  it("emits upload_artifact_tmp_id even when artifactUrl is empty string (staged mode)", () => {
+    emitSafeOutputActionOutputs({
+      results: [{ success: true, type: "upload_artifact", result: { temporaryId: "aw_staged", artifactUrl: "" } }],
+    });
+
+    expect(outputs["upload_artifact_tmp_id"]).toBe("aw_staged");
+    expect(outputs["upload_artifact_url"]).toBeUndefined();
+  });
+
+  it("emits upload_artifact_tmp_id even when artifactUrl is absent (undefined)", () => {
+    emitSafeOutputActionOutputs({
+      results: [{ success: true, type: "upload_artifact", result: { temporaryId: "aw_staged" } }],
+    });
+
+    expect(outputs["upload_artifact_tmp_id"]).toBe("aw_staged");
+    expect(outputs["upload_artifact_url"]).toBeUndefined();
+  });
+
   it("emits outputs for multiple different types in a single run", () => {
     emitSafeOutputActionOutputs({
       results: [
         { success: true, type: "create_issue", result: { number: 1, url: "https://github.com/owner/repo/issues/1" } },
         { success: true, type: "add_comment", result: { commentId: 200, url: "https://github.com/owner/repo/issues/1#issuecomment-200" } },
         { success: true, type: "push_to_pull_request_branch", result: { commit_sha: "sha1", commit_url: "https://github.com/owner/repo/commit/sha1" } },
+        { success: true, type: "upload_artifact", result: { temporaryId: "aw_chart1", artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/42" } },
       ],
     });
 
     expect(outputs["created_issue_number"]).toBe("1");
     expect(outputs["comment_id"]).toBe("200");
     expect(outputs["push_commit_sha"]).toBe("sha1");
+    expect(outputs["upload_artifact_tmp_id"]).toBe("aw_chart1");
   });
 
   it("emits no outputs when there are no successful results", () => {

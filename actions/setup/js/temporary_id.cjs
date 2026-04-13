@@ -430,7 +430,7 @@ function hasUnresolvedTemporaryIds(text, tempIdMap, artifactUrlMap) {
  * with the full URL string so the '#' prefix is stripped in the output.
  *
  * @param {string} text - The text to process
- * @param {Map<string, string>} artifactUrlMap - Map of normalised temporary artifact ID to URL
+ * @param {Map<string, string>|null|undefined} artifactUrlMap - Map of normalised temporary artifact ID to URL
  * @returns {string} Text with artifact ID references replaced by their URLs
  */
 function replaceArtifactUrlReferences(text, artifactUrlMap) {
