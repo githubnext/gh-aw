@@ -720,5 +720,41 @@ describe("create_issue", () => {
       // 1 initial + 3 retries = 4 calls
       expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(4);
     });
+
+    it("should have retry delays that never exceed maxDelayMs + jitterMs", async () => {
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+      mockGithub.rest.issues.create = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockRejectedValueOnce(new Error("Secondary rate limit hit"))
+        .mockResolvedValue({
+          data: {
+            number: 789,
+            html_url: "https://github.com/owner/repo/issues/789",
+            title: "Bounded Delay Issue",
+          },
+        });
+
+      const handler = await main({});
+      const resultPromise = handler({
+        title: "Bounded Delay Issue",
+        body: "Test body",
+      });
+
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      // create_issue uses { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 }
+      // Maximum possible delay per retry = maxDelayMs + jitterMs = 55000ms
+      const maxBound = 55000;
+      const sleepDelays = setTimeoutSpy.mock.calls.filter(([, ms]) => ms > 1000).map(([, ms]) => ms);
+
+      for (const delay of sleepDelays) {
+        expect(delay).toBeLessThanOrEqual(maxBound);
+      }
+
+      setTimeoutSpy.mockRestore();
+    });
   });
 });

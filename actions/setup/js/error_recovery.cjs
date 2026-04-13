@@ -16,7 +16,7 @@ const { ERR_API } = require("./error_codes.cjs");
  * @property {number} initialDelayMs - Initial delay in milliseconds (default: 1000)
  * @property {number} maxDelayMs - Maximum delay in milliseconds (default: 10000)
  * @property {number} backoffMultiplier - Backoff multiplier for exponential backoff (default: 2)
- * @property {number} jitterMs - Maximum random jitter in milliseconds added to each retry delay (default: 0)
+ * @property {number} jitterMs - Maximum random jitter in milliseconds added to each retry delay (default: 100)
  * @property {(error: any) => boolean} shouldRetry - Function to determine if error is retryable
  */
 
