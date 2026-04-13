@@ -237,10 +237,10 @@ Analyze issue and break down into implementation tasks
 
 ## Multiple AI providers supported
 
-- **GitHub Copilot** (default, recommended)
+- **GitHub Copilot CLI** (default, recommended)
 - **Claude Code**
-- **Codex**
-- **Gemini CLI**
+- **OpenAI Codex**
+- **Google Gemini CLI**
 
 ```yaml
 engine: copilot  # sensible defaults
