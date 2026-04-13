@@ -176,7 +176,17 @@ async function main() {
       }
 
       core.info(`Checking out PR #${prNumber} using gh CLI`);
-      await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
+
+      // Derive the correct GH_HOST from GITHUB_SERVER_URL so that gh CLI targets the
+      // actual GitHub instance for remote matching. When the DIFC proxy is active,
+      // GH_HOST is overridden to localhost:18443 (the proxy address) in GITHUB_ENV,
+      // which doesn't match any git remote (origin points to github.com or a GHE host).
+      // We must use the real GitHub host so gh pr checkout can resolve the repository.
+      const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const ghHost = serverUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
+        env: { ...process.env, GH_HOST: ghHost },
+      });
 
       // Log the resulting branch after checkout
       let currentBranch = "";
