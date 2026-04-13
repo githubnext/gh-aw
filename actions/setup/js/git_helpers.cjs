@@ -133,15 +133,15 @@ function getGitHubHost() {
 /**
  * Build environment variables for a `gh` CLI exec call with the correct GH_HOST.
  *
- * Spreads process.env and overrides GH_HOST with the real GitHub hostname
- * derived from GITHUB_SERVER_URL. Use this for any `gh` CLI call that needs
- * to bypass a DIFC proxy GH_HOST override.
+ * Spreads process.env and any additional environment variables, then enforces
+ * GH_HOST to the real GitHub hostname derived from GITHUB_SERVER_URL. Use this
+ * for any `gh` CLI call that needs to bypass a DIFC proxy GH_HOST override.
  *
  * @param {Object} [extraEnv] - Additional environment variables to set (e.g. { GH_TOKEN: token })
  * @returns {Object} Environment object suitable for exec.exec options
  */
 function getGhEnv(extraEnv) {
-  return { ...process.env, GH_HOST: getGitHubHost(), ...extraEnv };
+  return { ...process.env, ...extraEnv, GH_HOST: getGitHubHost() };
 }
 
 module.exports = {
