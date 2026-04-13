@@ -540,6 +540,12 @@ check_cache_integrity_branches() {
         failed=1
     fi
     
+    # Per spec CI9: merge failure must abort and exit with non-zero status
+    if ! grep -qE "merge.*abort|abort.*merge|exit.*\$|exit [0-9]" "$setup_script"; then
+        log_high "CI-002: Setup script missing merge failure abort/exit handling (CI9)"
+        failed=1
+    fi
+    
     # Per spec CI11: commit script must invoke git gc --auto for compaction
     if [ -f "$commit_script" ]; then
         if ! grep -q "git gc" "$commit_script"; then
@@ -561,6 +567,133 @@ check_cache_integrity_branches() {
     fi
 }
 check_cache_integrity_branches
+
+# MCE-003: Constraint Limit Consistency (Section 8.3 MCE5)
+echo "Running MCE-003: Constraint Limit Consistency..."
+check_mce_constraint_consistency() {
+    local tools_json="pkg/workflow/js/safe_outputs_tools.json"
+    local helpers_file="actions/setup/js/comment_limit_helpers.cjs"
+    local failed=0
+
+    if [ ! -f "$helpers_file" ]; then
+        log_high "MCE-003: Constraint helper module missing: $helpers_file"
+        return
+    fi
+    if [ ! -f "$tools_json" ]; then
+        log_high "MCE-003: Tool definitions file missing: $tools_json"
+        return
+    fi
+
+    # Per spec Section 8.3 MCE5: limits in tool descriptions MUST match enforcement code.
+    # Extract the declared limits from comment_limit_helpers.cjs and verify they appear
+    # verbatim in the tools JSON, ensuring both layers agree on the constraint values.
+
+    # Check body length limit (65536) appears in both files
+    if ! grep -q "65536" "$helpers_file"; then
+        log_high "MCE-003: MAX_COMMENT_LENGTH (65536) not found in $helpers_file"
+        failed=1
+    fi
+    if ! grep -q "65536" "$tools_json"; then
+        log_high "MCE-003: 65536 character limit not found in $tools_json"
+        failed=1
+    fi
+
+    # Check mention limit (10) appears in both files
+    if ! grep -qE "MAX_MENTIONS\s*=\s*10|max.*mention.*10|10.*mention" "$helpers_file"; then
+        log_high "MCE-003: MAX_MENTIONS (10) not declared in $helpers_file"
+        failed=1
+    fi
+    if ! grep -qiE "10 mention|mention.*10" "$tools_json"; then
+        log_high "MCE-003: 10-mention limit not found in $tools_json"
+        failed=1
+    fi
+
+    # Check link limit (50) appears in both files
+    if ! grep -qE "MAX_LINKS\s*=\s*50|max.*link.*50|50.*link" "$helpers_file"; then
+        log_high "MCE-003: MAX_LINKS (50) not declared in $helpers_file"
+        failed=1
+    fi
+    if ! grep -qiE "50 link|link.*50" "$tools_json"; then
+        log_high "MCE-003: 50-link limit not found in $tools_json"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "MCE-003: Constraint limits are consistent between tool descriptions and enforcement code"
+    fi
+}
+check_mce_constraint_consistency
+
+# CI-003: Policy Hash and Nopolicy Sentinel (Section 11.4 CI3, CI4)
+echo "Running CI-003: Policy Hash and Nopolicy Sentinel..."
+check_policy_hash_implementation() {
+    local cache_integrity_file="pkg/workflow/cache_integrity.go"
+    local failed=0
+
+    # Per spec Section 11.4 CI3: policy hash MUST be SHA-256, first 8 chars of lowercase hex
+    # Per spec Section 11.4 CI4: workflows without policy MUST use "nopolicy" sentinel
+    if [ ! -f "$cache_integrity_file" ]; then
+        log_high "CI-003: Cache integrity implementation missing: $cache_integrity_file"
+        return
+    fi
+
+    # Check SHA-256 is used for policy hash computation (CI3)
+    if ! grep -q "sha256\|crypto/sha256" "$cache_integrity_file"; then
+        log_high "CI-003: SHA-256 not used for policy hash computation (CI3)"
+        failed=1
+    fi
+
+    # Check nopolicy sentinel constant exists (CI4)
+    if ! grep -q "nopolicy\|noPolicySentinel" "$cache_integrity_file"; then
+        log_high "CI-003: 'nopolicy' sentinel not found in cache integrity implementation (CI4)"
+        failed=1
+    fi
+
+    # Check that the 8-character prefix is taken (CI3: first 8 chars of lowercase hex)
+    if ! grep -qE "\[:8\]|first.*8|8.*char|hex\[:8\]" "$cache_integrity_file"; then
+        log_medium "CI-003: 8-character hash prefix truncation not evident in $cache_integrity_file (CI3)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "CI-003: Policy hash uses SHA-256 with nopolicy sentinel as required"
+    fi
+}
+check_policy_hash_implementation
+
+# CI-004: .git Directory Exclusion from Cache Memory Validation (Section 11.5 CI5)
+echo "Running CI-004: .git Directory Exclusion from Validation..."
+check_git_dir_exclusion() {
+    local setup_script="actions/setup/sh/setup_cache_memory_git.sh"
+    local failed=0
+
+    # Per spec Section 11.5 CI5: file validation steps MUST skip the .git directory.
+    # The .git directory contains binary/extension-less files not managed by the agent.
+
+    if [ ! -f "$setup_script" ]; then
+        log_medium "CI-004: Setup script missing — skipping .git exclusion check"
+        return
+    fi
+
+    # Check that .git is referenced in the context of exclusion or skip logic
+    if ! grep -qE "\.git|git_dir|skip.*\.git|exclude.*git|prune.*git" "$setup_script"; then
+        log_medium "CI-004: Setup script does not reference .git exclusion (CI5)"
+        failed=1
+    fi
+
+    # Check compiled workflow lock files: cache-memory file validation should skip .git
+    if find .github/workflows -name "*.lock.yml" | xargs grep -l "cache-memory\|GH_AW_CACHE_MEMORY" 2>/dev/null | \
+        xargs grep -l "validate\|allowed.*ext\|file.*check" 2>/dev/null | \
+        xargs grep -qv "\.git\|skip.*git" 2>/dev/null; then
+        log_low "CI-004: Some cache-memory workflow lock files may not exclude .git in validation (CI5)"
+        # Not failing here — informational only as implementation details vary
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "CI-004: .git directory exclusion from validation is present"
+    fi
+}
+check_git_dir_exclusion
 
 # Summary
 echo ""
