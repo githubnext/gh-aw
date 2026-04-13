@@ -404,6 +404,64 @@ describe("upload_artifact.cjs", () => {
     });
   });
 
+  describe("temporary_id field", () => {
+    it("uses declared temporary_id from message when valid", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "aw_chart1" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBe("aw_chart1");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", "aw_chart1");
+    });
+
+    it("normalises declared temporary_id to lowercase", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "aw_CHART1" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBe("aw_chart1");
+    });
+
+    it("strips leading '#' from declared temporary_id", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "#aw_chart1" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBe("aw_chart1");
+    });
+
+    it("generates a random ID when temporary_id is not provided", async () => {
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+    });
+
+    it("generates a random ID and emits warning when temporary_id format is invalid", async () => {
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", temporary_id: "bad-format" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("invalid temporary_id format"));
+    });
+
+    it("uses declared temporary_id in resolver file", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "aw_chart1" }]);
+
+      const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
+      expect(resolver["aw_chart1"]).toBe("chart.png");
+    });
+  });
+
   describe("auto-copy from outside staging directory", () => {
     const WORKSPACE_DIR = "/tmp/gh-aw-test-workspace";
 

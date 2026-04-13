@@ -565,6 +565,77 @@ describe("temporary_id.cjs", () => {
       const text = "See #aw_abc123, #aw_test123, and #aw_xyz9";
       expect(hasUnresolvedTemporaryIds(text, map)).toBe(true);
     });
+
+    it("should treat ID as resolved when present in artifactUrlMap", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const tempIdMap = new Map();
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "![chart](#aw_chart1)";
+      expect(hasUnresolvedTemporaryIds(text, tempIdMap, artifactUrlMap)).toBe(false);
+    });
+
+    it("should still detect unresolved ID when not in either map", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const tempIdMap = new Map([["aw_issue1", { repo: "owner/repo", number: 1 }]]);
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "See #aw_issue1 and ![chart](#aw_chart1) and #aw_unknown";
+      expect(hasUnresolvedTemporaryIds(text, tempIdMap, artifactUrlMap)).toBe(true);
+    });
+
+    it("should return false when all IDs are covered across both maps", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const tempIdMap = new Map([["aw_issue1", { repo: "owner/repo", number: 1 }]]);
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "See #aw_issue1 and ![chart](#aw_chart1)";
+      expect(hasUnresolvedTemporaryIds(text, tempIdMap, artifactUrlMap)).toBe(false);
+    });
+  });
+
+  describe("replaceArtifactUrlReferences", () => {
+    it("should replace #aw_ID with the artifact URL", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "![chart](#aw_chart1)";
+      expect(replaceArtifactUrlReferences(text, artifactUrlMap)).toBe("![chart](https://github.com/owner/repo/actions/runs/1/artifacts/42)");
+    });
+
+    it("should be case-insensitive for the temporary ID", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "![chart](#aw_Chart1)";
+      expect(replaceArtifactUrlReferences(text, artifactUrlMap)).toBe("![chart](https://github.com/owner/repo/actions/runs/1/artifacts/42)");
+    });
+
+    it("should leave non-artifact temporary IDs unchanged", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "See #aw_issue1 and ![chart](#aw_chart1)";
+      expect(replaceArtifactUrlReferences(text, artifactUrlMap)).toBe("See #aw_issue1 and ![chart](https://github.com/owner/repo/actions/runs/1/artifacts/42)");
+    });
+
+    it("should handle multiple artifact references in the same text", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map([
+        ["aw_img1", "https://github.com/owner/repo/actions/runs/1/artifacts/10"],
+        ["aw_img2", "https://github.com/owner/repo/actions/runs/1/artifacts/20"],
+      ]);
+      const text = "![before](#aw_img1) and ![after](#aw_img2)";
+      expect(replaceArtifactUrlReferences(text, artifactUrlMap)).toBe("![before](https://github.com/owner/repo/actions/runs/1/artifacts/10) and ![after](https://github.com/owner/repo/actions/runs/1/artifacts/20)");
+    });
+
+    it("should return text unchanged when artifactUrlMap is empty", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map();
+      const text = "![chart](#aw_chart1)";
+      expect(replaceArtifactUrlReferences(text, artifactUrlMap)).toBe(text);
+    });
+
+    it("should return text unchanged when artifactUrlMap is null/undefined", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const text = "![chart](#aw_chart1)";
+      expect(replaceArtifactUrlReferences(text, null)).toBe(text);
+      expect(replaceArtifactUrlReferences(text, undefined)).toBe(text);
+    });
   });
 
   describe("replaceTemporaryProjectReferences", () => {

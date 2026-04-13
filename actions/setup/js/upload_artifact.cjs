@@ -37,6 +37,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Staging directory where the model places files to be uploaded.
@@ -62,6 +63,34 @@ function generateTemporaryArtifactId() {
     id += chars[Math.floor(Math.random() * chars.length)];
   }
   return id;
+}
+
+/**
+ * Resolve the temporary artifact ID from an upload_artifact message.
+ * If the message declares a valid `temporary_id`, that value is used (normalised to lowercase).
+ * Otherwise a random ID is generated.
+ *
+ * Honouring `message.temporary_id` is essential for topological ordering: when an agent
+ * declares a `temporary_id` on the `upload_artifact` message and then embeds `#aw_ID` in a
+ * subsequent message body, the dependency graph built by the topological sort can order
+ * the upload before the referencing message, and the handler manager can replace the
+ * reference with the resolved artifact URL.
+ *
+ * @param {Record<string, any>} message - The upload_artifact message from the model
+ * @returns {string} The temporary artifact ID to use for this upload
+ */
+function resolveTemporaryArtifactId(message) {
+  const declared = message.temporary_id;
+  if (declared && typeof declared === "string") {
+    const normalized = declared.trim().startsWith("#") ? declared.trim().substring(1).trim() : declared.trim();
+    if (isTemporaryId(normalized)) {
+      return normalizeTemporaryId(normalized);
+    }
+    if (typeof core !== "undefined") {
+      core.warning(`upload_artifact: invalid temporary_id format '${declared}'. ` + `Temporary IDs must be 'aw_' followed by 3–12 alphanumeric or underscore characters. ` + `A random ID will be generated instead.`);
+    }
+  }
+  return generateTemporaryArtifactId();
 }
 
 /**
@@ -491,7 +520,7 @@ async function main(config = {}) {
 
     // Derive artifact name and generate temporary ID.
     const artifactName = deriveArtifactName(message, i);
-    const tmpId = generateTemporaryArtifactId();
+    const tmpId = resolveTemporaryArtifactId(message);
     resolver[tmpId] = artifactName;
 
     core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
