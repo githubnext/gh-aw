@@ -54,12 +54,13 @@ function isValidServerName(name) {
 /**
  * Escape a string for safe embedding inside double-quoted shell strings.
  * Handles the characters that are special inside double quotes: $ ` \ " !
+ * Also strips newlines and carriage returns to prevent line injection.
  *
  * @param {string} str - Raw string
  * @returns {string} Escaped string safe for use inside double-quoted shell strings
  */
 function shellEscapeDoubleQuoted(str) {
-  return str.replace(/[\\"$`!]/g, "\\$&");
+  return str.replace(/[\r\n]/g, "").replace(/[\\"$`!]/g, "\\$&");
 }
 
 /**
