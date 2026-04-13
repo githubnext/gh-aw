@@ -386,15 +386,15 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.sh
+    node ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.cjs
     ;;
   codex)
     echo "Using Codex converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.sh
+    node ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.cjs
     ;;
   claude)
     echo "Using Claude converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.sh
+    node ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.cjs
     ;;
   gemini)
     echo "Using Gemini converter..."

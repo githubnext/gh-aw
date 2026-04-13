@@ -110,7 +110,7 @@ func renderStandardJSONMCPConfig(
 	//   1. The CLI manifest (saved by start_mcp_gateway.sh) includes them.
 	//   2. mount_mcp_as_cli.cjs can query their tool lists and create wrappers.
 	// Exclusion from the agent's final MCP config happens inside each
-	// convert_gateway_config_*.sh script via GH_AW_MCP_CLI_SERVERS.
+	// convert_gateway_config_*.cjs script via GH_AW_MCP_CLI_SERVERS.
 
 	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    configPath,

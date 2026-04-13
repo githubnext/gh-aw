@@ -42,12 +42,6 @@ mcpscripts --help                                  # list all script tools
 mcpscripts mcpscripts-gh --args "pr list --repo owner/repo --limit 5"
 ```
 
-**Example** — using a custom server CLI:
-```bash
-tavily --help                                      # list all tools
-tavily search --query "latest AI news"             # call a tool
-```
-
 ### Notes
 
 - All parameters are passed as `--name value` pairs; boolean flags can be set with `--flag` (no value) to mean `true`

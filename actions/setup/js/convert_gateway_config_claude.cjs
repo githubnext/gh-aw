@@ -1,0 +1,105 @@
+// @ts-check
+"use strict";
+
+/**
+ * convert_gateway_config_claude.cjs
+ *
+ * Converts the MCP gateway's standard HTTP-based configuration to the JSON
+ * format expected by Claude. Reads the gateway output JSON, filters out
+ * CLI-mounted servers, sets type:"http", rewrites URLs to use the correct
+ * domain, and writes the result to /tmp/gh-aw/mcp-config/mcp-servers.json.
+ *
+ * Required environment variables:
+ * - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
+ * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
+ * - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
+ *
+ * Optional:
+ * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
+ */
+
+const fs = require("fs");
+const path = require("path");
+
+const OUTPUT_PATH = "/tmp/gh-aw/mcp-config/mcp-servers.json";
+
+/**
+ * Rewrite a gateway URL to use the configured domain and port.
+ * Replaces http://<anything>/mcp/ with http://<domain>:<port>/mcp/.
+ *
+ * @param {string} url - Original URL from gateway output
+ * @param {string} urlPrefix - Target URL prefix (e.g., http://host.docker.internal:80)
+ * @returns {string} Rewritten URL
+ */
+function rewriteUrl(url, urlPrefix) {
+  return url.replace(/^http:\/\/[^/]+\/mcp\//, `${urlPrefix}/mcp/`);
+}
+
+function main() {
+  const gatewayOutput = process.env.MCP_GATEWAY_OUTPUT;
+  const domain = process.env.MCP_GATEWAY_DOMAIN;
+  const port = process.env.MCP_GATEWAY_PORT;
+
+  if (!gatewayOutput) {
+    console.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
+    process.exit(1);
+  }
+  if (!fs.existsSync(gatewayOutput)) {
+    console.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
+    process.exit(1);
+  }
+  if (!domain) {
+    console.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
+    process.exit(1);
+  }
+  if (!port) {
+    console.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
+    process.exit(1);
+  }
+
+  console.log("Converting gateway configuration to Claude format...");
+  console.log(`Input: ${gatewayOutput}`);
+  console.log(`Target domain: ${domain}:${port}`);
+
+  const urlPrefix = `http://${domain}:${port}`;
+
+  /** @type {Set<string>} */
+  const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+
+  /** @type {Record<string, unknown>} */
+  const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
+  const servers = /** @type {Record<string, Record<string, unknown>>} */ config.mcpServers || {};
+
+  /** @type {Record<string, Record<string, unknown>>} */
+  const result = {};
+  for (const [name, value] of Object.entries(servers)) {
+    if (cliServers.has(name)) continue;
+    const entry = { ...value };
+    // Claude uses "type": "http" for HTTP-based MCP servers
+    entry.type = "http";
+    // Fix the URL to use the correct domain
+    if (typeof entry.url === "string") {
+      entry.url = rewriteUrl(entry.url, urlPrefix);
+    }
+    result[name] = entry;
+  }
+
+  const output = JSON.stringify({ mcpServers: result }, null, 2);
+
+  // Ensure output directory exists
+  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+
+  // Write with owner-only permissions (0o600) to protect the gateway bearer token.
+  // An attacker who reads mcp-servers.json could bypass --allowed-tools by issuing
+  // raw JSON-RPC calls directly to the gateway.
+  fs.writeFileSync(OUTPUT_PATH, output, { mode: 0o600 });
+
+  console.log(`Claude configuration written to ${OUTPUT_PATH}`);
+  console.log("");
+  console.log("Converted configuration:");
+  console.log(output);
+}
+
+main();
+
+module.exports = { rewriteUrl };
