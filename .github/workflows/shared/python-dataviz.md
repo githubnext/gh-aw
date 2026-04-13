@@ -69,15 +69,6 @@ steps:
       
       echo "All scientific libraries installed successfully"
 
-  - name: Upload charts
-    if: always()
-    uses: actions/upload-artifact@v7
-    with:
-      name: data-charts
-      path: /tmp/gh-aw/python/charts/*.png
-      if-no-files-found: warn
-      retention-days: 30
-
   - name: Upload source files and data
     if: always()
     uses: actions/upload-artifact@v7
@@ -322,19 +313,21 @@ if missing:
 
 ## Artifact Upload
 
-Charts and source files are automatically uploaded as artifacts:
+Chart images are uploaded individually via the `upload_artifact` safe-output tool with `skip-archive: true`. Each image is stored as an individual file and the tool returns a direct artifact URL for inline rendering.
 
-**Charts Artifact:**
-- Name: `data-charts`
-- Contents: PNG files from `/tmp/gh-aw/python/charts/`
+**Chart Image Upload:**
+- Tool: `upload_artifact` (safe-output)
+- Config: `skip-archive: true`, up to 5 uploads per run
+- Allowed: PNG, JPG, SVG files
 - Retention: 30 days
+- Returns: `slot_N_artifact_url` with direct link
 
 **Source and Data Artifact:**
 - Name: `python-source-and-data`
 - Contents: Python scripts and data files
 - Retention: 30 days
 
-Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+Source and data files are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
 
 ## Tips for Success
 

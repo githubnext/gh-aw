@@ -394,14 +394,6 @@ jobs:
       - name: Install Python scientific libraries
         run: "# Create a virtual environment for proper package isolation (avoids --break-system-packages)\nif [ ! -d /tmp/gh-aw/venv ]; then\n  python3 -m venv /tmp/gh-aw/venv\nfi\necho \"/tmp/gh-aw/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\n/tmp/gh-aw/venv/bin/python3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\n/tmp/gh-aw/venv/bin/python3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\n/tmp/gh-aw/venv/bin/python3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\n/tmp/gh-aw/venv/bin/python3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\n/tmp/gh-aw/venv/bin/python3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
-        name: Upload charts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          if-no-files-found: warn
-          name: data-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
         name: Upload source files and data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
