@@ -645,15 +645,15 @@ func TestMCPGSupportsIntegrityReactions(t *testing.T) {
 		want          bool
 	}{
 		{
-			name:          "nil gateway config uses default (v0.2.17, below min)",
+			name:          "nil gateway config uses default (v0.2.19, above min)",
 			gatewayConfig: nil,
-			// DefaultMCPGatewayVersion = "v0.2.17" < MCPGIntegrityReactionsMinVersion = "v0.2.18"
-			want: false,
+			// DefaultMCPGatewayVersion = "v0.2.19" >= MCPGIntegrityReactionsMinVersion = "v0.2.18"
+			want: true,
 		},
 		{
-			name:          "empty version uses default (v0.2.17, below min)",
+			name:          "empty version uses default (v0.2.19, above min)",
 			gatewayConfig: &MCPGatewayRuntimeConfig{Container: "ghcr.io/test/mcpg"},
-			want:          false,
+			want:          true,
 		},
 		{
 			name: "version exactly at minimum (v0.2.18)",
