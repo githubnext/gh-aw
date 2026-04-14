@@ -15,6 +15,13 @@
  *     any partial-execution failure is retried — not just CAPIError 400.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
+ *   - "No authentication information found" errors are non-retryable: the absent token will
+ *     remain absent on every subsequent attempt.  The driver also applies an auth-token
+ *     fallback before each spawn: if COPILOT_GITHUB_TOKEN is absent or empty, GITHUB_TOKEN
+ *     (the standard GitHub Actions token, always forwarded into the container) is tried next,
+ *     then GH_TOKEN.  This prevents auth failures when COPILOT_GITHUB_TOKEN has been
+ *     excluded from the container environment (e.g. by AWF's --exclude-env) while the
+ *     standard GITHUB_TOKEN is still available.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
@@ -42,6 +49,11 @@ const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+
+// Pattern to detect missing authentication credentials.
+// This error means no auth token is available in the environment; retrying will not help
+// because the missing token will still be absent on every subsequent attempt.
+const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -71,6 +83,54 @@ function isTransientCAPIError(output) {
  */
 function isMCPPolicyError(output) {
   return MCP_POLICY_BLOCKED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a "No authentication information found" error.
+ * This means no auth token (COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN) is available
+ * in the environment.  Retrying will not help because the absent token will remain absent.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNoAuthInfoError(output) {
+  return NO_AUTH_INFO_PATTERN.test(output);
+}
+
+/**
+ * Build the environment object for spawning the copilot subprocess.
+ *
+ * Starts from the current process environment and applies auth token fallback:
+ * if COPILOT_GITHUB_TOKEN is absent or empty, we substitute GITHUB_TOKEN or GH_TOKEN
+ * (whichever is set first).  This ensures the copilot CLI can authenticate on --resume
+ * attempts even when COPILOT_GITHUB_TOKEN was excluded from the container environment
+ * (e.g. by AWF's --exclude-env to prevent the agent from reading the raw token) but the
+ * standard GITHUB_TOKEN Actions token is still forwarded via --env-all.
+ *
+ * Auth token availability is always logged (names only, never values) so that failures
+ * can be diagnosed without exposing secrets in the log.
+ *
+ * @returns {NodeJS.ProcessEnv}
+ */
+function buildSpawnEnv() {
+  const env = { ...process.env };
+
+  const hasTokenValue = /** @param {string} name */ name => typeof env[name] === "string" && env[name].length > 0;
+
+  if (!hasTokenValue("COPILOT_GITHUB_TOKEN")) {
+    if (hasTokenValue("GITHUB_TOKEN")) {
+      env["COPILOT_GITHUB_TOKEN"] = env["GITHUB_TOKEN"];
+      log("auth: COPILOT_GITHUB_TOKEN is absent — using GITHUB_TOKEN as fallback");
+    } else if (hasTokenValue("GH_TOKEN")) {
+      env["COPILOT_GITHUB_TOKEN"] = env["GH_TOKEN"];
+      log("auth: COPILOT_GITHUB_TOKEN is absent — using GH_TOKEN as fallback");
+    } else {
+      log("auth: warning — COPILOT_GITHUB_TOKEN, GITHUB_TOKEN, and GH_TOKEN are all absent or empty; the copilot CLI may fail to authenticate");
+    }
+  } else {
+    log("auth: COPILOT_GITHUB_TOKEN is set");
+  }
+
+  return env;
 }
 
 /**
@@ -138,7 +198,7 @@ function runProcess(command, args, attempt) {
 
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
-      env: process.env,
+      env: buildSpawnEnv(),
     });
 
     log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);
@@ -244,14 +304,31 @@ async function main() {
     // Retry whenever the session was partially executed (hasOutput), using --resume so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
     // transient case, but any partial-execution failure is eligible for a resume retry.
-    // Exception: MCP policy errors are persistent configuration issues — never retry.
+    // Exceptions: MCP policy errors and auth errors are persistent — never retry.
     const isCAPIError = isTransientCAPIError(result.output);
     const isMCPPolicy = isMCPPolicyError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` isMCPPolicyError=${isMCPPolicy}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const isAuthErr = isNoAuthInfoError(result.output);
+    log(
+      `attempt ${attempt + 1} failed:` +
+        ` exitCode=${result.exitCode}` +
+        ` isCAPIError400=${isCAPIError}` +
+        ` isMCPPolicyError=${isMCPPolicy}` +
+        ` isAuthError=${isAuthErr}` +
+        ` hasOutput=${result.hasOutput}` +
+        ` retriesRemaining=${MAX_RETRIES - attempt}`
+    );
 
     // MCP policy errors are persistent — retrying will not help.
     if (isMCPPolicy) {
       log(`attempt ${attempt + 1}: MCP servers blocked by policy — not retrying (this is a policy configuration issue, not a transient error)`);
+      break;
+    }
+
+    // Auth errors are persistent for the duration of the job — retrying will not help.
+    // "No authentication information found" means COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
+    // are all absent or invalid.  Retrying with --resume will produce the same auth failure.
+    if (isAuthErr) {
+      log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
       break;
     }
 

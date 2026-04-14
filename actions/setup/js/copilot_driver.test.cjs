@@ -141,6 +141,140 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
+  describe("no-auth-info detection pattern", () => {
+    const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+
+    it("matches the exact error from the issue report", () => {
+      const errorOutput =
+        "Error: No authentication information found.\n" +
+        "Copilot can be authenticated with GitHub using an OAuth Token or a Fine-Grained Personal Access Token.\n" +
+        "To authenticate, you can use any of the following methods:\n" +
+        "  - Start 'copilot' and run the '/login' command\n" +
+        "  - Set the COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN environment variable\n" +
+        "  - Run 'gh auth login' to authenticate with the GitHub CLI";
+      expect(NO_AUTH_INFO_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches when embedded in larger output after a long run", () => {
+      const output = "Some agent work output\nMore work\nNo authentication information found\nEnd";
+      expect(NO_AUTH_INFO_PATTERN.test(output)).toBe(true);
+    });
+
+    it("does not match unrelated auth errors", () => {
+      expect(NO_AUTH_INFO_PATTERN.test("Access denied by policy settings")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("Error: 401 Unauthorized")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("Authentication failed")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("auth error prevents retry", () => {
+    // Inline the same retry logic as the driver, including auth error check
+    const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+    const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @returns {boolean}
+     */
+    function shouldRetry(result, attempt) {
+      if (result.exitCode === 0) return false;
+      // MCP policy errors are persistent — never retry
+      if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
+      // Auth errors are persistent — never retry
+      if (NO_AUTH_INFO_PATTERN.test(result.output)) return false;
+      return attempt < MAX_RETRIES && result.hasOutput;
+    }
+
+    it("does not retry when auth fails on first attempt (no real work done)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when auth fails on a --resume attempt (the reported bug scenario)", () => {
+      // This replicates the issue: attempt 1 ran for 39 min then failed,
+      // attempt 2 (--resume) fails with auth error — should not retry attempts 3 & 4.
+      const resumeResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(resumeResult, 1)).toBe(false);
+      expect(shouldRetry(resumeResult, 2)).toBe(false);
+      expect(shouldRetry(resumeResult, 3)).toBe(false);
+    });
+
+    it("does not retry auth error even when output is mixed with other content", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Some output\nError: No authentication information found.\nMore output" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("still retries non-auth errors with output (CAPIError 400)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+
+    it("still retries generic partial-execution errors with output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Failed to get response from the AI model; retried 5 times" };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+  });
+
+  describe("auth token fallback (buildSpawnEnv logic)", () => {
+    // Inline the same logic as buildSpawnEnv() for unit testing without side effects.
+    /**
+     * @param {Record<string, string>} env - Simulated environment
+     * @returns {{ COPILOT_GITHUB_TOKEN?: string, warning?: string }}
+     */
+    function applyAuthFallback(env) {
+      const result = { ...env };
+      const hasTokenValue = /** @param {string} name */ name => typeof result[name] === "string" && result[name].length > 0;
+
+      if (!hasTokenValue("COPILOT_GITHUB_TOKEN")) {
+        if (hasTokenValue("GITHUB_TOKEN")) {
+          result["COPILOT_GITHUB_TOKEN"] = result["GITHUB_TOKEN"];
+        } else if (hasTokenValue("GH_TOKEN")) {
+          result["COPILOT_GITHUB_TOKEN"] = result["GH_TOKEN"];
+        }
+      }
+      return result;
+    }
+
+    it("passes COPILOT_GITHUB_TOKEN unchanged when already set", () => {
+      const result = applyAuthFallback({ COPILOT_GITHUB_TOKEN: "ghs_secret" });
+      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_secret");
+    });
+
+    it("falls back to GITHUB_TOKEN when COPILOT_GITHUB_TOKEN is absent", () => {
+      const result = applyAuthFallback({ GITHUB_TOKEN: "ghs_actions_token" });
+      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_actions_token");
+    });
+
+    it("falls back to GH_TOKEN when both COPILOT_GITHUB_TOKEN and GITHUB_TOKEN are absent", () => {
+      const result = applyAuthFallback({ GH_TOKEN: "ghp_pat_token" });
+      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghp_pat_token");
+    });
+
+    it("prefers GITHUB_TOKEN over GH_TOKEN when both are present", () => {
+      const result = applyAuthFallback({ GITHUB_TOKEN: "ghs_actions", GH_TOKEN: "ghp_pat" });
+      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_actions");
+    });
+
+    it("leaves COPILOT_GITHUB_TOKEN unset when all auth tokens are absent", () => {
+      const result = applyAuthFallback({});
+      expect(result.COPILOT_GITHUB_TOKEN).toBeUndefined();
+    });
+
+    it("treats empty-string COPILOT_GITHUB_TOKEN as absent and applies fallback", () => {
+      const result = applyAuthFallback({ COPILOT_GITHUB_TOKEN: "", GITHUB_TOKEN: "ghs_actions" });
+      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_actions");
+    });
+
+    it("does not overwrite a valid COPILOT_GITHUB_TOKEN with a fallback", () => {
+      const result = applyAuthFallback({ COPILOT_GITHUB_TOKEN: "ghs_original", GITHUB_TOKEN: "ghs_actions" });
+      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_original");
+    });
+  });
+
   describe("retry configuration", () => {
     it("has sensible default values", () => {
       // These match the constants in copilot_driver.cjs
