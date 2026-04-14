@@ -1500,6 +1500,8 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_SHA",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
+    "GH_AW_INFO_WORKFLOW_NAME",
+    "GITHUB_WORKFLOW",
   ];
   let mkdirSpy, appendSpy;
 
@@ -1582,6 +1584,75 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
     expect(attrs["gh-aw.run.attempt"]).toBe("1");
+  });
+
+  it("reads gh-aw.workflow.name from aw_info.json when present", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_INFO_WORKFLOW_NAME = "env-workflow";
+    process.env.GITHUB_WORKFLOW = "github-workflow";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ workflow_name: "aw-info-workflow" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("aw-info-workflow");
+  });
+
+  it("falls back to GH_AW_INFO_WORKFLOW_NAME when aw_info.json is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_INFO_WORKFLOW_NAME = "env-workflow";
+    process.env.GITHUB_WORKFLOW = "github-workflow";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("env-workflow");
+  });
+
+  it("falls back to GITHUB_WORKFLOW when aw_info.json and GH_AW_INFO_WORKFLOW_NAME are absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_WORKFLOW = "github-workflow";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("github-workflow");
+  });
+
+  it("sets gh-aw.workflow.name to empty string when all sources are absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("");
   });
 
   it("includes effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is set", async () => {
