@@ -252,11 +252,12 @@ engine: copilot  # sensible defaults
 
 # MCP Servers Configuration
 
+<!-- agent: do not add 'users' to the toolsets comment; the slide intentionally omits it for brevity -->
 ```yaml
 # GitHub MCP (recommended: use toolsets)
 tools:
   github:
-    toolsets: [default]  # context, repos, issues, pull_requests, users
+    toolsets: [default]  # context, repos, issues, pull_requests
 
 # Custom MCP servers
 mcp-servers:
