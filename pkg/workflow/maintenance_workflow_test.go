@@ -290,7 +290,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	const runOpSectionSearchRange = 500
 
 	// Jobs that should be disabled when any non-dedicated operation is set (cleanup-cache-memory has its own dedicated operation)
-	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "secret-validation:", "zizmor-scan:"}
+	disabledJobs := []string{"close-expired-entities:", "compile-workflows:", "secret-validation:"}
 	for _, job := range disabledJobs {
 		// Find the if: condition for each job
 		jobIdx := strings.Index(yaml, "\n  "+job)

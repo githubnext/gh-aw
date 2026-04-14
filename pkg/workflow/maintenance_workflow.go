@@ -615,30 +615,6 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
-  zizmor-scan:
-    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
-    runs-on: ` + runsOnValue + `
-    needs: compile-workflows
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Build gh-aw
-        run: make build
-
-      - name: Run zizmor security scanner
-        run: |
-          ./gh-aw compile --zizmor --verbose
-          echo "✓ Zizmor security scan completed"
-
   secret-validation:
     if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
