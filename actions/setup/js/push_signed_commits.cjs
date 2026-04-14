@@ -110,9 +110,12 @@ function unquoteCPath(s) {
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
   // Collect the commits introduced (oldest-first) using topological order to ensure
-  // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date)
-  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
-  const shas = revListOut.trim().split("\n").filter(Boolean);
+  // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date).
+  // Using --parents emits each line as "<sha> <parent1> [<parent2> ...]", which lets us detect merge commits
+  // (more than one parent) in a single subprocess call without iterating each SHA individually.
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
+  const revListLines = revListOut.trim().split("\n").filter(Boolean);
+  const shas = revListLines.map(line => line.split(" ")[0]);
 
   if (shas.length === 0) {
     core.info("pushSignedCommits: no new commits to push via GraphQL");
@@ -122,13 +125,14 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
 
   try {
-    // Pre-flight check: detect merge commits (more than one parent). The GraphQL
-    // createCommitOnBranch mutation does not support multiple parents, so fall back
+    // Pre-flight check: detect merge commits. Each --parents output line is "<sha> <parent1> [<parent2> ...]".
+    // A line with 3+ space-separated fields means the commit has 2+ parents (i.e. a merge commit).
+    // The GitHub GraphQL createCommitOnBranch mutation does not support multiple parents, so fall back
     // to git push for the entire series if any merge commit is found.
-    for (const sha of shas) {
-      const { stdout: catFileOut } = await exec.getExecOutput("git", ["cat-file", "-p", sha], { cwd });
-      const parentCount = (catFileOut.match(/^parent /gm) || []).length;
-      if (parentCount > 1) {
+    for (const line of revListLines) {
+      const fields = line.split(" ");
+      if (fields.length > 2) {
+        const sha = fields[0];
         core.warning(`pushSignedCommits: merge commit ${sha} detected, falling back to git push`);
         throw new Error("merge commit detected");
       }
