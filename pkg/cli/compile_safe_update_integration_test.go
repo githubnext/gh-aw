@@ -90,11 +90,12 @@ func manifestLockFileWithSecret(secretName string) string {
 	)
 }
 
-// TestSafeUpdateWarnOnNewSecretOnFirstCompile verifies that --safe-update emits a
-// warning (not an error) when a first compilation introduces a non-GITHUB_TOKEN
-// secret and no prior manifest exists.  The compilation must succeed and the lock
-// file must be written so that the agent receives the actionable warning.
-func TestSafeUpdateWarnsOnNewSecretOnFirstCompile(t *testing.T) {
+// TestSafeUpdateFirstCompileCreatesBaseline verifies that the first compilation
+// (with no prior manifest) still enforces safe update mode and emits a
+// SECURITY REVIEW REQUIRED warning so agents review newly introduced secrets.
+// The compile itself succeeds (warnings do not fail the build) and the lock file
+// written with the manifest serves as the baseline for future compilations.
+func TestSafeUpdateFirstCompileCreatesBaseline(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -102,28 +103,33 @@ func TestSafeUpdateWarnsOnNewSecretOnFirstCompile(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// First compile with no prior lock file: should succeed but emit safe update
+	// warnings because the agent must review newly introduced secrets.
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	// Compilation must succeed (warning, not error)
-	assert.NoError(t, err, "compile should succeed in safe update mode (violation emits warning, not error)\nOutput:\n%s", outputStr)
-	// Warning must reference the violation and request a security review
-	assert.Contains(t, outputStr, "safe update mode", "output should mention safe update mode")
-	assert.Contains(t, outputStr, "MY_API_SECRET", "warning should name the offending secret")
-	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED", "warning should request a security review")
-	// Lock file must still be written
+	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
+	// Safe update warning must be emitted even on first compile so the agent reviews secrets.
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
+	// Lock file must be written with the manifest baseline
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-secret.lock.yml")
-	_, statErr := os.Stat(lockFilePath)
-	assert.NoError(t, statErr, "lock file should be written even when a safe-update warning is emitted")
-	t.Logf("Safe update correctly emitted warning for new secret.\nOutput:\n%s", outputStr)
+	lockContent, readErr := os.ReadFile(lockFilePath)
+	require.NoError(t, readErr, "should read lock file after first compile")
+	assert.Contains(t, string(lockContent), "gh-aw-manifest:",
+		"lock file should contain a gh-aw-manifest header after first compile")
+	assert.Contains(t, string(lockContent), "MY_API_SECRET",
+		"manifest should include the secret from the workflow")
+	t.Logf("First compile correctly created baseline without warnings.\nOutput:\n%s", outputStr)
 }
 
-// TestSafeUpdateWarnOnNewCustomActionOnFirstCompile verifies that --safe-update emits
-// a warning (not an error) when a first compilation introduces a non-actions/* action
-// reference and no prior manifest exists.  Compilation must succeed.
-func TestSafeUpdateWarnsOnNewCustomActionOnFirstCompile(t *testing.T) {
+// TestSafeUpdateFirstCompileCreatesBaselineForActions verifies that the first
+// compilation with a custom action and no prior manifest still enforces safe
+// update mode, emitting a SECURITY REVIEW REQUIRED warning. The compile succeeds
+// (warnings do not fail the build) and the new lock file serves as the baseline.
+func TestSafeUpdateFirstCompileCreatesBaselineForActions(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -131,33 +137,31 @@ func TestSafeUpdateWarnsOnNewCustomActionOnFirstCompile(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithCustomAction), 0o644),
 		"should write workflow file")
 
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// First compile with no prior lock file: should succeed but emit safe update
+	// warning so the agent reviews the newly introduced custom action.
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	// Compilation must succeed (warning, not error)
-	assert.NoError(t, err, "compile should succeed in safe update mode (violation emits warning, not error)\nOutput:\n%s", outputStr)
-	// Warning must reference the violation and request a security review
-	assert.Contains(t, outputStr, "safe update mode", "output should mention safe update mode")
-	assert.Contains(t, outputStr, "my-org/custom-action", "warning should name the offending action")
-	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED", "warning should request a security review")
-	// Lock file must still be written
+	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should emit safe update warnings so the agent reviews newly introduced actions")
+	// Lock file must be written
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-action.lock.yml")
 	_, statErr := os.Stat(lockFilePath)
-	assert.NoError(t, statErr, "lock file should be written even when a safe-update warning is emitted")
-	t.Logf("Safe update correctly emitted warning for new custom action.\nOutput:\n%s", outputStr)
+	assert.NoError(t, statErr, "lock file should be written after first compile")
+	t.Logf("First compile correctly emitted warnings for new action.\nOutput:\n%s", outputStr)
 }
 
-// TestSafeUpdateAllowsKnownSecretWithPriorManifest verifies that --safe-update
-// allows a compilation when the secret is already recorded in the prior manifest
-// embedded in the existing lock file.
+// TestSafeUpdateAllowsKnownSecretWithPriorManifest verifies that safe update
+// enforcement allows a compilation when the secret is already recorded in the
+// prior manifest embedded in the existing lock file.
 //
-// The test uses a two-step approach: first compile without --safe-update to produce
-// a complete lock file with the full manifest (including engine-internal secrets and
-// actions), then compile again with --safe-update. Since nothing changed between the
-// two compilations, no new secrets or actions are introduced and the second compile
-// must succeed.
+// The test uses a two-step approach: first compile to produce a complete lock
+// file with the full manifest (including engine-internal secrets and actions),
+// then compile again. Since nothing changed between the two compilations, no
+// new secrets or actions are introduced and the second compile must succeed.
 func TestSafeUpdateAllowsKnownSecretWithPriorManifest(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -166,13 +170,13 @@ func TestSafeUpdateAllowsKnownSecretWithPriorManifest(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
-	// Step 1: Compile without --safe-update to generate the full lock file + manifest.
+	// Step 1: Compile to generate the full lock file + manifest.
 	// (Engine-internal secrets such as COPILOT_GITHUB_TOKEN are also captured here.)
 	step1Cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	step1Cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	step1Out, step1Err := step1Cmd.CombinedOutput()
 	require.NoError(t, step1Err,
-		"first compilation (no --safe-update) should succeed\nOutput:\n%s", string(step1Out))
+		"first compilation should succeed\nOutput:\n%s", string(step1Out))
 
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-known-secret.lock.yml")
 	lockContent, readErr := os.ReadFile(lockFilePath)
@@ -180,9 +184,9 @@ func TestSafeUpdateAllowsKnownSecretWithPriorManifest(t *testing.T) {
 	require.Contains(t, string(lockContent), "MY_API_SECRET",
 		"lock file manifest should include MY_API_SECRET after first compile")
 
-	// Step 2: Compile the identical workflow with --safe-update. The lock file from
-	// step 1 acts as the prior manifest. Nothing changed, so this must succeed.
-	step2Cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// Step 2: Compile the identical workflow again. The lock file from step 1 acts
+	// as the prior manifest. Nothing changed, so this must succeed without warnings.
+	step2Cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	step2Cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := step2Cmd.CombinedOutput()
 	outputStr := string(output)
@@ -191,14 +195,13 @@ func TestSafeUpdateAllowsKnownSecretWithPriorManifest(t *testing.T) {
 	t.Logf("Safe update correctly allowed known secret.\nOutput:\n%s", outputStr)
 }
 
-// TestSafeUpdateAllowsGitHubTokenOnFirstCompile verifies that --safe-update allows
-// a compilation that introduces no new non-GITHUB_TOKEN secrets compared to a
+// TestSafeUpdateAllowsGitHubTokenOnFirstCompile verifies that safe update enforcement
+// allows a compilation that introduces no new non-GITHUB_TOKEN secrets compared to a
 // previously recorded manifest.
 //
-// Uses a two-step approach: step 1 compiles without --safe-update to record the
-// baseline manifest (which includes engine-internal secrets in release mode); step 2
-// recompiles the same workflow with --safe-update and expects success because the
-// manifest is unchanged.
+// Uses a two-step approach: step 1 compiles to record the baseline manifest (which
+// includes engine-internal secrets in release mode); step 2 recompiles the same
+// workflow and expects success because the manifest is unchanged.
 func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -212,7 +215,7 @@ func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 	step1Cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	step1Out, step1Err := step1Cmd.CombinedOutput()
 	require.NoError(t, step1Err,
-		"first compilation (no --safe-update) should succeed\nOutput:\n%s", string(step1Out))
+		"first compilation should succeed\nOutput:\n%s", string(step1Out))
 
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-basic.lock.yml")
 	lockContent, readErr := os.ReadFile(lockFilePath)
@@ -220,8 +223,8 @@ func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 	require.Contains(t, string(lockContent), "gh-aw-manifest:",
 		"lock file should contain a gh-aw-manifest header after first compile")
 
-	// Step 2: Re-compile with --safe-update. No secrets were added so this must succeed.
-	step2Cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// Step 2: Re-compile. No secrets were added so this must succeed.
+	step2Cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	step2Cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := step2Cmd.CombinedOutput()
 	outputStr := string(output)
@@ -237,8 +240,9 @@ func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 }
 
 // safeUpdateWorkflowNonStrict is a minimal workflow that explicitly opts out of
-// strict mode.  Because safe update mode == strict mode, setting strict: false
-// also disables safe update enforcement, letting new secrets compile freely.
+// strict mode.  Because safe update enforcement follows strict mode, setting
+// strict: false also disables safe update enforcement, letting new secrets
+// compile freely.
 const safeUpdateWorkflowNonStrict = `---
 name: Non Strict Workflow
 on:
@@ -264,7 +268,7 @@ Workflow with strict: false, which also disables safe update enforcement.
 
 // TestSafeUpdateNoFlagAllowsNewSecret verifies that when strict mode is disabled
 // (strict: false in frontmatter) safe update enforcement is also disabled — new
-// secrets compile without any safe-update warning.
+// secrets compile without any safe update warning.
 func TestSafeUpdateNoFlagAllowsNewSecret(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -395,8 +399,8 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithImport), 0o644),
 		"should write workflow file")
 
-	// Compile without --safe-update so we can inspect the manifest freely.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
+	// Compile with --approve so we can inspect the manifest freely without safe update warnings.
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -415,10 +419,12 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 	}
 }
 
-// TestSafeUpdateRejectsNewSecretFromImport verifies that --safe-update emits a warning
-// when the new secret is introduced via an imported workflow rather than directly in
-// the top-level workflow frontmatter.  Compilation must still succeed.
-func TestSafeUpdateWarnsOnNewSecretFromImport(t *testing.T) {
+// TestSafeUpdateFirstCompileCreatesBaselineForImport verifies that the first compilation
+// of a workflow that imports a shared config containing a secret emits a
+// SECURITY REVIEW REQUIRED warning so the agent reviews newly introduced secrets.
+// The compile succeeds (warnings don't fail the build) and the lock file written
+// serves as the baseline for future compilations.
+func TestSafeUpdateFirstCompileCreatesBaselineForImport(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -428,32 +434,27 @@ func TestSafeUpdateWarnsOnNewSecretFromImport(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithImport), 0o644),
 		"should write workflow file")
 
-	// No prior lock file — safe update treats this as an empty manifest.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// No prior lock file — first compile enforces safe update and emits a warning.
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	// Compilation must succeed (warning, not error)
 	assert.NoError(t, err,
-		"compile should succeed (violation emits warning, not error) when import introduces a new secret under --safe-update\nOutput:\n%s", outputStr)
-	assert.Contains(t, outputStr, "safe update mode",
-		"warning should mention safe update mode")
-	assert.Contains(t, outputStr, "SHARED_API_KEY",
-		"warning should name the secret that came from the import")
+		"first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
-		"warning should request a security review")
-	t.Logf("Safe update correctly warned about secret introduced via import.\nOutput:\n%s", outputStr)
+		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
+	t.Logf("First compile correctly emitted warnings for imported secret.\nOutput:\n%s", outputStr)
 }
 
-// TestSafeUpdateAllowsImportedSecretWithPriorManifest verifies that --safe-update
-// allows compilation when the secret introduced by an import is already recorded
-// in the prior lock file's gh-aw-manifest.
+// TestSafeUpdateAllowsImportedSecretWithPriorManifest verifies that safe update
+// enforcement allows compilation when the secret introduced by an import is already
+// recorded in the prior lock file's gh-aw-manifest.
 //
 // The test uses a two-step approach to avoid hard-coding the full set of
 // engine-required secrets in the prior manifest:
-//  1. Compile without --safe-update to produce a lock file with the full manifest.
-//  2. Compile again with --safe-update; the existing lock file (from step 1) acts as
+//  1. Compile to produce a lock file with the full manifest.
+//  2. Compile again; the existing lock file (from step 1) acts as
 //     the prior manifest and the compilation should succeed since no new
 //     secrets or actions are being introduced.
 func TestSafeUpdateAllowsImportedSecretWithPriorManifest(t *testing.T) {
@@ -466,12 +467,12 @@ func TestSafeUpdateAllowsImportedSecretWithPriorManifest(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithImport), 0o644),
 		"should write workflow file")
 
-	// Step 1: Compile without --safe-update to generate the lock file + manifest.
+	// Step 1: Compile to generate the lock file + manifest.
 	step1Cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	step1Cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	step1Out, step1Err := step1Cmd.CombinedOutput()
 	require.NoError(t, step1Err,
-		"first compilation (no --safe-update) should succeed\nOutput:\n%s", string(step1Out))
+		"first compilation should succeed\nOutput:\n%s", string(step1Out))
 
 	// Verify the lock file was created and contains the manifest.
 	lockPath := filepath.Join(setup.workflowsDir, "import-approved.lock.yml")
@@ -480,15 +481,15 @@ func TestSafeUpdateAllowsImportedSecretWithPriorManifest(t *testing.T) {
 	require.Contains(t, string(lockContent), "SHARED_API_KEY",
 		"lock file manifest should include the imported secret after first compile")
 
-	// Step 2: Compile again with --safe-update. The lock file from step 1 serves
-	// as the prior manifest. No new secrets or actions are introduced so this must succeed.
-	step2Cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// Step 2: Compile again. The lock file from step 1 serves as the prior manifest.
+	// No new secrets or actions are introduced so this must succeed.
+	step2Cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	step2Cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	step2Out, step2Err := step2Cmd.CombinedOutput()
 	outputStr := string(step2Out)
 
 	assert.NoError(t, step2Err,
-		"second compilation (with --safe-update) should succeed when imported secret is already in the manifest\nOutput:\n%s", outputStr)
+		"second compilation should succeed when imported secret is already in the manifest\nOutput:\n%s", outputStr)
 	t.Logf("Safe update correctly allowed pre-approved imported secret.\nOutput:\n%s", outputStr)
 }
 
@@ -507,8 +508,8 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 		os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithTransitiveImport), 0o644),
 		"should write workflow file")
 
-	// Compile without --safe-update so we can freely inspect the manifest.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
+	// Compile with --approve so we can freely inspect the manifest without safe update warnings.
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -527,10 +528,12 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 	}
 }
 
-// TestSafeUpdateRejectsTransitivelyImportedSecretOnFirstCompile verifies that
-// --safe-update emits a warning when the new secret is introduced via a transitive
-// import (A imports B, B imports C, C declares the secret).  Compilation must succeed.
-func TestSafeUpdateWarnsOnTransitivelyImportedSecretOnFirstCompile(t *testing.T) {
+// TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport verifies that
+// the first compilation of a workflow with a transitive import chain enforces
+// safe update mode and emits a SECURITY REVIEW REQUIRED warning. The compile
+// succeeds (warnings don't fail the build) and the new lock file serves as
+// the baseline.
+func TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -541,20 +544,15 @@ func TestSafeUpdateWarnsOnTransitivelyImportedSecretOnFirstCompile(t *testing.T)
 		os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithTransitiveImport), 0o644),
 		"should write workflow file")
 
-	// No prior lock file — safe update treats this as an empty manifest.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--safe-update")
+	// No prior lock file — first compile enforces safe update and emits a warning.
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	// Compilation must succeed (warning, not error)
 	assert.NoError(t, err,
-		"compile should succeed (violation emits warning, not error) when a transitive import introduces a new secret under --safe-update\nOutput:\n%s", outputStr)
-	assert.Contains(t, outputStr, "safe update mode",
-		"warning should mention safe update mode")
-	assert.Contains(t, outputStr, "DEEP_NESTED_SECRET",
-		"warning should name the secret that came from the transitive import")
+		"first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
-		"warning should request a security review")
-	t.Logf("Safe update correctly warned about secret from transitive import.\nOutput:\n%s", outputStr)
+		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
+	t.Logf("First compile correctly emitted warnings for transitively imported secret.\nOutput:\n%s", outputStr)
 }

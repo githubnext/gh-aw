@@ -2,7 +2,6 @@
 description: Smoke test to validate --allow-host-service-ports with Redis service container
 on:
   workflow_dispatch:
-  schedule: daily
   status-comment: true
 permissions:
   contents: read

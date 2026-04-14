@@ -156,11 +156,11 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 		compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
 	}
 
-	// Set safe update flag: when set via CLI it force-enables safe update enforcement
-	// independently of the workflow's strict mode setting.
-	compiler.SetSafeUpdate(config.SafeUpdate)
-	if config.SafeUpdate {
-		compileCompilerSetupLog.Print("Safe update mode force-enabled via --safe-update flag: compilations introducing new restricted secrets or unapproved action additions/removals will emit a warning prompt requesting agent review and a PR security note")
+	// Set safe update flag: when set via CLI it disables/skips safe update enforcement
+	// regardless of the workflow's strict mode setting.
+	compiler.SetApprove(config.Approve)
+	if config.Approve {
+		compileCompilerSetupLog.Print("Safe update changes approved via --approve-updates flag: skipping safe update enforcement for new restricted secrets or unapproved action additions/removals")
 	}
 
 	// Set require docker flag: when set, container image validation fails instead of

@@ -1,7 +1,6 @@
 ---
 description: Smoke test workflow that validates Gemini engine functionality twice daily
 on:
-  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]

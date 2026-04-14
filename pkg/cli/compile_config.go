@@ -29,7 +29,7 @@ type CompileConfig struct {
 	Stats                  bool     // Display statistics table sorted by file size
 	FailFast               bool     // Stop at first error instead of collecting all errors
 	ScheduleSeed           string   // Override repository slug used for fuzzy schedule scattering (e.g. owner/repo)
-	SafeUpdate             bool     // Force-enable safe update mode regardless of strict mode setting. Safe update mode is normally equivalent to strict mode (active whenever strict mode is active).
+	Approve                bool     // Approve all safe update changes, skipping safe update enforcement regardless of strict mode setting.
 	ValidateImages         bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
 	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
 }

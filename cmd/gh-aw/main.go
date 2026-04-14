@@ -286,7 +286,7 @@ Examples:
 		failFast, _ := cmd.Flags().GetBool("fail-fast")
 		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
-		safeUpdate, _ := cmd.Flags().GetBool("safe-update")
+		approve, _ := cmd.Flags().GetBool("approve-updates")
 		validateImages, _ := cmd.Flags().GetBool("validate-images")
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		verbose, _ := cmd.Flags().GetBool("verbose")
@@ -343,7 +343,7 @@ Examples:
 			Stats:                  stats,
 			FailFast:               failFast,
 			ScheduleSeed:           scheduleSeed,
-			SafeUpdate:             safeUpdate,
+			Approve:                approve,
 			ValidateImages:         validateImages,
 			PriorManifestFile:      priorManifestFile,
 		}
@@ -399,6 +399,7 @@ Examples:
 		push, _ := cmd.Flags().GetBool("push")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
+		approveRun, _ := cmd.Flags().GetBool("approve-updates")
 
 		if err := validateEngine(engineOverride); err != nil {
 			return err
@@ -437,6 +438,7 @@ Examples:
 			Verbose:        verboseFlag,
 			DryRun:         dryRun,
 			JSON:           jsonOutput,
+			Approve:        approveRun,
 		})
 	},
 }
@@ -692,7 +694,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. 'github/gh-aw'). Bypasses git remote detection entirely. Use this when your git remote is not named 'origin' and you have multiple remotes configured")
-	compileCmd.Flags().Bool("safe-update", false, "Force-enable safe update mode independently of strict mode. Safe update mode is normally equivalent to strict mode: it emits a warning prompt when compilations introduce new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to enable safe update enforcement on a workflow that has strict: false in its frontmatter")
+	compileCmd.Flags().Bool("approve-updates", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
@@ -733,6 +735,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
+	runCmd.Flags().Bool("approve-updates", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)
