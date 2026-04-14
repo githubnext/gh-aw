@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.21"
 const DefaultCodexVersion Version = "0.118.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.37.1"
+const DefaultGeminiVersion Version = "0.37.2"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
