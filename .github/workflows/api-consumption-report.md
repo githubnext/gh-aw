@@ -14,11 +14,6 @@ engine: claude
 tools:
   agentic-workflows:
   timeout: 300
-safe-outputs:
-  upload-artifact:
-    max-uploads: 5
-    retention-days: 30
-    skip-archive: true
 timeout-minutes: 45
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -299,40 +294,31 @@ Use `sns.set_theme(style="darkgrid")` for a professional dark-grid look and `plt
 
 ---
 
-## Step 5 — Upload Charts as Artifacts
+## Step 5 — Upload Charts as Assets
 
-**You MUST copy the chart files to the staging directory before calling `upload_artifact`.**
+Call `upload_asset` once per chart (5 total). The tool returns the permanent image URL directly — collect each URL to embed in the discussion.
 
-The `upload_artifact` tool only reads files from `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/`. Run these commands first:
-
-```bash
-mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-cp /tmp/gh-aw/python/charts/*.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-```
-
-Then verify the files are in the staging directory:
-
-```bash
-ls -la "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-```
-
-After confirming the files exist in the staging directory, call `upload_artifact` for each chart using the **filename only** (not a subdirectory path). For example, use `path: "api_calls_trend.png"` — NOT `path: "charts/api_calls_trend.png"`.
-
-Call `upload_artifact` once per chart (5 total), specifying the `temporary_id` for each so the chart can be embedded as an inline image in the discussion:
-
-| Chart file | `temporary_id` |
+| Chart file | Variable to store URL |
 |---|---|
-| `api_calls_trend.png` | `aw_api_trend` |
-| `workflow_api_trend.png` | `aw_wf_trend` |
-| `api_heatmap.png` | `aw_heatmap` |
-| `api_burners_donut.png` | `aw_donut` |
-| `api_by_workflow.png` | `aw_by_wf` |
+| `api_calls_trend.png` | `URL_api_trend` |
+| `workflow_api_trend.png` | `URL_wf_trend` |
+| `api_heatmap.png` | `URL_heatmap` |
+| `api_burners_donut.png` | `URL_donut` |
+| `api_by_workflow.png` | `URL_by_wf` |
+
+Example call:
+
+```json
+{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/api_calls_trend.png" }
+```
+
+The tool returns the URL (e.g. `https://github.com/…/blob/assets/…?raw=true`). Store each returned URL for use in the discussion body below.
 
 ---
 
 ## Step 6 — Create Daily Discussion
 
-Create a discussion with the following structure. Replace placeholders with real values.
+Create a discussion with the following structure. Replace placeholders with real values, and substitute each `URL_*` with the actual URL returned by `upload_asset` in Step 5.
 
 **Category**: `audits`
 
@@ -361,7 +347,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub API Calls Trend (90 days)
 
-![GitHub API Calls Trend](#aw_api_trend)
+![GitHub API Calls Trend](URL_api_trend)
 
 {2–3 sentences: highlight the trend direction, peak days, and any notable spikes in total REST API consumption}
 
@@ -369,7 +355,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub API Calls by Workflow Trend (30 days)
 
-![GitHub API Calls by Workflow Trend](#aw_wf_trend)
+![GitHub API Calls by Workflow Trend](URL_wf_trend)
 
 {2–3 sentences: note which workflows consistently consume the most API quota and any emerging patterns over the last 30 days}
 
@@ -377,7 +363,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub REST API Calls Heatmap (90 days)
 
-![GitHub REST API Calls Heatmap](#aw_heatmap)
+![GitHub REST API Calls Heatmap](URL_heatmap)
 
 {2–3 sentences: describe weekly patterns, busiest days, and any anomalies in REST API consumption}
 
@@ -385,7 +371,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🍩 Top API Burners (24h)
 
-![Top API Burners](#aw_donut)
+![Top API Burners](URL_donut)
 
 {2–3 sentences: describe which workflows dominate API consumption, their share of the total, and any concentration risk}
 
@@ -393,7 +379,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub REST API Consumption by Workflow (last 24h)
 
-![GitHub REST API Consumption by Workflow](#aw_by_wf)
+![GitHub REST API Consumption by Workflow](URL_by_wf)
 
 {2–3 sentences: identify the top REST API consumers, note any workflows near the 15k/hr limit, and suggest optimisation opportunities}
 

@@ -14,14 +14,11 @@ network:
     - python
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 5
-    retention-days: 30
-    skip-archive: true
-    allowed-paths:
-      - "**/*.png"
-      - "**/*.jpg"
-      - "**/*.svg"
+  upload-asset:
+    allowed-exts:
+      - ".png"
+      - ".jpg"
+      - ".svg"
 
 steps:
   - name: Setup Python environment
@@ -81,9 +78,9 @@ plt.tight_layout()
 plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
 ```
 
-## Upload Charts (skip-archive)
+## Upload Charts
 
-Chart images are uploaded individually via the `upload_artifact` safe-output tool with `skip-archive: true`. This stores each image as an individual file and returns a direct artifact URL, enabling inline rendering in issues, discussions, and pull requests.
+Chart images are uploaded individually via the `upload_asset` safe-output tool. This pushes each image to a permanent git branch and returns a raw URL that renders as an inline image in issues, discussions, and pull requests.
 
 ### Step 1: Generate Chart
 
@@ -91,25 +88,25 @@ Chart images are uploaded individually via the `upload_artifact` safe-output too
 plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
 ```
 
-### Step 2: Upload as Artifact
+### Step 2: Upload as Asset
 
-Call the `upload_artifact` tool for each chart image:
+Call the `upload_asset` tool for each chart image:
 
 ```json
-{ "type": "upload_artifact", "path": "/tmp/gh-aw/python/charts/trend.png" }
+{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/trend.png" }
 ```
 
-The tool returns `slot_N_artifact_url` with a direct link to the uploaded image.
+The tool returns the permanent URL directly (e.g. `https://github.com/owner/repo/blob/assets/…?raw=true`).
 
 ### Step 3: Embed in Markdown
 
-Use the returned artifact URL to render the chart inline:
+Use the returned URL to render the chart inline:
 
 ```markdown
-![Trend Chart](ARTIFACT_URL_FROM_SLOT_N)
+![Trend Chart](URL_RETURNED_BY_UPLOAD_ASSET)
 ```
 
-> **Note**: Up to 5 chart images can be uploaded per run. Artifact URLs require GitHub authentication to access.
+> **Note**: Up to 5 chart images can be uploaded per run. Asset URLs are permanent and do not expire.
 
 ## Best Practices
 

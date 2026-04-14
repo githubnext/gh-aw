@@ -9,9 +9,8 @@
 # This import provides:
 # - Python environment setup with directory structure
 # - Scientific library installation (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
-# - Automatic artifact upload for charts and source files
-# - Upload artifact capability via safe-outputs (upload-artifact with skip-archive)
-# - Instructions on data visualization best practices including artifact uploads
+# - Upload asset capability via safe-outputs (upload-asset for permanent image URLs)
+# - Instructions on data visualization best practices including asset uploads
 #
 # Note: This configuration ensures data separation by enforcing external data storage.
 
@@ -26,14 +25,11 @@ network:
     - python
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 5
-    retention-days: 30
-    skip-archive: true
-    allowed-paths:
-      - "**/*.png"
-      - "**/*.jpg"
-      - "**/*.svg"
+  upload-asset:
+    allowed-exts:
+      - ".png"
+      - ".jpg"
+      - ".svg"
 
 steps:
   - name: Setup Python environment
@@ -162,41 +158,35 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 
 ## Including Images in Reports
 
-There are two approaches to include chart images in reports (issues, discussions, step summaries):
+Use the `upload_asset` safe output tool to upload individual chart images and embed them in reports (issues, discussions, step summaries). Assets are pushed to a permanent git branch and their URLs never expire.
 
-### Upload Artifact with skip-archive (Recommended)
-
-Use the `upload_artifact` safe output tool with `skip-archive: true` to upload individual chart images. The tool returns an artifact URL that can be embedded directly in markdown. This approach is preferred because it puts less pressure on the git storage system and automatically destroys the image once the artifact expires.
-
-#### Step 1: Generate Chart
+### Step 1: Generate Chart
 ```python
 # Generate your chart
 plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
 ```
 
-#### Step 2: Upload as Artifact
-Use the `upload_artifact` tool to upload the chart file. With `skip-archive: true` configured, the image is stored without archiving, and the artifact URL is returned:
+### Step 2: Upload as Asset
+Use the `upload_asset` tool to upload the chart file. The tool returns the permanent URL immediately:
 
 ```json
-{ "type": "upload_artifact", "path": "/tmp/gh-aw/python/charts/my_chart.png" }
+{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/my_chart.png" }
 ```
 
-The tool outputs `slot_N_artifact_url` which provides a direct link to the uploaded artifact.
+The tool returns the raw URL directly (e.g. `https://github.com/{owner}/{repo}/blob/assets/…?raw=true`).
 
-#### Step 3: Render in Markdown
-Use the artifact URL in markdown to render the image inline:
+### Step 3: Render in Markdown
+Use the returned URL in markdown to render the image inline:
 
 ```markdown
 ## Visualization Results
 
-![Chart Description](ARTIFACT_URL_FROM_UPLOAD)
+![Chart Description](URL_RETURNED_BY_UPLOAD_ASSET)
 
 The chart above shows...
 ```
 
-The artifact URL follows the format: `https://github.com/{owner}/{repo}/actions/runs/{run_id}/artifacts/{artifact_id}`
-
-> **Note**: Artifact URLs require GitHub authentication to access. They work in issues, pull requests, and discussions for authenticated users.
+> **Note**: Asset URLs are permanent and do not expire. They work in issues, pull requests, and discussions for authenticated users.
 
 ## Cache Memory Integration
 
@@ -284,16 +274,14 @@ if missing:
     raise ValueError(f"Missing columns: {missing}")
 ```
 
-## Artifact Upload
+## Asset Upload
 
-Chart images are uploaded individually via the `upload_artifact` safe-output tool with `skip-archive: true`. Each image is stored as an individual file and the tool returns a direct artifact URL for inline rendering.
+Chart images are uploaded individually via the `upload_asset` safe-output tool. Each image is pushed to a permanent git branch and the tool returns a raw URL for inline rendering.
 
 **Chart Image Upload:**
-- Tool: `upload_artifact` (safe-output)
-- Config: `skip-archive: true`, up to 5 uploads per run
+- Tool: `upload_asset` (safe-output)
 - Allowed: PNG, JPG, SVG files
-- Retention: 30 days
-- Returns: `slot_N_artifact_url` with direct link
+- Returns: permanent raw URL (never expires)
 
 **Source and Data Artifact:**
 - Name: `python-source-and-data`

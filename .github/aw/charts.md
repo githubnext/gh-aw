@@ -78,15 +78,14 @@ steps:
       retention-days: 30
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 3
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    allowed-exts:
+      - ".png"
+      - ".jpg"
+      - ".svg"
 ```
 
 ### Agent Instructions
-
-Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
 Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
 
 **Store Historical Data (JSON Lines)**:
@@ -145,10 +144,11 @@ network:
     - python
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 3
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    allowed-exts:
+      - ".png"
+      - ".jpg"
+      - ".svg"
 
 steps:
   - name: Setup Python environment
@@ -318,10 +318,11 @@ tools:
     key: charts-trending-${{ github.workflow }}-${{ github.run_id }}
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 3
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    allowed-exts:
+      - ".png"
+      - ".jpg"
+      - ".svg"
 ```
 
 ### Agent Instructions
