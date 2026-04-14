@@ -280,11 +280,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 	yaml := string(content)
 
-	operationSkipCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == ''`
-	operationRunCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation != '' && github.event.inputs.operation != 'safe_outputs' && github.event.inputs.operation != 'create_labels' && github.event.inputs.operation != 'clean_cache_memories' && github.event.inputs.operation != 'validate'`
-	applySafeOutputsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs'`
-	createLabelsCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels'`
-	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '' || github.event.inputs.operation == 'clean_cache_memories'`
+	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
+	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate'`
+	applySafeOutputsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs'`
+	createLabelsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels'`
+	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'clean_cache_memories'`
 
 	const jobSectionSearchRange = 300
 	const runOpSectionSearchRange = 500
@@ -354,7 +354,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 
 	// validate_workflows job should be triggered when operation == 'validate'
-	validateCondition := `github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate'`
+	validateCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'validate'`
 	validateIdx := strings.Index(yaml, "\n  validate_workflows:")
 	if validateIdx == -1 {
 		t.Errorf("Job validate_workflows not found in generated workflow")
@@ -388,6 +388,43 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify run_url input exists in workflow_dispatch
 	if !strings.Contains(yaml, "run_url:") {
 		t.Error("workflow_dispatch should include run_url input")
+	}
+
+	// Verify workflow_call trigger is present with same inputs
+	workflowCallIdx := strings.Index(yaml, "workflow_call:")
+	if workflowCallIdx == -1 {
+		t.Error("workflow should include workflow_call trigger")
+	} else {
+		workflowCallSection := yaml[workflowCallIdx:]
+		if !strings.Contains(workflowCallSection, "inputs:\n      operation:") {
+			t.Error("workflow_call trigger should include operation input")
+		}
+	}
+
+	// Verify workflow_call outputs are declared
+	if !strings.Contains(yaml, "operation_completed:") {
+		t.Error("workflow_call outputs should include operation_completed")
+	}
+	if !strings.Contains(yaml, "applied_run_url:") {
+		t.Error("workflow_call outputs should include applied_run_url")
+	}
+
+	// Verify run_operation job exposes outputs
+	runOpIdx2 := strings.Index(yaml, "\n  run_operation:")
+	if runOpIdx2 != -1 {
+		runOpSection2 := yaml[runOpIdx2 : runOpIdx2+600]
+		if !strings.Contains(runOpSection2, "outputs:\n      operation: ${{ steps.record.outputs.operation }}") {
+			t.Errorf("run_operation job should declare operation output, got:\n%s", runOpSection2[:300])
+		}
+	}
+
+	// Verify apply_safe_outputs job exposes run_url output
+	applyIdx2 := strings.Index(yaml, "\n  apply_safe_outputs:")
+	if applyIdx2 != -1 {
+		applySection2 := yaml[applyIdx2 : applyIdx2+600]
+		if !strings.Contains(applySection2, "outputs:\n      run_url: ${{ steps.record.outputs.run_url }}") {
+			t.Errorf("apply_safe_outputs job should declare run_url output, got:\n%s", applySection2[:300])
+		}
 	}
 }
 

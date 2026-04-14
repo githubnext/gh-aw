@@ -233,7 +233,7 @@ Examples:
 var compileCmd = &cobra.Command{
 	Use:   "compile [workflow]...",
 	Short: "Compile agentic workflow Markdown files into GitHub Actions YAML",
-	Long: `Compile one or more agentic workflows to YAML workflows.
+	Long: `Compile one or more agentic workflow Markdown files into GitHub Actions YAML.
 
 If no workflows are specified, all Markdown files in .github/workflows will be compiled.
 
@@ -727,7 +727,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	runCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
-	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
+	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (e.g., main, v1.0.0)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
