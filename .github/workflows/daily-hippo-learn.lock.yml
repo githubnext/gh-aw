@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"b3670a8831ed5d250baf423d20648de5f58f3be722cdf671142cc2f4fca9c7b6","strict":true,"agent_id":"codex","agent_model":"gpt-5.1-codex-mini"}
-# gh-aw-manifest: {"version":1,"secrets":["CODEX_API_KEY","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN","OPENAI_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20","digest":"sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20","digest":"sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20","digest":"sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.19","digest":"sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"beb424ec38b3177fe0a97ecdaad44d202235a018d1c7e5e9c2760f65b26dbefa","strict":true,"agent_id":"copilot"}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20","digest":"sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20","digest":"sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20","digest":"sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.19","digest":"sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -22,23 +22,17 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Posts a daily poetic verse about the gh-aw project to a discussion thread
+# Runs hippo-memory's learn and sleep commands daily to extract lessons from git commits, consolidate the memory store, and suggest actionable improvements to the team
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/mempalace.md
-#     - shared/observability-otlp.md
-#
-# inlined-imports: true
+#     - shared/hippo-memory.md
+#     - shared/reporting.md
 #
 # Secrets used:
-#   - CODEX_API_KEY
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
 #   - GH_AW_GITHUB_TOKEN
-#   - GH_AW_OTEL_ENDPOINT
-#   - GH_AW_OTEL_HEADERS
 #   - GITHUB_TOKEN
-#   - OPENAI_API_KEY
 #
 # Custom actions used:
 #   - actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
@@ -47,7 +41,6 @@
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
 #   - actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-#   - actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #
 # Container images used:
@@ -58,11 +51,11 @@
 #   - ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28
 #   - node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b
 
-name: "Daily Fact About gh-aw"
+name: "Daily Hippo Learn"
 "on":
   schedule:
-  - cron: "6 11 * * 1-5"
-    # Friendly format: daily around 11:00 on weekdays (scattered)
+  - cron: "6 6 * * *"
+    # Friendly format: daily around 7:00 (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -76,12 +69,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Fact About gh-aw"
-
-env:
-  OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
-  OTEL_SERVICE_NAME: gh-aw
-  OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_OTEL_HEADERS }}
+run-name: "Daily Hippo Learn"
 
 jobs:
   activation:
@@ -94,7 +82,6 @@ jobs:
       comment_repo: ""
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
-      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
       setup-trace-id: ${{ steps.setup.outputs.trace-id }}
       stale_lock_file_failed: ${{ steps.check-lock-file.outputs.stale_lock_file_failed == 'true' }}
     steps:
@@ -111,21 +98,19 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-      - name: Mask OTLP telemetry headers
-        run: echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
       - name: Generate agentic run info
         id: generate_aw_info
         env:
-          GH_AW_INFO_ENGINE_ID: "codex"
-          GH_AW_INFO_ENGINE_NAME: "Codex"
-          GH_AW_INFO_MODEL: "gpt-5.1-codex-mini"
-          GH_AW_INFO_VERSION: "0.118.0"
-          GH_AW_INFO_AGENT_VERSION: "0.118.0"
-          GH_AW_INFO_WORKFLOW_NAME: "Daily Fact About gh-aw"
+          GH_AW_INFO_ENGINE_ID: "copilot"
+          GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
+          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_VERSION: "1.0.21"
+          GH_AW_INFO_AGENT_VERSION: "1.0.21"
+          GH_AW_INFO_WORKFLOW_NAME: "Daily Hippo Learn"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
-          GH_AW_INFO_ALLOWED_DOMAINS: '["defaults"]'
+          GH_AW_INFO_ALLOWED_DOMAINS: '["defaults","node"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
           GH_AW_INFO_AWF_VERSION: "v0.25.20"
           GH_AW_INFO_AWMG_VERSION: ""
@@ -138,12 +123,6 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_aw_info.cjs');
             await main(core, context);
-      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
-        id: validate-secret
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex
-        env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Checkout .github and .agents folders
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -158,7 +137,7 @@ jobs:
         id: check-lock-file
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
-          GH_AW_WORKFLOW_FILE: "daily-fact.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-hippo-learn.lock.yml"
           GH_AW_CONTEXT_WORKFLOW_REF: "${{ github.workflow_ref }}"
         with:
           script: |
@@ -182,21 +161,21 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_1a67feaf245becf7_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           <system>
-          GH_AW_PROMPT_1a67feaf245becf7_EOF
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_1a67feaf245becf7_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           <safe-output-tools>
-          Tools: add_comment, missing_tool, missing_data, noop
+          Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_1a67feaf245becf7_EOF
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_1a67feaf245becf7_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -225,112 +204,21 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_1a67feaf245becf7_EOF
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_1a67feaf245becf7_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           </system>
-          
-          
-          {{#runtime-import? .github/shared-instructions.md}}
-          
-          # Daily Fact About gh-aw
-          
-          Your task is to post a poetic, whimsical fact about the __GH_AW_GITHUB_REPOSITORY__ project to discussion #4750.
-          
-          ## Step 0: Load Memory
-          
-          Before gathering repository activity, check what has already been celebrated in the palace to avoid repetition.
-          
-          1. Call `mempalace_status` to confirm the palace is ready.
-          2. Call `mempalace_search` with `query: "gh-aw daily fact"` and `wing: "daily-facts"` to retrieve recently posted facts. On the very first run the palace will be empty — that is fine, proceed without results.
-          3. Note any PR numbers, issue numbers, release tags, or contributor handles that appear in the results — **do not repeat those topics today**.
-          
-          ## Data Sources
-          
-          Mine recent activity from the repository to find interesting facts. Focus on:
-          
-          1. **Recent PRs** (merged in the last 1-2 weeks)
-             - New features added
-             - Bug fixes
-             - Refactoring efforts
-             - Performance improvements
-          
-          2. **Recent Releases** (if any)
-             - New version highlights
-             - Breaking changes
-             - Notable improvements
-          
-          3. **Recent Closed Issues** (resolved in the last 1-2 weeks)
-             - Bugs that were fixed
-             - Feature requests implemented
-             - Community contributions
-          
-          ## Guidelines
-          
-          - **Check memory first**: Skip any PR, issue, or release that already appears in the palace results from Step 0
-          - **Favor recent updates** but include variety - pick something interesting, not just the most recent
-          - **Be specific**: Include PR numbers, issue references, or release tags when relevant
-          - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
-          - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
-          - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
-          
-          ## Output Format
-          
-          Create a single comment with this structure:
-          
-          ```
-          🌅 **A Verse from the gh-aw Chronicles**
-          
-          [Your poetic fact here, referencing specific PRs, issues, or releases with links]
-          
-          ---
-          *Whispered to you by the Poet of Workflows 🪶*
-          ```
-          
-          ## Examples
-          
-          Good facts (poetic tone):
-          - "In the garden of code, PR #1234 bloomed — the `playwright` tool now dances upon the stage, orchestrating browsers in graceful automation! 🎭"
-          - "Like five stars falling into place, issues of MCP woes were caught and mended this week — the path to custom tools grows ever clearer."
-          - "From the forge of v0.45.0 emerges `cache-memory`, a keeper of thoughts that transcends the fleeting runs of workflows! 💾"
-          - "A tireless artisan toiled this week, mending three fractures in the YAML tapestry. Gratitude flows to @contributor! 🙌"
-          
-          Bad facts:
-          - "The repository was updated today." (too vague, lacks poetry)
-          - "There were some changes." (not specific, uninspired)
-          - Long paragraphs (keep it brief and lyrical)
-          
-          ## Step 3: Save to Memory
-          
-          After posting the comment, store the fact in the palace so it will be excluded from future runs:
-          
-          Call `mempalace_add_drawer` with:
-          - `wing`: `"daily-facts"`
-          - `room`: the category of the fact — use one of these canonical values:
-            - `"pr"` — a merged pull request
-            - `"release"` — a release or version tag
-            - `"issue"` — a closed issue
-            - `"contributor"` — a community contributor highlight
-            - `"pattern"` — a code pattern or architectural observation
-          - `content`: a short record containing the PR/issue/release identifier and a one-line summary of the fact posted today
-          
-          This ensures tomorrow's verse celebrates something new.
-          
-          Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
-          
-          **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-          
-          ```json
-          {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-          ```
-          
-          GH_AW_PROMPT_1a67feaf245becf7_EOF
+          {{#runtime-import .github/workflows/shared/hippo-memory.md}}
+          {{#runtime-import .github/workflows/shared/reporting.md}}
+          {{#runtime-import .github/workflows/daily-hippo-learn.md}}
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -352,7 +240,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
+          GH_AW_MCP_CLI_SERVERS_LIST: "- `mcpscripts` — run `mcpscripts --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -402,26 +290,29 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: aw-gpu-runner-T4
+    runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      copilot-requests: write
       discussions: read
       issues: read
       pull-requests: read
     concurrency:
-      group: "gh-aw-codex-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
       GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
-      GH_AW_WORKFLOW_ID_SANITIZED: dailyfact
+      GH_AW_WORKFLOW_ID_SANITIZED: dailyhippolearn
     outputs:
+      agentic_engine_timeout: ${{ steps.detect-copilot-errors.outputs.agentic_engine_timeout || 'false' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       effective_tokens: ${{ steps.parse-mcp-gateway.outputs.effective_tokens }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
+      inference_access_error: ${{ steps.detect-copilot-errors.outputs.inference_access_error || 'false' }}
+      mcp_policy_error: ${{ steps.detect-copilot-errors.outputs.mcp_policy_error || 'false' }}
       model: ${{ needs.activation.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -449,8 +340,6 @@ jobs:
             echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"
             echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json"
           } >> "$GITHUB_OUTPUT"
-      - name: Mask OTLP telemetry headers
-        run: echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -458,20 +347,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: '24'
+          node-version: '22'
           package-manager-cache: false
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Install MemPalace
-        run: pip install "mempalace==3.2.0"
+      - name: Install hippo-memory
+        run: |
+          npm install -g hippo-memory
+      - name: Initialize hippo store
+        run: "# Symlink .hippo into cache-memory so the SQLite store persists across runs.\n# All writes to .hippo/ land in /tmp/gh-aw/cache-memory/hippo-store/ and are\n# saved/restored automatically by the cache-memory mechanism.\nmkdir -p /tmp/gh-aw/cache-memory/hippo-store\n\nif [ ! -e \".hippo\" ]; then\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Created .hippo → cache-memory/hippo-store\"\nelif [ -d \".hippo\" ] && [ ! -L \".hippo\" ]; then\n  # Plain directory present (e.g. first run after adding this import) — migrate\n  cp -r .hippo/. /tmp/gh-aw/cache-memory/hippo-store/ 2>/dev/null || true\n  rm -rf .hippo\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Migrated existing .hippo/ → cache-memory/hippo-store\"\nelse\n  echo \"✅ .hippo already linked to cache-memory/hippo-store\"\nfi\n\n# Initialise if the store has never been set up, using --no-learn to avoid\n# a slow full-history git scan during setup.\nif [ ! -f \".hippo/config.json\" ]; then\n  hippo init --no-learn\n  echo \"✅ Hippo memory store initialised\"\nelse\n  echo \"✅ Hippo store restored from cache\"\n  hippo list 2>/dev/null | head -5 || true\nfi"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -515,13 +403,10 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.118.0
+      - name: Install GitHub Copilot CLI
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.21
+        env:
+          GH_HOST: github.com
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.20
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -541,22 +426,22 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_a0659c0401bd349c_EOF'
-          {"add_comment":{"max":1,"target":"4750"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_a0659c0401bd349c_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_51cd7886fcfeedac_EOF'
+          {"create_discussion":{"category":"announcements","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"🦛 "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
+          GH_AW_SAFE_OUTPUTS_CONFIG_51cd7886fcfeedac_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 1 comment(s) can be added. Target: 4750."
+                "create_discussion": " CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"🦛 \". Discussions will be created in category \"announcements\"."
               },
               "repo_params": {},
               "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {
-              "add_comment": {
+              "create_discussion": {
                 "defaultMax": 1,
                 "fields": {
                   "body": {
@@ -565,12 +450,20 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "item_number": {
-                    "issueOrPRNumber": true
+                  "category": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
                   },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "title": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
                   }
                 }
               },
@@ -695,9 +588,106 @@ jobs:
           
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
           
+      - name: Write MCP Scripts Config
+        run: |
+          mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_ac589fc8db27326c_EOF'
+          {
+            "serverName": "mcpscripts",
+            "version": "1.0.0",
+            "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
+            "tools": [
+              {
+                "name": "hippo",
+                "description": "Execute any hippo-memory CLI command. Accessible as 'mcpscripts-hippo'. Provide arguments after 'hippo'. Examples: args 'learn --git' to extract lessons from git commits, 'sleep' for full consolidation, 'recall \"api errors\" --budget 2000' to retrieve relevant memories.",
+                "inputSchema": {
+                  "properties": {
+                    "args": {
+                      "description": "Arguments to pass to hippo CLI (without the 'hippo' prefix). Examples: 'learn --git', 'sleep', 'sleep --no-share', 'recall \"build failures\" --budget 3000', 'remember \"always run make fmt before committing\" --tag rule', 'list', 'export', 'export --format markdown'",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                "handler": "hippo.sh",
+                "timeout": 60
+              }
+            ]
+          }
+          GH_AW_MCP_SCRIPTS_TOOLS_ac589fc8db27326c_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_0054ab48a35defb0_EOF'
+            const path = require("path");
+            const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            const port = parseInt(process.env.GH_AW_MCP_SCRIPTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_MCP_SCRIPTS_API_KEY || "";
+            startHttpServer(configPath, {
+              port: port,
+              stateless: true,
+              logDir: "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
+            }).catch(error => {
+              console.error("Failed to start mcp-scripts HTTP server:", error);
+              process.exit(1);
+            });
+          GH_AW_MCP_SCRIPTS_SERVER_0054ab48a35defb0_EOF
+          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
+          
+      - name: Write MCP Scripts Tool Files
+        run: |
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/hippo.sh" << 'GH_AW_MCP_SCRIPTS_SH_HIPPO_1c00bf9624f4dc6f_EOF'
+          #!/bin/bash
+          # Auto-generated mcp-script tool: hippo
+          # Execute any hippo-memory CLI command. Accessible as 'mcpscripts-hippo'. Provide arguments after 'hippo'. Examples: args 'learn --git' to extract lessons from git commits, 'sleep' for full consolidation, 'recall "api errors" --budget 2000' to retrieve relevant memories.
+          
+          set -euo pipefail
+          
+          echo "hippo $INPUT_ARGS"
+          hippo $INPUT_ARGS
+          
+          
+          GH_AW_MCP_SCRIPTS_SH_HIPPO_1c00bf9624f4dc6f_EOF
+          chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/hippo.sh"
+          
+      - name: Generate MCP Scripts Server Config
+        id: mcp-scripts-config
+        run: |
+          # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          # Mask immediately to prevent timing vulnerabilities
+          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          echo "::add-mask::${API_KEY}"
+          
+          PORT=3000
+          
+          # Set outputs for next steps
+          {
+            echo "mcp_scripts_api_key=${API_KEY}"
+            echo "mcp_scripts_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "MCP Scripts server will run on port ${PORT}"
+          
+      - name: Start MCP Scripts HTTP Server
+        id: mcp-scripts-start
+        env:
+          DEBUG: '*'
+          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_port }}
+          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-config.outputs.mcp_scripts_api_key }}
+        run: |
+          # Environment variables are set above to prevent template injection
+          export DEBUG
+          export GH_AW_MCP_SCRIPTS_PORT
+          export GH_AW_MCP_SCRIPTS_API_KEY
+          
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_scripts_server.sh"
+          
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
+          GH_AW_MCP_SCRIPTS_API_KEY: ${{ steps.mcp-scripts-start.outputs.api_key }}
+          GH_AW_MCP_SCRIPTS_PORT: ${{ steps.mcp-scripts-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
@@ -719,51 +709,21 @@ jobs:
           export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD="524288"
           export DEBUG="*"
           
-          export GH_AW_ENGINE="codex"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.19'
+          export GH_AW_ENGINE="copilot"
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.19'
           
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_MCP_CONFIG_eb2e9cfae7244675_EOF
-          [history]
-          persistence = "none"
-          
-          [shell_environment_policy]
-          inherit = "core"
-          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
-          
-          [mcp_servers.github]
-          user_agent = "daily-fact-about-gh-aw"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 60
-          container = "ghcr.io/github/github-mcp-server:v0.32.0"
-          env = { "GITHUB_HOST" = "$GITHUB_SERVER_URL", "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions" }
-          env_vars = ["GITHUB_HOST", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
-          
-          [mcp_servers.mempalace]
-          
-          [mcp_servers.safeoutputs]
-          type = "http"
-          url = "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"
-          
-          [mcp_servers.safeoutputs.headers]
-          Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
-          
-          [mcp_servers.safeoutputs."guard-policies"]
-          
-          [mcp_servers.safeoutputs."guard-policies".write-sink]
-          accept = ["*"]
-          GH_AW_MCP_CONFIG_eb2e9cfae7244675_EOF
-          
-          # Generate JSON config for MCP gateway
-          cat << GH_AW_MCP_CONFIG_eb2e9cfae7244675_EOF | node "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          mkdir -p /home/runner/.copilot
+          cat << GH_AW_MCP_CONFIG_515555bb546e5ec0_EOF | node "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.32.0",
                 "env": {
-                  "GITHUB_HOST": "$GITHUB_SERVER_URL",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 },
                 "guard-policies": {
                   "allow-only": {
@@ -772,49 +732,25 @@ jobs:
                   }
                 }
               },
-              "mempalace": {
-              "type": "stdio",
-              "command": "python",
-              "args": [
-                "-m",
-                "mempalace.mcp_server",
-                "--palace",
-                "/tmp/gh-aw/cache-memory/palace"
-              ],
-              "tools": [
-                "mempalace_status",
-                "mempalace_list_wings",
-                "mempalace_list_rooms",
-                "mempalace_get_taxonomy",
-                "mempalace_search",
-                "mempalace_check_duplicate",
-                "mempalace_get_aaak_spec",
-                "mempalace_add_drawer",
-                "mempalace_delete_drawer",
-                "mempalace_kg_query",
-                "mempalace_kg_add",
-                "mempalace_kg_invalidate",
-                "mempalace_kg_timeline",
-                "mempalace_kg_stats",
-                "mempalace_traverse",
-                "mempalace_find_tunnels",
-                "mempalace_graph_stats",
-                "mempalace_diary_write",
-                "mempalace_diary_read"
-              ],
-              "guard-policies": {
-                "write-sink": {
-                  "accept": [
-                    "*"
-                  ]
+              "mcpscripts": {
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_MCP_SCRIPTS_PORT",
+                "headers": {
+                  "Authorization": "\${GH_AW_MCP_SCRIPTS_API_KEY}"
+                },
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "*"
+                    ]
+                  }
                 }
-              }
               },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
-                  "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                  "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
                 },
                 "guard-policies": {
                   "write-sink": {
@@ -829,16 +765,10 @@ jobs:
               "port": $MCP_GATEWAY_PORT,
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}",
-              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
-              "opentelemetry": {
-                "endpoint": "${{ secrets.GH_AW_OTEL_ENDPOINT }}",
-                "headers": "${OTEL_EXPORTER_OTLP_HEADERS}",
-                "traceId": "${GITHUB_AW_OTEL_TRACE_ID}",
-                "spanId": "${GITHUB_AW_OTEL_PARENT_SPAN_ID}"
-              }
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_eb2e9cfae7244675_EOF
+          GH_AW_MCP_CONFIG_515555bb546e5ec0_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -861,32 +791,45 @@ jobs:
       - name: Clean git credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
-      - name: Execute Codex CLI
+      - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 30
         run: |
           set -o pipefail
-          mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
+          touch /tmp/gh-aw/agent-step-summary.md
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
           # shellcheck disable=SC1003
-          sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --env-all --exclude-env CODEX_API_KEY --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --exclude-env OPENAI_API_KEY --allow-domains 172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --image-tag 0.25.20 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec -c web_search="disabled" -c fetch="disabled" --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "$INSTRUCTION"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --env-all --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,github.com,googleapis.deno.dev,googlechromelabs.github.io,host.docker.internal,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,telemetry.enterprise.githubcopilot.com,telemetry.vercel.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --image-tag 0.25.20 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c 'node ${RUNNER_TEMP}/gh-aw/actions/copilot_driver.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          CODEX_HOME: ${{ runner.temp }}/gh-aw/mcp-config
-          GH_AW_MCP_CONFIG: ${{ runner.temp }}/gh-aw/mcp-config/config.toml
-          GH_AW_MODEL_AGENT_CODEX: gpt-5.1-codex-mini
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ github.token }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_VERSION: dev
+          GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
-          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+          S2STOKENS: true
+          XDG_CONFIG_HOME: /home/runner
+      - name: Detect Copilot errors
+        id: detect-copilot-errors
+        if: always()
+        continue-on-error: true
+        run: node "${RUNNER_TEMP}/gh-aw/actions/detect_copilot_errors.cjs"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -900,6 +843,10 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/copy_copilot_session_state.sh"
       - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
@@ -919,13 +866,10 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GH_AW_OTEL_ENDPOINT,GITHUB_TOKEN,OPENAI_API_KEY'
-          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          GH_AW_SECRET_NAMES: 'GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GH_AW_OTEL_ENDPOINT: ${{ secrets.GH_AW_OTEL_ENDPOINT }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Append agent step summary
         if: always()
         run: bash "${RUNNER_TEMP}/gh-aw/actions/append_agent_step_summary.sh"
@@ -942,7 +886,7 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,github.com,googleapis.deno.dev,googlechromelabs.github.io,host.docker.internal,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,telemetry.enterprise.githubcopilot.com,telemetry.vercel.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -951,19 +895,25 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/collect_ndjson_output.cjs');
             await main();
-      - name: Clean up engine output files
-        run: |
-          rm -fr ${{ runner.temp }}/gh-aw/mcp-config/logs/
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_codex_log.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_copilot_log.cjs');
+            await main();
+      - name: Parse MCP Scripts logs for step summary
+        if: always()
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_mcp_scripts_logs.cjs');
             await main();
       - name: Parse MCP Gateway logs for step summary
         if: always()
@@ -1000,15 +950,6 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_token_usage.cjs');
             await main();
-      - name: Generate observability summary
-        if: always()
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');
-            await main(core);
       - name: Write agent output placeholder if missing
         if: always()
         run: |
@@ -1034,14 +975,14 @@ jobs:
           name: agent
           path: |
             /tmp/gh-aw/aw-prompts/prompt.txt
-            ${{ runner.temp }}/gh-aw/mcp-config/logs/
+            /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
             /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/mcp-scripts/logs/
             /tmp/gh-aw/agent_usage.json
             /tmp/gh-aw/agent-stdio.log
             /tmp/gh-aw/agent/
             /tmp/gh-aw/github_rate_limits.jsonl
-            /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
@@ -1065,9 +1006,8 @@ jobs:
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     concurrency:
-      group: "gh-aw-conclusion-daily-fact"
+      group: "gh-aw-conclusion-daily-hippo-learn"
       cancel-in-progress: false
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
@@ -1109,8 +1049,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Daily Hippo Learn"
+          GH_AW_TRACKER_ID: "daily-hippo-learn"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_REPORT_AS_ISSUE: "true"
@@ -1126,8 +1066,8 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Daily Hippo Learn"
+          GH_AW_TRACKER_ID: "daily-hippo-learn"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
@@ -1144,8 +1084,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Daily Hippo Learn"
+          GH_AW_TRACKER_ID: "daily-hippo-learn"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1159,8 +1099,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Daily Hippo Learn"
+          GH_AW_TRACKER_ID: "daily-hippo-learn"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1174,20 +1114,23 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Daily Hippo Learn"
+          GH_AW_TRACKER_ID: "daily-hippo-learn"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_WORKFLOW_ID: "daily-fact"
-          GH_AW_ENGINE_ID: "codex"
-          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
+          GH_AW_WORKFLOW_ID: "daily-hippo-learn"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
+          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
+          GH_AW_MCP_POLICY_ERROR: ${{ needs.agent.outputs.mcp_policy_error }}
+          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.agent.outputs.agentic_engine_timeout }}
+          GH_AW_CREATE_DISCUSSION_ERRORS: ${{ needs.safe_outputs.outputs.create_discussion_errors }}
+          GH_AW_CREATE_DISCUSSION_ERROR_COUNT: ${{ needs.safe_outputs.outputs.create_discussion_error_count }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
-          GH_AW_TIMEOUT_MINUTES: "15"
+          GH_AW_TIMEOUT_MINUTES: "30"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1205,6 +1148,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      copilot-requests: write
     outputs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
@@ -1288,8 +1232,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
-          WORKFLOW_NAME: "Daily Fact About gh-aw"
-          WORKFLOW_DESCRIPTION: "Posts a daily poetic verse about the gh-aw project to a discussion thread"
+          WORKFLOW_NAME: "Daily Hippo Learn"
+          WORKFLOW_DESCRIPTION: "Runs hippo-memory's learn and sleep commands daily to extract lessons from git commits, consolidate the memory store, and suggest actionable improvements to the team"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1302,41 +1246,44 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.118.0
+      - name: Install GitHub Copilot CLI
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.21
+        env:
+          GH_HOST: github.com
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.20
-      - name: Execute Codex CLI
+      - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          mkdir -p "$CODEX_HOME/logs" && touch /tmp/gh-aw/agent-step-summary.md
+          touch /tmp/gh-aw/agent-step-summary.md
           (umask 177 && touch /tmp/gh-aw/threat-detection/detection.log)
           # shellcheck disable=SC1003
-          sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --env-all --exclude-env CODEX_API_KEY --exclude-env OPENAI_API_KEY --allow-domains 172.30.0.1,api.openai.com,host.docker.internal,openai.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --image-tag 0.25.20 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && codex ${GH_AW_MODEL_DETECTION_CODEX:+-c model="$GH_AW_MODEL_DETECTION_CODEX" }exec -c web_search="disabled" -c fetch="disabled" --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check "$INSTRUCTION"' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
+          sudo -E awf --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --env-all --exclude-env COPILOT_GITHUB_TOKEN --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,telemetry.enterprise.githubcopilot.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --audit-dir /tmp/gh-aw/sandbox/firewall/audit --enable-host-access --image-tag 0.25.20 --skip-pull --enable-api-proxy \
+            -- /bin/bash -c 'node ${RUNNER_TEMP}/gh-aw/actions/copilot_driver.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-all-tools --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          CODEX_HOME: ${{ runner.temp }}/gh-aw/mcp-config
-          GH_AW_MCP_CONFIG: ${{ runner.temp }}/gh-aw/mcp-config/config.toml
-          GH_AW_MODEL_DETECTION_CODEX: gpt-5.1-codex-mini
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ github.token }}
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
+          GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
-          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+          S2STOKENS: true
+          XDG_CONFIG_HOME: /home/runner
       - name: Upload threat detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1369,24 +1316,20 @@ jobs:
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-fact"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/daily-hippo-learn"
       GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
       GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
-      GH_AW_ENGINE_ID: "codex"
-      GH_AW_ENGINE_MODEL: "gpt-5.1-codex-mini"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
-      GH_AW_TRACKER_ID: "daily-fact-thread"
-      GH_AW_WORKFLOW_ID: "daily-fact"
-      GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
+      GH_AW_TRACKER_ID: "daily-hippo-learn"
+      GH_AW_WORKFLOW_ID: "daily-hippo-learn"
+      GH_AW_WORKFLOW_NAME: "Daily Hippo Learn"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
-      comment_id: ${{ steps.process_safe_outputs.outputs.comment_id }}
-      comment_url: ${{ steps.process_safe_outputs.outputs.comment_url }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
@@ -1406,8 +1349,6 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
-      - name: Mask OTLP telemetry headers
-        run: echo '::add-mask::'"$OTEL_EXPORTER_OTLP_HEADERS"
       - name: Download agent output artifact
         id: download-agent-output
         continue-on-error: true
@@ -1436,10 +1377,10 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ALLOWED_DOMAINS: "172.30.0.1,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,github.com,googleapis.deno.dev,googlechromelabs.github.io,host.docker.internal,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,telemetry.enterprise.githubcopilot.com,telemetry.vercel.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1,\"target\":\"4750\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"announcements\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"🦛 \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1469,7 +1410,7 @@ jobs:
     permissions:
       contents: read
     env:
-      GH_AW_WORKFLOW_ID_SANITIZED: dailyfact
+      GH_AW_WORKFLOW_ID_SANITIZED: dailyhippolearn
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

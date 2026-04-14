@@ -124,6 +124,16 @@ describe("upload_artifact.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("upload_artifact_count", "1");
     });
 
+    it("returns temporaryId matching tmpId in the result", async () => {
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBeDefined();
+      expect(results[0].temporaryId).toBe(results[0].tmpId);
+    });
+
     it("uses default retention of 30 when retention-days not in config", async () => {
       writeStaging("report.json");
 
@@ -401,6 +411,85 @@ describe("upload_artifact.cjs", () => {
       const keys = Object.keys(resolver);
       expect(keys.length).toBe(1);
       expect(keys[0]).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+    });
+  });
+
+  describe("temporary_id field", () => {
+    it("uses declared temporary_id from message when valid", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "aw_chart1" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBe("aw_chart1");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("slot_0_tmp_id", "aw_chart1");
+    });
+
+    it("normalises declared temporary_id to lowercase", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "aw_CHART1" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBe("aw_chart1");
+    });
+
+    it("strips leading '#' from declared temporary_id", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      const results = await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "#aw_chart1" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toBe("aw_chart1");
+    });
+
+    it("generates a random ID when temporary_id is not provided", async () => {
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+    });
+
+    it("generates a random ID and emits warning when temporary_id format is invalid", async () => {
+      writeStaging("report.json");
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: "report.json", temporary_id: "bad-format" }]);
+
+      expect(results[0].success).toBe(true);
+      expect(results[0].tmpId).toMatch(/^aw_[A-Za-z0-9]{8}$/);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("invalid temporary_id format"));
+    });
+
+    it("uses declared temporary_id in resolver file", async () => {
+      writeStaging("chart.png", "PNG_DATA");
+
+      await runHandler(buildConfig({ "skip-archive": true }), [{ type: "upload_artifact", path: "chart.png", temporary_id: "aw_chart1" }]);
+
+      const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
+      expect(resolver["aw_chart1"]).toBe("chart.png");
+    });
+
+    it("warns and keeps first mapping when the same temporary_id is used in multiple uploads", async () => {
+      writeStaging("chart1.png", "PNG_DATA_1");
+      writeStaging("chart2.png", "PNG_DATA_2");
+
+      const results = await runHandler(buildConfig({ "max-uploads": 2 }), [
+        { type: "upload_artifact", path: "chart1.png", temporary_id: "aw_chart1" },
+        { type: "upload_artifact", path: "chart2.png", temporary_id: "aw_chart1" },
+      ]);
+
+      // Both uploads succeed individually
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(true);
+
+      // Resolver should keep the first mapping (chart1.png)
+      const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
+      expect(resolver["aw_chart1"]).toBe("chart1.png");
+
+      // A warning should have been emitted for the duplicate
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('duplicate temporary_id "aw_chart1"'));
     });
   });
 

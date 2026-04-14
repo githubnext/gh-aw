@@ -12,7 +12,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
-const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
@@ -325,7 +325,7 @@ function formatManifestLogMessage(item) {
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
  * @param {((item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string}) => void)|null} [onItemCreated] - Optional callback invoked after each successful create operation (for manifest logging)
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>, missings: Object, codePushFailures: Array<{type: string, error: string}>}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, artifactUrlMap: Map<string, string>, outputsWithUnresolvedIds: Array<any>, missings: Object, codePushFailures: Array<{type: string, error: string}>}>}
  */
 async function processMessages(messageHandlers, messages, onItemCreated = null) {
   const results = [];
@@ -337,6 +337,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   // This will be populated by handlers as they create entities with temporary IDs
   /** @type {Map<string, {repo: string, number: number}>} */
   const temporaryIdMap = new Map();
+
+  // Track artifact URL mappings: normalised tmpId → artifact download URL.
+  // Populated after each successful upload_artifact call so that subsequent
+  // messages can have '#aw_ID' references replaced with the real artifact URL.
+  /** @type {Map<string, string>} */
+  const artifactUrlMap = new Map();
 
   // Track outputs that were created with unresolved temporary IDs
   // Format: {type, message, result, originalTempIdMapSize}
@@ -490,6 +496,17 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         }
       }
 
+      // Pre-process: replace any '#aw_ID' artifact URL references in the message body
+      // with the actual artifact URL so handlers receive the resolved URL directly.
+      // This is applied to all message types that carry a 'body' field.
+      if (artifactUrlMap.size > 0 && effectiveMessage.body && typeof effectiveMessage.body === "string") {
+        const resolvedBody = replaceArtifactUrlReferences(effectiveMessage.body, artifactUrlMap);
+        if (resolvedBody !== effectiveMessage.body) {
+          effectiveMessage = { ...effectiveMessage, body: resolvedBody };
+          core.info(`Resolved artifact URL reference(s) in ${messageType} body`);
+        }
+      }
+
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
@@ -555,6 +572,19 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
       }
 
+      // If this was a successful upload_artifact, register the artifact URL so that
+      // subsequent messages can have '#aw_ID' references replaced with the real URL.
+      // upload_artifact returns { tmpId, artifactUrl } (not temporaryId/repo/number).
+      if (messageType === "upload_artifact" && result && result.tmpId && result.artifactUrl) {
+        const normalizedTmpId = normalizeTemporaryId(result.tmpId);
+        if (!artifactUrlMap.has(normalizedTmpId)) {
+          artifactUrlMap.set(normalizedTmpId, result.artifactUrl);
+          core.info(`Registered artifact URL for temporary ID: ${result.tmpId}`);
+        } else {
+          core.warning(`Duplicate artifact temporary ID '${result.tmpId}' encountered; keeping the first registered URL and ignoring the later upload.`);
+        }
+      }
+
       // Track when a code-push operation falls back to a review issue so subsequent
       // add_comment messages can include a correction note.
       if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true && result.issue_number != null && result.issue_url) {
@@ -568,7 +598,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Handle add_comment which returns an array of comments
       if (messageType === "add_comment" && Array.isArray(result)) {
         const contentToCheck = getContentToCheck(messageType, message);
-        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           // Track each comment that was created with unresolved temp IDs
           for (const comment of result) {
             if (comment._tracking) {
@@ -590,7 +620,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       } else if (result && result.number && result.repo) {
         // Handle create_issue, create_discussion
         const contentToCheck = getContentToCheck(messageType, message);
-        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
           core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
           outputsWithUnresolvedIds.push({
             type: messageType,
@@ -707,7 +737,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           // This enables synthetic updates to resolve references after all items are created
           if (result && result.number && result.repo) {
             const contentToCheck = getContentToCheck(deferred.type, deferred.message);
-            if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
+            if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap)) {
               core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
               outputsWithUnresolvedIds.push({
                 type: deferred.type,
@@ -754,6 +784,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
     success: true,
     results,
     temporaryIdMap: temporaryIdMapObj,
+    artifactUrlMap,
     outputsWithUnresolvedIds,
     missings,
     codePushFailures,
@@ -910,24 +941,27 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
  * @param {any} context - GitHub Actions context
  * @param {Array<{type: string, message: any, result: any, originalTempIdMapSize: number}>} trackedOutputs - Outputs that need updating
  * @param {Map<string, {repo: string, number: number}>} temporaryIdMap - Current temporary ID map
+ * @param {Map<string, string>} [artifactUrlMap] - Optional artifact URL map for resolving artifact references
  * @returns {Promise<number>} Number of successful updates
  */
-async function processSyntheticUpdates(github, context, trackedOutputs, temporaryIdMap) {
+async function processSyntheticUpdates(github, context, trackedOutputs, temporaryIdMap, artifactUrlMap) {
   let updateCount = 0;
 
   core.info(`\n=== Processing Synthetic Updates ===`);
   core.info(`Found ${trackedOutputs.length} output(s) with unresolved temporary IDs`);
 
   for (const tracked of trackedOutputs) {
-    // Check if any new temporary IDs were resolved since this output was created
-    // Only check and update if we have content to check
-    if (temporaryIdMap.size > tracked.originalTempIdMapSize) {
+    // Check if any new temporary IDs were resolved since this output was created.
+    // Also trigger an update when artifact URLs have been registered (artifactUrlMap is non-empty),
+    // since artifact IDs embedded in the body need to be replaced with their real URLs.
+    const resolvedArtifacts = artifactUrlMap && artifactUrlMap.size > 0;
+    if (temporaryIdMap.size > tracked.originalTempIdMapSize || resolvedArtifacts) {
       const contentToCheck = getContentToCheck(tracked.type, tracked.message);
 
       // Only process if we have content to check
       if (contentToCheck !== null && contentToCheck !== "") {
         // Check if the content still has unresolved IDs (some may now be resolved)
-        const stillHasUnresolved = hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap);
+        const stillHasUnresolved = hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap, artifactUrlMap);
         const resolvedCount = temporaryIdMap.size - tracked.originalTempIdMapSize;
 
         if (!stillHasUnresolved) {
@@ -936,8 +970,9 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
           core.info(`Updating ${tracked.type} ${logInfo} (${resolvedCount} temp ID(s) resolved)`);
 
           try {
-            // Replace temporary ID references with resolved values
-            const updatedContent = replaceTemporaryIdReferences(contentToCheck, temporaryIdMap, tracked.result.repo);
+            // Replace artifact URL references first, then issue number references
+            let updatedContent = replaceArtifactUrlReferences(contentToCheck, artifactUrlMap);
+            updatedContent = replaceTemporaryIdReferences(updatedContent, temporaryIdMap, tracked.result.repo);
 
             // Update based on the original type
             switch (tracked.type) {
@@ -1090,7 +1125,7 @@ async function main() {
       // Convert temp ID map back to Map
       const temporaryIdMap = new Map(Object.entries(processingResult.temporaryIdMap));
 
-      syntheticUpdateCount = await processSyntheticUpdates(github, context, processingResult.outputsWithUnresolvedIds, temporaryIdMap);
+      syntheticUpdateCount = await processSyntheticUpdates(github, context, processingResult.outputsWithUnresolvedIds, temporaryIdMap, processingResult.artifactUrlMap);
     }
 
     // Write step summaries for all processed safe-outputs

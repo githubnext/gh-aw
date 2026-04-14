@@ -67,6 +67,7 @@ describe("checkout_pr_branch.cjs", () => {
     global.exec = mockExec;
     global.context = mockContext;
     process.env.GITHUB_TOKEN = "test-token";
+    process.env.GITHUB_SERVER_URL = "https://github.com";
   });
 
   afterEach(() => {
@@ -75,6 +76,7 @@ describe("checkout_pr_branch.cjs", () => {
     delete global.context;
     delete global.github;
     delete process.env.GITHUB_TOKEN;
+    delete process.env.GITHUB_SERVER_URL;
     vi.clearAllMocks();
   });
 
@@ -150,6 +152,9 @@ If the pull request is still open, verify that:
       }
       if (module === "./error_codes.cjs") {
         return require("./error_codes.cjs");
+      }
+      if (module === "./git_helpers.cjs") {
+        return require("./git_helpers.cjs");
       }
       throw new Error(`Module ${module} not mocked in test`);
     };
@@ -241,8 +246,8 @@ If the pull request is still open, verify that:
       expect(mockCore.info).toHaveBeenCalledWith("Strategy: gh pr checkout");
       expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; head branch exists only in fork, not in origin");
 
-      // Verify gh pr checkout is used instead of git fetch
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      // Verify gh pr checkout is used instead of git fetch, with GH_HOST override
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -301,8 +306,8 @@ If the pull request is still open, verify that:
 
       expect(mockCore.info).toHaveBeenCalledWith("Checking out PR #123 using gh CLI");
 
-      // Updated expectation: no env options passed, GH_TOKEN comes from step environment
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      // GH_HOST is overridden with value derived from GITHUB_SERVER_URL to avoid proxy/stale values
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out PR #123");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -324,16 +329,14 @@ If the pull request is still open, verify that:
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: gh pr checkout failed`);
     });
 
-    it("should pass environment variables to gh command", async () => {
-      // This test is no longer relevant since we don't pass env options explicitly
-      // The GH_TOKEN is now set at the step level, not in the exec options
-      // Keeping the test but updating to verify the call without env options
+    it("should pass GH_HOST derived from GITHUB_SERVER_URL to gh command", async () => {
+      // GH_HOST is always derived from GITHUB_SERVER_URL to avoid stale/proxy values
       process.env.CUSTOM_VAR = "custom-value";
 
       await runScript();
 
-      // Verify exec is called without env options
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      // Verify exec is called with GH_HOST derived from GITHUB_SERVER_URL
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
 
       delete process.env.CUSTOM_VAR;
     });
@@ -378,9 +381,8 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_target");
-      // pull_request_target uses gh pr checkout, not git
-      // Updated expectation: no third argument (env options removed)
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      // pull_request_target uses gh pr checkout with GH_HOST override
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
 
     it("should handle pull_request_review event", async () => {
@@ -389,9 +391,8 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_review");
-      // pull_request_review uses gh pr checkout, not git
-      // Updated expectation: no third argument (env options removed)
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      // pull_request_review uses gh pr checkout with GH_HOST override
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
 
     it("should handle pull_request_review_comment event", async () => {
@@ -399,8 +400,8 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      // Updated expectation: no third argument (env options removed)
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      // pull_request_review_comment uses gh pr checkout with GH_HOST override
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
   });
 
@@ -500,7 +501,7 @@ If the pull request is still open, verify that:
       // Verify fork detection logging with reason
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (different repository names)");
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
 
     it("should NOT detect fork when repo has fork flag but same full_name", async () => {
@@ -516,7 +517,7 @@ If the pull request is still open, verify that:
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
       expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fork PR detected"));
       // Still uses gh pr checkout because pull_request_target always does
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
 
     it("should detect non-fork PRs in pull_request_target events", async () => {
@@ -885,6 +886,58 @@ If the pull request is still open, verify that:
       expect(mockCore.startGroup).toHaveBeenCalledWith("⚠️ Closed PR Checkout Warning");
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("GH_HOST override for gh pr checkout", () => {
+    it("should override DIFC proxy GH_HOST (localhost:18443) with actual GitHub host", async () => {
+      const previousGhHost = process.env.GH_HOST;
+
+      try {
+        // Simulate active DIFC proxy that set GH_HOST=localhost:18443 in env
+        process.env.GH_HOST = "localhost:18443";
+        process.env.GITHUB_SERVER_URL = "https://github.com";
+        mockContext.eventName = "issue_comment";
+
+        await runScript();
+
+        // GH_HOST should be overridden to github.com, not localhost:18443
+        expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      } finally {
+        if (previousGhHost === undefined) {
+          delete process.env.GH_HOST;
+        } else {
+          process.env.GH_HOST = previousGhHost;
+        }
+      }
+    });
+
+    it("should use GHE host from GITHUB_SERVER_URL for gh pr checkout", async () => {
+      process.env.GITHUB_SERVER_URL = "https://myorg.ghe.com";
+      mockContext.eventName = "pull_request_target";
+
+      await runScript();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "myorg.ghe.com" }) }));
+    });
+
+    it("should strip https:// protocol from GITHUB_SERVER_URL when deriving GH_HOST", async () => {
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+      mockContext.eventName = "pull_request_target";
+
+      await runScript();
+
+      // Should not include the protocol in GH_HOST
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+    });
+
+    it("should default to github.com when GITHUB_SERVER_URL is not set", async () => {
+      delete process.env.GITHUB_SERVER_URL;
+      mockContext.eventName = "issue_comment";
+
+      await runScript();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
   });
 });

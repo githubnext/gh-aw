@@ -26,6 +26,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getGhEnvBypassingIntegrityFilteringForGitOps } = require("./git_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
@@ -176,7 +177,13 @@ async function main() {
       }
 
       core.info(`Checking out PR #${prNumber} using gh CLI`);
-      await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
+
+      // Override GH_HOST with the real GitHub hostname so gh pr checkout can resolve
+      // the repository from git remotes. The DIFC proxy may have set GH_HOST to
+      // localhost:18443 which doesn't match any remote.
+      await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
+        env: getGhEnvBypassingIntegrityFilteringForGitOps(),
+      });
 
       // Log the resulting branch after checkout
       let currentBranch = "";
