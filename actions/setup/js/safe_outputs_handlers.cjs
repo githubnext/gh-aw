@@ -890,9 +890,112 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
   };
 
+  /**
+   * Recursively copy all regular files from srcDir into destDir, preserving the relative
+   * path structure under srcDir. Non-regular entries (sockets, devices, pipes, symlinks)
+   * are skipped silently.
+   * @param {string} srcDir - Absolute source directory path
+   * @param {string} destDir - Absolute destination directory path
+   */
+  function copyDirectoryRecursive(srcDir, destDir) {
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+    for (const ent of fs.readdirSync(srcDir, { withFileTypes: true })) {
+      const srcPath = path.join(srcDir, ent.name);
+      const destPath = path.join(destDir, ent.name);
+      if (ent.isDirectory()) {
+        copyDirectoryRecursive(srcPath, destPath);
+      } else if (ent.isFile() && !ent.isSymbolicLink() && !fs.existsSync(destPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+      // Skip symlinks, sockets, pipes, block/char devices — non-regular file types.
+    }
+  }
+
+  /**
+   * Handler for upload_artifact tool.
+   *
+   * When the agent calls upload_artifact with an absolute path (e.g.,
+   * /tmp/gh-aw/python/charts/loc_by_language.png), the file lives only inside the
+   * sandboxed container.  After the container exits the file is gone, so the safe_outputs
+   * job running on a different runner cannot find it.
+   *
+   * This handler copies the file (or directory) to the staging directory
+   * ($RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/), which is bind-mounted rw into
+   * the container.  The agent job then uploads that staging directory as the
+   * safe-outputs-upload-artifacts artifact, and the safe_outputs job downloads it before
+   * processing.
+   *
+   * For path-based requests with an absolute path the handler also rewrites entry.path to
+   * the staging-relative basename so that upload_artifact.cjs on the safe_outputs runner
+   * resolves the file from staging rather than trying the (non-existent) absolute path.
+   *
+   * Relative paths and filter-based requests are passed through unchanged because the
+   * agent is expected to have placed those files in staging directly.
+   */
+  const uploadArtifactHandler = args => {
+    const entry = { ...(args || {}), type: "upload_artifact" };
+
+    if (typeof entry.path === "string" && path.isAbsolute(entry.path)) {
+      const filePath = entry.path;
+
+      if (!fs.existsSync(filePath)) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_artifact: file not found: ${filePath}`,
+        };
+      }
+
+      const stat = fs.lstatSync(filePath);
+      if (stat.isSymbolicLink()) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_artifact: symlinks are not allowed: ${filePath}`,
+        };
+      }
+
+      const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts");
+      if (!fs.existsSync(stagingDir)) {
+        fs.mkdirSync(stagingDir, { recursive: true });
+      }
+
+      const destName = path.basename(filePath);
+
+      if (stat.isDirectory()) {
+        copyDirectoryRecursive(filePath, path.join(stagingDir, destName));
+      } else {
+        const destPath = path.join(stagingDir, destName);
+        if (!fs.existsSync(destPath)) {
+          fs.copyFileSync(filePath, destPath);
+        }
+      }
+
+      // Rewrite to staging-relative path so upload_artifact.cjs resolves it from staging.
+      entry.path = destName;
+      server.debug(`upload_artifact: staged ${filePath} as ${destName}`);
+    }
+
+    appendSafeOutput(entry);
+
+    const temporaryId = entry.temporary_id || null;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            result: "success",
+            ...(temporaryId ? { temporary_id: temporaryId } : {}),
+          }),
+        },
+      ],
+    };
+  };
+
   return {
     defaultHandler,
     uploadAssetHandler,
+    uploadArtifactHandler,
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
     pushRepoMemoryHandler,

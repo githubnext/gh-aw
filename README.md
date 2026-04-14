@@ -109,12 +109,17 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #20511 _(direct issue)_
 - #20510 _(direct issue)_
 
+### @arthurfvives
+
+- #25993 _(direct issue)_
+
 ### @askpt
 
 - #17763 _(direct issue)_
 
 ### @bbonafed
 
+- #26043 _(direct issue)_
 - #25646 _(direct issue)_
 - #24949 _(direct issue)_
 - #25224 _(direct issue)_
@@ -501,6 +506,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #22281 _(direct issue)_
 
+### @lukeed
+
+- #20552 _(direct issue)_
+
 ### @lupinthe14th
 
 - #18712 _(direct issue)_
@@ -786,6 +795,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @tore-unumed
 
 - #20780 _(direct issue)_
+- #19703 _(direct issue)_
 - #19370 _(direct issue)_
 - #18329 _(direct issue)_
 - #18107 _(direct issue)_
@@ -821,6 +831,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @wtgodbe
 
+- #26057 _(direct issue)_
 - #25130 _(direct issue)_
 - #24921 _(direct issue)_
 
@@ -830,6 +841,11 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @yskopets
 
+- #26120 _(direct issue)_
+- #26101 _(direct issue)_
+- #26085 _(direct issue)_
+- #26080 _(direct issue)_
+- #26067 _(direct issue)_
 - #25959 _(direct issue)_
 - #25833 _(direct issue)_
 - #25363 _(direct issue)_

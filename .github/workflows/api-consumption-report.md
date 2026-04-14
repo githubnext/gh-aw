@@ -318,7 +318,15 @@ ls -la "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
 
 After confirming the files exist in the staging directory, call `upload_artifact` for each chart using the **filename only** (not a subdirectory path). For example, use `path: "api_calls_trend.png"` — NOT `path: "charts/api_calls_trend.png"`.
 
-Call `upload_artifact` once per chart (5 total). Collect and record the returned `aw_*` ID for each chart.
+Call `upload_artifact` once per chart (5 total), specifying the `temporary_id` for each so the chart can be embedded as an inline image in the discussion:
+
+| Chart file | `temporary_id` |
+|---|---|
+| `api_calls_trend.png` | `aw_api_trend` |
+| `workflow_api_trend.png` | `aw_wf_trend` |
+| `api_heatmap.png` | `aw_heatmap` |
+| `api_burners_donut.png` | `aw_donut` |
+| `api_by_workflow.png` | `aw_by_wf` |
 
 ---
 
@@ -353,7 +361,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub API Calls Trend (90 days)
 
-📎 **[Chart: GitHub API Calls Trend](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})** — artifact `{api_calls_trend_aw_id}`
+![GitHub API Calls Trend](#aw_api_trend)
 
 {2–3 sentences: highlight the trend direction, peak days, and any notable spikes in total REST API consumption}
 
@@ -361,7 +369,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub API Calls by Workflow Trend (30 days)
 
-📎 **[Chart: GitHub API Calls by Workflow Trend](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})** — artifact `{workflow_api_trend_aw_id}`
+![GitHub API Calls by Workflow Trend](#aw_wf_trend)
 
 {2–3 sentences: note which workflows consistently consume the most API quota and any emerging patterns over the last 30 days}
 
@@ -369,7 +377,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub REST API Calls Heatmap (90 days)
 
-📎 **[Chart: GitHub REST API Calls Heatmap](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})** — artifact `{api_heatmap_aw_id}`
+![GitHub REST API Calls Heatmap](#aw_heatmap)
 
 {2–3 sentences: describe weekly patterns, busiest days, and any anomalies in REST API consumption}
 
@@ -377,7 +385,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🍩 Top API Burners (24h)
 
-📎 **[Chart: Top API Burners](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})** — artifact `{api_burners_donut_aw_id}`
+![Top API Burners](#aw_donut)
 
 {2–3 sentences: describe which workflows dominate API consumption, their share of the total, and any concentration risk}
 
@@ -385,7 +393,7 @@ Create a discussion with the following structure. Replace placeholders with real
 
 ### 🔗 GitHub REST API Consumption by Workflow (last 24h)
 
-📎 **[Chart: GitHub REST API Consumption by Workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})** — artifact `{api_by_workflow_aw_id}`
+![GitHub REST API Consumption by Workflow](#aw_by_wf)
 
 {2–3 sentences: identify the top REST API consumers, note any workflows near the 15k/hr limit, and suggest optimisation opportunities}
 

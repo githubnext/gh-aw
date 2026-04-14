@@ -84,44 +84,25 @@ async function main() {
 
   try {
     switch (eventName) {
-      case "issues": {
-        const number = context.payload?.issue?.number;
-        if (!number) {
-          core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
-          return;
-        }
-        commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
-        break;
-      }
-
+      case "issues":
       case "issue_comment": {
         const number = context.payload?.issue?.number;
         if (!number) {
           core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
           return;
         }
-        // Create new comment on the issue itself, not on the comment
         commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
         break;
       }
 
-      case "pull_request": {
-        const number = context.payload?.pull_request?.number;
-        if (!number) {
-          core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
-          return;
-        }
-        commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
-        break;
-      }
-
+      case "pull_request":
       case "pull_request_review_comment": {
         const number = context.payload?.pull_request?.number;
         if (!number) {
           core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
           return;
         }
-        // Create new comment on the PR itself (using issues endpoint since PRs are issues)
+        // PRs use the issues comment endpoint
         commentEndpoint = `/repos/${owner}/${repo}/issues/${number}/comments`;
         break;
       }
@@ -156,10 +137,83 @@ async function main() {
     await addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName);
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    core.error(`Failed to create comment: ${errorMessage}`);
     // Don't fail the job - just warn since this is not critical
     core.warning(`Failed to create comment with workflow link: ${errorMessage}`);
   }
+}
+
+/**
+ * Build the comment body text for a workflow run link.
+ * Sanitizes the content and appends all required markers.
+ * @param {string} eventName - The event type
+ * @param {string} runUrl - The URL of the workflow run
+ * @returns {string} The assembled comment body
+ */
+function buildCommentBody(eventName, runUrl) {
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
+
+  // Sanitize before adding markers (defense in depth for custom message templates)
+  let body = sanitizeContent(getRunStartedMessage({ workflowName, runUrl, eventType: eventTypeDescription }));
+
+  // Add lock notice if lock-for-agent is enabled for issues or issue_comment
+  if (process.env.GH_AW_LOCK_FOR_AGENT === "true" && (eventName === "issues" || eventName === "issue_comment")) {
+    body += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
+  }
+
+  // Add workflow-id marker for hide-older-comments feature
+  const workflowId = process.env.GITHUB_WORKFLOW || "";
+  if (workflowId) {
+    body += `\n\n${generateWorkflowIdMarker(workflowId)}`;
+  }
+
+  // Add tracker-id marker for backwards compatibility
+  const trackerId = process.env.GH_AW_TRACKER_ID || "";
+  if (trackerId) {
+    body += `\n\n<!-- gh-aw-tracker-id: ${trackerId} -->`;
+  }
+
+  // Identify this as a reaction comment (prevents it from being hidden by hide-older-comments)
+  body += `\n\n<!-- gh-aw-comment-type: reaction -->`;
+
+  return body;
+}
+
+/**
+ * Post a GraphQL comment to a discussion, optionally as a threaded reply.
+ * @param {number} discussionNumber - The discussion number
+ * @param {string} commentBody - The comment body
+ * @param {string|null} replyToNodeId - Parent comment node ID for threading (null for top-level)
+ */
+async function postDiscussionComment(discussionNumber, commentBody, replyToNodeId = null) {
+  const discussionId = await getDiscussionNodeId(discussionNumber);
+
+  /** @type {any} */
+  let result;
+  if (replyToNodeId) {
+    result = await github.graphql(
+      `
+      mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+        addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+          comment { id url }
+        }
+      }`,
+      { dId: discussionId, body: commentBody, replyToId: replyToNodeId }
+    );
+  } else {
+    result = await github.graphql(
+      `
+      mutation($dId: ID!, $body: String!) {
+        addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+          comment { id url }
+        }
+      }`,
+      { dId: discussionId, body: commentBody }
+    );
+  }
+
+  const comment = result.addDiscussionComment.comment;
+  setCommentOutputs(comment.id, comment.url);
 }
 
 /**
@@ -169,110 +223,32 @@ async function main() {
  * @param {string} eventName - The event type (to determine the comment text)
  */
 async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
-  // Get workflow name from environment variable
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const commentBody = buildCommentBody(eventName, runUrl);
 
-  // Determine the event type description using lookup object
-  const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
-
-  // Use getRunStartedMessage for the workflow link text (supports custom messages)
-  const workflowLinkText = getRunStartedMessage({
-    workflowName: workflowName,
-    runUrl: runUrl,
-    eventType: eventTypeDescription,
-  });
-
-  // Sanitize the workflow link text to prevent injection attacks (defense in depth for custom message templates)
-  // This must happen BEFORE adding workflow markers to preserve them
-  let commentBody = sanitizeContent(workflowLinkText);
-
-  // Add lock notice if lock-for-agent is enabled for issues or issue_comment
-  const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
-  if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
-    commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
-  }
-
-  // Add workflow-id and tracker-id markers for hide-older-comments feature
-  const workflowId = process.env.GITHUB_WORKFLOW || "";
-  const trackerId = process.env.GH_AW_TRACKER_ID || "";
-
-  // Add workflow-id marker if available
-  if (workflowId) {
-    commentBody += `\n\n${generateWorkflowIdMarker(workflowId)}`;
-  }
-
-  // Add tracker-id marker if available (for backwards compatibility)
-  if (trackerId) {
-    commentBody += `\n\n<!-- gh-aw-tracker-id: ${trackerId} -->`;
-  }
-
-  // Add comment type marker to identify this as a reaction comment
-  // This prevents it from being hidden by hide-older-comments
-  commentBody += `\n\n<!-- gh-aw-comment-type: reaction -->`;
-
-  // Handle discussion events specially
   if (eventName === "discussion") {
     // Parse discussion number from special format: "discussion:NUMBER"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-
-    // Get discussion node ID using helper function
-    const discussionId = await getDiscussionNodeId(discussionNumber);
-
-    const result = await github.graphql(
-      `
-      mutation($dId: ID!, $body: String!) {
-        addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-          comment { 
-            id 
-            url
-          }
-        }
-      }`,
-      { dId: discussionId, body: commentBody }
-    );
-
-    const comment = result.addDiscussionComment.comment;
-    setCommentOutputs(comment.id, comment.url);
+    await postDiscussionComment(discussionNumber, commentBody);
     return;
-  } else if (eventName === "discussion_comment") {
+  }
+
+  if (eventName === "discussion_comment") {
     // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
     const discussionNumber = parseInt(endpoint.split(":")[1], 10);
 
-    // Get discussion node ID using helper function
-    const discussionId = await getDiscussionNodeId(discussionNumber);
-
-    // Get the comment node ID to use as the parent for threading.
-    // GitHub Discussions only supports two nesting levels, so if the triggering comment is
-    // itself a reply, we resolve the top-level parent's node ID.
+    // GitHub Discussions only supports two nesting levels, so resolve the top-level parent's node ID
     const commentNodeId = await resolveTopLevelDiscussionCommentId(github, context.payload?.comment?.node_id);
-
-    const result = await github.graphql(
-      `
-      mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-        addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-          comment { 
-            id 
-            url
-          }
-        }
-      }`,
-      { dId: discussionId, body: commentBody, replyToId: commentNodeId }
-    );
-
-    const comment = result.addDiscussionComment.comment;
-    setCommentOutputs(comment.id, comment.url);
+    await postDiscussionComment(discussionNumber, commentBody, commentNodeId);
     return;
   }
 
   // Create a new comment for non-discussion events
   const createResponse = await github.request("POST " + endpoint, {
     body: commentBody,
-    headers: {
-      Accept: "application/vnd.github+json",
-    },
+    headers: { Accept: "application/vnd.github+json" },
   });
 
   setCommentOutputs(createResponse.data.id, createResponse.data.html_url);
 }
 
-module.exports = { main, addCommentWithWorkflowLink };
+module.exports = { main, addCommentWithWorkflowLink, buildCommentBody, postDiscussionComment };

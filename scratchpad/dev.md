@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 5.9
-**Last Updated**: 2026-04-13
+**Version**: 6.0
+**Last Updated**: 2026-04-14
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -2089,6 +2089,23 @@ Integrity levels are determined by the `author_association` field and main branc
 
 **Extensibility**: The `MCPServerConfig` struct holds a `GuardPolicies map[string]any` field for future MCP servers (e.g., Jira, WorkIQ) that need server-specific policy schemas.
 
+**Reactions as Trust Signals** (v0.68.2+): The `integrity-reactions` feature flag allows GitHub reactions (👍, ❤️) to promote content past the integrity filter. When `features.integrity-reactions: true` is set, the compiler automatically:
+- Enables `cli-proxy` (required for reaction-based integrity decisions)
+- Injects default endorsement reactions: `THUMBS_UP`, `HEART`
+- Injects default disapproval reactions: `THUMBS_DOWN`, `CONFUSED`
+- Uses `endorser-min-integrity: approved` (only reactions from owners, members, and collaborators count)
+- Uses `disapproval-integrity: none` (a disapproval reaction demotes content to `none`)
+
+```yaml
+features:
+  integrity-reactions: true
+tools:
+  github:
+    min-integrity: approved
+```
+
+Note: `cli-proxy` is implicitly enabled by the compiler when `integrity-reactions: true` — no explicit `features.cli-proxy: true` is required. Reactions only work through the CLI proxy, not the gateway mode.
+
 See `scratchpad/guard-policies-specification.md` for the full specification including type hierarchy and error message reference.
 
 ### MCP Server Configuration
@@ -2812,6 +2829,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v6.0 (2026-04-14): Fixed 12 tone issues across 2 spec files: `engine-architecture-review.md` (10 fixes: "comprehensive documentation have been added to further enhance extensibility"→"documentation have been added to extend the architecture", "Comprehensive MCP support"→"MCP support", "No comprehensive guide existed"→"No guide existed", "Created comprehensive `adding-new-engines.md`"→"Created `adding-new-engines.md`", "Assessment: ✅ **Comprehensive**"→"Assessment: ✅", "No comprehensive developer guide"→"No developer guide", "Developers have comprehensive guidance"→"Developers have implementation guidance", "Create comprehensive guide for adding new engines"→"Create guide for adding new engines", "Comprehensive Engine Implementation Guide"→"Engine Implementation Guide", "Comprehensive testing"→"Testing"), `file-inlining.md` (2 fixes: "Comprehensive testing with unit tests"→"Testing with unit tests", "Comprehensive documentation"→"Documentation"). Added integrity-reactions feature documentation to GitHub MCP Guard Policies section (from PR #26154: `features.integrity-reactions: true`, compiler auto-enables `cli-proxy`, default reaction config, v0.68.2+). Coverage: 75 spec files (no new files).
 - v5.9 (2026-04-13): Maintenance tone scan — fixed 10 tone issues across 2 spec files: `go-type-patterns.md` (1 fix: "Easy refactoring"→"Supports refactoring"), `engine-review-summary.md` (9 fixes: "Completed comprehensive deep review"→"Completed deep review", "No comprehensive guide"→"No guide", "Created comprehensive documentation"→"Created documentation", "Comprehensive Implementation Guide"→"Implementation Guide", "quick access to comprehensive engine documentation"→"quick access to engine documentation", "Create comprehensive guide"→"Create guide", "Comprehensive Testing"→"Testing", "The only gap was comprehensive documentation"→"The only gap was documentation", "The comprehensive guide provides everything needed"→"The guide provides the steps needed"). Coverage: 75 spec files (no new files).
 - v5.8 (2026-04-11): Maintenance tone scan — fixed 9 tone issues across 2 spec files: `engine-review-summary.md` (6 fixes: `### Strengths ⭐⭐⭐⭐⭐`→`### Strengths`, `### Interface Design: ⭐⭐⭐⭐⭐ (5/5)`→`### Interface Design`, removed Rating column from Implementation Quality table and replaced "Comprehensive single-file implementation" with "Single-file implementation", `### Security: ⭐⭐⭐⭐⭐ (5/5)`→`### Security`, `### Testing: ⭐⭐⭐⭐⭐ (5/5)`→`### Testing`, `### Documentation: ⭐⭐⭐⭐⭐ (5/5) - After Improvements`→`### Documentation - After Improvements`), `engine-architecture-review.md` (3 fixes: removed 3 `**Rating**: ⭐⭐⭐⭐⭐ (5/5)` lines from Copilot, Claude, Codex, and Custom engine sections). Coverage: 75 spec files (no new files).
 - v5.7 (2026-04-10): Maintenance tone scan — fixed 4 tone issues across 2 spec files: `oh-my-code.md` (3 fixes: "Deep Research Comparison"→"Technical Comparison", "Comprehensive Analysis"→"Analysis", "deep research comparison between"→"compares"), `mdflow-comparison.md` (1 fix: "detailed syntax comparison"→"syntax comparison"). Updated Related Documentation description for `oh-my-code.md`. Coverage: 75 spec files (no new files).
