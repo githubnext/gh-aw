@@ -158,6 +158,20 @@ func (c *Compiler) generateMCPCLIMountStep(yaml *strings.Builder, data *Workflow
 	yaml.WriteString("            await main();\n")
 }
 
+// GetMCPCLIPathSetup returns a shell command that adds the MCP CLI bin directory
+// to PATH inside the AWF container. This ensures CLI-mounted MCP servers are
+// accessible as shell commands even though sudo's secure_path may strip the
+// core.addPath() additions from $GITHUB_PATH.
+//
+// Returns an empty string if no MCP CLIs are configured, so callers can safely
+// chain it with && without introducing empty commands.
+func GetMCPCLIPathSetup(data *WorkflowData) string {
+	if getMCPCLIServerNames(data) == nil {
+		return ""
+	}
+	return `export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH"`
+}
+
 // buildMCPCLIPromptSection returns a PromptSection describing the CLI tools available
 // to the agent, or nil if there are no servers to mount.
 // The prompt is loaded from actions/setup/md/mcp_cli_tools_prompt.md at runtime,

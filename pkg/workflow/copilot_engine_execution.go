@@ -226,9 +226,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		//
 		// Version precedence works because actions/setup-* PREPEND to PATH, so
 		// /opt/hostedtoolcache/go/1.25.6/x64/bin comes before /usr/bin in AWF_HOST_PATH.
+		//
+		// MCP CLI bin directory: when mount-as-clis is enabled, the CLI wrapper scripts
+		// live under ${RUNNER_TEMP}/gh-aw/mcp-cli/bin. core.addPath() adds this to
+		// $GITHUB_PATH for subsequent steps, but sudo's secure_path may strip it.
+		// Prepending it to the engine command ensures the agent can find them.
+		engineCommand := copilotCommand
+		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
+			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, copilotCommand)
+		}
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "copilot",
-			EngineCommand:  copilotCommand,
+			EngineCommand:  engineCommand,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Copilot doesn't require TTY
