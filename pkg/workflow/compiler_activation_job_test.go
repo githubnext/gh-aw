@@ -198,7 +198,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, "", GetActionPin)
+			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, "", "", GetActionPin)
 
 			require.NotEmpty(t, result, "should return at least one YAML line")
 
@@ -615,11 +615,183 @@ func TestGenerateCheckoutGitHubFolderForActivation_ActionsModeSetupPath(t *testi
 // TestGenerateGitHubFolderCheckoutStep_ExtraPaths verifies that extraPaths are
 // correctly appended to the sparse-checkout list.
 func TestGenerateGitHubFolderCheckoutStep_ExtraPaths(t *testing.T) {
-	result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("", "", GetActionPin, "actions/setup", "custom/path")
+	result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("", "", "", GetActionPin, "actions/setup", "custom/path")
 	combined := strings.Join(result, "")
 
 	assert.Contains(t, combined, ".github", "should include .github")
 	assert.Contains(t, combined, ".agents", "should include .agents")
 	assert.Contains(t, combined, "actions/setup", "should include extra path actions/setup")
 	assert.Contains(t, combined, "custom/path", "should include extra path custom/path")
+}
+
+// TestGenerateGitHubFolderCheckoutStep_Token verifies that the token: field is emitted
+// only for non-default tokens, supporting cross-org workflow_call scenarios.
+func TestGenerateGitHubFolderCheckoutStep_Token(t *testing.T) {
+	tests := []struct {
+		name      string
+		token     string
+		wantToken bool
+		wantValue string
+	}{
+		{
+			name:      "empty token - no token field",
+			token:     "",
+			wantToken: false,
+		},
+		{
+			name:      "default GITHUB_TOKEN - no token field emitted",
+			token:     "${{ secrets.GITHUB_TOKEN }}",
+			wantToken: false,
+		},
+		{
+			name:      "custom PAT secret - token field emitted",
+			token:     "${{ secrets.CROSS_ORG_TOKEN }}",
+			wantToken: true,
+			wantValue: "${{ secrets.CROSS_ORG_TOKEN }}",
+		},
+		{
+			name:      "GitHub App minted token - token field emitted",
+			token:     "${{ steps.activation-app-token.outputs.token }}",
+			wantToken: true,
+			wantValue: "${{ steps.activation-app-token.outputs.token }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("org/repo", "", tt.token, GetActionPin)
+			combined := strings.Join(result, "")
+
+			if tt.wantToken {
+				assert.Contains(t, combined, "token: "+tt.wantValue,
+					"should include token field with correct value")
+			} else {
+				assert.NotContains(t, combined, "token:",
+					"should not include token field for default or empty token")
+			}
+		})
+	}
+}
+
+// TestCheckoutTokenPropagatedToActivation verifies that the on.github-token frontmatter field
+// is propagated to the activation job's .github checkout step for cross-org workflow_call support.
+func TestCheckoutTokenPropagatedToActivation(t *testing.T) {
+	tests := []struct {
+		name            string
+		activationToken string
+		onSection       string
+		wantTokenInStep bool
+		wantTokenValue  string
+	}{
+		{
+			name:            "custom token with workflow_call - token emitted in checkout",
+			activationToken: "${{ secrets.CROSS_ORG_TOKEN }}",
+			onSection: `"on":
+  workflow_call:`,
+			wantTokenInStep: true,
+			wantTokenValue:  "${{ secrets.CROSS_ORG_TOKEN }}",
+		},
+		{
+			name:            "default GITHUB_TOKEN - no token field in checkout",
+			activationToken: "",
+			onSection: `"on":
+  workflow_call:`,
+			wantTokenInStep: false,
+		},
+		{
+			name:            "custom token without workflow_call - token emitted in checkout",
+			activationToken: "${{ secrets.CROSS_ORG_TOKEN }}",
+			onSection: `"on":
+  issues:
+    types: [opened]`,
+			wantTokenInStep: true,
+			wantTokenValue:  "${{ secrets.CROSS_ORG_TOKEN }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompilerWithVersion("dev")
+			c.SetActionMode(ActionModeDev)
+
+			data := &WorkflowData{
+				On:                    tt.onSection,
+				ActivationGitHubToken: tt.activationToken,
+			}
+
+			result := c.generateCheckoutGitHubFolderForActivation(data)
+			combined := strings.Join(result, "")
+
+			if tt.wantTokenInStep {
+				assert.Contains(t, combined, "token: "+tt.wantTokenValue,
+					"checkout step should include token field for cross-org support")
+			} else {
+				assert.NotContains(t, combined, "token:",
+					"checkout step should not include token field when using default GITHUB_TOKEN")
+			}
+		})
+	}
+}
+
+// TestHashCheckTokenPropagation verifies that the on.github-token frontmatter field
+// is propagated to the "Check workflow lock file" step for cross-org workflow_call support.
+func TestHashCheckTokenPropagation(t *testing.T) {
+	tests := []struct {
+		name            string
+		activationToken string
+		wantTokenInStep bool
+		wantTokenValue  string
+	}{
+		{
+			name:            "custom token - github-token emitted in hash check step",
+			activationToken: "${{ secrets.CROSS_ORG_TOKEN }}",
+			wantTokenInStep: true,
+			wantTokenValue:  "${{ secrets.CROSS_ORG_TOKEN }}",
+		},
+		{
+			name:            "default GITHUB_TOKEN - no github-token field in hash check step",
+			activationToken: "",
+			wantTokenInStep: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompilerWithVersion("dev")
+			compiler.SetActionMode(ActionModeDev)
+
+			data := &WorkflowData{
+				Name: "test-workflow",
+				On: `"on":
+  workflow_call:`,
+				ActivationGitHubToken: tt.activationToken,
+				AI:                    "copilot",
+			}
+
+			job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+			require.NoError(t, err, "buildActivationJob should succeed")
+			require.NotNil(t, job, "activation job should not be nil")
+
+			// Find the check-lock-file step in the job steps
+			combined := strings.Join(job.Steps, "")
+			// Extract the check-lock-file step region
+			lockFileIdx := strings.Index(combined, "id: check-lock-file")
+			require.NotEqual(t, -1, lockFileIdx, "check-lock-file step should be present")
+
+			// Get a window around the lock file step to check for github-token
+			lockFileSection := combined[lockFileIdx:]
+			nextStepIdx := strings.Index(lockFileSection[10:], "      - name:")
+			if nextStepIdx != -1 {
+				lockFileSection = lockFileSection[:nextStepIdx+10]
+			}
+
+			if tt.wantTokenInStep {
+				assert.Contains(t, lockFileSection, "github-token: "+tt.wantTokenValue,
+					"hash check step should include github-token field for cross-org support")
+			} else {
+				assert.NotContains(t, lockFileSection, "github-token:",
+					"hash check step should not include github-token field when using default GITHUB_TOKEN")
+			}
+		})
+	}
 }
