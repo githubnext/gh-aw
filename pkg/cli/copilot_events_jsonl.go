@@ -281,25 +281,27 @@ func parseEventsJSONLFile(path string, verbose bool) (workflow.LogMetrics, error
 
 	// Compute Time Between Turns (TBT) from per-turn timestamps.
 	// TBT[i] = timestamp[i] - timestamp[i-1] for i > 0. Two or more timestamps
-	// are required to measure at least one interval.
+	// are required to measure at least one interval. Only positive intervals are
+	// included so that identical or out-of-order timestamps don't skew the average.
 	if len(turnTimestamps) >= 2 {
 		var totalTBT time.Duration
 		var maxTBT time.Duration
+		validIntervals := 0
 		for i := 1; i < len(turnTimestamps); i++ {
 			tbt := turnTimestamps[i].Sub(turnTimestamps[i-1])
 			if tbt > 0 {
 				totalTBT += tbt
+				validIntervals++
 				if tbt > maxTBT {
 					maxTBT = tbt
 				}
 			}
 		}
-		intervals := len(turnTimestamps) - 1
-		if totalTBT > 0 && intervals > 0 {
-			metrics.AvgTimeBetweenTurns = totalTBT / time.Duration(intervals)
+		if validIntervals > 0 {
+			metrics.AvgTimeBetweenTurns = totalTBT / time.Duration(validIntervals)
 			metrics.MaxTimeBetweenTurns = maxTBT
 			copilotEventsJSONLLog.Printf("TBT computed: avg=%s max=%s intervals=%d",
-				metrics.AvgTimeBetweenTurns, metrics.MaxTimeBetweenTurns, intervals)
+				metrics.AvgTimeBetweenTurns, metrics.MaxTimeBetweenTurns, validIntervals)
 		}
 	}
 

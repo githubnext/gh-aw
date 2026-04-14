@@ -231,11 +231,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)
 		}
-		// Compute average TBT from metrics when available; fall back to wall-time / turns.
+		// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
 		if run.AvgTimeBetweenTurns > 0 {
 			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
 		} else if run.Turns > 1 && run.Duration > 0 {
-			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns)) + " (estimated)"
+			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
 		}
 		runs = append(runs, runData)
 	}

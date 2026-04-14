@@ -412,7 +412,7 @@ The elapsed time between consecutive LLM API calls in an agentic workflow run. A
 - **Anthropic** reduced their cache TTL from 1 hour to **5 minutes**. If the TBT for any turn exceeds 5 minutes, the cached prompt context expires and the full prompt must be re-processed, significantly increasing token costs.
 - **OpenAI** has a similar server-side prompt cache with variable TTL.
 
-`gh aw audit` reports both average and maximum TBT in the Session Analysis section. A cache warning is emitted when the maximum observed TBT exceeds the Anthropic 5-minute threshold. For Copilot engine runs, TBT is computed from precise per-turn timestamps in the `events.jsonl` session log; for other engines it is estimated from total wall time divided by turn count.
+`gh aw audit` reports both average and maximum TBT in the Session Analysis section. A cache warning is emitted when the TBT used for cache analysis exceeds the Anthropic 5-minute threshold: the maximum observed TBT for Copilot engine runs, where precise per-turn timestamps are available in the `events.jsonl` session log, or the estimated average TBT for other engines, where TBT is derived from total wall time divided by turn count.
 
 To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, parallelize independent tool invocations, and avoid long-running shell commands in the critical path between turns.
 

@@ -337,7 +337,7 @@ func TestParseEventsJSONLFile_TBT(t *testing.T) {
 		assert.Zero(t, metrics.MaxTimeBetweenTurns, "no TBT with a single turn")
 	})
 
-	t.Run("no TBT when timestamps missing", func(t *testing.T) {
+	t.Run("no TBT when all timestamps are identical", func(t *testing.T) {
 		// Use realFormatEventsLine which always uses the same timestamp — no intervals.
 		content := realFormatEventsLine("user.message", `{"content":"turn 1"}`) + "\n" +
 			realFormatEventsLine("user.message", `{"content":"turn 2"}`) + "\n" +

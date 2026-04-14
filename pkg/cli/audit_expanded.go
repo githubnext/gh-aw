@@ -232,8 +232,8 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 			)
 		}
 	} else if metrics.Turns > 1 && run.Duration > 0 {
-		// Fallback: average cycle time as a proxy for TBT.
-		avgTBT := run.Duration / time.Duration(metrics.Turns)
+		// Fallback: estimate TBT from wall time over turns-1 intervals.
+		avgTBT := run.Duration / time.Duration(metrics.Turns-1)
 		session.AvgTimeBetweenTurns = timeutil.FormatDuration(avgTBT) + " (estimated)"
 		if avgTBT > anthropicCacheTTL {
 			session.CacheWarning = fmt.Sprintf(
