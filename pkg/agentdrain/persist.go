@@ -3,6 +3,7 @@ package agentdrain
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -31,15 +32,14 @@ func (m *Miner) SaveJSON() ([]byte, error) {
 
 	persistLog.Printf("Saving miner state: clusters=%d", len(m.store.clusters))
 	snap := Snapshot{
-		Config: m.cfg,
-		NextID: m.store.nextID,
+		Config:   m.cfg,
+		NextID:   m.store.nextID,
+		Clusters: make([]SnapshotCluster, 0, len(m.store.clusters)),
 	}
 	for _, c := range m.store.clusters {
-		tmpl := make([]string, len(c.Template))
-		copy(tmpl, c.Template)
 		snap.Clusters = append(snap.Clusters, SnapshotCluster{
 			ID:       c.ID,
-			Template: tmpl,
+			Template: slices.Clone(c.Template),
 			Size:     c.Size,
 			Stage:    c.Stage,
 		})
@@ -71,11 +71,9 @@ func (m *Miner) LoadJSON(data []byte) error {
 	m.store.nextID = snap.NextID
 
 	for _, sc := range snap.Clusters {
-		tmpl := make([]string, len(sc.Template))
-		copy(tmpl, sc.Template)
 		c := &Cluster{
 			ID:       sc.ID,
-			Template: tmpl,
+			Template: slices.Clone(sc.Template),
 			Size:     sc.Size,
 			Stage:    sc.Stage,
 		}
