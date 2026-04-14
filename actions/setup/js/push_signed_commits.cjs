@@ -1,10 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-/** @type {typeof import("fs")} */
-const fs = require("fs");
-/** @type {typeof import("path")} */
-const path = require("path");
 const { ERR_API } = require("./error_codes.cjs");
 
 /**
@@ -180,8 +176,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${renamedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          const content = fs.readFileSync(path.join(cwd, renamedPath));
-          additions.push({ path: renamedPath, contents: content.toString("base64") });
+          const { stdout: renamedContent } = await exec.getExecOutput("git", ["show", `${sha}:${renamedPath}`], { cwd });
+          additions.push({ path: renamedPath, contents: Buffer.from(renamedContent).toString("base64") });
         } else if (status && status.startsWith("C")) {
           // Copy: source path is kept (no deletion), only the destination path is added
           const copiedPath = unquoteCPath(paths[1]);
@@ -196,8 +192,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${copiedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          const content = fs.readFileSync(path.join(cwd, copiedPath));
-          additions.push({ path: copiedPath, contents: content.toString("base64") });
+          const { stdout: copiedContent } = await exec.getExecOutput("git", ["show", `${sha}:${copiedPath}`], { cwd });
+          additions.push({ path: copiedPath, contents: Buffer.from(copiedContent).toString("base64") });
         } else {
           // Added or Modified
           if (dstMode === "120000") {
@@ -207,8 +203,8 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${filePath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          const content = fs.readFileSync(path.join(cwd, filePath));
-          additions.push({ path: filePath, contents: content.toString("base64") });
+          const { stdout: fileContent } = await exec.getExecOutput("git", ["show", `${sha}:${filePath}`], { cwd });
+          additions.push({ path: filePath, contents: Buffer.from(fileContent).toString("base64") });
         }
       }
 
