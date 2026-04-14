@@ -861,11 +861,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 }
 
 func main() {
-	// Set version information in the CLI package
+	// Set version information in the CLI package (also syncs workflow package internally)
 	cli.SetVersionInfo(version)
-
-	// Set version information in the workflow package for generated file headers
-	workflow.SetVersion(version)
 
 	// Set release flag in the workflow package
 	workflow.SetIsRelease(isRelease == "true")
