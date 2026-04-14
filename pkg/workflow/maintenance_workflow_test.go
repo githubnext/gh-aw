@@ -394,7 +394,7 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "workflow_call:") {
 		t.Error("workflow should include workflow_call trigger")
 	}
-	if !strings.Contains(yaml, "workflow_call:") || !strings.Contains(yaml, "inputs:\n      operation:") {
+	if !strings.Contains(yaml, "inputs:\n      operation:") {
 		t.Error("workflow_call trigger should include operation input")
 	}
 
