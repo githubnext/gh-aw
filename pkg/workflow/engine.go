@@ -190,6 +190,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = strconv.Itoa(maxTurnsInt)
 				} else if maxTurnsUint64, ok := maxTurns.(uint64); ok {
 					config.MaxTurns = strconv.FormatUint(maxTurnsUint64, 10)
+				} else if maxTurnsFloat64, ok := maxTurns.(float64); ok {
+					// float64 occurs when engine config is loaded via JSON roundtrip (shared imports)
+					config.MaxTurns = strconv.FormatInt(int64(maxTurnsFloat64), 10)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
 				}
@@ -201,6 +204,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxContinuations = maxContInt
 				} else if maxContUint64, ok := maxCont.(uint64); ok {
 					config.MaxContinuations = int(maxContUint64)
+				} else if maxContFloat64, ok := maxCont.(float64); ok {
+					// float64 occurs when engine config is loaded via JSON roundtrip (shared imports)
+					config.MaxContinuations = int(maxContFloat64)
 				} else if maxContStr, ok := maxCont.(string); ok {
 					if parsed, err := strconv.Atoi(maxContStr); err == nil {
 						config.MaxContinuations = parsed
