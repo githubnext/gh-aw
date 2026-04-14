@@ -37,7 +37,6 @@ steps:
   - name: Install hippo-memory
     run: |
       npm install -g hippo-memory
-      hippo --version
 
   - name: Initialize hippo store
     run: |

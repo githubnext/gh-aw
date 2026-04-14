@@ -880,6 +880,11 @@
           },
           "additionalProperties": false
         },
+        "temporary_id": {
+          "type": "string",
+          "pattern": "^aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' — for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the artifact content (e.g., \"public\", \"internal\", \"private\")."

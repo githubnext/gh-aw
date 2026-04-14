@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"ef71e4b5dfcdd37f0061fe8cd2012ac9663a6d0ebf96238823d6bcd3026047a8","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"beb424ec38b3177fe0a97ecdaad44d202235a018d1c7e5e9c2760f65b26dbefa","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20","digest":"sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20","digest":"sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20","digest":"sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.19","digest":"sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -161,15 +161,15 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_75dcfa36eee83924_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           <system>
-          GH_AW_PROMPT_75dcfa36eee83924_EOF
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_75dcfa36eee83924_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           <safe-output-tools>
           Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
@@ -201,14 +201,14 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_75dcfa36eee83924_EOF
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_75dcfa36eee83924_EOF'
+          cat << 'GH_AW_PROMPT_d3d247cd77d97a1f_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/hippo-memory.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/daily-hippo-learn.md}}
-          GH_AW_PROMPT_75dcfa36eee83924_EOF
+          GH_AW_PROMPT_d3d247cd77d97a1f_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -353,7 +353,6 @@ jobs:
       - name: Install hippo-memory
         run: |
           npm install -g hippo-memory
-          hippo --version
       - name: Initialize hippo store
         run: "# Symlink .hippo into cache-memory so the SQLite store persists across runs.\n# All writes to .hippo/ land in /tmp/gh-aw/cache-memory/hippo-store/ and are\n# saved/restored automatically by the cache-memory mechanism.\nmkdir -p /tmp/gh-aw/cache-memory/hippo-store\n\nif [ ! -e \".hippo\" ]; then\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Created .hippo → cache-memory/hippo-store\"\nelif [ -d \".hippo\" ] && [ ! -L \".hippo\" ]; then\n  # Plain directory present (e.g. first run after adding this import) — migrate\n  cp -r .hippo/. /tmp/gh-aw/cache-memory/hippo-store/ 2>/dev/null || true\n  rm -rf .hippo\n  ln -s /tmp/gh-aw/cache-memory/hippo-store .hippo\n  echo \"🔗 Migrated existing .hippo/ → cache-memory/hippo-store\"\nelse\n  echo \"✅ .hippo already linked to cache-memory/hippo-store\"\nfi\n\n# Initialise if the store has never been set up, using --no-learn to avoid\n# a slow full-history git scan during setup.\nif [ ! -f \".hippo/config.json\" ]; then\n  hippo init --no-learn\n  echo \"✅ Hippo memory store initialised\"\nelse\n  echo \"✅ Hippo store restored from cache\"\n  hippo list 2>/dev/null | head -5 || true\nfi"
 
@@ -422,9 +421,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_c71c6dcf7691e036_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_51cd7886fcfeedac_EOF'
           {"create_discussion":{"category":"announcements","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"🦛 "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_c71c6dcf7691e036_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_51cd7886fcfeedac_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -587,7 +586,7 @@ jobs:
       - name: Write MCP Scripts Config
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs"
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_282ca2d2898639f9_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/tools.json" << 'GH_AW_MCP_SCRIPTS_TOOLS_ac589fc8db27326c_EOF'
           {
             "serverName": "mcpscripts",
             "version": "1.0.0",
@@ -613,8 +612,8 @@ jobs:
               }
             ]
           }
-          GH_AW_MCP_SCRIPTS_TOOLS_282ca2d2898639f9_EOF
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_16164571824a10cf_EOF'
+          GH_AW_MCP_SCRIPTS_TOOLS_ac589fc8db27326c_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs" << 'GH_AW_MCP_SCRIPTS_SERVER_0054ab48a35defb0_EOF'
             const path = require("path");
             const { startHttpServer } = require("./mcp_scripts_mcp_server_http.cjs");
             const configPath = path.join(__dirname, "tools.json");
@@ -628,12 +627,12 @@ jobs:
               console.error("Failed to start mcp-scripts HTTP server:", error);
               process.exit(1);
             });
-          GH_AW_MCP_SCRIPTS_SERVER_16164571824a10cf_EOF
+          GH_AW_MCP_SCRIPTS_SERVER_0054ab48a35defb0_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/mcp-server.cjs"
           
       - name: Write MCP Scripts Tool Files
         run: |
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/hippo.sh" << 'GH_AW_MCP_SCRIPTS_SH_HIPPO_0d569e4dbe499801_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/hippo.sh" << 'GH_AW_MCP_SCRIPTS_SH_HIPPO_1c00bf9624f4dc6f_EOF'
           #!/bin/bash
           # Auto-generated mcp-script tool: hippo
           # Execute any hippo-memory CLI command. Accessible as 'mcpscripts-hippo'. Provide arguments after 'hippo'. Examples: args 'learn --git' to extract lessons from git commits, 'sleep' for full consolidation, 'recall "api errors" --budget 2000' to retrieve relevant memories.
@@ -644,7 +643,7 @@ jobs:
           hippo $INPUT_ARGS
           
           
-          GH_AW_MCP_SCRIPTS_SH_HIPPO_0d569e4dbe499801_EOF
+          GH_AW_MCP_SCRIPTS_SH_HIPPO_1c00bf9624f4dc6f_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/hippo.sh"
           
       - name: Generate MCP Scripts Server Config
@@ -709,7 +708,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.19'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_02e87f4407ec44be_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
+          cat << GH_AW_MCP_CONFIG_515555bb546e5ec0_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "github": {
@@ -764,7 +763,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_02e87f4407ec44be_EOF
+          GH_AW_MCP_CONFIG_515555bb546e5ec0_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

@@ -302,7 +302,9 @@ function resolveIssueNumber(value, temporaryIdMap) {
 
   // Strip # prefix if present to allow flexible temporary ID format
   const valueStr = String(value).trim();
-  const valueWithoutHash = valueStr.startsWith("#") ? valueStr.substring(1) : valueStr;
+  // Strip surrounding quotes (agent sometimes double-quotes string values, e.g. `"aw_foo"`)
+  const unquoted = /^(["'])(.+)\1$/.test(valueStr) ? valueStr.slice(1, -1) : valueStr;
+  const valueWithoutHash = unquoted.startsWith("#") ? unquoted.substring(1) : unquoted;
 
   // Check if it's a temporary ID
   if (isTemporaryId(valueWithoutHash)) {
@@ -389,12 +391,14 @@ function resolveRepoIssueTarget(value, temporaryIdMap, defaultOwner, defaultRepo
 
 /**
  * Check if text contains unresolved temporary ID references
- * An unresolved temporary ID is one that appears in the text but is not in the tempIdMap
+ * An unresolved temporary ID is one that appears in the text but is not in either
+ * the tempIdMap (issue/PR/discussion numbers) or the artifactUrlMap (artifact URLs).
  * @param {string} text - The text to check for unresolved temporary IDs
  * @param {Map<string, RepoIssuePair>|Object} tempIdMap - Map or object of temporary_id to {repo, number}
+ * @param {Map<string, string>} [artifactUrlMap] - Optional map of temporary artifact ID to URL
  * @returns {boolean} True if text contains any unresolved temporary IDs
  */
-function hasUnresolvedTemporaryIds(text, tempIdMap) {
+function hasUnresolvedTemporaryIds(text, tempIdMap, artifactUrlMap) {
   if (!text || typeof text !== "string") {
     return false;
   }
@@ -409,13 +413,51 @@ function hasUnresolvedTemporaryIds(text, tempIdMap) {
     const tempId = match[1]; // The captured group (aw_XXXXXXXXXXXX)
     const normalizedId = normalizeTemporaryId(tempId);
 
-    // If this temp ID is not in the map, it's unresolved
-    if (!map.has(normalizedId)) {
+    // Resolved if present in either the issue/number map or the artifact URL map
+    if (!map.has(normalizedId) && !(artifactUrlMap && artifactUrlMap.has(normalizedId))) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Replace temporary artifact ID references in text with actual artifact URLs.
+ * Handles the case where a temporary ID was declared on an upload_artifact message
+ * and subsequently embedded in issue/discussion/comment bodies as an image source
+ * or hyperlink (e.g. ![chart](#aw_chart1) → ![chart](https://…/artifacts/42)).
+ *
+ * Unlike issue-number references (which produce #N), artifact references are replaced
+ * with the full URL string so the '#' prefix is stripped in the output.
+ *
+ * @param {string} text - The text to process
+ * @param {Map<string, string>|null|undefined} artifactUrlMap - Map of normalised temporary artifact ID to URL
+ * @returns {string} Text with artifact ID references replaced by their URLs
+ */
+function replaceArtifactUrlReferences(text, artifactUrlMap) {
+  if (!artifactUrlMap || artifactUrlMap.size === 0) {
+    return text;
+  }
+  // Detect and warn about malformed #aw_ references that won't be resolved
+  let candidate;
+  TEMPORARY_ID_CANDIDATE_PATTERN.lastIndex = 0;
+  while ((candidate = TEMPORARY_ID_CANDIDATE_PATTERN.exec(text)) !== null) {
+    const tempId = `aw_${candidate[1]}`;
+    if (!isTemporaryId(tempId)) {
+      core.warning(
+        `Malformed temporary ID reference '${candidate[0]}' found in body text. This reference will not be replaced with an artifact URL. Temporary IDs must be in format '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_). Example: '#aw_chart1' or '#aw_img_out'`
+      );
+    }
+  }
+  return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+    const url = artifactUrlMap.get(normalizeTemporaryId(tempId));
+    if (url !== undefined) {
+      // Replace #aw_XXXX with the URL directly (no '#' prefix)
+      return url;
+    }
+    return match;
+  });
 }
 
 /**
@@ -642,6 +684,7 @@ module.exports = {
   replaceTemporaryIdReferences,
   replaceTemporaryIdReferencesInPatch,
   replaceTemporaryIdReferencesLegacy,
+  replaceArtifactUrlReferences,
   loadTemporaryIdMap,
   loadTemporaryIdMapFromResolved,
   resolveIssueNumber,
