@@ -194,6 +194,55 @@ describe("resolve_pr_review_thread", () => {
     expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("resolveReviewThread"), expect.objectContaining({ threadId: "PRRT_kwDOSchedule77" }));
   });
 
+  it("should fail in legacy mode when schedule-triggered and thread repo cannot be determined", async () => {
+    // Simulate a schedule-triggered workflow (no pull_request in payload)
+    global.context.payload = {};
+
+    // GraphQL returns thread with no repository info
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({ resolveReviewThread: { thread: { id: "PRRT_x", isResolved: true } } });
+      }
+      return Promise.resolve({
+        node: { pullRequest: { number: 10, repository: null } },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDONoRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Unable to determine repository");
+  });
+
+  it("should fail in legacy mode when schedule-triggered and thread belongs to a different repo", async () => {
+    // Simulate a schedule-triggered workflow (no pull_request in payload)
+    global.context.payload = {};
+
+    // Thread belongs to a different repo, not the default context repo
+    mockGraphqlForThread(10, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOOtherRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("other-owner/other-repo");
+  });
+
   it("should fail when thread_id is missing", async () => {
     const message = {
       type: "resolve_pull_request_review_thread",
@@ -286,9 +335,9 @@ describe("resolve_pr_review_thread", () => {
           },
         });
       }
-      // Lookup succeeds - thread is on triggering PR
+      // Lookup succeeds - thread is on triggering PR in the default repo
       return Promise.resolve({
-        node: { pullRequest: { number: 42 } },
+        node: { pullRequest: { number: 42, repository: { nameWithOwner: "test-owner/test-repo" } } },
       });
     });
 
