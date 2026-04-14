@@ -753,9 +753,10 @@ func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
 	)
 }
 
-// buildNotForkAndScheduled creates a condition for jobs that should run on
-// schedule (or non-dispatch events) but not when an operation is specified.
-// Condition: !fork && (not_dispatch || operation == "")
+// buildNotForkAndScheduled creates a condition for jobs that should run on any
+// non-dispatch event (e.g. schedule, push) or on workflow_dispatch with an empty
+// operation, and never on forks.
+// Condition: !fork && (event_name != 'workflow_dispatch' || operation == "")
 func buildNotForkAndScheduled() ConditionNode {
 	return BuildAnd(
 		buildNotForkCondition(),
