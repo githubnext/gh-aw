@@ -73,7 +73,7 @@ Store all scenarios in cache memory.
 
 ## Phase 3: Test Agent Responses (15 minutes)
 
-**Token Budget Optimization**: Test a **representative subset of 6-8 scenarios** (not all scenarios) to reduce token consumption while maintaining quality insights.
+**Token Budget Optimization**: Test a **representative subset of 3-4 scenarios** (not all scenarios) to reduce token consumption and ensure budget remains for Phase 5 publishing.
 
 For each selected scenario, invoke the "agentic-workflows" custom agent tool and:
 
@@ -99,6 +99,7 @@ For each selected scenario, invoke the "agentic-workflows" custom agent tool and
 - You are ONLY testing the agent's responses, NOT creating actual workflows
 - **Keep responses focused and concise** - summarize findings instead of verbose descriptions
 - Aim for quality over quantity - fewer well-analyzed scenarios are better than many shallow ones
+- **If any tool call fails, record the error briefly and move on to the next scenario** - do NOT retry or get stuck
 
 ## Phase 4: Analyze Results (4 minutes)
 
@@ -124,7 +125,9 @@ Review all captured responses and identify:
 
 ## Phase 5: Document and Publish Findings (1 minute)
 
-Create a GitHub discussion with a **concise** summary report. Use the `create discussion` safe-output to publish your findings.
+**MANDATORY OUTPUT**: Regardless of how many phases completed successfully, you MUST call either the `create discussion` or the `noop` safe-output tool before finishing. Failing to call a safe-output tool is the most common cause of workflow failures.
+
+Create a GitHub discussion with a **concise** summary report. Use the `create discussion` safe-output to publish your findings. Even if only 1-2 scenarios were tested, create the discussion with partial results.
 
 **Discussion title**: "Agent Persona Exploration - [DATE]" (e.g., "Agent Persona Exploration - 2024-01-16")
 
@@ -221,15 +224,18 @@ Example:
 ## Success Criteria
 
 Your effectiveness is measured by:
+- **Safe output**: ALWAYS call either `create discussion` or `noop` — this is the most critical requirement
 - **Efficiency**: Complete analysis within token budget (timeout: 180 minutes, concise outputs)
-- **Quality over quantity**: Test 6-8 representative scenarios thoroughly rather than all scenarios superficially
+- **Quality over quantity**: Test 3-4 representative scenarios thoroughly rather than many scenarios superficially
 - **Actionable insights**: Provide 3-5 concrete, implementable recommendations
 - **Concise documentation**: Report under 1000 words with progressive disclosure
 - **Consistency**: Maintain objective, research-focused methodology
 
 Execute all phases systematically and maintain an objective, research-focused approach to understanding the agentic-workflows custom agent's capabilities and limitations.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
+**CRITICAL**: You MUST call a safe-output tool before finishing. Choose one:
+1. Call `create discussion` to publish findings (preferred — even partial results are valuable)
+2. Call `noop` if you were completely unable to gather any data
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
