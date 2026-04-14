@@ -34,7 +34,7 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
-  describe("retry policy: resume on partial execution", () => {
+  describe("retry policy: continue on partial execution", () => {
     // Inline the same retry-eligibility logic as the driver for unit testing.
     // The driver retries whenever the session produced output (hasOutput), regardless
     // of the specific error type.  CAPIError 400 is just the well-known case.
@@ -194,9 +194,9 @@ describe("copilot_driver.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
-    it("does not retry when auth fails on a --resume attempt (the reported bug scenario)", () => {
+    it("does not retry when auth fails on a --continue attempt (the reported bug scenario)", () => {
       // This replicates the issue: attempt 1 ran for 39 min then failed,
-      // attempt 2 (--resume) fails with auth error — should not retry attempts 3 & 4.
+      // attempt 2 (--continue) fails with auth error — should not retry attempts 3 & 4.
       const resumeResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
       expect(shouldRetry(resumeResult, 1)).toBe(false);
       expect(shouldRetry(resumeResult, 2)).toBe(false);
