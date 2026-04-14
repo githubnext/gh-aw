@@ -12,12 +12,12 @@
  *
  * 2. pull_request_target: Runs in BASE repository context (not PR head)
  *    - CRITICAL: For fork PRs, the head branch doesn't exist in base repo
- *    - Must use `gh pr checkout` to fetch from the fork
+ *    - Uses refs/pull/N/head to fetch from origin (works for forks too)
  *    - Has write permissions (be cautious with untrusted code)
  *
  * 3. Other PR events (issue_comment, pull_request_review, etc.):
  *    - Also run in base repository context
- *    - Must use `gh pr checkout` to get PR branch
+ *    - Uses refs/pull/N/head to fetch PR branch
  *
  * NOTE: This handler operates within the PR context from the workflow event
  * and does not support cross-repository operations or target-repo parameters.
@@ -26,7 +26,6 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { getGhEnvBypassingIntegrityFilteringForGitOps } = require("./git_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
@@ -79,10 +78,10 @@ function logPRContext(eventName, pullRequest) {
 }
 
 /**
- * Fetch full PR commit count from the GitHub API.
- * Used when the commit count is not available in the webhook payload.
+ * Fetch PR details from the GitHub API.
+ * Returns head ref and commit count needed for checkout.
  */
-async function fetchPRCommitCount(prNumber) {
+async function fetchPRDetails(prNumber) {
   const { data } = await github.rest.pulls.get({
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -115,7 +114,7 @@ async function main() {
       number: context.payload.issue.number,
       state: context.payload.issue.state || "open",
     };
-    core.info(`Detected ${eventName} event on PR #${pullRequest.number}, will use gh pr checkout`);
+    core.info(`Detected ${eventName} event on PR #${pullRequest.number}, will fetch PR ref`);
   }
 
   if (!pullRequest) {
@@ -159,60 +158,36 @@ async function main() {
     } else {
       // For pull_request_target, fork pull_request events, and other PR events,
       // we run in base repository context.
-      // IMPORTANT: For fork PRs, the head branch doesn't exist in the base repo
-      // We must use `gh pr checkout` which handles fetching from forks
+      // Use refs/pull/N/head which GitHub makes available for all PRs (including forks)
+      // so we don't need `gh pr checkout` and avoid GH_HOST / DIFC proxy issues.
       const prNumber = pullRequest.number;
 
       const strategyReason =
         eventName === "pull_request_target"
-          ? "pull_request_target runs in base repo context; for fork PRs, head branch doesn't exist in origin"
+          ? "pull_request_target runs in base repo context; fetching via refs/pull/N/head"
           : eventName === "pull_request" && isFork
-            ? "pull_request event from fork repository; head branch exists only in fork, not in origin"
-            : `${eventName} event runs in base repo context; must fetch PR branch`;
+            ? "pull_request event from fork repository; fetching via refs/pull/N/head"
+            : `${eventName} event runs in base repo context; fetching via refs/pull/N/head`;
 
-      logCheckoutStrategy(eventName, "gh pr checkout", strategyReason);
+      logCheckoutStrategy(eventName, "git fetch refs/pull + checkout", strategyReason);
 
       if (isFork) {
-        core.warning("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
+        core.warning("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
       }
 
-      core.info(`Checking out PR #${prNumber} using gh CLI`);
+      // Get PR details from API to determine head ref name and commit count
+      const { commitCount, headRef } = await fetchPRDetails(prNumber);
+      const fetchDepth = (commitCount || 1) + 1; // +1 to include the merge base
 
-      // Override GH_HOST with the real GitHub hostname so gh pr checkout can resolve
-      // the repository from git remotes. The DIFC proxy may have set GH_HOST to
-      // localhost:18443 which doesn't match any remote.
-      await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-        env: getGhEnvBypassingIntegrityFilteringForGitOps(),
-      });
+      core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, `--depth=${fetchDepth}`]);
 
-      // Log the resulting branch after checkout
-      let currentBranch = "";
-      await exec.exec("git", ["branch", "--show-current"], {
-        listeners: {
-          stdout: data => {
-            currentBranch += data.toString();
-          },
-        },
-      });
-      currentBranch = currentBranch.trim();
-
-      // Deepen history to cover all PR commits (gh pr checkout fetches --depth=1 by default)
-      try {
-        const { commitCount, headRef } = await fetchPRCommitCount(prNumber);
-        const fetchDepth = commitCount + 1; // +1 to include the merge base
-        const branchRef = headRef || currentBranch;
-        core.info(`Deepening history for PR #${prNumber}: fetching ${fetchDepth} commits (${commitCount} PR commit(s) + merge base)`);
-        if (branchRef) {
-          await exec.exec("git", ["fetch", "origin", branchRef, `--depth=${fetchDepth}`]);
-        } else {
-          await exec.exec("git", ["fetch", `--depth=${fetchDepth}`]);
-        }
-      } catch (depthError) {
-        core.warning(`Could not deepen PR history: ${getErrorMessage(depthError)}`);
-      }
+      const branchName = headRef || `pr-${prNumber}`;
+      core.info(`Checking out branch: ${branchName}`);
+      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
 
       core.info(`✅ Successfully checked out PR #${prNumber}`);
-      core.info(`Current branch: ${currentBranch || "detached HEAD"}`);
+      core.info(`Current branch: ${branchName}`);
     }
 
     // Set output to indicate successful checkout
