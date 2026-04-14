@@ -186,17 +186,24 @@ function makeRealExec(cwd) {
     /**
      * @param {string} program
      * @param {string[]} args
-     * @param {{ cwd?: string, env?: NodeJS.ProcessEnv }} [opts]
+     * @param {{ cwd?: string, env?: NodeJS.ProcessEnv, silent?: boolean, listeners?: { stdout?: (data: Buffer) => void } }} [opts]
      */
     exec: async (program, args, opts = {}) => {
+      const stdoutListener = opts.listeners?.stdout;
       const result = spawnSync(program, args, {
-        encoding: "utf8",
+        // Use raw Buffer encoding when a stdout listener is provided so binary
+        // content is not corrupted by UTF-8 decoding.
+        encoding: stdoutListener ? null : "utf8",
         cwd: opts.cwd ?? cwd,
         env: opts.env ?? { ...process.env, GIT_CONFIG_NOSYSTEM: "1", HOME: os.tmpdir() },
       });
       if (result.error) throw result.error;
       if (result.status !== 0) {
-        throw new Error(`${program} ${args.join(" ")} failed:\n${result.stderr}`);
+        const stderr = Buffer.isBuffer(result.stderr) ? result.stderr.toString("utf8") : (result.stderr ?? "");
+        throw new Error(`${program} ${args.join(" ")} failed:\n${stderr}`);
+      }
+      if (stdoutListener && result.stdout) {
+        stdoutListener(Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.from(result.stdout));
       }
       return result.status ?? 0;
     },
@@ -322,6 +329,47 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).toHaveBeenCalledTimes(2);
       const headlines = githubClient.graphql.mock.calls.map(c => c[1].input.message.headline);
       expect(headlines).toEqual(["Add file-a.txt", "Add file-b.txt"]);
+    });
+
+    it("each commit in a series should carry its own file content, not the working-tree tip", async () => {
+      // Regression test for the bug where fs.readFileSync always read from the
+      // working tree (HEAD), so intermediate commits A and B would contain the
+      // content of C when A→B→C were replayed.
+      execGit(["checkout", "-b", "versioned-branch"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "data.txt"), "version A\n");
+      execGit(["add", "data.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Version A"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "data.txt"), "version B\n");
+      execGit(["add", "data.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Version B"], { cwd: workDir });
+
+      fs.writeFileSync(path.join(workDir, "data.txt"), "version C\n");
+      execGit(["add", "data.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Version C"], { cwd: workDir });
+
+      execGit(["push", "-u", "origin", "versioned-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "versioned-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(3);
+      const calls = githubClient.graphql.mock.calls.map(c => c[1].input);
+
+      // Each commit must carry its own version of data.txt, not the working-tree tip (C)
+      expect(Buffer.from(calls[0].fileChanges.additions[0].contents, "base64").toString()).toBe("version A\n");
+      expect(Buffer.from(calls[1].fileChanges.additions[0].contents, "base64").toString()).toBe("version B\n");
+      expect(Buffer.from(calls[2].fileChanges.additions[0].contents, "base64").toString()).toBe("version C\n");
     });
 
     it("should include deletions when files are removed in a commit", async () => {
