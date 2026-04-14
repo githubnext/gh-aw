@@ -64,9 +64,18 @@ function logPRContext(eventName, pullRequest) {
     }
   }
 
-  // Determine if this is a fork PR using the helper function
-  const { isFork, reason: forkReason } = detectForkPR(pullRequest);
-  core.info(`Is fork PR: ${isFork} (${forkReason})`);
+  // Determine if this is a fork PR using the helper function.
+  // Only call detectForkPR when head/base data is present (pull_request and
+  // pull_request_target payloads). For minimal PR objects (e.g. issue_comment)
+  // fork status is unknown until we fetch full PR details from the API.
+  let isFork = null;
+  if (pullRequest.head?.repo && pullRequest.base?.repo) {
+    const { isFork: detected, reason: forkReason } = detectForkPR(pullRequest);
+    isFork = detected;
+    core.info(`Is fork PR: ${isFork} (${forkReason})`);
+  } else {
+    core.info("Is fork PR: unknown (head/base repo details not available in event payload)");
+  }
 
   // Log current repository context
   core.info(`Current repository: ${context.repo.owner}/${context.repo.repo}`);
@@ -87,7 +96,7 @@ async function fetchPRDetails(prNumber) {
     repo: context.repo.repo,
     pull_number: prNumber,
   });
-  return { commitCount: data.commits, headRef: data.head.ref };
+  return { commitCount: data.commits, headRef: data.head.ref, pullRequest: data };
 }
 
 /**
@@ -136,7 +145,7 @@ async function main() {
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
 
-    if (eventName === "pull_request" && !isFork) {
+    if (eventName === "pull_request" && isFork === false) {
       // For non-fork pull_request events, we run in the merge commit context.
       // The PR branch is in the same repo as origin, so we can use direct git commands.
       // Fork PRs cannot use git fetch because their head branch only exists in the fork
@@ -162,21 +171,30 @@ async function main() {
       // so we don't need `gh pr checkout` and avoid GH_HOST / DIFC proxy issues.
       const prNumber = pullRequest.number;
 
+      // Get PR details from API to determine head ref name and commit count.
+      // This also gives us the full PR object for accurate fork detection
+      // when the event payload only had a minimal PR (e.g. issue_comment).
+      const { commitCount, headRef, pullRequest: fullPR } = await fetchPRDetails(prNumber);
+
+      // Re-evaluate fork status with full PR data when it was unknown
+      const fullPRForkDetection = detectForkPR(fullPR);
+      const actualIsFork = isFork ?? fullPRForkDetection.isFork;
+      if (isFork === null) {
+        core.info(`Is fork PR (from API): ${actualIsFork} (${fullPRForkDetection.reason})`);
+      }
+
       const strategyReason =
         eventName === "pull_request_target"
           ? "pull_request_target runs in base repo context; fetching via refs/pull/N/head"
-          : eventName === "pull_request" && isFork
+          : eventName === "pull_request" && actualIsFork
             ? "pull_request event from fork repository; fetching via refs/pull/N/head"
             : `${eventName} event runs in base repo context; fetching via refs/pull/N/head`;
 
       logCheckoutStrategy(eventName, "git fetch refs/pull + checkout", strategyReason);
 
-      if (isFork) {
+      if (actualIsFork) {
         core.warning("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
       }
-
-      // Get PR details from API to determine head ref name and commit count
-      const { commitCount, headRef } = await fetchPRDetails(prNumber);
       const fetchDepth = (commitCount || 1) + 1; // +1 to include the merge base
 
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
