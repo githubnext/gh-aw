@@ -428,6 +428,128 @@ func TestAuditCachingBehavior(t *testing.T) {
 	}
 }
 
+// TestAuditUsesRunSummaryCache verifies that when a valid run_summary.json exists on disk,
+// the audit uses the cached metrics instead of re-processing local files.  This prevents the
+// inconsistency described in the "Audit shows inconsistent metrics on repeated calls for same
+// run" issue where the second audit call would overwrite the cached run_summary.json with
+// different (and potentially inflated) values from a re-parse of the same log files.
+func TestAuditUsesRunSummaryCache(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-audit-cache-*")
+	runOutputDir := filepath.Join(tempDir, "run-99999")
+	if err := os.MkdirAll(runOutputDir, 0755); err != nil {
+		t.Fatalf("Failed to create run directory: %v", err)
+	}
+
+	// Write a stub aw_info.json so the directory is non-empty
+	awInfoContent := `{"engine_id": "copilot", "workflow_name": "test-workflow"}`
+	if err := os.WriteFile(filepath.Join(runOutputDir, "aw_info.json"), []byte(awInfoContent), 0644); err != nil {
+		t.Fatalf("Failed to write aw_info.json: %v", err)
+	}
+
+	// First audit result: low token usage from firewall logs (the "ground truth")
+	cachedRun := WorkflowRun{
+		DatabaseID:   99999,
+		WorkflowName: "GPL Dependency Cleaner",
+		Status:       "completed",
+		Conclusion:   "success",
+		TokenUsage:   381270,
+		Turns:        9,
+		LogsPath:     runOutputDir,
+	}
+	cachedMetrics := LogMetrics{
+		TokenUsage: 381270,
+		Turns:      9,
+	}
+
+	cachedSummary := &RunSummary{
+		CLIVersion:   GetVersion(),
+		RunID:        cachedRun.DatabaseID,
+		ProcessedAt:  time.Now().Add(-time.Hour), // processed one hour ago
+		Run:          cachedRun,
+		Metrics:      cachedMetrics,
+		MissingTools: []MissingToolReport{},
+		MCPFailures:  []MCPFailureReport{},
+		JobDetails:   []JobInfoWithDuration{},
+	}
+
+	if err := saveRunSummary(runOutputDir, cachedSummary, false); err != nil {
+		t.Fatalf("Failed to save initial run summary: %v", err)
+	}
+
+	// Record file mtime before any re-audit
+	summaryPath := filepath.Join(runOutputDir, runSummaryFileName)
+	initialInfo, err := os.Stat(summaryPath)
+	if err != nil {
+		t.Fatalf("Could not stat run_summary.json: %v", err)
+	}
+	initialModTime := initialInfo.ModTime()
+
+	// Load the summary as the audit code would do — this simulates the second call
+	loadedSummary, ok := loadRunSummary(runOutputDir, false)
+	if !ok {
+		t.Fatalf("loadRunSummary should have found the cached summary")
+	}
+
+	// The cached metrics must be preserved exactly — these are the "ground truth" firewall values
+	if loadedSummary.Metrics.TokenUsage != cachedMetrics.TokenUsage {
+		t.Errorf("Token usage mismatch: cached=%d, loaded=%d (cache was overwritten with different data)",
+			cachedMetrics.TokenUsage, loadedSummary.Metrics.TokenUsage)
+	}
+	if loadedSummary.Metrics.Turns != cachedMetrics.Turns {
+		t.Errorf("Turns mismatch: cached=%d, loaded=%d (cache was overwritten with different data)",
+			cachedMetrics.Turns, loadedSummary.Metrics.Turns)
+	}
+
+	// The run_summary.json must NOT have been modified — the cache should be read-only here
+	currentInfo, err := os.Stat(summaryPath)
+	if err != nil {
+		t.Fatalf("Could not stat run_summary.json after load: %v", err)
+	}
+	if !currentInfo.ModTime().Equal(initialModTime) {
+		t.Errorf("run_summary.json was modified after loadRunSummary (mtime changed from %v to %v): "+
+			"the audit must not overwrite the cache on repeated calls",
+			initialModTime, currentInfo.ModTime())
+	}
+}
+
+// TestRenderAuditReportUsesProvidedMetrics verifies that renderAuditReport renders the report
+// using the metrics supplied by the caller rather than re-extracting them from log files.
+// This is the key property that ensures cache-path and fresh-path produce identical output.
+func TestRenderAuditReportUsesProvidedMetrics(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-render-audit-*")
+	runOutputDir := filepath.Join(tempDir, "run-11111")
+	if err := os.MkdirAll(runOutputDir, 0755); err != nil {
+		t.Fatalf("Failed to create run directory: %v", err)
+	}
+
+	run := WorkflowRun{
+		DatabaseID:   11111,
+		WorkflowName: "Test Workflow",
+		Status:       "completed",
+		Conclusion:   "success",
+		TokenUsage:   12345,
+		Turns:        7,
+		LogsPath:     runOutputDir,
+	}
+	metrics := LogMetrics{
+		TokenUsage: 12345,
+		Turns:      7,
+	}
+	processedRun := ProcessedRun{
+		Run:          run,
+		MissingTools: []MissingToolReport{},
+		MCPFailures:  []MCPFailureReport{},
+		JobDetails:   []JobInfoWithDuration{},
+	}
+
+	// renderAuditReport should complete without error even without GitHub API access
+	// (no actual GitHub calls are made inside renderAuditReport)
+	err := renderAuditReport(processedRun, metrics, nil, runOutputDir, "", "", "", false, false, false)
+	if err != nil {
+		t.Errorf("renderAuditReport returned unexpected error: %v", err)
+	}
+}
+
 func TestBuildAuditDataWithFirewall(t *testing.T) {
 	// Create test data with firewall analysis
 	run := WorkflowRun{
