@@ -43,6 +43,9 @@ const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 /** Timeout (ms) for tool invocation calls (may be long-running) */
 const TOOL_CALL_TIMEOUT_MS = 120000;
 
+/** Timeout (ms) for the notifications/initialized handshake step */
+const NOTIFY_TIMEOUT_MS = 10000;
+
 // ---------------------------------------------------------------------------
 // Audit logging
 // ---------------------------------------------------------------------------
@@ -53,8 +56,9 @@ const TOOL_CALL_TIMEOUT_MS = 120000;
 function ensureAuditDir() {
   try {
     fs.mkdirSync(AUDIT_LOG_DIR, { recursive: true });
-  } catch {
-    // Best-effort; logging should not block execution
+  } catch (err) {
+    const core = global.core;
+    core.warning(`Failed to create audit log directory ${AUDIT_LOG_DIR}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -73,8 +77,9 @@ function auditLog(serverName, entry) {
       ...entry,
     };
     fs.appendFileSync(logPath, JSON.stringify(record) + "\n", { mode: 0o644 });
-  } catch {
-    // Best-effort; audit logging should not block execution
+  } catch (err) {
+    const core = global.core;
+    core.warning(`Failed to write audit log for ${serverName}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -221,7 +226,7 @@ async function mcpNotifyInitialized(serverUrl, apiKey, sessionId, serverName) {
   }
 
   try {
-    await httpPostJSON(serverUrl, headers, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, 10000);
+    await httpPostJSON(serverUrl, headers, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, NOTIFY_TIMEOUT_MS);
     const elapsedMs = Date.now() - startMs;
     core.info(`[${serverName}] MCP notifications/initialized: done (${elapsedMs}ms)`);
     auditLog(serverName, { event: "notify_initialized_done", elapsedMs });
