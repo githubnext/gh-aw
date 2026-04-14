@@ -111,6 +111,7 @@ describe("copilot_driver.cjs", () => {
   describe("MCP policy error prevents retry", () => {
     // Inline the same retry logic as the driver, including MCP policy check
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
     const MAX_RETRIES = 3;
 
     /**
@@ -122,6 +123,8 @@ describe("copilot_driver.cjs", () => {
       if (result.exitCode === 0) return false;
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
+      // Model-not-supported errors are persistent — never retry
+      if (MODEL_NOT_SUPPORTED_PATTERN.test(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -135,9 +138,43 @@ describe("copilot_driver.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
+    it("does not retry model-not-supported error", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Execution failed: CAPIError: 400 The requested model is not supported." };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry model-not-supported error even on first attempt with output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Some output\nExecution failed: CAPIError: 400 The requested model is not supported.\nMore output" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
     it("still retries non-policy errors with output", () => {
       const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
       expect(shouldRetry(result, 0)).toBe(true);
+    });
+  });
+
+  describe("model-not-supported detection pattern", () => {
+    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+
+    it("matches the exact error from the issue report", () => {
+      const errorOutput = "Execution failed: CAPIError: 400 The requested model is not supported.";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches when embedded in larger log output", () => {
+      const log = "Some output\nExecution failed: CAPIError: 400 The requested model is not supported.\nMore output";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(log)).toBe(true);
+    });
+
+    it("does not match other CAPIError 400 errors", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+    });
+
+    it("does not match unrelated errors", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Access denied by policy settings")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("MCP servers were blocked by policy: 'github'")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("")).toBe(false);
     });
   });
 

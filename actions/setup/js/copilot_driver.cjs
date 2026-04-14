@@ -43,6 +43,11 @@ const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 // This is a persistent policy configuration error — retrying will not help.
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
+// Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
+// a model that is unavailable for their subscription tier).
+// This is a persistent configuration error — retrying with --resume will not help.
+const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+
 /**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[copilot-driver]" so they are easy to
@@ -71,6 +76,17 @@ function isTransientCAPIError(output) {
  */
 function isMCPPolicyError(output) {
   return MCP_POLICY_BLOCKED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates the requested model is not supported.
+ * This occurs when a Copilot Pro/Education user attempts to use a model that is not
+ * available for their subscription tier.  Retrying will not help.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isModelNotSupportedError(output) {
+  return MODEL_NOT_SUPPORTED_PATTERN.test(output);
 }
 
 /**
@@ -244,14 +260,30 @@ async function main() {
     // Retry whenever the session was partially executed (hasOutput), using --resume so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
     // transient case, but any partial-execution failure is eligible for a resume retry.
-    // Exception: MCP policy errors are persistent configuration issues — never retry.
+    // Exceptions: MCP policy errors and model-not-supported errors are persistent
+    // configuration issues — never retry.
     const isCAPIError = isTransientCAPIError(result.output);
     const isMCPPolicy = isMCPPolicyError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` isMCPPolicyError=${isMCPPolicy}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const isModelNotSupported = isModelNotSupportedError(result.output);
+    log(
+      `attempt ${attempt + 1} failed:` +
+        ` exitCode=${result.exitCode}` +
+        ` isCAPIError400=${isCAPIError}` +
+        ` isMCPPolicyError=${isMCPPolicy}` +
+        ` isModelNotSupportedError=${isModelNotSupported}` +
+        ` hasOutput=${result.hasOutput}` +
+        ` retriesRemaining=${MAX_RETRIES - attempt}`
+    );
 
     // MCP policy errors are persistent — retrying will not help.
     if (isMCPPolicy) {
       log(`attempt ${attempt + 1}: MCP servers blocked by policy — not retrying (this is a policy configuration issue, not a transient error)`);
+      break;
+    }
+
+    // Model-not-supported errors are persistent — retrying will not help.
+    if (isModelNotSupported) {
+      log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
       break;
     }
 

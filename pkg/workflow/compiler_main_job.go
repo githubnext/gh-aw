@@ -177,7 +177,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		compilerMainJobLog.Print("Skipped checkout_pr_success output (workflow lacks contents read access)")
 	}
 
-	// Add inference_access_error, mcp_policy_error, and agentic_engine_timeout outputs for Copilot engine only
+	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout, and
+	// model_not_supported_error outputs for Copilot engine only.
 	// These outputs are set by the detect-copilot-errors step which scans the agent
 	// stdio log for known error patterns in a single JavaScript step
 	engine, engineErr := c.getAgenticEngine(data.AI)
@@ -191,6 +192,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 			outputs["agentic_engine_timeout"] = "${{ steps.detect-copilot-errors.outputs.agentic_engine_timeout || 'false' }}"
 			compilerMainJobLog.Print("Added agentic_engine_timeout output (Copilot engine)")
+
+			outputs["model_not_supported_error"] = "${{ steps.detect-copilot-errors.outputs.model_not_supported_error || 'false' }}"
+			compilerMainJobLog.Print("Added model_not_supported_error output (Copilot engine)")
 		}
 	}
 
