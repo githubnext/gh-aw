@@ -115,19 +115,17 @@ This workflow overrides the checkout from the shared workflow.
 	data, err := compiler.ParseWorkflowFile("main.md")
 	require.NoError(t, err)
 
-	// The main workflow's checkout is primary; CheckoutManager merges duplicates with first-seen wins
-	// for most fields. Both should result in one logical entry for (org/target-repo, target-repo).
+	// data.CheckoutConfigs holds the raw (pre-dedup) slice: main entry first, then imported.
+	// Deduplication and merge-precedence are enforced by NewCheckoutManager.
 	require.NotEmpty(t, data.CheckoutConfigs, "Should have checkout configs")
-	// Find the entry for target-repo path
-	var found *CheckoutConfig
-	for _, cfg := range data.CheckoutConfigs {
-		if cfg.Path == "target-repo" {
-			found = cfg
-			break
-		}
-	}
-	require.NotNil(t, found, "Should find checkout config for target-repo path")
-	assert.Equal(t, "org/target-repo", found.Repository, "Repository should be org/target-repo")
+
+	cm := NewCheckoutManager(data.CheckoutConfigs)
+	// After deduplication there should be exactly one resolved entry for (org/target-repo, target-repo).
+	require.Len(t, cm.ordered, 1, "Duplicate (repository, path) entries should be merged into one")
+	entry := cm.ordered[0]
+	assert.Equal(t, "org/target-repo", entry.key.repository, "Repository should be org/target-repo")
+	assert.Equal(t, "target-repo", entry.key.path, "Path should be target-repo")
+	assert.Equal(t, "feature-branch", entry.ref, "Main workflow's ref should take precedence over imported ref")
 }
 
 // TestCheckoutImportDisabledByMainWorkflow tests that checkout: false in the main workflow
@@ -236,4 +234,65 @@ imports:
 	}
 	assert.True(t, repos["org/repo-a"], "Should include checkout for org/repo-a")
 	assert.True(t, repos["org/repo-b"], "Should include checkout for org/repo-b")
+}
+
+// TestCheckoutImportAuthPrecedence tests that the main workflow's auth method is preserved
+// when an imported shared workflow defines conflicting auth for the same (repository, path).
+// A main workflow github-token must not be overridden by an imported github-app, and vice versa.
+func TestCheckoutImportAuthPrecedence(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Shared workflow has a github-app for the same repository/path
+	sharedWorkflow := `---
+checkout:
+  - repository: org/target-repo
+    ref: main
+    path: target-repo
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+
+# Shared Checkout with App Auth
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "shared-checkout.md"), []byte(sharedWorkflow), 0644))
+
+	// Main workflow uses a plain token for the same repository/path
+	mainWorkflow := `---
+on: issues
+permissions:
+  contents: read
+imports:
+  - ./shared-checkout.md
+checkout:
+  - repository: org/target-repo
+    ref: feature-branch
+    path: target-repo
+    github-token: ${{ secrets.MY_PAT }}
+---
+
+# Main Workflow
+`
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainWorkflow), 0644))
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(workflowsDir))
+	defer func() { _ = os.Chdir(origDir) }()
+
+	data, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err)
+
+	cm := NewCheckoutManager(data.CheckoutConfigs)
+	require.Len(t, cm.ordered, 1, "Should have one merged entry for the duplicate (repository, path)")
+	entry := cm.ordered[0]
+	assert.Equal(t, "${{ secrets.MY_PAT }}", entry.token, "Main workflow's github-token must be preserved")
+	assert.Nil(t, entry.githubApp, "Imported github-app must not override main workflow's github-token")
+	assert.Equal(t, "feature-branch", entry.ref, "Main workflow's ref should take precedence")
+	assert.False(t, cm.HasAppAuth(), "Checkout manager should report no app auth (main token takes precedence)")
 }

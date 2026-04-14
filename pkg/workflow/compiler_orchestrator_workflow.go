@@ -307,12 +307,12 @@ func (c *Compiler) buildInitialWorkflowData(
 			}
 			var raw any
 			if err := json.Unmarshal([]byte(line), &raw); err != nil {
-				orchestratorWorkflowLog.Printf("Failed to unmarshal imported checkout JSON from line %q: %v", line, err)
+				orchestratorWorkflowLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
 				continue
 			}
 			importedConfigs, err := ParseCheckoutConfigs(raw)
 			if err != nil {
-				orchestratorWorkflowLog.Printf("Failed to parse imported checkout configs from JSON %q: %v", line, err)
+				orchestratorWorkflowLog.Printf("Failed to parse imported checkout configs: %v", err)
 				continue
 			}
 			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)

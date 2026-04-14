@@ -212,17 +212,19 @@ func (cm *CheckoutManager) add(cfg *CheckoutConfig) {
 	}
 
 	if idx, exists := cm.index[key]; exists {
-		// Merge into existing entry; first-seen wins for ref and token
+		// Merge into existing entry; first-seen wins for ref and token/app (auth is mutually exclusive:
+		// once either github-token or github-app is set for an entry, the other method is not added
+		// even if a later config provides it — this preserves the main workflow's auth choice).
 		entry := cm.ordered[idx]
 		entry.fetchDepth = deeperFetchDepth(entry.fetchDepth, cfg.FetchDepth)
 		if cfg.Ref != "" && entry.ref == "" {
 			entry.ref = cfg.Ref // first-seen ref wins
 		}
-		if cfg.GitHubToken != "" && entry.token == "" {
-			entry.token = cfg.GitHubToken // first-seen github-token wins
+		if cfg.GitHubToken != "" && entry.token == "" && entry.githubApp == nil {
+			entry.token = cfg.GitHubToken // first-seen auth wins (mutually exclusive with github-app)
 		}
-		if cfg.GitHubApp != nil && entry.githubApp == nil {
-			entry.githubApp = cfg.GitHubApp // first-seen github-app wins
+		if cfg.GitHubApp != nil && entry.githubApp == nil && entry.token == "" {
+			entry.githubApp = cfg.GitHubApp // first-seen auth wins (mutually exclusive with github-token)
 		}
 		if cfg.SparseCheckout != "" {
 			entry.sparsePatterns = mergeSparsePatterns(entry.sparsePatterns, cfg.SparseCheckout)
