@@ -117,6 +117,14 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		safeOutputsConfigLog.Printf("Processing %d safe action configurations", len(data.SafeOutputs.Actions))
 		for actionName := range data.SafeOutputs.Actions {
 			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+			if _, exists := safeOutputsConfig[normalizedName]; exists {
+				safeOutputsConfigLog.Printf(
+					"Skipping safe action %q because normalized name %q conflicts with an existing safe outputs config entry",
+					actionName,
+					normalizedName,
+				)
+				continue
+			}
 			safeOutputsConfigLog.Printf("Adding safe action to config: %s (normalized: %s)", actionName, normalizedName)
 			safeOutputsConfig[normalizedName] = true
 		}

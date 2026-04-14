@@ -94,6 +94,41 @@ func TestGenerateSafeOutputsConfigActions(t *testing.T) {
 	assert.Equal(t, true, publishVal, "publish_results value should be true")
 }
 
+// TestGenerateSafeOutputsConfigActionsNoConflict tests that a custom action whose normalized
+// name collides with an existing built-in handler key does not overwrite it.
+func TestGenerateSafeOutputsConfigActionsNoConflict(t *testing.T) {
+	trueVal := "true"
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			// add_labels is a built-in handler that produces a real config object.
+			AddLabels: &AddLabelsConfig{
+				Allowed: []string{"bug"},
+			},
+			// A custom action whose normalized name matches the built-in "add_labels" key.
+			Actions: map[string]*SafeOutputActionConfig{
+				"add-labels": {
+					Uses:        "owner/some-action@v1",
+					Description: "Should not overwrite add_labels config",
+				},
+			},
+			// Ensure at least one handler is set to make config non-empty.
+			NoOp: &NoOpConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: &trueVal}},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	// The built-in add_labels config (an object with "allowed") must be preserved.
+	addLabelsVal, ok := parsed["add_labels"].(map[string]any)
+	require.True(t, ok, "add_labels should remain a map (not overwritten by custom action)")
+	allowed, _ := addLabelsVal["allowed"].([]any)
+	assert.Contains(t, allowed, "bug", "add_labels.allowed should still contain the configured label")
+}
+
 // TestGenerateSafeOutputsConfigMissingToolWithIssue tests the missing_tool config.
 // The legacy create_missing_tool_issue sub-key is no longer generated; only missing_tool is present.
 func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
