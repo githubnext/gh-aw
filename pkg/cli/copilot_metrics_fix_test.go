@@ -33,7 +33,7 @@ func TestExtractLogMetricsExcludesWorkflowLogsDir(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Simulate a Copilot-CLI run directory
-	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "aw_info.json"), []byte(`{"engine_id":"copilot"}`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "aw_info.json"), []byte(`{"engine_id":"copilot"}`), 0600))
 
 	// The single JSON data block that represents one LLM API call with 1000 tokens.
 	oneTurn := `2025-09-26T11:00:00Z [DEBUG] data:
@@ -44,7 +44,7 @@ func TestExtractLogMetricsExcludesWorkflowLogsDir(t *testing.T) {
 2025-09-26T11:00:01Z [DEBUG] Workflow done`
 
 	// Primary agent log — the "source of truth" artifact
-	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "agent.log"), []byte(oneTurn), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "agent.log"), []byte(oneTurn), 0600))
 
 	// Simulate workflow-logs/ as produced by downloadWorkflowRunLogs.
 	// Two step-output files: one .log and one *log*.txt (both would have matched

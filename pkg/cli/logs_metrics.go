@@ -170,9 +170,9 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 			}
 
 			// Skip directories. workflow-logs/ is explicitly excluded because it contains
-			// GitHub Actions runner captures of each job/step's stdout, NOT the agent
-			// artifact data. Parsing those files would double-count token usage and turns
-			// since the same agent session output appears in both the agent artifact
+			// GitHub Actions runner captures of each job/step's stdout rather than the agent
+			// artifact data. Parsing those files would double-count token usage and turns;
+			// the same agent session output appears in both the agent artifact
 			// (e.g. agent-stdio.log) and the workflow run logs (workflow-logs/).
 			if info.IsDir() {
 				if info.Name() == "workflow-logs" {
