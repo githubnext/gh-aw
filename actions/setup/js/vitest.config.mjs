@@ -7,7 +7,6 @@ export default defineConfig({
     include: ["**/*.test.{js,cjs}"],
     testTimeout: 10000,
     hookTimeout: 10000,
-    forceExit: true,
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
