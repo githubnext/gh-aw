@@ -578,6 +578,106 @@ describe("Safe Output Handler Manager", () => {
       expect(result.temporaryIdMap["aw_aabbcc11"]).toBeDefined();
     });
 
+    it("should populate artifactUrlMap when upload_artifact succeeds", async () => {
+      const messages = [
+        {
+          type: "upload_artifact",
+          temporary_id: "aw_chart1",
+          path: "chart.png",
+        },
+      ];
+
+      const mockUploadHandler = vi.fn().mockResolvedValue({
+        tmpId: "aw_chart1",
+        artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/42",
+      });
+
+      const handlers = new Map([["upload_artifact", mockUploadHandler]]);
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.artifactUrlMap).toBeDefined();
+      expect(result.artifactUrlMap.get("aw_chart1")).toBe("https://github.com/owner/repo/actions/runs/1/artifacts/42");
+    });
+
+    it("should track issue with artifact reference as needing synthetic update when artifact is uploaded after", async () => {
+      const messages = [
+        {
+          type: "create_issue",
+          title: "Issue with chart",
+          body: "See chart: ![chart](#aw_chart1)",
+        },
+        {
+          type: "upload_artifact",
+          temporary_id: "aw_chart1",
+          path: "chart.png",
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const mockUploadHandler = vi.fn().mockResolvedValue({
+        tmpId: "aw_chart1",
+        artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/42",
+      });
+
+      const handlers = new Map([
+        ["create_issue", mockCreateIssueHandler],
+        ["upload_artifact", mockUploadHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.artifactUrlMap.get("aw_chart1")).toBe("https://github.com/owner/repo/actions/runs/1/artifacts/42");
+      // The issue was created before the artifact was uploaded, so it should be tracked
+      expect(result.outputsWithUnresolvedIds.length).toBe(1);
+      expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
+    });
+
+    it("should replace artifact URL references in issue body when artifact is uploaded before issue", async () => {
+      const messages = [
+        {
+          type: "upload_artifact",
+          temporary_id: "aw_chart1",
+          path: "chart.png",
+        },
+        {
+          type: "create_issue",
+          title: "Issue with chart",
+          body: "See chart: ![chart](#aw_chart1)",
+        },
+      ];
+
+      const mockUploadHandler = vi.fn().mockResolvedValue({
+        tmpId: "aw_chart1",
+        artifactUrl: "https://github.com/owner/repo/actions/runs/1/artifacts/42",
+      });
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([
+        ["upload_artifact", mockUploadHandler],
+        ["create_issue", mockCreateIssueHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      // When artifact is already uploaded, the body passed to create_issue should have URL replaced
+      const calledMessage = mockCreateIssueHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("https://github.com/owner/repo/actions/runs/1/artifacts/42");
+      expect(calledMessage.body).not.toContain("#aw_chart1");
+      // The issue does not need synthetic update since body was pre-resolved
+      expect(result.outputsWithUnresolvedIds.length).toBe(0);
+    });
+
     it("should silently skip message types handled by standalone steps", async () => {
       const messages = [
         { type: "create_issue", title: "Issue" },
