@@ -486,6 +486,33 @@ describe("temporary_id.cjs", () => {
       expect(result.errorMessage).toContain("Invalid temporary ID format");
       expect(result.errorMessage).toContain("#aw_test-id");
     });
+
+    it("should strip surrounding double quotes from temporary ID", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_blazwasm", { repo: "owner/repo", number: 42 }]]);
+      const result = resolveIssueNumber('"aw_blazwasm"', map);
+      expect(result.resolved).toEqual({ repo: "owner/repo", number: 42 });
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should strip surrounding single quotes from temporary ID", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_foo123", { repo: "owner/repo", number: 7 }]]);
+      const result = resolveIssueNumber("'aw_foo123'", map);
+      expect(result.resolved).toEqual({ repo: "owner/repo", number: 7 });
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should strip surrounding double quotes from numeric issue number", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber('"789"', map);
+      expect(result.resolved).toEqual({ repo: "testowner/testrepo", number: 789 });
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBe(null);
+    });
   });
 
   describe("serializeTemporaryIdMap", () => {
