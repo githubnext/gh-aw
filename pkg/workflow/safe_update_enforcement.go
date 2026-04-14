@@ -51,7 +51,7 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 		// Treat no prior manifest as an empty baseline so that newly introduced
 		// secrets and actions are flagged on first compilation as well.
 		safeUpdateLog.Print("No existing manifest found; enforcing safe update with empty baseline (new secrets/actions will be flagged)")
-		manifest = &GHAWManifest{}
+		manifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 	}
 
 	secretViolations := collectSecretViolations(manifest, secretNames)

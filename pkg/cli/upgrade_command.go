@@ -143,8 +143,8 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 
 // runUpgradeCommand executes the upgrade process
 func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, approve bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
-		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v, approve=%v",
+		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade, approve)
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary
