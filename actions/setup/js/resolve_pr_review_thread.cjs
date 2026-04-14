@@ -215,16 +215,12 @@ async function main(config = {}) {
         }
         // resolveTarget === "*": any PR in allowed repos — no further PR number check needed
       } else {
-        // Default (legacy) mode: scope to triggering PR only
+        // Default (legacy) mode: scope to triggering PR only when a triggering PR exists
         if (!triggeringPRNumber) {
-          core.warning("Cannot resolve review thread: not running in a pull request context");
-          return {
-            success: false,
-            error: "Cannot resolve review threads outside of a pull request context",
-          };
-        }
-
-        if (threadPRNumber !== triggeringPRNumber) {
+          // No triggering PR (e.g. schedule/workflow_dispatch trigger) but an explicit thread_id
+          // was provided and resolved to a specific PR via the API — allow the resolution to proceed
+          core.info(`No triggering PR context; resolving thread ${threadId} via explicit thread_id (PR #${threadPRNumber})`);
+        } else if (threadPRNumber !== triggeringPRNumber) {
           core.warning(`Thread ${threadId} belongs to PR #${threadPRNumber}, not triggering PR #${triggeringPRNumber}`);
           return {
             success: false,
