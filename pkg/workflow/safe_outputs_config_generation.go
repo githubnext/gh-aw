@@ -25,10 +25,10 @@ import (
 // generateSafeOutputsConfig generates the JSON configuration for the safe-outputs
 // MCP server. Standard handler configs are sourced from handlerRegistry to ensure
 // they stay in sync with GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG.
-func generateSafeOutputsConfig(data *WorkflowData) string {
+func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if data.SafeOutputs == nil {
 		safeOutputsConfigLog.Print("No safe outputs configuration found, returning empty config")
-		return ""
+		return "", nil
 	}
 	safeOutputsConfigLog.Print("Generating safe outputs configuration for workflow")
 
@@ -118,12 +118,11 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		for actionName := range data.SafeOutputs.Actions {
 			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
 			if _, exists := safeOutputsConfig[normalizedName]; exists {
-				safeOutputsConfigLog.Printf(
-					"Skipping safe action %q because normalized name %q conflicts with an existing safe outputs config entry",
+				return "", fmt.Errorf(
+					"safe-outputs action %q has a normalized name %q that conflicts with an existing safe outputs config entry; rename the action to avoid the conflict",
 					actionName,
 					normalizedName,
 				)
-				continue
 			}
 			safeOutputsConfigLog.Printf("Adding safe action to config: %s (normalized: %s)", actionName, normalizedName)
 			safeOutputsConfig[normalizedName] = true
@@ -186,11 +185,11 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	}
 
 	if len(safeOutputsConfig) == 0 {
-		return ""
+		return "", nil
 	}
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
-	return string(configJSON)
+	return string(configJSON), nil
 }
 
 // generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job.

@@ -478,11 +478,12 @@ func TestDispatchRepositoryConfigSerialization(t *testing.T) {
 		},
 	}
 
-	configJSON := generateSafeOutputsConfig(workflowData)
+	configJSON, err := generateSafeOutputsConfig(workflowData)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, configJSON, "Config JSON should not be empty")
 
 	var config map[string]any
-	err := json.Unmarshal([]byte(configJSON), &config)
+	err = json.Unmarshal([]byte(configJSON), &config)
 	require.NoError(t, err, "Config JSON should be valid")
 
 	dispatchRepo, ok := config["dispatch_repository"].(map[string]any)

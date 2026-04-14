@@ -381,7 +381,8 @@ This workflow dispatches to different workflow types.
 		"yml-test should use .yml extension")
 
 	// Generate safe outputs config to verify workflow_files is included
-	configJSON := generateSafeOutputsConfig(workflowData)
+	configJSON, err := generateSafeOutputsConfig(workflowData)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, configJSON, "Config JSON should not be empty")
 
 	// Parse config to verify workflow_files is present

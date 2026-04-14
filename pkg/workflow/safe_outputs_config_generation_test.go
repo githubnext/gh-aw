@@ -43,7 +43,8 @@ jobs:
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -77,7 +78,8 @@ func TestGenerateSafeOutputsConfigActions(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -94,9 +96,9 @@ func TestGenerateSafeOutputsConfigActions(t *testing.T) {
 	assert.Equal(t, true, publishVal, "publish_results value should be true")
 }
 
-// TestGenerateSafeOutputsConfigActionsNoConflict tests that a custom action whose normalized
-// name collides with an existing built-in handler key does not overwrite it.
-func TestGenerateSafeOutputsConfigActionsNoConflict(t *testing.T) {
+// TestGenerateSafeOutputsConfigActionsCollisionReturnsError tests that a custom action
+// whose normalized name collides with an existing built-in handler key returns an error.
+func TestGenerateSafeOutputsConfigActionsCollisionReturnsError(t *testing.T) {
 	trueVal := "true"
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -108,7 +110,7 @@ func TestGenerateSafeOutputsConfigActionsNoConflict(t *testing.T) {
 			Actions: map[string]*SafeOutputActionConfig{
 				"add-labels": {
 					Uses:        "owner/some-action@v1",
-					Description: "Should not overwrite add_labels config",
+					Description: "Should trigger a collision error",
 				},
 			},
 			// Ensure at least one handler is set to make config non-empty.
@@ -116,17 +118,10 @@ func TestGenerateSafeOutputsConfigActionsNoConflict(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
-	require.NotEmpty(t, result, "Expected non-empty config")
-
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
-
-	// The built-in add_labels config (an object with "allowed") must be preserved.
-	addLabelsVal, ok := parsed["add_labels"].(map[string]any)
-	require.True(t, ok, "add_labels should remain a map (not overwritten by custom action)")
-	allowed, _ := addLabelsVal["allowed"].([]any)
-	assert.Contains(t, allowed, "bug", "add_labels.allowed should still contain the configured label")
+	_, err := generateSafeOutputsConfig(data)
+	require.Error(t, err, "Expected an error when a custom action name collides with a built-in handler key")
+	assert.Contains(t, err.Error(), "add-labels", "Error should mention the conflicting action name")
+	assert.Contains(t, err.Error(), "add_labels", "Error should mention the conflicting normalized name")
 }
 
 // TestGenerateSafeOutputsConfigMissingToolWithIssue tests the missing_tool config.
@@ -143,7 +138,8 @@ func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -175,7 +171,8 @@ func TestGenerateSafeOutputsConfigMentions(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -417,7 +414,8 @@ func TestGenerateSafeOutputsConfigAddLabelsBlocked(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -456,7 +454,8 @@ func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -499,7 +498,8 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -532,7 +532,8 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue(t *testing.T) 
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -557,7 +558,8 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueExpression(t *t
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -580,7 +582,8 @@ func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssueOmittedByDefaul
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -616,7 +619,8 @@ func TestGenerateSafeOutputsConfigRepoMemory(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -656,7 +660,8 @@ func TestGenerateSafeOutputsConfigNoRepoMemory(t *testing.T) {
 		RepoMemoryConfig: nil,
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -679,7 +684,8 @@ func TestGenerateSafeOutputsConfigEmptyRepoMemory(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -702,7 +708,8 @@ func TestGenerateSafeOutputsConfigReplyToPullRequestReviewComment(t *testing.T) 
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -731,7 +738,8 @@ func TestGenerateSafeOutputsConfigReplyToPullRequestReviewCommentWithTarget(t *t
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -775,7 +783,8 @@ func TestGenerateSafeOutputsConfigClosePullRequest(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
@@ -813,7 +822,8 @@ func TestGenerateSafeOutputsConfigClosePullRequestStaged(t *testing.T) {
 		},
 	}
 
-	result := generateSafeOutputsConfig(data)
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, result, "Expected non-empty config")
 
 	var parsed map[string]any
