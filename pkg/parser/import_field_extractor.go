@@ -31,6 +31,7 @@ type importAccumulator struct {
 	secretMaskingBuilder     strings.Builder
 	postStepsBuilder         strings.Builder
 	jobsBuilder              strings.Builder // Jobs from imported YAML workflows
+	envBuilder               strings.Builder // env vars from imported workflows
 	observabilityBuilder     strings.Builder // observability config (first-wins for OTLP endpoint)
 	engines                  []string
 	safeOutputs              []string
@@ -339,6 +340,12 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		acc.jobsBuilder.WriteString(jobsContent + "\n")
 	}
 
+	// Extract env from imported file (append in order; main workflow env takes precedence)
+	envContent, err := extractFieldJSONFromMap(fm, "env", "{}")
+	if err == nil && envContent != "" && envContent != "{}" {
+		acc.envBuilder.WriteString(envContent + "\n")
+	}
+
 	// Extract labels from imported file (merge into set to avoid duplicates)
 	labelsContent, err := extractFieldJSONFromMap(fm, "labels", "[]")
 	if err == nil && labelsContent != "" && labelsContent != "[]" {
@@ -439,6 +446,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedLabels:                acc.labels,
 		MergedCaches:                acc.caches,
 		MergedJobs:                  acc.jobsBuilder.String(),
+		MergedEnv:                   acc.envBuilder.String(),
 		MergedFeatures:              acc.features,
 		MergedObservability:         acc.observabilityBuilder.String(),
 		ImportedFiles:               topologicalOrder,

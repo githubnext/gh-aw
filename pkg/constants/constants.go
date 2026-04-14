@@ -245,7 +245,7 @@ var IgnoredFrontmatterFields = []string{"user-invokable"}
 //   - Workflow triggers: on (defines it as a main workflow)
 //   - Workflow execution: command, run-name, runs-on, concurrency, if, timeout-minutes, timeout_minutes
 //   - Workflow metadata: name, tracker-id, strict
-//   - Workflow features: container, env, environment, sandbox, features
+//   - Workflow features: container, environment, sandbox, features
 //   - Access control: roles, github-token
 //
 // All other fields defined in main_workflow_schema.json can be used in shared workflows
@@ -255,7 +255,6 @@ var SharedWorkflowForbiddenFields = []string{
 	"command",         // Command for workflow execution
 	"concurrency",     // Concurrency control
 	"container",       // Container configuration
-	"env",             // Environment variables
 	"environment",     // Deployment environment
 	"features",        // Feature flags
 	"github-token",    // GitHub token configuration

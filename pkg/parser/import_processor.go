@@ -40,6 +40,7 @@ type ImportsResult struct {
 	MergedLabels                []string         // Merged labels from all imports (union of label names)
 	MergedCaches                []string         // Merged cache configurations from all imports (appended in order)
 	MergedJobs                  string           // Merged jobs from imported YAML workflows (JSON format)
+	MergedEnv                   string           // Merged env configuration from all imports (JSON format)
 	MergedFeatures              []map[string]any // Merged features configuration from all imports (parsed YAML structures)
 	MergedObservability         string           // Observability config (JSON) from first import that defines it (first-wins)
 	ImportedFiles               []string         // List of imported file paths (for manifest)
