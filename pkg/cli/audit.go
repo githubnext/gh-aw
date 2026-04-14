@@ -217,6 +217,10 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 			GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
 			JobDetails:              summary.JobDetails,
 		}
+		// Override the cached LogsPath with the current runOutputDir so that downstream
+		// file reads (created items, aw_info, etc.) resolve correctly even if the run
+		// directory has been moved or copied since the summary was first written.
+		processedRun.Run.LogsPath = runOutputDir
 		return renderAuditReport(processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
 	}
 
