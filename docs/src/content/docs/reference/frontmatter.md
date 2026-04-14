@@ -419,6 +419,19 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
+#### Reaction-based Trust Signals (`features.integrity-reactions`)
+
+Enables maintainers to promote or demote content past the integrity filter using GitHub reactions (👍, ❤️, 👎, 😕), without adding labels or modifying issue state. Available from gh-aw v0.68.2.
+
+```yaml wrap
+features:
+  integrity-reactions: true
+```
+
+When set, the compiler automatically enables the CLI proxy (required to identify reaction authors) and injects default endorsement and disapproval reaction configuration. Only the `features.integrity-reactions` flag is required — the reaction fields under `tools.github` (`endorsement-reactions`, `disapproval-reactions`, `endorser-min-integrity`, `disapproval-integrity`) are optional overrides.
+
+See [Promoting and demoting items via reactions](/gh-aw/reference/integrity/#promoting-and-demoting-items-via-reactions) in the Integrity Filtering Reference for complete configuration details.
+
 #### DIFC Proxy (`tools.github.integrity-proxy`)
 
 Controls DIFC (Data Integrity and Flow Control) proxy injection. When `tools.github.min-integrity` is configured, the compiler inserts proxy steps around the agent that enforce integrity-level isolation at the network boundary. The proxy is **enabled by default** — set `integrity-proxy: false` to opt out.

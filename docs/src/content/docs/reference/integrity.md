@@ -42,6 +42,10 @@ All integrity-filtering inputs are specified under `tools.github` in your workfl
 | `trusted-users` | array or expression | No | `[]` | GitHub usernames elevated to `approved` integrity regardless of author association |
 | `approval-labels` | array or expression | No | `[]` | GitHub label names that promote items to `approved` integrity |
 | `integrity-proxy` | boolean | No | `true` | Whether to run the DIFC proxy for pre-agent `gh` CLI calls. Set to `false` to disable |
+| `endorsement-reactions` | array | No | `["THUMBS_UP", "HEART"]` (when `integrity-reactions` enabled) | Reaction types that promote item integrity to `approved`. Requires `features.integrity-reactions: true` |
+| `disapproval-reactions` | array | No | `["THUMBS_DOWN", "CONFUSED"]` (when `integrity-reactions` enabled) | Reaction types that demote item integrity. Requires `features.integrity-reactions: true` |
+| `endorser-min-integrity` | string | No | `approved` (when `integrity-reactions` enabled) | Minimum integrity of the reactor for an endorsement or disapproval to take effect. Requires `features.integrity-reactions: true` |
+| `disapproval-integrity` | string | No | `none` (when `integrity-reactions` enabled) | Integrity level assigned when a qualifying disapproval reaction is added. Requires `features.integrity-reactions: true` |
 
 > [!NOTE]
 > `repos` is a deprecated alias for `allowed-repos`. Use `allowed-repos` in new workflows. Run `gh aw fix` to migrate existing workflows automatically.
@@ -153,6 +157,36 @@ tools:
 This is useful when a workflow's `min-integrity` would normally filter out external contributions, but a maintainer can label specific items to let them through.
 
 Promotion only raises integrity — it never lowers it. An item already at `merged` stays at `merged`. Blocked-user exclusion always takes precedence: a blocked user's items remain blocked even if they carry an approval label.
+
+### Promoting and demoting items via reactions
+
+`features.integrity-reactions: true` allows maintainers to adjust item integrity using GitHub reactions, without adding labels or modifying issue state. Available from gh-aw v0.68.2.
+
+```aw wrap
+features:
+  integrity-reactions: true
+tools:
+  github:
+    min-integrity: approved
+```
+
+When enabled, the compiler automatically enables the CLI proxy (required to identify reaction authors) and injects default reaction configuration. When an account at or above `endorser-min-integrity` adds an endorsement reaction to an issue or comment, the item's integrity is promoted to `approved`. A disapproval reaction from such an account sets the item's integrity to `disapproval-integrity`.
+
+The defaults are `endorsement-reactions: [THUMBS_UP, HEART]`, `disapproval-reactions: [THUMBS_DOWN, CONFUSED]`, `endorser-min-integrity: approved`, and `disapproval-integrity: none`. To override them, set the reaction fields explicitly under `tools.github`:
+
+```aw wrap
+tools:
+  github:
+    endorsement-reactions:
+      - "THUMBS_UP"
+      - "HEART"
+    disapproval-reactions:
+      - "THUMBS_DOWN"
+    endorser-min-integrity: merged
+    disapproval-integrity: unapproved
+```
+
+Valid reaction values: `THUMBS_UP`, `THUMBS_DOWN`, `HEART`, `HOORAY`, `CONFUSED`, `ROCKET`, `EYES`, `LAUGH`. The reaction fields only take effect when `features.integrity-reactions: true` is also set.
 
 ### Using GitHub Actions expressions
 
@@ -318,6 +352,16 @@ tools:
     approval-labels:
       - "agent-approved"
       - "human-reviewed"
+```
+
+**Reaction-based endorsement for fast-tracking contributions (available from v0.68.2):**
+
+```aw wrap
+features:
+  integrity-reactions: true
+tools:
+  github:
+    min-integrity: approved
 ```
 
 **Centrally managed lists via GitHub variables:**
