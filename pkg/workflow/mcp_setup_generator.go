@@ -129,7 +129,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Generate safe-outputs configuration once to avoid duplicate computation
 	var safeOutputConfig string
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		safeOutputConfig = generateSafeOutputsConfig(workflowData)
+		var err error
+		safeOutputConfig, err = generateSafeOutputsConfig(workflowData)
+		if err != nil {
+			return fmt.Errorf("failed to generate safe outputs config: %w", err)
+		}
 	}
 
 	// Sort tools to ensure stable code generation

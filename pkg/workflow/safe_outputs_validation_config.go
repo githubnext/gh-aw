@@ -66,6 +66,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":        {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"item_number": {IssueOrPRNumber: true},
+			"reply_to_id": {Type: "string", MaxLength: 256}, // Optional: node ID of discussion comment to reply to (threading)
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},

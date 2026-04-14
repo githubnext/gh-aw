@@ -5,6 +5,8 @@ package workflow
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseMentionsConfig_Boolean(t *testing.T) {
@@ -216,9 +218,10 @@ func TestGenerateSafeOutputsConfig_WithMentions(t *testing.T) {
 				},
 			}
 
-			configJSON := generateSafeOutputsConfig(data)
+			configJSON, err := generateSafeOutputsConfig(data)
+			require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 			var parsed map[string]any
-			err := json.Unmarshal([]byte(configJSON), &parsed)
+			err = json.Unmarshal([]byte(configJSON), &parsed)
 			if err != nil {
 				t.Fatalf("Failed to parse config JSON: %v", err)
 			}

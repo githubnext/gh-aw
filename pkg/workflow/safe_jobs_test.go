@@ -5,6 +5,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseSafeJobsConfig(t *testing.T) {
@@ -392,7 +394,8 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 		},
 	}
 
-	configJSON := generateSafeOutputsConfig(workflowData)
+	configJSON, err := generateSafeOutputsConfig(workflowData)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 
 	if configJSON == "" {
 		t.Fatal("Expected safe-outputs config JSON to be generated")

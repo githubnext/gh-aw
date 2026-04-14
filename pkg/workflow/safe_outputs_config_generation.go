@@ -25,10 +25,10 @@ import (
 // generateSafeOutputsConfig generates the JSON configuration for the safe-outputs
 // MCP server. Standard handler configs are sourced from handlerRegistry to ensure
 // they stay in sync with GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG.
-func generateSafeOutputsConfig(data *WorkflowData) string {
+func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if data.SafeOutputs == nil {
 		safeOutputsConfigLog.Print("No safe outputs configuration found, returning empty config")
-		return ""
+		return "", nil
 	}
 	safeOutputsConfigLog.Print("Generating safe outputs configuration for workflow")
 
@@ -109,6 +109,26 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Safe-actions configuration: custom GitHub Actions exposed as safe output tools.
+	// The normalized action names are added as config keys so both MCP server implementations
+	// recognise them as enabled tools (the tool schema is already in tools.json via
+	// tools_meta.json; the MCP server just needs to see the name in config.json).
+	if len(data.SafeOutputs.Actions) > 0 {
+		safeOutputsConfigLog.Printf("Processing %d safe action configurations", len(data.SafeOutputs.Actions))
+		for actionName := range data.SafeOutputs.Actions {
+			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+			if _, exists := safeOutputsConfig[normalizedName]; exists {
+				return "", fmt.Errorf(
+					"safe-outputs action %q has a normalized name %q that conflicts with an existing safe outputs config entry; rename the action to avoid the conflict",
+					actionName,
+					normalizedName,
+				)
+			}
+			safeOutputsConfigLog.Printf("Adding safe action to config: %s (normalized: %s)", actionName, normalizedName)
+			safeOutputsConfig[normalizedName] = true
+		}
+	}
+
 	// Mentions configuration: controls which @mentions are allowed in AI output.
 	// This is consumed by the ingestion step, not by standard handlers.
 	if data.SafeOutputs.Mentions != nil {
@@ -165,11 +185,11 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	}
 
 	if len(safeOutputsConfig) == 0 {
-		return ""
+		return "", nil
 	}
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
-	return string(configJSON)
+	return string(configJSON), nil
 }
 
 // generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job.

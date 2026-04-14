@@ -169,6 +169,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 				constraints = append(constraints, fmt.Sprintf("Comments will be added in repository %q.", config.TargetRepoSlug))
 			}
 		}
+		constraints = append(constraints, "Supports reply_to_id for discussion threading.")
 
 	case "create_pull_request":
 		if config := safeOutputs.CreatePullRequests; config != nil {

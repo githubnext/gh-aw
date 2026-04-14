@@ -215,16 +215,31 @@ async function main(config = {}) {
         }
         // resolveTarget === "*": any PR in allowed repos — no further PR number check needed
       } else {
-        // Default (legacy) mode: scope to triggering PR only
-        if (!triggeringPRNumber) {
-          core.warning("Cannot resolve review thread: not running in a pull request context");
+        // Default (legacy) mode: always validate thread repo against defaultTargetRepo to stay
+        // least-privilege, even when there is no triggering PR (e.g. schedule/workflow_dispatch).
+        if (!threadRepo) {
+          core.warning(`Unable to determine repository for review thread ${threadId}; refusing to resolve in legacy mode`);
           return {
             success: false,
-            error: "Cannot resolve review threads outside of a pull request context",
+            error: `Unable to determine repository for review thread ${threadId}`,
           };
         }
 
-        if (threadPRNumber !== triggeringPRNumber) {
+        const legacyRepoValidation = validateTargetRepo(threadRepo, defaultTargetRepo, allowedRepos);
+        if (!legacyRepoValidation.valid) {
+          core.warning(`Thread ${threadId} repository ${threadRepo} is not allowed in legacy mode`);
+          return {
+            success: false,
+            error: legacyRepoValidation.error || `Repository ${threadRepo} is not allowed for this handler`,
+          };
+        }
+
+        // Scope to triggering PR only when a triggering PR exists
+        if (!triggeringPRNumber) {
+          // No triggering PR (e.g. schedule/workflow_dispatch trigger), but the thread has been
+          // resolved to a specific allowed repository via the API — allow the resolution to proceed
+          core.info(`No triggering PR context; resolving thread ${threadId} via explicit thread_id (PR #${threadPRNumber} in ${threadRepo})`);
+        } else if (threadPRNumber !== triggeringPRNumber) {
           core.warning(`Thread ${threadId} belongs to PR #${threadPRNumber}, not triggering PR #${triggeringPRNumber}`);
           return {
             success: false,

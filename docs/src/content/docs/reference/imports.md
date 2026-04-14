@@ -321,6 +321,7 @@ Shared workflow files (without `on:` field) can define:
 - `secret-masking:` - Secret masking steps
 - `env:` - Workflow-level environment variables
 - `github-app:` - GitHub App credentials for token minting (centralize shared app config)
+- `checkout:` - Checkout configuration for the agent job (centralize side-repo checkout setup)
 
 Agent files (`.github/agents/*.md`) can additionally define:
 
@@ -343,6 +344,7 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `runtimes:` | Main overrides imports; imported values fill in unspecified fields. |
 | `services:` | All services merged; duplicate names fail compilation. |
 | `github-app:` | Main workflow's `github-app` takes precedence; first imported value fills in if main does not define one. |
+| `checkout:` | Imported checkout entries are appended after the main workflow's entries. For duplicate (repository, path) pairs, the main workflow's entry takes precedence: first-seen wins for `ref`, and auth is mutually exclusive — once `github-token` or `github-app` is set by the main workflow, an imported duplicate cannot add the other auth method. `checkout: false` in the main workflow disables all checkout including imported entries. |
 | `steps:` | Imported steps prepended to main; concatenated in import order. |
 | `jobs:` | Not merged — define only in the main workflow. Use `safe-outputs.jobs` for importable jobs. |
 | `safe-outputs.jobs` | Names must be unique; duplicates fail. Order determined by `needs:` dependencies. |
