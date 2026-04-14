@@ -109,8 +109,9 @@ function unquoteCPath(s) {
  * @returns {Promise<void>}
  */
 async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv }) {
-  // Collect the commits introduced (oldest-first)
-  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--reverse", `${baseRef}..HEAD`], { cwd });
+  // Collect the commits introduced (oldest-first) using topological order to ensure
+  // correct sequencing even when commit dates are out of sync (e.g. after rebase --committer-date-is-author-date)
+  const { stdout: revListOut } = await exec.getExecOutput("git", ["rev-list", "--topo-order", "--reverse", `${baseRef}..HEAD`], { cwd });
   const shas = revListOut.trim().split("\n").filter(Boolean);
 
   if (shas.length === 0) {
@@ -121,6 +122,18 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   core.info(`pushSignedCommits: replaying ${shas.length} commit(s) via GraphQL createCommitOnBranch (branch: ${branch}, repo: ${owner}/${repo})`);
 
   try {
+    // Pre-flight check: detect merge commits (more than one parent). The GraphQL
+    // createCommitOnBranch mutation does not support multiple parents, so fall back
+    // to git push for the entire series if any merge commit is found.
+    for (const sha of shas) {
+      const { stdout: catFileOut } = await exec.getExecOutput("git", ["cat-file", "-p", sha], { cwd });
+      const parentCount = (catFileOut.match(/^parent /gm) || []).length;
+      if (parentCount > 1) {
+        core.warning(`pushSignedCommits: merge commit ${sha} detected, falling back to git push`);
+        throw new Error("merge commit detected");
+      }
+    }
+
     // Pre-scan ALL commits: collect file changes and check for unsupported file modes
     // BEFORE starting any GraphQL mutations. If a symlink is found mid-loop after some
     // commits have already been signed, the remote branch diverges and the git push
