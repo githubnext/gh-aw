@@ -445,7 +445,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added.",
+                "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added. Supports reply_to_id for discussion threading.",
                 "assign_to_agent": " CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent."
               },
               "repo_params": {},
@@ -464,6 +464,10 @@ jobs:
                   },
                   "item_number": {
                     "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
                   },
                   "repo": {
                     "type": "string",

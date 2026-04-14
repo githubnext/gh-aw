@@ -278,6 +278,10 @@
                     "pattern": "^aw_[A-Za-z0-9]{3,12}$",
                     "description": "Unique temporary identifier for this comment. Format: 'aw_' followed by 3 to 12 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Auto-generated if not provided. The temporary ID is returned in the tool response so you can reference this comment later."
                 },
+                "reply_to_id": {
+                    "type": "string",
+                    "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments — ignored for issue and pull request comments."
+                },
                 "secrecy": {
                     "type": "string",
                     "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."

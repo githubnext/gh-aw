@@ -969,7 +969,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added.",
+                "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added. Supports reply_to_id for discussion threading.",
                 "add_labels": " CONSTRAINTS: Only these labels are allowed: [\"smoke-claude\"].",
                 "add_reviewer": " CONSTRAINTS: Maximum 2 reviewer(s) can be added.",
                 "close_pull_request": " CONSTRAINTS: Maximum 1 pull request(s) can be closed.",
@@ -1016,6 +1016,10 @@ jobs:
                   },
                   "item_number": {
                     "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
                   },
                   "repo": {
                     "type": "string",

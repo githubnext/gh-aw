@@ -418,7 +418,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 10 comment(s) can be added. Target: *. Comments will be added in repository \"${{ vars.TARGET_REPOSITORY }}\".",
+                "add_comment": " CONSTRAINTS: Maximum 10 comment(s) can be added. Target: *. Comments will be added in repository \"${{ vars.TARGET_REPOSITORY }}\". Supports reply_to_id for discussion threading.",
                 "add_labels": " CONSTRAINTS: Maximum 4 label(s) can be added. Only these labels are allowed: [\"spam\" \"needs-work\" \"outdated\" \"lgtm\"]. Target: *.",
                 "create_issue": " CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[Contribution Check Report]\". Labels [\"contribution-report\"] will be automatically added."
               },
@@ -438,6 +438,10 @@ jobs:
                   },
                   "item_number": {
                     "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
                   },
                   "repo": {
                     "type": "string",
