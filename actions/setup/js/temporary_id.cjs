@@ -303,7 +303,7 @@ function resolveIssueNumber(value, temporaryIdMap) {
   // Strip # prefix if present to allow flexible temporary ID format
   const valueStr = String(value).trim();
   // Strip surrounding quotes (agent sometimes double-quotes string values, e.g. `"aw_foo"`)
-  const unquoted = /^["'](.+)["']$/.test(valueStr) ? valueStr.slice(1, -1) : valueStr;
+  const unquoted = /^(["'])(.+)\1$/.test(valueStr) ? valueStr.slice(1, -1) : valueStr;
   const valueWithoutHash = unquoted.startsWith("#") ? unquoted.substring(1) : unquoted;
 
   // Check if it's a temporary ID

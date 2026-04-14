@@ -513,6 +513,15 @@ describe("temporary_id.cjs", () => {
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toBe(null);
     });
+
+    it("should not strip mismatched surrounding quotes from temporary ID", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("\"aw_foo123'", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).not.toBe(null);
+    });
   });
 
   describe("serializeTemporaryIdMap", () => {
