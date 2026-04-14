@@ -48,6 +48,8 @@ async function main() {
   const eventsList = process.env.GH_AW_RATE_LIMIT_EVENTS?.trim() || "";
   // Default: admin, maintain, and write roles are exempt from rate limiting
   const ignoredRolesList = process.env.GH_AW_RATE_LIMIT_IGNORED_ROLES?.trim() || "admin,maintain,write";
+  const maxInProgressStr = process.env.GH_AW_RATE_LIMIT_MAX_IN_PROGRESS?.trim() || "";
+  const maxInProgress = maxInProgressStr ? parseInt(maxInProgressStr, 10) : 0;
 
   core.info(`🔍 Checking rate limit for user '${actor}' on workflow '${workflowId}'`);
   core.info(`   Configuration: max=${maxRuns} runs per ${windowMinutes} minutes`);
@@ -252,7 +254,6 @@ async function main() {
     core.info(`✅ Rate limit check passed`);
     core.info(`   User '${actor}' has ${totalRecentRuns} runs in the last ${windowMinutes} minutes`);
     core.info(`   Remaining quota: ${maxRuns - totalRecentRuns} runs`);
-    core.setOutput("rate_limit_ok", "true");
   } catch (error) {
     core.error(`❌ Rate limit check failed: ${getErrorMessage(error)}`);
     if (error instanceof Error && error.stack) {
@@ -263,7 +264,62 @@ async function main() {
     // This prevents rate limiting from blocking workflows due to API issues
     core.warning(`⚠️ Allowing workflow to proceed due to rate limit check error`);
     core.setOutput("rate_limit_ok", "true");
+    return;
   }
+
+  // Check max-in-progress GitHub agent tasks if configured
+  if (maxInProgress > 0) {
+    core.info(`🔍 Checking max-in-progress agent tasks (max: ${maxInProgress})`);
+    try {
+      // Query in-progress agent tasks using the GitHub agent tasks API
+      // Requires issues: read permission
+      const response = await github.request("GET /repos/{owner}/{repo}/agent/tasks", {
+        owner,
+        repo,
+        status: "in_progress",
+        headers: {
+          "X-GitHub-Api-Version": "2026-03-10",
+        },
+      });
+
+      const inProgressTasks = response.data.tasks ?? response.data ?? [];
+      const inProgressCount = Array.isArray(inProgressTasks) ? inProgressTasks.length : 0;
+
+      core.info(`📊 In-progress agent tasks for '${owner}/${repo}': ${inProgressCount} (max: ${maxInProgress})`);
+
+      if (inProgressCount >= maxInProgress) {
+        core.warning(`⚠️ Max in-progress agent tasks reached for '${owner}/${repo}'`);
+        core.warning(`   There are ${inProgressCount} in-progress tasks (max: ${maxInProgress})`);
+        core.warning(`   Cancelling current workflow run...`);
+
+        try {
+          await github.rest.actions.cancelWorkflowRun({
+            owner,
+            repo,
+            run_id: runId,
+          });
+          core.warning(`✅ Workflow run ${runId} cancelled successfully`);
+        } catch (cancelError) {
+          core.error(`❌ Failed to cancel workflow run: ${getErrorMessage(cancelError)}`);
+        }
+
+        core.setOutput("rate_limit_ok", "false");
+        return;
+      }
+
+      core.info(`✅ Max-in-progress check passed (${inProgressCount}/${maxInProgress} tasks in progress)`);
+    } catch (error) {
+      core.error(`❌ Max-in-progress check failed: ${getErrorMessage(error)}`);
+      if (error instanceof Error && error.stack) {
+        core.error(`   Stack trace: ${error.stack}`);
+      }
+
+      // On error, allow the workflow to proceed (fail-open)
+      core.warning(`⚠️ Allowing workflow to proceed due to max-in-progress check error`);
+    }
+  }
+
+  core.setOutput("rate_limit_ok", "true");
 }
 
 module.exports = { main };

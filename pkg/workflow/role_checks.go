@@ -83,6 +83,11 @@ func (c *Compiler) generateRateLimitCheck(data *WorkflowData, steps []string) []
 		steps = append(steps, fmt.Sprintf("          GH_AW_RATE_LIMIT_IGNORED_ROLES: %q\n", strings.Join(ignoredRoles, ",")))
 	}
 
+	// Set max-in-progress (if specified)
+	if data.RateLimit.MaxInProgress > 0 {
+		steps = append(steps, fmt.Sprintf("          GH_AW_RATE_LIMIT_MAX_IN_PROGRESS: \"%d\"\n", data.RateLimit.MaxInProgress))
+	}
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 	steps = append(steps, "          script: |\n")
@@ -242,7 +247,21 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 				roleLog.Print("No ignored-roles specified, using defaults: admin, maintain, write")
 			}
 
-			roleLog.Printf("Extracted rate-limit config: max=%d, window=%d, events=%v, ignored-roles=%v", config.Max, config.Window, config.Events, config.IgnoredRoles)
+			// Extract max-in-progress
+			if maxInProgressValue, ok := v["max-in-progress"]; ok {
+				switch maxInProgress := maxInProgressValue.(type) {
+				case int:
+					config.MaxInProgress = maxInProgress
+				case int64:
+					config.MaxInProgress = int(maxInProgress)
+				case uint64:
+					config.MaxInProgress = int(maxInProgress)
+				case float64:
+					config.MaxInProgress = int(maxInProgress)
+				}
+			}
+
+			roleLog.Printf("Extracted rate-limit config: max=%d, window=%d, events=%v, ignored-roles=%v, max-in-progress=%d", config.Max, config.Window, config.Events, config.IgnoredRoles, config.MaxInProgress)
 			return config
 		}
 	}

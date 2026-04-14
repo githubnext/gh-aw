@@ -8427,11 +8427,11 @@
     },
     "rate-limit": {
       "type": "object",
-      "description": "Rate limiting configuration to restrict how frequently users can trigger the workflow. Helps prevent abuse and resource exhaustion from programmatically triggered events.",
+      "description": "Per-user workflow rate limit configuration to restrict how frequently individual users can trigger this workflow. Helps prevent abuse and resource exhaustion from programmatically triggered events. Optionally also limits the total number of in-progress GitHub agent tasks for the repository.",
       "required": ["max"],
       "properties": {
         "max": {
-          "description": "Maximum number of workflow runs allowed per user within the time window. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
+          "description": "Maximum number of workflow runs allowed per user within the time window. This is a per-user limit: each user is tracked independently. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
           "oneOf": [
             {
               "type": "integer",
@@ -8450,11 +8450,11 @@
           "minimum": 1,
           "maximum": 180,
           "default": 60,
-          "description": "Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180 (3 hours)."
+          "description": "Time window in minutes for the per-user rate limit. Defaults to 60 (1 hour). Maximum: 180 (3 hours)."
         },
         "events": {
           "type": "array",
-          "description": "Optional list of event types to apply rate limiting to. If not specified, rate limiting applies to all programmatically triggered events (e.g., workflow_dispatch, issue_comment, pull_request_review).",
+          "description": "Optional list of event types to apply the per-user rate limit to. If not specified, rate limiting applies to all programmatically triggered events (e.g., workflow_dispatch, issue_comment, pull_request_review).",
           "items": {
             "type": "string",
             "enum": ["workflow_dispatch", "issue_comment", "pull_request_review", "pull_request_review_comment", "issues", "pull_request", "discussion_comment", "discussion"]
@@ -8463,12 +8463,17 @@
         },
         "ignored-roles": {
           "type": "array",
-          "description": "Optional list of roles that are exempt from rate limiting. Defaults to ['admin', 'maintain', 'write'] if not specified. Users with any of these roles will not be subject to rate limiting checks. To apply rate limiting to all users, set to an empty array: []",
+          "description": "Optional list of roles that are exempt from the per-user rate limit. Defaults to ['admin', 'maintain', 'write'] if not specified. Users with any of these roles will not be subject to rate limiting checks. To apply rate limiting to all users, set to an empty array: []",
           "items": {
             "type": "string",
             "enum": ["admin", "maintain", "write", "triage", "read"]
           },
           "minItems": 0
+        },
+        "max-in-progress": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of in-progress GitHub agent tasks allowed for this repository before blocking new workflow runs. If the number of currently in-progress agent tasks meets or exceeds this value, the current run is cancelled. Queries the GitHub agent tasks API (GET /repos/{owner}/{repo}/agent/tasks). Requires issues: read permission. See https://docs.github.com/en/rest/agent-tasks/agent-tasks"
         }
       },
       "additionalProperties": false,
@@ -8486,6 +8491,11 @@
           "max": 5,
           "window": 60,
           "ignored-roles": ["admin", "maintain"]
+        },
+        {
+          "max": 5,
+          "window": 60,
+          "max-in-progress": 3
         }
       ]
     },

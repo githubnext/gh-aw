@@ -54,6 +54,10 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			perms = NewPermissions()
 		}
 		perms.Set(PermissionActions, PermissionRead)
+		// Add issues: read permission if max-in-progress is configured (needed to query agent tasks)
+		if data.RateLimit.MaxInProgress > 0 {
+			perms.Set(PermissionIssues, PermissionRead)
+		}
 	}
 
 	// Merge on.permissions into the pre-activation job permissions.

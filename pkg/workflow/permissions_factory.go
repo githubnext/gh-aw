@@ -73,6 +73,14 @@ func NewPermissionsContentsRead() *Permissions {
 	})
 }
 
+// NewPermissionsContentsReadIssuesRead creates permissions with contents: read and issues: read
+func NewPermissionsContentsReadIssuesRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+		PermissionIssues:   PermissionRead,
+	})
+}
+
 // NewPermissionsContentsReadIssuesWrite creates permissions with contents: read and issues: write
 func NewPermissionsContentsReadIssuesWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
