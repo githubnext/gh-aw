@@ -28,7 +28,10 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-discussion:
     expires: 3d
     category: "daily-news"

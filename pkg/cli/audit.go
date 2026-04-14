@@ -45,13 +45,6 @@ When a job URL is provided:
 - If no step number, finds and extracts the first failing step's output
 - Saves job logs to the output directory
 
-This command:
-- Downloads artifacts and logs for the specified run ID
-- Detects errors and warnings in the logs
-- Analyzes MCP tool usage statistics
-- Extracts missing tool reports
-- Generates a concise Markdown report
-
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890     # Audit run with ID 1234567890
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
@@ -194,6 +187,41 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	// If job ID is provided, handle job-specific audit
 	if jobID > 0 {
 		return auditJobRun(runID, jobID, stepNumber, owner, repo, hostname, runOutputDir, verbose, jsonOutput)
+	}
+
+	// Use cached run summary when available to ensure deterministic metrics across repeated calls.
+	// Re-processing the same log files can produce different results (e.g. when GitHub's API
+	// returns aggregated data that differs from the locally-stored firewall logs), so we always
+	// prefer the first fully-processed summary written to disk.  The cache is automatically
+	// invalidated whenever the CLI version changes (see loadRunSummary).
+	if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
+		auditLog.Printf("Using cached run summary for run %d (processed at %s)", runID, summary.ProcessedAt.Format(time.RFC3339))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached run summary for run %d (processed at %s)", runID, summary.ProcessedAt.Format(time.RFC3339))))
+		}
+		processedRun := ProcessedRun{
+			Run:                     summary.Run,
+			AwContext:               summary.AwContext,
+			TaskDomain:              summary.TaskDomain,
+			BehaviorFingerprint:     summary.BehaviorFingerprint,
+			AgenticAssessments:      summary.AgenticAssessments,
+			AccessAnalysis:          summary.AccessAnalysis,
+			FirewallAnalysis:        summary.FirewallAnalysis,
+			PolicyAnalysis:          summary.PolicyAnalysis,
+			RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
+			MissingTools:            summary.MissingTools,
+			MissingData:             summary.MissingData,
+			Noops:                   summary.Noops,
+			MCPFailures:             summary.MCPFailures,
+			TokenUsage:              summary.TokenUsage,
+			GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
+			JobDetails:              summary.JobDetails,
+		}
+		// Override the cached LogsPath with the current runOutputDir so that downstream
+		// file reads (created items, aw_info, etc.) resolve correctly even if the run
+		// directory has been moved or copied since the summary was first written.
+		processedRun.Run.LogsPath = runOutputDir
+		return renderAuditReport(processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
 	}
 
 	// Check if we have locally cached artifacts first
@@ -423,6 +451,50 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	processedRun.BehaviorFingerprint = behaviorFingerprint
 	processedRun.AgenticAssessments = agenticAssessments
 
+	// Save run summary for caching future audit runs
+	summary := &RunSummary{
+		CLIVersion:              GetVersion(),
+		RunID:                   run.DatabaseID,
+		ProcessedAt:             time.Now(),
+		Run:                     run,
+		Metrics:                 metrics,
+		AwContext:               processedRun.AwContext,
+		TaskDomain:              processedRun.TaskDomain,
+		BehaviorFingerprint:     processedRun.BehaviorFingerprint,
+		AgenticAssessments:      processedRun.AgenticAssessments,
+		AccessAnalysis:          accessAnalysis,
+		FirewallAnalysis:        firewallAnalysis,
+		PolicyAnalysis:          policyAnalysis,
+		RedactedDomainsAnalysis: redactedDomainsAnalysis,
+		MissingTools:            missingTools,
+		MissingData:             missingData,
+		Noops:                   noops,
+		MCPFailures:             mcpFailures,
+		MCPToolUsage:            mcpToolUsage,
+		TokenUsage:              tokenUsageSummary,
+		GitHubRateLimitUsage:    rateLimitUsage,
+		ArtifactsList:           artifacts,
+		JobDetails:              jobDetails,
+	}
+
+	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary: %v", err)))
+		}
+	}
+
+	return renderAuditReport(processedRun, metrics, mcpToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+}
+
+// renderAuditReport builds and renders the audit report from a fully-populated processedRun.
+// It is called both when serving from a cached run summary and after a fresh processing pass,
+// ensuring that the two paths produce identical output.
+func renderAuditReport(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, owner, repo, hostname string, verbose bool, parse bool, jsonOutput bool) error {
+	runID := processedRun.Run.DatabaseID
+
+	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
+	processedRun.Run.SafeItemsCount = len(currentCreatedItems)
+
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
 	comparison := buildAuditComparisonForRun(processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
 
@@ -478,38 +550,6 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 			if _, err := os.Stat(firewallMdPath); err == nil {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runID, firewallMdPath)))
 			}
-		}
-	}
-
-	// Save run summary for caching future audit runs
-	summary := &RunSummary{
-		CLIVersion:              GetVersion(),
-		RunID:                   run.DatabaseID,
-		ProcessedAt:             time.Now(),
-		Run:                     run,
-		Metrics:                 metrics,
-		AwContext:               processedRun.AwContext,
-		TaskDomain:              processedRun.TaskDomain,
-		BehaviorFingerprint:     processedRun.BehaviorFingerprint,
-		AgenticAssessments:      processedRun.AgenticAssessments,
-		AccessAnalysis:          accessAnalysis,
-		FirewallAnalysis:        firewallAnalysis,
-		PolicyAnalysis:          policyAnalysis,
-		RedactedDomainsAnalysis: redactedDomainsAnalysis,
-		MissingTools:            missingTools,
-		MissingData:             missingData,
-		Noops:                   noops,
-		MCPFailures:             mcpFailures,
-		MCPToolUsage:            mcpToolUsage,
-		TokenUsage:              tokenUsageSummary,
-		GitHubRateLimitUsage:    rateLimitUsage,
-		ArtifactsList:           artifacts,
-		JobDetails:              jobDetails,
-	}
-
-	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary: %v", err)))
 		}
 	}
 

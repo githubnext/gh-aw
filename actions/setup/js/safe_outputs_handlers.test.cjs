@@ -279,6 +279,130 @@ describe("safe_outputs_handlers", () => {
     });
   });
 
+  describe("uploadArtifactHandler", () => {
+    let testStagingDir;
+
+    beforeEach(() => {
+      const testId = Math.random().toString(36).substring(7);
+      testStagingDir = `/tmp/test-staging-${testId}`;
+      process.env.RUNNER_TEMP = testStagingDir;
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      try {
+        if (fs.existsSync(testStagingDir)) {
+          fs.rmSync(testStagingDir, { recursive: true, force: true });
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
+    it("should copy absolute-path file to staging and rewrite path to basename", () => {
+      const srcFile = path.join(testWorkspaceDir, "chart.png");
+      fs.writeFileSync(srcFile, "png data");
+
+      const result = handlers.uploadArtifactHandler({ path: srcFile });
+
+      // File should be in staging
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-artifacts", "chart.png");
+      expect(fs.existsSync(stagedPath)).toBe(true);
+      expect(fs.readFileSync(stagedPath, "utf8")).toBe("png data");
+
+      // JSONL entry should use the basename, not the absolute path
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_artifact", path: "chart.png" }));
+
+      // Response should be success
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+    });
+
+    it("should include temporary_id in response when provided", () => {
+      const srcFile = path.join(testWorkspaceDir, "plot.png");
+      fs.writeFileSync(srcFile, "png data");
+
+      const result = handlers.uploadArtifactHandler({ path: srcFile, temporary_id: "aw_test123" });
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(responseData.temporary_id).toBe("aw_test123");
+    });
+
+    it("should throw when absolute-path file does not exist", () => {
+      expect(() => handlers.uploadArtifactHandler({ path: "/tmp/nonexistent-file.png" })).toThrow(expect.objectContaining({ message: expect.stringContaining("file not found") }));
+    });
+
+    it("should throw when path is a symlink", () => {
+      const srcFile = path.join(testWorkspaceDir, "real.png");
+      fs.writeFileSync(srcFile, "data");
+      const linkPath = path.join(testWorkspaceDir, "link.png");
+      fs.symlinkSync(srcFile, linkPath);
+
+      expect(() => handlers.uploadArtifactHandler({ path: linkPath })).toThrow(expect.objectContaining({ message: expect.stringContaining("symlinks are not allowed") }));
+    });
+
+    it("should not overwrite existing staged file on duplicate call", () => {
+      const srcFile = path.join(testWorkspaceDir, "chart.png");
+      fs.writeFileSync(srcFile, "original");
+
+      // First call stages the file
+      handlers.uploadArtifactHandler({ path: srcFile });
+
+      const stagedPath = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-artifacts", "chart.png");
+      expect(fs.readFileSync(stagedPath, "utf8")).toBe("original");
+
+      // Second call with modified source should not overwrite
+      fs.writeFileSync(srcFile, "updated");
+      handlers.uploadArtifactHandler({ path: srcFile });
+      expect(fs.readFileSync(stagedPath, "utf8")).toBe("original");
+    });
+
+    it("should pass through relative path without copying to staging", () => {
+      // Relative paths reference files already in staging - no copy needed
+      const result = handlers.uploadArtifactHandler({ path: "already-staged.png" });
+
+      // Staging dir should NOT have been created/written by the handler
+      const stagingDir = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-artifacts");
+      const stagedFile = path.join(stagingDir, "already-staged.png");
+      expect(fs.existsSync(stagedFile)).toBe(false);
+
+      // JSONL entry should preserve the relative path as-is
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_artifact", path: "already-staged.png" }));
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+    });
+
+    it("should pass through filters-based request without file copy", () => {
+      const result = handlers.uploadArtifactHandler({ filters: { include: ["**/*.png"] } });
+
+      const stagingDir = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-artifacts");
+      expect(fs.existsSync(stagingDir)).toBe(false);
+
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_artifact", filters: { include: ["**/*.png"] } }));
+
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+    });
+
+    it("should recursively copy directory to staging", () => {
+      const srcDir = path.join(testWorkspaceDir, "charts");
+      fs.mkdirSync(path.join(srcDir, "sub"), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, "a.png"), "a");
+      fs.writeFileSync(path.join(srcDir, "sub", "b.png"), "b");
+
+      handlers.uploadArtifactHandler({ path: srcDir });
+
+      const stagingBase = path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-artifacts", "charts");
+      expect(fs.existsSync(path.join(stagingBase, "a.png"))).toBe(true);
+      expect(fs.existsSync(path.join(stagingBase, "sub", "b.png"))).toBe(true);
+
+      // Entry path should be the directory basename
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_artifact", path: "charts" }));
+    });
+  });
+
   describe("createPullRequestHandler", () => {
     it("should be defined", () => {
       expect(handlers.createPullRequestHandler).toBeDefined();
@@ -446,6 +570,7 @@ describe("safe_outputs_handlers", () => {
     it("should export all required handlers", () => {
       expect(handlers.defaultHandler).toBeDefined();
       expect(handlers.uploadAssetHandler).toBeDefined();
+      expect(handlers.uploadArtifactHandler).toBeDefined();
       expect(handlers.createPullRequestHandler).toBeDefined();
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
       expect(handlers.pushRepoMemoryHandler).toBeDefined();

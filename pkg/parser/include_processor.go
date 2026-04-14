@@ -158,6 +158,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				validFields := map[string]bool{
 					"tools":                    true,
 					"engine":                   true,
+					"env":                      true,
 					"network":                  true,
 					"mcp-servers":              true,
 					"imports":                  true,

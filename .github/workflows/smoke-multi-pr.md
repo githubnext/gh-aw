@@ -2,7 +2,6 @@
 name: Smoke Multi PR
 description: Test creating multiple pull requests in a single workflow run
 on:
-  schedule: every 24h
   workflow_dispatch:
   pull_request:
     types: [labeled]

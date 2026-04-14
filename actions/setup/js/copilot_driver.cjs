@@ -9,12 +9,14 @@
  *
  * Retry policy:
  *   - If the process produced any output (hasOutput) and exits with a non-zero code, the
- *     session is considered partially executed.  The driver retries with --resume so the
+ *     session is considered partially executed.  The driver retries with --continue so the
  *     Copilot CLI can continue from where it left off.
  *   - CAPIError 400 is a well-known transient failure mode and is logged explicitly, but
  *     any partial-execution failure is retried — not just CAPIError 400.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
+ *   - "No authentication information found" errors are non-retryable: the absent token will
+ *     remain absent on every subsequent attempt, so all further retries will also fail.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
@@ -42,6 +44,16 @@ const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+
+// Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
+// a model that is unavailable for their subscription tier).
+// This is a persistent configuration error — retrying with --resume will not help.
+const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+
+// Pattern to detect missing authentication credentials.
+// This error means no auth token is available in the environment; retrying will not help
+// because the missing token will still be absent on every subsequent attempt.
+const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -71,6 +83,28 @@ function isTransientCAPIError(output) {
  */
 function isMCPPolicyError(output) {
   return MCP_POLICY_BLOCKED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates the requested model is not supported.
+ * This occurs when a Copilot Pro/Education user attempts to use a model that is not
+ * available for their subscription tier.  Retrying will not help.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isModelNotSupportedError(output) {
+  return MODEL_NOT_SUPPORTED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a "No authentication information found" error.
+ * This means no auth token (COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN) is available
+ * in the environment.  Retrying will not help because the absent token will remain absent.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNoAuthInfoError(output) {
+  return NO_AUTH_INFO_PATTERN.test(output);
 }
 
 /**
@@ -221,11 +255,11 @@ async function main() {
   const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Add --resume flag on retries so the copilot session resumes from where it left off
-    const currentArgs = attempt > 0 ? [...args, "--resume"] : args;
+    // Add --continue flag on retries so the copilot session continues from where it left off
+    const currentArgs = attempt > 0 ? [...args, "--continue"] : args;
 
     if (attempt > 0) {
-      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --resume`);
+      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --continue`);
       await sleep(delay);
       delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
@@ -241,13 +275,25 @@ async function main() {
     }
 
     // Determine whether to retry.
-    // Retry whenever the session was partially executed (hasOutput), using --resume so that
+    // Retry whenever the session was partially executed (hasOutput), using --continue so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
-    // transient case, but any partial-execution failure is eligible for a resume retry.
-    // Exception: MCP policy errors are persistent configuration issues — never retry.
+    // transient case, but any partial-execution failure is eligible for a continue retry.
+    // Exceptions: MCP policy errors, model-not-supported errors, and auth errors are persistent
+    // configuration issues — never retry.
     const isCAPIError = isTransientCAPIError(result.output);
     const isMCPPolicy = isMCPPolicyError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` isMCPPolicyError=${isMCPPolicy}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const isModelNotSupported = isModelNotSupportedError(result.output);
+    const isAuthErr = isNoAuthInfoError(result.output);
+    log(
+      `attempt ${attempt + 1} failed:` +
+        ` exitCode=${result.exitCode}` +
+        ` isCAPIError400=${isCAPIError}` +
+        ` isMCPPolicyError=${isMCPPolicy}` +
+        ` isModelNotSupportedError=${isModelNotSupported}` +
+        ` isAuthError=${isAuthErr}` +
+        ` hasOutput=${result.hasOutput}` +
+        ` retriesRemaining=${MAX_RETRIES - attempt}`
+    );
 
     // MCP policy errors are persistent — retrying will not help.
     if (isMCPPolicy) {
@@ -255,9 +301,23 @@ async function main() {
       break;
     }
 
+    // Model-not-supported errors are persistent — retrying will not help.
+    if (isModelNotSupported) {
+      log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+      break;
+    }
+
+    // Auth errors are persistent for the duration of the job — retrying will not help.
+    // "No authentication information found" means COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
+    // are all absent or invalid.  Retrying with --continue will produce the same auth failure.
+    if (isAuthErr) {
+      log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
+      break;
+    }
+
     if (attempt < MAX_RETRIES && result.hasOutput) {
       const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
-      log(`attempt ${attempt + 1}: ${reason} — will retry with --resume (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      log(`attempt ${attempt + 1}: ${reason} — will retry with --continue (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 

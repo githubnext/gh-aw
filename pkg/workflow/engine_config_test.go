@@ -142,6 +142,19 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "10"},
 		},
 		{
+			// float64 is what json.Unmarshal produces for numbers when deserializing engine
+			// config JSON from shared imports (JSON roundtrip: YAML int -> JSON -> Go float64)
+			name: "object format - with max-turns as float64 (JSON roundtrip from shared import)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":        "claude",
+					"max-turns": float64(100),
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", MaxTurns: "100"},
+		},
+		{
 			name: "object format - with env vars",
 			frontmatter: map[string]any{
 				"engine": map[string]any{

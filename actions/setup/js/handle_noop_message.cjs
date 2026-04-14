@@ -9,6 +9,7 @@ const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { getEffectiveTokensSuffix } = require("./effective_tokens.cjs");
 
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
@@ -184,10 +185,15 @@ async function main() {
 
     // Load and render comment template from file
     const commentTemplatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/noop_comment.md`;
+
+    // Compute effective tokens suffix from environment variable (set by parse_token_usage.cjs / parse_mcp_gateway_log.cjs)
+    const effectiveTokensSuffix = getEffectiveTokensSuffix();
+
     const commentBody = renderTemplateFromFile(commentTemplatePath, {
       workflow_name: workflowName,
       message: noopMessage,
       run_url: runUrl,
+      effective_tokens_suffix: effectiveTokensSuffix,
     });
 
     // Sanitize the full comment body

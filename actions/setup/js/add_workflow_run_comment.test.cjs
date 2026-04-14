@@ -230,6 +230,20 @@ describe("add_workflow_run_comment", () => {
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
+
+    it("should fail when PR number is missing in pull_request_review_comment event", async () => {
+      global.context = {
+        eventName: "pull_request_review_comment",
+        runId: 12345,
+        repo: { owner: "testowner", repo: "testrepo" },
+        payload: {},
+      };
+
+      await runScript();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
+      expect(mockGithub.request).not.toHaveBeenCalled();
+    });
   });
 
   describe("main() - discussion event", () => {
@@ -341,9 +355,9 @@ describe("add_workflow_run_comment", () => {
 
       await runScript();
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to create comment"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to create comment with workflow link"));
-      // Should NOT call setFailed - errors should only warn
+      // Should NOT use core.error or core.setFailed for non-critical errors
+      expect(mockCore.error).not.toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
@@ -473,6 +487,86 @@ describe("add_workflow_run_comment", () => {
           body: expect.stringContaining("My Custom Workflow"),
         })
       );
+    });
+  });
+
+  describe("buildCommentBody()", () => {
+    it("should include the run URL in the comment body", async () => {
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issues", "https://github.com/testowner/testrepo/actions/runs/99");
+      expect(body).toContain("https://github.com/testowner/testrepo/actions/runs/99");
+    });
+
+    it("should always include reaction comment type marker", async () => {
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issues", "https://example.com/run/1");
+      expect(body).toContain("<!-- gh-aw-comment-type: reaction -->");
+    });
+
+    it("should include workflow-id marker when GITHUB_WORKFLOW is set", async () => {
+      process.env.GITHUB_WORKFLOW = "my-workflow.yml";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issues", "https://example.com/run/1");
+      expect(body).toContain("<!-- gh-aw-workflow-id: my-workflow.yml -->");
+    });
+
+    it("should include tracker-id marker when GH_AW_TRACKER_ID is set", async () => {
+      process.env.GH_AW_TRACKER_ID = "my-tracker";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issues", "https://example.com/run/1");
+      expect(body).toContain("<!-- gh-aw-tracker-id: my-tracker -->");
+    });
+
+    it("should add lock notice for issues event when GH_AW_LOCK_FOR_AGENT=true", async () => {
+      process.env.GH_AW_LOCK_FOR_AGENT = "true";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issues", "https://example.com/run/1");
+      expect(body).toContain("🔒 This issue has been locked");
+    });
+
+    it("should not add lock notice for pull_request events", async () => {
+      process.env.GH_AW_LOCK_FOR_AGENT = "true";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("pull_request", "https://example.com/run/1");
+      expect(body).not.toContain("🔒 This issue has been locked");
+    });
+
+    it("should use unknown event type description for unrecognized events", async () => {
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      // Should not throw for unknown event types
+      const body = buildCommentBody("some_unknown_event", "https://example.com/run/1");
+      expect(body).toBeTruthy();
+      expect(body).toContain("<!-- gh-aw-comment-type: reaction -->");
+    });
+  });
+
+  describe("postDiscussionComment()", () => {
+    it("should post a top-level discussion comment when no replyToNodeId", async () => {
+      const { postDiscussionComment } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      await postDiscussionComment(10, "Test body");
+
+      expect(mockGithub.graphql).toHaveBeenCalled();
+      const mutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("addDiscussionComment"));
+      expect(mutationCall).toBeDefined();
+      expect(mutationCall[1]).toMatchObject({ body: "Test body" });
+      expect(mutationCall[1]).not.toHaveProperty("replyToId");
+    });
+
+    it("should post a threaded comment when replyToNodeId is provided", async () => {
+      const { postDiscussionComment } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      await postDiscussionComment(10, "Reply body", "DC_kwParent123");
+
+      const mutationCall = mockGithub.graphql.mock.calls.find(call => call[0].includes("replyToId"));
+      expect(mutationCall).toBeDefined();
+      expect(mutationCall[1]).toMatchObject({ body: "Reply body", replyToId: "DC_kwParent123" });
+    });
+
+    it("should set comment outputs after posting", async () => {
+      const { postDiscussionComment } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      await postDiscussionComment(10, "Test body");
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOTest456");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", expect.stringContaining("discussioncomment-456"));
     });
   });
 });

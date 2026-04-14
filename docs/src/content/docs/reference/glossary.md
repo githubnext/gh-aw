@@ -97,11 +97,15 @@ A preview mode where workflows simulate actions without making changes. The AI g
 
 A guardrail feature that controls which GitHub content an agent can access, filtering by author trust and merge status. Content below the configured `min-integrity` threshold is silently removed before the AI engine sees it. The four levels are `merged`, `approved`, `unapproved`, and `none` (most to least restrictive). For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. Set `min-integrity: none` to allow all content through for workflows designed to process untrusted input (e.g., triage bots).
 
-Two additional fields extend integrity filtering beyond the level threshold: `blocked-users` unconditionally denies content from listed GitHub usernames regardless of level, and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
+Three additional fields extend integrity filtering beyond the level threshold: `trusted-users` elevates specific GitHub usernames to `approved` integrity regardless of their author association; `blocked-users` unconditionally denies content from listed usernames regardless of level; and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
 ### DIFC Proxy (`tools.github.integrity-proxy`)
 
 Controls full Data Integrity and Flow Control (DIFC) proxy enforcement. When `tools.github.min-integrity` is configured, the compiler injects proxy steps around the agent job that enforce integrity-level isolation at the network boundary. The proxy is **enabled by default** — set `tools.github.integrity-proxy: false` to disable it and rely solely on MCP gateway-level filtering. Filtered content is recorded as `DIFC_FILTERED` events in `gateway.jsonl` for later inspection. See [Integrity Filtering](/gh-aw/reference/integrity/).
+
+### Integrity Reactions (`features.integrity-reactions`)
+
+A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/guides/maintaining-repos/#reactions-as-trust-signals).
 
 ### Status Comment
 
@@ -189,6 +193,14 @@ A safe output capability (`update-issue:`) for modifying existing issues without
 
 A security mechanism on `create-pull-request` and `push-to-pull-request-branch` safe outputs that prevents AI agents from modifying sensitive repository files. By default, protects dependency manifests (e.g., `package.json`, `go.mod`), GitHub Actions workflow files, and lock files. Configured via `protected-files:` with three policies: `blocked` (default — fails with error), `allowed` (no restriction), or `fallback-to-issue` (creates a review issue for human inspection instead of applying changes). See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#protected-files).
 
+### Allow Workflows (`allow-workflows:`)
+
+A field on `create-pull-request` and `push-to-pull-request-branch` safe outputs that adds `workflows: write` to the GitHub App token's permissions. Required when `allowed-files:` targets paths under `.github/workflows/`, because the `workflows` permission is a GitHub App-only permission that cannot be granted via `GITHUB_TOKEN`. Requires a `safe-outputs.github-app` configuration — the compiler rejects `allow-workflows: true` without one. This opt-in design keeps the elevated permission visible and auditable in the workflow source. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#allowing-workflow-file-changes-with-allow-workflows).
+
+### Allowed Events (`allowed-events:`)
+
+A field on `submit-pull-request-review:` safe outputs that restricts which PR review event types the agent may submit. Accepts an array of `APPROVE`, `COMMENT`, and `REQUEST_CHANGES`. When set, the safe-outputs handler rejects any review event not in the list, providing infrastructure-level enforcement regardless of what the agent attempts to output. If omitted, all three event types are allowed. Example: `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from approving PRs. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#submit-pr-review-submit-pull-request-review).
+
 ### Allowed Files
 
 An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branch` safe outputs. When `allowed-files:` is set to a list of glob patterns, **only** files matching those patterns may be modified — every other file (including normal source files) is refused. This is a restriction, not an exception: listing `.github/workflows/*` does not additionally allow normal source files; it blocks them. Runs independently from [Protected Files](#protected-files): both checks must pass. To modify a protected file, it must both match `allowed-files` and have `protected-files: allowed`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#restricting-changes-to-specific-files-with-allowed-files).
@@ -225,7 +237,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports multiple engines, with GitHub Copilot as the default.
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports four engines: **Copilot** (default), **Claude**, **Codex**, and **Gemini**. Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Enterprise API Endpoint (`api-target`)
 
@@ -263,7 +275,7 @@ See [Engines Reference](/gh-aw/reference/engines/).
 
 ### Feature Flags (`features:`)
 
-A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot), and `mcp-gateway` (enables the MCP gateway proxy). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
+A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), and `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
 
 ### Fuzzy Scheduling
 
@@ -388,6 +400,10 @@ A multi-dimensional characterization of a single workflow run produced by `gh aw
 ### Cross-Run Audit Report (`gh aw logs --format`)
 
 A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across multiple workflow runs to produce a security and performance report. Includes an executive summary, domain inventory, and per-run breakdown with anomaly detection. Designed for security reviews, compliance checks, and feeding optimization agents. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-logs---format-fmt).
+
+### Effective Tokens
+
+A weighted token count that normalizes raw API token usage into a single comparable value for cost estimation and monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). For episode-level aggregation, `total_estimated_cost` uses effective tokens as its basis. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
 
 ### Firewall Analysis
 

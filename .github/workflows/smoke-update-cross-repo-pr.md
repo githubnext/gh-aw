@@ -3,7 +3,6 @@ name: Smoke Update Cross-Repo PR
 description: Smoke test validating cross-repo pull request updates in githubnext/gh-aw-side-repo by adding lines from Homer's Odyssey to the README
 
 on:
-  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]

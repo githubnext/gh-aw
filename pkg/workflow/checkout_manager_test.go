@@ -940,7 +940,7 @@ func TestCrossRepoTargetRepo(t *testing.T) {
 		cm := NewCheckoutManager(nil)
 		cm.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
 
-		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), "", GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), "", "", GetActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.Contains(t, combined, "repository: ${{ needs.activation.outputs.target_repo }}",
@@ -973,7 +973,7 @@ func TestCrossRepoTargetRef(t *testing.T) {
 		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
 		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
 
-		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), cm.GetCrossRepoTargetRef(), GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), cm.GetCrossRepoTargetRef(), "", GetActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.Contains(t, combined, "repository: ${{ steps.resolve-host-repo.outputs.target_repo }}",
@@ -985,7 +985,7 @@ func TestCrossRepoTargetRef(t *testing.T) {
 	t.Run("GenerateGitHubFolderCheckoutStep omits ref: when ref is empty", func(t *testing.T) {
 		cm := NewCheckoutManager(nil)
 
-		lines := cm.GenerateGitHubFolderCheckoutStep("org/repo", "", GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep("org/repo", "", "", GetActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.NotContains(t, combined, "ref:", "checkout step should not include ref field when empty")

@@ -50,13 +50,13 @@ network:
 
 ## Access Levels
 
-Network permissions follow the principle of least privilege with four access levels:
+Network permissions follow the principle of least privilege with three access levels:
 
 1. **Default Allow List** (`network: defaults`): Basic infrastructure only
 2. **Selective Access** (`network: { allowed: [...] }`): Only listed domains/ecosystems are accessible
 3. **No Access** (`network: {}`): All network access denied
-4. **Automatic Subdomain Matching**: Listed domains automatically match all subdomains (e.g., `github.com` allows `api.github.com`, `raw.githubusercontent.com`, etc.)
-5. **Wildcard Patterns**: Use `*.example.com` to explicitly match any subdomain of `example.com`
+
+Listed domains automatically match all subdomains, and wildcard patterns (`*.example.com`) are also supported — see [Wildcard Domain Patterns](#wildcard-domain-patterns).
 
 ## Protocol-Specific Domain Filtering
 
@@ -171,14 +171,7 @@ network:
     - "api.example.com"   # Custom domain
 ```
 
-When enabled, AWF:
-
-- Wraps the Copilot CLI execution command
-- Enforces domain allowlisting using the `--allow-domains` flag
-- Automatically includes all subdomains (e.g., `github.com` allows `api.github.com`)
-- Supports wildcard patterns (e.g., `*.cdn.example.com` matches `img.cdn.example.com`)
-- Logs all network activity for audit purposes
-- Blocks access to domains not explicitly allowed
+When enabled, AWF enforces domain allowlisting via `--allow-domains`, automatically includes all subdomains (e.g., `github.com` allows `api.github.com`), supports wildcard patterns, and logs all network activity for audit purposes.
 
 ### Claude, Codex, and Gemini Engines
 
@@ -243,10 +236,7 @@ The `ssl-bump` feature enables deep packet inspection of HTTPS traffic, allowing
 
 **Security Considerations**
 
-- SSL bump intercepts and decrypts HTTPS traffic for inspection, acting as a man-in-the-middle
-- Only enable SSL bump when URL-level filtering is necessary for your security requirements
-- Use `allow-urls` patterns carefully to avoid breaking legitimate HTTPS connections
-- This feature is specific to AWF and does not apply to Sandbox Runtime (SRT); requires AWF version 0.9.0 or later
+SSL bump intercepts and decrypts HTTPS traffic as a man-in-the-middle — only enable it when URL-level filtering is necessary, and use `allow-urls` patterns carefully to avoid breaking legitimate connections. This feature requires AWF version 0.9.0 or later and does not apply to Sandbox Runtime (SRT).
 
 Use SSL bump when you need to allow specific API endpoints while blocking others on the same domain. See the [Sandbox Configuration](/gh-aw/reference/sandbox/) documentation for detailed AWF configuration options.
 

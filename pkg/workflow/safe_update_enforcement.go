@@ -116,8 +116,23 @@ var ghAwActionPrefixes = []string{
 	"github/gh-aw-actions/",
 }
 
+// runtimeActionRepos is the set of action repos used by the runtime manager.
+// These are populated from knownRuntimes at init time so the trusted-action
+// list stays in sync with runtime_definitions.go automatically.
+var runtimeActionRepos map[string]bool
+
+func init() {
+	runtimeActionRepos = make(map[string]bool, len(knownRuntimes))
+	for _, rt := range knownRuntimes {
+		if rt.ActionRepo != "" {
+			runtimeActionRepos[rt.ActionRepo] = true
+		}
+	}
+}
+
 // isTrustedActionRepo reports whether a repo string belongs to a trusted org or project.
-// Trusted repos include the "actions/" GitHub org and gh-aw's own infrastructure actions.
+// Trusted repos include the "actions/" GitHub org, gh-aw's own infrastructure actions,
+// and actions used by the runtime manager (e.g. ruby/setup-ruby, oven-sh/setup-bun).
 func isTrustedActionRepo(repo string) bool {
 	if strings.HasPrefix(repo, githubActionsOrg+"/") {
 		return true
@@ -127,15 +142,15 @@ func isTrustedActionRepo(repo string) bool {
 			return true
 		}
 	}
-	return false
+	return runtimeActionRepos[repo]
 }
 
 // collectActionViolations compares the new action refs against the previous manifest
 // and returns two sorted slices: repos that were added and repos that were removed.
 // The comparison uses the action repo as the key, so SHA/version changes to an
 // already-approved repo are not flagged.
-// Actions belonging to the "actions/" GitHub org and gh-aw infrastructure repos are
-// always trusted and never flagged.
+// Actions belonging to the "actions/" GitHub org, gh-aw infrastructure repos, and
+// runtime manager repos are always trusted and never flagged.
 func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added []string, removed []string) {
 	// Build known repo set from previous manifest.
 	knownRepos := make(map[string]bool, len(manifest.Actions))
@@ -151,7 +166,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 	}
 
 	// Find additions: repos present in the new compilation but absent from the manifest.
-	// Trusted actions (actions/ org, gh-aw infrastructure) are always allowed and never flagged.
+	// Trusted actions (actions/ org, gh-aw infrastructure, runtime manager) are always allowed and never flagged.
 	for repo := range newRepos {
 		if isTrustedActionRepo(repo) {
 			continue
@@ -162,7 +177,7 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 	}
 
 	// Find removals: repos present in the previous manifest but absent from the new compilation.
-	// Trusted actions (actions/ org, gh-aw infrastructure) are always allowed, so their removal is not flagged.
+	// Trusted actions (actions/ org, gh-aw infrastructure, runtime manager) are always allowed, so their removal is not flagged.
 	for repo := range knownRepos {
 		if isTrustedActionRepo(repo) {
 			continue

@@ -36,7 +36,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       
-      - name: Super-linter
+      - name: Run super-linter
         uses: super-linter/super-linter@v8.6.0 # x-release-please-version
         id: super-linter
         env:

@@ -1,7 +1,6 @@
 ---
 description: Smoke Copilot
 on: 
-  schedule: every 12h
   workflow_dispatch:
   label_command:
     name: smoke

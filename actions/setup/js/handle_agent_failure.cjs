@@ -714,6 +714,31 @@ function buildMCPPolicyErrorContext(hasMCPPolicyError) {
 }
 
 /**
+ * Build a context string when the requested model is not supported for the subscription tier.
+ * This is a persistent configuration error — retrying will not help.
+ * @param {boolean} hasModelNotSupportedError - Whether a model-not-supported error was detected
+ * @returns {string} Formatted context string, or empty string if no error
+ */
+function buildModelNotSupportedErrorContext(hasModelNotSupportedError) {
+  if (!hasModelNotSupportedError) {
+    return "";
+  }
+
+  const templatePath = `${process.env.RUNNER_TEMP}/gh-aw/prompts/model_not_supported_error.md`;
+  try {
+    const template = fs.readFileSync(templatePath, "utf8");
+    return "\n" + template;
+  } catch {
+    // Template not available — return inline message
+    return (
+      "\n**🚫 Model Not Supported**: The requested model is not available for your Copilot subscription tier (e.g., Copilot Pro or Education).\n\n" +
+      "Specify a supported model in the workflow frontmatter, for example `model: gpt-5-mini`. " +
+      "See: [Supported models](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line#supported-models)\n"
+    );
+  }
+}
+
+/**
  * Build a context string when a GitHub App token minting step failed.
  * @param {boolean} hasAppTokenMintingFailed - Whether any GitHub App token minting step failed
  * @returns {string} Formatted context string, or empty string if no error
@@ -953,6 +978,7 @@ async function main() {
     const inferenceAccessError = process.env.GH_AW_INFERENCE_ACCESS_ERROR === "true";
     const mcpPolicyError = process.env.GH_AW_MCP_POLICY_ERROR === "true";
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
+    const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = process.env.GH_AW_FAILURE_REPORT_AS_ISSUE !== "false"; // Default to true
     // GitHub App token minting failures from the safe_outputs job, conclusion job, and activation job.
@@ -1002,6 +1028,7 @@ async function main() {
     core.info(`Inference access error: ${inferenceAccessError}`);
     core.info(`MCP policy error: ${mcpPolicyError}`);
     core.info(`Agentic engine timeout: ${agenticEngineTimeout}`);
+    core.info(`Model not supported error: ${modelNotSupportedError}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -1270,6 +1297,9 @@ async function main() {
         // Build MCP policy error context
         const mcpPolicyErrorContext = buildMCPPolicyErrorContext(mcpPolicyError);
 
+        // Build model not supported error context
+        const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1308,6 +1338,7 @@ async function main() {
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
           mcp_policy_error_context: mcpPolicyErrorContext,
+          model_not_supported_error_context: modelNotSupportedErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -1423,6 +1454,9 @@ async function main() {
         // Build MCP policy error context
         const mcpPolicyErrorContext = buildMCPPolicyErrorContext(mcpPolicyError);
 
+        // Build model not supported error context
+        const modelNotSupportedErrorContext = buildModelNotSupportedErrorContext(modelNotSupportedError);
+
         // Build GitHub App token minting failure context
         const appTokenMintingFailedContext = buildAppTokenMintingFailedContext(hasAppTokenMintingFailed);
 
@@ -1462,6 +1496,7 @@ async function main() {
           fork_context: forkContext,
           inference_access_error_context: inferenceAccessErrorContext,
           mcp_policy_error_context: mcpPolicyErrorContext,
+          model_not_supported_error_context: modelNotSupportedErrorContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           stale_lock_file_failed_context: staleLockFileFailedContext,
@@ -1533,4 +1568,5 @@ module.exports = {
   buildEngineFailureContext,
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
+  buildModelNotSupportedErrorContext,
 };

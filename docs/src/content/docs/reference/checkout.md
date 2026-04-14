@@ -119,6 +119,15 @@ checkout:
     current: true                                    # agent's primary target
 ```
 
+> [!IMPORTANT]
+> `current: true` only annotates the agent's system prompt to identify the target repository — it does **not** automatically change the working directory. If the agent needs to run local tools (tests, linters, build scripts) against the checked-out repository, add an explicit `cd` instruction to the prompt:
+>
+> ```
+> Navigate into the folder where the target repository has been checked out into: cd ${{ github.workspace }}/target
+> ```
+>
+> Without this instruction, the agent starts in `$GITHUB_WORKSPACE` (the side repository checkout) and must infer the correct directory on its own.
+
 ## Checkout Merging
 
 Multiple `checkout:` configurations can target the same path and repository. This is useful for monorepos where different parts of the repository must be merged into the same workspace directory with different settings (e.g., sparse checkout for some paths, full checkout for others).

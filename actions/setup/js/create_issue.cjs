@@ -43,6 +43,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { withRetry } = require("./error_recovery.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -167,13 +168,18 @@ async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, tit
   core.info(`Creating new parent issue for group: ${groupId}`);
   try {
     const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours);
-    const { data: parentIssue } = await githubClient.rest.issues.create({
-      owner,
-      repo,
-      title: template.title,
-      body: template.body,
-      labels: labels,
-    });
+    const { data: parentIssue } = await withRetry(
+      () =>
+        githubClient.rest.issues.create({
+          owner,
+          repo,
+          title: template.title,
+          body: template.body,
+          labels: labels,
+        }),
+      { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },
+      `create_parent_issue for group ${groupId}`
+    );
 
     core.info(`Created new parent issue #${parentIssue.number}: ${parentIssue.html_url}`);
     return parentIssue.number;
@@ -588,14 +594,19 @@ async function main(config = {}) {
     }
 
     try {
-      const { data: issue } = await githubClient.rest.issues.create({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        title,
-        body,
-        labels,
-        assignees,
-      });
+      const { data: issue } = await withRetry(
+        () =>
+          githubClient.rest.issues.create({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            title,
+            body,
+            labels,
+            assignees,
+          }),
+        { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },
+        `create_issue in ${qualifiedItemRepo}`
+      );
 
       core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });

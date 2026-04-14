@@ -37,6 +37,7 @@ safe-outputs:
     run-failure: "🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished..."
 imports:
   - shared/observability-otlp.md
+  - shared/mcp/mempalace.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -44,6 +45,14 @@ imports:
 # Daily Fact About gh-aw
 
 Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.
+
+## Step 0: Load Memory
+
+Before gathering repository activity, check what has already been celebrated in the palace to avoid repetition.
+
+1. Call `mempalace_status` to confirm the palace is ready.
+2. Call `mempalace_search` with `query: "gh-aw daily fact"` and `wing: "daily-facts"` to retrieve recently posted facts. On the very first run the palace will be empty — that is fine, proceed without results.
+3. Note any PR numbers, issue numbers, release tags, or contributor handles that appear in the results — **do not repeat those topics today**.
 
 ## Data Sources
 
@@ -67,6 +76,7 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 
 ## Guidelines
 
+- **Check memory first**: Skip any PR, issue, or release that already appears in the palace results from Step 0
 - **Favor recent updates** but include variety - pick something interesting, not just the most recent
 - **Be specific**: Include PR numbers, issue references, or release tags when relevant
 - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
@@ -98,6 +108,22 @@ Bad facts:
 - "The repository was updated today." (too vague, lacks poetry)
 - "There were some changes." (not specific, uninspired)
 - Long paragraphs (keep it brief and lyrical)
+
+## Step 3: Save to Memory
+
+After posting the comment, store the fact in the palace so it will be excluded from future runs:
+
+Call `mempalace_add_drawer` with:
+- `wing`: `"daily-facts"`
+- `room`: the category of the fact — use one of these canonical values:
+  - `"pr"` — a merged pull request
+  - `"release"` — a release or version tag
+  - `"issue"` — a closed issue
+  - `"contributor"` — a community contributor highlight
+  - `"pattern"` — a code pattern or architectural observation
+- `content`: a short record containing the PR/issue/release identifier and a one-line summary of the fact posted today
+
+This ensures tomorrow's verse celebrates something new.
 
 Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
 

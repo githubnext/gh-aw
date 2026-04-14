@@ -10,8 +10,8 @@
 # - Python environment setup with directory structure
 # - Scientific library installation (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
 # - Automatic artifact upload for charts and source files
-# - Asset upload capability via safe-outputs (upload-assets)
-# - Instructions on data visualization best practices including asset uploads
+# - Upload artifact capability via safe-outputs (upload-artifact with skip-archive)
+# - Instructions on data visualization best practices including artifact uploads
 #
 # Note: This configuration ensures data separation by enforcing external data storage.
 
@@ -26,7 +26,14 @@ network:
     - python
 
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 5
+    retention-days: 30
+    skip-archive: true
+    allowed-paths:
+      - "**/*.png"
+      - "**/*.jpg"
+      - "**/*.svg"
 
 steps:
   - name: Setup Python environment
@@ -60,15 +67,6 @@ steps:
       /tmp/gh-aw/venv/bin/python3 -c "import scipy; print(f'SciPy {scipy.__version__} installed')"
       
       echo "All scientific libraries installed successfully"
-
-  - name: Upload charts
-    if: always()
-    uses: actions/upload-artifact@v7
-    with:
-      name: data-charts
-      path: /tmp/gh-aw/python/charts/*.png
-      if-no-files-found: warn
-      retention-days: 30
 
   - name: Upload source files and data
     if: always()
@@ -164,29 +162,41 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 
 ## Including Images in Reports
 
-When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+There are two approaches to include chart images in reports (issues, discussions, step summaries):
 
-### Step 1: Generate and Upload Chart
+### Upload Artifact with skip-archive (Recommended)
+
+Use the `upload_artifact` safe output tool with `skip-archive: true` to upload individual chart images. The tool returns an artifact URL that can be embedded directly in markdown. This approach is preferred because it puts less pressure on the git storage system and automatically destroys the image once the artifact expires.
+
+#### Step 1: Generate Chart
 ```python
 # Generate your chart
 plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
 ```
 
-### Step 2: Upload as Asset
-Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+#### Step 2: Upload as Artifact
+Use the `upload_artifact` tool to upload the chart file. With `skip-archive: true` configured, the image is stored without archiving, and the artifact URL is returned:
 
-### Step 3: Include in Markdown Report
-When creating your discussion or issue, include the image using markdown:
+```json
+{ "type": "upload_artifact", "path": "/tmp/gh-aw/python/charts/my_chart.png" }
+```
+
+The tool outputs `slot_N_artifact_url` which provides a direct link to the uploaded artifact.
+
+#### Step 3: Render in Markdown
+Use the artifact URL in markdown to render the image inline:
 
 ```markdown
 ## Visualization Results
 
-![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+![Chart Description](ARTIFACT_URL_FROM_UPLOAD)
 
 The chart above shows...
 ```
 
-**Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
+The artifact URL follows the format: `https://github.com/{owner}/{repo}/actions/runs/{run_id}/artifacts/{artifact_id}`
+
+> **Note**: Artifact URLs require GitHub authentication to access. They work in issues, pull requests, and discussions for authenticated users.
 
 ## Cache Memory Integration
 
@@ -276,19 +286,21 @@ if missing:
 
 ## Artifact Upload
 
-Charts and source files are automatically uploaded as artifacts:
+Chart images are uploaded individually via the `upload_artifact` safe-output tool with `skip-archive: true`. Each image is stored as an individual file and the tool returns a direct artifact URL for inline rendering.
 
-**Charts Artifact:**
-- Name: `data-charts`
-- Contents: PNG files from `/tmp/gh-aw/python/charts/`
+**Chart Image Upload:**
+- Tool: `upload_artifact` (safe-output)
+- Config: `skip-archive: true`, up to 5 uploads per run
+- Allowed: PNG, JPG, SVG files
 - Retention: 30 days
+- Returns: `slot_N_artifact_url` with direct link
 
 **Source and Data Artifact:**
 - Name: `python-source-and-data`
 - Contents: Python scripts and data files
 - Retention: 30 days
 
-Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+Source and data files are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
 
 ## Tips for Success
 

@@ -11,6 +11,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestExtractLogMetricsExcludesWorkflowLogsDir is a regression test for the
+// double-counting issue reported in the "Audit shows inconsistent metrics on
+// repeated calls for same run" issue.
+//
+// Background:
+// downloadWorkflowRunLogs (called during artifact download) places GitHub Actions
+// step-output files under workflow-logs/.  These files capture the runner's combined
+// stdout/stderr for each step, which means they contain a copy of everything the
+// agent wrote to stdout — including the same token-usage JSON blocks that are already
+// in agent-stdio.log / agent.log from the dedicated agent artifact.
+//
+// Because the log-file walk in extractLogMetrics previously did NOT skip
+// workflow-logs/, any .log or *log*.txt file found there was parsed and its
+// TokenUsage was ADDED to metrics.TokenUsage (the walk uses +=).  With ~12 such
+// copies the total ballooned to ≈4.7M instead of the correct ≈381k.
+//
+// The fix adds an explicit filepath.SkipDir return when the walk visits a directory
+// named "workflow-logs", so only the agent artifact files are counted.
+func TestExtractLogMetricsExcludesWorkflowLogsDir(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Simulate a Copilot-CLI run directory
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "aw_info.json"), []byte(`{"engine_id":"copilot"}`), 0600))
+
+	// The single JSON data block that represents one LLM API call with 1000 tokens.
+	oneTurn := `2025-09-26T11:00:00Z [DEBUG] data:
+2025-09-26T11:00:00Z [DEBUG] {
+2025-09-26T11:00:00Z [DEBUG]   "choices": [{"message": {"role": "assistant", "tool_calls": []}}],
+2025-09-26T11:00:00Z [DEBUG]   "usage": {"prompt_tokens": 900, "completion_tokens": 100, "total_tokens": 1000}
+2025-09-26T11:00:00Z [DEBUG] }
+2025-09-26T11:00:01Z [DEBUG] Workflow done`
+
+	// Primary agent log — the "source of truth" artifact
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "agent.log"), []byte(oneTurn), 0600))
+
+	// Simulate workflow-logs/ as produced by downloadWorkflowRunLogs.
+	// Two step-output files: one .log and one *log*.txt (both would have matched
+	// the old filter), both containing identical token data.
+	wfLogsDir := filepath.Join(tempDir, "workflow-logs", "agent")
+	require.NoError(t, os.MkdirAll(wfLogsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(wfLogsDir, "runner.log"), []byte(oneTurn), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(wfLogsDir, "2_Run log step.txt"), []byte(oneTurn), 0644))
+
+	metrics, err := extractLogMetrics(tempDir, false)
+	require.NoError(t, err)
+
+	// Without the fix, metrics.TokenUsage would be 3000 (1000 * 3 files).
+	// With the fix, workflow-logs/ is skipped and only agent.log is counted.
+	assert.Equal(t, 1000, metrics.TokenUsage,
+		"TokenUsage must not include workflow-logs/ files (expected 1000, not %d)", metrics.TokenUsage)
+	assert.Equal(t, 1, metrics.Turns,
+		"Turns must not be inflated by workflow-logs/ copies (expected 1, not %d)", metrics.Turns)
+}
+
 // TestCopilotDebugLogTurnsExtraction verifies that Turns are correctly counted from
 // [DEBUG] data: blocks in the Copilot CLI debug log format.
 //

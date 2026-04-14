@@ -1,6 +1,10 @@
 package agentdrain
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var clusterLog = logger.New("agentdrain:cluster")
 
@@ -21,16 +25,14 @@ func newClusterStore() *clusterStore {
 func (s *clusterStore) add(template []string, stage string) *Cluster {
 	id := s.nextID
 	s.nextID++
-	tmpl := make([]string, len(template))
-	copy(tmpl, template)
 	c := &Cluster{
 		ID:       id,
-		Template: tmpl,
+		Template: slices.Clone(template),
 		Size:     1,
 		Stage:    stage,
 	}
 	s.clusters[id] = c
-	clusterLog.Printf("Created new cluster: id=%d, stage=%s, template_length=%d", id, stage, len(tmpl))
+	clusterLog.Printf("Created new cluster: id=%d, stage=%s, template_length=%d", id, stage, len(c.Template))
 	return c
 }
 

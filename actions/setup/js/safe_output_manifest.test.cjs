@@ -371,8 +371,8 @@ describe("safe_output_manifest", () => {
     });
 
     it("should throw when the file cannot be written", () => {
-      // Use a path that cannot be created (root filesystem)
-      expect(() => writeTemporaryIdMapFile({}, "/proc/fake/map.json")).toThrow("Failed to write temporary ID map file");
+      // Use a path under /dev/null which is a file, not a directory — mkdirSync fails immediately
+      expect(() => writeTemporaryIdMapFile({}, "/dev/null/fake/map.json")).toThrow("Failed to write temporary ID map file");
     });
   });
 });

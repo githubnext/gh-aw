@@ -8,6 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/types"
+	"github.com/github/gh-aw/pkg/typeutil"
 )
 
 var engineLog = logger.New("workflow:engine")
@@ -186,10 +187,8 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 			// Extract optional 'max-turns' field
 			if maxTurns, hasMaxTurns := engineObj["max-turns"]; hasMaxTurns {
-				if maxTurnsInt, ok := maxTurns.(int); ok {
-					config.MaxTurns = strconv.Itoa(maxTurnsInt)
-				} else if maxTurnsUint64, ok := maxTurns.(uint64); ok {
-					config.MaxTurns = strconv.FormatUint(maxTurnsUint64, 10)
+				if val, ok := typeutil.ParseIntValue(maxTurns); ok {
+					config.MaxTurns = strconv.Itoa(val)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
 				}
@@ -197,10 +196,8 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 			// Extract optional 'max-continuations' field
 			if maxCont, hasMaxCont := engineObj["max-continuations"]; hasMaxCont {
-				if maxContInt, ok := maxCont.(int); ok {
-					config.MaxContinuations = maxContInt
-				} else if maxContUint64, ok := maxCont.(uint64); ok {
-					config.MaxContinuations = int(maxContUint64)
+				if val, ok := typeutil.ParseIntValue(maxCont); ok {
+					config.MaxContinuations = val
 				} else if maxContStr, ok := maxCont.(string); ok {
 					if parsed, err := strconv.Atoi(maxContStr); err == nil {
 						config.MaxContinuations = parsed

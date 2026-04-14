@@ -37,6 +37,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Staging directory where the model places files to be uploaded.
@@ -62,6 +63,35 @@ function generateTemporaryArtifactId() {
     id += chars[Math.floor(Math.random() * chars.length)];
   }
   return id;
+}
+
+/**
+ * Resolve the temporary artifact ID from an upload_artifact message.
+ * If the message declares a valid `temporary_id`, that value is used (normalised to lowercase).
+ * Otherwise a random ID is generated.
+ *
+ * Honouring `message.temporary_id` is essential for topological ordering: when an agent
+ * declares a `temporary_id` on the `upload_artifact` message and then embeds `#aw_ID` in a
+ * subsequent message body, the dependency graph built by the topological sort can order
+ * the upload before the referencing message, and the handler manager can replace the
+ * reference with the resolved artifact URL.
+ *
+ * @param {Record<string, any>} message - The upload_artifact message from the model
+ * @returns {string} The temporary artifact ID to use for this upload
+ */
+function resolveTemporaryArtifactId(message) {
+  const declared = message.temporary_id;
+  if (declared && typeof declared === "string") {
+    const trimmed = declared.trim();
+    const normalized = trimmed.startsWith("#") ? trimmed.substring(1) : trimmed;
+    if (isTemporaryId(normalized)) {
+      return normalizeTemporaryId(normalized);
+    }
+    if (typeof core !== "undefined") {
+      core.warning(`upload_artifact: invalid temporary_id format '${declared}'. ` + `Temporary IDs must be 'aw_' followed by 3–12 alphanumeric or underscore characters. ` + `A random ID will be generated instead.`);
+    }
+  }
+  return generateTemporaryArtifactId();
 }
 
 /**
@@ -445,7 +475,7 @@ async function main(config = {}) {
    * @param {Object} message - The upload_artifact message from the model
    * @param {Object} resolvedTemporaryIds - Map of already-resolved temporary IDs (unused here)
    * @param {Map<string, any>} temporaryIdMap - Shared temp-ID map; the handler does not modify it
-   * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, tmpId?: string, artifactName?: string, slotIndex?: number}>}
+   * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, tmpId?: string, temporaryId?: string, artifactName?: string, artifactId?: number, artifactUrl?: string, slotIndex?: number}>}
    */
   return async function handleUploadArtifact(message, resolvedTemporaryIds, temporaryIdMap) {
     if (slotIndex >= maxUploads) {
@@ -491,18 +521,43 @@ async function main(config = {}) {
 
     // Derive artifact name and generate temporary ID.
     const artifactName = deriveArtifactName(message, i);
-    const tmpId = generateTemporaryArtifactId();
-    resolver[tmpId] = artifactName;
+    const tmpId = resolveTemporaryArtifactId(message);
+    if (Object.prototype.hasOwnProperty.call(resolver, tmpId)) {
+      core.warning(`upload_artifact: duplicate temporary_id "${tmpId}" detected for artifact "${artifactName}". Using the first occurrence. Ensure each artifact has a unique temporary_id.`);
+    } else {
+      resolver[tmpId] = artifactName;
+    }
 
     core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
+
+    /** @type {number|undefined} */
+    let artifactId;
+    /** @type {string} */
+    let artifactUrl = "";
 
     if (!isStaged) {
       // Upload files directly via @actions/artifact REST API.
       const absoluteFiles = files.map(f => path.join(STAGING_DIR, f));
       const client = await getArtifactClient();
       try {
-        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, { retentionDays });
-        core.info(`Uploaded artifact "${artifactName}" (id=${uploadResult.id ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
+        const uploadOpts = { retentionDays };
+        if (skipArchive) {
+          uploadOpts.skipArchive = true;
+        }
+        const uploadResult = await client.uploadArtifact(artifactName, absoluteFiles, STAGING_DIR, uploadOpts);
+        artifactId = uploadResult.id;
+        core.info(`Uploaded artifact "${artifactName}" (id=${artifactId ?? "n/a"}, size=${uploadResult.size ?? totalSize}B)`);
+
+        // Construct the artifact URL from the artifact ID and GitHub context.
+        if (artifactId) {
+          const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+          const repository = process.env.GITHUB_REPOSITORY || "";
+          const runId = process.env.GITHUB_RUN_ID || "";
+          if (repository && runId) {
+            artifactUrl = new URL(`/${repository}/actions/runs/${runId}/artifacts/${artifactId}`, serverUrl).toString();
+            core.info(`Artifact URL: ${artifactUrl}`);
+          }
+        }
       } catch (err) {
         return {
           success: false,
@@ -517,6 +572,12 @@ async function main(config = {}) {
     core.setOutput(`slot_${i}_tmp_id`, tmpId);
     core.setOutput(`slot_${i}_file_count`, String(files.length));
     core.setOutput(`slot_${i}_size_bytes`, String(totalSize));
+    if (artifactId !== undefined) {
+      core.setOutput(`slot_${i}_artifact_id`, String(artifactId));
+    }
+    if (artifactUrl) {
+      core.setOutput(`slot_${i}_artifact_url`, artifactUrl);
+    }
 
     slotIndex++;
 
@@ -535,7 +596,10 @@ async function main(config = {}) {
     return {
       success: true,
       tmpId,
+      temporaryId: tmpId,
       artifactName,
+      artifactId,
+      artifactUrl,
       slotIndex: i,
     };
   };

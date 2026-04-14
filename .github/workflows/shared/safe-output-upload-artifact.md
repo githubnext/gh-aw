@@ -20,7 +20,9 @@ directly via the `@actions/artifact` REST API (no `actions: write` permission ne
 authentication uses `ACTIONS_RUNTIME_TOKEN` which is always available to the runner).
 
 The tool returns a temporary opaque artifact ID (`aw_*`) that can be resolved to
-a download URL by an authorised downstream step.
+a download URL by an authorised downstream step. On successful upload, the tool
+also outputs `slot_N_artifact_url` containing a direct link to the uploaded artifact,
+which can be used to render images inline in markdown.
 
 ## Usage
 
@@ -43,6 +45,19 @@ Then call the tool:
 ```json
 { "type": "upload_artifact", "path": "report.json" }
 ```
+
+## Rendering images from artifacts
+
+When `skip-archive: true` is configured, individual image files are uploaded without zip
+archiving, making them directly viewable. The handler outputs an artifact URL per upload
+(regardless of `skip-archive`) that can be embedded in markdown:
+
+```markdown
+![Chart](https://github.com/owner/repo/actions/runs/RUN_ID/artifacts/ARTIFACT_ID)
+```
+
+This is useful for including generated charts, screenshots, or diagrams in issues,
+pull request comments, discussions, or step summaries.
 
 ## Configuration defaults
 

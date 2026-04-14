@@ -269,12 +269,31 @@ on:
         required: false
         type: string
         default: ''
+  workflow_call:
+    inputs:
+      operation:
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, clean_cache_memories, validate)'
+        required: false
+        type: string
+        default: ''
+      run_url:
+        description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      operation_completed:
+        description: 'The maintenance operation that was completed (empty when none ran or a scheduled job ran)'
+        value: ${{ jobs.run_operation.outputs.operation || inputs.operation }}
+      applied_run_url:
+        description: 'The run URL that safe outputs were applied from'
+        value: ${{ jobs.apply_safe_outputs.outputs.run_url }}
 
 permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       discussions: write
@@ -392,6 +411,8 @@ jobs:
       actions: write
       contents: write
       pull-requests: write
+    outputs:
+      operation: ${{ steps.record.outputs.operation }}
     steps:
       - name: Checkout repository
         uses: ` + GetActionPin("actions/checkout") + `
@@ -420,7 +441,7 @@ jobs:
         uses: ` + GetActionPin("actions/github-script") + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_OPERATION: ${{ github.event.inputs.operation }}
+          GH_AW_OPERATION: ${{ inputs.operation }}
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -429,12 +450,16 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/run_operation_update_upgrade.cjs');
             await main();
+
+      - name: Record outputs
+        id: record
+        run: echo "operation=${{ inputs.operation }}" >> "$GITHUB_OUTPUT"
 `)
 
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
 	yaml.WriteString(`
   apply_safe_outputs:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("safe_outputs")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: read
@@ -442,6 +467,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    outputs:
+      run_url: ${{ steps.record.outputs.run_url }}
     steps:
       - name: Checkout actions folder
         uses: ` + GetActionPin("actions/checkout") + `
@@ -469,7 +496,7 @@ jobs:
         uses: ` + GetActionPin("actions/github-script") + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_AW_RUN_URL: ${{ github.event.inputs.run_url }}
+          GH_AW_RUN_URL: ${{ inputs.run_url }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -477,12 +504,16 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/apply_safe_outputs_replay.cjs');
             await main();
+
+      - name: Record outputs
+        id: record
+        run: echo "run_url=${{ inputs.run_url }}" >> "$GITHUB_OUTPUT"
 `)
 
 	// Add create_labels job for workflow_dispatch with operation == 'create_labels'
 	yaml.WriteString(`
   create_labels:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("create_labels")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read
@@ -529,7 +560,7 @@ jobs:
 	validateRunsOnValue := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
 	yaml.WriteString(`
   validate_workflows:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("validate")) + ` }}
     runs-on: ` + validateRunsOnValue + `
     permissions:
       contents: read
@@ -579,7 +610,7 @@ jobs:
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read
@@ -598,7 +629,7 @@ jobs:
 		yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 		yaml.WriteString(`      - name: Compile workflows
         run: |
-          ` + getCLICmdPrefix(actionMode) + ` compile --validate --verbose
+          ` + getCLICmdPrefix(actionMode) + ` compile --validate --validate-images --verbose
           echo "✓ All workflows compiled successfully"
 
       - name: Setup Scripts
@@ -615,32 +646,8 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_workflow_recompile_needed.cjs');
             await main();
 
-  zizmor-scan:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
-    runs-on: ` + runsOnValue + `
-    needs: compile-workflows
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Setup Go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Build gh-aw
-        run: make build
-
-      - name: Run zizmor security scanner
-        run: |
-          ./gh-aw compile --zizmor --verbose
-          echo "✓ Zizmor security scan completed"
-
   secret-validation:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read
@@ -722,16 +729,23 @@ func buildNotForkCondition() ConditionNode {
 	}
 }
 
-// buildNotDispatchOrEmptyOperation creates a condition that is true when the event
-// is not a workflow_dispatch or the operation input is empty.
-func buildNotDispatchOrEmptyOperation() ConditionNode {
+// buildNotDispatchOrCallOrEmptyOperation creates a condition that is true when the event
+// is not a workflow_dispatch or workflow_call, or the operation input is empty.
+// Uses the `inputs.operation` context which works for both workflow_dispatch and workflow_call.
+func buildNotDispatchOrCallOrEmptyOperation() ConditionNode {
 	return BuildOr(
-		BuildNotEquals(
-			BuildPropertyAccess("github.event_name"),
-			BuildStringLiteral("workflow_dispatch"),
+		BuildAnd(
+			BuildNotEquals(
+				BuildPropertyAccess("github.event_name"),
+				BuildStringLiteral("workflow_dispatch"),
+			),
+			BuildNotEquals(
+				BuildPropertyAccess("github.event_name"),
+				BuildStringLiteral("workflow_call"),
+			),
 		),
 		BuildEquals(
-			BuildPropertyAccess("github.event.inputs.operation"),
+			BuildPropertyAccess("inputs.operation"),
 			BuildStringLiteral(""),
 		),
 	)
@@ -739,29 +753,62 @@ func buildNotDispatchOrEmptyOperation() ConditionNode {
 
 // buildNotForkAndScheduledOrOperation creates a condition for jobs that run on
 // schedule (or empty operation) AND when a specific operation is selected.
-// Condition: !fork && (not_dispatch || operation == ” || operation == op)
+// Condition: !fork && (not_dispatch_or_call || operation == \'\' || operation == op)
 func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
 	return BuildAnd(
 		buildNotForkCondition(),
 		BuildOr(
-			buildNotDispatchOrEmptyOperation(),
+			buildNotDispatchOrCallOrEmptyOperation(),
 			BuildEquals(
-				BuildPropertyAccess("github.event.inputs.operation"),
+				BuildPropertyAccess("inputs.operation"),
 				BuildStringLiteral(operation),
 			),
 		),
 	)
 }
 
+// buildNotForkAndScheduled creates a condition for jobs that should run on any
+// non-dispatch/call event (e.g. schedule, push) or on workflow_dispatch/workflow_call
+// with an empty operation, and never on forks.
+// Condition: !fork && ((event_name != \'workflow_dispatch\' && event_name != \'workflow_call\') || operation == \'\')
+func buildNotForkAndScheduled() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		buildNotDispatchOrCallOrEmptyOperation(),
+	)
+}
+
+// buildDispatchOperationCondition creates a condition for jobs that should run
+// only when a specific workflow_dispatch or workflow_call operation is selected and not a fork.
+// Condition: (dispatch || call) && operation == op && !fork
+func buildDispatchOperationCondition(operation string) ConditionNode {
+	return BuildAnd(
+		BuildAnd(
+			BuildOr(
+				BuildEventTypeEquals("workflow_dispatch"),
+				BuildEventTypeEquals("workflow_call"),
+			),
+			BuildEquals(
+				BuildPropertyAccess("inputs.operation"),
+				BuildStringLiteral(operation),
+			),
+		),
+		buildNotForkCondition(),
+	)
+}
+
 // buildRunOperationCondition creates the condition for the unified run_operation
-// job that handles all dispatch operations except the ones with dedicated jobs.
-// Condition: dispatch && operation != ” && operation != each excluded && !fork.
+// job that handles all dispatch/call operations except the ones with dedicated jobs.
+// Condition: (dispatch || call) && operation != \'\' && operation != each excluded && !fork.
 func buildRunOperationCondition(excludedOperations ...string) ConditionNode {
-	// Start with: event is workflow_dispatch AND operation is not empty
+	// Start with: event is workflow_dispatch or workflow_call AND operation is not empty
 	condition := BuildAnd(
-		BuildEventTypeEquals("workflow_dispatch"),
+		BuildOr(
+			BuildEventTypeEquals("workflow_dispatch"),
+			BuildEventTypeEquals("workflow_call"),
+		),
 		BuildNotEquals(
-			BuildPropertyAccess("github.event.inputs.operation"),
+			BuildPropertyAccess("inputs.operation"),
 			BuildStringLiteral(""),
 		),
 	)
@@ -771,7 +818,7 @@ func buildRunOperationCondition(excludedOperations ...string) ConditionNode {
 		condition = BuildAnd(
 			condition,
 			BuildNotEquals(
-				BuildPropertyAccess("github.event.inputs.operation"),
+				BuildPropertyAccess("inputs.operation"),
 				BuildStringLiteral(op),
 			),
 		)

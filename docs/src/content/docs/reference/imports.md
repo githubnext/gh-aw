@@ -319,6 +319,8 @@ Shared workflow files (without `on:` field) can define:
 - `permissions:` - GitHub Actions permissions (validated, not merged)
 - `runtimes:` - Runtime version overrides (node, python, go, etc.)
 - `secret-masking:` - Secret masking steps
+- `env:` - Workflow-level environment variables
+- `github-app:` - GitHub App credentials for token minting (centralize shared app config)
 
 Agent files (`.github/agents/*.md`) can additionally define:
 
@@ -340,9 +342,11 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `safe-outputs:` | Each type defined once; main overrides imports. Duplicate types across imports fail. |
 | `runtimes:` | Main overrides imports; imported values fill in unspecified fields. |
 | `services:` | All services merged; duplicate names fail compilation. |
+| `github-app:` | Main workflow's `github-app` takes precedence; first imported value fills in if main does not define one. |
 | `steps:` | Imported steps prepended to main; concatenated in import order. |
 | `jobs:` | Not merged — define only in the main workflow. Use `safe-outputs.jobs` for importable jobs. |
 | `safe-outputs.jobs` | Names must be unique; duplicates fail. Order determined by `needs:` dependencies. |
+| `env:` | Main workflow env vars take precedence over imports. Duplicate keys across different imports fail compilation — move to the main workflow to override imported values. |
 
 Example — `tools.bash.allowed` merging:
 
