@@ -129,6 +129,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     // The GitHub GraphQL createCommitOnBranch mutation only supports regular file mode 100644:
     //   - Symlinks (120000) would be silently converted to regular files containing the link target path
     //   - Executable bits (100755) are silently dropped
+    //   - Submodules/gitlinks (160000) are not supported; the mutation does not accept commit-object entries
     /** @type {Map<string, Array<{path: string, contents: string}>>} */
     const additionsMap = new Map();
     /** @type {Map<string, Array<{path: string}>>} */
@@ -180,7 +181,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           }
           deletions.push({ path: filePath });
           if (srcMode === "160000" || dstMode === "160000") {
-            core.warning(`pushSignedCommits: submodule change detected in ${renamedPath}, falling back to git push`);
+            core.warning(`pushSignedCommits: submodule change detected in ${filePath} -> ${renamedPath}, falling back to git push`);
             throw new Error("submodule change detected");
           }
           if (dstMode === "120000") {
