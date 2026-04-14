@@ -8,6 +8,79 @@ const path = require("path");
 const { ERR_API } = require("./error_codes.cjs");
 
 /**
+ * Unescape a C-quoted path returned by `git diff-tree --raw`.
+ *
+ * git wraps paths that contain special characters (spaces, non-ASCII bytes,
+ * control characters, etc.) in double-quotes and encodes each "unusual" byte
+ * as a C-style escape sequence.  This function strips the surrounding quotes
+ * and decodes the escape sequences back to the original byte sequence, then
+ * interprets the result as UTF-8.
+ *
+ * Supported escape sequences: `\\`, `\"`, `\a`, `\b`, `\f`, `\n`, `\r`,
+ * `\t`, `\v`, and octal `\NNN` (1–3 octal digits).
+ *
+ * @param {string} s - Raw path token from git output (may or may not be quoted)
+ * @returns {string} Unescaped path
+ */
+function unquoteCPath(s) {
+  if (!s.startsWith('"')) return s;
+  // Strip surrounding double-quotes
+  const inner = s.slice(1, s.endsWith('"') ? s.length - 1 : s.length);
+  const bytes = [];
+  let i = 0;
+  while (i < inner.length) {
+    if (inner[i] === "\\") {
+      i++;
+      if (i < inner.length && inner[i] >= "0" && inner[i] <= "7") {
+        // Octal sequence – collect up to 3 octal digits
+        let oct = "";
+        while (i < inner.length && inner[i] >= "0" && inner[i] <= "7" && oct.length < 3) {
+          oct += inner[i++];
+        }
+        bytes.push(parseInt(oct, 8));
+      } else {
+        const esc = inner[i++];
+        switch (esc) {
+          case "\\":
+            bytes.push(0x5c);
+            break;
+          case '"':
+            bytes.push(0x22);
+            break;
+          case "a":
+            bytes.push(0x07);
+            break;
+          case "b":
+            bytes.push(0x08);
+            break;
+          case "f":
+            bytes.push(0x0c);
+            break;
+          case "n":
+            bytes.push(0x0a);
+            break;
+          case "r":
+            bytes.push(0x0d);
+            break;
+          case "t":
+            bytes.push(0x09);
+            break;
+          case "v":
+            bytes.push(0x0b);
+            break;
+          default:
+            // Unknown escape: preserve backslash and the character as-is
+            bytes.push(0x5c, esc.charCodeAt(0));
+        }
+      }
+    } else {
+      bytes.push(inner.charCodeAt(i++));
+    }
+  }
+  return Buffer.from(bytes).toString("utf8");
+}
+
+/**
  * @fileoverview Signed Commit Push Helper
  *
  * Pushes local git commits to a remote branch using the GitHub GraphQL
@@ -88,13 +161,13 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         const status = modeFields[4]; // A=Added, M=Modified, D=Deleted, R=Renamed, C=Copied
 
         const paths = line.slice(tabIdx + 1).split("\t");
-        const filePath = paths[0];
+        const filePath = unquoteCPath(paths[0]);
 
         if (status === "D") {
           deletions.push({ path: filePath });
         } else if (status && status.startsWith("R")) {
           // Rename: source path is deleted, destination path is added
-          const renamedPath = paths[1];
+          const renamedPath = unquoteCPath(paths[1]);
           if (!renamedPath) {
             core.warning(`pushSignedCommits: rename entry missing destination path, skipping: ${line}`);
             continue;
@@ -111,7 +184,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           additions.push({ path: renamedPath, contents: content.toString("base64") });
         } else if (status && status.startsWith("C")) {
           // Copy: source path is kept (no deletion), only the destination path is added
-          const copiedPath = paths[1];
+          const copiedPath = unquoteCPath(paths[1]);
           if (!copiedPath) {
             core.warning(`pushSignedCommits: copy entry missing destination path, skipping: ${line}`);
             continue;

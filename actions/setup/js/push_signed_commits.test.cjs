@@ -678,4 +678,145 @@ describe("push_signed_commits integration tests", () => {
       expect(mockCore.warning).not.toHaveBeenCalled();
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // C-quoted (special character) filenames
+  // ──────────────────────────────────────────────────────
+
+  describe("C-quoted filenames (spaces and unicode)", () => {
+    it("should handle filenames with spaces", async () => {
+      execGit(["checkout", "-b", "spaces-branch"], { cwd: workDir });
+
+      const spacedName = "hello world.txt";
+      fs.writeFileSync(path.join(workDir, spacedName), "spaced content\n");
+      execGit(["add", spacedName], { cwd: workDir });
+      execGit(["commit", "-m", "Add file with spaces"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "spaces-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "spaces-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.fileChanges.additions).toHaveLength(1);
+      expect(callArg.fileChanges.additions[0].path).toBe(spacedName);
+      expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toBe("spaced content\n");
+    });
+
+    it("should handle filenames with unicode characters", async () => {
+      execGit(["checkout", "-b", "unicode-branch"], { cwd: workDir });
+
+      const unicodeName = "héllo_wörld.txt";
+      fs.writeFileSync(path.join(workDir, unicodeName), "unicode content\n");
+      execGit(["add", unicodeName], { cwd: workDir });
+      execGit(["commit", "-m", "Add file with unicode name"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "unicode-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "unicode-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.fileChanges.additions).toHaveLength(1);
+      expect(callArg.fileChanges.additions[0].path).toBe(unicodeName);
+      expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toBe("unicode content\n");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Rename and copy file handling
+  // ──────────────────────────────────────────────────────
+
+  describe("rename and copy file handling", () => {
+    it("should add old path to deletions and new path to additions on rename", async () => {
+      execGit(["checkout", "-b", "rename-branch"], { cwd: workDir });
+
+      // Add a file that will be renamed
+      fs.writeFileSync(path.join(workDir, "original.txt"), "rename me\n");
+      execGit(["add", "original.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add original.txt"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "rename-branch"], { cwd: workDir });
+
+      // Rename the file
+      fs.renameSync(path.join(workDir, "original.txt"), path.join(workDir, "renamed.txt"));
+      execGit(["add", "-A"], { cwd: workDir });
+      execGit(["commit", "-m", "Rename original.txt to renamed.txt"], { cwd: workDir });
+      execGit(["push", "origin", "rename-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "rename-branch",
+        baseRef: "rename-branch^",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      // Old path must be deleted, new path must be in additions
+      expect(callArg.fileChanges.deletions).toEqual([{ path: "original.txt" }]);
+      expect(callArg.fileChanges.additions).toHaveLength(1);
+      expect(callArg.fileChanges.additions[0].path).toBe("renamed.txt");
+      expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toBe("rename me\n");
+    });
+
+    it("should not add source to deletions on copy (only destination in additions)", async () => {
+      execGit(["checkout", "-b", "copy-branch"], { cwd: workDir });
+
+      // Add a file that will be copied
+      fs.writeFileSync(path.join(workDir, "source.txt"), "copy source\n");
+      execGit(["add", "source.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add source.txt"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "copy-branch"], { cwd: workDir });
+
+      // Copy the file (source kept, destination added)
+      fs.copyFileSync(path.join(workDir, "source.txt"), path.join(workDir, "destination.txt"));
+      execGit(["add", "destination.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Copy source.txt to destination.txt"], { cwd: workDir });
+      execGit(["push", "origin", "copy-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "copy-branch",
+        baseRef: "copy-branch^",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      // Source file must NOT appear in deletions
+      expect(callArg.fileChanges.deletions).toHaveLength(0);
+      // Destination file must appear in additions
+      expect(callArg.fileChanges.additions).toHaveLength(1);
+      expect(callArg.fileChanges.additions[0].path).toBe("destination.txt");
+      expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toBe("copy source\n");
+    });
+  });
 });
