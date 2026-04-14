@@ -350,7 +350,7 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		if jsonErr := json.Unmarshal([]byte(envContent), &envMap); jsonErr == nil {
 			for key := range envMap {
 				if existingSource, exists := acc.envSources[key]; exists {
-					return fmt.Errorf("env variable %q is defined in multiple imports: %q and %q; only the main workflow may override imported env vars", key, existingSource, item.importPath)
+					return fmt.Errorf("env variable %q is defined in multiple imports: %q and %q; remove the duplicate definition from one of the imports, or move it to the main workflow to override imported values", key, existingSource, item.importPath)
 				}
 				acc.envSources[key] = item.importPath
 			}

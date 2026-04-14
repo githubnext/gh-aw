@@ -49,7 +49,10 @@ func TestMergeEnvTopLevelTakesPrecedence(t *testing.T) {
 func TestMergeEnvWithMultipleImports(t *testing.T) {
 	topEnv := map[string]any{}
 
-	// Two imports with distinct keys (conflicts are caught earlier by the accumulator)
+	// Two imports with distinct keys — import-to-import conflicts are caught earlier in the
+	// importAccumulator before mergeEnv is called (see TestEnvFieldConflictBetweenImports in
+	// pkg/parser/import_field_extractor_test.go). The JSON passed to mergeEnv is therefore
+	// guaranteed to have no duplicate keys across different import lines.
 	importedJSON := `{"KEY1":"val1","KEY2":"val2"}
 {"KEY3":"val3","KEY4":"val4"}`
 
