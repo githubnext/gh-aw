@@ -16,12 +16,7 @@
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
  *   - "No authentication information found" errors are non-retryable: the absent token will
- *     remain absent on every subsequent attempt.  The driver also applies an auth-token
- *     fallback before each spawn: if COPILOT_GITHUB_TOKEN is absent or empty, GITHUB_TOKEN
- *     (the standard GitHub Actions token, always forwarded into the container) is tried next,
- *     then GH_TOKEN.  This prevents auth failures when COPILOT_GITHUB_TOKEN has been
- *     excluded from the container environment (e.g. by AWF's --exclude-env) while the
- *     standard GITHUB_TOKEN is still available.
+ *     remain absent on every subsequent attempt, so all further retries will also fail.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
@@ -97,43 +92,6 @@ function isNoAuthInfoError(output) {
 }
 
 /**
- * Build the environment object for spawning the copilot subprocess.
- *
- * Starts from the current process environment and applies auth token fallback:
- * if COPILOT_GITHUB_TOKEN is absent or empty, we substitute GITHUB_TOKEN or GH_TOKEN
- * (whichever is set first).  This ensures the copilot CLI can authenticate on --resume
- * attempts even when COPILOT_GITHUB_TOKEN was excluded from the container environment
- * (e.g. by AWF's --exclude-env to prevent the agent from reading the raw token) but the
- * standard GITHUB_TOKEN Actions token is still forwarded via --env-all.
- *
- * Auth token availability is always logged (names only, never values) so that failures
- * can be diagnosed without exposing secrets in the log.
- *
- * @returns {NodeJS.ProcessEnv}
- */
-function buildSpawnEnv() {
-  const env = { ...process.env };
-
-  const hasTokenValue = /** @param {string} name */ name => typeof env[name] === "string" && env[name].length > 0;
-
-  if (!hasTokenValue("COPILOT_GITHUB_TOKEN")) {
-    if (hasTokenValue("GITHUB_TOKEN")) {
-      env["COPILOT_GITHUB_TOKEN"] = env["GITHUB_TOKEN"];
-      log("auth: COPILOT_GITHUB_TOKEN is absent — using GITHUB_TOKEN as fallback");
-    } else if (hasTokenValue("GH_TOKEN")) {
-      env["COPILOT_GITHUB_TOKEN"] = env["GH_TOKEN"];
-      log("auth: COPILOT_GITHUB_TOKEN is absent — using GH_TOKEN as fallback");
-    } else {
-      log("auth: warning — COPILOT_GITHUB_TOKEN, GITHUB_TOKEN, and GH_TOKEN are all absent or empty; the copilot CLI may fail to authenticate");
-    }
-  } else {
-    log("auth: COPILOT_GITHUB_TOKEN is set");
-  }
-
-  return env;
-}
-
-/**
  * Sleep for a specified duration
  * @param {number} ms - Duration in milliseconds
  * @returns {Promise<void>}
@@ -198,7 +156,7 @@ function runProcess(command, args, attempt) {
 
     const child = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
-      env: buildSpawnEnv(),
+      env: process.env,
     });
 
     log(`attempt ${attempt + 1}: process started (pid=${child.pid ?? "unknown"})`);

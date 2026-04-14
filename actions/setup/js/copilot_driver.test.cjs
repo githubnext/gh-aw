@@ -219,62 +219,6 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
-  describe("auth token fallback (buildSpawnEnv logic)", () => {
-    // Inline the same logic as buildSpawnEnv() for unit testing without side effects.
-    /**
-     * @param {Record<string, string>} env - Simulated environment
-     * @returns {{ COPILOT_GITHUB_TOKEN?: string, warning?: string }}
-     */
-    function applyAuthFallback(env) {
-      const result = { ...env };
-      const hasTokenValue = /** @param {string} name */ name => typeof result[name] === "string" && result[name].length > 0;
-
-      if (!hasTokenValue("COPILOT_GITHUB_TOKEN")) {
-        if (hasTokenValue("GITHUB_TOKEN")) {
-          result["COPILOT_GITHUB_TOKEN"] = result["GITHUB_TOKEN"];
-        } else if (hasTokenValue("GH_TOKEN")) {
-          result["COPILOT_GITHUB_TOKEN"] = result["GH_TOKEN"];
-        }
-      }
-      return result;
-    }
-
-    it("passes COPILOT_GITHUB_TOKEN unchanged when already set", () => {
-      const result = applyAuthFallback({ COPILOT_GITHUB_TOKEN: "ghs_secret" });
-      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_secret");
-    });
-
-    it("falls back to GITHUB_TOKEN when COPILOT_GITHUB_TOKEN is absent", () => {
-      const result = applyAuthFallback({ GITHUB_TOKEN: "ghs_actions_token" });
-      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_actions_token");
-    });
-
-    it("falls back to GH_TOKEN when both COPILOT_GITHUB_TOKEN and GITHUB_TOKEN are absent", () => {
-      const result = applyAuthFallback({ GH_TOKEN: "ghp_pat_token" });
-      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghp_pat_token");
-    });
-
-    it("prefers GITHUB_TOKEN over GH_TOKEN when both are present", () => {
-      const result = applyAuthFallback({ GITHUB_TOKEN: "ghs_actions", GH_TOKEN: "ghp_pat" });
-      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_actions");
-    });
-
-    it("leaves COPILOT_GITHUB_TOKEN unset when all auth tokens are absent", () => {
-      const result = applyAuthFallback({});
-      expect(result.COPILOT_GITHUB_TOKEN).toBeUndefined();
-    });
-
-    it("treats empty-string COPILOT_GITHUB_TOKEN as absent and applies fallback", () => {
-      const result = applyAuthFallback({ COPILOT_GITHUB_TOKEN: "", GITHUB_TOKEN: "ghs_actions" });
-      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_actions");
-    });
-
-    it("does not overwrite a valid COPILOT_GITHUB_TOKEN with a fallback", () => {
-      const result = applyAuthFallback({ COPILOT_GITHUB_TOKEN: "ghs_original", GITHUB_TOKEN: "ghs_actions" });
-      expect(result.COPILOT_GITHUB_TOKEN).toBe("ghs_original");
-    });
-  });
-
   describe("retry configuration", () => {
     it("has sensible default values", () => {
       // These match the constants in copilot_driver.cjs
