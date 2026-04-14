@@ -437,6 +437,17 @@ function replaceArtifactUrlReferences(text, artifactUrlMap) {
   if (!artifactUrlMap || artifactUrlMap.size === 0) {
     return text;
   }
+  // Detect and warn about malformed #aw_ references that won't be resolved
+  let candidate;
+  TEMPORARY_ID_CANDIDATE_PATTERN.lastIndex = 0;
+  while ((candidate = TEMPORARY_ID_CANDIDATE_PATTERN.exec(text)) !== null) {
+    const tempId = `aw_${candidate[1]}`;
+    if (!isTemporaryId(tempId)) {
+      core.warning(
+        `Malformed temporary ID reference '${candidate[0]}' found in body text. This reference will not be replaced with an artifact URL. Temporary IDs must be in format '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_). Example: '#aw_chart1' or '#aw_img_out'`
+      );
+    }
+  }
   return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
     const url = artifactUrlMap.get(normalizeTemporaryId(tempId));
     if (url !== undefined) {

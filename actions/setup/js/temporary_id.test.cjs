@@ -636,6 +636,23 @@ describe("temporary_id.cjs", () => {
       expect(replaceArtifactUrlReferences(text, null)).toBe(text);
       expect(replaceArtifactUrlReferences(text, undefined)).toBe(text);
     });
+
+    it("should warn about malformed #aw_ references (too short) when map is non-empty", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      // "#aw_ab" has only 2 characters after "aw_" (too short, minimum is 3)
+      const text = "![bad](#aw_ab)";
+      replaceArtifactUrlReferences(text, artifactUrlMap);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_ab"));
+    });
+
+    it("should warn about malformed #aw_ references containing hyphens when map is non-empty", async () => {
+      const { replaceArtifactUrlReferences } = await import("./temporary_id.cjs");
+      const artifactUrlMap = new Map([["aw_chart1", "https://github.com/owner/repo/actions/runs/1/artifacts/42"]]);
+      const text = "![bad](#aw_bad-id)";
+      replaceArtifactUrlReferences(text, artifactUrlMap);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("#aw_bad-id"));
+    });
   });
 
   describe("replaceTemporaryProjectReferences", () => {

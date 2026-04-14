@@ -577,8 +577,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // upload_artifact returns { tmpId, artifactUrl } (not temporaryId/repo/number).
       if (messageType === "upload_artifact" && result && result.tmpId && result.artifactUrl) {
         const normalizedTmpId = normalizeTemporaryId(result.tmpId);
-        artifactUrlMap.set(normalizedTmpId, result.artifactUrl);
-        core.info(`Registered artifact URL: ${result.tmpId} -> ${result.artifactUrl}`);
+        if (!artifactUrlMap.has(normalizedTmpId)) {
+          artifactUrlMap.set(normalizedTmpId, result.artifactUrl);
+          core.info(`Registered artifact URL for temporary ID: ${result.tmpId}`);
+        } else {
+          core.warning(`Duplicate artifact temporary ID '${result.tmpId}' encountered; keeping the first registered URL and ignoring the later upload.`);
+        }
       }
 
       // Track when a code-push operation falls back to a review issue so subsequent

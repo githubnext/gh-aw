@@ -470,6 +470,27 @@ describe("upload_artifact.cjs", () => {
       const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
       expect(resolver["aw_chart1"]).toBe("chart.png");
     });
+
+    it("warns and keeps first mapping when the same temporary_id is used in multiple uploads", async () => {
+      writeStaging("chart1.png", "PNG_DATA_1");
+      writeStaging("chart2.png", "PNG_DATA_2");
+
+      const results = await runHandler(buildConfig({ "max-uploads": 2 }), [
+        { type: "upload_artifact", path: "chart1.png", temporary_id: "aw_chart1" },
+        { type: "upload_artifact", path: "chart2.png", temporary_id: "aw_chart1" },
+      ]);
+
+      // Both uploads succeed individually
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(true);
+
+      // Resolver should keep the first mapping (chart1.png)
+      const resolver = JSON.parse(fs.readFileSync(RESOLVER_FILE, "utf8"));
+      expect(resolver["aw_chart1"]).toBe("chart1.png");
+
+      // A warning should have been emitted for the duplicate
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('duplicate temporary_id "aw_chart1"'));
+    });
   });
 
   describe("auto-copy from outside staging directory", () => {

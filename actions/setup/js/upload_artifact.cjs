@@ -522,7 +522,11 @@ async function main(config = {}) {
     // Derive artifact name and generate temporary ID.
     const artifactName = deriveArtifactName(message, i);
     const tmpId = resolveTemporaryArtifactId(message);
-    resolver[tmpId] = artifactName;
+    if (Object.prototype.hasOwnProperty.call(resolver, tmpId)) {
+      core.warning(`upload_artifact: duplicate temporary_id "${tmpId}" detected for artifact "${artifactName}". Using the first occurrence. Ensure each artifact has a unique temporary_id.`);
+    } else {
+      resolver[tmpId] = artifactName;
+    }
 
     core.info(`Slot ${i}: artifact="${artifactName}", files=${files.length}, size=${totalSize}B, retention=${retentionDays}d, skip_archive=${skipArchive}, tmp_id=${tmpId}`);
 
