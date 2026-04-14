@@ -318,10 +318,10 @@ call_tool() {
       local key="\${1#--}"
       if [[ \$# -ge 2 && "\$2" != --* ]]; then
         local val="\$2"
-        args=\$(echo "\$args" | jq --arg k "\$key" --arg v "\$val" ". + {(\$k): \$v}")
+        args=\$(echo "\$args" | jq --arg k "\$key" --arg v "\$val" '. + {($k): $v}')
         shift 2
       else
-        args=\$(echo "\$args" | jq --arg k "\$key" ". + {(\$k): true}")
+        args=\$(echo "\$args" | jq --arg k "\$key" '. + {($k): true}')
         shift 1
       fi
     else
@@ -343,7 +343,7 @@ call_tool() {
     >/dev/null 2>/dev/null || true
 
   local session_id
-  session_id=\$(grep -i "^mcp-session-id:" "\$headers_file" 2>/dev/null | awk "{print \$2}" | tr -d "\\r" || echo "")
+  session_id=\$(grep -i "^mcp-session-id:" "\$headers_file" 2>/dev/null | awk '{print $2}' | tr -d "\\r" || echo "")
   rm -f "\$headers_file"
 
   local session_header_args=()
@@ -363,7 +363,7 @@ call_tool() {
   # Step 3: tools/call – execute the tool within the established session
   local request
   request=\$(jq -n --arg name "\$tool_name" --argjson args "\$args" \\
-    "{\\"jsonrpc\\":\\"2.0\\",\\"id\\":2,\\"method\\":\\"tools/call\\",\\"params\\":{\\"name\\":\$name,\\"arguments\\":\$args}}")
+    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":$name,"arguments":$args}}')
 
   local response
   response=\$(curl -s --max-time 120 -X POST "\$SERVER_URL" \\
