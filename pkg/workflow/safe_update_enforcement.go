@@ -45,11 +45,12 @@ var ghAwInternalSecrets = map[string]bool{
 // Returns a structured, actionable error when violations are found.
 func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string) error {
 	if manifest == nil {
-		// No prior lock file – treat as an empty manifest so safe-update enforcement
-		// blocks any secrets (other than GITHUB_TOKEN) and any custom actions on the
-		// first compilation, matching the principle of least privilege.
-		safeUpdateLog.Print("No existing manifest found; treating as empty manifest for safe update enforcement")
-		manifest = &GHAWManifest{Version: currentGHAWManifestVersion}
+		// No prior manifest found — either the lock file was compiled before the safe
+		// updates feature existed, or this is the very first compilation.  In both cases
+		// skip enforcement: the newly generated lock file will embed a manifest that
+		// serves as the baseline for future compilations.
+		safeUpdateLog.Print("No existing manifest found; skipping safe update enforcement (baseline will be created)")
+		return nil
 	}
 
 	secretViolations := collectSecretViolations(manifest, secretNames)
@@ -211,7 +212,7 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 		sb.WriteString(strings.Join(removedActions, "\n  - "))
 	}
 
-	sb.WriteString("\n\nRemediation options:\n  1. Use an interactive agentic flow (e.g. Copilot CLI) to review and approve the changes.\n  2. Remove the --safe-update flag to allow the change.\n  3. Revert the unapproved changes from your workflow if they were added unintentionally.")
+	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
 	return fmt.Errorf("%s", sb.String())
 }
 
