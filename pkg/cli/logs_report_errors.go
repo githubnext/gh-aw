@@ -60,9 +60,10 @@ func aggregateSummaryItems[TItem any, TSummary any](
 	return result
 }
 
-// buildCombinedErrorsSummary has been removed since error patterns are no longer supported
+// buildCombinedErrorsSummary is an intentional no-op compatibility stub retained
+// after error-pattern support was removed.
 func buildCombinedErrorsSummary(_ []ProcessedRun) []ErrorSummary {
-	// Return empty slice since error patterns have been removed
+	// Preserve the previous call shape while reporting no combined errors.
 	return []ErrorSummary{}
 }
 

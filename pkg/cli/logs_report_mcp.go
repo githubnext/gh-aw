@@ -151,7 +151,7 @@ func buildMCPToolUsageSummary(processedRuns []ProcessedRun) *MCPToolUsageSummary
 	}
 
 	// Return nil if no MCP tool usage data was found
-	if len(toolSummaryMap) == 0 && len(serverStatsMap) == 0 && len(allFilteredEvents) == 0 {
+	if len(toolSummaryMap) == 0 && len(serverStatsMap) == 0 && len(allToolCalls) == 0 && len(allFilteredEvents) == 0 {
 		return nil
 	}
 

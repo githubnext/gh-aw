@@ -42,8 +42,8 @@ func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*Proces
 		allBlockedDomains: make(map[string]bool),
 	}
 
-	for _, pr := range processedRuns {
-		allowedDomains, blockedDomains, totalRequests, allowedCount, blockedCount, exists := getAnalysis(&pr)
+	for i := range processedRuns {
+		allowedDomains, blockedDomains, totalRequests, allowedCount, blockedCount, exists := getAnalysis(&processedRuns[i])
 		if !exists {
 			continue
 		}

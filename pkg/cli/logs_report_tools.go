@@ -18,8 +18,19 @@ type ToolUsageSummary struct {
 	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,default:N/A,omitempty"`
 }
 
-// isValidToolName checks if a tool name appears to be valid
-// Filters out single words, common words, and other garbage that shouldn't be tools
+// toolNameStopWords is a set of common English words that should never be treated as tool names.
+// Built once at package init and reused across all isValidToolName calls.
+var toolNameStopWords = map[string]bool{
+	"calls": true, "to": true, "for": true, "the": true, "a": true, "an": true,
+	"is": true, "are": true, "was": true, "were": true, "be": true, "been": true,
+	"have": true, "has": true, "had": true, "do": true, "does": true, "did": true,
+	"will": true, "would": true, "could": true, "should": true, "may": true, "might": true,
+	"Testing": true, "multiple": true, "launches": true, "command": true, "invocation": true,
+	"with": true, "from": true, "by": true, "at": true, "in": true, "on": true,
+}
+
+// isValidToolName checks if a tool name appears to be valid.
+// Filters out single words, common words, and other garbage that shouldn't be tools.
 func isValidToolName(toolName string) bool {
 	name := strings.TrimSpace(toolName)
 
@@ -34,16 +45,7 @@ func isValidToolName(toolName string) bool {
 	}
 
 	// Filter out common English words that are likely from error messages
-	commonWords := map[string]bool{
-		"calls": true, "to": true, "for": true, "the": true, "a": true, "an": true,
-		"is": true, "are": true, "was": true, "were": true, "be": true, "been": true,
-		"have": true, "has": true, "had": true, "do": true, "does": true, "did": true,
-		"will": true, "would": true, "could": true, "should": true, "may": true, "might": true,
-		"Testing": true, "multiple": true, "launches": true, "command": true, "invocation": true,
-		"with": true, "from": true, "by": true, "at": true, "in": true, "on": true,
-	}
-
-	if commonWords[name] {
+	if toolNameStopWords[name] {
 		return false
 	}
 
@@ -53,11 +55,10 @@ func isValidToolName(toolName string) bool {
 	hasHyphen := strings.Contains(name, "-")
 	hasCapital := strings.ToLower(name) != name
 
-	// If it's a single word with no underscores/hyphens and is lowercase and short,
-	// it's likely a fragment
+	// Reject short, all-lowercase, single-word names with no separators — these
+	// are almost certainly log-message fragments rather than real tool names.
 	words := strings.Fields(name)
 	if len(words) == 1 && !hasUnderscore && !hasHyphen && len(name) < 10 && !hasCapital {
-		// Could be a fragment - be conservative and reject if it's a common word
 		return false
 	}
 
