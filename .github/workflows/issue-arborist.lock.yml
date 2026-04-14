@@ -347,17 +347,65 @@ jobs:
           DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.19'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
-      - name: Set GH_REPO for proxied steps
-        run: |
-          echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
-      - name: Setup jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+        name: Setup jq utilities directory
+        run: |-
+          mkdir -p /tmp/gh-aw
+          cat > /tmp/gh-aw/jqschema.sh << 'EOF'
+          #!/usr/bin/env bash
+          # jqschema.sh
+          jq -c '
+          def walk(f):
+            . as $in |
+            if type == "object" then
+              reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})
+            elif type == "array" then
+              if length == 0 then [] else [.[0] | walk(f)] end
+            else
+              type
+            end;
+          walk(.)
+          '
+          EOF
+          chmod +x /tmp/gh-aw/jqschema.sh
+      - env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         name: Fetch issues
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/issues-data\n\necho \"⬇ Downloading the last 100 open issues (excluding sub-issues)...\"\n\n# Fetch the last 100 open issues that don't have a parent issue\n# Using search filter to exclude issues that are already sub-issues\ngh issue list --repo \"$GITHUB_REPOSITORY\" \\\n  --search \"-parent-issue:*\" \\\n  --state open \\\n  --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \\\n  --limit 100 \\\n  > /tmp/gh-aw/issues-data/issues.json\n\n# Generate schema for reference using jqschema\n/tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json\n\necho \"✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json\"\necho \"✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json\"\necho \"Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)\"\necho \"\"\necho \"Schema of the issues data:\"\ncat /tmp/gh-aw/issues-data/issues-schema.json | jq .\n"
+        run: |
+          # Create output directory
+          mkdir -p /tmp/gh-aw/issues-data
 
+          echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
+
+          # Fetch the last 100 open issues that don't have a parent issue
+          # Using search filter to exclude issues that are already sub-issues
+          gh issue list --repo "$GITHUB_REPOSITORY" \
+            --search "-parent-issue:*" \
+            --state open \
+            --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
+            --limit 100 \
+            > /tmp/gh-aw/issues-data/issues.json
+
+          # Generate schema for reference using jqschema
+          /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json
+
+          echo "✓ Issues data saved to /tmp/gh-aw/issues-data/issues.json"
+          echo "✓ Schema saved to /tmp/gh-aw/issues-data/issues-schema.json"
+          echo "Total issues fetched: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+          echo ""
+          echo "Schema of the issues data:"
+          cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

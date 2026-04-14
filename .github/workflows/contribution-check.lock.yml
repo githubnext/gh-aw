@@ -350,15 +350,63 @@ jobs:
           DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.19'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
-      - name: Set GH_REPO for proxied steps
-        run: |
-          echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
       - env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         name: Fetch and filter PRs
-        run: "# Fetch open PRs from the target repository opened in the last 24 hours\nSINCE=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\\n        || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')\n\necho \"Fetching open PRs from $TARGET_REPOSITORY created since $SINCE...\"\nALL_PRS=$(gh pr list \\\n  --repo \"$TARGET_REPOSITORY\" \\\n  --state open \\\n  --limit 100 \\\n  --json number,createdAt \\\n  --jq \"[.[] | select(.createdAt >= \\\"$SINCE\\\")]\" \\\n  2>/dev/null || echo \"[]\")\n\nTOTAL=$(echo \"$ALL_PRS\" | jq 'length')\necho \"Found $TOTAL open PRs created in the last 24 hours\"\n\n# Cap the number of PRs to evaluate at 5\nMAX_EVALUATE=5\nEVALUATED=$(echo \"$ALL_PRS\" | jq --argjson max \"$MAX_EVALUATE\" '[.[0:$max][] | .number]')\nEVALUATED_COUNT=$(echo \"$EVALUATED\" | jq 'length')\nSKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))\n\n# Write results to workspace root\njq -n \\\n  --argjson pr_numbers \"$EVALUATED\" \\\n  --argjson skipped_count \"$SKIPPED_COUNT\" \\\n  --argjson evaluated_count \"$EVALUATED_COUNT\" \\\n  '{pr_numbers: $pr_numbers, skipped_count: $skipped_count, evaluated_count: $evaluated_count}' \\\n  > \"$GITHUB_WORKSPACE/pr-filter-results.json\"\n\necho \"✓ Wrote pr-filter-results.json: $EVALUATED_COUNT to evaluate, $SKIPPED_COUNT skipped\"\ncat \"$GITHUB_WORKSPACE/pr-filter-results.json\"\n\n# Pre-fetch CONTRIBUTING.md once so all subagent calls can reuse it\nCONTRIBUTING_FETCHED=false\nfor CONTRIBUTING_PATH in \"CONTRIBUTING.md\" \".github/CONTRIBUTING.md\" \"docs/CONTRIBUTING.md\"; do\n  if gh api \"repos/$TARGET_REPOSITORY/contents/$CONTRIBUTING_PATH\" \\\n      --jq '.content' 2>/dev/null | base64 -d > \"$GITHUB_WORKSPACE/contributing-guidelines.md\" 2>/dev/null; then\n    echo \"✓ Pre-fetched contributing guidelines from $CONTRIBUTING_PATH\"\n    CONTRIBUTING_FETCHED=true\n    break\n  fi\ndone\nif [ \"$CONTRIBUTING_FETCHED\" = \"false\" ]; then\n  echo \"# No CONTRIBUTING.md found\" > \"$GITHUB_WORKSPACE/contributing-guidelines.md\"\n  echo \"ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)\"\nfi"
+        run: |-
+          # Fetch open PRs from the target repository opened in the last 24 hours
+          SINCE=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+                  || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
 
+          echo "Fetching open PRs from $TARGET_REPOSITORY created since $SINCE..."
+          ALL_PRS=$(gh pr list \
+            --repo "$TARGET_REPOSITORY" \
+            --state open \
+            --limit 100 \
+            --json number,createdAt \
+            --jq "[.[] | select(.createdAt >= \"$SINCE\")]" \
+            2>/dev/null || echo "[]")
+
+          TOTAL=$(echo "$ALL_PRS" | jq 'length')
+          echo "Found $TOTAL open PRs created in the last 24 hours"
+
+          # Cap the number of PRs to evaluate at 5
+          MAX_EVALUATE=5
+          EVALUATED=$(echo "$ALL_PRS" | jq --argjson max "$MAX_EVALUATE" '[.[0:$max][] | .number]')
+          EVALUATED_COUNT=$(echo "$EVALUATED" | jq 'length')
+          SKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))
+
+          # Write results to workspace root
+          jq -n \
+            --argjson pr_numbers "$EVALUATED" \
+            --argjson skipped_count "$SKIPPED_COUNT" \
+            --argjson evaluated_count "$EVALUATED_COUNT" \
+            '{pr_numbers: $pr_numbers, skipped_count: $skipped_count, evaluated_count: $evaluated_count}' \
+            > "$GITHUB_WORKSPACE/pr-filter-results.json"
+
+          echo "✓ Wrote pr-filter-results.json: $EVALUATED_COUNT to evaluate, $SKIPPED_COUNT skipped"
+          cat "$GITHUB_WORKSPACE/pr-filter-results.json"
+
+          # Pre-fetch CONTRIBUTING.md once so all subagent calls can reuse it
+          CONTRIBUTING_FETCHED=false
+          for CONTRIBUTING_PATH in "CONTRIBUTING.md" ".github/CONTRIBUTING.md" "docs/CONTRIBUTING.md"; do
+            if gh api "repos/$TARGET_REPOSITORY/contents/$CONTRIBUTING_PATH" \
+                --jq '.content' 2>/dev/null | base64 -d > "$GITHUB_WORKSPACE/contributing-guidelines.md" 2>/dev/null; then
+              echo "✓ Pre-fetched contributing guidelines from $CONTRIBUTING_PATH"
+              CONTRIBUTING_FETCHED=true
+              break
+            fi
+          done
+          if [ "$CONTRIBUTING_FETCHED" = "false" ]; then
+            echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
+            echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
+          fi
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

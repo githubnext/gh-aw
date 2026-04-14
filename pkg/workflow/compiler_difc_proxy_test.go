@@ -441,25 +441,35 @@ Test that DIFC proxy is injected by default when min-integrity is set with custo
 	assert.Contains(t, result, "Stop DIFC proxy",
 		"compiled workflow should contain proxy stop step")
 
-	// Verify the "Set GH_REPO" step is present
-	assert.Contains(t, result, "Set GH_REPO for proxied steps",
-		"compiled workflow should contain Set GH_REPO step")
+	// Verify the standalone "Set GH_REPO" step is no longer emitted;
+	// GH_REPO is now injected as step-level env on each custom step.
+	assert.NotContains(t, result, "Set GH_REPO for proxied steps",
+		"compiled workflow should NOT contain standalone Set GH_REPO step")
+
+	// Verify proxy env vars are injected into the custom step as step-level env.
+	assert.Contains(t, result, "GH_HOST: localhost:18443",
+		"custom step should have GH_HOST in step-level env")
+	assert.Contains(t, result, "GH_REPO: ${{ github.repository }}",
+		"custom step should have GH_REPO in step-level env")
+	assert.Contains(t, result, "GITHUB_API_URL: https://localhost:18443/api/v3",
+		"custom step should have GITHUB_API_URL in step-level env")
+	assert.Contains(t, result, "GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql",
+		"custom step should have GITHUB_GRAPHQL_URL in step-level env")
+	assert.Contains(t, result, "NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
+		"custom step should have NODE_EXTRA_CA_CERTS in step-level env")
 
 	// Verify step ordering: Start proxy must come before Stop proxy
 	startIdx := strings.Index(result, "Start DIFC proxy for pre-agent gh calls")
-	setRepoIdx := strings.Index(result, "Set GH_REPO for proxied steps")
 	stopIdx := strings.Index(result, "Stop DIFC proxy")
 	require.Greater(t, startIdx, -1, "start proxy step should be in output")
-	require.Greater(t, setRepoIdx, -1, "set GH_REPO step should be in output")
 	require.Greater(t, stopIdx, -1, "stop proxy step should be in output")
-	assert.Less(t, startIdx, setRepoIdx, "Start DIFC proxy must come before Set GH_REPO")
 	assert.Less(t, startIdx, stopIdx, "Start DIFC proxy must come before Stop DIFC proxy")
 
-	// Verify "Set GH_REPO" step is before custom step ("Fetch repo data")
+	// Verify the custom step comes after proxy start and before proxy stop
 	customStepIdx := strings.Index(result, "Fetch repo data")
 	require.Greater(t, customStepIdx, -1, "custom step should be in output")
 	assert.Less(t, startIdx, customStepIdx, "Start DIFC proxy must come before custom step")
-	assert.Less(t, setRepoIdx, customStepIdx, "Set GH_REPO must come before custom step")
+	assert.Less(t, customStepIdx, stopIdx, "custom step must come before Stop DIFC proxy")
 
 	// Verify proxy stop is before MCP gateway start
 	gatewayIdx := strings.Index(result, "Start MCP Gateway")
@@ -635,64 +645,117 @@ func TestHasDIFCGuardsConfigured(t *testing.T) {
 	}
 }
 
-// TestBuildSetGHRepoStepYAML verifies the YAML generated for the "Set GH_REPO" step.
-func TestBuildSetGHRepoStepYAML(t *testing.T) {
-	result := buildSetGHRepoStepYAML()
+// TestProxyEnvVars verifies that all expected proxy routing env vars are returned.
+func TestProxyEnvVars(t *testing.T) {
+	vars := proxyEnvVars()
 
-	assert.Contains(t, result, "Set GH_REPO for proxied steps", "step name should be present")
-	assert.Contains(t, result, "GH_REPO=${GITHUB_REPOSITORY}", "should set GH_REPO from GITHUB_REPOSITORY")
-	assert.Contains(t, result, "GITHUB_ENV", "should write GH_REPO to GITHUB_ENV")
-	assert.NotContains(t, result, "GH_HOST", "should not modify GH_HOST (proxy must keep routing)")
+	require.NotEmpty(t, vars, "proxyEnvVars should return a non-empty map")
+	assert.Equal(t, "localhost:18443", vars["GH_HOST"], "GH_HOST should be the proxy address")
+	assert.Equal(t, "${{ github.repository }}", vars["GH_REPO"], "GH_REPO should reference github.repository")
+	assert.Equal(t, "https://localhost:18443/api/v3", vars["GITHUB_API_URL"], "GITHUB_API_URL should point to proxy")
+	assert.Equal(t, "https://localhost:18443/api/graphql", vars["GITHUB_GRAPHQL_URL"], "GITHUB_GRAPHQL_URL should point to proxy")
+	assert.Equal(t, "/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt", vars["NODE_EXTRA_CA_CERTS"], "NODE_EXTRA_CA_CERTS should be the proxy CA cert")
+	assert.Len(t, vars, 5, "proxyEnvVars should return exactly 5 vars")
 }
 
-// TestGenerateSetGHRepoAfterDIFCProxyStep verifies that the step is emitted only when
-// the DIFC proxy is needed (guard policies configured + pre-agent GH_TOKEN steps).
-func TestGenerateSetGHRepoAfterDIFCProxyStep(t *testing.T) {
-	c := &Compiler{}
-
-	t.Run("no step when guard policy not configured", func(t *testing.T) {
-		var yaml strings.Builder
-		data := &WorkflowData{
-			Tools: map[string]any{
-				"github": map[string]any{"toolsets": []string{"default"}},
+// TestInjectProxyEnvIntoCustomSteps verifies that proxy env vars are injected
+// into each custom step as step-level env, preserving existing env vars.
+func TestInjectProxyEnvIntoCustomSteps(t *testing.T) {
+	tests := []struct {
+		name             string
+		customSteps      string
+		expectedContains []string
+		expectedAbsent   []string
+		desc             string
+	}{
+		{
+			name:        "empty string returns empty",
+			customSteps: "",
+			desc:        "empty input should return empty output",
+		},
+		{
+			name:        "step without env gets proxy env block added",
+			customSteps: "steps:\n- name: Step with no env\n  run: echo hello\n",
+			expectedContains: []string{
+				"GH_HOST: localhost:18443",
+				"GH_REPO: ${{ github.repository }}",
+				"GITHUB_API_URL: https://localhost:18443/api/v3",
+				"GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql",
+				"NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
 			},
-			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
-			SandboxConfig: &SandboxConfig{},
-		}
-		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
-		assert.Empty(t, yaml.String(), "should not generate step without guard policy")
-	})
-
-	t.Run("no step when no GH_TOKEN pre-agent steps", func(t *testing.T) {
-		var yaml strings.Builder
-		data := &WorkflowData{
-			Tools: map[string]any{
-				"github": map[string]any{"min-integrity": "approved"},
+			desc: "step without env should get proxy env block added",
+		},
+		{
+			name:        "step with existing env preserves existing vars",
+			customSteps: "steps:\n- name: Step with env\n  env:\n    GH_TOKEN: ${{ github.token }}\n  run: gh issue list\n",
+			expectedContains: []string{
+				"GH_TOKEN: ${{ github.token }}",
+				"GH_HOST: localhost:18443",
+				"GH_REPO: ${{ github.repository }}",
+				"GITHUB_API_URL: https://localhost:18443/api/v3",
+				"GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql",
+				"NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
 			},
-			SandboxConfig: &SandboxConfig{},
-		}
-		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
-		assert.Empty(t, yaml.String(), "should not generate step without pre-agent GH_TOKEN steps")
-	})
-
-	t.Run("generates set GH_REPO step when guard policy and custom steps with GH_TOKEN", func(t *testing.T) {
-		var yaml strings.Builder
-		data := &WorkflowData{
-			Tools: map[string]any{
-				"github": map[string]any{"min-integrity": "approved"},
+			desc: "existing env var GH_TOKEN should be preserved alongside proxy vars",
+		},
+		{
+			name:        "multiple steps each get proxy env",
+			customSteps: "steps:\n- name: Step 1\n  run: echo one\n- name: Step 2\n  env:\n    MY_VAR: value\n  run: echo two\n",
+			expectedContains: []string{
+				"name: Step 1",
+				"name: Step 2",
+				"MY_VAR: value",
+				"GH_HOST: localhost:18443",
+				"GH_REPO: ${{ github.repository }}",
 			},
-			CustomSteps:   "steps:\n  - name: Fetch\n    env:\n      GH_TOKEN: ${{ github.token }}\n    run: gh issue list",
-			SandboxConfig: &SandboxConfig{},
-		}
-		c.generateSetGHRepoAfterDIFCProxyStep(&yaml, data)
+			desc: "all steps should have proxy env injected",
+		},
+		{
+			name:        "uses step gets proxy env",
+			customSteps: "steps:\n- name: Checkout\n  uses: actions/checkout@v4\n  with:\n    token: ${{ github.token }}\n",
+			expectedContains: []string{
+				"uses: actions/checkout@v4",
+				"GH_HOST: localhost:18443",
+				"GH_REPO: ${{ github.repository }}",
+			},
+			desc: "uses: steps should also get proxy env injected",
+		},
+		{
+			name:        "multiline run is preserved",
+			customSteps: "steps:\n- name: Complex step\n  env:\n    GH_TOKEN: ${{ github.token }}\n  run: |-\n    cmd1\n    cmd2\n    cmd3\n",
+			expectedContains: []string{
+				"cmd1",
+				"cmd2",
+				"cmd3",
+				"GH_TOKEN: ${{ github.token }}",
+				"GH_HOST: localhost:18443",
+			},
+			desc: "multiline run content should be preserved after injection",
+		},
+	}
 
-		result := yaml.String()
-		require.NotEmpty(t, result, "should generate set GH_REPO step")
-		assert.Contains(t, result, "Set GH_REPO for proxied steps", "step name should be present")
-		assert.Contains(t, result, "GH_REPO=${GITHUB_REPOSITORY}", "should set GH_REPO from GITHUB_REPOSITORY")
-		assert.Contains(t, result, "GITHUB_ENV", "should write to GITHUB_ENV")
-		assert.NotContains(t, result, "GH_HOST", "should not touch GH_HOST")
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := injectProxyEnvIntoCustomSteps(tt.customSteps)
+
+			if tt.customSteps == "" {
+				assert.Empty(t, result, "empty input should produce empty output: %s", tt.desc)
+				return
+			}
+
+			require.NotEmpty(t, result, "result should not be empty: %s", tt.desc)
+
+			for _, s := range tt.expectedContains {
+				assert.Contains(t, result, s, "result should contain %q: %s", s, tt.desc)
+			}
+			for _, s := range tt.expectedAbsent {
+				assert.NotContains(t, result, s, "result should NOT contain %q: %s", s, tt.desc)
+			}
+
+			// Result should still start with "steps:" so addCustomStepsAsIs can process it
+			assert.True(t, strings.HasPrefix(result, "steps:"), "result should start with 'steps:': %s", tt.desc)
+		})
+	}
 }
 
 // TestBuildStartCliProxyStepYAML verifies that the CLI proxy step always emits

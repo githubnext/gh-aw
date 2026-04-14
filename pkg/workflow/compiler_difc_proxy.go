@@ -26,8 +26,11 @@ package workflow
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
-//  2. Custom steps run with GH_HOST=localhost:18443, GITHUB_API_URL, GITHUB_GRAPHQL_URL,
-//     and NODE_EXTRA_CA_CERTS set (via $GITHUB_ENV)
+//  2. Custom steps run with step-level env blocks containing GH_HOST, GH_REPO,
+//     GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS. These are
+//     injected by the compiler as step-level env (not via $GITHUB_ENV), so they
+//     take precedence over job-level env without mutating global state. GHE host
+//     values set by configure_gh_for_ghe.sh are preserved for non-proxied steps.
 //  3. Stop proxy — before MCP gateway starts (generateMCPSetup); always runs
 //     even if earlier steps failed (if: always(), continue-on-error: true)
 //
@@ -58,6 +61,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
 )
 
 var difcProxyLog = logger.New("workflow:difc_proxy")
@@ -273,41 +277,74 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 	}
 }
 
-// buildSetGHRepoStepYAML returns the YAML for the "Set GH_REPO for proxied steps" step.
+// proxyEnvVars returns the env vars to inject as step-level env on each custom step
+// when the DIFC proxy is running.
 //
-// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV so that the gh CLI
-// routes through the proxy. However, gh CLI infers the target repository from the git
-// remote, which uses the original host (github.com / GHEC host). When GH_HOST is the
-// proxy address, gh fails to resolve the repository because the host doesn't match.
-//
-// Rather than overwriting GH_HOST (which would bypass the DIFC proxy's integrity
-// filtering), this step sets GH_REPO=$GITHUB_REPOSITORY. The gh CLI respects GH_REPO
-// to determine the target repository without needing to match the git remote host.
-// GH_HOST stays at localhost:18443 so all gh CLI traffic continues routing through
-// the proxy for integrity filtering.
-func buildSetGHRepoStepYAML() string {
-	var sb strings.Builder
-	sb.WriteString("      - name: Set GH_REPO for proxied steps\n")
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          echo \"GH_REPO=${GITHUB_REPOSITORY}\" >> \"$GITHUB_ENV\"\n")
-	return sb.String()
+// These override $GITHUB_ENV values (such as GH_HOST=myorg.ghe.com on GHE runners)
+// without mutating global state. Steps that do not need the proxy (e.g., after
+// stop_difc_proxy.sh) continue to see the original job-level env values.
+func proxyEnvVars() map[string]string {
+	return map[string]string{
+		"GH_HOST":             "localhost:18443",
+		"GH_REPO":             "${{ github.repository }}",
+		"GITHUB_API_URL":      "https://localhost:18443/api/v3",
+		"GITHUB_GRAPHQL_URL":  "https://localhost:18443/api/graphql",
+		"NODE_EXTRA_CA_CERTS": "/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
+	}
 }
 
-// generateSetGHRepoAfterDIFCProxyStep injects a step that sets GH_REPO=$GITHUB_REPOSITORY
-// after start_difc_proxy.sh and before user-defined setup steps.
+// injectProxyEnvIntoCustomSteps adds the DIFC proxy routing env vars to each step
+// in the custom steps YAML string as step-level env. Step-level env takes precedence
+// over $GITHUB_ENV values but does not mutate them, so GHE host values set by
+// configure_gh_for_ghe.sh are preserved for steps that do not need the proxy.
 //
-// The proxy sets GH_HOST=localhost:18443 in GITHUB_ENV, which causes gh CLI to fail
-// resolving the repository from the git remote. Setting GH_REPO tells gh which repo
-// to target without changing the proxy routing (GH_HOST stays at the proxy address).
+// The proxy env vars injected are:
+//   - GH_HOST=localhost:18443
+//   - GH_REPO=${{ github.repository }}
+//   - GITHUB_API_URL=https://localhost:18443/api/v3
+//   - GITHUB_GRAPHQL_URL=https://localhost:18443/api/graphql
+//   - NODE_EXTRA_CA_CERTS=/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
 //
-// The step is only emitted when hasDIFCProxyNeeded returns true.
-func (c *Compiler) generateSetGHRepoAfterDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
-	if !hasDIFCProxyNeeded(data) {
-		return
+// If a step already has an env: block, the proxy vars are merged into it (existing
+// vars like GH_TOKEN are preserved). If parsing or serialization fails, the original
+// customSteps string is returned unchanged.
+func injectProxyEnvIntoCustomSteps(customSteps string) string {
+	if customSteps == "" {
+		return customSteps
 	}
 
-	difcProxyLog.Print("Generating Set GH_REPO step after DIFC proxy start")
-	yaml.WriteString(buildSetGHRepoStepYAML())
+	var parsed struct {
+		Steps []map[string]any `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(customSteps), &parsed); err != nil || len(parsed.Steps) == 0 {
+		difcProxyLog.Printf("injectProxyEnvIntoCustomSteps: could not parse custom steps, returning as-is: %v", err)
+		return customSteps
+	}
+
+	proxyEnv := proxyEnvVars()
+	for i, step := range parsed.Steps {
+		envMap, ok := step["env"].(map[string]any)
+		if !ok {
+			envMap = make(map[string]any)
+		}
+		for k, v := range proxyEnv {
+			envMap[k] = v
+		}
+		step["env"] = envMap
+		parsed.Steps[i] = step
+	}
+
+	resultBytes, err := yaml.MarshalWithOptions(
+		map[string]any{"steps": parsed.Steps},
+		yaml.Indent(2),
+		yaml.UseLiteralStyleIfMultiline(true),
+	)
+	if err != nil {
+		difcProxyLog.Printf("injectProxyEnvIntoCustomSteps: failed to re-serialize, returning as-is: %v", err)
+		return customSteps
+	}
+
+	return strings.TrimRight(string(resultBytes), "\n")
 }
 
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container
