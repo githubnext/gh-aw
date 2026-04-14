@@ -69,12 +69,12 @@ function logPRContext(eventName, pullRequest) {
   // pull_request_target payloads). For minimal PR objects (e.g. issue_comment)
   // fork status is unknown until we fetch full PR details from the API.
   let isFork = null;
-  if (pullRequest.head) {
+  if (pullRequest.head?.repo && pullRequest.base?.repo) {
     const { isFork: detected, reason: forkReason } = detectForkPR(pullRequest);
     isFork = detected;
     core.info(`Is fork PR: ${isFork} (${forkReason})`);
   } else {
-    core.info("Is fork PR: unknown (PR details not available in event payload)");
+    core.info("Is fork PR: unknown (head/base repo details not available in event payload)");
   }
 
   // Log current repository context
