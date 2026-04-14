@@ -8428,9 +8428,9 @@
     "rate-limit": {
       "type": "object",
       "description": "Per-user workflow rate limit configuration to restrict how frequently individual users can trigger this workflow. Helps prevent abuse and resource exhaustion from programmatically triggered events. Optionally also limits the total number of in-progress GitHub agent tasks for the repository.",
-      "required": ["max"],
+      "required": ["max-runs-per-user"],
       "properties": {
-        "max": {
+        "max-runs-per-user": {
           "description": "Maximum number of workflow runs allowed per user within the time window. This is a per-user limit: each user is tracked independently. Required field. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
           "oneOf": [
             {
@@ -8445,7 +8445,7 @@
             }
           ]
         },
-        "window": {
+        "max-runs-per-user-window": {
           "type": "integer",
           "minimum": 1,
           "maximum": 180,
@@ -8479,22 +8479,22 @@
       "additionalProperties": false,
       "examples": [
         {
-          "max": 5,
-          "window": 60
+          "max-runs-per-user": 5,
+          "max-runs-per-user-window": 60
         },
         {
-          "max": 10,
-          "window": 30,
+          "max-runs-per-user": 10,
+          "max-runs-per-user-window": 30,
           "events": ["workflow_dispatch", "issue_comment"]
         },
         {
-          "max": 5,
-          "window": 60,
+          "max-runs-per-user": 5,
+          "max-runs-per-user-window": 60,
           "ignored-roles": ["admin", "maintain"]
         },
         {
-          "max": 5,
-          "window": 60,
+          "max-runs-per-user": 5,
+          "max-runs-per-user-window": 60,
           "max-in-progress": 3
         }
       ]

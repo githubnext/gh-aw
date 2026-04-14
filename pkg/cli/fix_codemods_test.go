@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 29
+	expectedCount := 30
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -134,6 +134,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"plugins-to-dependencies",
 		"github-repos-to-allowed-repos",
 		"features-difc-proxy-to-tools-github",
+		"rate-limit-fields-migration",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")

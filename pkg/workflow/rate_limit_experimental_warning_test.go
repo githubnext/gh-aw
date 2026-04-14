@@ -27,8 +27,8 @@ func TestRateLimitExperimentalWarning(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 rate-limit:
-  max: 5
-  window: 60
+  max-runs-per-user: 5
+  max-runs-per-user-window: 60
 permissions:
   contents: read
   issues: read
@@ -60,8 +60,8 @@ permissions:
 on: workflow_dispatch
 engine: copilot
 rate-limit:
-  max: 3
-  window: 30
+  max-runs-per-user: 3
+  max-runs-per-user-window: 30
   ignored-roles:
     - admin
     - maintain
@@ -84,8 +84,8 @@ on:
     types: [created]
 engine: copilot
 rate-limit:
-  max: 5
-  window: 60
+  max-runs-per-user: 5
+  max-runs-per-user-window: 60
   events: [workflow_dispatch, issue_comment]
 permissions:
   contents: read

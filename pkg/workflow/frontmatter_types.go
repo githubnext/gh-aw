@@ -113,11 +113,11 @@ type PermissionsConfig struct {
 // Controls how many times a user can trigger this workflow within a time window,
 // and optionally limits the maximum number of in-progress GitHub agent tasks for the repo.
 type RateLimitConfig struct {
-	Max           int      `json:"max,omitempty"`             // Maximum number of workflow runs allowed per user within the time window (default: 5)
-	Window        int      `json:"window,omitempty"`          // Time window in minutes (default: 60)
-	Events        []string `json:"events,omitempty"`          // Event types to apply rate limiting to (e.g., ["workflow_dispatch", "issue_comment"])
-	IgnoredRoles  []string `json:"ignored-roles,omitempty"`   // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
-	MaxInProgress int      `json:"max-in-progress,omitempty"` // Maximum number of in-progress GitHub agent tasks allowed for the repo before blocking new runs
+	Max           int      `json:"max-runs-per-user,omitempty"`        // Maximum number of workflow runs allowed per user within the time window (default: 5)
+	Window        int      `json:"max-runs-per-user-window,omitempty"` // Time window in minutes (default: 60)
+	Events        []string `json:"events,omitempty"`                   // Event types to apply rate limiting to (e.g., ["workflow_dispatch", "issue_comment"])
+	IgnoredRoles  []string `json:"ignored-roles,omitempty"`            // Roles that are exempt from rate limiting (e.g., ["admin", "maintainer"])
+	MaxInProgress int      `json:"max-in-progress,omitempty"`          // Maximum number of in-progress GitHub agent tasks allowed for the repo before blocking new runs
 }
 
 // OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.

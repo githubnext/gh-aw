@@ -6,8 +6,8 @@ on:
     lock-for-agent: true
   reaction: "eyes"
 rate-limit:
-  max: 5
-  window: 60
+  max-runs-per-user: 5
+  max-runs-per-user-window: 60
 permissions:
   contents: read
   issues: read

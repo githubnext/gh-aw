@@ -14,8 +14,8 @@ on:
   skip-roles: [admin, maintainer, write, triage]
   skip-bots: [github-actions, copilot, dependabot, renovate, github-copilot-enterprise, copilot-swe-agent]
 rate-limit:
-  max: 5
-  window: 60
+  max-runs-per-user: 5
+  max-runs-per-user-window: 60
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
   cancel-in-progress: false

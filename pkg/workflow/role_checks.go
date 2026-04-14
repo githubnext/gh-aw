@@ -177,8 +177,20 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 		case map[string]any:
 			config := &RateLimitConfig{}
 
-			// Extract max (default: 5)
-			if maxValue, ok := v["max"]; ok {
+			// Extract max-runs-per-user (previously named 'max', with backward compat fallback)
+			if maxValue, ok := v["max-runs-per-user"]; ok {
+				switch max := maxValue.(type) {
+				case int:
+					config.Max = max
+				case int64:
+					config.Max = int(max)
+				case uint64:
+					config.Max = int(max)
+				case float64:
+					config.Max = int(max)
+				}
+			} else if maxValue, ok := v["max"]; ok {
+				// Backward compat: accept old 'max' field (codemod renames it)
 				switch max := maxValue.(type) {
 				case int:
 					config.Max = max
@@ -191,8 +203,20 @@ func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimit
 				}
 			}
 
-			// Extract window (default: 60 minutes)
-			if windowValue, ok := v["window"]; ok {
+			// Extract max-runs-per-user-window (previously named 'window', with backward compat fallback)
+			if windowValue, ok := v["max-runs-per-user-window"]; ok {
+				switch window := windowValue.(type) {
+				case int:
+					config.Window = window
+				case int64:
+					config.Window = int(window)
+				case uint64:
+					config.Window = int(window)
+				case float64:
+					config.Window = int(window)
+				}
+			} else if windowValue, ok := v["window"]; ok {
+				// Backward compat: accept old 'window' field (codemod renames it)
 				switch window := windowValue.(type) {
 				case int:
 					config.Window = window
