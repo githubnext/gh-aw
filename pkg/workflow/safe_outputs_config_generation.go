@@ -109,6 +109,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
+	// Safe-actions configuration: custom GitHub Actions exposed as safe output tools.
+	// The normalized action names are added as config keys so both MCP server implementations
+	// recognise them as enabled tools (the tool schema is already in tools.json via
+	// tools_meta.json; the MCP server just needs to see the name in config.json).
+	if len(data.SafeOutputs.Actions) > 0 {
+		safeOutputsConfigLog.Printf("Processing %d safe action configurations", len(data.SafeOutputs.Actions))
+		for actionName := range data.SafeOutputs.Actions {
+			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+			safeOutputsConfigLog.Printf("Adding safe action to config: %s (normalized: %s)", actionName, normalizedName)
+			safeOutputsConfig[normalizedName] = true
+		}
+	}
+
 	// Mentions configuration: controls which @mentions are allowed in AI output.
 	// This is consumed by the ingestion step, not by standard handlers.
 	if data.SafeOutputs.Mentions != nil {

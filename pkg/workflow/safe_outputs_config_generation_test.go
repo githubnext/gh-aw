@@ -59,6 +59,41 @@ jobs:
 	assert.Equal(t, ".lock.yml", workflowFiles["ci"], "ci should map to .lock.yml")
 }
 
+// TestGenerateSafeOutputsConfigActions tests that generateSafeOutputsConfig includes custom
+// action tool names as enabled keys so both MCP server implementations register them.
+func TestGenerateSafeOutputsConfigActions(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Actions: map[string]*SafeOutputActionConfig{
+				"upload_report": {
+					Uses:        "actions/upload-artifact@v4",
+					Description: "Upload the report",
+				},
+				"publish-results": {
+					Uses:        "owner/action@v1",
+					Description: "Publish results",
+				},
+			},
+		},
+	}
+
+	result := generateSafeOutputsConfig(data)
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	// Each action tool should appear as a truthy key in config.json so the MCP server
+	// registers it. Names are normalized (hyphens converted to underscores).
+	uploadVal, hasUploadReport := parsed["upload_report"]
+	assert.True(t, hasUploadReport, "Expected upload_report key in config")
+	assert.Equal(t, true, uploadVal, "upload_report value should be true")
+
+	publishVal, hasPublishResults := parsed["publish_results"]
+	assert.True(t, hasPublishResults, "Expected publish_results key in config (hyphen normalized to underscore)")
+	assert.Equal(t, true, publishVal, "publish_results value should be true")
+}
+
 // TestGenerateSafeOutputsConfigMissingToolWithIssue tests the missing_tool config.
 // The legacy create_missing_tool_issue sub-key is no longer generated; only missing_tool is present.
 func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
