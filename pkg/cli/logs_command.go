@@ -184,7 +184,32 @@ Examples:
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v", workflowName, count, engine, train)
 
-			return DownloadWorkflowLogs(cmd.Context(), workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, summaryFile, safeOutputType, filteredIntegrity, train, format, artifacts)
+			return DownloadWorkflowLogs(cmd.Context(), DownloadConfig{
+				WorkflowName:      workflowName,
+				Count:             count,
+				StartDate:         startDate,
+				EndDate:           endDate,
+				OutputDir:         outputDir,
+				Engine:            engine,
+				Ref:               ref,
+				BeforeRunID:       beforeRunID,
+				AfterRunID:        afterRunID,
+				RepoOverride:      repoOverride,
+				Verbose:           verbose,
+				ToolGraph:         toolGraph,
+				NoStaged:          noStaged,
+				FirewallOnly:      firewallOnly,
+				NoFirewall:        noFirewall,
+				Parse:             parse,
+				JSONOutput:        jsonOutput,
+				Timeout:           timeout,
+				SummaryFile:       summaryFile,
+				SafeOutputType:    safeOutputType,
+				FilteredIntegrity: filteredIntegrity,
+				Train:             train,
+				Format:            format,
+				ArtifactSets:      artifacts,
+			})
 		},
 	}
 

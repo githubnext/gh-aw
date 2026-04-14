@@ -36,33 +36,15 @@ func TestLogsJSONOutputBeforeStderr(t *testing.T) {
 
 	// Call DownloadWorkflowLogs with parameters that will result in no matching runs
 	// This should trigger the warning message path
-	err := DownloadWorkflowLogs(
-		ctx,
-		"nonexistent-workflow-test-12345", // Workflow that doesn't exist
-		2,                                 // count
-		"",                                // startDate
-		"",                                // endDate
-		tmpDir,                            // outputDir
-		"copilot",                         // engine
-		"",                                // ref
-		0,                                 // beforeRunID
-		0,                                 // afterRunID
-		"",                                // repoOverride
-		false,                             // verbose
-		false,                             // toolGraph
-		false,                             // noStaged
-		false,                             // firewallOnly
-		false,                             // noFirewall
-		false,                             // parse
-		true,                              // jsonOutput - THIS IS KEY
-		10,                                // timeout
-		"summary.json",                    // summaryFile
-		"",                                // safeOutputType
-		false,                             // filteredIntegrity
-		false,                             // train
-		"",                                // format
-		nil,                               // artifactSets
-	)
+	err := DownloadWorkflowLogs(ctx, DownloadConfig{
+		WorkflowName: "nonexistent-workflow-test-12345", // Workflow that doesn't exist
+		Count:        2,
+		OutputDir:    tmpDir,
+		Engine:       "copilot",
+		JSONOutput:   true, // THIS IS KEY
+		Timeout:      10,
+		SummaryFile:  "summary.json",
+	})
 
 	// Close writers first
 	stdoutW.Close()
@@ -161,33 +143,15 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 
 	// Call DownloadWorkflowLogs
 	ctx := context.Background()
-	err := DownloadWorkflowLogs(
-		ctx,
-		"nonexistent-workflow-ci-test-67890",
-		2,
-		"",
-		"",
-		tmpDir,
-		"copilot",
-		"",
-		0,
-		0,
-		"",
-		false,
-		false,
-		false,
-		false,
-		false,
-		false,
-		true, // jsonOutput
-		10,
-		"summary.json",
-		"",    // safeOutputType
-		false, // filteredIntegrity
-		false, // train
-		"",    // format
-		nil,   // artifactSets
-	)
+	err := DownloadWorkflowLogs(ctx, DownloadConfig{
+		WorkflowName: "nonexistent-workflow-ci-test-67890",
+		Count:        2,
+		OutputDir:    tmpDir,
+		Engine:       "copilot",
+		JSONOutput:   true, // jsonOutput
+		Timeout:      10,
+		SummaryFile:  "summary.json",
+	})
 
 	// Close the writer
 	w.Close()
