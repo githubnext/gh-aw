@@ -76,6 +76,7 @@ function attachHandlers(tools, handlers) {
     push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
     push_repo_memory: handlers.pushRepoMemoryHandler,
     upload_asset: handlers.uploadAssetHandler,
+    upload_artifact: handlers.uploadArtifactHandler,
     create_project: handlers.createProjectHandler,
     add_comment: handlers.addCommentHandler,
   };
