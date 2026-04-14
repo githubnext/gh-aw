@@ -103,10 +103,13 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 			}
 		}
 
-		// Add cli-proxy sidecar container when the cli-proxy feature flag is enabled
+		// Add cli-proxy sidecar container when the cli-proxy is needed (explicitly via
+		// cli-proxy feature flag, or implicitly via integrity-reactions feature flag)
 		// and the AWF version supports it. Without this, --skip-pull causes AWF to fail
 		// because the cli-proxy image was never pulled.
-		if isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) && awfSupportsCliProxy(firewallConfig) {
+		cliProxyNeeded := isFeatureEnabled(constants.CliProxyFeatureFlag, workflowData) ||
+			isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, workflowData)
+		if cliProxyNeeded && awfSupportsCliProxy(firewallConfig) {
 			cliProxyImage := constants.DefaultFirewallRegistry + "/cli-proxy:" + awfImageTag
 			if !imageSet[cliProxyImage] {
 				images = append(images, cliProxyImage)
