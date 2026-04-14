@@ -992,7 +992,7 @@ describe("push_signed_commits integration tests", () => {
       expect(githubClient.graphql).not.toHaveBeenCalled();
 
       // Warning about the merge commit must be emitted
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/merge commit [0-9a-f]+ detected/));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/merge commit [0-9a-f]{7,40} detected/));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
 
       // All commits (including the merge commit) must be present on the remote via git push
@@ -1008,7 +1008,10 @@ describe("push_signed_commits integration tests", () => {
       execGit(["checkout", "-b", "tricky-message-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "tricky.txt"), "tricky content\n");
       execGit(["add", "tricky.txt"], { cwd: workDir });
-      execGit(["commit", "-m", "Normal headline\n\nparent this line starts with parent but is not a git parent header"], { cwd: workDir });
+      // Write the multi-line commit message to a file to avoid shell interpretation issues
+      const msgFile = path.join(workDir, ".git", "TRICKY_MSG");
+      fs.writeFileSync(msgFile, "Normal headline\n\nparent this line starts with parent but is not a git parent header\n");
+      execGit(["commit", "-F", msgFile], { cwd: workDir });
       execGit(["push", "-u", "origin", "tricky-message-branch"], { cwd: workDir });
 
       global.exec = makeRealExec(workDir);
