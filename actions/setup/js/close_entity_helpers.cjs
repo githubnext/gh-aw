@@ -402,7 +402,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
           );
           // commentPosted stays false; close operation continues
         } else {
-          throw new Error(`${ERR_API}: Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`);
+          throw new Error(`${ERR_API}: Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`, { cause: commentError });
         }
       }
 
