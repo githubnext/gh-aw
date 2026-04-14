@@ -72,7 +72,7 @@ on:
     outputs:
       operation_completed:
         description: 'The maintenance operation that was completed (empty when none ran or a scheduled job ran)'
-        value: ${{ jobs.run_operation.outputs.operation }}
+        value: ${{ jobs.run_operation.outputs.operation || inputs.operation }}
       applied_run_url:
         description: 'The run URL that safe outputs were applied from'
         value: ${{ jobs.apply_safe_outputs.outputs.run_url }}

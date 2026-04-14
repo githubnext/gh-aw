@@ -391,11 +391,14 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	}
 
 	// Verify workflow_call trigger is present with same inputs
-	if !strings.Contains(yaml, "workflow_call:") {
+	workflowCallIdx := strings.Index(yaml, "workflow_call:")
+	if workflowCallIdx == -1 {
 		t.Error("workflow should include workflow_call trigger")
-	}
-	if !strings.Contains(yaml, "inputs:\n      operation:") {
-		t.Error("workflow_call trigger should include operation input")
+	} else {
+		workflowCallSection := yaml[workflowCallIdx:]
+		if !strings.Contains(workflowCallSection, "inputs:\n      operation:") {
+			t.Error("workflow_call trigger should include operation input")
+		}
 	}
 
 	// Verify workflow_call outputs are declared
