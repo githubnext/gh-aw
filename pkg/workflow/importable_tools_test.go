@@ -767,3 +767,68 @@ Uses all imported neutral tools.
 		t.Error("Expected compiled workflow to contain startup-timeout configuration (90 seconds)")
 	}
 }
+
+// TestGitHubToolFalseOverridesImport verifies that tools.github: false in the main workflow
+// takes precedence over tools.github.mode: remote (or any github tool config) from an import.
+func TestGitHubToolFalseOverridesImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow that enables the GitHub MCP server
+	sharedPath := filepath.Join(tempDir, "side-repository.md")
+	sharedContent := `---
+description: "Shared side-repo configuration with GitHub MCP"
+tools:
+  github:
+    mode: remote
+---
+
+# Shared Side Repository Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that explicitly disables github tools, but imports the shared file
+	workflowPath := filepath.Join(tempDir, "my-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: read
+tools:
+  github: false
+sandbox:
+  agent: false
+imports:
+  - side-repository.md
+---
+
+# My Workflow
+
+This workflow explicitly opts out of GitHub MCP tools.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// The GitHub MCP server should NOT appear in the compiled output because
+	// tools.github: false in the main workflow must override the import.
+	if strings.Contains(workflowData, "X-MCP-Toolsets") {
+		t.Error("Expected compiled workflow to NOT contain X-MCP-Toolsets (github MCP server should be disabled by tools.github: false)")
+	}
+}

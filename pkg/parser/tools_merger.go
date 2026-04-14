@@ -147,10 +147,9 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 					return nil, err
 				}
 				result[key] = recursiveMerged
-			} else {
-				// Not both same type, overwrite with new value
-				result[key] = newValue
 			}
+			// Type mismatch (or same non-array, non-map type): base value takes precedence.
+			// result[key] already contains existingValue from maps.Copy above — no action needed.
 		} else {
 			// New key, just add it
 			result[key] = newValue

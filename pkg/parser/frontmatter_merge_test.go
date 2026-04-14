@@ -130,6 +130,58 @@ func TestMergeTools(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "base false overrides additional map (tools.github: false)",
+			base: map[string]any{
+				"github": false,
+			},
+			additional: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+			expected: map[string]any{
+				"github": false,
+			},
+		},
+		{
+			name: "base map not overridden by additional false",
+			base: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+			additional: map[string]any{
+				"github": false,
+			},
+			expected: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+		},
+		{
+			name: "base scalar values override additional scalars in nested maps",
+			base: map[string]any{
+				"tool1": map[string]any{
+					"config": "base-value",
+					"other":  "kept",
+				},
+			},
+			additional: map[string]any{
+				"tool1": map[string]any{
+					"config":  "additional-value",
+					"new-key": "added",
+				},
+			},
+			expected: map[string]any{
+				"tool1": map[string]any{
+					"config":  "base-value",
+					"other":   "kept",
+					"new-key": "added",
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -211,7 +263,7 @@ func TestMergeToolsFromJSON(t *testing.T) {
 			name: "objects with overlapping keys",
 			content: `{"tool1": {"enabled": true, "config": "old"}}
 {"tool1": {"config": "new", "version": 2}}`,
-			expected: `{"tool1":{"config":"new","enabled":true,"version":2}}`,
+			expected: `{"tool1":{"config":"old","enabled":true,"version":2}}`,
 			wantErr:  false,
 		},
 		{
