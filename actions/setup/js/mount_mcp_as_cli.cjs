@@ -105,6 +105,7 @@ function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
         "Content-Length": Buffer.byteLength(bodyStr),
         ...headers,
       },
