@@ -354,6 +354,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 				run.TokenUsage = result.Metrics.TokenUsage
 				run.EstimatedCost = result.Metrics.EstimatedCost
 				run.Turns = result.Metrics.Turns
+				run.AvgTimeBetweenTurns = result.Metrics.AvgTimeBetweenTurns
 				run.ErrorCount = 0
 				run.WarningCount = 0
 				run.LogsPath = result.LogsPath
@@ -760,6 +761,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				result.Run.TokenUsage = metrics.TokenUsage
 				result.Run.EstimatedCost = metrics.EstimatedCost
 				result.Run.Turns = metrics.Turns
+				result.Run.AvgTimeBetweenTurns = metrics.AvgTimeBetweenTurns
 				result.Run.LogsPath = runOutputDir
 
 				// Calculate duration and billable minutes from GitHub API timestamps.

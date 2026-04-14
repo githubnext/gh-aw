@@ -405,6 +405,17 @@ A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across
 
 A weighted token count that normalizes raw API token usage into a single comparable value for cost estimation and monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). For episode-level aggregation, `total_estimated_cost` uses effective tokens as its basis. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
 
+### Time Between Turns (TBT)
+
+The elapsed time between consecutive LLM API calls in an agentic workflow run. A "turn" is one complete LLM inference request; TBT measures the gap from when the model finishes one response (and tool calls are dispatched) to when the next request is sent (after all tool results are collected). TBT is an important performance and cost metric because LLM inference providers implement prompt caching with a fixed TTL:
+
+- **Anthropic** reduced their cache TTL from 1 hour to **5 minutes**. If the TBT for any turn exceeds 5 minutes, the cached prompt context expires and the full prompt must be re-processed, significantly increasing token costs.
+- **OpenAI** has a similar server-side prompt cache with variable TTL.
+
+`gh aw audit` reports both average and maximum TBT in the Session Analysis section. A cache warning is emitted when the TBT used for cache analysis exceeds the Anthropic 5-minute threshold: the maximum observed TBT for Copilot engine runs, where precise per-turn timestamps are available in the `events.jsonl` session log, or the estimated average TBT for other engines, where TBT is derived from total wall time divided by turn count.
+
+To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, parallelize independent tool invocations, and avoid long-running shell commands in the critical path between turns.
+
 ### Firewall Analysis
 
 A section of the `gh aw audit` report that breaks down all network requests made during a workflow run — showing allowed domains, denied domains, request volumes, and policy attribution. Derived from AWF firewall logs. Use `gh aw audit diff` to compare firewall behavior across runs and identify new or removed domain accesses. See [Audit Commands](/gh-aw/reference/audit/) and [Network Permissions](/gh-aw/reference/network/).

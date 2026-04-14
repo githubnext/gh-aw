@@ -114,6 +114,7 @@ type RunData struct {
 	AwContext           *AwContext           `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
 	TokenUsageSummary   *TokenUsageSummary   `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	GitHubAPICalls      int                  `json:"github_api_calls,omitempty" console:"header:GitHub API Calls,format:number,omitempty"` // GitHub API calls made during the run
+	AvgTimeBetweenTurns string               `json:"avg_time_between_turns,omitempty" console:"-"`                                         // Average time between consecutive LLM API calls (TBT)
 }
 
 // buildLogsData creates structured logs data from processed runs
@@ -229,6 +230,12 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)
+		}
+		// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
+		if run.AvgTimeBetweenTurns > 0 {
+			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
+		} else if run.Turns > 1 && run.Duration > 0 {
+			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
 		}
 		runs = append(runs, runData)
 	}

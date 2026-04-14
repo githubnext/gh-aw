@@ -417,3 +417,63 @@ func TestEnrichGHError(t *testing.T) {
 		assert.Contains(t, enriched.Error(), "exit status 1", "enriched error should still contain original error")
 	})
 }
+
+func TestSetGHHostEnv(t *testing.T) {
+	tests := []struct {
+		name       string
+		host       string
+		expectSet  bool
+		initialEnv []string
+	}{
+		{
+			name:      "github.com is a no-op",
+			host:      "github.com",
+			expectSet: false,
+		},
+		{
+			name:      "empty host is a no-op",
+			host:      "",
+			expectSet: false,
+		},
+		{
+			name:      "GHES host sets GH_HOST",
+			host:      "myorg.ghe.com",
+			expectSet: true,
+		},
+		{
+			name:      "Proxima host sets GH_HOST",
+			host:      "verizon.ghe.com",
+			expectSet: true,
+		},
+		{
+			name:       "appends to existing env",
+			host:       "myorg.ghe.com",
+			expectSet:  true,
+			initialEnv: []string{"FOO=bar"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("echo", "test")
+			if tt.initialEnv != nil {
+				cmd.Env = tt.initialEnv
+			}
+
+			SetGHHostEnv(cmd, tt.host)
+
+			if !tt.expectSet {
+				if tt.initialEnv == nil {
+					assert.Nil(t, cmd.Env, "Env should remain nil for %s", tt.host)
+				}
+				return
+			}
+
+			require.NotNil(t, cmd.Env, "Env should be set for host %s", tt.host)
+			found := slices.ContainsFunc(cmd.Env, func(e string) bool {
+				return e == "GH_HOST="+tt.host
+			})
+			assert.True(t, found, "GH_HOST=%s should be in cmd.Env", tt.host)
+		})
+	}
+}

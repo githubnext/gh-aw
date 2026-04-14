@@ -23,11 +23,13 @@ type ToolCallInfo struct {
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
-	Turns         int            // Number of turns needed to complete the task
-	ToolCalls     []ToolCallInfo // Tool call statistics
-	ToolSequences [][]string     // Sequences of tool calls preserving order
+	TokenUsage          int
+	EstimatedCost       float64
+	Turns               int            // Number of turns needed to complete the task
+	ToolCalls           []ToolCallInfo // Tool call statistics
+	ToolSequences       [][]string     // Sequences of tool calls preserving order
+	AvgTimeBetweenTurns time.Duration  // Average time between consecutive LLM API calls (computed from per-turn timestamps when available)
+	MaxTimeBetweenTurns time.Duration  // Maximum time between any two consecutive LLM API calls
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 

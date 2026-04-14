@@ -184,3 +184,43 @@ func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([
 func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
 	return runGHWithSpinner(spinnerMessage, true, args...)
 }
+
+// RunGHWithHost executes a gh CLI command with a spinner, targeting a specific GitHub host.
+// For non-github.com hosts (GHES, Proxima/data residency), the GH_HOST environment variable
+// is set on the command. This is necessary because most gh subcommands (repo, pr, run, etc.)
+// do not accept a --hostname flag — only `gh api` does.
+//
+// Usage:
+//
+//	output, err := RunGHWithHost("Fetching repo info...", "myorg.ghe.com", "repo", "view", "--json", "owner,name")
+func RunGHWithHost(spinnerMessage string, host string, args ...string) ([]byte, error) {
+	cmd := ExecGH(args...)
+	SetGHHostEnv(cmd, host)
+
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		output, err := cmd.Output()
+		err = enrichGHError(err)
+		spinner.Stop()
+		return output, err
+	}
+
+	output, err := cmd.Output()
+	return output, enrichGHError(err)
+}
+
+// SetGHHostEnv sets the GH_HOST environment variable on the command for non-github.com hosts.
+// This is needed for GitHub Enterprise Server (GHES) and Proxima (data residency) instances
+// because commands like `gh repo view`, `gh pr create`, and `gh run view` do not accept a
+// --hostname flag (unlike `gh api` which does).
+func SetGHHostEnv(cmd *exec.Cmd, host string) {
+	if host == "" || host == "github.com" {
+		return
+	}
+	if cmd.Env == nil {
+		cmd.Env = append(os.Environ(), "GH_HOST="+host)
+	} else {
+		cmd.Env = append(cmd.Env, "GH_HOST="+host)
+	}
+}

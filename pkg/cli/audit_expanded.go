@@ -36,13 +36,16 @@ type PromptAnalysis struct {
 
 // SessionAnalysis represents session and agent performance metrics
 type SessionAnalysis struct {
-	WallTime         string  `json:"wall_time,omitempty" console:"header:Wall Time,omitempty"`
-	TurnCount        int     `json:"turn_count,omitempty" console:"header:Turn Count,omitempty"`
-	AvgTurnDuration  string  `json:"avg_turn_duration,omitempty" console:"header:Avg Turn Duration,omitempty"`
-	TokensPerMinute  float64 `json:"tokens_per_minute,omitempty"`
-	TimeoutDetected  bool    `json:"timeout_detected"`
-	NoopCount        int     `json:"noop_count,omitempty" console:"header:Noop Count,omitempty"`
-	AgentActiveRatio float64 `json:"agent_active_ratio,omitempty"` // 0.0 - 1.0
+	WallTime            string  `json:"wall_time,omitempty" console:"header:Wall Time,omitempty"`
+	TurnCount           int     `json:"turn_count,omitempty" console:"header:Turn Count,omitempty"`
+	AvgTurnDuration     string  `json:"avg_turn_duration,omitempty" console:"header:Avg Turn Duration,omitempty"`
+	AvgTimeBetweenTurns string  `json:"avg_time_between_turns,omitempty" console:"header:Avg Time Between Turns,omitempty"`
+	MaxTimeBetweenTurns string  `json:"max_time_between_turns,omitempty" console:"header:Max Time Between Turns,omitempty"`
+	TokensPerMinute     float64 `json:"tokens_per_minute,omitempty"`
+	TimeoutDetected     bool    `json:"timeout_detected"`
+	NoopCount           int     `json:"noop_count,omitempty" console:"header:Noop Count,omitempty"`
+	AgentActiveRatio    float64 `json:"agent_active_ratio,omitempty"` // 0.0 - 1.0
+	CacheWarning        string  `json:"cache_warning,omitempty" console:"header:Cache Warning,omitempty"`
 }
 
 // SafeOutputSummary provides a summary of safe output items by type
@@ -205,6 +208,41 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 		session.AvgTurnDuration = timeutil.FormatDuration(avgTurnDuration)
 	}
 
+	// Time Between Turns (TBT): prefer precise per-turn timestamps from log metrics;
+	// fall back to wall-time / turns when timestamps are unavailable.
+	// TBT measures the gap between consecutive LLM API calls (tool execution overhead).
+	// Anthropic's prompt cache TTL is 5 minutes — if TBT exceeds this, cache entries
+	// expire and every turn incurs full prompt re-processing costs.
+	const anthropicCacheTTL = 5 * time.Minute
+	if metrics.AvgTimeBetweenTurns > 0 {
+		session.AvgTimeBetweenTurns = timeutil.FormatDuration(metrics.AvgTimeBetweenTurns)
+		if metrics.MaxTimeBetweenTurns > 0 {
+			session.MaxTimeBetweenTurns = timeutil.FormatDuration(metrics.MaxTimeBetweenTurns)
+		}
+		// Warn when the maximum observed TBT exceeds the Anthropic cache TTL.
+		if metrics.MaxTimeBetweenTurns > anthropicCacheTTL {
+			session.CacheWarning = fmt.Sprintf(
+				"Max TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache will expire between turns, increasing cost",
+				timeutil.FormatDuration(metrics.MaxTimeBetweenTurns),
+			)
+		} else if metrics.AvgTimeBetweenTurns > anthropicCacheTTL {
+			session.CacheWarning = fmt.Sprintf(
+				"Avg TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache likely expiring between turns",
+				timeutil.FormatDuration(metrics.AvgTimeBetweenTurns),
+			)
+		}
+	} else if metrics.Turns > 1 && run.Duration > 0 {
+		// Fallback: estimate TBT from wall time over turns-1 intervals.
+		avgTBT := run.Duration / time.Duration(metrics.Turns-1)
+		session.AvgTimeBetweenTurns = timeutil.FormatDuration(avgTBT) + " (estimated)"
+		if avgTBT > anthropicCacheTTL {
+			session.CacheWarning = fmt.Sprintf(
+				"Estimated avg TBT (%s) exceeds Anthropic 5-min cache TTL — prompt cache likely expiring between turns",
+				timeutil.FormatDuration(avgTBT),
+			)
+		}
+	}
+
 	// Tokens per minute
 	if metrics.TokenUsage > 0 && run.Duration > 0 {
 		minutes := run.Duration.Minutes()
@@ -226,8 +264,8 @@ func buildSessionAnalysis(processedRun ProcessedRun, metrics LogMetrics) *Sessio
 		}
 	}
 
-	auditExpandedLog.Printf("Built session analysis: turns=%d, wall_time=%s, timeout=%v",
-		session.TurnCount, session.WallTime, session.TimeoutDetected)
+	auditExpandedLog.Printf("Built session analysis: turns=%d, wall_time=%s, avg_tbt=%s, max_tbt=%s, timeout=%v",
+		session.TurnCount, session.WallTime, session.AvgTimeBetweenTurns, session.MaxTimeBetweenTurns, session.TimeoutDetected)
 	return session
 }
 

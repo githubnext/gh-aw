@@ -968,4 +968,152 @@ describe("push_signed_commits integration tests", () => {
       expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toBe("copy source\n");
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // Topological ordering (--topo-order)
+  // ──────────────────────────────────────────────────────
+
+  describe("topological commit ordering", () => {
+    it("should replay commits in DAG order even when commit dates are out of sync", async () => {
+      execGit(["checkout", "-b", "topo-order-branch"], { cwd: workDir });
+
+      // Create two commits where the second commit has an earlier author/committer date
+      // than the first, simulating the situation after `git rebase --committer-date-is-author-date`
+      // or manual date manipulation. Without --topo-order git would return them in wrong order.
+      const laterDate = "2020-01-02T00:00:00+00:00";
+      const earlierDate = "2020-01-01T00:00:00+00:00";
+
+      fs.writeFileSync(path.join(workDir, "first.txt"), "first\n");
+      execGit(["add", "first.txt"], { cwd: workDir });
+      // Commit A has a later date (chronologically second)
+      spawnSync("git", ["commit", "-m", "First commit (later date)"], {
+        cwd: workDir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_CONFIG_NOSYSTEM: "1",
+          HOME: os.tmpdir(),
+          GIT_AUTHOR_DATE: laterDate,
+          GIT_COMMITTER_DATE: laterDate,
+        },
+      });
+
+      fs.writeFileSync(path.join(workDir, "second.txt"), "second\n");
+      execGit(["add", "second.txt"], { cwd: workDir });
+      // Commit B has an earlier date (chronologically first) – without --topo-order
+      // a date-based sort would put this before commit A, which would be wrong.
+      spawnSync("git", ["commit", "-m", "Second commit (earlier date)"], {
+        cwd: workDir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_CONFIG_NOSYSTEM: "1",
+          HOME: os.tmpdir(),
+          GIT_AUTHOR_DATE: earlierDate,
+          GIT_COMMITTER_DATE: earlierDate,
+        },
+      });
+
+      execGit(["push", "-u", "origin", "topo-order-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "topo-order-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // Both commits must be replayed via GraphQL in DAG order: first → second
+      expect(githubClient.graphql).toHaveBeenCalledTimes(2);
+      const headlines = githubClient.graphql.mock.calls.map(c => c[1].input.message.headline);
+      expect(headlines).toEqual(["First commit (later date)", "Second commit (earlier date)"]);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Merge commit fallback
+  // ──────────────────────────────────────────────────────
+
+  describe("merge commit fallback", () => {
+    it("should fall back to git push and warn when the commit range contains a merge commit", async () => {
+      // Set up: main already has an initial commit. Create a side branch with an extra commit,
+      // then merge it back into a feature branch to produce a merge commit in the range.
+      execGit(["checkout", "-b", "side-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "side.txt"), "side branch content\n");
+      execGit(["add", "side.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Side branch commit"], { cwd: workDir });
+
+      // Back to main, create feature branch, and merge side-branch into it
+      execGit(["checkout", "main"], { cwd: workDir });
+      execGit(["checkout", "-b", "merge-test-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "feature.txt"), "feature content\n");
+      execGit(["add", "feature.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Feature commit"], { cwd: workDir });
+
+      // Merge side-branch – this creates a merge commit with two parents
+      execGit(["merge", "--no-ff", "side-branch", "-m", "Merge side-branch into merge-test-branch"], { cwd: workDir });
+
+      // Push so ls-remote can resolve the OID
+      execGit(["push", "-u", "origin", "merge-test-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "merge-test-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // GraphQL must NOT have been called – merge commit triggers git push fallback
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+
+      // Warning about the merge commit must be emitted
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/merge commit [0-9a-f]{7,40} detected/));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+
+      // All commits (including the merge commit) must be present on the remote via git push
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/merge-test-branch"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      expect(remoteOid).toBe(localOid);
+    });
+
+    it("should not trigger merge-commit fallback for a commit message that starts with 'parent '", async () => {
+      // Regression test: a commit whose message body starts with "parent " must not be misidentified
+      // as a merge commit. The old cat-file approach would have counted this as an extra parent.
+      execGit(["checkout", "-b", "tricky-message-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "tricky.txt"), "tricky content\n");
+      execGit(["add", "tricky.txt"], { cwd: workDir });
+      // Write the multi-line commit message to a file to avoid shell interpretation issues
+      const msgFile = path.join(workDir, ".git", "TRICKY_MSG");
+      fs.writeFileSync(msgFile, "Normal headline\n\nparent this line starts with parent but is not a git parent header\n");
+      execGit(["commit", "-F", msgFile], { cwd: workDir });
+      execGit(["push", "-u", "origin", "tricky-message-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "tricky-message-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // Must proceed via GraphQL – not incorrectly fallen back to git push
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("merge commit"));
+    });
+  });
 });

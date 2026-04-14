@@ -172,24 +172,33 @@ func renderSessionAnalysis(session *SessionAnalysis) {
 		return
 	}
 	if session.WallTime != "" {
-		fmt.Fprintf(os.Stderr, "  Wall Time:         %s\n", session.WallTime)
+		fmt.Fprintf(os.Stderr, "  Wall Time:              %s\n", session.WallTime)
 	}
 	if session.TurnCount > 0 {
-		fmt.Fprintf(os.Stderr, "  Turn Count:        %d\n", session.TurnCount)
+		fmt.Fprintf(os.Stderr, "  Turn Count:             %d\n", session.TurnCount)
 	}
 	if session.AvgTurnDuration != "" {
-		fmt.Fprintf(os.Stderr, "  Avg Turn Duration: %s\n", session.AvgTurnDuration)
+		fmt.Fprintf(os.Stderr, "  Avg Turn Duration:      %s\n", session.AvgTurnDuration)
+	}
+	if session.AvgTimeBetweenTurns != "" {
+		fmt.Fprintf(os.Stderr, "  Avg Time Between Turns: %s\n", session.AvgTimeBetweenTurns)
+	}
+	if session.MaxTimeBetweenTurns != "" {
+		fmt.Fprintf(os.Stderr, "  Max Time Between Turns: %s\n", session.MaxTimeBetweenTurns)
+	}
+	if session.CacheWarning != "" {
+		fmt.Fprintf(os.Stderr, "  Cache Warning:          %s\n", console.FormatWarningMessage(session.CacheWarning))
 	}
 	if session.TokensPerMinute > 0 {
-		fmt.Fprintf(os.Stderr, "  Tokens/Minute:     %.1f\n", session.TokensPerMinute)
+		fmt.Fprintf(os.Stderr, "  Tokens/Minute:          %.1f\n", session.TokensPerMinute)
 	}
 	if session.NoopCount > 0 {
-		fmt.Fprintf(os.Stderr, "  Noop Count:        %d\n", session.NoopCount)
+		fmt.Fprintf(os.Stderr, "  Noop Count:             %d\n", session.NoopCount)
 	}
 	if session.TimeoutDetected {
-		fmt.Fprintf(os.Stderr, "  Timeout Detected:  %s\n", console.FormatWarningMessage("Yes"))
+		fmt.Fprintf(os.Stderr, "  Timeout Detected:       %s\n", console.FormatWarningMessage("Yes"))
 	} else {
-		fmt.Fprintf(os.Stderr, "  Timeout Detected:  %s\n", console.FormatSuccessMessage("No"))
+		fmt.Fprintf(os.Stderr, "  Timeout Detected:       %s\n", console.FormatSuccessMessage("No"))
 	}
 	fmt.Fprintln(os.Stderr)
 }
