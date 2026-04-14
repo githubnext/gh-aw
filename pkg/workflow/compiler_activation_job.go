@@ -112,10 +112,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Compute filtered label events once and reuse below (permissions + app token scopes)
 	filteredLabelEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
 
+	// needsAppTokenForRepoAccess is true when the GitHub App token is needed for reading
+	// the callee's repository contents — specifically for the .github checkout step and the
+	// lock-file hash check step in cross-org workflow_call scenarios.
+	needsAppTokenForRepoAccess := data.ActivationGitHubApp != nil && !data.StaleCheckDisabled
+
 	// Mint a single activation app token upfront if a GitHub App is configured and any
-	// step in the activation job will need it (reaction, status-comment, or label removal).
+	// step in the activation job will need it (reaction, status-comment, label removal,
+	// or repository access for checkout/hash-check).
 	// This avoids minting multiple tokens.
-	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || shouldRemoveLabel) {
+	if data.ActivationGitHubApp != nil && (hasReaction || hasStatusComment || shouldRemoveLabel || needsAppTokenForRepoAccess) {
 		// Build the combined permissions needed for all activation steps.
 		// For label removal we only add the scopes required by the enabled events.
 		appPerms := NewPermissions()
@@ -131,6 +137,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			if slices.Contains(filteredLabelEvents, "discussion") {
 				appPerms.Set(PermissionDiscussions, PermissionWrite)
 			}
+		}
+		if needsAppTokenForRepoAccess {
+			// contents:read is needed for the .github checkout and the lock-file hash check.
+			appPerms.Set(PermissionContents, PermissionRead)
 		}
 		steps = append(steps, c.buildActivationAppTokenMintStep(data.ActivationGitHubApp, appPerms)...)
 		// Track whether the token minting succeeded so the conclusion job can surface
