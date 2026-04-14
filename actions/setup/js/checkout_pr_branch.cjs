@@ -177,10 +177,10 @@ async function main() {
       const { commitCount, headRef, pullRequest: fullPR } = await fetchPRDetails(prNumber);
 
       // Re-evaluate fork status with full PR data when it was unknown
-      const actualIsFork = isFork ?? detectForkPR(fullPR).isFork;
+      const fullPRForkDetection = detectForkPR(fullPR);
+      const actualIsFork = isFork ?? fullPRForkDetection.isFork;
       if (isFork === null) {
-        const { reason: forkReason } = detectForkPR(fullPR);
-        core.info(`Is fork PR (from API): ${actualIsFork} (${forkReason})`);
+        core.info(`Is fork PR (from API): ${actualIsFork} (${fullPRForkDetection.reason})`);
       }
 
       const strategyReason =
