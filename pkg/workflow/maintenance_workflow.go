@@ -274,7 +274,7 @@ permissions: {}
 
 jobs:
   close-expired-entities:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       discussions: write
@@ -434,7 +434,7 @@ jobs:
 	// Add apply_safe_outputs job for workflow_dispatch with operation == 'safe_outputs'
 	yaml.WriteString(`
   apply_safe_outputs:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'safe_outputs' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("safe_outputs")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: read
@@ -482,7 +482,7 @@ jobs:
 	// Add create_labels job for workflow_dispatch with operation == 'create_labels'
 	yaml.WriteString(`
   create_labels:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'create_labels' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("create_labels")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read
@@ -529,7 +529,7 @@ jobs:
 	validateRunsOnValue := FormatRunsOn(configuredRunsOn, "ubuntu-latest")
 	yaml.WriteString(`
   validate_workflows:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'validate' && !github.event.repository.fork }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("validate")) + ` }}
     runs-on: ` + validateRunsOnValue + `
     permissions:
       contents: read
@@ -579,7 +579,7 @@ jobs:
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read
@@ -616,7 +616,7 @@ jobs:
             await main();
 
   zizmor-scan:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     needs: compile-workflows
     permissions:
@@ -640,7 +640,7 @@ jobs:
           echo "✓ Zizmor security scan completed"
 
   secret-validation:
-    if: ${{ !github.event.repository.fork && (github.event_name != 'workflow_dispatch' || github.event.inputs.operation == '') }}
+    if: ${{ ` + RenderCondition(buildNotForkAndScheduled()) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       contents: read
@@ -750,6 +750,32 @@ func buildNotForkAndScheduledOrOperation(operation string) ConditionNode {
 				BuildStringLiteral(operation),
 			),
 		),
+	)
+}
+
+// buildNotForkAndScheduled creates a condition for jobs that should run on
+// schedule (or non-dispatch events) but not when an operation is specified.
+// Condition: !fork && (not_dispatch || operation == "")
+func buildNotForkAndScheduled() ConditionNode {
+	return BuildAnd(
+		buildNotForkCondition(),
+		buildNotDispatchOrEmptyOperation(),
+	)
+}
+
+// buildDispatchOperationCondition creates a condition for jobs that should run
+// only when a specific workflow_dispatch operation is selected and not a fork.
+// Condition: dispatch && operation == op && !fork
+func buildDispatchOperationCondition(operation string) ConditionNode {
+	return BuildAnd(
+		BuildAnd(
+			BuildEventTypeEquals("workflow_dispatch"),
+			BuildEquals(
+				BuildPropertyAccess("github.event.inputs.operation"),
+				BuildStringLiteral(operation),
+			),
+		),
+		buildNotForkCondition(),
 	)
 }
 
