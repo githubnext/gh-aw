@@ -372,7 +372,7 @@ If the pull request is still open, verify that:
       await runScript();
 
       // Fork status should be "unknown" initially (minimal PR object)
-      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (PR details not available in event payload)");
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (head/base repo details not available in event payload)");
       // After API call, fork status should be resolved
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): false (same repository)");
       // Should NOT emit fork warning for a non-fork PR
@@ -404,7 +404,7 @@ If the pull request is still open, verify that:
       await runScript();
 
       // Fork status should be "unknown" initially, then resolved from API
-      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (PR details not available in event payload)");
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (head/base repo details not available in event payload)");
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): true (different repository names)");
       // Should emit fork warning
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
@@ -616,11 +616,24 @@ If the pull request is still open, verify that:
       // Simulate deleted fork scenario
       delete mockContext.payload.pull_request.head.repo;
 
+      // fetchPRDetails returns full PR data with deleted head repo
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          state: "open",
+          commits: 1,
+          head: { ref: "feature-branch", repo: null },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
+      });
+
       await runScript();
 
       // Verify deleted fork detection
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Head repo information not available (repo may be deleted)");
-      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head repository deleted (was likely a fork))");
+      // logPRContext reports unknown because head.repo is missing in the payload
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (head/base repo details not available in event payload)");
+      // After API call, fork status is resolved via detectForkPR
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): true (head repository deleted (was likely a fork))");
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
     });
 
