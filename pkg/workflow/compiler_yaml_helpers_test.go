@@ -233,7 +233,7 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 				},
 			},
 			expectInStr: []string{
-				"# Env variables:",
+				"# Frontmatter env variables:",
 				"#   - IMPORTED_VAR: .github/shared/target.md",
 				"#   - MAIN_VAR: (main workflow)",
 			},

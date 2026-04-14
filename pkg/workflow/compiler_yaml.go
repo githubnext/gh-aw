@@ -193,10 +193,11 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("# inlined-imports: true\n")
 	}
 
-	// Add env vars listing with source attribution when any env var is present
+	// Add frontmatter-declared env vars with source attribution.
+	// Note: programmatically injected env vars (e.g. OTEL_* from OTLP config) are not listed here.
 	if len(data.EnvSources) > 0 {
 		yaml.WriteString("#\n")
-		yaml.WriteString("# Env variables:\n")
+		yaml.WriteString("# Frontmatter env variables:\n")
 		// Sort keys for deterministic output
 		keys := make([]string, 0, len(data.EnvSources))
 		for k := range data.EnvSources {

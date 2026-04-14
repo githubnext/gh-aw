@@ -344,7 +344,7 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `steps:` | Imported steps prepended to main; concatenated in import order. |
 | `jobs:` | Not merged — define only in the main workflow. Use `safe-outputs.jobs` for importable jobs. |
 | `safe-outputs.jobs` | Names must be unique; duplicates fail. Order determined by `needs:` dependencies. |
-| `env:` | Main workflow env vars take precedence. Imported values fill in unspecified keys. Later imports override earlier for conflicts. |
+| `env:` | Main workflow env vars take precedence over imports. Duplicate keys across different imports fail compilation — move to the main workflow to override imported values. |
 
 Example — `tools.bash.allowed` merging:
 

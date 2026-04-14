@@ -695,12 +695,13 @@ func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeatures []
 
 // mergeEnv merges env var configurations from imports with top-level env vars.
 // Top-level env vars take precedence over imported env vars.
-// For conflicts between imports, later imports take precedence.
+// Conflicts between imports (same key in two different imported files) are detected
+// earlier in the importAccumulator and fail compilation before mergeEnv is called.
 func mergeEnv(topEnv map[string]any, importedEnvJSON string) (map[string]any, error) {
 	importsLog.Printf("Merging env: topEnv=%d", len(topEnv))
 	result := make(map[string]any)
 
-	// Merge imported env vars first (newline-separated JSON objects, later overrides earlier)
+	// Merge imported env vars first (newline-separated JSON objects, each from a distinct import)
 	if importedEnvJSON != "" {
 		lines := strings.SplitSeq(strings.TrimSpace(importedEnvJSON), "\n")
 		for line := range lines {
