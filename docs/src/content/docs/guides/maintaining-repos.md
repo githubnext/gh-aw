@@ -224,9 +224,6 @@ The compiler handles the rest — when `integrity-reactions: true` is set, it au
 
 These defaults mean that when a trusted member (owner, member, or collaborator) adds a 👍 or ❤️ reaction to an issue or comment, the item's integrity is promoted to `approved` — making it visible to agents using `min-integrity: approved`. Conversely, a 👎 or 😕 reaction from a trusted member demotes the item to `none`.
 
-> [!IMPORTANT]
-> Reactions only work when running through the MCPG proxy mode. If `integrity-reactions` is enabled when MCPG is configured in gateway mode, a warning is logged and reactions are ignored for integrity decisions because the GitHub MCP server protocol does not expose reaction author information.
-
 See the [Integrity Filtering Reference](/gh-aw/reference/integrity/) for complete configuration details.
 
 ## Scaling Strategies
