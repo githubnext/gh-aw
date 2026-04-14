@@ -30,9 +30,10 @@ type importAccumulator struct {
 	permissionsBuilder       strings.Builder
 	secretMaskingBuilder     strings.Builder
 	postStepsBuilder         strings.Builder
-	jobsBuilder              strings.Builder // Jobs from imported YAML workflows
-	envBuilder               strings.Builder // env vars from imported workflows
-	observabilityBuilder     strings.Builder // observability config (first-wins for OTLP endpoint)
+	jobsBuilder              strings.Builder   // Jobs from imported YAML workflows
+	envBuilder               strings.Builder   // env vars from imported workflows (JSON, one object per line)
+	envSources               map[string]string // env var name → source import path (for conflict detection and header listing)
+	observabilityBuilder     strings.Builder   // observability config (first-wins for OTLP endpoint)
 	engines                  []string
 	safeOutputs              []string
 	mcpScripts               []string
@@ -68,6 +69,7 @@ func newImportAccumulator() *importAccumulator {
 		skipRolesSet: make(map[string]bool),
 		skipBotsSet:  make(map[string]bool),
 		importInputs: make(map[string]any),
+		envSources:   make(map[string]string),
 	}
 }
 
@@ -340,10 +342,20 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		acc.jobsBuilder.WriteString(jobsContent + "\n")
 	}
 
-	// Extract env from imported file (append in order; main workflow env takes precedence)
+	// Extract env from imported file (append in order; main workflow env takes precedence).
+	// Conflicts between two imports are disallowed — only the main workflow may override imported vars.
 	envContent, err := extractFieldJSONFromMap(fm, "env", "{}")
 	if err == nil && envContent != "" && envContent != "{}" {
-		acc.envBuilder.WriteString(envContent + "\n")
+		var envMap map[string]any
+		if jsonErr := json.Unmarshal([]byte(envContent), &envMap); jsonErr == nil {
+			for key := range envMap {
+				if existingSource, exists := acc.envSources[key]; exists {
+					return fmt.Errorf("env variable %q is defined in multiple imports: %q and %q; only the main workflow may override imported env vars", key, existingSource, item.importPath)
+				}
+				acc.envSources[key] = item.importPath
+			}
+			acc.envBuilder.WriteString(envContent + "\n")
+		}
 	}
 
 	// Extract labels from imported file (merge into set to avoid duplicates)
@@ -447,6 +459,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedCaches:                acc.caches,
 		MergedJobs:                  acc.jobsBuilder.String(),
 		MergedEnv:                   acc.envBuilder.String(),
+		MergedEnvSources:            acc.envSources,
 		MergedFeatures:              acc.features,
 		MergedObservability:         acc.observabilityBuilder.String(),
 		ImportedFiles:               topologicalOrder,

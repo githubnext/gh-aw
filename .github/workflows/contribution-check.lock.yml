@@ -23,6 +23,9 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
+# Env variables:
+#   - TARGET_REPOSITORY: (main workflow)
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

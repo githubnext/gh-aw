@@ -49,15 +49,16 @@ func TestMergeEnvTopLevelTakesPrecedence(t *testing.T) {
 func TestMergeEnvWithMultipleImports(t *testing.T) {
 	topEnv := map[string]any{}
 
-	// Two imports: second one overrides first for KEY2
-	importedJSON := `{"KEY1":"val1","KEY2":"first"}
-{"KEY2":"second","KEY3":"val3"}`
+	// Two imports with distinct keys (conflicts are caught earlier by the accumulator)
+	importedJSON := `{"KEY1":"val1","KEY2":"val2"}
+{"KEY3":"val3","KEY4":"val4"}`
 
 	result, err := mergeEnv(topEnv, importedJSON)
 	require.NoError(t, err, "mergeEnv should not error with multiple import lines")
 	assert.Equal(t, "val1", result["KEY1"], "KEY1 from first import should be present")
-	assert.Equal(t, "second", result["KEY2"], "KEY2 from second import overrides first")
+	assert.Equal(t, "val2", result["KEY2"], "KEY2 from first import should be present")
 	assert.Equal(t, "val3", result["KEY3"], "KEY3 from second import should be present")
+	assert.Equal(t, "val4", result["KEY4"], "KEY4 from second import should be present")
 }
 
 func TestMergeEnvWithNilTopLevel(t *testing.T) {
