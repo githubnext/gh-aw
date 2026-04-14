@@ -398,6 +398,20 @@ describe("upload_artifact.cjs", () => {
       expect(results[0].success).toBe(true);
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
+
+    it("emits a staged mode preview summary when staged mode is active", async () => {
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      writeStaging("output.json");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "output.json" }]);
+
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryContent).toContain("🎭 Staged Mode");
+      expect(summaryContent).toContain("Upload Artifact Preview");
+      expect(summaryContent).toContain("output.json");
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
   });
 
   describe("resolver file", () => {
