@@ -261,10 +261,9 @@ async function main() {
     }
 
     // On error, allow the workflow to proceed (fail-open)
-    // This prevents rate limiting from blocking workflows due to API issues
+    // This prevents rate limiting from blocking workflows due to API issues.
+    // Continue to the max-in-progress check rather than returning early.
     core.warning(`⚠️ Allowing workflow to proceed due to rate limit check error`);
-    core.setOutput("rate_limit_ok", "true");
-    return;
   }
 
   // Check max-in-progress GitHub agent tasks if configured
