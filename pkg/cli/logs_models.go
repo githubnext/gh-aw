@@ -48,33 +48,34 @@ const (
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics
 type WorkflowRun struct {
-	DatabaseID       int64     `json:"databaseId"`
-	Number           int       `json:"number"`
-	URL              string    `json:"url"`
-	Status           string    `json:"status"`
-	Conclusion       string    `json:"conclusion"`
-	WorkflowName     string    `json:"workflowName"`
-	WorkflowPath     string    `json:"workflowPath"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
-	CreatedAt        time.Time `json:"createdAt"`
-	StartedAt        time.Time `json:"startedAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
-	Event            string    `json:"event"`
-	HeadBranch       string    `json:"headBranch"`
-	HeadSha          string    `json:"headSha"`
-	DisplayTitle     string    `json:"displayTitle"`
-	Duration         time.Duration
-	ActionMinutes    float64 // Billable Actions minutes estimated from wall-clock time
-	TokenUsage       int
-	EstimatedCost    float64
-	Turns            int
-	ErrorCount       int
-	WarningCount     int
-	MissingToolCount int
-	MissingDataCount int
-	NoopCount        int
-	SafeItemsCount   int
-	EffectiveTokens  int // Cost-normalized token count computed from per-model multipliers
-	LogsPath         string
+	DatabaseID          int64     `json:"databaseId"`
+	Number              int       `json:"number"`
+	URL                 string    `json:"url"`
+	Status              string    `json:"status"`
+	Conclusion          string    `json:"conclusion"`
+	WorkflowName        string    `json:"workflowName"`
+	WorkflowPath        string    `json:"workflowPath"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
+	CreatedAt           time.Time `json:"createdAt"`
+	StartedAt           time.Time `json:"startedAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+	Event               string    `json:"event"`
+	HeadBranch          string    `json:"headBranch"`
+	HeadSha             string    `json:"headSha"`
+	DisplayTitle        string    `json:"displayTitle"`
+	Duration            time.Duration
+	ActionMinutes       float64 // Billable Actions minutes estimated from wall-clock time
+	TokenUsage          int
+	EstimatedCost       float64
+	Turns               int
+	ErrorCount          int
+	WarningCount        int
+	MissingToolCount    int
+	MissingDataCount    int
+	NoopCount           int
+	SafeItemsCount      int
+	EffectiveTokens     int           // Cost-normalized token count computed from per-model multipliers
+	AvgTimeBetweenTurns time.Duration // Average time between consecutive LLM API calls (from per-turn timestamps when available)
+	LogsPath            string
 }
 
 // LogMetrics represents extracted metrics from log files
