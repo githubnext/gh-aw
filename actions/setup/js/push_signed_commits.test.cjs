@@ -718,6 +718,43 @@ describe("push_signed_commits integration tests", () => {
       expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toContain("echo hello");
     });
 
+    it("should fall back to git push and warn when commit contains a submodule entry", async () => {
+      execGit(["checkout", "-b", "submodule-branch"], { cwd: workDir });
+
+      // Create a gitlink (mode 160000) entry directly via update-index so we don't
+      // need a real submodule URL.  git diff-tree --raw will report this as mode 160000.
+      // The cacheinfo format is: <mode>,<objectId>,<path>
+      const headSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      execGit(["update-index", "--add", "--cacheinfo", `160000,${headSha},mysubmodule`], { cwd: workDir });
+      execGit(["commit", "-m", "Add submodule"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "submodule-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "submodule-branch",
+        // Only replay the submodule commit
+        baseRef: "submodule-branch^",
+        cwd: workDir,
+      });
+
+      // GraphQL should NOT have been called – submodule triggers fallback before mutation
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      // Warning about submodule must be emitted
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("submodule change detected in mysubmodule"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+
+      // The commit should be present on the remote via git push fallback
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/submodule-branch"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      expect(remoteOid).toBe(localOid);
+    });
+
     it("should not warn for regular files (mode 100644)", async () => {
       execGit(["checkout", "-b", "regular-file-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "regular.txt"), "Regular file content\n");

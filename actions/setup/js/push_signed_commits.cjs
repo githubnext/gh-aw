@@ -157,13 +157,19 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           core.warning(`pushSignedCommits: unexpected diff-tree output format, skipping line: ${line}`);
           continue;
         }
-        const dstMode = modeFields[1]; // destination file mode (e.g. 100644, 100755, 120000)
+        const srcMode = modeFields[0]; // source file mode (e.g. 100644, 100755, 120000, 160000)
+        const dstMode = modeFields[1]; // destination file mode (e.g. 100644, 100755, 120000, 160000)
         const status = modeFields[4]; // A=Added, M=Modified, D=Deleted, R=Renamed, C=Copied
 
         const paths = line.slice(tabIdx + 1).split("\t");
         const filePath = unquoteCPath(paths[0]);
 
         if (status === "D") {
+          // mode 160000 = gitlink (submodule); GitHub GraphQL createCommitOnBranch does not support submodules
+          if (srcMode === "160000") {
+            core.warning(`pushSignedCommits: submodule change detected in ${filePath}, falling back to git push`);
+            throw new Error("submodule change detected");
+          }
           deletions.push({ path: filePath });
         } else if (status && status.startsWith("R")) {
           // Rename: source path is deleted, destination path is added
@@ -173,6 +179,10 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             continue;
           }
           deletions.push({ path: filePath });
+          if (srcMode === "160000" || dstMode === "160000") {
+            core.warning(`pushSignedCommits: submodule change detected in ${renamedPath}, falling back to git push`);
+            throw new Error("submodule change detected");
+          }
           if (dstMode === "120000") {
             core.warning(`pushSignedCommits: symlink ${renamedPath} cannot be pushed as a signed commit, falling back to git push`);
             throw new Error("symlink file mode requires git push fallback");
@@ -189,6 +199,10 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
             core.warning(`pushSignedCommits: copy entry missing destination path, skipping: ${line}`);
             continue;
           }
+          if (dstMode === "160000") {
+            core.warning(`pushSignedCommits: submodule change detected in ${copiedPath}, falling back to git push`);
+            throw new Error("submodule change detected");
+          }
           if (dstMode === "120000") {
             core.warning(`pushSignedCommits: symlink ${copiedPath} cannot be pushed as a signed commit, falling back to git push`);
             throw new Error("symlink file mode requires git push fallback");
@@ -200,6 +214,10 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           additions.push({ path: copiedPath, contents: content.toString("base64") });
         } else {
           // Added or Modified
+          if (dstMode === "160000") {
+            core.warning(`pushSignedCommits: submodule change detected in ${filePath}, falling back to git push`);
+            throw new Error("submodule change detected");
+          }
           if (dstMode === "120000") {
             core.warning(`pushSignedCommits: symlink ${filePath} cannot be pushed as a signed commit, falling back to git push`);
             throw new Error("symlink file mode requires git push fallback");
