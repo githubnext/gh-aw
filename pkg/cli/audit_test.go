@@ -453,10 +453,10 @@ func TestAuditUsesRunSummaryCache(t *testing.T) {
 		t.Fatalf("Failed to write aw_info.json: %v", err)
 	}
 
-	// Write a "poison" log file with grossly inflated token counts.  If the cache path is
-	// bypassed and log files are re-processed, these values would be counted and would
+	// Write a "poison" log file with a grossly inflated token count.  If the cache path is
+	// bypassed and log files are re-processed, this value would be counted and would
 	// overwrite the summary — but the test verifies that never happens.
-	poisonLog := strings.Repeat(`{"type":"agent_turn","usage":{"total_tokens":9999999}}`+"\n", 10)
+	poisonLog := `{"type":"agent_turn","usage":{"total_tokens":9999999}}` + "\n"
 	if err := os.WriteFile(filepath.Join(runOutputDir, "agent-stdio.log"), []byte(poisonLog), 0644); err != nil {
 		t.Fatalf("Failed to write poison log: %v", err)
 	}
@@ -503,7 +503,20 @@ func TestAuditUsesRunSummaryCache(t *testing.T) {
 	// WorkflowPath is empty in the cached summary, so renderAuditReport will not attempt any
 	// GitHub API calls for baseline comparison either.
 	ctx := t.Context()
-	if err := AuditWorkflowRun(ctx, runID, "", "", "", tempDir, false, false, false, 0, 0, nil); err != nil {
+	if err := AuditWorkflowRun(
+		ctx,
+		runID,
+		"", // owner — empty: no explicit repo context, relies on gh CLI defaults
+		"", // repo
+		"", // hostname — empty: uses github.com
+		tempDir,
+		false, // verbose
+		false, // parse
+		false, // jsonOutput
+		0,     // jobID — 0: full-run audit (not job-specific)
+		0,     // stepNumber
+		nil,   // artifactSets
+	); err != nil {
 		t.Fatalf("AuditWorkflowRun failed — cache path not taken (fetchWorkflowRunMetadata was probably called): %v", err)
 	}
 
