@@ -580,13 +580,9 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Fetch job logs using gh CLI
+	// Fetch job logs using gh CLI.
+	// Use GH_HOST env var instead of --hostname (which is only valid for gh api, not gh run view).
 	args := []string{"run", "view"}
-
-	// Add hostname flag if specified (for GitHub Enterprise)
-	if hostname != "" && hostname != "github.com" {
-		args = append(args, "--hostname", hostname)
-	}
 
 	// Add repository flag if specified
 	if owner != "" && repo != "" {
@@ -600,7 +596,9 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
-	output, err := workflow.RunGHCombined("Fetching job logs...", args...)
+	cmd := workflow.ExecGH(args...)
+	workflow.SetGHHostEnv(cmd, hostname)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to fetch job logs: %w\nOutput: %s", err, string(output))
 	}
