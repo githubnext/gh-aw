@@ -1,0 +1,594 @@
+// @ts-check
+
+/**
+ * mcp_cli_bridge.cjs
+ *
+ * Node.js bridge that handles MCP session protocol for CLI wrapper scripts.
+ * Each CLI wrapper is a thin bash script that invokes this bridge with the
+ * server configuration and user-provided command + arguments.
+ *
+ * Protocol flow: initialize → notifications/initialized → tools/call
+ *
+ * All interactions are logged via core.* (shim.cjs) to console and
+ * appended as JSONL entries to /tmp/gh-aw/mcp-cli-audit/<server>.jsonl
+ * for auditing.
+ *
+ * Usage (called by generated CLI wrappers):
+ *   node mcp_cli_bridge.cjs \
+ *     --server-name <name> --server-url <url> \
+ *     --tools-file <path> --api-key <key> \
+ *     [<command> [--param value ...]]
+ *   node mcp_cli_bridge.cjs \
+ *     --server-name <name> --server-url <url> \
+ *     --tools-file <path> --api-key <key> \
+ *     --help
+ *   node mcp_cli_bridge.cjs \
+ *     --server-name <name> --server-url <url> \
+ *     --tools-file <path> --api-key <key> \
+ *     <command> --help
+ */
+
+require("./shim.cjs");
+
+const fs = require("fs");
+const path = require("path");
+const http = require("http");
+
+/** Directory for JSONL audit logs (writable inside AWF sandbox via /tmp mount) */
+const AUDIT_LOG_DIR = "/tmp/gh-aw/mcp-cli-audit";
+
+/** Default timeout (ms) for HTTP calls to the local MCP gateway */
+const DEFAULT_HTTP_TIMEOUT_MS = 15000;
+
+/** Timeout (ms) for tool invocation calls (may be long-running) */
+const TOOL_CALL_TIMEOUT_MS = 120000;
+
+// ---------------------------------------------------------------------------
+// Audit logging
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensure the JSONL audit log directory exists.
+ */
+function ensureAuditDir() {
+  try {
+    fs.mkdirSync(AUDIT_LOG_DIR, { recursive: true });
+  } catch {
+    // Best-effort; logging should not block execution
+  }
+}
+
+/**
+ * Append a JSONL entry to the audit log for a given server.
+ *
+ * @param {string} serverName - Server name (used as filename prefix)
+ * @param {Record<string, unknown>} entry - Log entry object
+ */
+function auditLog(serverName, entry) {
+  try {
+    const logPath = path.join(AUDIT_LOG_DIR, `${serverName}.jsonl`);
+    const record = {
+      timestamp: new Date().toISOString(),
+      server: serverName,
+      ...entry,
+    };
+    fs.appendFileSync(logPath, JSON.stringify(record) + "\n", { mode: 0o644 });
+  } catch {
+    // Best-effort; audit logging should not block execution
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Make an HTTP POST request with a JSON body and return the parsed response.
+ *
+ * @param {string} urlStr - Full URL to POST to
+ * @param {Record<string, string>} headers - Request headers
+ * @param {unknown} body - Request body (will be JSON-serialized)
+ * @param {number} [timeoutMs] - Request timeout in milliseconds
+ * @returns {Promise<{statusCode: number, body: unknown, headers: Record<string, string | string[] | undefined>}>}
+ */
+function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(urlStr);
+    const bodyStr = JSON.stringify(body);
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 80,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(bodyStr),
+        ...headers,
+      },
+    };
+
+    const req = http.request(options, res => {
+      let data = "";
+      res.on("data", chunk => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        let parsed;
+        try {
+          parsed = JSON.parse(data);
+        } catch {
+          parsed = data;
+        }
+        resolve({
+          statusCode: res.statusCode || 0,
+          body: parsed,
+          headers: /** @type {Record<string, string | string[] | undefined>} */ res.headers,
+        });
+      });
+    });
+
+    req.on("error", err => reject(err));
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      reject(new Error(`HTTP request timed out after ${timeoutMs}ms`));
+    });
+
+    req.write(bodyStr);
+    req.end();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// MCP session protocol
+// ---------------------------------------------------------------------------
+
+/**
+ * Perform the MCP initialize handshake and return the session ID (if any).
+ *
+ * @param {string} serverUrl - HTTP URL of the MCP server endpoint
+ * @param {string} apiKey - Bearer token for gateway authentication
+ * @param {string} serverName - Server name (for logging/auditing)
+ * @returns {Promise<string>} Session ID or empty string
+ */
+async function mcpInitialize(serverUrl, apiKey, serverName) {
+  const core = global.core;
+  const startMs = Date.now();
+  core.info(`[${serverName}] MCP initialize: POST ${serverUrl}`);
+
+  auditLog(serverName, { event: "initialize_start", url: serverUrl });
+
+  try {
+    const resp = await httpPostJSON(
+      serverUrl,
+      { Authorization: apiKey },
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          capabilities: {},
+          clientInfo: { name: "mcp-cli-bridge", version: "1.0.0" },
+          protocolVersion: "2024-11-05",
+        },
+      },
+      DEFAULT_HTTP_TIMEOUT_MS
+    );
+
+    const sessionId = typeof resp.headers["mcp-session-id"] === "string" ? resp.headers["mcp-session-id"] : "";
+    const elapsedMs = Date.now() - startMs;
+
+    core.info(`[${serverName}] MCP initialize: status=${resp.statusCode}, sessionId=${sessionId ? sessionId.slice(0, 8) + "..." : "(none)"}, elapsed=${elapsedMs}ms`);
+
+    auditLog(serverName, {
+      event: "initialize_done",
+      statusCode: resp.statusCode,
+      hasSession: !!sessionId,
+      elapsedMs,
+    });
+
+    return sessionId;
+  } catch (err) {
+    const elapsedMs = Date.now() - startMs;
+    const message = err instanceof Error ? err.message : String(err);
+    core.warning(`[${serverName}] MCP initialize failed (${elapsedMs}ms): ${message}`);
+    auditLog(serverName, { event: "initialize_error", error: message, elapsedMs });
+    return "";
+  }
+}
+
+/**
+ * Send the notifications/initialized message to complete the MCP handshake.
+ *
+ * @param {string} serverUrl - HTTP URL of the MCP server endpoint
+ * @param {string} apiKey - Bearer token for gateway authentication
+ * @param {string} sessionId - Session ID from initialize (may be empty)
+ * @param {string} serverName - Server name (for logging/auditing)
+ * @returns {Promise<void>}
+ */
+async function mcpNotifyInitialized(serverUrl, apiKey, sessionId, serverName) {
+  const core = global.core;
+  const startMs = Date.now();
+  core.info(`[${serverName}] MCP notifications/initialized`);
+
+  auditLog(serverName, { event: "notify_initialized_start" });
+
+  /** @type {Record<string, string>} */
+  const headers = { Authorization: apiKey };
+  if (sessionId) {
+    headers["Mcp-Session-Id"] = sessionId;
+  }
+
+  try {
+    await httpPostJSON(serverUrl, headers, { jsonrpc: "2.0", method: "notifications/initialized", params: {} }, 10000);
+    const elapsedMs = Date.now() - startMs;
+    core.info(`[${serverName}] MCP notifications/initialized: done (${elapsedMs}ms)`);
+    auditLog(serverName, { event: "notify_initialized_done", elapsedMs });
+  } catch (err) {
+    const elapsedMs = Date.now() - startMs;
+    const message = err instanceof Error ? err.message : String(err);
+    core.warning(`[${serverName}] MCP notifications/initialized failed (${elapsedMs}ms): ${message}`);
+    auditLog(serverName, { event: "notify_initialized_error", error: message, elapsedMs });
+  }
+}
+
+/**
+ * Call a tool via the MCP tools/call method.
+ *
+ * @param {string} serverUrl - HTTP URL of the MCP server endpoint
+ * @param {string} apiKey - Bearer token for gateway authentication
+ * @param {string} sessionId - Session ID from initialize (may be empty)
+ * @param {string} toolName - Name of the tool to call
+ * @param {Record<string, unknown>} toolArgs - Tool arguments
+ * @param {string} serverName - Server name (for logging/auditing)
+ * @returns {Promise<{statusCode: number, body: unknown}>}
+ */
+async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, serverName) {
+  const core = global.core;
+  const startMs = Date.now();
+  core.info(`[${serverName}] MCP tools/call: tool=${toolName}, args=${JSON.stringify(toolArgs)}`);
+
+  auditLog(serverName, {
+    event: "tools_call_start",
+    tool: toolName,
+    arguments: toolArgs,
+  });
+
+  /** @type {Record<string, string>} */
+  const headers = { Authorization: apiKey };
+  if (sessionId) {
+    headers["Mcp-Session-Id"] = sessionId;
+  }
+
+  const resp = await httpPostJSON(
+    serverUrl,
+    headers,
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: toolName, arguments: toolArgs },
+    },
+    TOOL_CALL_TIMEOUT_MS
+  );
+
+  const elapsedMs = Date.now() - startMs;
+  core.info(`[${serverName}] MCP tools/call: status=${resp.statusCode}, elapsed=${elapsedMs}ms`);
+
+  auditLog(serverName, {
+    event: "tools_call_done",
+    tool: toolName,
+    statusCode: resp.statusCode,
+    elapsedMs,
+    response: resp.body,
+  });
+
+  return resp;
+}
+
+// ---------------------------------------------------------------------------
+// CLI argument parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the bridge's own arguments from process.argv.
+ * Bridge args (--server-name, --server-url, etc.) come before the user command.
+ *
+ * @param {string[]} argv - process.argv (includes node path and script path)
+ * @returns {{serverName: string, serverUrl: string, toolsFile: string, apiKey: string, userArgs: string[]}}
+ */
+function parseBridgeArgs(argv) {
+  // Skip first two entries (node binary + script path)
+  const args = argv.slice(2);
+
+  let serverName = "";
+  let serverUrl = "";
+  let toolsFile = "";
+  let apiKey = "";
+  let userArgsStart = -1;
+
+  // Bridge args are always paired: --flag value
+  // The first argument that doesn't match a known bridge flag marks the start of user args
+  const bridgeFlags = new Set(["--server-name", "--server-url", "--tools-file", "--api-key"]);
+
+  for (let i = 0; i < args.length; i++) {
+    if (bridgeFlags.has(args[i]) && i + 1 < args.length) {
+      switch (args[i]) {
+        case "--server-name":
+          serverName = args[++i];
+          break;
+        case "--server-url":
+          serverUrl = args[++i];
+          break;
+        case "--tools-file":
+          toolsFile = args[++i];
+          break;
+        case "--api-key":
+          apiKey = args[++i];
+          break;
+      }
+    } else {
+      userArgsStart = i;
+      break;
+    }
+  }
+
+  const userArgs = userArgsStart >= 0 ? args.slice(userArgsStart) : [];
+  return { serverName, serverUrl, toolsFile, apiKey, userArgs };
+}
+
+/**
+ * Parse user-provided --key value pairs into a tool arguments object.
+ * Boolean flags (--key without a value) are set to true.
+ *
+ * @param {string[]} args - User arguments after the tool name
+ * @returns {Record<string, unknown>}
+ */
+function parseToolArgs(args) {
+  /** @type {Record<string, unknown>} */
+  const result = {};
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith("--")) {
+      const key = args[i].slice(2);
+      if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+        result[key] = args[i + 1];
+        i++;
+      } else {
+        result[key] = true;
+      }
+    }
+    // Skip non-flag arguments
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Tool information / help
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the cached tool list for a server.
+ *
+ * @param {string} toolsFile - Path to the JSON tools file
+ * @returns {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string}>, required?: string[]}}>}
+ */
+function loadTools(toolsFile) {
+  try {
+    if (fs.existsSync(toolsFile)) {
+      return JSON.parse(fs.readFileSync(toolsFile, "utf8"));
+    }
+  } catch {
+    // Fall through to empty array
+  }
+  return [];
+}
+
+/**
+ * Show top-level help: list all available commands for a server.
+ *
+ * @param {string} serverName - Server name
+ * @param {Array<{name: string, description?: string}>} tools - Tool list
+ */
+function showHelp(serverName, tools) {
+  const lines = [`Usage: ${serverName} <command> [options]`, ""];
+  lines.push("Available commands:");
+  if (tools.length > 0) {
+    // Calculate column width for aligned output
+    const maxNameLen = Math.max(...tools.map(t => t.name.length));
+    for (const tool of tools) {
+      const padded = tool.name.padEnd(maxNameLen + 2);
+      lines.push(`  ${padded}${tool.description || "No description"}`);
+    }
+  } else {
+    lines.push("  (tool list unavailable)");
+  }
+  lines.push("");
+  lines.push(`Run '${serverName} <command> --help' for more information on a command.`);
+  process.stdout.write(lines.join("\n") + "\n");
+}
+
+/**
+ * Show help for a specific tool.
+ *
+ * @param {string} serverName - Server name
+ * @param {string} toolName - Tool name
+ * @param {Array<{name: string, description?: string, inputSchema?: {properties?: Record<string, {description?: string, type?: string}>, required?: string[]}}>} tools
+ */
+function showToolHelp(serverName, toolName, tools) {
+  const tool = tools.find(t => t.name === toolName);
+  if (!tool) {
+    process.stderr.write(`Error: Unknown command '${toolName}'\n`);
+    process.stderr.write(`Run '${serverName} --help' to see available commands.\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const lines = [`Command: ${toolName}`, `Description: ${tool.description || "No description"}`];
+
+  const props = tool.inputSchema?.properties;
+  if (props && Object.keys(props).length > 0) {
+    lines.push("");
+    lines.push("Options:");
+    const maxKeyLen = Math.max(...Object.keys(props).map(k => k.length));
+    for (const [key, val] of Object.entries(props)) {
+      const padded = `--${key}`.padEnd(maxKeyLen + 4);
+      lines.push(`  ${padded}${val.description || val.type || "string"}`);
+    }
+
+    const required = tool.inputSchema?.required;
+    if (required && required.length > 0) {
+      lines.push("");
+      lines.push(`Required: ${required.join(", ")}`);
+    }
+  }
+
+  process.stdout.write(lines.join("\n") + "\n");
+}
+
+// ---------------------------------------------------------------------------
+// Response formatting
+// ---------------------------------------------------------------------------
+
+/**
+ * Format and display the MCP tool call response.
+ *
+ * @param {unknown} responseBody - Parsed JSON-RPC response body
+ * @param {string} serverName - Server name (for logging)
+ */
+function formatResponse(responseBody, serverName) {
+  const core = global.core;
+  const resp = /** @type {Record<string, unknown>} */ responseBody;
+
+  // Check for JSON-RPC error
+  if (resp && resp.error) {
+    const err = /** @type {Record<string, unknown>} */ resp.error;
+    const message = String(err.message || "Unknown error");
+    const code = err.code != null ? String(err.code) : "";
+    const errText = code ? `Error [${code}]: ${message}` : `Error: ${message}`;
+    process.stderr.write(errText + "\n");
+    core.error(`[${serverName}] Tool call error: ${errText}`);
+    auditLog(serverName, { event: "tool_error", error: errText });
+    process.exitCode = 1;
+    return;
+  }
+
+  // Extract result content
+  if (resp && resp.result) {
+    const result = /** @type {Record<string, unknown>} */ resp.result;
+    if (Array.isArray(result.content)) {
+      const outputParts = [];
+      for (const item of result.content) {
+        const entry = /** @type {Record<string, unknown>} */ item;
+        if (entry.type === "text") {
+          outputParts.push(String(entry.text));
+        } else if (entry.type === "image") {
+          outputParts.push(`[image data - ${String(entry.mimeType || "unknown")}]`);
+        } else {
+          outputParts.push(JSON.stringify(entry));
+        }
+      }
+      const output = outputParts.join("\n");
+      process.stdout.write(output + "\n");
+      core.info(`[${serverName}] Tool output: ${output.length} chars`);
+      return;
+    }
+    // Fallback: print raw result
+    const resultStr = typeof result === "string" ? result : JSON.stringify(result);
+    process.stdout.write(resultStr + "\n");
+    return;
+  }
+
+  // Fallback: print raw response
+  const rawStr = typeof resp === "string" ? resp : JSON.stringify(resp);
+  process.stdout.write(rawStr + "\n");
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const core = global.core;
+  const { serverName, serverUrl, toolsFile, apiKey, userArgs } = parseBridgeArgs(process.argv);
+
+  if (!serverName || !serverUrl) {
+    core.setFailed("mcp_cli_bridge: --server-name and --server-url are required");
+    return;
+  }
+
+  ensureAuditDir();
+
+  core.info(`[${serverName}] Bridge invoked: url=${serverUrl}, toolsFile=${toolsFile}, userArgs=${JSON.stringify(userArgs)}`);
+  auditLog(serverName, {
+    event: "bridge_invoked",
+    url: serverUrl,
+    toolsFile,
+    userArgs,
+    pid: process.pid,
+  });
+
+  // Load cached tools for help display
+  const tools = loadTools(toolsFile);
+
+  // Route: --help or no args → show top-level help
+  if (userArgs.length === 0 || userArgs[0] === "--help" || userArgs[0] === "-h") {
+    core.info(`[${serverName}] Showing top-level help (${tools.length} tools)`);
+    auditLog(serverName, { event: "show_help", toolCount: tools.length });
+    showHelp(serverName, tools);
+    return;
+  }
+
+  const toolName = userArgs[0];
+  const toolUserArgs = userArgs.slice(1);
+
+  // Route: <command> --help → show command-specific help
+  if (toolUserArgs.length > 0 && (toolUserArgs[0] === "--help" || toolUserArgs[0] === "-h")) {
+    core.info(`[${serverName}] Showing help for tool '${toolName}'`);
+    auditLog(serverName, { event: "show_tool_help", tool: toolName });
+    showToolHelp(serverName, toolName, tools);
+    return;
+  }
+
+  // Route: <command> [--param value ...] → call tool via MCP
+  const toolArgs = parseToolArgs(toolUserArgs);
+
+  core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}`);
+  auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
+
+  const callStartMs = Date.now();
+
+  try {
+    // MCP session protocol: initialize → notifications/initialized → tools/call
+    const sessionId = await mcpInitialize(serverUrl, apiKey, serverName);
+    await mcpNotifyInitialized(serverUrl, apiKey, sessionId, serverName);
+    const resp = await mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, serverName);
+
+    const totalMs = Date.now() - callStartMs;
+    core.info(`[${serverName}] Tool call complete: total=${totalMs}ms`);
+    auditLog(serverName, { event: "call_complete", tool: toolName, totalElapsedMs: totalMs });
+
+    formatResponse(resp.body, serverName);
+  } catch (err) {
+    const totalMs = Date.now() - callStartMs;
+    const message = err instanceof Error ? err.message : String(err);
+    core.error(`[${serverName}] Tool call failed (${totalMs}ms): ${message}`);
+    auditLog(serverName, {
+      event: "call_error",
+      tool: toolName,
+      error: message,
+      totalElapsedMs: totalMs,
+    });
+    process.stderr.write(`Error: ${message}\n`);
+    process.exitCode = 1;
+  }
+}
+
+main().catch(err => {
+  const core = global.core;
+  const message = err instanceof Error ? err.stack || err.message : String(err);
+  core.error(`mcp_cli_bridge fatal: ${message}`);
+  process.exitCode = 1;
+});

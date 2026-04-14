@@ -211,9 +211,10 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
 
 /**
  * Generate the bash wrapper script content for a given MCP server.
- * The generated script is a self-contained CLI that delegates all calls
- * to the MCP gateway via curl, following the proper MCP session protocol:
- * initialize → notifications/initialized → tools/call.
+ * The generated script is a thin wrapper that delegates all work to the
+ * mcp_cli_bridge.cjs Node.js script, which handles the full MCP session
+ * protocol (initialize → notifications/initialized → tools/call), help
+ * display, argument parsing, console logging, and JSONL audit logging.
  *
  * The gateway API key is baked directly into the generated script at
  * generation time because MCP_GATEWAY_API_KEY is excluded from the AWF
@@ -224,9 +225,10 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
  * @param {string} serverUrl - HTTP URL of the MCP server endpoint
  * @param {string} toolsFile - Path to the cached tools JSON file
  * @param {string} apiKey - Gateway API key, baked into the script at generation time
+ * @param {string} bridgeScript - Absolute path to mcp_cli_bridge.cjs
  * @returns {string} Content of the bash wrapper script
  */
-function generateCLIWrapperScript(serverName, serverUrl, toolsFile, apiKey) {
+function generateCLIWrapperScript(serverName, serverUrl, toolsFile, apiKey, bridgeScript) {
   // Sanitize all values that are embedded in the shell script to prevent injection.
   // Server names are pre-validated by isValidServerName(), but we still escape all
   // values for defense-in-depth.
@@ -234,6 +236,7 @@ function generateCLIWrapperScript(serverName, serverUrl, toolsFile, apiKey) {
   const safeUrl = shellEscapeDoubleQuoted(serverUrl);
   const safeToolsFile = shellEscapeDoubleQuoted(toolsFile);
   const safeApiKey = shellEscapeDoubleQuoted(apiKey);
+  const safeBridge = shellEscapeDoubleQuoted(bridgeScript);
 
   return `#!/usr/bin/env bash
 # MCP CLI wrapper for: ${safeName}
@@ -243,175 +246,16 @@ function generateCLIWrapperScript(serverName, serverUrl, toolsFile, apiKey) {
 #   ${safeName} --help                        Show all available commands
 #   ${safeName} <command> --help              Show help for a specific command
 #   ${safeName} <command> [--param value...]  Execute a command
+#
+# All calls are delegated to the mcp_cli_bridge.cjs Node.js bridge which
+# handles the MCP session protocol, logging, and JSONL audit trail.
 
-SERVER_NAME="${safeName}"
-SERVER_URL="${safeUrl}"
-TOOLS_FILE="${safeToolsFile}"
-
-# API key is baked in at generation time; MCP_GATEWAY_API_KEY is not available
-# inside the AWF sandbox (excluded via --exclude-env MCP_GATEWAY_API_KEY).
-API_KEY="${safeApiKey}"
-
-load_tools() {
-  if [ -f "\$TOOLS_FILE" ]; then
-    cat "\$TOOLS_FILE"
-  else
-    echo "[]"
-  fi
-}
-
-show_help() {
-  local tools
-  tools=\$(load_tools)
-  echo "Usage: \$SERVER_NAME <command> [options]"
-  echo ""
-  echo "Available commands:"
-  if command -v jq &>/dev/null && echo "\$tools" | jq -e "length > 0" >/dev/null 2>&1; then
-    echo "\$tools" | jq -r ".[] | \\"  \(.name)\\t\(.description // \\"No description\\")\\"" \\
-      | column -t -s $'\\t' 2>/dev/null \\
-      || echo "\$tools" | jq -r ".[] | \\"  \(.name)  \(.description // \\"\\")\\""
-  else
-    echo "  (tool list unavailable)"
-  fi
-  echo ""
-  echo "Run '\$SERVER_NAME <command> --help' for more information on a command."
-}
-
-show_tool_help() {
-  local tool_name="\$1"
-  local tools tool
-  tools=\$(load_tools)
-  tool=\$(echo "\$tools" | jq -r ".[] | select(.name == \\"\$tool_name\\")" 2>/dev/null || echo "")
-
-  if [ -z "\$tool" ]; then
-    echo "Error: Unknown command '"\$tool_name"'" >&2
-    echo "Run '"\$SERVER_NAME" --help' to see available commands." >&2
-    exit 1
-  fi
-
-  echo "Command: \$tool_name"
-  echo "Description: \$(echo "\$tool" | jq -r ".description // \\"No description\\"")"
-
-  local has_props
-  has_props=\$(echo "\$tool" | jq -r "has(\\"inputSchema\\") and ((.inputSchema.properties // {}) | length > 0)")
-
-  if [ "\$has_props" = "true" ]; then
-    echo ""
-    echo "Options:"
-    echo "\$tool" | jq -r ".inputSchema.properties | to_entries[] | \\"  --\(.key)  \(.value.description // .value.type // \\"string\\")\\"" 
-    local required
-    required=\$(echo "\$tool" | jq -r "(.inputSchema.required // []) | join(\\", \\")")
-    if [ -n "\$required" ]; then
-      echo ""
-      echo "Required: \$required"
-    fi
-  fi
-}
-
-call_tool() {
-  local tool_name="\$1"
-  shift
-
-  local args="{}"
-  while [[ \$# -gt 0 ]]; do
-    if [[ "\$1" == --* ]]; then
-      local key="\${1#--}"
-      if [[ \$# -ge 2 && "\$2" != --* ]]; then
-        local val="\$2"
-        args=\$(echo "\$args" | jq --arg k "\$key" --arg v "\$val" '. + {($k): $v}')
-        shift 2
-      else
-        args=\$(echo "\$args" | jq --arg k "\$key" '. + {($k): true}')
-        shift 1
-      fi
-    else
-      shift
-    fi
-  done
-
-  # MCP session protocol: initialize → notifications/initialized → tools/call
-  # A separate headers file is used to capture the Mcp-Session-Id without mixing
-  # headers and body (curl -i mixes them, making parsing fragile).
-  local headers_file
-  headers_file=\$(mktemp)
-
-  # Step 1: initialize – establish the session
-  curl -s -D "\$headers_file" --max-time 30 -X POST "\$SERVER_URL" \\
-    -H "Authorization: \$API_KEY" \\
-    -H "Content-Type: application/json" \\
-    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{},"clientInfo":{"name":"mcp-cli","version":"1.0.0"},"protocolVersion":"2024-11-05"}}' \\
-    >/dev/null 2>/dev/null || true
-
-  local session_id
-  session_id=\$(grep -i "^mcp-session-id:" "\$headers_file" 2>/dev/null | awk '{print $2}' | tr -d "\\r" || echo "")
-  rm -f "\$headers_file"
-
-  local session_header_args=()
-  if [ -n "\$session_id" ]; then
-    session_header_args=(-H "Mcp-Session-Id: \$session_id")
-  fi
-
-  # Step 2: notifications/initialized – required by MCP spec to complete the handshake.
-  # The server responds with 204 No Content; failures here are non-fatal.
-  curl -s --max-time 10 -X POST "\$SERVER_URL" \\
-    -H "Authorization: \$API_KEY" \\
-    -H "Content-Type: application/json" \\
-    "\${session_header_args[@]}" \\
-    -d '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' \\
-    >/dev/null 2>/dev/null || true
-
-  # Step 3: tools/call – execute the tool within the established session
-  local request
-  request=\$(jq -n --arg name "\$tool_name" --argjson args "\$args" \\
-    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":$name,"arguments":$args}}')
-
-  local response
-  response=\$(curl -s --max-time 120 -X POST "\$SERVER_URL" \\
-    -H "Authorization: \$API_KEY" \\
-    -H "Content-Type: application/json" \\
-    "\${session_header_args[@]}" \\
-    -d "\$request" \\
-    2>/dev/null)
-
-  if echo "\$response" | jq -e ".error" >/dev/null 2>&1; then
-    local err_msg err_code
-    err_msg=\$(echo "\$response" | jq -r ".error.message // \\"Unknown error\\"")
-    err_code=\$(echo "\$response" | jq -r ".error.code // \\"\\""  )
-    if [ -n "\$err_code" ]; then
-      echo "Error [\$err_code]: \$err_msg" >&2
-    else
-      echo "Error: \$err_msg" >&2
-    fi
-    exit 1
-  fi
-
-  if echo "\$response" | jq -e ".result.content" >/dev/null 2>&1; then
-    echo "\$response" | jq -r '.result.content[] |
-      if .type == "text" then .text
-      elif .type == "image" then "[image data - \(.mimeType // "unknown")]"
-      else (. | tostring)
-      end'
-  elif echo "\$response" | jq -e ".result" >/dev/null 2>&1; then
-    echo "\$response" | jq -r ".result"
-  else
-    echo "\$response"
-  fi
-}
-
-if [[ \$# -eq 0 || "\$1" == "--help" || "\$1" == "-h" ]]; then
-  show_help
-  exit 0
-fi
-
-COMMAND="\$1"
-shift
-
-if [[ "\$1" == "--help" || "\$1" == "-h" ]]; then
-  show_tool_help "\$COMMAND"
-  exit 0
-fi
-
-call_tool "\$COMMAND" "\$@"
+exec node "${safeBridge}" \\
+  --server-name "${safeName}" \\
+  --server-url "${safeUrl}" \\
+  --tools-file "${safeToolsFile}" \\
+  --api-key "${safeApiKey}" \\
+  "\$@"
 `;
 }
 
@@ -450,6 +294,15 @@ async function main() {
 
   fs.mkdirSync(CLI_BIN_DIR, { recursive: true });
   fs.mkdirSync(TOOLS_DIR, { recursive: true });
+
+  // The bridge script lives alongside mount_mcp_as_cli.cjs in the setup actions directory.
+  // It is accessible inside the AWF sandbox because ${RUNNER_TEMP}/gh-aw is mounted read-only.
+  const bridgeScript = path.join(path.dirname(__filename), "mcp_cli_bridge.cjs");
+  if (!fs.existsSync(bridgeScript)) {
+    core.warning(`mcp_cli_bridge.cjs not found at ${bridgeScript}; CLI wrappers will not work`);
+  } else {
+    core.info(`Bridge script: ${bridgeScript}`);
+  }
 
   const apiKey = process.env.MCP_GATEWAY_API_KEY || "";
   if (!apiKey) {
@@ -506,7 +359,7 @@ async function main() {
     // Write the CLI wrapper script using the container-accessible URL
     const scriptPath = path.join(CLI_BIN_DIR, name);
     try {
-      fs.writeFileSync(scriptPath, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey), { mode: 0o755 });
+      fs.writeFileSync(scriptPath, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey, bridgeScript), { mode: 0o755 });
       mountedServers.push(name);
       core.info(`  ✓ Mounted as: ${scriptPath}`);
     } catch (err) {
