@@ -771,14 +771,11 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	// repositories are targeted correctly instead of defaulting to github.com.
 	remoteHost := getHostFromOriginRemote()
 
-	// Build gh repo view args, adding --hostname for GHES instances.
-	repoViewArgs := []string{"repo", "view", "--json", "owner,name"}
-	if remoteHost != "github.com" {
-		repoViewArgs = append(repoViewArgs, "--hostname", remoteHost)
-	}
-
-	// Get the current repository info to ensure PR is created in the correct repo
-	repoOutput, err := workflow.RunGH("Fetching repository info...", repoViewArgs...)
+	// Get the current repository info to ensure PR is created in the correct repo.
+	// Use GH_HOST env var instead of --hostname (which is only valid for gh api, not gh repo view).
+	repoViewCmd := workflow.ExecGH("repo", "view", "--json", "owner,name")
+	setGHHostEnv(repoViewCmd, remoteHost)
+	repoOutput, err := repoViewCmd.Output()
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to get current repository info: %w", err)
 	}
@@ -797,14 +794,12 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
 
 	// Build gh pr create args. Explicitly specifying --repo ensures the PR is created in the
-	// current repo (not an upstream fork). For GHES instances, --hostname routes the request
-	// to the correct GitHub Enterprise host instead of defaulting to github.com.
+	// current repo (not an upstream fork). Use GH_HOST env var instead of --hostname
+	// (which is only valid for gh api, not gh pr create).
 	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName}
-	if remoteHost != "github.com" {
-		prCreateArgs = append(prCreateArgs, "--hostname", remoteHost)
-	}
-
-	output, err := workflow.RunGH("Creating pull request...", prCreateArgs...)
+	prCreateCmd := workflow.ExecGH(prCreateArgs...)
+	setGHHostEnv(prCreateCmd, remoteHost)
+	output, err := prCreateCmd.Output()
 	if err != nil {
 		// Try to get stderr for better error reporting
 		var exitError *exec.ExitError
@@ -826,4 +821,19 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	}
 
 	return prNumber, prURL, nil
+}
+
+// setGHHostEnv sets the GH_HOST environment variable on the command for non-github.com hosts.
+// This is needed for GitHub Enterprise Server (GHES) and Proxima (data residency) instances
+// because commands like `gh repo view` and `gh pr create` do not accept a --hostname flag
+// (unlike `gh api` which does).
+func setGHHostEnv(cmd *exec.Cmd, host string) {
+	if host == "github.com" {
+		return
+	}
+	if cmd.Env == nil {
+		cmd.Env = append(os.Environ(), "GH_HOST="+host)
+	} else {
+		cmd.Env = append(cmd.Env, "GH_HOST="+host)
+	}
 }
