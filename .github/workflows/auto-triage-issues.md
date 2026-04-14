@@ -12,7 +12,9 @@ rate-limit:
 permissions:
   contents: read
   issues: read
-engine: copilot
+engine:
+  id: copilot
+  model: gpt-4.1-mini
 strict: true
 network:
   allowed:
@@ -28,6 +30,16 @@ tools:
     min-integrity: approved
   bash:
     - "jq *"
+    - "cat *"
+steps:
+  pre-agent:
+    - name: Fetch unlabeled issues
+      run: |
+        mkdir -p /tmp/gh-aw/agent
+        gh api "repos/github/gh-aw/issues?state=open&labels=&per_page=30" \
+          --jq '[.[] | select(.labels | length == 0) | {number: .number, title: .title, body: .body}]' \
+          > /tmp/gh-aw/agent/unlabeled-issues.json
+        echo "Unlabeled issues: $(jq length /tmp/gh-aw/agent/unlabeled-issues.json)"
 safe-outputs:
   add-labels:
     max: 10
@@ -68,9 +80,9 @@ When an issue is opened or edited:
 
 When running on schedule:
 
-1. **Fetch unlabeled issues** using GitHub tools
+1. **Read pre-fetched unlabeled issues** from `/tmp/gh-aw/agent/unlabeled-issues.json` (populated by the pre-agent step). If the file is missing or contains an empty JSON array (`[]`), fall back to `search_issues` with query `repo:github/gh-aw is:issue is:open no:label` — **do NOT use `list_issues`** as it returns an oversized payload.
 2. **Process up to 10 unlabeled issues** (respecting safe-output limits)
-3. **Apply labels** to each issue based on classification
+3. **Apply labels** to each issue based on classification; the pre-fetched data already includes `number`, `title`, and `body`. Only call `issue_read` when you need additional metadata not present in those fields (e.g., comments, reactions, or author association details not available in the pre-fetch).
 4. **Create a summary report** as a discussion with statistics on processed issues
 
 ### On Manual/On-Demand Runs (workflow_dispatch)
@@ -261,6 +273,7 @@ When running on schedule, create a discussion report following these formatting 
 
 ## Important Notes
 
+- **Do NOT call `search_repositories`** — it is not available in this workflow. Use `search_issues` with `no:label` to find unlabeled issues, and `get_label` to verify a label exists.
 - **Be conservative** - Better to add `needs-triage` than apply incorrect labels
 - **Context matters** - Consider the full issue context, not just keywords
 - **Respect limits** - Maximum 10 label operations per run (safe-output limit)
