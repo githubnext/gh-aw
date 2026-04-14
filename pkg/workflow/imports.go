@@ -692,3 +692,36 @@ func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeatures []
 	importsLog.Printf("Successfully merged features: total=%d", len(result))
 	return result, nil
 }
+
+// mergeEnv merges env var configurations from imports with top-level env vars.
+// Top-level env vars take precedence over imported env vars.
+// Conflicts between imports (same key in two different imported files) are detected
+// earlier in the importAccumulator and fail compilation before mergeEnv is called.
+func mergeEnv(topEnv map[string]any, importedEnvJSON string) (map[string]any, error) {
+	importsLog.Printf("Merging env: topEnv=%d", len(topEnv))
+	result := make(map[string]any)
+
+	// Merge imported env vars first (newline-separated JSON objects, each from a distinct import)
+	if importedEnvJSON != "" {
+		lines := strings.SplitSeq(strings.TrimSpace(importedEnvJSON), "\n")
+		for line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || line == "{}" {
+				continue
+			}
+
+			var importedEnv map[string]any
+			if err := json.Unmarshal([]byte(line), &importedEnv); err != nil {
+				return nil, fmt.Errorf("failed to parse imported env JSON: %w", err)
+			}
+
+			maps.Copy(result, importedEnv)
+		}
+	}
+
+	// Top-level env vars take precedence: copy last so they override any imported values
+	maps.Copy(result, topEnv)
+
+	importsLog.Printf("Merged %d total env vars", len(result))
+	return result, nil
+}

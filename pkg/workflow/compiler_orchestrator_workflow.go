@@ -142,6 +142,35 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Merge env from imports (main workflow env vars take precedence over imported env vars)
+	if engineSetup.importsResult.MergedEnv != "" {
+		topEnv := ExtractMapField(result.Frontmatter, "env")
+		mergedEnvMap, err := mergeEnv(topEnv, engineSetup.importsResult.MergedEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge env from imports: %w", err)
+		}
+		if len(mergedEnvMap) > 0 {
+			workflowData.Env = c.extractTopLevelYAMLSection(map[string]any{"env": mergedEnvMap}, "env")
+			// Build source attribution: imported vars get the import path; main-workflow vars are labelled accordingly
+			envSources := make(map[string]string, len(mergedEnvMap))
+			for key := range mergedEnvMap {
+				if _, inTop := topEnv[key]; inTop {
+					envSources[key] = "(main workflow)"
+				} else if src, ok := engineSetup.importsResult.MergedEnvSources[key]; ok {
+					envSources[key] = src
+				}
+			}
+			workflowData.EnvSources = envSources
+		}
+	} else if topEnv := ExtractMapField(result.Frontmatter, "env"); len(topEnv) > 0 {
+		// No imports provided env — still label main workflow vars so the header can show them
+		envSources := make(map[string]string, len(topEnv))
+		for key := range topEnv {
+			envSources[key] = "(main workflow)"
+		}
+		workflowData.EnvSources = envSources
+	}
+
 	// Inject OTLP configuration: add endpoint domain to firewall allowlist and
 	// set OTEL env vars in the workflow env block (no-op when not configured).
 	c.injectOTLPConfig(workflowData)

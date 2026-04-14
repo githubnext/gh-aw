@@ -172,11 +172,38 @@ func TestActivationGitHubApp(t *testing.T) {
 		// Both steps should use the same app token
 		assert.Contains(t, stepsStr, "id: react", "Reaction step should be present")
 		assert.Contains(t, stepsStr, "id: add-comment", "Add-comment step should be present")
-		assert.Equal(t, 2, strings.Count(stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}"), "Both reaction and comment steps should use app token")
+		// Both reaction and comment steps should use the same app token, and the hash check step too
+		assert.Equal(t, 3, strings.Count(stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}"), "Reaction, comment, and hash check steps should all use app token")
+	})
+	t.Run("app_token_minted_for_hash_check_even_without_reaction_or_comment", func(t *testing.T) {
+		// Regression test: when ActivationGitHubApp is set but no reaction/comment/label step
+		// is configured, the mint step must still be generated because the hash check step
+		// references ${{ steps.activation-app-token.outputs.token }}.
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			// No AIReaction, no StatusComment, no LabelCommand
+			ActivationGitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.APP_ID }}",
+				PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+
+		job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+		require.NoError(t, err, "buildActivationJob should succeed")
+		require.NotNil(t, job)
+
+		stepsStr := strings.Join(job.Steps, "")
+		// The token must be minted so the hash check step can reference it
+		mintCount := strings.Count(stepsStr, "id: activation-app-token")
+		assert.Equal(t, 1, mintCount, "Token mint step should appear exactly once even without reaction/comment")
+
+		// Hash check step must reference the minted token
+		assert.Contains(t, stepsStr, "id: check-lock-file", "Hash check step should be present")
+		assert.Contains(t, stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}",
+			"Hash check step should use the minted app token")
 	})
 }
 
-// TestActivationGitHubTokenExtraction tests extraction of github-token and github-app from frontmatter
 func TestActivationGitHubTokenExtraction(t *testing.T) {
 	compiler := NewCompiler()
 

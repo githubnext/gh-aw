@@ -225,6 +225,20 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 			},
 		},
 		{
+			name: "header with env sources from main and import",
+			data: &WorkflowData{
+				EnvSources: map[string]string{
+					"MAIN_VAR":     "(main workflow)",
+					"IMPORTED_VAR": ".github/shared/target.md",
+				},
+			},
+			expectInStr: []string{
+				"# Frontmatter env variables:",
+				"#   - IMPORTED_VAR: .github/shared/target.md",
+				"#   - MAIN_VAR: (main workflow)",
+			},
+		},
+		{
 			name:        "minimal header",
 			data:        &WorkflowData{},
 			expectInStr: []string{},

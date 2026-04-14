@@ -810,3 +810,103 @@ func TestResolveProxyContainerImage(t *testing.T) {
 		})
 	}
 }
+
+// TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable verifies that the CLI proxy
+// is implicitly enabled when the integrity-reactions feature flag is set, even without
+// an explicit cli-proxy feature flag.
+func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
+	awfVersion := "0.25.20"
+
+	tests := []struct {
+		name     string
+		data     *WorkflowData
+		expected bool
+		desc     string
+	}{
+		{
+			name: "integrity-reactions enables cli proxy implicitly",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: awfVersion,
+					},
+				},
+				Features: map[string]any{"integrity-reactions": true},
+			},
+			expected: true,
+			desc:     "integrity-reactions should implicitly enable the CLI proxy",
+		},
+		{
+			name: "explicit cli-proxy still works",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: awfVersion,
+					},
+				},
+				Features: map[string]any{"cli-proxy": true},
+			},
+			expected: true,
+			desc:     "explicit cli-proxy feature flag should still enable the CLI proxy",
+		},
+		{
+			name: "both flags enabled",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: awfVersion,
+					},
+				},
+				Features: map[string]any{"cli-proxy": true, "integrity-reactions": true},
+			},
+			expected: true,
+			desc:     "both flags together should enable the CLI proxy",
+		},
+		{
+			name: "neither flag set",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: awfVersion,
+					},
+				},
+				Features: map[string]any{},
+			},
+			expected: false,
+			desc:     "no feature flags should not enable the CLI proxy",
+		},
+		{
+			name: "integrity-reactions without firewall",
+			data: &WorkflowData{
+				Features: map[string]any{"integrity-reactions": true},
+			},
+			expected: false,
+			desc:     "integrity-reactions without firewall should not enable the CLI proxy",
+		},
+		{
+			name: "integrity-reactions with old AWF version",
+			data: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.16",
+					},
+				},
+				Features: map[string]any{"integrity-reactions": true},
+			},
+			expected: false,
+			desc:     "integrity-reactions with old AWF version should not enable the CLI proxy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCliProxyNeeded(tt.data)
+			assert.Equal(t, tt.expected, got, tt.desc)
+		})
+	}
+}

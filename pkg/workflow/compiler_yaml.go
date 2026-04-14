@@ -193,6 +193,22 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("# inlined-imports: true\n")
 	}
 
+	// Add frontmatter-declared env vars with source attribution.
+	// Note: programmatically injected env vars (e.g. OTEL_* from OTLP config) are not listed here.
+	if len(data.EnvSources) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Frontmatter env variables:\n")
+		// Sort keys for deterministic output
+		keys := make([]string, 0, len(data.EnvSources))
+		for k := range data.EnvSources {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(yaml, "#   - %s: %s\n", k, data.EnvSources[k])
+		}
+	}
+
 	// Add list of secrets referenced in the workflow
 	if len(secrets) > 0 {
 		yaml.WriteString("#\n")

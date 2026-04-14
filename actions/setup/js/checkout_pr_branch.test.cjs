@@ -4,6 +4,7 @@ describe("checkout_pr_branch.cjs", () => {
   let mockCore;
   let mockExec;
   let mockContext;
+  let mockGithub;
 
   beforeEach(() => {
     // Mock core actions methods
@@ -66,6 +67,30 @@ describe("checkout_pr_branch.cjs", () => {
     global.core = mockCore;
     global.exec = mockExec;
     global.context = mockContext;
+
+    // Mock GitHub API for fetchPRDetails (used in the else branch for non-fork PR events)
+    mockGithub = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              state: "open",
+              commits: 1,
+              head: {
+                ref: "feature-branch",
+                repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } },
+              },
+              base: {
+                ref: "main",
+                repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } },
+              },
+            },
+          }),
+        },
+      },
+    };
+    global.github = mockGithub;
+
     process.env.GITHUB_TOKEN = "test-token";
     process.env.GITHUB_SERVER_URL = "https://github.com";
   });
@@ -153,9 +178,6 @@ If the pull request is still open, verify that:
       if (module === "./error_codes.cjs") {
         return require("./error_codes.cjs");
       }
-      if (module === "./git_helpers.cjs") {
-        return require("./git_helpers.cjs");
-      }
       throw new Error(`Module ${module} not mocked in test`);
     };
 
@@ -229,7 +251,7 @@ If the pull request is still open, verify that:
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git checkout failed`);
     });
 
-    it("should use gh pr checkout for fork PR in pull_request event", async () => {
+    it("should use git fetch refs/pull for fork PR in pull_request event", async () => {
       // Set up fork PR: head repo is different from base repo
       mockContext.payload.pull_request.head.repo.full_name = "fork-owner/test-repo";
       mockContext.payload.pull_request.head.repo.owner.login = "fork-owner";
@@ -240,14 +262,15 @@ If the pull request is still open, verify that:
 
       // Verify fork is detected
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (different repository names)");
-      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
+      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
 
-      // Verify strategy is gh pr checkout, not git fetch
-      expect(mockCore.info).toHaveBeenCalledWith("Strategy: gh pr checkout");
-      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; head branch exists only in fork, not in origin");
+      // Verify strategy is git fetch refs/pull + checkout
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch refs/pull + checkout");
+      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event from fork repository; fetching via refs/pull/N/head");
 
-      // Verify gh pr checkout is used instead of git fetch, with GH_HOST override
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // Verify git fetch refs/pull/N/head is used
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -291,7 +314,7 @@ If the pull request is still open, verify that:
       mockContext.eventName = "issue_comment";
     });
 
-    it("should checkout PR using gh pr checkout", async () => {
+    it("should checkout PR using git fetch refs/pull", async () => {
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: issue_comment");
@@ -302,19 +325,18 @@ If the pull request is still open, verify that:
 
       // Verify strategy logging
       expect(mockCore.startGroup).toHaveBeenCalledWith("🔄 Checkout Strategy");
-      expect(mockCore.info).toHaveBeenCalledWith("Strategy: gh pr checkout");
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch refs/pull + checkout");
 
-      expect(mockCore.info).toHaveBeenCalledWith("Checking out PR #123 using gh CLI");
-
-      // GH_HOST is overridden with value derived from GITHUB_SERVER_URL to avoid proxy/stale values
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // Verify git fetch refs/pull/N/head and checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out PR #123");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should handle gh pr checkout errors", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("gh pr checkout failed"));
+    it("should handle git fetch errors for PR ref", async () => {
+      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed"));
 
       await runScript();
 
@@ -323,22 +345,73 @@ If the pull request is still open, verify that:
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryCall).toContain("Failed to Checkout PR Branch");
-      expect(summaryCall).toContain("gh pr checkout failed");
+      expect(summaryCall).toContain("git fetch failed");
       expect(summaryCall).toContain("pull request has been closed");
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: gh pr checkout failed`);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git fetch failed`);
     });
 
-    it("should pass GH_HOST derived from GITHUB_SERVER_URL to gh command", async () => {
-      // GH_HOST is always derived from GITHUB_SERVER_URL to avoid stale/proxy values
-      process.env.CUSTOM_VAR = "custom-value";
+    it("should resolve fork status from API when payload has minimal PR (no head/base)", async () => {
+      // Simulate issue_comment with no pull_request in payload, only issue.pull_request
+      mockContext.payload.pull_request = null;
+      mockContext.payload.issue = {
+        number: 456,
+        state: "open",
+        pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/456" },
+      };
+      // fetchPRDetails returns full PR data with same-repo (non-fork)
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          state: "open",
+          commits: 3,
+          head: { ref: "my-feature", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
+      });
 
       await runScript();
 
-      // Verify exec is called with GH_HOST derived from GITHUB_SERVER_URL
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // Fork status should be "unknown" initially (minimal PR object)
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (head/base repo details not available in event payload)");
+      // After API call, fork status should be resolved
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): false (same repository)");
+      // Should NOT emit fork warning for a non-fork PR
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fork PR detected"));
+      // Should successfully checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/456/head:refs/remotes/origin/pr-head", "--depth=4"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "my-feature", "origin/pr-head"]);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
 
-      delete process.env.CUSTOM_VAR;
+    it("should detect fork PR from API when payload has minimal PR", async () => {
+      // Simulate issue_comment with no pull_request in payload
+      mockContext.payload.pull_request = null;
+      mockContext.payload.issue = {
+        number: 789,
+        state: "open",
+        pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/789" },
+      };
+      // fetchPRDetails returns full PR data from a fork
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          state: "open",
+          commits: 2,
+          head: { ref: "fork-feature", repo: { full_name: "fork-owner/test-repo", owner: { login: "fork-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
+      });
+
+      await runScript();
+
+      // Fork status should be "unknown" initially, then resolved from API
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (head/base repo details not available in event payload)");
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): true (different repository names)");
+      // Should emit fork warning
+      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
+      // Should successfully checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/789/head:refs/remotes/origin/pr-head", "--depth=3"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "fork-feature", "origin/pr-head"]);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 
@@ -381,8 +454,9 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_target");
-      // pull_request_target uses gh pr checkout with GH_HOST override
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // pull_request_target uses git fetch refs/pull + checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
     });
 
     it("should handle pull_request_review event", async () => {
@@ -391,8 +465,9 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.info).toHaveBeenCalledWith("Event: pull_request_review");
-      // pull_request_review uses gh pr checkout with GH_HOST override
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // pull_request_review uses git fetch refs/pull + checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
     });
 
     it("should handle pull_request_review_comment event", async () => {
@@ -400,8 +475,9 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      // pull_request_review_comment uses gh pr checkout with GH_HOST override
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // pull_request_review_comment uses git fetch refs/pull + checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
     });
   });
 
@@ -468,6 +544,8 @@ If the pull request is still open, verify that:
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+      // Verify git operations were used (not gh CLI)
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
     });
 
     it("should set output to false on checkout failure", async () => {
@@ -500,8 +578,8 @@ If the pull request is still open, verify that:
 
       // Verify fork detection logging with reason
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (different repository names)");
-      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
     });
 
     it("should NOT detect fork when repo has fork flag but same full_name", async () => {
@@ -516,8 +594,8 @@ If the pull request is still open, verify that:
       // Same full_name = not a fork PR
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
       expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fork PR detected"));
-      // Still uses gh pr checkout because pull_request_target always does
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
+      // Still uses git fetch refs/pull because pull_request_target always does
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
     });
 
     it("should detect non-fork PRs in pull_request_target events", async () => {
@@ -538,12 +616,25 @@ If the pull request is still open, verify that:
       // Simulate deleted fork scenario
       delete mockContext.payload.pull_request.head.repo;
 
+      // fetchPRDetails returns full PR data with deleted head repo
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          state: "open",
+          commits: 1,
+          head: { ref: "feature-branch", repo: null },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
+      });
+
       await runScript();
 
       // Verify deleted fork detection
       expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Head repo information not available (repo may be deleted)");
-      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: true (head repository deleted (was likely a fork))");
-      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - gh pr checkout will fetch from fork repository");
+      // logPRContext reports unknown because head.repo is missing in the payload
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (head/base repo details not available in event payload)");
+      // After API call, fork status is resolved via detectForkPR
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): true (head repository deleted (was likely a fork))");
+      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
     });
 
     it("should log detailed PR context with startGroup/endGroup", async () => {
@@ -574,22 +665,12 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.startGroup).toHaveBeenCalledWith("🔄 Checkout Strategy");
-      expect(mockCore.info).toHaveBeenCalledWith("Strategy: gh pr checkout");
-      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request_target runs in base repo context; for fork PRs, head branch doesn't exist in origin");
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch refs/pull + checkout");
+      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request_target runs in base repo context; fetching via refs/pull/N/head");
     });
 
-    it("should log current branch after successful gh pr checkout", async () => {
+    it("should log current branch after successful refs/pull checkout", async () => {
       mockContext.eventName = "issue_comment";
-
-      // Mock the git branch command to return a branch name
-      mockExec.exec.mockImplementation((cmd, args, options) => {
-        if (cmd === "git" && args[0] === "branch" && args[1] === "--show-current") {
-          if (options?.listeners?.stdout) {
-            options.listeners.stdout(Buffer.from("feature-branch\n"));
-          }
-        }
-        return Promise.resolve(0);
-      });
 
       await runScript();
 
@@ -661,16 +742,16 @@ If the pull request is still open, verify that:
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should treat checkout failure as warning for closed PR (gh pr checkout)", async () => {
+    it("should treat checkout failure as warning for closed PR (refs/pull checkout)", async () => {
       mockContext.eventName = "issue_comment";
       mockContext.payload.pull_request.state = "closed";
-      mockExec.exec.mockRejectedValueOnce(new Error("gh pr checkout failed - PR closed"));
+      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
 
       await runScript();
 
       // Should log as warning, not error
       expect(mockCore.startGroup).toHaveBeenCalledWith("⚠️ Closed PR Checkout Warning");
-      expect(mockCore.warning).toHaveBeenCalledWith("Checkout failed (expected for closed PR): gh pr checkout failed - PR closed");
+      expect(mockCore.warning).toHaveBeenCalledWith("Checkout failed (expected for closed PR): git fetch failed - PR closed");
 
       // Should NOT fail the step
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -735,33 +816,19 @@ If the pull request is still open, verify that:
   });
 
   describe("race condition - PR merged after workflow trigger", () => {
-    let mockGithub;
-
-    beforeEach(() => {
-      // Default mock: PR is still open (API confirms what payload says)
-      mockGithub = {
-        rest: {
-          pulls: {
-            get: vi.fn().mockResolvedValue({
-              data: { state: "open", commits: 1, head: { ref: "feature-branch" } },
-            }),
-          },
-        },
-      };
-      global.github = mockGithub;
-    });
-
-    afterEach(() => {
-      delete global.github;
-    });
-
     it("should treat checkout failure as warning when PR was merged after workflow triggered", async () => {
       // PR was "open" in webhook payload, but branch was deleted after merge
       mockContext.payload.pull_request.state = "open";
       mockExec.exec.mockRejectedValueOnce(new Error("fatal: couldn't find remote ref feature-branch"));
-      // API re-check reveals PR is now closed
+      // Non-fork pull_request uses fast path (no fetchPRDetails call).
+      // Only the error handler re-check calls pulls.get → returns closed.
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
-        data: { state: "closed", commits: 1, head: { ref: "feature-branch" } },
+        data: {
+          state: "closed",
+          commits: 1,
+          head: { ref: "feature-branch", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
       });
 
       await runScript();
@@ -796,10 +863,7 @@ If the pull request is still open, verify that:
     it("should still fail when PR is still open and checkout fails", async () => {
       mockContext.payload.pull_request.state = "open";
       mockExec.exec.mockRejectedValueOnce(new Error("network error"));
-      // API re-check confirms PR is still open
-      mockGithub.rest.pulls.get.mockResolvedValueOnce({
-        data: { state: "open", commits: 1, head: { ref: "feature-branch" } },
-      });
+      // Non-fork pull_request: error handler re-check confirms still open (default mock)
 
       await runScript();
 
@@ -813,7 +877,7 @@ If the pull request is still open, verify that:
     it("should still fail when API re-check itself fails", async () => {
       mockContext.payload.pull_request.state = "open";
       mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
-      // API re-check fails
+      // Non-fork pull_request: error handler re-check fails
       const apiError = new Error("API rate limited");
       apiError.status = 429;
       mockGithub.rest.pulls.get.mockRejectedValueOnce(apiError);
@@ -832,6 +896,7 @@ If the pull request is still open, verify that:
     it("should include HTTP status code in API re-check failure warning", async () => {
       mockContext.payload.pull_request.state = "open";
       mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      // Non-fork pull_request: error handler re-check fails with 404
       const apiError = new Error("Not Found");
       apiError.status = 404;
       mockGithub.rest.pulls.get.mockRejectedValueOnce(apiError);
@@ -844,6 +909,7 @@ If the pull request is still open, verify that:
     it("should omit HTTP status suffix when API error has no status code", async () => {
       mockContext.payload.pull_request.state = "open";
       mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      // Non-fork pull_request: error handler re-check fails without status
       mockGithub.rest.pulls.get.mockRejectedValueOnce(new Error("network timeout"));
 
       await runScript();
@@ -858,8 +924,14 @@ If the pull request is still open, verify that:
     it("should call the GitHub API with the correct PR number and repo", async () => {
       mockContext.payload.pull_request.state = "open";
       mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      // Non-fork pull_request: error handler re-check returns closed
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
-        data: { state: "closed", commits: 1, head: { ref: "feature-branch" } },
+        data: {
+          state: "closed",
+          commits: 1,
+          head: { ref: "feature-branch", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
       });
 
       await runScript();
@@ -871,14 +943,20 @@ If the pull request is still open, verify that:
       });
     });
 
-    it("should handle race condition for gh pr checkout path (issue_comment event)", async () => {
+    it("should handle race condition for refs/pull checkout path (issue_comment event)", async () => {
       mockContext.eventName = "issue_comment";
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("gh pr checkout failed - PR closed"));
-      // API re-check shows PR was merged
-      mockGithub.rest.pulls.get.mockResolvedValueOnce({
-        data: { state: "closed", commits: 1, head: { ref: "feature-branch" } },
-      });
+      // First pulls.get (fetchPRDetails): succeeds
+      // Second pulls.get (re-check): shows PR was merged
+      const fullPRData = {
+        state: "open",
+        commits: 1,
+        head: { ref: "feature-branch", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+      };
+      const closedPRData = { ...fullPRData, state: "closed" };
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({ data: fullPRData }).mockResolvedValueOnce({ data: closedPRData });
+      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
 
       await runScript();
 
@@ -886,58 +964,6 @@ If the pull request is still open, verify that:
       expect(mockCore.startGroup).toHaveBeenCalledWith("⚠️ Closed PR Checkout Warning");
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("GH_HOST override for gh pr checkout", () => {
-    it("should override DIFC proxy GH_HOST (localhost:18443) with actual GitHub host", async () => {
-      const previousGhHost = process.env.GH_HOST;
-
-      try {
-        // Simulate active DIFC proxy that set GH_HOST=localhost:18443 in env
-        process.env.GH_HOST = "localhost:18443";
-        process.env.GITHUB_SERVER_URL = "https://github.com";
-        mockContext.eventName = "issue_comment";
-
-        await runScript();
-
-        // GH_HOST should be overridden to github.com, not localhost:18443
-        expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
-      } finally {
-        if (previousGhHost === undefined) {
-          delete process.env.GH_HOST;
-        } else {
-          process.env.GH_HOST = previousGhHost;
-        }
-      }
-    });
-
-    it("should use GHE host from GITHUB_SERVER_URL for gh pr checkout", async () => {
-      process.env.GITHUB_SERVER_URL = "https://myorg.ghe.com";
-      mockContext.eventName = "pull_request_target";
-
-      await runScript();
-
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "myorg.ghe.com" }) }));
-    });
-
-    it("should strip https:// protocol from GITHUB_SERVER_URL when deriving GH_HOST", async () => {
-      process.env.GITHUB_SERVER_URL = "https://github.com";
-      mockContext.eventName = "pull_request_target";
-
-      await runScript();
-
-      // Should not include the protocol in GH_HOST
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
-    });
-
-    it("should default to github.com when GITHUB_SERVER_URL is not set", async () => {
-      delete process.env.GITHUB_SERVER_URL;
-      mockContext.eventName = "issue_comment";
-
-      await runScript();
-
-      expect(mockExec.exec).toHaveBeenCalledWith("gh", ["pr", "checkout", "123"], expect.objectContaining({ env: expect.objectContaining({ GH_HOST: "github.com" }) }));
     });
   });
 });

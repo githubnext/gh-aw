@@ -32,6 +32,9 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
+# Frontmatter env variables:
+#   - ORGANIZATION: (main workflow)
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

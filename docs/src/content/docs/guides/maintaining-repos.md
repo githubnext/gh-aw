@@ -50,7 +50,7 @@ Review the newly opened issue. Based on the issue content:
 5. Otherwise, post a comment thanking the contributor and explaining what information is still needed.
 ```
 
-`min-integrity: unapproved` allows repo-assist to see all community content — first-time contributors, external users, everyone. The `safe-outputs` block limits what repo-assist can do in response: it can only apply labels and post comments. Any other GitHub mutation (opening PRs, merging, closing issues) is blocked by the runtime, regardless of what the agent attempts.
+`min-integrity: unapproved` allows repo-assist to see content from contributors who have previously interacted with the repository — including first-time contributors and users who have had PRs merged before — while still filtering out content from brand-new GitHub users (`FIRST_TIMER`) and users with no repository association (`NONE`). For most active repositories, this captures the vast majority of community input. The `safe-outputs` block limits what repo-assist can do in response: it can only apply labels and post comments. Any other GitHub mutation (opening PRs, merging, closing issues) is blocked by the runtime, regardless of what the agent attempts.
 
 ### Routing to Downstream Agents
 
@@ -134,7 +134,7 @@ When a safe-output validation failure appears in your audit logs, it means the a
 
 ## Controlling Workflow Inputs with Integrity Filtering
 
-Integrity filtering is the primary mechanism for controlling what content the agent sees. It evaluates the author of each issue, PR, or comment and removes items that don't meet the configured trust threshold — before the agent's context is assembled. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see all incoming issues.
+Integrity filtering is the primary mechanism for controlling what content the agent sees. It evaluates the author of each issue, PR, or comment and removes items that don't meet the configured trust threshold — before the agent's context is assembled. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see issues from contributors and first-time contributors, not just trusted members.
 
 The four configurable levels, from most to least restrictive:
 
@@ -147,7 +147,7 @@ The four configurable levels, from most to least restrictive:
 
 Choose based on what the workflow does:
 
-- **Repo-assist / triage workflows**: `unapproved` — classify all community content without acting on it.
+- **Repo-assist / triage workflows**: `unapproved` — classify content from contributors and first-time contributors without acting on it.
 - **Code-modifying workflows** (open PRs, apply patches, close issues): `approved` or `merged` — only act on trusted input.
 - **Spam detection or analytics**: `none` — see everything, but produce no direct GitHub mutations.
 
@@ -202,30 +202,27 @@ The runtime automatically merges per-workflow values with the variable. Set thes
 
 ### Reactions as Trust Signals
 
-Starting from MCPG v0.2.18, maintainers can use GitHub reactions (👍, ❤️) to promote content past the integrity filter without modifying labels. This is useful in repo-assist workflows where a maintainer wants to fast-track an external contribution:
+Starting from gh-aw v0.68.2, maintainers can use GitHub reactions (👍, ❤️) to promote content past the integrity filter without modifying labels. This is useful in repo-assist workflows where a maintainer wants to fast-track an external contribution.
+
+To enable reactions, add the `integrity-reactions` feature flag:
 
 ```aw wrap
 features:
   integrity-reactions: true
-mcp-gateway:
-  version: "v0.2.18"
 tools:
   github:
     min-integrity: approved
-    endorsement-reactions:
-      - "THUMBS_UP"
-      - "HEART"
-    disapproval-reactions:
-      - "THUMBS_DOWN"
-      - "CONFUSED"
-    endorser-min-integrity: approved
-    disapproval-integrity: none
 ```
 
-When a trusted member (at or above `endorser-min-integrity`) adds an endorsement reaction to an issue or comment, the item's integrity is promoted to `approved`. A disapproval reaction demotes it to the level set by `disapproval-integrity`.
+The compiler handles the rest — when `integrity-reactions: true` is set, it automatically:
 
-> [!IMPORTANT]
-> Reactions only work when running through the MCPG proxy mode. They are not available in gateway mode.
+- Enables the CLI proxy (`cli-proxy: true`), which is required for reaction-based integrity decisions
+- Injects default endorsement reactions: `THUMBS_UP`, `HEART`
+- Injects default disapproval reactions: `THUMBS_DOWN`, `CONFUSED`
+- Uses `endorser-min-integrity: approved` (only reactions from owners, members, and collaborators count)
+- Uses `disapproval-integrity: none` (a disapproval reaction demotes content to `none`)
+
+These defaults mean that when a trusted member (owner, member, or collaborator) adds a 👍 or ❤️ reaction to an issue or comment, the item's integrity is promoted to `approved` — making it visible to agents using `min-integrity: approved`. Conversely, a 👎 or 😕 reaction from a trusted member demotes the item to `none`.
 
 See the [Integrity Filtering Reference](/gh-aw/reference/integrity/) for complete configuration details.
 

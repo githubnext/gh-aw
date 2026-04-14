@@ -641,7 +641,10 @@ function readLastRateLimitEntry() {
  * - `GITHUB_REPOSITORY`             – `owner/repo` string
  *
  * Runtime files read:
- * - `/tmp/gh-aw/aw_info.json` – workflow/engine metadata written by the agent job
+ * - `/tmp/gh-aw/aw_info.json`    – workflow/engine metadata written by the agent job
+ * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
+ *                                    provides `input_tokens`, `output_tokens`,
+ *                                    `cache_read_tokens`, and `cache_write_tokens` counters
  *
  * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
  * @param {{ startMs?: number }} [options]
@@ -724,6 +727,25 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   if (!isNaN(effectiveTokens) && effectiveTokens > 0) {
     attributes.push(buildAttr("gh-aw.effective_tokens", effectiveTokens));
   }
+
+  // Enrich span with per-type token breakdown from agent_usage.json (written by
+  // parse_token_usage.cjs).  These four attributes enable cache-hit-rate panels,
+  // per-type cost attribution, and fine-grained threshold alerts in Grafana /
+  // Honeycomb / Datadog without requiring the step summary HTML.
+  const agentUsage = readJSONIfExists("/tmp/gh-aw/agent_usage.json") || {};
+  if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
+    attributes.push(buildAttr("gh-aw.tokens.input", agentUsage.input_tokens));
+  }
+  if (typeof agentUsage.output_tokens === "number" && agentUsage.output_tokens > 0) {
+    attributes.push(buildAttr("gh-aw.tokens.output", agentUsage.output_tokens));
+  }
+  if (typeof agentUsage.cache_read_tokens === "number" && agentUsage.cache_read_tokens > 0) {
+    attributes.push(buildAttr("gh-aw.tokens.cache_read", agentUsage.cache_read_tokens));
+  }
+  if (typeof agentUsage.cache_write_tokens === "number" && agentUsage.cache_write_tokens > 0) {
+    attributes.push(buildAttr("gh-aw.tokens.cache_write", agentUsage.cache_write_tokens));
+  }
+
   if (agentConclusion) {
     attributes.push(buildAttr("gh-aw.agent.conclusion", agentConclusion));
   }

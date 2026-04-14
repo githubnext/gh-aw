@@ -202,6 +202,92 @@ imports:
 	assert.Contains(t, importsResult.MergedJobs, "ubuntu-slim", "MergedJobs should contain the job runner")
 }
 
+// TestEnvFieldExtractedFromMdImport verifies that env: in a shared .md workflow's
+// frontmatter is captured into ImportsResult.MergedEnv and merged correctly.
+func TestEnvFieldExtractedFromMdImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a shared .md workflow with an env: section
+	sharedContent := `---
+env:
+  TARGET_REPOSITORY: owner/repo
+  SHARED_VAR: shared-value
+---
+
+# Shared workflow with env vars
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755), "Failed to create shared dir")
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "target.md"), []byte(sharedContent), 0644), "Failed to write shared file")
+
+	// Create a main .md workflow that imports the shared workflow
+	mainContent := `---
+name: Main Workflow
+on: issue_comment
+imports:
+  - shared/target.md
+---
+
+# Main Workflow
+`
+	result, err := ExtractFrontmatterFromContent(mainContent)
+	require.NoError(t, err, "ExtractFrontmatterFromContent should succeed")
+
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
+	require.NoError(t, err, "ProcessImportsFromFrontmatterWithSource should succeed")
+
+	assert.NotEmpty(t, importsResult.MergedEnv, "MergedEnv should be populated from shared .md import")
+	assert.Contains(t, importsResult.MergedEnv, "TARGET_REPOSITORY", "MergedEnv should contain TARGET_REPOSITORY")
+	assert.Contains(t, importsResult.MergedEnv, "owner/repo", "MergedEnv should contain the repository value")
+	assert.Contains(t, importsResult.MergedEnv, "SHARED_VAR", "MergedEnv should contain SHARED_VAR")
+	assert.Equal(t, "shared/target.md", importsResult.MergedEnvSources["TARGET_REPOSITORY"], "MergedEnvSources should track the import path for TARGET_REPOSITORY")
+	assert.Equal(t, "shared/target.md", importsResult.MergedEnvSources["SHARED_VAR"], "MergedEnvSources should track the import path for SHARED_VAR")
+}
+
+// TestEnvFieldConflictBetweenImports verifies that defining the same env var in two different
+// imports produces a compilation error.
+func TestEnvFieldConflictBetweenImports(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755), "Failed to create shared dir")
+
+	// First import defines SHARED_KEY
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "first.md"), []byte(`---
+env:
+  SHARED_KEY: value-from-first
+---
+
+# First shared workflow
+`), 0644))
+
+	// Second import also defines SHARED_KEY (conflict)
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "second.md"), []byte(`---
+env:
+  SHARED_KEY: value-from-second
+---
+
+# Second shared workflow
+`), 0644))
+
+	mainContent := `---
+name: Main Workflow
+on: issue_comment
+imports:
+  - shared/first.md
+  - shared/second.md
+---
+
+# Main Workflow
+`
+	result, err := ExtractFrontmatterFromContent(mainContent)
+	require.NoError(t, err, "ExtractFrontmatterFromContent should succeed")
+
+	_, err = ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
+	require.Error(t, err, "Should error when two imports define the same env var")
+	assert.Contains(t, err.Error(), "SHARED_KEY", "Error should mention the conflicting variable name")
+}
+
 // TestExtractAllImportFields_BuiltinCacheHit verifies that extractAllImportFields uses the
 // process-level builtin frontmatter cache for builtin files without inputs.
 func TestExtractAllImportFields_BuiltinCacheHit(t *testing.T) {

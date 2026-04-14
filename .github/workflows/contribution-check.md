@@ -14,7 +14,7 @@ env:
 
 tools:
   github:
-    toolsets: [default]
+    toolsets: [pull_requests, repos, issues]
     allowed-repos: all
     min-integrity: none
 safe-outputs:
@@ -57,8 +57,8 @@ steps:
       TOTAL=$(echo "$ALL_PRS" | jq 'length')
       echo "Found $TOTAL open PRs created in the last 24 hours"
 
-      # Cap the number of PRs to evaluate at 10
-      MAX_EVALUATE=10
+      # Cap the number of PRs to evaluate at 5
+      MAX_EVALUATE=5
       EVALUATED=$(echo "$ALL_PRS" | jq --argjson max "$MAX_EVALUATE" '[.[0:$max][] | .number]')
       EVALUATED_COUNT=$(echo "$EVALUATED" | jq 'length')
       SKIPPED_COUNT=$((TOTAL - EVALUATED_COUNT))
@@ -73,6 +73,21 @@ steps:
 
       echo "✓ Wrote pr-filter-results.json: $EVALUATED_COUNT to evaluate, $SKIPPED_COUNT skipped"
       cat "$GITHUB_WORKSPACE/pr-filter-results.json"
+
+      # Pre-fetch CONTRIBUTING.md once so all subagent calls can reuse it
+      CONTRIBUTING_FETCHED=false
+      for CONTRIBUTING_PATH in "CONTRIBUTING.md" ".github/CONTRIBUTING.md" "docs/CONTRIBUTING.md"; do
+        if gh api "repos/$TARGET_REPOSITORY/contents/$CONTRIBUTING_PATH" \
+            --jq '.content' 2>/dev/null | base64 -d > "$GITHUB_WORKSPACE/contributing-guidelines.md" 2>/dev/null; then
+          echo "✓ Pre-fetched contributing guidelines from $CONTRIBUTING_PATH"
+          CONTRIBUTING_FETCHED=true
+          break
+        fi
+      done
+      if [ "$CONTRIBUTING_FETCHED" = "false" ]; then
+        echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
+        echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
+      fi
 ---
 
 ## Target Repository
@@ -105,9 +120,18 @@ For each PR number in the comma-separated list, delegate evaluation to the **con
 
 ### How to dispatch
 
+Read the contents of `contributing-guidelines.md` from the workspace root. This file was pre-fetched in the `pre-agent` step and contains the target repository's contributing guidelines. Include it verbatim in every subagent dispatch prompt to avoid redundant fetches.
+
 Call the contribution-checker subagent for each PR with this prompt:
 
 ```
+The CONTRIBUTING.md content for this repository is attached below.
+Skip Step 1 — do not fetch CONTRIBUTING.md again.
+
+<contributing-guidelines>
+{contents of contributing-guidelines.md}
+</contributing-guidelines>
+
 Evaluate PR ${{ env.TARGET_REPOSITORY }}#<number> against the contribution guidelines.
 ```
 

@@ -114,39 +114,7 @@ function execGitSync(args, options = {}) {
   return result.stdout;
 }
 
-/**
- * Derive the real GitHub hostname from GITHUB_SERVER_URL.
- *
- * When the DIFC proxy is active, GH_HOST is overridden to localhost:18443
- * in GITHUB_ENV. This causes `gh` CLI commands that resolve the repository
- * from git remotes (e.g. `gh pr checkout`) to fail because the proxy address
- * doesn't match any remote. Use this helper to get the actual GitHub host
- * (e.g. "github.com" or "myorg.ghe.com") for per-call GH_HOST overrides.
- *
- * @returns {string} The GitHub hostname (e.g. "github.com")
- */
-function getGitHubHost() {
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  return serverUrl.replace(/^https?:\/\/|\/+$/g, "");
-}
-
-/**
- * Build environment variables for a `gh` CLI exec call with the correct GH_HOST.
- *
- * Spreads process.env and any additional environment variables, then enforces
- * GH_HOST to the real GitHub hostname derived from GITHUB_SERVER_URL. Use this
- * for any `gh` CLI call that needs to bypass a DIFC proxy GH_HOST override.
- *
- * @param {Object} [extraEnv] - Additional environment variables to set (e.g. { GH_TOKEN: token })
- * @returns {Object} Environment object suitable for exec.exec options
- */
-function getGhEnvBypassingIntegrityFilteringForGitOps(extraEnv) {
-  return { ...process.env, ...extraEnv, GH_HOST: getGitHubHost() };
-}
-
 module.exports = {
   execGitSync,
-  getGhEnvBypassingIntegrityFilteringForGitOps,
   getGitAuthEnv,
-  getGitHubHost,
 };

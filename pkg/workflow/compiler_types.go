@@ -404,6 +404,7 @@ type WorkflowData struct {
 	Concurrency                 string // workflow-level concurrency configuration
 	RunName                     string
 	Env                         string
+	EnvSources                  map[string]string // env var name → source ("(main workflow)" or import file path) for lock file header
 	If                          string
 	TimeoutMinutes              string
 	CustomSteps                 string
