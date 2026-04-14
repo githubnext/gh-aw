@@ -111,26 +111,65 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
       core.info(`pushSignedCommits: commit message headline: "${headline}"`);
 
       // File changes for this commit (supports Add/Modify/Delete/Rename/Copy)
-      const { stdout: nameStatusOut } = await exec.getExecOutput("git", ["diff", "--name-status", `${sha}^`, sha], { cwd });
+      // Use git diff-tree --raw to obtain file mode information for detecting symlinks and executables.
+      // The GitHub GraphQL createCommitOnBranch mutation only supports regular file mode 100644:
+      //   - Symlinks (120000) would be silently converted to regular files containing the link target path
+      //   - Executable bits (100755) are silently dropped
+      const { stdout: rawDiffOut } = await exec.getExecOutput("git", ["diff-tree", "-r", "--raw", sha], { cwd });
       /** @type {Array<{path: string, contents: string}>} */
       const additions = [];
       /** @type {Array<{path: string}>} */
       const deletions = [];
 
-      for (const line of nameStatusOut.trim().split("\n").filter(Boolean)) {
-        const parts = line.split("\t");
-        const status = parts[0];
+      for (const line of rawDiffOut.trim().split("\n").filter(Boolean)) {
+        // Raw format lines start with ':'; skip the commit SHA header line and any other non-raw lines
+        if (!line.startsWith(":")) continue;
+
+        // Format: :<srcMode> <dstMode> <srcHash> <dstHash> <status>[score]\t<path>[<\t><newPath>]
+        // Fields: [0]=srcMode, [1]=dstMode, [2]=srcHash, [3]=dstHash, [4]=status
+        const tabIdx = line.indexOf("\t");
+        if (tabIdx === -1) continue;
+
+        const modeInfo = line.slice(1, tabIdx); // strip leading ':'
+        const pathPart = line.slice(tabIdx + 1);
+
+        const modeFields = modeInfo.split(" ");
+        if (modeFields.length < 5) {
+          core.warning(`pushSignedCommits: unexpected diff-tree output format, skipping line: ${line}`);
+          continue;
+        }
+        const dstMode = modeFields[1]; // destination file mode (e.g. 100644, 100755, 120000)
+        const status = modeFields[4]; // A=Added, M=Modified, D=Deleted, R=Renamed, C=Copied
+
+        const paths = pathPart.split("\t");
+        const filePath = paths[0];
+        const renamedPath = paths[1]; // only for renames/copies
+
         if (status === "D") {
-          deletions.push({ path: parts[1] });
-        } else if (status.startsWith("R") || status.startsWith("C")) {
-          // Rename or Copy: parts[1] = old path, parts[2] = new path
-          deletions.push({ path: parts[1] });
-          const content = fs.readFileSync(path.join(cwd, parts[2]));
-          additions.push({ path: parts[2], contents: content.toString("base64") });
+          deletions.push({ path: filePath });
+        } else if (status && (status.startsWith("R") || status.startsWith("C"))) {
+          // Rename or Copy: filePath = old path, renamedPath = new path
+          deletions.push({ path: filePath });
+          if (dstMode === "120000") {
+            core.warning(`pushSignedCommits: symlink ${renamedPath} cannot be pushed as a signed commit, falling back to git push`);
+            throw new Error("symlink file mode requires git push fallback");
+          }
+          if (dstMode === "100755") {
+            core.warning(`pushSignedCommits: executable bit on ${renamedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
+          }
+          const content = fs.readFileSync(path.join(cwd, renamedPath));
+          additions.push({ path: renamedPath, contents: content.toString("base64") });
         } else {
           // Added or Modified
-          const content = fs.readFileSync(path.join(cwd, parts[1]));
-          additions.push({ path: parts[1], contents: content.toString("base64") });
+          if (dstMode === "120000") {
+            core.warning(`pushSignedCommits: symlink ${filePath} cannot be pushed as a signed commit, falling back to git push`);
+            throw new Error("symlink file mode requires git push fallback");
+          }
+          if (dstMode === "100755") {
+            core.warning(`pushSignedCommits: executable bit on ${filePath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
+          }
+          const content = fs.readFileSync(path.join(cwd, filePath));
+          additions.push({ path: filePath, contents: content.toString("base64") });
         }
       }
 

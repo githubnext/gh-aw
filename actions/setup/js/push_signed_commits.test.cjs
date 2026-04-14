@@ -574,4 +574,108 @@ describe("push_signed_commits integration tests", () => {
       expect(callArg.message.body).toBeUndefined();
     });
   });
+
+  // ──────────────────────────────────────────────────────
+  // File mode handling – symlinks and executables
+  // ──────────────────────────────────────────────────────
+
+  describe("file mode handling", () => {
+    it("should fall back to git push and warn when commit contains a symlink", async () => {
+      execGit(["checkout", "-b", "symlink-branch"], { cwd: workDir });
+
+      // Create a regular file to serve as symlink target
+      fs.writeFileSync(path.join(workDir, "target.txt"), "Symlink target\n");
+      execGit(["add", "target.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add target file"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "symlink-branch"], { cwd: workDir });
+
+      // Add a symlink in a new commit
+      fs.symlinkSync("target.txt", path.join(workDir, "link.txt"));
+      execGit(["add", "link.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add symlink"], { cwd: workDir });
+      execGit(["push", "origin", "symlink-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "symlink-branch",
+        // Only replay the symlink commit
+        baseRef: "symlink-branch^",
+        cwd: workDir,
+      });
+
+      // GraphQL should NOT have been called – symlink triggers fallback before mutation
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      // Warning about symlink must be emitted
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("symlink link.txt cannot be pushed as a signed commit"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+
+      // The commit should be present on the remote via git push fallback
+      const lsRemote = execGit(["ls-remote", bareDir, "refs/heads/symlink-branch"], { cwd: workDir });
+      const remoteOid = lsRemote.stdout.trim().split(/\s+/)[0];
+      const localOid = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      expect(remoteOid).toBe(localOid);
+    });
+
+    it("should warn about executable bit loss but continue with GraphQL signed commit", async () => {
+      execGit(["checkout", "-b", "executable-branch"], { cwd: workDir });
+
+      // Create an executable file
+      fs.writeFileSync(path.join(workDir, "script.sh"), "#!/bin/bash\necho hello\n");
+      fs.chmodSync(path.join(workDir, "script.sh"), 0o755);
+      execGit(["add", "script.sh"], { cwd: workDir });
+      execGit(["commit", "-m", "Add executable script"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "executable-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "executable-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      // GraphQL SHOULD still be called – executable bit triggers a warning but not a fallback
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      // Warning about executable bit must be emitted
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("executable bit on script.sh will be lost in signed commit"));
+      // The file content should be in the additions payload
+      const callArg = githubClient.graphql.mock.calls[0][1].input;
+      expect(callArg.fileChanges.additions).toHaveLength(1);
+      expect(callArg.fileChanges.additions[0].path).toBe("script.sh");
+      expect(Buffer.from(callArg.fileChanges.additions[0].contents, "base64").toString()).toContain("echo hello");
+    });
+
+    it("should not warn for regular files (mode 100644)", async () => {
+      execGit(["checkout", "-b", "regular-file-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "regular.txt"), "Regular file content\n");
+      execGit(["add", "regular.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "Add regular file"], { cwd: workDir });
+      execGit(["push", "-u", "origin", "regular-file-branch"], { cwd: workDir });
+
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+
+      await pushSignedCommits({
+        githubClient,
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: "regular-file-branch",
+        baseRef: "origin/main",
+        cwd: workDir,
+      });
+
+      expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+      // No warnings should be emitted for regular files
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+  });
 });

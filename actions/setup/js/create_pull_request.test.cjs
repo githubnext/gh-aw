@@ -1491,7 +1491,14 @@ describe("create_pull_request - copilot assignee on fallback issues", () => {
 
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
-      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "main", stderr: "" }),
+      getExecOutput: vi.fn().mockImplementation(async (program, args) => {
+        // Return empty for rev-list so pushSignedCommits exits early (no commits to replay).
+        // These tests focus on copilot assignment, not the signed-commit push path.
+        if (program === "git" && args[0] === "rev-list") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "main", stderr: "" };
+      }),
     };
 
     delete require.cache[require.resolve("./create_pull_request.cjs")];
