@@ -23,7 +23,71 @@ import os from "os";
 const require = createRequire(import.meta.url);
 
 // Import module once – globals are resolved at call time, not import time.
-const { pushSignedCommits } = require("./push_signed_commits.cjs");
+const { pushSignedCommits, unquoteCPath } = require("./push_signed_commits.cjs");
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Unit tests for unquoteCPath
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("unquoteCPath", () => {
+  it("should return unquoted strings unchanged", () => {
+    expect(unquoteCPath("simple.txt")).toBe("simple.txt");
+    expect(unquoteCPath("path/to/file.txt")).toBe("path/to/file.txt");
+    expect(unquoteCPath("")).toBe("");
+  });
+
+  it("should strip surrounding double-quotes from plain filenames", () => {
+    expect(unquoteCPath('"hello.txt"')).toBe("hello.txt");
+    expect(unquoteCPath('"path/to/file.txt"')).toBe("path/to/file.txt");
+  });
+
+  it("should unescape standard C escape sequences", () => {
+    expect(unquoteCPath('"back\\\\slash"')).toBe("back\\slash");
+    expect(unquoteCPath('"double\\"quote"')).toBe('double"quote');
+    expect(unquoteCPath('"new\\nline"')).toBe("new\nline");
+    expect(unquoteCPath('"tab\\there"')).toBe("tab\there");
+    expect(unquoteCPath('"carriage\\rreturn"')).toBe("carriage\rreturn");
+    expect(unquoteCPath('"form\\ffeed"')).toBe("form\ffeed");
+    expect(unquoteCPath('"bell\\achar"')).toBe("bell\x07char");
+    expect(unquoteCPath('"back\\bspace"')).toBe("back\bspace");
+    expect(unquoteCPath('"vertical\\vtab"')).toBe("vertical\x0btab");
+  });
+
+  it("should decode octal sequences as UTF-8 bytes (unicode filenames)", () => {
+    // é = U+00E9 → UTF-8: 0xC3 0xA9 → octal \303\251
+    expect(unquoteCPath('"h\\303\\251llo.txt"')).toBe("héllo.txt");
+    // ö = U+00F6 → UTF-8: 0xC3 0xB6 → octal \303\266
+    expect(unquoteCPath('"w\\303\\266rld.txt"')).toBe("wörld.txt");
+  });
+
+  it("should decode filenames with spaces (git quotes when core.quotePath=true)", () => {
+    // git does NOT actually quote spaces alone (only non-ASCII), but the function
+    // must correctly pass through quoted strings that happen to contain spaces.
+    expect(unquoteCPath('"hello world.txt"')).toBe("hello world.txt");
+  });
+
+  it("should preserve unknown escape sequences with backslash intact", () => {
+    // '\x' is not a known escape – backslash is kept
+    expect(unquoteCPath('"foo\\xbar"')).toBe("foo\\xbar");
+  });
+
+  it("should handle a quoted string with only one character", () => {
+    expect(unquoteCPath('"a"')).toBe("a");
+  });
+
+  it("should handle a quoted empty string", () => {
+    expect(unquoteCPath('""')).toBe("");
+  });
+
+  it("should handle 1-, 2-, and 3-digit octal sequences", () => {
+    // \0 = 0x00 (NUL – unusual but valid)
+    expect(unquoteCPath('"\\0"')).toBe("\x00");
+    // \77 = 0x3F = '?'
+    expect(unquoteCPath('"\\77"')).toBe("?");
+    // \101 = 0x41 = 'A'
+    expect(unquoteCPath('"\\101"')).toBe("A");
+  });
+});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Git helpers (real subprocess – no mocking)

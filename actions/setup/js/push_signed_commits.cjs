@@ -315,4 +315,4 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
   }
 }
 
-module.exports = { pushSignedCommits };
+module.exports = { pushSignedCommits, unquoteCPath };
