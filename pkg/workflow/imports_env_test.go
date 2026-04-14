@@ -67,3 +67,11 @@ func TestMergeEnvWithNilTopLevel(t *testing.T) {
 	require.NoError(t, err, "mergeEnv should not error with nil top-level")
 	assert.Equal(t, "imported-value", result["IMPORTED_VAR"], "Imported var should be present")
 }
+
+func TestMergeEnvWithInvalidJSON(t *testing.T) {
+	topEnv := map[string]any{"KEY": "value"}
+
+	_, err := mergeEnv(topEnv, `{invalid json}`)
+	require.Error(t, err, "mergeEnv should return an error for invalid JSON")
+	assert.Contains(t, err.Error(), "failed to parse imported env JSON", "Error message should be descriptive")
+}
