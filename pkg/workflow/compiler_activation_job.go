@@ -214,6 +214,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// as a fallback when the API is unavailable or finds no matching entry.
 		steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_REF: \"${{ github.workflow_ref }}\"\n")
 		steps = append(steps, "        with:\n")
+		// Use configured github-token or app-minted token if set; omit to use default GITHUB_TOKEN.
+		// This is required for cross-org workflow_call where the default GITHUB_TOKEN cannot
+		// access the callee's repository contents via API.
+		hashToken := c.resolveActivationToken(data)
+		if hashToken != "${{ secrets.GITHUB_TOKEN }}" {
+			steps = append(steps, fmt.Sprintf("          github-token: %s\n", hashToken))
+		}
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 	}
@@ -676,6 +683,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	}
 
 	cm := NewCheckoutManager(nil)
+	activationToken := c.resolveActivationToken(data)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
 		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
@@ -683,6 +691,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		return cm.GenerateGitHubFolderCheckoutStep(
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
+			activationToken,
 			GetActionPin,
 			extraPaths...,
 		)
@@ -692,5 +701,5 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", GetActionPin, extraPaths...)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
 }
