@@ -400,7 +400,7 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 		"should write workflow file")
 
 	// Compile with --approve so we can inspect the manifest freely without safe update warnings.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve")
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -509,7 +509,7 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 		"should write workflow file")
 
 	// Compile with --approve so we can freely inspect the manifest without safe update warnings.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve")
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)

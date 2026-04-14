@@ -213,7 +213,7 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 		sb.WriteString(strings.Join(removedActions, "\n  - "))
 	}
 
-	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
+	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve-updates flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
 	return fmt.Errorf("%s", sb.String())
 }
 

@@ -291,7 +291,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		assert.Contains(t, msg, "safe update mode", "error message")
 		assert.Contains(t, msg, "NEW_SECRET", "violation in message")
 		assert.Contains(t, msg, "ANOTHER_SECRET", "violation in message")
-		assert.Contains(t, msg, "--approve", "remediation guidance")
+		assert.Contains(t, msg, "--approve-updates", "remediation guidance")
 	})
 
 	t.Run("added actions only", func(t *testing.T) {

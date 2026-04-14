@@ -75,7 +75,7 @@ Examples:
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
-			approveUpgrade, _ := cmd.Flags().GetBool("approve")
+			approveUpgrade, _ := cmd.Flags().GetBool("approve-updates")
 
 			// Handle audit mode
 			if auditFlag {
@@ -111,7 +111,7 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
-	cmd.Flags().Bool("approve", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
+	cmd.Flags().Bool("approve-updates", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	addJSONFlag(cmd)
