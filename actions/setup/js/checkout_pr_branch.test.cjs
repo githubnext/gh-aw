@@ -73,7 +73,18 @@ describe("checkout_pr_branch.cjs", () => {
       rest: {
         pulls: {
           get: vi.fn().mockResolvedValue({
-            data: { state: "open", commits: 1, head: { ref: "feature-branch" } },
+            data: {
+              state: "open",
+              commits: 1,
+              head: {
+                ref: "feature-branch",
+                repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } },
+              },
+              base: {
+                ref: "main",
+                repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } },
+              },
+            },
           }),
         },
       },
@@ -338,6 +349,69 @@ If the pull request is still open, verify that:
       expect(summaryCall).toContain("pull request has been closed");
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git fetch failed`);
+    });
+
+    it("should resolve fork status from API when payload has minimal PR (no head/base)", async () => {
+      // Simulate issue_comment with no pull_request in payload, only issue.pull_request
+      mockContext.payload.pull_request = null;
+      mockContext.payload.issue = {
+        number: 456,
+        state: "open",
+        pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/456" },
+      };
+      // fetchPRDetails returns full PR data with same-repo (non-fork)
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          state: "open",
+          commits: 3,
+          head: { ref: "my-feature", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
+      });
+
+      await runScript();
+
+      // Fork status should be "unknown" initially (minimal PR object)
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (PR details not available in event payload)");
+      // After API call, fork status should be resolved
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): false (same repository)");
+      // Should NOT emit fork warning for a non-fork PR
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Fork PR detected"));
+      // Should successfully checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/456/head:refs/remotes/origin/pr-head", "--depth=4"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "my-feature", "origin/pr-head"]);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should detect fork PR from API when payload has minimal PR", async () => {
+      // Simulate issue_comment with no pull_request in payload
+      mockContext.payload.pull_request = null;
+      mockContext.payload.issue = {
+        number: 789,
+        state: "open",
+        pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/789" },
+      };
+      // fetchPRDetails returns full PR data from a fork
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({
+        data: {
+          state: "open",
+          commits: 2,
+          head: { ref: "fork-feature", repo: { full_name: "fork-owner/test-repo", owner: { login: "fork-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
+      });
+
+      await runScript();
+
+      // Fork status should be "unknown" initially, then resolved from API
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: unknown (PR details not available in event payload)");
+      expect(mockCore.info).toHaveBeenCalledWith("Is fork PR (from API): true (different repository names)");
+      // Should emit fork warning
+      expect(mockCore.warning).toHaveBeenCalledWith("⚠️ Fork PR detected - fetching via refs/pull/N/head from origin");
+      // Should successfully checkout
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/789/head:refs/remotes/origin/pr-head", "--depth=3"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "fork-feature", "origin/pr-head"]);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 
@@ -736,7 +810,12 @@ If the pull request is still open, verify that:
       // Non-fork pull_request uses fast path (no fetchPRDetails call).
       // Only the error handler re-check calls pulls.get → returns closed.
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
-        data: { state: "closed", commits: 1, head: { ref: "feature-branch" } },
+        data: {
+          state: "closed",
+          commits: 1,
+          head: { ref: "feature-branch", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
       });
 
       await runScript();
@@ -834,7 +913,12 @@ If the pull request is still open, verify that:
       mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
       // Non-fork pull_request: error handler re-check returns closed
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
-        data: { state: "closed", commits: 1, head: { ref: "feature-branch" } },
+        data: {
+          state: "closed",
+          commits: 1,
+          head: { ref: "feature-branch", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+          base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        },
       });
 
       await runScript();
@@ -851,7 +935,14 @@ If the pull request is still open, verify that:
       mockContext.payload.pull_request.state = "open";
       // First pulls.get (fetchPRDetails): succeeds
       // Second pulls.get (re-check): shows PR was merged
-      mockGithub.rest.pulls.get.mockResolvedValueOnce({ data: { state: "open", commits: 1, head: { ref: "feature-branch" } } }).mockResolvedValueOnce({ data: { state: "closed", commits: 1, head: { ref: "feature-branch" } } });
+      const fullPRData = {
+        state: "open",
+        commits: 1,
+        head: { ref: "feature-branch", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+        base: { ref: "main", repo: { full_name: "test-owner/test-repo", owner: { login: "test-owner" } } },
+      };
+      const closedPRData = { ...fullPRData, state: "closed" };
+      mockGithub.rest.pulls.get.mockResolvedValueOnce({ data: fullPRData }).mockResolvedValueOnce({ data: closedPRData });
       mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
 
       await runScript();
