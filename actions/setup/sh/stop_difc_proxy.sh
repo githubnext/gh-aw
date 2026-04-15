@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 # Stop DIFC proxy for pre-agent gh CLI steps
+<<<<<<< HEAD
 # This script stops the awmg proxy container, removes the proxy CA certificate from the
 # system trust store (if it was installed), and clears the GH_HOST environment variable.
 # The proxy must be stopped before the MCP gateway starts to avoid double-filtering traffic.
 #
 # Environment:
 #   GITHUB_ENV - Path to GitHub Actions environment file
+=======
+# This script stops the awmg proxy container and removes the proxy CA certificate
+# from the system trust store (if it was installed).
+# The proxy must be stopped before the MCP gateway starts to avoid double-filtering traffic.
+#
+# This script does NOT modify $GITHUB_ENV. The proxy routing env vars (GH_HOST,
+# GITHUB_API_URL, etc.) are injected as step-level env by the compiler and are
+# never written to $GITHUB_ENV, so no restore/clear is needed here.
+>>>>>>> origin/pr-26357
 
 set -e
 
@@ -22,6 +32,7 @@ if [ -f "$DIFC_PROXY_CA_CERT" ]; then
   fi
 fi
 
+<<<<<<< HEAD
 # Only clear GH_HOST if it was set to the proxy address; preserve any pre-existing
 # GH_HOST value (e.g., from configure_gh_for_ghe.sh on GitHub Enterprise runners).
 if [ "${GH_HOST:-}" = "localhost:18443" ]; then
@@ -39,4 +50,6 @@ fi
 # Clear the Node.js CA certs override set by start_difc_proxy.sh.
 echo "NODE_EXTRA_CA_CERTS=" >> "$GITHUB_ENV"
 
+=======
+>>>>>>> origin/pr-26357
 echo "DIFC proxy stopped"

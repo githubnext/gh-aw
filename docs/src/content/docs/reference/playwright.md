@@ -7,11 +7,27 @@ sidebar:
 
 Configure Playwright for browser automation and testing in your agentic workflows. Playwright enables headless browser control for accessibility testing, visual regression detection, end-to-end testing, and web scraping.
 
+<<<<<<< HEAD
+=======
+```yaml wrap
+tools:
+  playwright:
+  playwright:
+    version: "1.56.1"  # Optional: specify version, defaults to 1.56.1
+  playwright:
+    version: "latest"  # Use the latest available version
+```
+
+>>>>>>> origin/pr-26357
 ## Configuration Options
 
 ### Version
 
+<<<<<<< HEAD
 Pin to a specific version or use the latest:
+=======
+Specify the Playwright version to use:
+>>>>>>> origin/pr-26357
 
 ```yaml wrap
 tools:
@@ -53,6 +69,7 @@ network:
 
 **Automatic subdomain matching**: When you allow `example.com`, all subdomains like `api.example.com`, `www.example.com`, and `staging.example.com` are automatically allowed.
 
+<<<<<<< HEAD
 ## GitHub Actions Compatibility
 
 Playwright runs in a Docker container on GitHub Actions runners. gh-aw automatically applies `--security-opt seccomp=unconfined` and `--ipc=host` (required for Chromium) starting with version 0.41.0. No manual configuration is needed.
@@ -60,6 +77,39 @@ Playwright runs in a Docker container on GitHub Actions runners. gh-aw automatic
 ## Browser Support
 
 Playwright includes three browser engines: **Chromium** (Chrome/Edge, most commonly used), **Firefox**, and **WebKit** (Safari). All three are available in the Playwright Docker container.
+=======
+### Default Localhost Access
+
+Without any `network:` configuration, Playwright defaults to:
+
+```yaml wrap
+network:
+  allowed:
+    - "localhost"
+    - "127.0.0.1"
+```
+
+This is sufficient for testing local development servers.
+
+## GitHub Actions Compatibility
+
+Playwright runs in a Docker container on GitHub Actions runners. To ensure Chromium functions correctly, gh-aw automatically configures required security flags:
+
+- `--security-opt seccomp=unconfined` - Allows Chromium's sandboxing mechanisms
+- `--ipc=host` - Enables inter-process communication for browser processes
+
+These flags are automatically applied starting with **gh-aw version 0.41.0 and later**. No manual configuration is needed.
+
+## Browser Support
+
+Playwright includes three browser engines:
+
+- **Chromium** - Chrome/Edge engine (most commonly used)
+- **Firefox** - Mozilla Firefox engine
+- **WebKit** - Safari engine
+
+All three browsers are available in the Playwright Docker container. Your workflow can use any or all of them based on your testing needs.
+>>>>>>> origin/pr-26357
 
 ## Common Use Cases
 

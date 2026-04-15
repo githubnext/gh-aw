@@ -401,6 +401,7 @@ jobs:
           DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.19'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
+<<<<<<< HEAD
       - name: Set GH_REPO for proxied steps
         run: |
           echo "GH_REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_ENV"
@@ -421,6 +422,154 @@ jobs:
       - if: always()
         name: Upload source files and data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+=======
+      - name: Setup jq utilities directory
+        run: |-
+          mkdir -p /tmp/gh-aw
+          cat > /tmp/gh-aw/jqschema.sh << 'EOF'
+          #!/usr/bin/env bash
+          # jqschema.sh
+          jq -c '
+          def walk(f):
+            . as $in |
+            if type == "object" then
+              reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})
+            elif type == "array" then
+              if length == 0 then [] else [.[0] | walk(f)] end
+            else
+              type
+            end;
+          walk(.)
+          '
+          EOF
+          chmod +x /tmp/gh-aw/jqschema.sh
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Install gh CLI
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Fetch issues
+        run: |-
+          # Create output directories
+          mkdir -p /tmp/gh-aw/issues-data
+          mkdir -p /tmp/gh-aw/cache-memory
+
+          # Get today's date for cache identification
+          TODAY=$(date '+%Y-%m-%d')
+          CACHE_DIR="/tmp/gh-aw/cache-memory"
+
+          # Check if cached data exists from today
+          if [ -f "$CACHE_DIR/issues-${TODAY}.json" ] && [ -s "$CACHE_DIR/issues-${TODAY}.json" ]; then
+            echo "✓ Found cached issues data from ${TODAY}"
+            cp "$CACHE_DIR/issues-${TODAY}.json" /tmp/gh-aw/issues-data/issues.json
+
+            # Regenerate schema if missing
+            if [ ! -f "$CACHE_DIR/issues-${TODAY}-schema.json" ]; then
+              /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > "$CACHE_DIR/issues-${TODAY}-schema.json"
+            fi
+            cp "$CACHE_DIR/issues-${TODAY}-schema.json" /tmp/gh-aw/issues-data/issues-schema.json
+
+            echo "Using cached data from ${TODAY}"
+            echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+          else
+            echo "⬇ Downloading fresh issues data..."
+
+            # Fetch all issues (open and closed) using gh CLI
+            # Using --limit 1000 to get the last 1000 issues, unfiltered
+            echo "Fetching the last 1000 issues..."
+            if ! gh issue list --repo "$GITHUB_REPOSITORY" \
+              --state all \
+              --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees,comments \
+              --limit 1000 \
+              > /tmp/gh-aw/issues-data/issues.json; then
+              echo "::warning::Failed to fetch issues data (issues may be disabled or temporarily unavailable). Using empty dataset. Downstream analysis will report zero issues — check repository Issues settings or retry the workflow if this is unexpected."
+              echo "[]" > /tmp/gh-aw/issues-data/issues.json
+            fi
+
+            # Generate schema for reference
+            /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/issues-data/issues.json > /tmp/gh-aw/issues-data/issues-schema.json
+
+            # Store in cache with today's date
+            cp /tmp/gh-aw/issues-data/issues.json "$CACHE_DIR/issues-${TODAY}.json"
+            cp /tmp/gh-aw/issues-data/issues-schema.json "$CACHE_DIR/issues-${TODAY}-schema.json"
+
+            echo "✓ Issues data saved to cache: issues-${TODAY}.json"
+            echo "Total issues found: $(jq 'length' /tmp/gh-aw/issues-data/issues.json)"
+          fi
+
+          # Always ensure data is available at expected locations for backward compatibility
+          echo "Issues data available at: /tmp/gh-aw/issues-data/issues.json"
+          echo "Schema available at: /tmp/gh-aw/issues-data/issues-schema.json"
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Setup Python environment
+        run: |
+          # Create working directory for Python scripts
+          mkdir -p /tmp/gh-aw/python
+          mkdir -p /tmp/gh-aw/python/data
+          mkdir -p /tmp/gh-aw/python/charts
+          mkdir -p /tmp/gh-aw/python/artifacts
+
+          echo "Python environment setup complete"
+          echo "Working directory: /tmp/gh-aw/python"
+          echo "Data directory: /tmp/gh-aw/python/data"
+          echo "Charts directory: /tmp/gh-aw/python/charts"
+          echo "Artifacts directory: /tmp/gh-aw/python/artifacts"
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Install Python scientific libraries
+        run: |
+          # Create a virtual environment for proper package isolation (avoids --break-system-packages)
+          if [ ! -d /tmp/gh-aw/venv ]; then
+            python3 -m venv /tmp/gh-aw/venv
+          fi
+          echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
+          /tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
+
+          # Verify installations
+          /tmp/gh-aw/venv/bin/python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"
+          /tmp/gh-aw/venv/bin/python3 -c "import pandas; print(f'Pandas {pandas.__version__} installed')"
+          /tmp/gh-aw/venv/bin/python3 -c "import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')"
+          /tmp/gh-aw/venv/bin/python3 -c "import seaborn; print(f'Seaborn {seaborn.__version__} installed')"
+          /tmp/gh-aw/venv/bin/python3 -c "import scipy; print(f'SciPy {scipy.__version__} installed')"
+
+          echo "All scientific libraries installed successfully"
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Upload source files and data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+>>>>>>> origin/pr-26357
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -429,8 +578,35 @@ jobs:
             /tmp/gh-aw/python/data/*
           retention-days: 30
       - name: Setup Python NLP environment
+<<<<<<< HEAD
         run: "mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}\n# Create a virtual environment for proper package isolation (avoids --break-system-packages)\nif [ ! -d /tmp/gh-aw/venv ]; then\n  python3 -m venv /tmp/gh-aw/venv\nfi\necho \"/tmp/gh-aw/venv/bin\" >> \"$GITHUB_PATH\"\n/tmp/gh-aw/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK corpora\n/tmp/gh-aw/venv/bin/python3 -c \"\nimport nltk\nfor corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:\n    nltk.download(corpus, quiet=True)\nprint('NLTK corpora ready')\n\"\n\n/tmp/gh-aw/venv/bin/python3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__}')\""
 
+=======
+        run: |-
+          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
+          # Create a virtual environment for proper package isolation (avoids --break-system-packages)
+          if [ ! -d /tmp/gh-aw/venv ]; then
+            python3 -m venv /tmp/gh-aw/venv
+          fi
+          echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
+          /tmp/gh-aw/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud
+
+          # Download required NLTK corpora
+          /tmp/gh-aw/venv/bin/python3 -c "
+          import nltk
+          for corpus in ['punkt_tab', 'stopwords', 'vader_lexicon', 'averaged_perceptron_tagger_eng']:
+              nltk.download(corpus, quiet=True)
+          print('NLTK corpora ready')
+          "
+
+          /tmp/gh-aw/venv/bin/python3 -c "import sklearn; print(f'scikit-learn {sklearn.__version__}')"
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+>>>>>>> origin/pr-26357
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
