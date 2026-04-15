@@ -41,7 +41,7 @@ Authenticates the [GitHub Copilot CLI](/gh-aw/reference/engines/#available-codin
 | **Fallback** | None — the `GITHUB_TOKEN` does not have Copilot permissions |
 | **Used by** | Copilot CLI inference step, secret validation, Copilot-related safe outputs |
 
-When the `copilot-requests` [feature flag](/gh-aw/reference/frontmatter/#feature-flags-features) is enabled, the compiler uses `${{ github.token }}` instead of this secret, allowing the built-in GitHub Actions token to authenticate Copilot directly.
+When the `copilot-requests` [feature flag](/gh-aw/reference/frontmatter/#feature-flags-features) is enabled, the compiler uses `${{ github.token }}` instead of this secret, allowing the built-in GitHub Actions token to authenticate Copilot directly. This feature is currently in **private preview** and will not work unless your account has been onboarded.
 
 **Setup:**
 

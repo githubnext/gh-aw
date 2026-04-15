@@ -302,19 +302,25 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			result, err = ExtractFrontmatterFromContent(string(content))
 		}
 
-		// When the import provides 'with' inputs, apply expression substitution before
-		// discovering nested imports. This resolves ${{ github.aw.import-inputs.* }}
+		// Apply import-schema defaults before discovering nested imports, even when no
+		// explicit 'with:' inputs were provided. This resolves ${{ github.aw.import-inputs.* }}
 		// expressions that appear in the 'with' values of nested imports, enabling
 		// multi-level workflow composition.
 		// We reuse the already-parsed frontmatter to extract import-schema defaults,
 		// avoiding a second YAML parse inside applyImportSchemaDefaults.
-		if err == nil && result != nil && len(item.inputs) > 0 {
+		if err == nil && result != nil {
 			inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(result.Frontmatter, item.inputs)
-			substituted := substituteImportInputsInContent(string(content), inputsWithDefaults)
-			// Re-parse the substituted content so that nested-import discovery sees
-			// the resolved 'with' values instead of literal expression strings.
-			if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
-				result = reparse
+			if len(inputsWithDefaults) > 0 {
+				origContent := string(content)
+				substituted := substituteImportInputsInContent(origContent, inputsWithDefaults)
+				// Only re-parse when substitution actually changed the content.
+				// If no ${{ github.aw.import-inputs.* }} expressions were present,
+				// the content is unchanged and a YAML reparse would be wasteful.
+				if substituted != origContent {
+					if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
+						result = reparse
+					}
+				}
 			}
 		}
 		if err != nil {
