@@ -206,6 +206,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	steps = append(steps, checkoutSteps...)
 
+	// Save .github and .agents from the sparse checkout into /tmp/gh-aw/base/ so they can be
+	// included in the activation artifact and later restored in the agent job after the PR checkout.
+	// This prevents fork PRs from overwriting trusted skill/instruction files with malicious content.
+	if len(checkoutSteps) > 0 {
+		compilerActivationJobLog.Print("Adding step to save .github and .agents for base branch restoration")
+		steps = append(steps, generateSaveBaseGitHubFoldersStep()...)
+	}
+
 	// Add frontmatter hash check to detect stale lock files using GitHub API.
 	// Compares the hash embedded in the lock file against the source .md file to detect stale lock files.
 	// No checkout step needed - uses GitHub API to fetch file contents.
@@ -522,6 +530,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "            /tmp/gh-aw/aw_info.json\n")
 	steps = append(steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	steps = append(steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
+	steps = append(steps, "            /tmp/gh-aw/base\n")
 	steps = append(steps, "          if-no-files-found: ignore\n")
 	steps = append(steps, "          retention-days: 1\n")
 

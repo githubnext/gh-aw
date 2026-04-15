@@ -16,6 +16,46 @@ func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
 	return permParser.HasContentsReadAccess()
 }
 
+// generateSaveBaseGitHubFoldersStep generates step strings (for the activation job) that copy
+// .github and .agents from the workspace into /tmp/gh-aw/base/ so they can be uploaded as
+// part of the activation artifact and later restored in the agent job after the PR checkout.
+func generateSaveBaseGitHubFoldersStep() []string {
+	var lines []string
+	lines = append(lines, "      - name: Save .github and .agents for base branch restoration\n")
+	lines = append(lines, "        run: |\n")
+	lines = append(lines, "          if [ -d \"${GITHUB_WORKSPACE}/.github\" ]; then\n")
+	lines = append(lines, "            mkdir -p /tmp/gh-aw/base\n")
+	lines = append(lines, "            cp -r \"${GITHUB_WORKSPACE}/.github\" /tmp/gh-aw/base/.github\n")
+	lines = append(lines, "          fi\n")
+	lines = append(lines, "          if [ -d \"${GITHUB_WORKSPACE}/.agents\" ]; then\n")
+	lines = append(lines, "            mkdir -p /tmp/gh-aw/base\n")
+	lines = append(lines, "            cp -r \"${GITHUB_WORKSPACE}/.agents\" /tmp/gh-aw/base/.agents\n")
+	lines = append(lines, "          fi\n")
+	return lines
+}
+
+// generateRestoreBaseGitHubFoldersStep generates a step (for the agent job) that restores
+// .github and .agents from the activation artifact after checkout_pr_branch.cjs has run.
+// This prevents fork PRs from injecting malicious skill or instruction files that could
+// alter the agent's behavior. The step also removes .mcp.json from the workspace root
+// since it may contain untrusted MCP server configuration from the PR branch.
+// The step only runs when the PR checkout step ran and succeeded.
+func generateRestoreBaseGitHubFoldersStep(yaml *strings.Builder) {
+	prLog.Print("Generating step to restore .github and .agents from base branch")
+	yaml.WriteString("      - name: Restore .github and .agents from base branch\n")
+	yaml.WriteString("        if: steps.checkout-pr.outcome == 'success'\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          if [ -d \"/tmp/gh-aw/base/.github\" ]; then\n")
+	yaml.WriteString("            rm -rf \"${GITHUB_WORKSPACE}/.github\"\n")
+	yaml.WriteString("            cp -r /tmp/gh-aw/base/.github \"${GITHUB_WORKSPACE}/.github\"\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          if [ -d \"/tmp/gh-aw/base/.agents\" ]; then\n")
+	yaml.WriteString("            rm -rf \"${GITHUB_WORKSPACE}/.agents\"\n")
+	yaml.WriteString("            cp -r /tmp/gh-aw/base/.agents \"${GITHUB_WORKSPACE}/.agents\"\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          rm -f \"${GITHUB_WORKSPACE}/.mcp.json\"\n")
+}
+
 // generatePRReadyForReviewCheckout generates a step to checkout the PR branch when PR context is available
 func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data *WorkflowData) {
 	prLog.Print("Generating PR checkout step")

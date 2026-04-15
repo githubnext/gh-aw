@@ -320,6 +320,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
+	// Restore .github and .agents from the base branch snapshot in the activation artifact.
+	// The activation job saved these before the PR checkout ran, so this step overwrites any
+	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
+	// The .mcp.json at the workspace root is also removed since it may come from the PR branch.
+	if ShouldGeneratePRCheckoutStep(data) {
+		generateRestoreBaseGitHubFoldersStep(yaml)
+	}
+
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-prompts/prompt.txt")
