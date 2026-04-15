@@ -828,7 +828,14 @@ This workflow explicitly opts out of GitHub MCP tools.
 
 	// The GitHub MCP server should NOT appear in the compiled output because
 	// tools.github: false in the main workflow must override the import.
-	if strings.Contains(workflowData, "X-MCP-Toolsets") {
-		t.Error("Expected compiled workflow to NOT contain X-MCP-Toolsets (github MCP server should be disabled by tools.github: false)")
+	githubMCPIndicators := []string{
+		"X-MCP-Toolsets",
+		"api.githubcopilot.com/mcp/",
+		"ghcr.io/github/github-mcp-server",
+	}
+	for _, indicator := range githubMCPIndicators {
+		if strings.Contains(workflowData, indicator) {
+			t.Errorf("Expected compiled workflow to NOT contain GitHub MCP server indicator %q (github MCP server should be disabled by tools.github: false)", indicator)
+		}
 	}
 }
