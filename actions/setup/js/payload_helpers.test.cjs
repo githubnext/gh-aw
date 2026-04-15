@@ -81,7 +81,7 @@ describe("payload_helpers", () => {
     });
 
     it("should parse payload with CRLF line endings", () => {
-      const body = "Some content\r\n\r\n```json gh-aw-payload\r\n{\"verdict\":\"APPROVE\"}\r\n```\r\n\r\nFooter";
+      const body = 'Some content\r\n\r\n```json gh-aw-payload\r\n{"verdict":"APPROVE"}\r\n```\r\n\r\nFooter';
       const result = parsePayloadFromBody(body);
       expect(result).toEqual({ verdict: "APPROVE" });
     });

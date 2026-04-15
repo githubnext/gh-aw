@@ -509,8 +509,8 @@ describe("safe_output_type_validator", () => {
     });
   });
 
-  describe("metadata validation", () => {
-    it("should accept a valid flat metadata object", async () => {
+  describe("payload validation", () => {
+    it("should accept a valid flat payload object", async () => {
       const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
       resetValidationConfigCache();
       process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
@@ -518,18 +518,18 @@ describe("safe_output_type_validator", () => {
           defaultMax: 1,
           fields: {
             body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
-            metadata: { type: "object", isMetadata: true },
+            payload: { type: "object", isPayload: true },
           },
         },
       });
 
-      const result = validateItem({ type: "add_comment", body: "Hello", metadata: { verdict: "APPROVE", count: 5, passed: true, note: null } }, "add_comment", 1);
+      const result = validateItem({ type: "add_comment", body: "Hello", payload: { verdict: "APPROVE", count: 5, passed: true, note: null } }, "add_comment", 1);
 
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.metadata).toEqual({ verdict: "APPROVE", count: 5, passed: true, note: null });
+      expect(result.normalizedItem.payload).toEqual({ verdict: "APPROVE", count: 5, passed: true, note: null });
     });
 
-    it("should accept a comment without metadata", async () => {
+    it("should accept a comment without payload", async () => {
       const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
       resetValidationConfigCache();
       process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
@@ -537,7 +537,7 @@ describe("safe_output_type_validator", () => {
           defaultMax: 1,
           fields: {
             body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
-            metadata: { type: "object", isMetadata: true },
+            payload: { type: "object", isPayload: true },
           },
         },
       });
@@ -545,72 +545,90 @@ describe("safe_output_type_validator", () => {
       const result = validateItem({ type: "add_comment", body: "Hello" }, "add_comment", 1);
 
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.metadata).toBeUndefined();
+      expect(result.normalizedItem.payload).toBeUndefined();
     });
 
-    it("should reject metadata with a nested object value", async () => {
-      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+    it("should reject payload with a nested object value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateMetadata({ key: { nested: "value" } }, "metadata", 1);
+      const result = validatePayload({ key: { nested: "value" } }, "payload", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must be a string, number, boolean, or null");
     });
 
-    it("should reject metadata with an array value", async () => {
-      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+    it("should reject payload with an array value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateMetadata({ tags: ["a", "b"] }, "metadata", 1);
+      const result = validatePayload({ tags: ["a", "b"] }, "payload", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must be a string, number, boolean, or null");
     });
 
-    it("should reject metadata with an invalid key format", async () => {
-      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+    it("should reject payload with an invalid key format", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateMetadata({ "123key": "value" }, "metadata", 1);
+      const result = validatePayload({ "123key": "value" }, "payload", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must start with a letter");
     });
 
-    it("should reject metadata when value is passed as an array (not object)", async () => {
-      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+    it("should reject payload when value is passed as an array (not object)", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateMetadata(["a", "b"], "metadata", 1);
+      const result = validatePayload(["a", "b"], "payload", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must be a flat key-value object");
     });
 
-    it("should reject metadata with too many entries", async () => {
-      const { validateMetadata, MAX_METADATA_ENTRIES } = await import("./safe_output_type_validator.cjs");
+    it("should reject payload with too many entries", async () => {
+      const { validatePayload, MAX_PAYLOAD_ENTRIES } = await import("./safe_output_type_validator.cjs");
 
       const large = {};
-      for (let i = 0; i < MAX_METADATA_ENTRIES + 1; i++) {
+      for (let i = 0; i < MAX_PAYLOAD_ENTRIES + 1; i++) {
         large[`key${i}`] = i;
       }
-      const result = validateMetadata(large, "metadata", 1);
+      const result = validatePayload(large, "payload", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must not have more than");
     });
 
-    it("should reject metadata with a string value exceeding max length", async () => {
-      const { validateMetadata, MAX_METADATA_VALUE_LENGTH } = await import("./safe_output_type_validator.cjs");
+    it("should reject payload with a string value exceeding max length", async () => {
+      const { validatePayload, MAX_PAYLOAD_VALUE_LENGTH } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateMetadata({ longKey: "x".repeat(MAX_METADATA_VALUE_LENGTH + 1) }, "metadata", 1);
+      const result = validatePayload({ longKey: "x".repeat(MAX_PAYLOAD_VALUE_LENGTH + 1) }, "payload", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must not exceed");
     });
 
-    it("should NOT sanitize HTML comments in metadata string values", async () => {
-      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+    it("should reject NaN as a payload number value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
 
-      // HTML comments are preserved (not stripped) — that is the whole point of metadata
-      const result = validateMetadata({ marker: "<!-- [PIPELINE-VERDICT] APPROVE -->" }, "metadata", 1);
+      const result = validatePayload({ score: NaN }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be finite");
+    });
+
+    it("should reject Infinity as a payload number value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ score: Infinity }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be finite");
+    });
+
+    it("should NOT sanitize HTML comments in payload string values", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      // HTML comments are preserved (not stripped) — that is the whole point of payload
+      const result = validatePayload({ marker: "<!-- [PIPELINE-VERDICT] APPROVE -->" }, "payload", 1);
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedValue.marker).toBe("<!-- [PIPELINE-VERDICT] APPROVE -->");

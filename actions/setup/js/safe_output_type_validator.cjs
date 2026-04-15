@@ -45,7 +45,7 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
- * @property {boolean} [isMetadata] - When true, validates as a flat key-value metadata object (not sanitized through HTML sanitizer)
+ * @property {boolean} [isPayload] - When true, validates as a flat key-value payload object (not sanitized through HTML sanitizer)
  */
 
 /**
@@ -128,31 +128,31 @@ function getMinRequiredForType(itemType, config) {
 }
 
 /**
- * Maximum number of entries in a metadata object
+ * Maximum number of entries in a payload object
  */
-const MAX_METADATA_ENTRIES = 50;
+const MAX_PAYLOAD_ENTRIES = 50;
 
 /**
- * Maximum length for a metadata key
+ * Maximum length for a payload key
  */
-const MAX_METADATA_KEY_LENGTH = 64;
+const MAX_PAYLOAD_KEY_LENGTH = 64;
 
 /**
- * Maximum length for a string metadata value
+ * Maximum length for a string payload value
  */
-const MAX_METADATA_VALUE_LENGTH = 1024;
+const MAX_PAYLOAD_VALUE_LENGTH = 1024;
 
 /**
- * Regex for valid metadata keys: must start with a letter and contain only
+ * Regex for valid payload keys: must start with a letter and contain only
  * letters, digits, and underscores (safe identifier format).
  */
-const METADATA_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+const PAYLOAD_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
 /**
- * Validate a metadata object field.
- * Metadata must be a flat key-value object where:
+ * Validate a payload object field.
+ * Payload must be a flat key-value object where:
  * - Keys are safe identifiers (letter + alphanumeric/underscore)
- * - Values are string, number, boolean, or null (no nested objects or arrays)
+ * - Values are string, finite number, boolean, or null (no nested objects or arrays)
  * Values are NOT run through the HTML/injection sanitizer; the structural
  * constraints above prevent injection via nested content.
  * @param {any} value - Value to validate
@@ -160,7 +160,7 @@ const METADATA_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
  * @param {number} lineNum - Line number for error messages
  * @returns {{isValid: boolean, normalizedValue?: object, error?: string}}
  */
-function validateMetadata(value, fieldName, lineNum) {
+function validatePayload(value, fieldName, lineNum) {
   if (value === undefined || value === null) {
     return { isValid: true };
   }
@@ -173,23 +173,23 @@ function validateMetadata(value, fieldName, lineNum) {
   }
 
   const entries = Object.entries(value);
-  if (entries.length > MAX_METADATA_ENTRIES) {
+  if (entries.length > MAX_PAYLOAD_ENTRIES) {
     return {
       isValid: false,
-      error: `Line ${lineNum}: '${fieldName}' must not have more than ${MAX_METADATA_ENTRIES} entries (got ${entries.length})`,
+      error: `Line ${lineNum}: '${fieldName}' must not have more than ${MAX_PAYLOAD_ENTRIES} entries (got ${entries.length})`,
     };
   }
 
   const normalized = {};
   for (const [key, val] of entries) {
     // Validate key format
-    if (typeof key !== "string" || key.length === 0 || key.length > MAX_METADATA_KEY_LENGTH) {
+    if (typeof key !== "string" || key.length === 0 || key.length > MAX_PAYLOAD_KEY_LENGTH) {
       return {
         isValid: false,
-        error: `Line ${lineNum}: '${fieldName}' key '${key}' must be a non-empty string with at most ${MAX_METADATA_KEY_LENGTH} characters`,
+        error: `Line ${lineNum}: '${fieldName}' key '${key}' must be a non-empty string with at most ${MAX_PAYLOAD_KEY_LENGTH} characters`,
       };
     }
-    if (!METADATA_KEY_PATTERN.test(key)) {
+    if (!PAYLOAD_KEY_PATTERN.test(key)) {
       return {
         isValid: false,
         error: `Line ${lineNum}: '${fieldName}' key '${key}' must start with a letter and contain only letters, digits, and underscores`,
@@ -204,11 +204,19 @@ function validateMetadata(value, fieldName, lineNum) {
       };
     }
 
-    // Validate string value length
-    if (typeof val === "string" && val.length > MAX_METADATA_VALUE_LENGTH) {
+    // Reject non-finite numbers (NaN/Infinity) — JSON.stringify converts them to null silently
+    if (typeof val === "number" && !Number.isFinite(val)) {
       return {
         isValid: false,
-        error: `Line ${lineNum}: '${fieldName}' string value for key '${key}' must not exceed ${MAX_METADATA_VALUE_LENGTH} characters`,
+        error: `Line ${lineNum}: '${fieldName}' number value for key '${key}' must be finite (NaN and Infinity are not allowed)`,
+      };
+    }
+
+    // Validate string value length
+    if (typeof val === "string" && val.length > MAX_PAYLOAD_VALUE_LENGTH) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: '${fieldName}' string value for key '${key}' must not exceed ${MAX_PAYLOAD_VALUE_LENGTH} characters`,
       };
     }
 
@@ -379,9 +387,9 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
     return validateIssueOrPRNumber(value, `${itemType} '${fieldName}'`, lineNum);
   }
 
-  // Handle metadata validation — flat key-value objects not subject to HTML sanitization
-  if (validation.isMetadata) {
-    return validateMetadata(value, fieldName, lineNum);
+  // Handle payload validation — flat key-value objects not subject to HTML sanitization
+  if (validation.isPayload) {
+    return validatePayload(value, fieldName, lineNum);
   }
 
   // Handle type validation
@@ -662,7 +670,7 @@ module.exports = {
   validateOptionalPositiveInteger,
   validateIssueOrPRNumber,
   validateIssueNumberOrTemporaryId,
-  validateMetadata,
+  validatePayload,
 
   // Configuration accessors
   loadValidationConfig,
@@ -676,7 +684,7 @@ module.exports = {
   // Constants
   MAX_BODY_LENGTH,
   MAX_GITHUB_USERNAME_LENGTH,
-  MAX_METADATA_ENTRIES,
-  MAX_METADATA_KEY_LENGTH,
-  MAX_METADATA_VALUE_LENGTH,
+  MAX_PAYLOAD_ENTRIES,
+  MAX_PAYLOAD_KEY_LENGTH,
+  MAX_PAYLOAD_VALUE_LENGTH,
 };
