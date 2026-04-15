@@ -9,7 +9,7 @@
 |--------|-------|--------|
 | Total Tool Calls | 44 | ✓ |
 | Serena Tool Calls | 9 (20.45%) | ⚠️ Low |
-| Response Rate | 100% | ✓ Perfect |
+| Response Rate | 100% | ✓ |
 | Tools Registered | 23 | - |
 | Tools Used | 6 (26.09%) | ⚠️ Low adoption |
 | Most Used Tool | Bash (17 calls) | - |

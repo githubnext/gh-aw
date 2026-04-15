@@ -3,9 +3,13 @@
 package cli
 
 import (
+	"context"
+	"os/exec"
 	"testing"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestExtractLastConsoleMessage verifies that extractLastConsoleMessage correctly
@@ -92,6 +96,158 @@ workflow:foo Cleanup +50ms`,
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractLastConsoleMessage(tt.stderr)
 			assert.Equal(t, tt.expected, result, "should extract correct message from stderr")
+		})
+	}
+}
+
+// connectInMemory creates an in-memory MCP client-server connection for testing.
+// The session is closed automatically when the test ends via t.Cleanup.
+func connectInMemory(t *testing.T, server *mcp.Server) *mcp.ClientSession {
+	t.Helper()
+	ctx := context.Background()
+	t1, t2 := mcp.NewInMemoryTransports()
+	_, err := server.Connect(ctx, t1, nil)
+	require.NoError(t, err, "server.Connect should succeed")
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	session, err := client.Connect(ctx, t2, nil)
+	require.NoError(t, err, "client.Connect should succeed")
+	t.Cleanup(func() { session.Close() })
+	return session
+}
+
+// TestLogsToolPassesGithubRepositoryAsRepoFlag verifies that the logs MCP tool
+// appends --repo <owner/repo> to the subprocess command when GITHUB_REPOSITORY
+// is set, allowing gh run list to work in environments without git installed.
+func TestLogsToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
+	tests := []struct {
+		name             string
+		githubRepository string
+		wantRepoFlag     bool
+	}{
+		{
+			name:             "passes --repo when GITHUB_REPOSITORY is set",
+			githubRepository: "github/gh-aw",
+			wantRepoFlag:     true,
+		},
+		{
+			name:             "omits --repo when GITHUB_REPOSITORY is empty",
+			githubRepository: "",
+			wantRepoFlag:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GITHUB_REPOSITORY", tt.githubRepository)
+
+			var capturedArgs []string
+			mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+				capturedArgs = append([]string(nil), args...)
+				// Use a non-existent command so the subprocess fails on all platforms
+				// without depending on Unix-specific commands like "false".
+				// cmd.Output() will return a "executable file not found" error, which
+				// the handler treats as a failure — we only care about the captured args.
+				return exec.CommandContext(ctx, "nonexistent-command-for-testing-only")
+			}
+
+			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+			err := registerLogsTool(server, mockExecCmd, "", false)
+			require.NoError(t, err, "registerLogsTool should succeed")
+
+			session := connectInMemory(t, server)
+
+			// Call the tool — it will fail because the mock command is not found,
+			// but we only care about the captured args.
+			ctx := context.Background()
+			_, _ = session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "logs",
+				Arguments: map[string]any{},
+			})
+
+			require.NotNil(t, capturedArgs, "execCmd should have been called")
+
+			// Locate --repo flag in captured args
+			var repoValue string
+			for i, arg := range capturedArgs {
+				if arg == "--repo" && i+1 < len(capturedArgs) {
+					repoValue = capturedArgs[i+1]
+					break
+				}
+			}
+
+			if tt.wantRepoFlag {
+				assert.Equal(t, tt.githubRepository, repoValue,
+					"--repo flag should be set to GITHUB_REPOSITORY value; args: %v", capturedArgs)
+			} else {
+				assert.Empty(t, repoValue,
+					"--repo flag should not be present when GITHUB_REPOSITORY is empty; args: %v", capturedArgs)
+			}
+		})
+	}
+}
+
+// TestAuditToolPassesGithubRepositoryAsRepoFlag verifies that the audit MCP tool
+// appends --repo <owner/repo> to the subprocess command when GITHUB_REPOSITORY
+// is set, allowing the audit command to resolve the repository without git.
+func TestAuditToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
+	tests := []struct {
+		name             string
+		githubRepository string
+		wantRepoFlag     bool
+	}{
+		{
+			name:             "passes --repo when GITHUB_REPOSITORY is set",
+			githubRepository: "github/gh-aw",
+			wantRepoFlag:     true,
+		},
+		{
+			name:             "omits --repo when GITHUB_REPOSITORY is empty",
+			githubRepository: "",
+			wantRepoFlag:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GITHUB_REPOSITORY", tt.githubRepository)
+
+			var capturedArgs []string
+			mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+				capturedArgs = append([]string(nil), args...)
+				// Use a non-existent command so the subprocess fails on all platforms
+				// without depending on Unix-specific commands like "false".
+				return exec.CommandContext(ctx, "nonexistent-command-for-testing-only")
+			}
+
+			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+			err := registerAuditTool(server, mockExecCmd, "", false)
+			require.NoError(t, err, "registerAuditTool should succeed")
+
+			session := connectInMemory(t, server)
+
+			ctx := context.Background()
+			_, _ = session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "audit",
+				Arguments: map[string]any{"run_id_or_url": "1234567890"},
+			})
+
+			require.NotNil(t, capturedArgs, "execCmd should have been called")
+
+			var repoValue string
+			for i, arg := range capturedArgs {
+				if arg == "--repo" && i+1 < len(capturedArgs) {
+					repoValue = capturedArgs[i+1]
+					break
+				}
+			}
+
+			if tt.wantRepoFlag {
+				assert.Equal(t, tt.githubRepository, repoValue,
+					"--repo flag should be set to GITHUB_REPOSITORY value; args: %v", capturedArgs)
+			} else {
+				assert.Empty(t, repoValue,
+					"--repo flag should not be present when GITHUB_REPOSITORY is empty; args: %v", capturedArgs)
+			}
 		})
 	}
 }

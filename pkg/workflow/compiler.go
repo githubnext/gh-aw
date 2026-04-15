@@ -468,9 +468,11 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// parsed representation of the compiled YAML.  Parse it once here and share the
 	// result between the two validators to avoid redundant yaml.Unmarshal calls.
 	//
-	// Fast-path: if the YAML contains no unsafe context expressions we can skip the
-	// parse (and template-injection check) entirely for the common case.
-	needsTemplateCheck := unsafeContextRegex.MatchString(yamlContent)
+	// Fast-path: use a lightweight text scan to check whether any unsafe context
+	// expression actually appears inside a run: block.  Most compiled workflows place
+	// unsafe expressions only in env: values (the compiler's normal output pattern),
+	// so the expensive full YAML parse can be skipped in the common case.
+	needsTemplateCheck := hasUnsafeExpressionInRunContent(yamlContent)
 	needsSchemaCheck := !c.skipValidation
 
 	var parsedWorkflow map[string]any

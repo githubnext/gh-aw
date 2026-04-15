@@ -185,13 +185,21 @@ A safe output capability for removing user assignments from issues or pull reque
 
 A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
+### Close Pull Request (`close-pull-request:`)
+
+A safe output capability for closing pull requests without merging, with an optional comment. Supports filtering via `required-labels` and `required-title-prefix` to prevent unintended closures. Accepts `target` to identify the PR (`"triggering"`, `"*"`, or a specific number), cross-repository configuration via `target-repo`, and a `max` limit on closures. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#close-pull-request-close-pull-request).
+
 ### Update Issue
 
 A safe output capability (`update-issue:`) for modifying existing issues without creating new ones. Each updatable field (`status`, `title`, `body`) must be explicitly enabled. Body updates accept an `operation` field: `append` (default), `prepend`, `replace`, or `replace-island` (updates a specific section delimited by HTML comments). Supports cross-repository issue updates. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-updates-update-issue).
 
+### Update Pull Request (`update-pull-request:`)
+
+A safe output capability for modifying a pull request's `title` or `body`. Each field must be explicitly enabled (`true` or `false`). The `operation` field controls how body changes are applied: `append` (default), `prepend`, or `replace`. Accepts `target` (`"triggering"`, `"*"`, or a specific number) and cross-repository updates via `target-repo`. When `target: "*"` is used, the agent must supply `pull_request_number` in the tool output. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request).
+
 ### Protected Files
 
-A security mechanism on `create-pull-request` and `push-to-pull-request-branch` safe outputs that prevents AI agents from modifying sensitive repository files. By default, protects dependency manifests (e.g., `package.json`, `go.mod`), GitHub Actions workflow files, and lock files. Configured via `protected-files:` with three policies: `blocked` (default — fails with error), `allowed` (no restriction), or `fallback-to-issue` (creates a review issue for human inspection instead of applying changes). See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#protected-files).
+A security mechanism on `create-pull-request` and `push-to-pull-request-branch` safe outputs that prevents AI agents from modifying sensitive repository files. By default, protects dependency manifests (e.g., `package.json`, `go.mod`), GitHub Actions workflow files, and lock files. Configured via `protected-files:` with three policies: `blocked` (default — fails with error), `allowed` (no restriction), or `fallback-to-issue` (creates a review issue for human inspection instead of applying changes). Also accepts an object form `{ policy: string, exclude: [...] }` to remove specific files or path prefixes from the default protected set while keeping protection active for the remaining files. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#protected-files).
 
 ### Allow Workflows (`allow-workflows:`)
 
@@ -209,9 +217,17 @@ An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branc
 
 An option on `create-pull-request` safe outputs that omits the random hex salt suffix normally appended to the agent-specified branch name. Useful when the target repository enforces naming conventions such as Jira keys in uppercase (for example, `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for safety, and casing is always preserved regardless of this setting. Defaults to `false`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
+### Create Pull Request Review Comment (`create-pull-request-review-comment:`)
+
+A safe output capability for posting inline review comments on specific lines in a pull request diff. Supports single-line and multi-line comments with configurable `side` (`LEFT` or `RIGHT`). When `target: "*"` is set, the agent must supply `pull_request_number` in the tool call. For cross-repository scenarios, the agent may also supply `repo` (in `owner/repo` format) matching `target-repo` or `allowed-repos`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pr-review-comments-create-pull-request-review-comment).
+
 ### Reply to PR Review Comment (`reply-to-pull-request-review-comment:`)
 
-A safe output capability for replying to existing review comments on pull requests. Allows the AI agent to respond to reviewer feedback, answer questions, or acknowledge inline review comments by their numeric comment ID. Supports an optional `footer` field (`always`, `none`, or `if-body`) to control AI attribution. Configured via `reply-to-pull-request-review-comment:` in `safe-outputs`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+A safe output capability for replying to existing review comments on pull requests. Allows the AI agent to respond to reviewer feedback, answer questions, or acknowledge inline review comments by their numeric comment ID. Supports an optional `footer` field (`always`, `none`, or `if-body`) to control AI attribution. Configured via `reply-to-pull-request-review-comment:` in `safe-outputs`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment).
+
+### Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
+
+A safe output capability for marking GitHub PR review threads as resolved. Uses the GitHub GraphQL `resolveReviewThread` mutation, requiring the thread's node ID. Allows AI agents to clean up addressed review comments after implementing feedback. Accepts the same `target`, `target-repo`, and `allowed-repos` options as other pull-request safe outputs. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread).
 
 ### Report Incomplete (`report_incomplete`)
 

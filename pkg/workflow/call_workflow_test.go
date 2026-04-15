@@ -11,7 +11,7 @@ import (
 
 // TestParseCallWorkflowConfig_ArrayFormat tests parsing call-workflow with array format
 func TestParseCallWorkflowConfig_ArrayFormat(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"call-workflow": []any{"worker-a", "worker-b", "worker-c"},
@@ -25,7 +25,7 @@ func TestParseCallWorkflowConfig_ArrayFormat(t *testing.T) {
 
 // TestParseCallWorkflowConfig_MapFormat tests parsing call-workflow with map format
 func TestParseCallWorkflowConfig_MapFormat(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"call-workflow": map[string]any{
@@ -42,7 +42,7 @@ func TestParseCallWorkflowConfig_MapFormat(t *testing.T) {
 
 // TestParseCallWorkflowConfig_DefaultMax tests that max defaults to 1
 func TestParseCallWorkflowConfig_DefaultMax(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"call-workflow": map[string]any{
@@ -57,7 +57,7 @@ func TestParseCallWorkflowConfig_DefaultMax(t *testing.T) {
 
 // TestParseCallWorkflowConfig_MaxCap tests that max is capped at 50
 func TestParseCallWorkflowConfig_MaxCap(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"call-workflow": map[string]any{
@@ -73,7 +73,7 @@ func TestParseCallWorkflowConfig_MaxCap(t *testing.T) {
 
 // TestParseCallWorkflowConfig_NotPresent tests that nil is returned when call-workflow is not configured
 func TestParseCallWorkflowConfig_NotPresent(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{}
 

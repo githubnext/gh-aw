@@ -15,7 +15,7 @@ import (
 // TestBuildCallWorkflowJobs_GeneratesConditionalJobs tests that call-workflow generates
 // conditional `uses:` jobs for each worker in the allowlist
 func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -51,7 +51,7 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 
 // TestBuildCallWorkflowJobs_NoConfig returns nil when call-workflow is not configured
 func TestBuildCallWorkflowJobs_NoConfig(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{},
@@ -64,7 +64,7 @@ func TestBuildCallWorkflowJobs_NoConfig(t *testing.T) {
 
 // TestBuildCallWorkflowJobs_FallbackPath tests that missing WorkflowFiles falls back to default path
 func TestBuildCallWorkflowJobs_FallbackPath(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -90,7 +90,7 @@ func TestBuildCallWorkflowJobs_FallbackPath(t *testing.T) {
 // TestSafeOutputsJobOutputs_CallWorkflow tests that safe_outputs job includes
 // call_workflow_name and call_workflow_payload outputs when call-workflow is configured
 func TestSafeOutputsJobOutputs_CallWorkflow(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -255,7 +255,7 @@ func TestGenerateCallWorkflowTool_EmptyInputs(t *testing.T) {
 
 // TestCallWorkflowJobYAMLOutput tests the YAML output of a call-workflow job
 func TestCallWorkflowJobYAMLOutput(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -333,7 +333,7 @@ jobs:
 
 // TestCallWorkflowConclusionDependencies tests that conclusion job depends on call-workflow jobs
 func TestCallWorkflowConclusionDependencies(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -418,7 +418,7 @@ jobs:
 	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
 	require.NoError(t, os.WriteFile(gatewayFile, []byte("# Gateway"), 0644))
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CallWorkflow: &CallWorkflowConfig{
@@ -488,7 +488,7 @@ func TestExtractWorkflowCallInputsFromParsed(t *testing.T) {
 // TestCallWorkflowConfig_WithGeneratedYAML tests that the compiled YAML for a gateway workflow
 // includes the expected call-workflow fan-out jobs structure
 func TestCallWorkflowConfig_WithGeneratedYAML(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")

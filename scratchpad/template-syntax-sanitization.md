@@ -89,7 +89,7 @@ This is a **defense-in-depth** security measure:
 
 ## Test Coverage
 
-Comprehensive tests in `actions/setup/js/sanitize_content.test.cjs` cover:
+Tests in `actions/setup/js/sanitize_content.test.cjs` cover:
 
 1. **Individual template types**: Each pattern type tested separately
 2. **Multiple occurrences**: Multiple instances of the same pattern

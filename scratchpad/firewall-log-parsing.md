@@ -14,7 +14,7 @@ This implementation adds a Golang base parser for firewall logs that mirrors the
 
 ### 1. `pkg/cli/firewall_log.go` (396 lines)
 Core parser implementation with:
-- Comprehensive package documentation
+- Package documentation
 - Field-for-field parity with JavaScript parser
 - Same validation rules and regex patterns
 - Request classification logic (allowed/denied)
@@ -254,7 +254,7 @@ make agent-finish
 
 ## Documentation
 
-- ✓ Comprehensive package documentation in `firewall_log.go`
+- ✓ Package documentation in `firewall_log.go`
 - ✓ Field mapping and validation rules documented
 - ✓ Input format specification with examples
 - ✓ Output examples for console and JSON

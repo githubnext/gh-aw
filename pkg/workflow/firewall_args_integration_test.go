@@ -45,7 +45,7 @@ Test workflow with custom AWF arguments.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-firewall-args")
+		compiler := NewCompiler(WithVersion("test-firewall-args"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -124,7 +124,7 @@ Test workflow without custom AWF arguments.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-no-custom-args")
+		compiler := NewCompiler(WithVersion("test-no-custom-args"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -199,7 +199,7 @@ Test workflow with SSL bump and allow-urls configuration.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-ssl-bump")
+		compiler := NewCompiler(WithVersion("test-ssl-bump"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -276,7 +276,7 @@ Workflow that uses the GitHub tool, requiring GITHUB_MCP_SERVER_TOKEN.
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
 
-		compiler := NewCompilerWithVersion("test-github-tool")
+		compiler := NewCompiler(WithVersion("test-github-tool"))
 		compiler.SetSkipValidation(true)
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)
@@ -326,7 +326,7 @@ Workflow pinning an AWF version that does not support --exclude-env.
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
 
-		compiler := NewCompilerWithVersion("test-old-awf-version")
+		compiler := NewCompiler(WithVersion("test-old-awf-version"))
 		compiler.SetSkipValidation(true)
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)

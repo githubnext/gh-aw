@@ -341,10 +341,8 @@ func TestSetupGHCommand(t *testing.T) {
 	}
 }
 
-// TestRunGHWithSpinner tests the core runGHWithSpinner function
-// Note: This test validates the function exists and handles arguments correctly
-// Actual spinner behavior is tested via RunGH and RunGHCombined
-func TestRunGHWithSpinnerHelperExists(t *testing.T) {
+// TestRunGHFunctions tests that RunGH and RunGHCombined delegate correctly to their context variants.
+func TestRunGHFunctions(t *testing.T) {
 	// Save original environment
 	originalGHToken := os.Getenv("GH_TOKEN")
 	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
@@ -353,37 +351,35 @@ func TestRunGHWithSpinnerHelperExists(t *testing.T) {
 		os.Setenv("GITHUB_TOKEN", originalGitHubToken)
 	}()
 
-	// Set up test environment - no tokens so command won't actually execute
+	// Set up test environment with no tokens to keep behavior deterministic for unit tests.
 	os.Unsetenv("GH_TOKEN")
 	os.Unsetenv("GITHUB_TOKEN")
 
-	// Test that the function exists and can be called
-	// We use a command that will fail quickly without credentials
-	// to verify the integration works
-	tests := []struct {
-		name     string
-		combined bool
-	}{
-		{
-			name:     "Test stdout mode",
-			combined: false,
-		},
-		{
-			name:     "Test combined mode",
-			combined: true,
-		},
-	}
+	t.Run("RunGH matches RunGHContext", func(t *testing.T) {
+		gotOut, gotErr := RunGH("Test spinner...", "auth", "status")
+		wantOut, wantErr := RunGHContext(context.Background(), "Test spinner...", "auth", "status")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Just verify the function can be called
-			// We expect it to fail since gh command requires auth
-			_, err := runGHWithSpinner("Test spinner...", tt.combined, "auth", "status")
-			// We don't care about the error - we just want to verify the function exists
-			// and doesn't panic when called
-			_ = err
-		})
-	}
+		assert.Equal(t, wantOut, gotOut, "RunGH should return the same output as RunGHContext")
+		if wantErr == nil {
+			assert.NoError(t, gotErr, "RunGH should match RunGHContext error behavior")
+		} else {
+			require.Error(t, gotErr, "RunGH should match RunGHContext error behavior")
+			assert.Equal(t, wantErr.Error(), gotErr.Error(), "RunGH should return the same error text as RunGHContext")
+		}
+	})
+
+	t.Run("RunGHCombined matches RunGHCombinedContext", func(t *testing.T) {
+		gotOut, gotErr := RunGHCombined("Test spinner...", "auth", "status")
+		wantOut, wantErr := RunGHCombinedContext(context.Background(), "Test spinner...", "auth", "status")
+
+		assert.Equal(t, wantOut, gotOut, "RunGHCombined should return the same output as RunGHCombinedContext")
+		if wantErr == nil {
+			assert.NoError(t, gotErr, "RunGHCombined should match RunGHCombinedContext error behavior")
+		} else {
+			require.Error(t, gotErr, "RunGHCombined should match RunGHCombinedContext error behavior")
+			assert.Equal(t, wantErr.Error(), gotErr.Error(), "RunGHCombined should return the same error text as RunGHCombinedContext")
+		}
+	})
 }
 
 // TestEnrichGHError tests that enrichGHError appends stderr from *exec.ExitError

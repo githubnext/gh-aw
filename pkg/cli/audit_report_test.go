@@ -1623,3 +1623,63 @@ func TestGenerateRecommendationsFirewallSingleBlock(t *testing.T) {
 	assert.Contains(t, networkRec.Example, "chatgpt.com",
 		"Recommendation example should include the blocked domain name")
 }
+
+func TestGenerateRecommendationsFiltersDashPlaceholder(t *testing.T) {
+	// Defense-in-depth: even if "-" somehow appears in BlockedDomains (e.g. from
+	// extractFirewallFromAgentLog or a future code path), the recommendation must
+	// not include it as an allow-list entry.  In practice, parseFirewallLog now
+	// replaces "-" with the unknownDomain sentinel, but other ingestion paths may
+	// still produce "-" entries.
+	pr := createTestProcessedRun()
+	fw := &FirewallAnalysis{
+		TotalRequests:    1,
+		BlockedRequests:  1,
+		AllowedRequests:  0,
+		RequestsByDomain: map[string]DomainRequestStats{"-": {Blocked: 1}},
+	}
+	fw.SetBlockedDomains([]string{"-"})
+	pr.FirewallAnalysis = fw
+
+	findings := []Finding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
+	recs := generateRecommendations(pr, MetricsData{}, findings)
+
+	var networkRec *Recommendation
+	for i := range recs {
+		if strings.Contains(recs[i].Action, "network") || strings.Contains(recs[i].Action, "blocked") {
+			networkRec = &recs[i]
+			break
+		}
+	}
+	require.NotNil(t, networkRec, "Should still generate a network recommendation when blocked requests exist")
+	assert.NotContains(t, networkRec.Example, "    - -",
+		"Recommendation example should not include the \"-\" placeholder as an allow-list entry")
+}
+
+func TestGenerateRecommendationsFiltersUnknownSentinel(t *testing.T) {
+	// When blocked domains only contain the unknownDomain sentinel (from iptables drops
+	// where no destination info is available), the recommendation should not include the
+	// sentinel in the allow-list example.
+	pr := createTestProcessedRun()
+	fw := &FirewallAnalysis{
+		TotalRequests:    1,
+		BlockedRequests:  1,
+		AllowedRequests:  0,
+		RequestsByDomain: map[string]DomainRequestStats{unknownDomain: {Blocked: 1}},
+	}
+	fw.SetBlockedDomains([]string{unknownDomain})
+	pr.FirewallAnalysis = fw
+
+	findings := []Finding{{Category: "network", Severity: "medium", Title: "Blocked Network Requests"}}
+	recs := generateRecommendations(pr, MetricsData{}, findings)
+
+	var networkRec *Recommendation
+	for i := range recs {
+		if strings.Contains(recs[i].Action, "network") || strings.Contains(recs[i].Action, "blocked") {
+			networkRec = &recs[i]
+			break
+		}
+	}
+	require.NotNil(t, networkRec, "Should still generate a network recommendation when blocked requests exist")
+	assert.NotContains(t, networkRec.Example, unknownDomain,
+		"Recommendation example should not include the unknownDomain sentinel as an allow-list entry")
+}
