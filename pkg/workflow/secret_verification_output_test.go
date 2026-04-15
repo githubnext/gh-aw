@@ -93,7 +93,7 @@ Test workflow`
 }
 
 func TestSecretVerificationSkippedWithEnvironment(t *testing.T) {
-	testDir := testutil.TempDir(t, "test-secret-verification-environment-*")
+	testDir := testutil.TempDir(t, "secret-verify-env-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
 	workflow := `---

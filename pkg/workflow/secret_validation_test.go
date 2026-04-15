@@ -310,9 +310,9 @@ func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
 				Environment: "production",
 			}
 
-			step := tt.engine.GetSecretValidationStep(workflowData)
-			if len(step) != 0 {
-				t.Fatalf("expected secret validation step to be skipped when environment is configured, got:\n%s", strings.Join(step, "\n"))
+			steps := tt.engine.GetSecretValidationStep(workflowData)
+			if len(steps) != 0 {
+				t.Fatalf("expected secret validation step to be skipped when environment is configured, got:\n%s", strings.Join(steps, "\n"))
 			}
 		})
 	}
