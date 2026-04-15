@@ -740,9 +740,15 @@ func addSameRepoIfConditionToSteps(steps []string) []string {
 // injectIfConditionAfterName inserts an "if:" field immediately after the first line
 // (the "- name:" line) of a YAML step string. Returns the step unchanged if the
 // insertion point cannot be found.
+//
+// The 8-space prefix matches the YAML indentation used throughout the step generator:
+// steps are nested 6 spaces deep ("      - name:") and step fields are at 8 spaces
+// ("        uses:", "        with:", etc.). This is consistent with all other
+// step fields emitted by GenerateGitHubFolderCheckoutStep.
 func injectIfConditionAfterName(step, condition string) string {
 	idx := strings.Index(step, "\n")
 	if idx < 0 {
+		compilerActivationJobLog.Printf("Warning: could not inject if-condition %q — step has no newline: %q", condition, step)
 		return step
 	}
 	return step[:idx+1] + "        if: " + condition + "\n" + step[idx+1:]
