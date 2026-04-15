@@ -33,11 +33,12 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 ### Pull Requests
 
 - [**Create PR**](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-creation-create-pull-request) (`create-pull-request`) - Create pull requests with code changes (default max: 1, configurable)
-- [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
-- [**Close PR**](#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
-- [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
-- [**Reply to PR Review Comment**](#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
-- [**Resolve PR Review Thread**](#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
+- [**Update PR**](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request) (`update-pull-request`) - Update PR title or body (max: 1)
+- [**Close PR**](/gh-aw/reference/safe-outputs-pull-requests/#close-pull-request-close-pull-request) (`close-pull-request`) - Close pull requests without merging (max: 10)
+- [**PR Review Comments**](/gh-aw/reference/safe-outputs-pull-requests/#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) - Create review comments on code lines (max: 10)
+- [**Reply to PR Review Comment**](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment) (`reply-to-pull-request-review-comment`) - Reply to existing review comments (max: 10)
+- [**Resolve PR Review Thread**](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread) (`resolve-pull-request-review-thread`) - Resolve review threads after addressing feedback (max: 10)
+- [**Add Reviewer**](/gh-aw/reference/safe-outputs-pull-requests/#add-reviewer-add-reviewer) (`add-reviewer`) - Add reviewers to pull requests (max: 3)
 - [**Push to PR Branch**](/gh-aw/reference/safe-outputs-pull-requests/#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) - Push changes to PR branch (default max: 1, configurable, same-repo only)
 
 ### Labels, Assignments & Reviews
@@ -46,7 +47,6 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Hide Comment**](#hide-comment-hide-comment) (`hide-comment`) - Hide comments on issues, PRs, or discussions (max: 5)
 - [**Add Labels**](#add-labels-add-labels) (`add-labels`) - Add labels to issues or PRs (max: 3)
 - [**Remove Labels**](#remove-labels-remove-labels) (`remove-labels`) - Remove labels from issues or PRs (max: 3)
-- [**Add Reviewer**](#add-reviewer-add-reviewer) (`add-reviewer`) - Add reviewers to pull requests (max: 3)
 - [**Assign Milestone**](#assign-milestone-assign-milestone) (`assign-milestone`) - Assign issues to milestones (max: 1)
 - [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) - Assign Copilot coding agent to issues or PRs (max: 1)
 - [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) - Assign users to issues (max: 1)
@@ -336,21 +336,9 @@ safe-outputs:
 
 ### Add Reviewer (`add-reviewer:`)
 
-Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames.
+Adds reviewers to pull requests.
 
-```yaml wrap
-safe-outputs:
-  add-reviewer:
-    reviewers: [user1, copilot]  # restrict to specific reviewers
-    max: 3                       # max reviewers (default: 3)
-    target: "*"                  # "triggering" (default), "*", or number
-    target-repo: "owner/repo"    # cross-repository
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-```
-
-**Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
-
-Use `reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [Assign to Agent](/gh-aw/reference/assign-to-copilot/).
+See the full reference: [Safe Outputs (Pull Requests) — add-reviewer](/gh-aw/reference/safe-outputs-pull-requests/#add-reviewer-add-reviewer)
 
 ### Assign Milestone (`assign-milestone:`)
 
@@ -402,25 +390,9 @@ Agent output format: `{"type": "update_issue", "issue_number": 123, "operation":
 
 ### Pull Request Updates (`update-pull-request:`)
 
-Updates PR title or body. Both fields are enabled by default. The `operation` field controls how body updates are applied: `append` (default), `prepend`, or `replace`.
+Updates PR title or body.
 
-```yaml wrap
-safe-outputs:
-  update-pull-request:
-    title: true               # enable title updates (default: true)
-    body: true                # enable body updates (default: true)
-    footer: false             # omit AI-generated footer from body updates (default: true)
-    max: 1                    # max updates (default: 1)
-    target: "*"               # "triggering" (default), "*", or number
-    target-repo: "owner/repo" # cross-repository
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-```
-
-**Target**: `"triggering"` (requires PR event), `"*"` (any PR), or number (specific PR).
-
-When using `target: "*"`, the agent must provide `pull_request_number` in the output to identify which pull request to update.
-
-**Operation Types**: Same as `update-issue` above (`append`, `prepend`, `replace`). Title updates always replace the existing title. Disable fields by setting to `false`.
+See the full reference: [Safe Outputs (Pull Requests) — update-pull-request](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request)
 
 ### Link Sub-Issue (`link-sub-issue:`)
 
@@ -659,59 +631,21 @@ safe-outputs:
 
 ### Close Pull Request (`close-pull-request:`)
 
-Closes PRs without merging with optional comment. Filter by labels and title prefix. Target: `"triggering"` (PR event), `"*"` (any), or number.
+Closes PRs without merging.
 
-```yaml wrap
-safe-outputs:
-  close-pull-request:
-    target: "triggering"              # "triggering" (default), "*", or number
-    required-labels: [automated, stale] # only close with these labels
-    required-title-prefix: "[bot]"    # only close matching prefix
-    max: 10                           # max closures (default: 1)
-    target-repo: "owner/repo"         # cross-repository
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-```
+See the full reference: [Safe Outputs (Pull Requests) — close-pull-request](/gh-aw/reference/safe-outputs-pull-requests/#close-pull-request-close-pull-request)
 
 ### PR Review Comments (`create-pull-request-review-comment:`)
 
-Creates review comments on specific code lines in PRs. Supports single-line and multi-line comments. Comments are buffered and submitted as a single PR review (see `submit-pull-request-review` below).
+Creates review comments on specific code lines in PRs.
 
-```yaml wrap
-safe-outputs:
-  create-pull-request-review-comment:
-    max: 3                    # max comments (default: 10)
-    side: "RIGHT"             # "LEFT" or "RIGHT" (default: "RIGHT")
-    target: "*"               # "triggering" (default), "*", or number
-    target-repo: "owner/repo" # cross-repository
-    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    footer: "if-body"         # footer control: "always", "none", or "if-body"
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-```
-
-When `target: "*"` is configured, the agent must supply `pull_request_number` in each `create_pull_request_review_comment` tool call to identify which PR to comment on — omitting it will cause the comment to fail. For cross-repository scenarios, the agent can also supply `repo` (in `owner/repo` format) to route the comment to a PR in a different repository; the value must match `target-repo` or appear in `allowed-repos`.
+See the full reference: [Safe Outputs (Pull Requests) — create-pull-request-review-comment](/gh-aw/reference/safe-outputs-pull-requests/#pr-review-comments-create-pull-request-review-comment)
 
 ### Reply to PR Review Comment (`reply-to-pull-request-review-comment:`)
 
-Replies to existing review comments on pull requests. Use this to respond to reviewer feedback, answer questions, or acknowledge comments. The `comment_id` must be the numeric ID of an existing review comment.
+Replies to existing review comments on pull requests.
 
-```yaml wrap
-safe-outputs:
-  reply-to-pull-request-review-comment:
-    max: 10                              # max replies (default: 10)
-    target: "triggering"                 # "triggering" (default), "*", or number
-    target-repo: "owner/repo"            # cross-repository
-    allowed-repos: ["org/other-repo"]    # additional allowed repositories
-    footer: true                         # add AI-generated footer (default: true)
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-```
-
-The `footer` field controls whether AI-generated footers are added to PR review comments:
-
-- `"always"` (default) - Always include footer on review comments
-- `"none"` - Never include footer on review comments
-- `"if-body"` - Only include footer when the review has a body text
-
-With `footer: "if-body"`, approval reviews without body text appear clean without the AI-generated footer, while reviews with explanatory text still include the footer for attribution.
+See the full reference: [Safe Outputs (Pull Requests) — reply-to-pull-request-review-comment](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment)
 
 ### Submit PR Review (`submit-pull-request-review:`)
 
@@ -742,27 +676,9 @@ Use `allowed-events` to restrict which review event types the agent can submit. 
 
 ### Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
 
-Resolves review threads on pull requests. Allows AI agents to mark review conversations as resolved after addressing the feedback. Uses the GitHub GraphQL API with the `resolveReviewThread` mutation.
+Resolves review threads on pull requests.
 
-By default, resolution is scoped to the triggering PR. Use `target`, `target-repo`, and `allowed-repos` for cross-repository thread resolution.
-
-```yaml wrap
-safe-outputs:
-  resolve-pull-request-review-thread:
-    max: 10                              # max threads to resolve (default: 10)
-    target: "triggering"                 # "triggering" (default), "*", or number
-    target-repo: "owner/repo"            # cross-repository
-    allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
-    github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
-```
-
-See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for documentation on `target-repo`, `allowed-repos`, and cross-repository authentication.
-
-**Agent output format:**
-
-```json
-{"type": "resolve_pull_request_review_thread", "thread_id": "PRRT_kwDOABCD..."}
-```
+See the full reference: [Safe Outputs (Pull Requests) — resolve-pull-request-review-thread](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread)
 
 ### Code Scanning Alerts (`create-code-scanning-alert:`)
 
