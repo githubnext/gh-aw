@@ -77,8 +77,9 @@ var (
 // (the compiler's normal output pattern), so the expensive full YAML parse for
 // template-injection validation can be skipped in the common case.
 //
-// The scanner is conservative: when in doubt it returns true so that the full
-// parse-and-validate path still runs (e.g. when rest == "" after "run:").
+// The scanner is intentionally lightweight rather than fully conservative: when it
+// encounters `run:` with no inline content (rest == ""), it enters run-block scanning
+// mode and only returns true if a subsequent indented line matches unsafeContextRegex.
 func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 	// Fast-path: no unsafe expressions anywhere → definitely no violation.
 	if !unsafeContextRegex.MatchString(yamlContent) {
