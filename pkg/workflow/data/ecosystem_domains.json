@@ -229,6 +229,23 @@
     "repo.continuum.io",
     "repo.anaconda.com"
   ],
+  "python-native": [
+    "pypi.python.org",
+    "pypi.org",
+    "pip.pypa.io",
+    "*.pythonhosted.org",
+    "files.pythonhosted.org",
+    "bootstrap.pypa.io",
+    "conda.binstar.org",
+    "conda.anaconda.org",
+    "binstar.org",
+    "anaconda.org",
+    "repo.continuum.io",
+    "repo.anaconda.com",
+    "crates.io",
+    "index.crates.io",
+    "static.crates.io"
+  ],
   "r": ["cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com", "r-project.org"],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
