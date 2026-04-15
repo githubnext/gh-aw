@@ -12,6 +12,11 @@ import (
 // algorithm, which avoids catastrophic cancellation when values are large or
 // tightly clustered.  All observed values are also stored so that an exact
 // median can be returned on demand.
+//
+// Memory usage: all observations are stored to enable exact median computation.
+// This is suitable for the expected scale of agentic workflow metrics (typically
+// tens to a few hundred observations per session).  For very large streams
+// (thousands of observations), consider a streaming approximation instead.
 type StatVar struct {
 	count  int
 	mean   float64 // running mean (Welford)

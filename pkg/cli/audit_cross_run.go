@@ -47,6 +47,16 @@ type CrossRunSummary struct {
 
 // MetricsTrendData contains aggregated cost, token, turn, and duration statistics
 // across multiple runs, with spike detection for anomalous runs.
+// MetricsTrendData contains aggregated cost, token, turn, and duration statistics
+// across multiple runs, with spike detection for anomalous runs.
+//
+// Token counts (MinTokens, MaxTokens, AvgTokens) are stored as int to preserve
+// integer semantics consistent with the source data; MedianTokens and StdDevTokens
+// use float64 because statistical measures of integer quantities can be fractional.
+//
+// Duration fields only aggregate runs where timing data was recorded (duration > 0),
+// so the duration statistics may cover fewer runs than the cost/token/turn statistics.
+// All stddev fields use the sample standard deviation (Bessel's correction).
 type MetricsTrendData struct {
 	TotalCost    float64 `json:"total_cost"`
 	AvgCost      float64 `json:"avg_cost"`
@@ -56,8 +66,8 @@ type MetricsTrendData struct {
 	MaxCost      float64 `json:"max_cost"`
 	TotalTokens  int     `json:"total_tokens"`
 	AvgTokens    int     `json:"avg_tokens"`
-	MedianTokens float64 `json:"median_tokens"`
-	StdDevTokens float64 `json:"stddev_tokens"`
+	MedianTokens float64 `json:"median_tokens"` // float64: median of integer counts can be fractional
+	StdDevTokens float64 `json:"stddev_tokens"` // float64: stddev is always fractional
 	MinTokens    int     `json:"min_tokens"`
 	MaxTokens    int     `json:"max_tokens"`
 	TotalTurns   int     `json:"total_turns"`
@@ -65,7 +75,8 @@ type MetricsTrendData struct {
 	MedianTurns  float64 `json:"median_turns"`
 	StdDevTurns  float64 `json:"stddev_turns"`
 	MaxTurns     int     `json:"max_turns"`
-	// Duration statistics (stored as nanoseconds for JSON portability)
+	// Duration statistics (stored as nanoseconds for JSON portability).
+	// Only runs with duration > 0 contribute; runs without timing data are excluded.
 	AvgDurationNs    int64   `json:"avg_duration_ns"`
 	MedianDurationNs int64   `json:"median_duration_ns"`
 	StdDevDurationNs int64   `json:"stddev_duration_ns"`
