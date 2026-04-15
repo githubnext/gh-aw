@@ -45,7 +45,7 @@ gh aw init
 - Configures `.gitattributes` to mark `.lock.yml` files as generated
 - Creates `.github/agents/agentic-workflows.agent.md` as the dispatcher agent for AI workflows
 - Configures VSCode settings in `.vscode/settings.json`
-- Creates GH-AW MCP server configuration in `.vscode/mcp.json`
+- Creates GH-AW MCP server configuration in `.mcp.json`
 - Creates `.github/workflows/copilot-setup-steps.yml` with setup instructions
 
 **Note**: The command may prompt for additional configuration or secrets. If secrets are needed, `gh aw init` will provide instructions for setting them up. You don't need to configure secrets as part of this initial setup.
@@ -63,10 +63,7 @@ You should see new/modified files including:
 - `.gitattributes`
 - `.github/agents/agentic-workflows.agent.md`
 - `.vscode/settings.json`
-- `.vscode/mcp.json`
-- And several other configuration files
-
-## Step 4: Commit and Push Changes
+- `.mcp.json`
 
 Commit the initialization changes:
 

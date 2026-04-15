@@ -186,9 +186,9 @@ func TestInitRepositoryBasic(t *testing.T) {
 	}
 
 	// Verify MCP files were created by default
-	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	mcpConfigPath := mcpConfigFilePath
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Error("Expected .vscode/mcp.json to be created by default")
+		t.Error("Expected .mcp.json to be created by default")
 	}
 
 	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
@@ -227,10 +227,10 @@ func TestInitRepositoryWithMCP(t *testing.T) {
 		t.Fatalf("InitRepository(, false, false, false, nil) with MCP failed: %v", err)
 	}
 
-	// Verify .vscode/mcp.json was created
-	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	// Verify .mcp.json was created
+	mcpConfigPath := mcpConfigFilePath
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Error("Expected .vscode/mcp.json to be created")
+		t.Error("Expected .mcp.json to be created")
 	}
 
 	// Verify copilot-setup-steps.yml was created
@@ -270,10 +270,10 @@ func TestInitRepositoryWithNoMCP(t *testing.T) {
 		t.Fatalf("InitRepository(, false, false, false, nil) with --no-mcp failed: %v", err)
 	}
 
-	// Verify .vscode/mcp.json was NOT created
-	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	// Verify .mcp.json was NOT created
+	mcpConfigPath := mcpConfigFilePath
 	if _, err := os.Stat(mcpConfigPath); err == nil {
-		t.Error("Expected .vscode/mcp.json to NOT be created with --no-mcp flag")
+		t.Error("Expected .mcp.json to NOT be created with --no-mcp flag")
 	}
 
 	// Verify copilot-setup-steps.yml was NOT created
@@ -318,10 +318,10 @@ func TestInitRepositoryWithMCPBackwardCompatibility(t *testing.T) {
 		t.Fatalf("InitRepository(, false, false, false, nil) with deprecated --mcp flag failed: %v", err)
 	}
 
-	// Verify .vscode/mcp.json was created
-	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	// Verify .mcp.json was created
+	mcpConfigPath := mcpConfigFilePath
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Error("Expected .vscode/mcp.json to be created with --mcp flag (backward compatibility)")
+		t.Error("Expected .mcp.json to be created with --mcp flag (backward compatibility)")
 	}
 
 	// Verify copilot-setup-steps.yml was created
@@ -479,9 +479,9 @@ func TestInitRepositoryWithMCPIdempotent(t *testing.T) {
 	}
 
 	// Verify files still exist and are correct
-	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	mcpConfigPath := mcpConfigFilePath
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Error("Expected .vscode/mcp.json to still exist after second run")
+		t.Error("Expected .mcp.json to still exist after second run")
 	}
 
 	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
