@@ -92,15 +92,10 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 	runBlockIndent := 0
 
 	for _, line := range lines {
-		if len(line) == 0 {
-			// Blank lines are allowed inside block scalars; stay in run block.
-			continue
-		}
-
-		// Compute indentation of this line.
+		// Compute indentation first; skip blank and all-whitespace lines in one step.
 		trimmed := strings.TrimLeft(line, " \t")
 		if len(trimmed) == 0 {
-			// All-whitespace line — treat like blank.
+			// Blank / all-whitespace lines are allowed inside block scalars.
 			continue
 		}
 		indent := len(line) - len(trimmed)
@@ -130,9 +125,12 @@ func hasUnsafeExpressionInRunContent(yamlContent string) bool {
 		}
 		rest := strings.TrimSpace(keyPart[4:]) // text after "run:"
 
-		if rest == "" || rest[0] == '|' || rest[0] == '>' {
-			// Block scalar (run: | or run: >) — content is on subsequent lines.
-			// Also be conservative when rest == "" (unusual, but treat as block).
+		if rest == "" {
+			// Empty run: value is unusual; treat conservatively as if block content follows.
+			inRunBlock = true
+			runBlockIndent = indent
+		} else if rest[0] == '|' || rest[0] == '>' {
+			// Literal or folded block scalar — content is on subsequent lines.
 			inRunBlock = true
 			runBlockIndent = indent
 		} else {
