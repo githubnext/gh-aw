@@ -338,7 +338,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		for line := range strings.SplitSeq(validationConfigJSON, "\n") {
 			yaml.WriteString("            " + line + "\n")
 		}
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", workflowData))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 		yaml.WriteString(generateGitHubScriptWithRequire("generate_safe_outputs_tools.cjs"))

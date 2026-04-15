@@ -379,7 +379,7 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
 		"        if: always()\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
 		fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError)),
@@ -402,7 +402,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
@@ -646,7 +646,7 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 	return []string{
 		"      - name: Upload threat detection log\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
@@ -658,7 +658,7 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 // It runs only when the agent job produced a patch, so the detection engine can
 // analyze code changes in the context of the surrounding codebase.
 func (c *Compiler) buildWorkspaceCheckoutForDetectionStep(data *WorkflowData) []string {
-	checkoutPin := GetActionPin("actions/checkout")
+	checkoutPin := getActionPin("actions/checkout")
 	if checkoutPin == "" {
 		threatLog.Print("No action pin found for actions/checkout, skipping workspace checkout step")
 		return nil

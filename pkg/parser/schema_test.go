@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -260,6 +261,136 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowDispatchNumberInputType(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": map[string]any{
+				"inputs": map[string]any{
+					"max_retries": map[string]any{
+						"description": "Maximum retries",
+						"type":        "number",
+						"default":     3,
+						"required":    false,
+					},
+				},
+			},
+		},
+		"engine": "copilot",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow_dispatch_number_test.md")
+	if err != nil {
+		t.Fatalf("expected workflow_dispatch number input type to validate, got: %v", err)
+	}
+}
+
+func TestMainWorkflowSchema_WorkflowDispatchNumberTypeDocumentation(t *testing.T) {
+	t.Parallel()
+
+	schemaPath := "schemas/main_workflow_schema.json"
+	schemaContent, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("failed to read schema: %v", err)
+	}
+
+	var schema map[string]any
+	if err := json.Unmarshal(schemaContent, &schema); err != nil {
+		t.Fatalf("failed to parse schema json: %v", err)
+	}
+
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("schema properties section not found")
+	}
+	onField, ok := properties["on"].(map[string]any)
+	if !ok {
+		t.Fatal("'on' field not found in schema")
+	}
+
+	onOneOf, ok := onField["oneOf"].([]any)
+	if !ok {
+		t.Fatal("'on.oneOf' not found in schema")
+	}
+
+	var workflowDispatchInputType map[string]any
+	for _, onEntry := range onOneOf {
+		onEntryMap, ok := onEntry.(map[string]any)
+		if !ok {
+			continue
+		}
+		onProps, ok := onEntryMap["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+		eventsConfig, ok := onProps["workflow_dispatch"].(map[string]any)
+		if !ok {
+			continue
+		}
+		eventsOneOf, ok := eventsConfig["oneOf"].([]any)
+		if !ok {
+			continue
+		}
+
+		for _, eventEntry := range eventsOneOf {
+			eventEntryMap, ok := eventEntry.(map[string]any)
+			if !ok {
+				continue
+			}
+			eventProps, ok := eventEntryMap["properties"].(map[string]any)
+			if !ok {
+				continue
+			}
+			inputsField, ok := eventProps["inputs"].(map[string]any)
+			if !ok {
+				continue
+			}
+			inputDefs, ok := inputsField["additionalProperties"].(map[string]any)
+			if !ok {
+				continue
+			}
+			inputDefProps, ok := inputDefs["properties"].(map[string]any)
+			if !ok {
+				continue
+			}
+			typeField, ok := inputDefProps["type"].(map[string]any)
+			if !ok {
+				t.Fatal("'on.workflow_dispatch.inputs.<id>.type' field missing")
+			}
+			workflowDispatchInputType = typeField
+			break
+		}
+	}
+
+	if workflowDispatchInputType == nil {
+		t.Fatal("workflow_dispatch input type schema not found")
+	}
+
+	enumVals, ok := workflowDispatchInputType["enum"].([]any)
+	if !ok {
+		t.Fatal("workflow_dispatch input type enum not found")
+	}
+	hasNumber := false
+	for _, val := range enumVals {
+		if val == "number" {
+			hasNumber = true
+			break
+		}
+	}
+	if !hasNumber {
+		t.Fatalf("workflow_dispatch input type enum should include 'number', got: %v", enumVals)
+	}
+
+	typeDescription, ok := workflowDispatchInputType["description"].(string)
+	if !ok {
+		t.Fatal("workflow_dispatch input type description not found")
+	}
+	if !strings.Contains(typeDescription, "number") {
+		t.Fatalf("workflow_dispatch input type description should mention 'number', got: %q", typeDescription)
 	}
 }
 

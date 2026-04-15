@@ -29,7 +29,7 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	if config.ContinueOnError {
 		steps = append(steps, "        continue-on-error: true\n")
 	}
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
@@ -147,7 +147,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	// Step 1: Checkout repository with conditional execution
 	steps = append(steps, "      - name: Checkout repository\n")
 	steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(condition)))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
 
 	// Set repository parameter if checking out a different repository
@@ -205,7 +205,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Step name and metadata
 	steps = append(steps, "      - name: Process Safe Outputs\n")
 	steps = append(steps, "        id: process_safe_outputs\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Environment variables
 	steps = append(steps, "        env:\n")

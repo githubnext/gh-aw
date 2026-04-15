@@ -78,7 +78,7 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	RenderConditionAsIf(yaml, condition, "          ")
 
 	// Use actions/github-script instead of shell script
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 
 	// Add env section with GH_TOKEN for gh CLI
 	// Use safe-outputs github-token if available, otherwise default token

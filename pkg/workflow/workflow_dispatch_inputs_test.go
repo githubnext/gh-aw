@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -56,6 +57,24 @@ engine: copilot
 Test workflow with boolean input`,
 			wantType:    "boolean",
 			wantDefault: "false",
+		},
+		{
+			name: "number input type",
+			markdown: `---
+on:
+  workflow_dispatch:
+    inputs:
+      retries:
+        description: 'Number of retries'
+        type: number
+        default: 3
+        required: false
+engine: copilot
+---
+# Test Workflow
+Test workflow with number input`,
+			wantType:    "number",
+			wantDefault: "3",
 		},
 		{
 			name: "choice input type",
@@ -182,10 +201,14 @@ Test workflow with choice input`,
 						defaultStr = "false"
 					}
 				case int:
-					defaultStr = string(rune(v))
+					defaultStr = strconv.Itoa(v)
+				case int64:
+					defaultStr = strconv.FormatInt(v, 10)
 				case float64:
 					if v == float64(int(v)) {
-						defaultStr = strings.TrimSuffix(strings.TrimSuffix(string(rune(int(v))), ".0"), ".")
+						defaultStr = strconv.FormatInt(int64(v), 10)
+					} else {
+						defaultStr = strconv.FormatFloat(v, 'f', -1, 64)
 					}
 				}
 				// For numeric types, we need a more flexible comparison

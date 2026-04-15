@@ -1,3 +1,3 @@
 <markdown-generation>
-<rule>Use 4-backtick fences (not 3) for outer markdown blocks containing nested code blocks. Use GitHub Flavored Markdown.</rule>
+<rule>Only use 4-backtick fences when the block literally contains triple-backtick fences inside it; otherwise use standard 3-backtick fences. Use GitHub Flavored Markdown.</rule>
 </markdown-generation>

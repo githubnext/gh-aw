@@ -369,3 +369,35 @@ engine: copilot
 	assert.NotEmpty(t, acc.engines, "engines should be populated even when bypassing cache")
 	assert.Contains(t, acc.engines[0], "copilot", "engine should be 'copilot' from the builtin file")
 }
+
+func TestValidateImportInputType_Number(t *testing.T) {
+	t.Parallel()
+
+	paramDef := map[string]any{"type": "number"}
+	importPath := "shared/sample.md"
+
+	t.Run("accepts numeric values", func(t *testing.T) {
+		t.Parallel()
+
+		testCases := []any{
+			0,
+			1,
+			int64(2),
+			uint(3),
+			float64(4.5),
+		}
+
+		for _, testValue := range testCases {
+			err := validateImportInputType("retries", testValue, "number", paramDef, importPath)
+			require.NoError(t, err, "expected %T to be accepted as number", testValue)
+		}
+	})
+
+	t.Run("rejects non-numeric values", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateImportInputType("retries", "3", "number", paramDef, importPath)
+		require.Error(t, err, "string value should be rejected for number type")
+		assert.Contains(t, err.Error(), "must be a number", "error should explain expected type")
+	})
+}

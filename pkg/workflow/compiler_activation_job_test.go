@@ -219,7 +219,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, "", "", GetActionPin)
+			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep(tt.repository, "", "", getActionPin)
 
 			require.NotEmpty(t, result, "should return at least one YAML line")
 
@@ -253,7 +253,7 @@ func TestGenerateResolveHostRepoStep(t *testing.T) {
 	c := NewCompiler(WithVersion("dev"))
 	c.SetActionMode(ActionModeDev)
 
-	result := c.generateResolveHostRepoStep()
+	result := c.generateResolveHostRepoStep(nil)
 
 	assert.Contains(t, result, "resolve-host-repo",
 		"step should have the correct id")
@@ -636,7 +636,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_ActionsModeSetupPath(t *testi
 // TestGenerateGitHubFolderCheckoutStep_ExtraPaths verifies that extraPaths are
 // correctly appended to the sparse-checkout list.
 func TestGenerateGitHubFolderCheckoutStep_ExtraPaths(t *testing.T) {
-	result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("", "", "", GetActionPin, "actions/setup", "custom/path")
+	result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("", "", "", getActionPin, "actions/setup", "custom/path")
 	combined := strings.Join(result, "")
 
 	assert.Contains(t, combined, ".github", "should include .github")
@@ -680,7 +680,7 @@ func TestGenerateGitHubFolderCheckoutStep_Token(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("org/repo", "", tt.token, GetActionPin)
+			result := NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("org/repo", "", tt.token, getActionPin)
 			combined := strings.Join(result, "")
 
 			if tt.wantToken {

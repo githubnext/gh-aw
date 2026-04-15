@@ -23,7 +23,7 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 	}
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckMembershipStepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Add environment variables for permission check
 	steps = append(steps, "        env:\n")
@@ -46,7 +46,7 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 func (c *Compiler) generateRateLimitCheck(data *WorkflowData, steps []string) []string {
 	steps = append(steps, "      - name: Check user rate limit\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckRateLimitStepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Add environment variables for rate limit check
 	steps = append(steps, "        env:\n")
