@@ -117,7 +117,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompilerWithVersion("dev")
+			c := NewCompiler(WithVersion("dev"))
 			c.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -250,7 +250,7 @@ func TestGenerateGitHubFolderCheckoutStep(t *testing.T) {
 // TestGenerateResolveHostRepoStep verifies that the resolve-host-repo step uses
 // job.workflow_* context fields to resolve the platform repository.
 func TestGenerateResolveHostRepoStep(t *testing.T) {
-	c := NewCompilerWithVersion("dev")
+	c := NewCompiler(WithVersion("dev"))
 	c.SetActionMode(ActionModeDev)
 
 	result := c.generateResolveHostRepoStep()
@@ -275,7 +275,7 @@ func TestGenerateResolveHostRepoStep(t *testing.T) {
 // workflow_call triggers uses the resolve-host-repo step output instead of the
 // broken event_name == 'workflow_call' expression.
 func TestCheckoutDoesNotUseEventNameExpression(t *testing.T) {
-	c := NewCompilerWithVersion("dev")
+	c := NewCompiler(WithVersion("dev"))
 	c.SetActionMode(ActionModeDev)
 
 	data := &WorkflowData{
@@ -339,7 +339,7 @@ func TestActivationJobTargetRepoOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion("dev")
+			compiler := NewCompiler(WithVersion("dev"))
 			compiler.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -410,7 +410,7 @@ func TestActivationJobTargetRefOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion("dev")
+			compiler := NewCompiler(WithVersion("dev"))
 			compiler.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -482,7 +482,7 @@ func TestActivationJobTargetRepoNameOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion("dev")
+			compiler := NewCompiler(WithVersion("dev"))
 			compiler.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -553,7 +553,7 @@ func TestCheckoutGitHubFolderIncludesRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompilerWithVersion("dev")
+			c := NewCompiler(WithVersion("dev"))
 			c.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -609,7 +609,7 @@ func TestGenerateCheckoutGitHubFolderForActivation_ActionsModeSetupPath(t *testi
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompilerWithVersion("dev")
+			c := NewCompiler(WithVersion("dev"))
 			c.SetActionMode(tt.mode)
 
 			data := &WorkflowData{
@@ -732,7 +732,7 @@ func TestCheckoutTokenPropagatedToActivation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompilerWithVersion("dev")
+			c := NewCompiler(WithVersion("dev"))
 			c.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -791,7 +791,7 @@ func TestCheckoutSameRepoGuardWithCustomToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompilerWithVersion("dev")
+			c := NewCompiler(WithVersion("dev"))
 			c.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{
@@ -837,7 +837,7 @@ func TestHashCheckTokenPropagation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion("dev")
+			compiler := NewCompiler(WithVersion("dev"))
 			compiler.SetActionMode(ActionModeDev)
 
 			data := &WorkflowData{

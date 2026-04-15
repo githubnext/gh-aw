@@ -163,7 +163,7 @@ tools:
 			}
 
 			// Compile the workflow
-			compiler := NewCompilerWithVersion("v1.0.0")
+			compiler := NewCompiler(WithVersion("v1.0.0"))
 			err := compiler.CompileWorkflow(testFile)
 			if err != nil {
 				t.Fatalf("Unexpected error compiling workflow: %v", err)

@@ -53,7 +53,7 @@ on:
 				require.NoError(t, err, "Failed to write test file")
 
 				// Try to compile the invalid workflow
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				err = compiler.CompileWorkflow(testFile)
 				return err
 			},
@@ -66,7 +66,7 @@ on:
 			name: "workflow file read error",
 			operation: func() error {
 				// Try to compile a non-existent file
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				err := compiler.CompileWorkflow("/nonexistent/file.md")
 				return err
 			},
@@ -94,7 +94,7 @@ on:
 				require.NoError(t, err, "Failed to write test file")
 
 				// Try to compile with invalid import
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				err = compiler.CompileWorkflow(testFile)
 				return err
 			},
@@ -158,7 +158,7 @@ func TestErrorMessagesPreserveContext(t *testing.T) {
 				testFile := filepath.Join(tmpDir, "my-workflow.md")
 				// Don't create the file - let it fail
 
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				err := compiler.CompileWorkflow(testFile)
 				return err
 			},
@@ -177,7 +177,7 @@ on: 123456
 				err := os.WriteFile(testFile, []byte(content), 0644)
 				require.NoError(t, err)
 
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				err = compiler.CompileWorkflow(testFile)
 				return err
 			},
@@ -217,7 +217,7 @@ func TestStandardLibraryErrorsNotExposed(t *testing.T) {
 		{
 			name: "path errors from file operations",
 			operation: func() error {
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				return compiler.CompileWorkflow("/definitely/does/not/exist/workflow.md")
 			},
 			notInChain: []any{
@@ -238,7 +238,7 @@ on:
 				err := os.WriteFile(testFile, []byte(content), 0644)
 				require.NoError(t, err)
 
-				compiler := NewCompilerWithVersion("1.0.0")
+				compiler := NewCompiler(WithVersion("1.0.0"))
 				return compiler.CompileWorkflow(testFile)
 			},
 			notInChain: []any{

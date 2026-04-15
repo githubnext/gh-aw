@@ -13,7 +13,7 @@ import (
 
 // TestSafeOutputsAppImport tests that app configuration can be imported from shared workflows
 func TestSafeOutputsAppImport(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -81,7 +81,7 @@ This workflow uses the imported app configuration.
 
 // TestSafeOutputsAppImportOverride tests that local app configuration overrides imported one
 func TestSafeOutputsAppImportOverride(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()

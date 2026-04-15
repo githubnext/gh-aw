@@ -1,6 +1,6 @@
 ---
 name: Daily Go Function Namer
-description: Analyzes Go files daily using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin via cache-memory with a dynamic function budget
+description: Analyzes one entire Go package per day using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin over package directories via cache-memory
 on:
   schedule: daily
   workflow_dispatch:
@@ -43,12 +43,13 @@ You are an AI agent that analyzes Go functions daily to improve their names for 
 
 ## Mission
 
-Each day, analyze up to **6 Go source files** using round-robin rotation across all non-test Go files in `pkg/`, driven by a **dynamic function budget** of 25 functions per run. For each file:
+Each day, analyze **one entire Go package** using round-robin rotation across all package directories in `pkg/`. For each package:
 
-1. Extract all function and method names using Serena
-2. Evaluate each name's clarity and intent
-3. Suggest renames that are clearer and more intuitive for agents
-4. Create a GitHub issue with a concrete agentic implementation plan
+1. Enumerate all functions in the package with a fast `grep` sweep
+2. Activate Serena for deeper semantic analysis of functions that need it
+3. Evaluate each name's clarity and intent
+4. Suggest renames that are clearer and more intuitive for agents
+5. Create a GitHub issue with a concrete agentic implementation plan
 
 ## Context
 
@@ -57,71 +58,74 @@ Each day, analyze up to **6 Go source files** using round-robin rotation across 
 - **Workspace**: ${{ github.workspace }}
 - **Cache**: `/tmp/gh-aw/cache-memory/`
 
-## Step 1: Compute File Selection with Code
+## Step 1: Compute Package Selection with Code
 
-Run this script to load the round-robin state, enumerate all Go files, and compute which files to analyze this run using the dynamic function budget:
+Run this script to load the round-robin state, enumerate all Go package directories, and compute which package to analyze this run:
 
 ```bash
-# Load last_index from cache (default 0 if cache absent/empty)
+# Load last_package_index from cache (default 0 if cache absent/empty)
 LAST_INDEX=$(python3 -c "
 import sys, json, os
 p = '/tmp/gh-aw/cache-memory/function-namer-state.json'
 if os.path.exists(p):
     try:
         d = json.load(open(p))
-        print(d.get('last_index', 0))
+        print(d.get('last_package_index', 0))
     except Exception:
         print(0)
 else:
     print(0)
 ")
 
-# Enumerate all non-test Go source files in sorted order
-mapfile -t ALL_FILES < <(find pkg -name '*.go' ! -name '*_test.go' -type f | sort)
-TOTAL=${#ALL_FILES[@]}
+# Enumerate all unique package directories containing non-test Go files
+mapfile -t ALL_PKGS < <(find pkg -name '*.go' ! -name '*_test.go' -type f | xargs -I{} dirname {} | sort -u)
+TOTAL=${#ALL_PKGS[@]}
 
-echo "total_files=${TOTAL}"
-echo "last_index=${LAST_INDEX}"
+echo "total_packages=${TOTAL}"
+echo "last_package_index=${LAST_INDEX}"
 
-# Greedy selection: up to 8 candidates, budget=25 functions, cap=6 files
-SELECTED=()
-TOTAL_FNS=0
-BUDGET=25
-CAP=6
+# Pick the next package in round-robin order
+PKG_DIR="${ALL_PKGS[$(( LAST_INDEX % TOTAL ))]}"
+NEW_INDEX=$(( (LAST_INDEX + 1) % TOTAL ))
 
-for i in $(seq 0 7); do
-  if [ ${#SELECTED[@]} -ge $CAP ]; then
-    break
-  fi
-  idx=$(( (LAST_INDEX + i) % TOTAL ))
-  f="${ALL_FILES[$idx]}"
-  COUNT=$(grep -c "^func " "$f" 2>/dev/null || echo 0)
-  SELECTED+=("$f")
-  TOTAL_FNS=$((TOTAL_FNS + COUNT))
-  if [ $TOTAL_FNS -ge $BUDGET ]; then
-    break
-  fi
-done
+# Collect all non-test Go files in the selected package
+mapfile -t PKG_FILES < <(find "$PKG_DIR" -maxdepth 1 -name '*.go' ! -name '*_test.go' -type f | sort)
+FILE_COUNT=${#PKG_FILES[@]}
+if [ "$FILE_COUNT" -gt 0 ]; then
+  TOTAL_FNS=$(grep -hc "^func " "${PKG_FILES[@]}" 2>/dev/null | awk '{s+=$1} END {print s+0}')
+else
+  TOTAL_FNS=0
+fi
 
-SELECTED_COUNT=${#SELECTED[@]}
-NEW_INDEX=$(( (LAST_INDEX + SELECTED_COUNT) % TOTAL ))
-
-echo "selected_count=${SELECTED_COUNT}"
-echo "new_last_index=${NEW_INDEX}"
+echo "selected_package=${PKG_DIR}"
+echo "file_count=${FILE_COUNT}"
+echo "new_last_package_index=${NEW_INDEX}"
 echo "total_functions_approx=${TOTAL_FNS}"
 echo "--- selected files ---"
-printf '%s\n' "${SELECTED[@]}"
+printf '%s\n' "${PKG_FILES[@]}"
 ```
 
 The script outputs:
-- `selected_count` — number of files to analyze this run (1–6)
-- `new_last_index` — value to write back to cache after the run
-- `total_functions_approx` — estimated function count across selected files
-- The list of selected file paths (one per line, after `--- selected files ---`)
+- `selected_package` — the package directory to analyze this run
+- `file_count` — number of Go files in the selected package
+- `new_last_package_index` — value to write back to cache after the run
+- `total_functions_approx` — total function count across the package files
+- The list of package file paths (one per line, after `--- selected files ---`)
 
 Use these values directly for the rest of the workflow. Do **not** re-derive or re-compute them manually.
 
-## Step 2: Activate Serena
+## Step 2: Enumerate All Functions in the Package
+
+Before invoking Serena, run a fast `grep` sweep across all files in the selected package to build a complete function inventory. This minimizes Serena tool calls by giving you the full picture upfront:
+
+```bash
+# Fast enumeration — one pass over all package files
+grep -n "^func " "${PKG_FILES[@]}" | awk -F: '{printf "%-50s line %-5s %s\n", $1, $2, $3}'
+```
+
+This produces a list of every function/method definition with its file and line number. Use this inventory to decide which functions need deeper Serena analysis.
+
+## Step 3: Activate Serena
 
 Activate the Serena project to enable Go semantic analysis:
 
@@ -130,11 +134,11 @@ Tool: activate_project
 Args: { "path": "${{ github.workspace }}" }
 ```
 
-## Step 3: Analyze Each Selected File with Serena
+## Step 4: Analyze Each File in the Package with Serena
 
-For each of the selected files output by Step 1, perform a full function name analysis.
+For each of the files in the selected package (output by Step 1), perform a full function name analysis. Use the function inventory from Step 2 to guide which functions need deeper Serena investigation.
 
-### 3.1 Get All Symbols
+### 4.1 Get All Symbols
 
 ```
 Tool: get_symbols_overview
@@ -143,9 +147,9 @@ Args: { "file_path": "<relative/path/to/file.go>" }
 
 This returns all functions, methods, and types defined in the file.
 
-### 3.2 Read Function Implementations
+### 4.2 Read Function Implementations
 
-For each function identified in 3.1, read enough of the implementation to understand its behavior:
+For each function identified in 4.1, read enough of the implementation to understand its behavior:
 
 ```
 Tool: read_file
@@ -158,7 +162,7 @@ For small files you may read the entire file:
 cat <path/to/file.go>
 ```
 
-### 3.3 Evaluate Function Names
+### 4.3 Evaluate Function Names
 
 For each function, assess its name against these criteria:
 
@@ -175,7 +179,7 @@ For each function, assess its name against these criteria:
 - Constructors following Go convention: `NewCompiler()`, `NewMCPConfig()`
 - Short unexported names used as closures or immediately-invoked helpers
 
-### 3.4 Propose Renames
+### 4.4 Propose Renames
 
 For each function that would benefit from a clearer name:
 
@@ -199,60 +203,61 @@ Args: { "symbol_name": "<currentName>", "file_path": "pkg/..." }
 
 **Only suggest renames where the improvement is clear and meaningful.** Quality over quantity — two well-justified suggestions are better than ten marginal ones.
 
-## Step 4: Update Cache State
+## Step 5: Update Cache State
 
-After completing the analysis, save the updated round-robin position. Use the `new_last_index` value from Step 1 and a filesystem-safe timestamp (`YYYY-MM-DD`):
+After completing the analysis, save the updated round-robin position. Use the `new_last_package_index` value from Step 1 and a filesystem-safe timestamp (`YYYY-MM-DD`):
 
 ```bash
 cat > /tmp/gh-aw/cache-memory/function-namer-state.json << 'CACHE_EOF'
 {
-  "last_index": <new_index>,
-  "analyzed_files": [
-    <previous entries, pruned to last 90>,
-    {"file": "pkg/workflow/compiler.go", "analyzed_at": "2026-03-13"},
-    {"file": "pkg/workflow/cache.go", "analyzed_at": "2026-03-13"}
+  "last_package_index": <new_package_index>,
+  "analyzed_packages": [
+    <previous entries, pruned to last 30>,
+    {"package": "pkg/workflow", "analyzed_at": "2026-03-13"}
   ]
 }
 CACHE_EOF
 ```
 
-Where `<new_index>` is the `new_last_index` value output by Step 1, and the `analyzed_files` list contains one entry per file actually analyzed.
+Where `<new_package_index>` is the `new_last_package_index` value output by Step 1, and the `analyzed_packages` list contains one entry per package actually analyzed.
 
-Use relative paths (e.g., `pkg/workflow/compiler.go`) matching the output of the `find pkg` command.
+Use relative paths (e.g., `pkg/workflow`) matching the output of the `find pkg` command.
 
-Prune `analyzed_files` to the most recent 90 entries to prevent unbounded growth.
+Prune `analyzed_packages` to the most recent 30 entries to prevent unbounded growth.
 
-## Step 5: Create Issue with Agentic Plan
+## Step 6: Create Issue with Agentic Plan
 
-If any rename suggestions were found across the analyzed files, create a GitHub issue.
+If any rename suggestions were found across the analyzed package, create a GitHub issue.
 
 If **no improvements were found**, emit `noop` and exit:
 
 ```json
-{"noop": {"message": "No rename suggestions found for <file1>, …, <fileN>. All analyzed functions have clear, descriptive names."}}
+{"noop": {"message": "No rename suggestions found for package <pkg>. All analyzed functions have clear, descriptive names."}}
 ```
 
 Otherwise, create an issue with this structure:
 
 ---
 
-**Title**: `Go function rename plan: <basename1>, <basename2>, …` (e.g., `Go function rename plan: compiler.go, cache.go, mcp_renderer.go`)
+**Title**: `Go function rename plan: <package>` (e.g., `Go function rename plan: pkg/workflow`)
 
 **Body**:
 
 ```markdown
 # 🏷️ Go Function Rename Plan
 
-**Files Analyzed**: `<file1>`, `<file2>`, …
+**Package Analyzed**: `<package>`
 **Analysis Date**: <YYYY-MM-DD>
-**Round-Robin Position**: files <start_index>–<end_index> of <total> total
-**Function Budget**: <total_functions_analyzed> functions across <selected_count> files
+**Round-Robin Position**: package <package_index> of <total> total packages
+**Functions Analyzed**: <total_functions_approx> functions across <file_count> files
 
 ### Why This Matters
 
 When AI coding agents search for functions to complete a task, they rely on function
 names to understand what code does. Clear, descriptive names increase the likelihood
 that an agent will find the right function instead of reimplementing existing logic.
+Functions in the same package also call each other, so reviewing them together gives
+better context for rename decisions.
 
 ### Rename Suggestions
 
@@ -272,7 +277,7 @@ that an agent will find the right function instead of reimplementing existing lo
 
 #### `<fileN>`
 
-<!-- Repeat for each analyzed file. -->
+<!-- Repeat for each file in the package. -->
 
 ---
 
@@ -394,5 +399,5 @@ Only include a rename suggestion if you are confident it would measurably improv
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool. Failing to call any safe-output tool is the most common cause of workflow failures.
 
 ```json
-{"noop": {"message": "No rename suggestions found for <file1>, …, <fileN>. All analyzed functions already have clear, descriptive names that support agent discoverability."}}
+{"noop": {"message": "No rename suggestions found for package <pkg>. All analyzed functions already have clear, descriptive names that support agent discoverability."}}
 ```

@@ -276,6 +276,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "haskell": Haskell ecosystem
 //   - "java": Java/Maven/Gradle
 //   - "kotlin": Kotlin/JetBrains
+//   - "lean": Lean 4/Lake/Reservoir
 //   - "linux-distros": Linux distribution package repositories
 //   - "node": Node.js/NPM/Yarn
 //   - "perl": Perl/CPAN
@@ -355,6 +356,7 @@ var ecosystemPriority = []string{
 	"java", // before "chrome" — maven.google.com and dl.google.com are Java domains, not chrome domains
 	"chrome",
 	"kotlin",
+	"lean",
 	"linux-distros",
 	"local",
 	"node",

@@ -503,11 +503,16 @@ func TestParseFirewallLogIptablesDropped(t *testing.T) {
 		t.Errorf("1.2.3.4:443 Blocked: got %d, want 2", stats.Blocked)
 	}
 
-	// "-" should only appear for entries where both domain and destIPPort are "-"
-	if stats, ok := analysis.RequestsByDomain["-"]; !ok {
-		t.Error("\"-\" should be in RequestsByDomain for truly-unknown entries")
+	// Entries where both domain and destIPPort are "-" should use the unknownDomain sentinel.
+	if stats, ok := analysis.RequestsByDomain[unknownDomain]; !ok {
+		t.Errorf("%q should be in RequestsByDomain for truly-unknown entries", unknownDomain)
 	} else if stats.Blocked != 1 {
-		t.Errorf("\"-\" Blocked: got %d, want 1", stats.Blocked)
+		t.Errorf("%q Blocked: got %d, want 1", unknownDomain, stats.Blocked)
+	}
+
+	// "-" should NOT appear as a key in RequestsByDomain after the sentinel replacement.
+	if _, ok := analysis.RequestsByDomain["-"]; ok {
+		t.Error("\"-\" should not be in RequestsByDomain; it should be replaced by the unknownDomain sentinel")
 	}
 
 	// BlockedDomains should include the real IPs, not just "-"
@@ -520,6 +525,52 @@ func TestParseFirewallLogIptablesDropped(t *testing.T) {
 	}
 	if !blockedSet["1.2.3.4:443"] {
 		t.Error("BlockedDomains should contain 1.2.3.4:443 (iptables-dropped fallback)")
+	}
+	// Neither the "-" placeholder nor the unknownDomain sentinel should appear in BlockedDomains.
+	if blockedSet["-"] {
+		t.Error("BlockedDomains should NOT contain \"-\" placeholder")
+	}
+	if blockedSet[unknownDomain] {
+		t.Errorf("BlockedDomains should NOT contain %q sentinel", unknownDomain)
+	}
+}
+
+func TestParseFirewallLogUnknownAllowedDomain(t *testing.T) {
+	// Verify that when both domain and destIPPort are "-" and the request is classified as
+	// allowed, the unknownDomain sentinel is excluded from AllowedDomains.
+	// This is an unlikely but possible edge case (e.g. Squid internally marks a
+	// packet as allowed before iptables drops it at the network layer).
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Status 200 + TCP_TUNNEL:HIER_DIRECT = allowed; domain and destIPPort both "-"
+	testLogContent := `1761332530.474 172.30.0.20:35288 - - - - 200 TCP_TUNNEL:HIER_DIRECT - "-"
+`
+	logPath := filepath.Join(tempDir, "firewall.log")
+	err := os.WriteFile(logPath, []byte(testLogContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test firewall.log: %v", err)
+	}
+
+	analysis, err := parseFirewallLog(logPath, false)
+	if err != nil {
+		t.Fatalf("Failed to parse firewall log: %v", err)
+	}
+
+	if analysis.AllowedRequests != 1 {
+		t.Errorf("AllowedRequests: got %d, want 1", analysis.AllowedRequests)
+	}
+
+	// The unknownDomain sentinel should appear in RequestsByDomain but NOT in AllowedDomains.
+	if stats, ok := analysis.RequestsByDomain[unknownDomain]; !ok {
+		t.Errorf("%q should be in RequestsByDomain", unknownDomain)
+	} else if stats.Allowed != 1 {
+		t.Errorf("%q Allowed: got %d, want 1", unknownDomain, stats.Allowed)
+	}
+
+	for _, d := range analysis.AllowedDomains {
+		if d == unknownDomain || d == "-" {
+			t.Errorf("AllowedDomains should NOT contain %q placeholder/sentinel", d)
+		}
 	}
 }
 

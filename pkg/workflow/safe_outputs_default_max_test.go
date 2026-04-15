@@ -36,7 +36,7 @@ This workflow tests the default max for assign-to-agent.
 	require.NoError(t, err, "Failed to write test workflow")
 
 	// Parse the workflow
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse workflow")
 
@@ -88,7 +88,7 @@ This workflow tests the default max for dispatch-workflow.
 	require.NoError(t, err, "Failed to write test workflow")
 
 	// Parse the workflow
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse workflow")
 
@@ -123,7 +123,7 @@ This workflow tests explicit max for assign-to-agent.
 	require.NoError(t, err, "Failed to write test workflow")
 
 	// Parse the workflow
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse workflow")
 
@@ -177,7 +177,7 @@ This workflow tests explicit max for dispatch-workflow.
 	require.NoError(t, err, "Failed to write test workflow")
 
 	// Parse the workflow
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse workflow")
 

@@ -275,13 +275,29 @@ This protects against supply chain attacks where an AI agent could inadvertently
 
 ### Policy Options
 
-Configure the `protected-files` field on either safe output:
+The `protected-files` field accepts either a string policy value or an object with a `policy` and an `exclude` list.
+
+**String form** — set a single policy for all protected files:
 
 | Value | Behaviour |
 |-------|-----------|
 | `blocked` (default) | Hard-block: the safe output fails with an error |
 | `fallback-to-issue` | Create a review issue with instructions for the human to apply or reject the changes manually |
 | `allowed` | No restriction — all protected file changes are permitted. **Use only when the workflow is explicitly designed to manage these files.** |
+
+**Object form** — set a policy and exclude specific files from the protected set:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    protected-files:
+      policy: fallback-to-issue   # same values as string form (default: blocked)
+      exclude:
+        - AGENTS.md               # allow the agent to update its own instruction file
+        - .agents/                # allow updates to the .agents/ directory
+```
+
+The `exclude` list names files by **basename** (e.g., `AGENTS.md`) or **path prefix** (e.g., `.agents/`) to remove from the default protected set. The remaining protected files still enforce the configured policy. This is useful when a workflow is explicitly designed to manage one specific instruction file without disabling all protection.
 
 **`create-pull-request` with `fallback-to-issue`**: the branch is pushed normally, then a review issue is created with a PR creation intent link, a `[!WARNING]` banner explaining why the fallback was triggered, and instructions to review carefully before creating the PR.
 

@@ -42,6 +42,11 @@ func WithWorkflowIdentifier(identifier string) CompilerOption {
 	return func(c *Compiler) { c.workflowIdentifier = identifier }
 }
 
+// WithVersion sets the compiler version, used to determine action mode and version-specific behavior
+func WithVersion(version string) CompilerOption {
+	return func(c *Compiler) { c.version = version }
+}
+
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
@@ -128,16 +133,6 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	logTypes.Printf("Created compiler: version=%s, actionMode=%s, skipValidation=%t, strictMode=%t", c.version, c.actionMode, c.skipValidation, c.strictMode)
 
-	return c
-}
-
-// NewCompilerWithVersion creates a new workflow compiler with the legacy signature.
-// Deprecated: Use NewCompiler with functional options instead.
-// This function is kept for backward compatibility during migration.
-func NewCompilerWithVersion(version string) *Compiler {
-	c := NewCompiler()
-	c.version = version
-	c.actionMode = DetectActionMode(c.version)
 	return c
 }
 

@@ -94,7 +94,7 @@ func TestFirewallWorkflowCompilation(t *testing.T) {
 	}
 
 	// Create compiler
-	c := NewCompilerWithVersion("firewall")
+	c := NewCompiler(WithVersion("firewall"))
 	c.SetSkipValidation(true)
 
 	// Extract and verify tools
