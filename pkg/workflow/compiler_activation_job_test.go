@@ -22,28 +22,36 @@ const workflowCallRepo = "${{ steps.resolve-host-repo.outputs.target_repo }}"
 // Uses job.workflow_sha for immutable pinning to the exact executing revision.
 const workflowCallRef = "${{ steps.resolve-host-repo.outputs.target_ref }}"
 
+// sameRepoCondition is the if: condition injected into the .github checkout step when
+// no custom activation token is configured. It restricts the checkout to same-repo
+// workflow_call invocations to prevent failures when GITHUB_TOKEN cannot read a private
+// callee repository in cross-repo scenarios.
+const sameRepoCondition = "steps.resolve-host-repo.outputs.target_repo == github.repository"
+
 func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 	tests := []struct {
-		name             string
-		onSection        string
-		features         map[string]any
-		inlinedImports   bool   // whether InlinedImports is enabled in WorkflowData
-		wantRepository   string // expected repository: value ("" means field absent)
-		wantRef          string // expected ref: value ("" means field absent)
-		wantNil          bool   // whether nil is expected (action-tag skip)
-		wantGitHubSparse bool   // whether .github / .agents should be in sparse-checkout
-		wantPersistFalse bool   // whether persist-credentials: false should be present
-		wantFetchDepth1  bool   // whether fetch-depth: 1 should be present
+		name                  string
+		onSection             string
+		features              map[string]any
+		inlinedImports        bool   // whether InlinedImports is enabled in WorkflowData
+		wantRepository        string // expected repository: value ("" means field absent)
+		wantRef               string // expected ref: value ("" means field absent)
+		wantNil               bool   // whether nil is expected (action-tag skip)
+		wantGitHubSparse      bool   // whether .github / .agents should be in sparse-checkout
+		wantPersistFalse      bool   // whether persist-credentials: false should be present
+		wantFetchDepth1       bool   // whether fetch-depth: 1 should be present
+		wantSameRepoCondition bool   // whether if: same-repo condition should be present
 	}{
 		{
 			name: "workflow_call trigger - cross-repo checkout with conditional repository and ref",
 			onSection: `"on":
   workflow_call:`,
-			wantRepository:   workflowCallRepo,
-			wantRef:          workflowCallRef,
-			wantGitHubSparse: true,
-			wantPersistFalse: true,
-			wantFetchDepth1:  true,
+			wantRepository:        workflowCallRepo,
+			wantRef:               workflowCallRef,
+			wantGitHubSparse:      true,
+			wantPersistFalse:      true,
+			wantFetchDepth1:       true,
+			wantSameRepoCondition: true, // no custom token → restrict to same-repo only
 		},
 		{
 			name: "workflow_call with inputs and mixed triggers",
@@ -55,44 +63,48 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
       issue_number:
         required: true
         type: number`,
-			wantRepository:   workflowCallRepo,
-			wantRef:          workflowCallRef,
-			wantGitHubSparse: true,
-			wantPersistFalse: true,
-			wantFetchDepth1:  true,
+			wantRepository:        workflowCallRepo,
+			wantRef:               workflowCallRef,
+			wantGitHubSparse:      true,
+			wantPersistFalse:      true,
+			wantFetchDepth1:       true,
+			wantSameRepoCondition: true, // no custom token → restrict to same-repo only
 		},
 		{
 			name: "workflow_call with inlined-imports - standard checkout without cross-repo expression",
 			onSection: `"on":
   workflow_call:`,
-			inlinedImports:   true,
-			wantRepository:   "",
-			wantRef:          "",
-			wantGitHubSparse: true,
-			wantPersistFalse: true,
-			wantFetchDepth1:  true,
+			inlinedImports:        true,
+			wantRepository:        "",
+			wantRef:               "",
+			wantGitHubSparse:      true,
+			wantPersistFalse:      true,
+			wantFetchDepth1:       true,
+			wantSameRepoCondition: false, // inlined-imports → no cross-repo checkout path
 		},
 		{
 			name: "no workflow_call - standard checkout without repository field",
 			onSection: `"on":
   issues:
     types: [opened]`,
-			wantRepository:   "",
-			wantRef:          "",
-			wantGitHubSparse: true,
-			wantPersistFalse: true,
-			wantFetchDepth1:  true,
+			wantRepository:        "",
+			wantRef:               "",
+			wantGitHubSparse:      true,
+			wantPersistFalse:      true,
+			wantFetchDepth1:       true,
+			wantSameRepoCondition: false, // non-workflow_call trigger → no same-repo condition
 		},
 		{
 			name: "issue_comment only - no repository field",
 			onSection: `"on":
   issue_comment:
     types: [created]`,
-			wantRepository:   "",
-			wantRef:          "",
-			wantGitHubSparse: true,
-			wantPersistFalse: true,
-			wantFetchDepth1:  true,
+			wantRepository:        "",
+			wantRef:               "",
+			wantGitHubSparse:      true,
+			wantPersistFalse:      true,
+			wantFetchDepth1:       true,
+			wantSameRepoCondition: false, // non-workflow_call trigger → no same-repo condition
 		},
 		{
 			name: "action-tag specified with workflow_call - no checkout emitted",
@@ -165,6 +177,15 @@ func TestGenerateCheckoutGitHubFolderForActivation_WorkflowCall(t *testing.T) {
 			} else {
 				assert.NotContains(t, combined, "ref:",
 					"standard checkout should not include ref field")
+			}
+
+			// Verify same-repo if: condition
+			if tt.wantSameRepoCondition {
+				assert.Contains(t, combined, "if: "+sameRepoCondition,
+					"workflow_call checkout without custom token should include same-repo guard to prevent cross-repo GITHUB_TOKEN failures")
+			} else {
+				assert.NotContains(t, combined, "if: "+sameRepoCondition,
+					"checkout should not have same-repo guard when using custom token or non-workflow_call trigger")
 			}
 		})
 	}
@@ -728,6 +749,65 @@ func TestCheckoutTokenPropagatedToActivation(t *testing.T) {
 			} else {
 				assert.NotContains(t, combined, "token:",
 					"checkout step should not include token field when using default GITHUB_TOKEN")
+			}
+		})
+	}
+}
+
+// TestCheckoutSameRepoGuardWithCustomToken verifies that the same-repo if: condition
+// is NOT added to the checkout step when a custom activation token is configured.
+// Cross-repo callers with a custom token can access private callee repositories, so
+// the guard is not needed.
+func TestCheckoutSameRepoGuardWithCustomToken(t *testing.T) {
+	tests := []struct {
+		name                  string
+		activationToken       string
+		onSection             string
+		wantSameRepoCondition bool
+	}{
+		{
+			name:            "custom PAT with workflow_call - no same-repo guard",
+			activationToken: "${{ secrets.CROSS_ORG_TOKEN }}",
+			onSection: `"on":
+  workflow_call:`,
+			wantSameRepoCondition: false,
+		},
+		{
+			name:            "default GITHUB_TOKEN with workflow_call - same-repo guard present",
+			activationToken: "",
+			onSection: `"on":
+  workflow_call:`,
+			wantSameRepoCondition: true,
+		},
+		{
+			name:            "default GITHUB_TOKEN without workflow_call - no same-repo guard",
+			activationToken: "",
+			onSection: `"on":
+  issues:
+    types: [opened]`,
+			wantSameRepoCondition: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewCompilerWithVersion("dev")
+			c.SetActionMode(ActionModeDev)
+
+			data := &WorkflowData{
+				On:                    tt.onSection,
+				ActivationGitHubToken: tt.activationToken,
+			}
+
+			result := c.generateCheckoutGitHubFolderForActivation(data)
+			combined := strings.Join(result, "")
+
+			if tt.wantSameRepoCondition {
+				assert.Contains(t, combined, "if: "+sameRepoCondition,
+					"workflow_call checkout with default GITHUB_TOKEN should include same-repo guard to prevent cross-repo failures")
+			} else {
+				assert.NotContains(t, combined, "if: "+sameRepoCondition,
+					"checkout should not have same-repo guard when custom token is configured or non-workflow_call trigger")
 			}
 		})
 	}

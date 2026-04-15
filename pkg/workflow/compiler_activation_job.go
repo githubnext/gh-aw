@@ -698,13 +698,24 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
 		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
 		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
-		return cm.GenerateGitHubFolderCheckoutStep(
+		checkoutSteps := cm.GenerateGitHubFolderCheckoutStep(
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			activationToken,
 			GetActionPin,
 			extraPaths...,
 		)
+		// When no custom token is configured, GITHUB_TOKEN is scoped to the calling
+		// repository and cannot read a private callee repository in cross-repo invocations
+		// (e.g. nbcnews/tvOS-App calling nbcnews/.github). Add an if: condition so the
+		// checkout is only attempted for same-repo invocations where GITHUB_TOKEN works.
+		// For cross-repo scenarios, users can enable the checkout by configuring
+		// activation-github-token or activation-github-app in the workflow frontmatter.
+		if activationToken == "${{ secrets.GITHUB_TOKEN }}" {
+			compilerActivationJobLog.Print("No custom activation token — restricting cross-repo checkout to same-repo invocations")
+			checkoutSteps = addSameRepoIfConditionToSteps(checkoutSteps)
+		}
+		return checkoutSteps
 	}
 
 	// For activation job, always add sparse checkout of .github and .agents folders
@@ -712,4 +723,27 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
 	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
+}
+
+// addSameRepoIfConditionToSteps injects an if: condition into each step that restricts
+// execution to same-repo workflow_call invocations. This prevents checkout steps from
+// failing when GITHUB_TOKEN cannot read a private callee repository in cross-repo scenarios.
+func addSameRepoIfConditionToSteps(steps []string) []string {
+	const sameRepoCondition = "steps.resolve-host-repo.outputs.target_repo == github.repository"
+	result := make([]string, len(steps))
+	for i, step := range steps {
+		result[i] = injectIfConditionAfterName(step, sameRepoCondition)
+	}
+	return result
+}
+
+// injectIfConditionAfterName inserts an "if:" field immediately after the first line
+// (the "- name:" line) of a YAML step string. Returns the step unchanged if the
+// insertion point cannot be found.
+func injectIfConditionAfterName(step, condition string) string {
+	idx := strings.Index(step, "\n")
+	if idx < 0 {
+		return step
+	}
+	return step[:idx+1] + "        if: " + condition + "\n" + step[idx+1:]
 }
