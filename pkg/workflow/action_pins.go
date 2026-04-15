@@ -412,6 +412,40 @@ func ApplyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*W
 	return result
 }
 
+// GetCachedActionPin returns the pinned action reference for a given repository,
+// preferring the user's cache (from actions-lock.json via WorkflowData) over the
+// embedded action_pins.json. This ensures that all compilation code paths use the
+// same SHA for a given action, preventing split-SHA issues when the cache and
+// embedded pins are out of sync.
+//
+// Falls back to GetActionPin when data is nil or the cache has no entry for this
+// action's canonical version.
+func GetCachedActionPin(repo string, data *WorkflowData) string {
+	if data == nil {
+		return GetActionPin(repo)
+	}
+
+	// Get the canonical version for this repo from embedded pins.
+	matchingPins := getActionPinsByRepo(repo)
+	if len(matchingPins) == 0 {
+		// No embedded pin for this repo — fall back to bare GetActionPin (which will
+		// return an empty string or whatever the default behaviour is).
+		return GetActionPin(repo)
+	}
+
+	// Use the latest embedded version as the canonical lookup key so that the same
+	// cache key is used here as in the lockdown-detection step (which explicitly
+	// passes the version string from constants.DefaultGitHubScriptVersion).
+	latestVersion := matchingPins[0].Version
+
+	// GetActionPinWithData checks the cache first, then falls back to embedded pins.
+	pinnedRef, err := GetActionPinWithData(repo, latestVersion, data)
+	if err != nil || pinnedRef == "" {
+		return GetActionPin(repo)
+	}
+	return pinnedRef
+}
+
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
 // When multiple versions exist for the same repo, it returns the latest version by semver
 func GetActionPinByRepo(repo string) (ActionPin, bool) {

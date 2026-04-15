@@ -253,7 +253,7 @@ func TestGenerateResolveHostRepoStep(t *testing.T) {
 	c := NewCompiler(WithVersion("dev"))
 	c.SetActionMode(ActionModeDev)
 
-	result := c.generateResolveHostRepoStep()
+	result := c.generateResolveHostRepoStep(nil)
 
 	assert.Contains(t, result, "resolve-host-repo",
 		"step should have the correct id")

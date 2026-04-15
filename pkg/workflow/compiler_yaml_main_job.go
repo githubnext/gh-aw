@@ -115,7 +115,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsGithubMerge {
 		compilerYamlLog.Printf("Adding merge remote .github folder step")
 		yaml.WriteString("      - name: Merge remote .github folder\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(yaml, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
 		yaml.WriteString("        env:\n")
 
 		// Set repository imports if present
@@ -444,16 +444,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
-	c.generateLogParsing(yaml, engine)
+	c.generateLogParsing(yaml, data, engine)
 
 	// parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
 	if IsMCPScriptsEnabled(data.MCPScripts, data) {
-		c.generateMCPScriptsLogParsing(yaml)
+		c.generateMCPScriptsLogParsing(yaml, data)
 	}
 
 	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
-	c.generateMCPGatewayLogParsing(yaml)
+	c.generateMCPGatewayLogParsing(yaml, data)
 
 	// Add firewall log parsing and dedicated audit upload for all firewall-enabled engines.
 	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
@@ -467,7 +467,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
 	if isFirewallEnabled(data) {
-		c.generateTokenUsageSummary(yaml)
+		c.generateTokenUsageSummary(yaml, data)
 		// Include the aggregated agent_usage.json in the agent artifact so third-party
 		// tools can consume structured token data without parsing the step summary.
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)

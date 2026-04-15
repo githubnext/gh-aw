@@ -379,7 +379,7 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
 		"        if: always()\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
+		fmt.Sprintf("        uses: %s\n", GetCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
 		fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError)),
@@ -402,7 +402,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")),
+		fmt.Sprintf("        uses: %s\n", GetCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)

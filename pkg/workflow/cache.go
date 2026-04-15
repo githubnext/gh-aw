@@ -614,7 +614,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		if !useBackwardCompatiblePaths {
 			stepName = fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 		}
-		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()"))
+		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()", data))
 	}
 }
 
@@ -884,7 +884,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			// Generate validation step using helper with condition to only run if cache has content
 			stepName := fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 			condition := fmt.Sprintf("steps.%s.outputs.has_content == 'true'", checkStepID)
-			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition))
+			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition, data))
 		}
 
 		// Generate cache key using integrity-aware format (matches generateCacheMemorySteps)

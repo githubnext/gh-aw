@@ -254,7 +254,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			steps = append(steps, "        id: assign_copilot_to_created_issues\n")
 			steps = append(steps, "        if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''\n")
 			steps = append(steps, "        continue-on-error: true\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetCachedActionPin("actions/github-script", data)))
 			steps = append(steps, "        env:\n")
 			steps = append(steps, "          GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}\n")
 			steps = append(steps, "        with:\n")
