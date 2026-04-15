@@ -346,29 +346,42 @@ function parseBridgeArgs(argv) {
 
 /**
  * Parse user-provided --key value pairs into a tool arguments object.
+ * Supports both --key value and --key=value styles.
  * Boolean flags (--key without a value) are set to true.
  *
  * @param {string[]} args - User arguments after the tool name
- * @returns {Record<string, unknown>}
+ * @returns {{args: Record<string, unknown>, json: boolean}}
  */
 function parseToolArgs(args) {
   /** @type {Record<string, unknown>} */
   const result = {};
+  let jsonOutput = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
-      const key = args[i].slice(2);
-      if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        result[key] = args[i + 1];
+      const raw = args[i].slice(2);
+      const eqIdx = raw.indexOf("=");
+      if (eqIdx >= 0) {
+        // --key=value style
+        const key = raw.slice(0, eqIdx);
+        if (key === "json") {
+          jsonOutput = true;
+        } else {
+          result[key] = raw.slice(eqIdx + 1);
+        }
+      } else if (raw === "json") {
+        jsonOutput = true;
+      } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+        result[raw] = args[i + 1];
         i++;
       } else {
-        result[key] = true;
+        result[raw] = true;
       }
     }
     // Skip non-flag arguments
   }
 
-  return result;
+  return { args: result, json: jsonOutput };
 }
 
 // ---------------------------------------------------------------------------
@@ -559,9 +572,9 @@ async function main() {
   }
 
   // Route: <command> [--param value ...] → call tool via MCP
-  const toolArgs = parseToolArgs(toolUserArgs);
+  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs);
 
-  core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}`);
+  core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
   auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
 
   const callStartMs = Date.now();
@@ -576,7 +589,12 @@ async function main() {
     core.info(`[${serverName}] Tool call complete: total=${totalMs}ms`);
     auditLog(serverName, { event: "call_complete", tool: toolName, totalElapsedMs: totalMs });
 
-    formatResponse(resp.body, serverName);
+    if (jsonOutput) {
+      // --json: print the raw JSON-RPC response body
+      process.stdout.write(JSON.stringify(resp.body, null, 2) + "\n");
+    } else {
+      formatResponse(resp.body, serverName);
+    }
   } catch (err) {
     const totalMs = Date.now() - callStartMs;
     const message = err instanceof Error ? err.message : String(err);
