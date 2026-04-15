@@ -768,10 +768,10 @@ Uses all imported neutral tools.
 	}
 }
 
-// TestBashTrueOverridesImportBashList verifies that bash: true in the main workflow (unrestricted
-// bash) takes precedence over a specific bash command list defined in an import.
+// TestBashMainWorkflowOverridesImportBashList verifies that bash: true in the main workflow
+// (unrestricted bash) takes precedence over a specific bash command list defined in an import.
 // This prevents imports from accidentally restricting the main workflow's bash permissions.
-func TestBashTrueOverridesImportBashList(t *testing.T) {
+func TestBashMainWorkflowOverridesImportBashList(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a shared workflow with a restricted bash tool list
@@ -843,11 +843,11 @@ This workflow needs unrestricted bash.
 	}
 }
 
-// TestCacheMemoryKeyFromParentImportWinsOverChildTrue verifies that when a parent import sets
+// TestCacheMemoryMapOverridesBoolInImportChain verifies that when a parent import sets
 // tools.cache-memory: {key: "specific-key"}, and a further-nested (child) import sets
 // tools.cache-memory: true, the parent import's specific key wins.
 // This preserves custom cache isolation across workflow runs.
-func TestCacheMemoryKeyFromParentImportWinsOverChildTrue(t *testing.T) {
+func TestCacheMemoryMapOverridesBoolInImportChain(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
 	// Create a deeply nested import that sets cache-memory: true (generic)

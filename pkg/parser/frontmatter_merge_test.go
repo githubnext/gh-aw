@@ -186,7 +186,7 @@ func TestMergeTools(t *testing.T) {
 			// bash: true in main workflow (or parent import) must win over an import's
 			// specific bash command list, e.g. ["ls", "cat"]. Both are valid bash tool
 			// configurations, but they are different types (bool vs array).
-			name: "base bash true overrides additional bash array (bash: true wins)",
+			name: "base bash true overrides additional bash array",
 			base: map[string]any{
 				"bash": true,
 			},
