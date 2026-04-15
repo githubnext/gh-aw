@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -19,21 +18,6 @@ import (
 )
 
 var log = logger.New("workflow:compiler")
-
-// heredocDelimiterRE matches randomized heredoc delimiters of the form GH_AW_<NAME>_<16hexchars>_EOF.
-// Used to normalize delimiters when comparing compiled output to skip unnecessary writes.
-var heredocDelimiterRE = regexp.MustCompile(`GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF`)
-
-// normalizeHeredocDelimiters replaces randomized heredoc delimiter tokens with a stable
-// placeholder so that two compilations of the same workflow compare as equal even though
-// each run embeds different random tokens.
-func normalizeHeredocDelimiters(content string) string {
-	// Fast path: skip regex if content contains no heredoc delimiters
-	if !strings.Contains(content, "GH_AW_") {
-		return content
-	}
-	return heredocDelimiterRE.ReplaceAllString(content, "GH_AW_${1}_NORM_EOF")
-}
 
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (500KB)

@@ -297,6 +297,21 @@ func GenerateHeredocDelimiterFromSeed(name string, seed string) string {
 	return "GH_AW_" + upperName + "_" + tag + "_EOF"
 }
 
+// heredocDelimiterRE matches randomized heredoc delimiters of the form GH_AW_<NAME>_<16hexchars>_EOF.
+// Used to normalize delimiters when comparing compiled output to skip unnecessary writes.
+var heredocDelimiterRE = regexp.MustCompile(`GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF`)
+
+// normalizeHeredocDelimiters replaces randomized heredoc delimiter tokens with a stable
+// placeholder so that two compilations of the same workflow compare as equal even though
+// each run embeds different random tokens.
+func normalizeHeredocDelimiters(content string) string {
+	// Fast path: skip regex if content contains no heredoc delimiters
+	if !strings.Contains(content, "GH_AW_") {
+		return content
+	}
+	return heredocDelimiterRE.ReplaceAllString(content, "GH_AW_${1}_NORM_EOF")
+}
+
 // ValidateHeredocContent checks that content does not contain the heredoc delimiter
 // anywhere (substring match). The check is intentionally stricter than what shell
 // heredocs require (delimiter on its own line) — rejecting any occurrence eliminates
