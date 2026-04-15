@@ -51,7 +51,7 @@ describe("payload_helpers", () => {
       expect(result).toContain("</details>");
     });
 
-    it("should always roundtrip JSON to normalize — extracted JSON is valid and parseable", () => {
+    it("should always roundtrip JSON to normalize: extracted JSON is valid and parseable", () => {
       const result = renderPayloadBlock({ ok: true });
       const fenceStart = result.indexOf("```json gh-aw-payload\n") + "```json gh-aw-payload\n".length;
       const fenceEnd = result.lastIndexOf("\n```");
