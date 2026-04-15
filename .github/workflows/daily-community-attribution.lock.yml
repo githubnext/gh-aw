@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"d8410a2acd1463842c4bee4697418ffda12f92bdc759581c5f2eaac251b2c077","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"852b08c8985ff661797cb7e65380b6822252fbad08c311d898e757a59a6014eb","strict":true,"agent_id":"copilot","agent_model":"claude-haiku-4-5"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_ENDPOINT","GH_AW_OTEL_HEADERS","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20","digest":"sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20","digest":"sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20","digest":"sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.19","digest":"sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -112,7 +112,7 @@ jobs:
         env:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
-          GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
+          GH_AW_INFO_MODEL: "claude-haiku-4-5"
           GH_AW_INFO_VERSION: "1.0.21"
           GH_AW_INFO_AGENT_VERSION: "1.0.21"
           GH_AW_INFO_WORKFLOW_NAME: "Daily Community Attribution Updater"
@@ -186,20 +186,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_fc0f770f20780023_EOF'
+          cat << 'GH_AW_PROMPT_8acf7ba282d5db55_EOF'
           <system>
-          GH_AW_PROMPT_fc0f770f20780023_EOF
+          GH_AW_PROMPT_8acf7ba282d5db55_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_fc0f770f20780023_EOF'
+          cat << 'GH_AW_PROMPT_8acf7ba282d5db55_EOF'
           <safe-output-tools>
           Tools: create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_fc0f770f20780023_EOF
+          GH_AW_PROMPT_8acf7ba282d5db55_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_fc0f770f20780023_EOF'
+          cat << 'GH_AW_PROMPT_8acf7ba282d5db55_EOF'
           </safe-output-tools>
           <github-context>
           The following GitHub context information is available for this workflow:
@@ -229,14 +229,14 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_fc0f770f20780023_EOF
+          GH_AW_PROMPT_8acf7ba282d5db55_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_fc0f770f20780023_EOF'
+          cat << 'GH_AW_PROMPT_8acf7ba282d5db55_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/community-attribution.md}}
           {{#runtime-import .github/workflows/shared/observability-otlp.md}}
           {{#runtime-import .github/workflows/daily-community-attribution.md}}
-          GH_AW_PROMPT_fc0f770f20780023_EOF
+          GH_AW_PROMPT_8acf7ba282d5db55_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -388,7 +388,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch PR data for attribution index
-        run: "mkdir -p /tmp/gh-aw/community-data\n\n# Fetch merged PRs from the last 90 days (wide enough to catch any recently attributed issue)\nSINCE=$(date -d '90 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\\n        || date -v-90d '+%Y-%m-%dT%H:%M:%SZ')\n\necho \"Fetching PRs merged since $SINCE...\"\ngh pr list \\\n  --state merged \\\n  --limit 500 \\\n  --json number,title,author,mergedAt,url,body,closingIssuesReferences \\\n  --jq \"[.[] | select(.mergedAt >= \\\"$SINCE\\\")]\" \\\n  > /tmp/gh-aw/community-data/pull_requests.json \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/pull_requests.json\n\nPR_COUNT=$(jq length /tmp/gh-aw/community-data/pull_requests.json)\necho \"✓ Fetched $PR_COUNT merged PRs\"\n\n# Build closing references index: {issue_number: [pr_numbers]}\n# Use a nested reduce so the outer body always returns the accumulator,\n# even when closingIssuesReferences is empty (avoids jq setting acc to null).\njq '\n  reduce .[] as $pr (\n    {};\n    reduce ($pr.closingIssuesReferences // [])[] as $issue (\n      .;\n      ($issue.number | tostring) as $key |\n      .[$key] = (.[$key] // []) + [$pr.number]\n    )\n  )\n' /tmp/gh-aw/community-data/pull_requests.json \\\n  > /tmp/gh-aw/community-data/closing_refs_by_issue.json 2>/dev/null \\\n  || echo \"{}\" > /tmp/gh-aw/community-data/closing_refs_by_issue.json\n\nLINK_COUNT=$(jq 'keys | length' /tmp/gh-aw/community-data/closing_refs_by_issue.json)\necho \"✓ Built closing refs index: $LINK_COUNT issues with native GitHub close links\"\n\n# Find community issues closed within the PR lookback window (attribution candidates)\njq --arg since \"$SINCE\" \\\n  '[.[] | select(.closedAt != null and .closedAt >= $since)]' \\\n  /tmp/gh-aw/community-data/community_issues.json \\\n  > /tmp/gh-aw/community-data/community_issues_closed_in_window.json 2>/dev/null \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/community_issues_closed_in_window.json\n\nCLOSED_COUNT=$(jq length /tmp/gh-aw/community-data/community_issues_closed_in_window.json)\necho \"✓ Found $CLOSED_COUNT community issues closed in the lookback window\"\n\necho \"\"\necho \"Data available in /tmp/gh-aw/community-data/:\"\necho \"  community_issues.json                  — all community-labeled issues (includes stateReason)\"\necho \"  pull_requests.json                     — merged PRs (last 90 days)\"\necho \"  closing_refs_by_issue.json             — native GitHub close links\"\necho \"  community_issues_closed_in_window.json — closed during lookback\""
+        run: "mkdir -p /tmp/gh-aw/community-data\n\n# Fetch merged PRs from the last 90 days (wide enough to catch any recently attributed issue)\nSINCE=$(date -d '90 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \\\n        || date -v-90d '+%Y-%m-%dT%H:%M:%SZ')\n\necho \"Fetching PRs merged since $SINCE...\"\ngh pr list \\\n  --state merged \\\n  --limit 500 \\\n  --json number,title,author,mergedAt,url,body,closingIssuesReferences \\\n  --jq \"[.[] | select(.mergedAt >= \\\"$SINCE\\\")]\" \\\n  > /tmp/gh-aw/community-data/pull_requests.json \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/pull_requests.json\n\nPR_COUNT=$(jq length /tmp/gh-aw/community-data/pull_requests.json)\necho \"✓ Fetched $PR_COUNT merged PRs\"\n\n# Build closing references index: {issue_number: [pr_numbers]}\n# Use a nested reduce so the outer body always returns the accumulator,\n# even when closingIssuesReferences is empty (avoids jq setting acc to null).\njq '\n  reduce .[] as $pr (\n    {};\n    reduce ($pr.closingIssuesReferences // [])[] as $issue (\n      .;\n      ($issue.number | tostring) as $key |\n      .[$key] = (.[$key] // []) + [$pr.number]\n    )\n  )\n' /tmp/gh-aw/community-data/pull_requests.json \\\n  > /tmp/gh-aw/community-data/closing_refs_by_issue.json 2>/dev/null \\\n  || echo \"{}\" > /tmp/gh-aw/community-data/closing_refs_by_issue.json\n\nLINK_COUNT=$(jq 'keys | length' /tmp/gh-aw/community-data/closing_refs_by_issue.json)\necho \"✓ Built closing refs index: $LINK_COUNT issues with native GitHub close links\"\n\n# Find community issues closed within the PR lookback window (attribution candidates)\njq --arg since \"$SINCE\" \\\n  '[.[] | select(.closedAt != null and .closedAt >= $since)]' \\\n  /tmp/gh-aw/community-data/community_issues.json \\\n  > /tmp/gh-aw/community-data/community_issues_closed_in_window.json 2>/dev/null \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/community_issues_closed_in_window.json\n\nCLOSED_COUNT=$(jq length /tmp/gh-aw/community-data/community_issues_closed_in_window.json)\necho \"✓ Found $CLOSED_COUNT community issues closed in the lookback window\"\n\necho \"\"\necho \"Data available in /tmp/gh-aw/community-data/:\"\necho \"  community_issues.json                  — all community-labeled issues (includes stateReason)\"\necho \"  pull_requests.json                     — merged PRs (last 90 days)\"\necho \"  closing_refs_by_issue.json             — native GitHub close links\"\necho \"  community_issues_closed_in_window.json — closed during lookback\"\n"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Compute deterministic attributions (Tier 0, 1, 2)
+        run: "# Tier 0: COMPLETED issues (direct contributions, no PR needed)\njq '[.[] | select(.stateReason == \"COMPLETED\") |\n    . + {tier: 0, attribution_type: \"direct issue\", closing_prs: []}]' \\\n  /tmp/gh-aw/community-data/community_issues.json \\\n  > /tmp/gh-aw/community-data/tier0_attributed.json\n\nT0=$(jq length /tmp/gh-aw/community-data/tier0_attributed.json)\necho \"Tier 0 (direct issue — COMPLETED): $T0\"\n\n# Tier 1: native GitHub close references (exclude Tier 0 issues)\njq --slurpfile issues /tmp/gh-aw/community-data/community_issues.json \\\n   --slurpfile t0 /tmp/gh-aw/community-data/tier0_attributed.json '\n  ($t0[0] | map(.number) | map(tostring)) as $t0_keys |\n  ($issues[0] | map(.number | tostring)) as $issue_keys |\n  to_entries |\n  map(select(\n    .key as $k |\n    ($issue_keys | index($k) != null) and\n    ($t0_keys | index($k) == null)\n  )) |\n  map(.key as $k | .value as $prs |\n    ($issues[0] | map(select(.number | tostring == $k))[0]) +\n    {tier: 1, attribution_type: \"resolved by PR\", closing_prs: $prs}\n  )\n' /tmp/gh-aw/community-data/closing_refs_by_issue.json \\\n  > /tmp/gh-aw/community-data/tier1_attributed.json 2>/dev/null \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/tier1_attributed.json\n\nT1=$(jq length /tmp/gh-aw/community-data/tier1_attributed.json)\necho \"Tier 1 (native close refs): $T1\"\n\n# Tier 2: PR body keyword matching (exclude Tier 0 and Tier 1 issues)\nKW_ISSUES=$(jq -r '.[].body // \"\"' /tmp/gh-aw/community-data/pull_requests.json \\\n  | grep -oP '(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s*(?:github/gh-aw#|#)\\K[0-9]+' 2>/dev/null \\\n  | sort -u | jq -R 'tonumber' | jq -s 'sort | unique' 2>/dev/null \\\n  || echo \"[]\")\n\njq --argjson kw \"$KW_ISSUES\" \\\n   --slurpfile t0 /tmp/gh-aw/community-data/tier0_attributed.json \\\n   --slurpfile t1 /tmp/gh-aw/community-data/tier1_attributed.json '\n  ($t0[0] | map(.number)) as $t0_nums |\n  ($t1[0] | map(.number)) as $t1_nums |\n  [.[] |\n    select(\n      .number as $n |\n      ($kw | index($n) != null) and\n      ($t0_nums | index($n) == null) and\n      ($t1_nums | index($n) == null)\n    ) |\n    . + {tier: 2, attribution_type: \"resolved by PR\", closing_prs: []}\n  ]\n' /tmp/gh-aw/community-data/community_issues.json \\\n  > /tmp/gh-aw/community-data/tier2_attributed.json 2>/dev/null \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/tier2_attributed.json\n\nT2=$(jq length /tmp/gh-aw/community-data/tier2_attributed.json)\necho \"Tier 2 (PR body keywords): $T2\"\n\n# Combine Tier 0 + 1 + 2 into pre_attributed.json\njq -n \\\n  --slurpfile t0 /tmp/gh-aw/community-data/tier0_attributed.json \\\n  --slurpfile t1 /tmp/gh-aw/community-data/tier1_attributed.json \\\n  --slurpfile t2 /tmp/gh-aw/community-data/tier2_attributed.json \\\n  '$t0[0] + $t1[0] + $t2[0]' \\\n  > /tmp/gh-aw/community-data/pre_attributed.json\n\nTOTAL=$(jq length /tmp/gh-aw/community-data/pre_attributed.json)\necho \"\"\necho \"Pre-attributed: $TOTAL issues (Tier 0: $T0, Tier 1: $T1, Tier 2: $T2)\"\n\n# Compute Tier 3+ candidates (closed in window, not yet pre-attributed)\njq --slurpfile pre /tmp/gh-aw/community-data/pre_attributed.json '\n  ($pre[0] | map(.number)) as $attributed |\n  [.[] | select(.number as $n | $attributed | index($n) == null)]\n' /tmp/gh-aw/community-data/community_issues_closed_in_window.json \\\n  > /tmp/gh-aw/community-data/tier3_candidates.json 2>/dev/null \\\n  || echo \"[]\" > /tmp/gh-aw/community-data/tier3_candidates.json\n\nT3=$(jq length /tmp/gh-aw/community-data/tier3_candidates.json)\necho \"Tier 3+ candidates (agent lookup needed): $T3\"\necho \"\"\necho \"Data available in /tmp/gh-aw/community-data/:\"\necho \"  pre_attributed.json    — Tier 0+1+2 confirmed attributions\"\necho \"  tier3_candidates.json  — issues needing Tier 3 agent lookup\""
 
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone wiki-memory branch (default)
@@ -450,9 +455,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_85c7e908e123b8ba_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_a5736d38ce798ae2_EOF'
           {"create_pull_request":{"draft":true,"expires":24,"labels":["community","automation"],"max":1,"max_patch_size":1024,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS"],"protected_path_prefixes":[".github/",".agents/"],"title_prefix":"[community] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":10240,"max_patch_size":10240}]},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_85c7e908e123b8ba_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_a5736d38ce798ae2_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -650,7 +655,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.19'
           
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_37d1a9be8610cbbc_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
+          cat << GH_AW_MCP_CONFIG_5a83a027db89592a_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
             "mcpServers": {
               "github": {
@@ -660,7 +665,7 @@ jobs:
                   "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "issues,pull_requests"
+                  "GITHUB_TOOLSETS": "issues"
                 },
                 "guard-policies": {
                   "allow-only": {
@@ -697,7 +702,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_37d1a9be8610cbbc_EOF
+          GH_AW_MCP_CONFIG_5a83a027db89592a_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -759,7 +764,7 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          COPILOT_MODEL: claude-haiku-4-5
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1222,7 +1227,7 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          COPILOT_MODEL: claude-haiku-4-5
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
@@ -1367,7 +1372,7 @@ jobs:
       GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
+      GH_AW_ENGINE_MODEL: "claude-haiku-4-5"
       GH_AW_WORKFLOW_ID: "daily-community-attribution"
       GH_AW_WORKFLOW_NAME: "Daily Community Attribution Updater"
     outputs:
