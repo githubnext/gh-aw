@@ -42,44 +42,22 @@ func getMaxConcurrentDownloads() int {
 }
 
 // applyRepoOverrideFallback returns repoOverride populated from GITHUB_REPOSITORY
-// when the caller did not supply an explicit repository. It also ensures GH_REPO is
-// set (if absent) so that `gh api` calls using {owner}/{repo} template placeholders
-// (e.g. fetchJobStatuses, fetchJobDetails) resolve the repository without git.
-//
-// The caller is responsible for unsetting GH_REPO if it was set here to avoid
-// leaking the value across subsequent invocations within the same process:
-//
-//	repoOverride, cleanupGHRepo := applyRepoOverrideFallback(repoOverride)
-//	defer cleanupGHRepo()
-func applyRepoOverrideFallback(repoOverride string) (string, func()) {
+// when the caller did not supply an explicit repository. This allows `gh run list`
+// and `gh run download` to operate without a git checkout in agent sandbox
+// environments (e.g. audit-workflows) where git is not in PATH but
+// GITHUB_REPOSITORY is always set by GitHub Actions.
+func applyRepoOverrideFallback(repoOverride string) string {
 	if repoOverride != "" {
-		return repoOverride, func() {}
+		return repoOverride
 	}
 
 	githubRepo := os.Getenv("GITHUB_REPOSITORY")
 	if githubRepo == "" {
-		return repoOverride, func() {}
+		return repoOverride
 	}
 
-	repoOverride = githubRepo
-	logsOrchestratorLog.Printf("Using GITHUB_REPOSITORY env var as repo override: %s", repoOverride)
-
-	if _, ghRepoWasSet := os.LookupEnv("GH_REPO"); !ghRepoWasSet {
-		if err := os.Setenv("GH_REPO", repoOverride); err != nil {
-			// Non-fatal: the primary listing and download paths use explicit --repo flags.
-			// Only gh api calls using {owner}/{repo} template placeholders (e.g. job status
-			// queries) will be unable to resolve the repository context.
-			logsOrchestratorLog.Printf("Failed to set GH_REPO env var (gh api {owner}/{repo} template calls may fail to resolve repo context): %v", err)
-		} else {
-			return repoOverride, func() {
-				if err := os.Unsetenv("GH_REPO"); err != nil {
-					logsOrchestratorLog.Printf("Failed to restore GH_REPO env var after temporary override: %v", err)
-				}
-			}
-		}
-	}
-
-	return repoOverride, func() {}
+	logsOrchestratorLog.Printf("Using GITHUB_REPOSITORY env var as repo override: %s", githubRepo)
+	return githubRepo
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
@@ -88,11 +66,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 	// `gh run list` and `gh run download` can operate without a git checkout.
 	// This is needed in agent sandbox environments (e.g., the audit-workflows agent)
 	// where git is not installed but GITHUB_REPOSITORY is set by GitHub Actions.
-	// GH_REPO is set temporarily (unset on return) so `gh api {owner}/{repo}` calls
-	// (e.g., fetchJobStatuses, fetchJobDetails) also resolve without git.
-	var cleanupGHRepo func()
-	repoOverride, cleanupGHRepo = applyRepoOverrideFallback(repoOverride)
-	defer cleanupGHRepo()
+	repoOverride = applyRepoOverrideFallback(repoOverride)
 
 	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets)
 
