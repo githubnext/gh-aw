@@ -954,6 +954,31 @@ func TestCollectSideRepoTargets(t *testing.T) {
 			t.Errorf("expected non-empty token to win, got %q", targets[0].GitHubToken)
 		}
 	})
+
+	t.Run("multiple repos preserve first-seen discovery order", func(t *testing.T) {
+		workflows := []*WorkflowData{
+			{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "org/first-repo", Current: true},
+			}},
+			{Name: "wf2", CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "org/second-repo", Current: true},
+			}},
+			{Name: "wf3", CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "org/third-repo", Current: true},
+			}},
+		}
+
+		targets := collectSideRepoTargets(workflows)
+		if len(targets) != 3 {
+			t.Fatalf("expected 3 targets, got %d", len(targets))
+		}
+		wantOrder := []string{"org/first-repo", "org/second-repo", "org/third-repo"}
+		for i, want := range wantOrder {
+			if targets[i].Repository != want {
+				t.Errorf("targets[%d] = %q, want %q", i, targets[i].Repository, want)
+			}
+		}
+	})
 }
 
 func TestSanitizeRepoForFilename(t *testing.T) {
@@ -1134,6 +1159,7 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 
 	t.Run("side-repo with expires includes schedule trigger", func(t *testing.T) {
 		tmpDir := t.TempDir()
+		// Expires: 48 hours = 2 days → generateMaintenanceCron(2) = "37 */6 * * *"
 		workflowDataList := []*WorkflowData{
 			{
 				Name: "side-repo-with-expires",
@@ -1161,8 +1187,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 		if !strings.Contains(contentStr, "schedule:") {
 			t.Errorf("Side-repo maintenance with expires should include a schedule trigger, got content length %d", len(contentStr))
 		}
-		if !strings.Contains(contentStr, "cron:") {
-			t.Errorf("Side-repo maintenance with expires should include a cron expression, got content length %d", len(contentStr))
+		// 48 hours = 2 days → generateMaintenanceCron(2) returns "37 */6 * * *" (Every 6 hours)
+		if !strings.Contains(contentStr, "37 */6 * * *") {
+			t.Errorf("Side-repo maintenance with 2-day expires should use 6-hour cron, got content:\n%s", contentStr[:min(500, len(contentStr))])
 		}
 	})
 

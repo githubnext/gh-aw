@@ -754,8 +754,10 @@ type SideRepoTarget struct {
 // token rather than falling back to GH_AW_GITHUB_TOKEN.
 func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 	// Use a map to accumulate the best token seen for each slug.
+	// Order slice preserves first-seen repository discovery order for stable output;
+	// tokens may be upgraded to non-empty values from later occurrences.
 	tokenByRepo := make(map[string]string)
-	var order []string // preserve first-seen order for stable output
+	var order []string
 	for _, wd := range workflowDataList {
 		for _, checkout := range wd.CheckoutConfigs {
 			if !checkout.Current {
@@ -908,12 +910,15 @@ against the target repository.`
 
 	// Pre-compute cron schedule values (needed in both the on: section and the
 	// close-expired-entities job comment when hasExpires is true).
+	// When minExpiresDays is 0 (e.g. expiry expressed in hours < 24) we use a
+	// daily fallback — the same cron generated for > 4-day expiries.
 	var cronSchedule, scheduleDesc string
 	if hasExpires {
 		if minExpiresDays > 0 {
 			cronSchedule, scheduleDesc = generateMaintenanceCron(minExpiresDays)
 		} else {
-			cronSchedule, scheduleDesc = "37 0 * * *", "Daily"
+			// minExpiresDays == 0 means expiry < 1 day; use a conservative daily default.
+			cronSchedule, scheduleDesc = generateMaintenanceCron(5) // 5 days → daily cron
 		}
 	}
 
