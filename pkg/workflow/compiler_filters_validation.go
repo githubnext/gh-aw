@@ -46,7 +46,6 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -203,26 +202,4 @@ func validateGlobList(eventMap map[string]any, eventName, filterKey string, isPa
 		}
 	}
 	return nil
-}
-
-// toStringSlice converts an any value to a []string, supporting []string, []any, and string.
-func toStringSlice(val any) ([]string, error) {
-	switch v := val.(type) {
-	case []string:
-		return v, nil
-	case []any:
-		result := make([]string, 0, len(v))
-		for _, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return nil, errors.New("non-string item in list")
-			}
-			result = append(result, s)
-		}
-		return result, nil
-	case string:
-		return []string{v}, nil
-	default:
-		return nil, fmt.Errorf("unsupported type %T", val)
-	}
 }
