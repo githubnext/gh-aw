@@ -161,6 +161,9 @@ jobs:
             .github
             .agents
             actions/setup
+            .claude
+            .codex
+            .gemini
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration

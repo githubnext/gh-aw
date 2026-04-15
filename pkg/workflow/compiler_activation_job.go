@@ -706,6 +706,19 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		extraPaths = append(extraPaths, "actions/setup")
 	}
 
+	// Add engine-specific agent config directories to the sparse checkout.
+	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
+	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are excluded — they are not needed
+	// during activation and are omitted to keep the shallow checkout minimal.
+	defaultSparseCheckoutDirs := map[string]bool{".github": true, ".agents": true}
+	registry := GetGlobalEngineRegistry()
+	for _, folder := range registry.GetAllAgentManifestFolders() {
+		if !defaultSparseCheckoutDirs[folder] {
+			extraPaths = append(extraPaths, folder)
+		}
+	}
+	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
+
 	cm := NewCheckoutManager(nil)
 	activationToken := c.resolveActivationToken(data)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
@@ -732,10 +745,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		return checkoutSteps
 	}
 
-	// For activation job, sparse checkout only .github and .agents folders (plus actions/setup
-	// in dev mode). Agent manifest files and engine-specific config directories are not needed
-	// during activation and are excluded to keep the shallow checkout minimal.
-	compilerActivationJobLog.Print("Adding .github and .agents to sparse checkout for activation job")
+	// For activation job, sparse checkout .github, .agents, and engine-specific config directories
+	// (plus actions/setup in dev mode). Root instruction files are excluded as they are not needed
+	// during activation. sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
+	compilerActivationJobLog.Print("Adding .github, .agents, and engine-specific dirs to sparse checkout for activation job")
 	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
 }
 
