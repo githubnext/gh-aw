@@ -49,8 +49,9 @@ async function closeIssue(github, owner, repo, issueNumber) {
 async function main() {
   // Resolve owner/repo — use GH_AW_TARGET_REPO_SLUG when set (SideRepoOps pattern).
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-  const [owner, repo] = targetRepoSlug && targetRepoSlug.includes("/") ? targetRepoSlug.split("/", 2) : [context.repo.owner, context.repo.repo];
-  if (targetRepoSlug && targetRepoSlug.includes("/")) {
+  const isCrossRepo = Boolean(targetRepoSlug && targetRepoSlug.includes("/"));
+  const [owner, repo] = isCrossRepo ? targetRepoSlug.split("/", 2) : [context.repo.owner, context.repo.repo];
+  if (isCrossRepo) {
     core.info(`Using target repository from GH_AW_TARGET_REPO_SLUG: ${owner}/${repo}`);
   }
 

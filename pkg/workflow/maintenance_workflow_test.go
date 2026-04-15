@@ -990,22 +990,22 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 
 		contentStr := string(content)
 		if !strings.Contains(contentStr, "my-org/target-repo") {
-			t.Errorf("Side-repo maintenance should reference target repo, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should reference target repo, got content length %d", len(contentStr))
 		}
 		if !strings.Contains(contentStr, "${{ secrets.GH_AW_TARGET_TOKEN }}") {
-			t.Errorf("Side-repo maintenance should use custom token, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should use custom token, got content length %d", len(contentStr))
 		}
 		if !strings.Contains(contentStr, "GH_AW_TARGET_REPO_SLUG") {
-			t.Errorf("Side-repo maintenance should set GH_AW_TARGET_REPO_SLUG, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should set GH_AW_TARGET_REPO_SLUG, got content length %d", len(contentStr))
 		}
 		if !strings.Contains(contentStr, "workflow_call") {
-			t.Errorf("Side-repo maintenance should have workflow_call trigger, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should have workflow_call trigger, got content length %d", len(contentStr))
 		}
 		if !strings.Contains(contentStr, "apply_safe_outputs") {
-			t.Errorf("Side-repo maintenance should include apply_safe_outputs job, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should include apply_safe_outputs job, got content length %d", len(contentStr))
 		}
 		if !strings.Contains(contentStr, "create_labels") {
-			t.Errorf("Side-repo maintenance should include create_labels job, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should include create_labels job, got content length %d", len(contentStr))
 		}
 	})
 
@@ -1071,11 +1071,11 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 
 		// Should use fallback token when none specified.
 		if !strings.Contains(contentStr, "GH_AW_GITHUB_TOKEN") {
-			t.Errorf("Side-repo maintenance should use fallback token GH_AW_GITHUB_TOKEN, got:\n%s", contentStr[:200])
+			t.Errorf("Side-repo maintenance should use fallback token GH_AW_GITHUB_TOKEN, got content length %d", len(contentStr))
 		}
 		// Should NOT include close-expired-entities (no expires).
 		if strings.Contains(contentStr, "close-expired-entities") {
-			t.Errorf("Side-repo maintenance should NOT include close-expired-entities when no expires, got:\n%s", contentStr[:300])
+			t.Errorf("Side-repo maintenance should NOT include close-expired-entities when no expires, got content length %d", len(contentStr))
 		}
 	})
 
