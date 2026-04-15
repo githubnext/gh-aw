@@ -66,6 +66,31 @@ Use the agentic-workflows MCP tool `logs` with parameters:
 Output is saved to: /tmp/gh-aw/aw-mcp/logs
 ```
 
+**Log Directory Structure**:
+```
+/tmp/gh-aw/aw-mcp/logs/
+└── run-(id)/           # One directory per workflow run
+    ├── aw_info.json    # Run metadata (engine, workflow, status, tokens)
+    ├── activation/     # Activation job logs
+    └── agent/          # Agent job logs
+```
+
+**Engine Detection**: To determine which AI engine a workflow uses, read the `engine_id` field from `aw_info.json`:
+```json
+{
+  "engine_id": "claude",
+  "engine_name": "Claude",
+  "model": "claude-sonnet-4-5",
+  "workflow_name": "my-workflow",
+  "run_id": 12345678,
+  "conclusion": "success",
+  "staged": false
+}
+```
+Valid engine IDs: `copilot`, `claude`, `codex`, `custom`.
+
+⚠️ **Do NOT scan lock files (`.lock.yml`) for the word "copilot" to infer engine type.** Every compiled lock file contains "copilot" in unrelated places (e.g., `api.githubcopilot.com` in allowed-domains and `copilot-*.md` source filenames), causing false positives on every workflow regardless of the actual engine.
+
 **Analyze**: Review logs for:
 - Missing tools (patterns, frequency, legitimacy)
 - Errors (tool execution, MCP failures, auth, timeouts, resources)
