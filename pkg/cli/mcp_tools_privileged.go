@@ -69,7 +69,12 @@ in the JSON data with updated parameters to continue fetching more data.
 Check for the presence of the continuation field to determine if there are more logs available.
 
 The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching
-from where the previous request stopped due to timeout.`,
+from where the previous request stopped due to timeout.
+
+Each run in the JSON file has an "agent" field that contains the AI engine ID (e.g., "claude",
+"copilot", "codex") read directly from aw_info.json. Use runs[].agent to determine engine type.
+Do NOT infer engine type by scanning .lock.yml files for the word "copilot": every lock file
+contains "copilot" in unrelated fields (allowed domains, source filenames), causing false positives.`,
 		InputSchema: logsSchema,
 		Icons: []mcp.Icon{
 			{Source: "📜"},
@@ -266,6 +271,7 @@ When a job URL is provided:
 
 Returns JSON with the following structure:
 - overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url, logs_path)
+- engine_config: AI engine information read from aw_info.json (engine_id, engine_name, model, version, cli_version, firewall_version). Use engine_config.engine_id for reliable engine type detection (e.g., "claude", "copilot", "codex"). Do NOT infer engine type by scanning .lock.yml files for the word "copilot": every lock file contains "copilot" in unrelated fields (allowed domains, source filenames), causing false positives.
 - metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
 - jobs: List of job details (name, status, conclusion, duration)
 - downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
