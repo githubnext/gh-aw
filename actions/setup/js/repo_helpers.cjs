@@ -300,6 +300,27 @@ function validateTargetRepo(repo, defaultRepo, allowedRepos) {
   return validateRepo(repo, defaultRepo, allowedRepos);
 }
 
+/**
+ * Resolve the execution owner/repo pair for maintenance scripts.
+ *
+ * In the SideRepoOps pattern a hosting repo manages workflows that operate on a
+ * separate target repository.  When `GH_AW_TARGET_REPO_SLUG` is set to a valid
+ * "owner/repo" slug the maintenance scripts should operate against that repo
+ * instead of the workflow execution context (`context.repo`).
+ *
+ * @returns {{ owner: string, repo: string }}
+ */
+function resolveExecutionOwnerRepo() {
+  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+  if (targetRepoSlug) {
+    const parsed = parseRepoSlug(targetRepoSlug);
+    if (parsed) {
+      return parsed;
+    }
+  }
+  return { owner: context.repo.owner, repo: context.repo.repo };
+}
+
 module.exports = {
   parseAllowedRepos,
   getDefaultTargetRepo,
@@ -309,4 +330,5 @@ module.exports = {
   parseRepoSlug,
   resolveTargetRepoConfig,
   resolveAndValidateRepo,
+  resolveExecutionOwnerRepo,
 };

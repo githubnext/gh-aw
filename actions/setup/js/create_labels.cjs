@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 /**
  * Generate a deterministic pastel hex color string from a label name.
@@ -89,13 +90,8 @@ async function main() {
   // Fetch all existing labels from the repository.
   // When GH_AW_TARGET_REPO_SLUG is set (SideRepoOps pattern), create labels in that
   // repository instead of the execution context repository.
-  // The slug must be in exact "owner/repo" format (one slash, non-empty on both sides).
-  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-  const isCrossRepo = Boolean(targetRepoSlug && /^[^/]+\/[^/]+$/.test(targetRepoSlug));
-  const [owner, repo] = isCrossRepo ? targetRepoSlug.split("/", 2) : [context.repo.owner, context.repo.repo];
-  if (isCrossRepo) {
-    core.info(`Using target repository from GH_AW_TARGET_REPO_SLUG: ${owner}/${repo}`);
-  }
+  const { owner, repo } = resolveExecutionOwnerRepo();
+  core.info(`Operating on repository: ${owner}/${repo}`);
   let existingLabels;
   try {
     existingLabels = await github.paginate(github.rest.issues.listLabelsForRepo, {

@@ -5,6 +5,7 @@ const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs"
 const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
+const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 /**
  * Add comment to a GitHub Issue using REST API
@@ -47,14 +48,8 @@ async function closeIssue(github, owner, repo, issueNumber) {
 }
 
 async function main() {
-  // Resolve owner/repo — use GH_AW_TARGET_REPO_SLUG when set (SideRepoOps pattern).
-  // The slug must be in exact "owner/repo" format (one slash, non-empty on both sides).
-  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-  const isCrossRepo = Boolean(targetRepoSlug && /^[^/]+\/[^/]+$/.test(targetRepoSlug));
-  const [owner, repo] = isCrossRepo ? targetRepoSlug.split("/", 2) : [context.repo.owner, context.repo.repo];
-  if (isCrossRepo) {
-    core.info(`Using target repository from GH_AW_TARGET_REPO_SLUG: ${owner}/${repo}`);
-  }
+  const { owner, repo } = resolveExecutionOwnerRepo();
+  core.info(`Operating on repository: ${owner}/${repo}`);
 
   // Get workflow metadata for footer
   const { workflowName, workflowId, runUrl } = getWorkflowMetadata(owner, repo);
