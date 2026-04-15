@@ -921,9 +921,14 @@ func TestCollectSideRepoTargets(t *testing.T) {
 				t.Errorf("expected %d targets, got %d: %v", len(tt.expectedRepos), len(got), got)
 				return
 			}
-			for i, repo := range tt.expectedRepos {
-				if got[i] != repo {
-					t.Errorf("target[%d]: expected %q, got %q", i, repo, got[i])
+			// Use a set-based comparison so the test is not sensitive to ordering.
+			gotSet := make(map[string]bool, len(got))
+			for _, r := range got {
+				gotSet[r] = true
+			}
+			for _, repo := range tt.expectedRepos {
+				if !gotSet[repo] {
+					t.Errorf("expected target %q not found in results %v", repo, got)
 				}
 			}
 		})

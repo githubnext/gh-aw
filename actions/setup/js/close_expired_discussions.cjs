@@ -91,8 +91,9 @@ async function hasExpirationComment(github, discussionId) {
 
 async function main() {
   // Resolve owner/repo — use GH_AW_TARGET_REPO_SLUG when set (SideRepoOps pattern).
+  // The slug must be in exact "owner/repo" format (one slash, non-empty on both sides).
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-  const isCrossRepo = Boolean(targetRepoSlug && targetRepoSlug.includes("/"));
+  const isCrossRepo = Boolean(targetRepoSlug && /^[^/]+\/[^/]+$/.test(targetRepoSlug));
   const [owner, repo] = isCrossRepo ? targetRepoSlug.split("/", 2) : [context.repo.owner, context.repo.repo];
   if (isCrossRepo) {
     core.info(`Using target repository from GH_AW_TARGET_REPO_SLUG: ${owner}/${repo}`);
