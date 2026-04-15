@@ -120,10 +120,12 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 }
 
 // GetAgentManifestFiles returns Codex-specific instruction files that should be
-// treated as security-sensitive manifests.  AGENTS.md is the standard OpenAI
+// treated as security-sensitive manifests.  AGENTS.md is the primary OpenAI
 // Codex agent-instruction file; modifying it can redirect agent behaviour.
+// CLAUDE.md and GEMINI.md are also listed because repositories often use multiple
+// engines and Codex runs alongside them.
 func (e *CodexEngine) GetAgentManifestFiles() []string {
-	return []string{"AGENTS.md"}
+	return []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
 }
 
 // GetAgentManifestPathPrefixes returns Codex-specific config directory prefixes.

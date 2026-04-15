@@ -89,15 +89,17 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 }
 
 // GetAgentManifestFiles returns Claude-specific instruction files that should be
-// treated as security-sensitive manifests.  Modifying CLAUDE.md can change the
+// treated as security-sensitive manifests.  Modifying these files can change the
 // agent's instructions, guidelines, or permissions on the next run.
+// CLAUDE.md is the primary per-project instruction file; AGENTS.md is the
+// cross-engine convention that Claude Code also reads.
 func (e *ClaudeEngine) GetAgentManifestFiles() []string {
-	return []string{"CLAUDE.md"}
+	return []string{"CLAUDE.md", "AGENTS.md"}
 }
 
 // GetAgentManifestPathPrefixes returns Claude-specific config directory prefixes.
-// The .claude/ directory contains settings, custom commands, and other engine
-// configuration that could affect agent behaviour.
+// The .claude/ directory contains settings, custom commands, hooks, and other
+// engine configuration that could affect agent behaviour.
 func (e *ClaudeEngine) GetAgentManifestPathPrefixes() []string {
 	return []string{".claude/"}
 }
