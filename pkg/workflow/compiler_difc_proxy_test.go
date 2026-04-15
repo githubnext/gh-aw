@@ -699,7 +699,23 @@ func TestInjectProxyEnvIntoCustomSteps(t *testing.T) {
 			desc: "existing env var GH_TOKEN should be preserved alongside proxy vars",
 		},
 		{
-			name:        "multiple steps each get proxy env",
+			name:        "conflicting proxy routing env vars are overwritten by proxy values",
+			customSteps: "steps:\n- name: Step with conflicting proxy env\n  env:\n    GH_TOKEN: ${{ github.token }}\n    GH_HOST: example.com\n    GITHUB_API_URL: https://example.com/api/v3\n  run: gh issue list\n",
+			expectedContains: []string{
+				"GH_TOKEN: ${{ github.token }}",
+				"GH_HOST: localhost:18443",
+				"GITHUB_API_URL: https://localhost:18443/api/v3",
+				"GH_REPO: ${{ github.repository }}",
+				"GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql",
+				"NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
+			},
+			expectedAbsent: []string{
+				"GH_HOST: example.com",
+				"GITHUB_API_URL: https://example.com/api/v3",
+			},
+			desc: "proxy routing env vars should take precedence over conflicting custom values",
+		},
+		{
 			customSteps: "steps:\n- name: Step 1\n  run: echo one\n- name: Step 2\n  env:\n    MY_VAR: value\n  run: echo two\n",
 			expectedContains: []string{
 				"name: Step 1",
