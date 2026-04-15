@@ -137,8 +137,19 @@ jobs:
             .github
             .agents
             actions/setup
+            .claude
+            .codex
+            .gemini
+            AGENTS.md
+            CLAUDE.md
+            GEMINI.md
           sparse-checkout-cone-mode: true
           fetch-depth: 1
+      - name: Save agent config folders for base branch restoration
+        env:
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .gemini .github"
+          GH_AW_AGENT_FILES: "AGENTS.md CLAUDE.md GEMINI.md"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
         id: check-lock-file
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -292,6 +303,7 @@ jobs:
             /tmp/gh-aw/aw_info.json
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/github_rate_limits.jsonl
+            /tmp/gh-aw/base
           if-no-files-found: ignore
           retention-days: 1
 
@@ -739,6 +751,12 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      - name: Restore agent config folders from base branch
+        if: steps.checkout-pr.outcome == 'success'
+        env:
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .gemini .github"
+          GH_AW_AGENT_FILES: "AGENTS.md CLAUDE.md GEMINI.md"
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Clean git credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"

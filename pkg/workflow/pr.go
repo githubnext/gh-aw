@@ -16,6 +16,40 @@ func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
 	return permParser.HasContentsReadAccess()
 }
 
+// generateSaveBaseGitHubFoldersStep generates step strings (for the activation job) that
+// snapshot agent config folders and root instruction files from the workspace into
+// /tmp/gh-aw/base/.  The folder and file lists are computed from the engine registry so
+// that engine implementations are the single source of truth — no hardcoding in the script.
+//
+// folders: the agent config directories to snapshot (e.g. ".agents", ".claude", ".github")
+// files:   the root instruction files to snapshot (e.g. "AGENTS.md", "CLAUDE.md")
+func generateSaveBaseGitHubFoldersStep(folders, files []string) []string {
+	var lines []string
+	lines = append(lines, "      - name: Save agent config folders for base branch restoration\n")
+	lines = append(lines, "        env:\n")
+	lines = append(lines, fmt.Sprintf("          GH_AW_AGENT_FOLDERS: \"%s\"\n", strings.Join(folders, " ")))
+	lines = append(lines, fmt.Sprintf("          GH_AW_AGENT_FILES: \"%s\"\n", strings.Join(files, " ")))
+	lines = append(lines, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh\"\n")
+	return lines
+}
+
+// generateRestoreBaseGitHubFoldersStep generates a step (for the agent job) that restores
+// agent config from the activation artifact after checkout_pr_branch.cjs has run.
+// This prevents fork PRs from injecting malicious skill or instruction files.
+// The step also removes .mcp.json and only runs when the PR checkout step succeeded.
+//
+// folders: the agent config directories to restore (must match save step)
+// files:   the root instruction files to restore (must match save step)
+func generateRestoreBaseGitHubFoldersStep(yaml *strings.Builder, folders, files []string) {
+	prLog.Print("Generating step to restore agent config folders from base branch")
+	yaml.WriteString("      - name: Restore agent config folders from base branch\n")
+	yaml.WriteString("        if: steps.checkout-pr.outcome == 'success'\n")
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GH_AW_AGENT_FOLDERS: \"%s\"\n", strings.Join(folders, " "))
+	fmt.Fprintf(yaml, "          GH_AW_AGENT_FILES: \"%s\"\n", strings.Join(files, " "))
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh\"\n")
+}
+
 // generatePRReadyForReviewCheckout generates a step to checkout the PR branch when PR context is available
 func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data *WorkflowData) {
 	prLog.Print("Generating PR checkout step")

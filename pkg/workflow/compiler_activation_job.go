@@ -206,6 +206,19 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	steps = append(steps, checkoutSteps...)
 
+	// Save agent config folders from the sparse checkout into /tmp/gh-aw/base/ so they can be
+	// included in the activation artifact and later restored in the agent job after the PR checkout.
+	// This prevents fork PRs from overwriting trusted skill/instruction files with malicious content.
+	// The folder and file lists are derived from the engine registry so no manual sync is needed.
+	if len(checkoutSteps) > 0 {
+		compilerActivationJobLog.Print("Adding step to save agent config folders for base branch restoration")
+		registry := GetGlobalEngineRegistry()
+		steps = append(steps, generateSaveBaseGitHubFoldersStep(
+			registry.GetAllAgentManifestFolders(),
+			registry.GetAllAgentManifestFiles(),
+		)...)
+	}
+
 	// Add frontmatter hash check to detect stale lock files using GitHub API.
 	// Compares the hash embedded in the lock file against the source .md file to detect stale lock files.
 	// No checkout step needed - uses GitHub API to fetch file contents.
@@ -522,6 +535,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "            /tmp/gh-aw/aw_info.json\n")
 	steps = append(steps, "            /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	steps = append(steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
+	steps = append(steps, "            /tmp/gh-aw/base\n")
 	steps = append(steps, "          if-no-files-found: ignore\n")
 	steps = append(steps, "          retention-days: 1\n")
 
@@ -692,6 +706,20 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		extraPaths = append(extraPaths, "actions/setup")
 	}
 
+	// Add engine-specific agent config directories and root instruction files to the sparse checkout.
+	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
+	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are always fetched by cone mode
+	// but are listed explicitly here so the intent is visible in the generated YAML.
+	defaultSparseCheckoutDirs := map[string]bool{".github": true, ".agents": true}
+	registry := GetGlobalEngineRegistry()
+	for _, folder := range registry.GetAllAgentManifestFolders() {
+		if !defaultSparseCheckoutDirs[folder] {
+			extraPaths = append(extraPaths, folder)
+		}
+	}
+	extraPaths = append(extraPaths, registry.GetAllAgentManifestFiles()...)
+	compilerActivationJobLog.Printf("Adding %d engine-specific paths to sparse-checkout: %v", len(extraPaths), extraPaths)
+
 	cm := NewCheckoutManager(nil)
 	activationToken := c.resolveActivationToken(data)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
@@ -718,10 +746,12 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		return checkoutSteps
 	}
 
-	// For activation job, always add sparse checkout of .github and .agents folders
-	// This is needed for runtime imports during prompt generation
-	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
-	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
+	// For activation job, always add sparse checkout of .github and .agents folders plus
+	// any engine-specific directories and root instruction files.
+	// sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
+	// Root instruction files are always fetched by cone mode but are also listed explicitly
+	// so the intent is visible in the generated YAML.
+	compilerActivationJobLog.Print("Adding .github, .agents, engine-specific dirs, and root instruction files to sparse checkout")
 	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
 }
 

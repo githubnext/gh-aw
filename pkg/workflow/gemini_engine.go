@@ -108,6 +108,23 @@ func (e *GeminiEngine) GetDeclaredOutputFiles() []string {
 	}
 }
 
+// GetAgentManifestFiles returns Gemini-specific instruction files that should be
+// treated as security-sensitive manifests.  A fork PR that modifies these files
+// can redirect the agent's behaviour or expand which files it treats as instructions.
+// GEMINI.md is the primary per-project context file; AGENTS.md is the cross-engine
+// convention that Gemini CLI also reads.
+func (e *GeminiEngine) GetAgentManifestFiles() []string {
+	return []string{"GEMINI.md", "AGENTS.md"}
+}
+
+// GetAgentManifestPathPrefixes returns Gemini-specific config directory prefixes.
+// The .gemini/ directory contains settings.json and other configuration that could
+// expand which files are treated as instructions or alter agent behaviour.
+// Protecting this directory prevents fork PRs from injecting malicious configuration.
+func (e *GeminiEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".gemini/"}
+}
+
 // GetPreBundleSteps returns a step that moves Gemini CLI error reports from /tmp/ into
 // /tmp/gh-aw/ before the unified artifact upload. This keeps all artifact paths under
 // /tmp/gh-aw/ so that actions/upload-artifact computes the correct least-common-ancestor
