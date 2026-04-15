@@ -27,8 +27,11 @@ type StatVar struct {
 	values []float64 // stored for median computation
 }
 
-// Add records a new observation.  NaN and ±Inf values are accepted but will
-// propagate through all derived statistics.
+// Add records a new observation.  Finite values are recommended; NaN and ±Inf
+// will propagate through sum, mean, and variance, but Min and Max may not update
+// correctly for NaN inputs because IEEE 754 comparisons with NaN always return
+// false.  In practice, observations come from time.Duration, token counts, and
+// cost values, which are always finite.
 func (s *StatVar) Add(v float64) {
 	if s.count == 0 {
 		s.min = v

@@ -47,8 +47,6 @@ type CrossRunSummary struct {
 
 // MetricsTrendData contains aggregated cost, token, turn, and duration statistics
 // across multiple runs, with spike detection for anomalous runs.
-// MetricsTrendData contains aggregated cost, token, turn, and duration statistics
-// across multiple runs, with spike detection for anomalous runs.
 //
 // Token counts (MinTokens, MaxTokens, AvgTokens) are stored as int to preserve
 // integer semantics consistent with the source data; MedianTokens and StdDevTokens

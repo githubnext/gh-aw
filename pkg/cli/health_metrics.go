@@ -83,7 +83,6 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 	successCount := 0
 	failureCount := 0
 	var durationStats, tokenStats, costStats stats.StatVar
-	var totalDuration time.Duration
 	var totalTokens int
 	var totalCost float64
 
@@ -93,7 +92,6 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 		} else if isFailureConclusion(run.Conclusion) {
 			failureCount++
 		}
-		totalDuration += run.Duration
 		totalTokens += run.TokenUsage
 		totalCost += run.EstimatedCost
 		durationStats.Add(float64(run.Duration))
