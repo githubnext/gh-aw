@@ -114,10 +114,9 @@ Test workflow without safe outputs.
 // TestSafeOutputsAppTokenDiscussionsPermission tests that discussions permission is included
 // in the GitHub App token minting step when create-discussion is configured.
 //
-// Although actions/create-github-app-token does not declare "permission-discussions" in its action.yml,
-// the action reads ALL INPUT_PERMISSION-* env vars and forwards them to the GitHub API. When any
-// permission-* input is specified, the token is scoped to only those permissions, so omitting
-// permission-discussions would exclude discussions access from the minted token.
+// actions/create-github-app-token v3+ declares "permission-discussions" as a valid input.
+// When any permission-* input is specified, the action scopes the token to ONLY those permissions,
+// so omitting permission-discussions would exclude discussions access from the minted token.
 func TestSafeOutputsAppTokenDiscussionsPermission(t *testing.T) {
 	compiler := NewCompilerWithVersion("1.0.0")
 
