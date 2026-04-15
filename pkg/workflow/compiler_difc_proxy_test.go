@@ -732,6 +732,46 @@ func TestInjectProxyEnvIntoCustomSteps(t *testing.T) {
 			},
 			desc: "multiline run content should be preserved after injection",
 		},
+		{
+			// Pinned actions carry an inline version comment ("# v4") that is stripped
+			// by YAML unmarshaling.  injectProxyEnvIntoCustomSteps must extract these
+			// comments before parsing and re-apply them after so that the compiled lock
+			// file retains "uses: actions/checkout@sha # v4" and gh-aw-manifest can
+			// record "version":"v4" instead of falling back to the bare SHA.
+			// The uses value must also remain unquoted (the YAML marshaller quotes
+			// strings that contain "#", but GitHub Actions requires bare values).
+			name: "uses version comments are preserved and unquoted",
+			customSteps: "steps:\n" +
+				"- name: Upload artifacts\n" +
+				"  uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7\n" +
+				"  with:\n" +
+				"    name: output\n" +
+				"    path: /tmp/output\n",
+			expectedContains: []string{
+				"uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7",
+				"GH_HOST: localhost:18443",
+				"GH_REPO: ${{ github.repository }}",
+			},
+			expectedAbsent: []string{
+				// Must not be quoted: 'uses: "actions/upload-artifact@sha # v7"'
+				`uses: "actions/upload-artifact@`,
+			},
+			desc: "uses version comment must survive YAML round-trip and remain unquoted",
+		},
+		{
+			// Step fields should follow constants.PriorityStepFields ordering
+			// (name/uses before env) so that lock-file diffs are stable and
+			// reviewers see the step identity before the injected env block.
+			name: "step fields are ordered with name before env",
+			customSteps: "steps:\n" +
+				"- name: Run script\n" +
+				"  run: echo hello\n",
+			expectedContains: []string{
+				"name: Run script",
+				"GH_HOST: localhost:18443",
+			},
+			desc: "name field should appear before env in the output",
+		},
 	}
 
 	for _, tt := range tests {
@@ -754,6 +794,15 @@ func TestInjectProxyEnvIntoCustomSteps(t *testing.T) {
 
 			// Result should still start with "steps:" so addCustomStepsAsIs can process it
 			assert.True(t, strings.HasPrefix(result, "steps:"), "result should start with 'steps:': %s", tt.desc)
+
+			// For the ordering test: verify name appears before env in the output.
+			if tt.name == "step fields are ordered with name before env" {
+				nameIdx := strings.Index(result, "name:")
+				envIdx := strings.Index(result, "env:")
+				if nameIdx != -1 && envIdx != -1 {
+					assert.Less(t, nameIdx, envIdx, "name field should appear before env field: %s", tt.desc)
+				}
+			}
 		})
 	}
 }

@@ -1,5 +1,5 @@
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"5e48f7d5dba2241f2c017d613dda4c6455a91439c75a526d4350c90d299f6b54","strict":true,"agent_id":"copilot"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"},{"repo":"github/stale-repos","sha":"5f2e18fc5432823f96c1feb69327f665c2acab59","version":"5f2e18fc5432823f96c1feb69327f665c2acab59"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20","digest":"sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20","digest":"sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20","digest":"sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.19","digest":"sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/cache/save","sha":"27d5ce7f107fe9357f9df03efb73ab90386fccae","version":"v5.0.5"},{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-python","sha":"a309ff8b426b58ec0e2a45f0f869d46889d02405","version":"v6.2.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7"},{"repo":"github/stale-repos","sha":"5f2e18fc5432823f96c1feb69327f665c2acab59","version":"v9.0.8"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20","digest":"sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20","digest":"sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20","digest":"sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.19","digest":"sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"},{"image":"ghcr.io/github/github-mcp-server:v0.32.0","digest":"sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28","pinned_image":"ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -48,9 +48,9 @@
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
 #   - actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-#   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+#   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-#   - github/stale-repos@5f2e18fc5432823f96c1feb69327f665c2acab59
+#   - github/stale-repos@5f2e18fc5432823f96c1feb69327f665c2acab59 # v9.0.8
 #
 # Container images used:
 #   - ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682
@@ -386,13 +386,7 @@ jobs:
           DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.19'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
-      - env:
-          GH_HOST: localhost:18443
-          GH_REPO: ${{ github.repository }}
-          GITHUB_API_URL: https://localhost:18443/api/v3
-          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Setup Python environment
+      - name: Setup Python environment
         run: |
           # Create working directory for Python scripts
           mkdir -p /tmp/gh-aw/python
@@ -405,13 +399,13 @@ jobs:
           echo "Data directory: /tmp/gh-aw/python/data"
           echo "Charts directory: /tmp/gh-aw/python/charts"
           echo "Artifacts directory: /tmp/gh-aw/python/artifacts"
-      - env:
+        env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Install Python scientific libraries
+      - name: Install Python scientific libraries
         run: |
           # Create a virtual environment for proper package isolation (avoids --break-system-packages)
           if [ ! -d /tmp/gh-aw/venv ]; then
@@ -428,15 +422,21 @@ jobs:
           /tmp/gh-aw/venv/bin/python3 -c "import scipy; print(f'SciPy {scipy.__version__} installed')"
 
           echo "All scientific libraries installed successfully"
-      - env:
+        env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Upload source files and data
         if: always()
-        name: Upload source files and data
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -444,13 +444,7 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
-      - env:
-          GH_HOST: localhost:18443
-          GH_REPO: ${{ github.repository }}
-          GITHUB_API_URL: https://localhost:18443/api/v3
-          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Setup jq utilities directory
+      - name: Setup jq utilities directory
         run: |-
           mkdir -p /tmp/gh-aw
           cat > /tmp/gh-aw/jqschema.sh << 'EOF'
@@ -470,13 +464,13 @@ jobs:
           '
           EOF
           chmod +x /tmp/gh-aw/jqschema.sh
-      - env:
+        env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Setup Python environment
+      - name: Setup Python environment
         run: |
           mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
           # Create a virtual environment for proper package isolation (avoids --break-system-packages)
@@ -485,15 +479,21 @@ jobs:
           fi
           echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
           /tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
-      - env:
+        env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Upload source files and data
         if: always()
-        name: Upload source files and data
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -501,7 +501,10 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
-      - env:
+      - name: Run stale-repos tool
+        id: stale-repos
+        uses: github/stale-repos@5f2e18fc5432823f96c1feb69327f665c2acab59 # v9.0.8
+        env:
           ADDITIONAL_METRICS: release,pr
           EXEMPT_TOPICS: keep,template
           GH_HOST: localhost:18443
@@ -512,22 +515,19 @@ jobs:
           INACTIVE_DAYS: "365"
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
           ORGANIZATION: ${{ env.ORGANIZATION }}
-        id: stale-repos
-        name: Run stale-repos tool
-        uses: github/stale-repos@5f2e18fc5432823f96c1feb69327f665c2acab59
-      - env:
+      - name: Save stale repos output
+        run: |-
+          mkdir -p /tmp/stale-repos-data
+          echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
+          echo "Stale repositories data saved"
+          echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
+        env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Save stale repos output
-        run: |-
-          mkdir -p /tmp/stale-repos-data
-          echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
-          echo "Stale repositories data saved"
-          echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"

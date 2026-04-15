@@ -347,13 +347,7 @@ jobs:
           DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.19'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
-      - env:
-          GH_HOST: localhost:18443
-          GH_REPO: ${{ github.repository }}
-          GITHUB_API_URL: https://localhost:18443/api/v3
-          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Setup jq utilities directory
+      - name: Setup jq utilities directory
         run: |-
           mkdir -p /tmp/gh-aw
           cat > /tmp/gh-aw/jqschema.sh << 'EOF'
@@ -373,15 +367,13 @@ jobs:
           '
           EOF
           chmod +x /tmp/gh-aw/jqschema.sh
-      - env:
+        env:
           GH_HOST: localhost:18443
           GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: https://localhost:18443/api/v3
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Fetch issues
+      - name: Fetch issues
         run: |
           # Create output directory
           mkdir -p /tmp/gh-aw/issues-data
@@ -406,6 +398,14 @@ jobs:
           echo ""
           echo "Schema of the issues data:"
           cat /tmp/gh-aw/issues-data/issues-schema.json | jq .
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}

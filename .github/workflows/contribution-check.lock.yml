@@ -350,15 +350,7 @@ jobs:
           DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.2.19'
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
-      - env:
-          GH_HOST: localhost:18443
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_API_URL: https://localhost:18443/api/v3
-          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
-        name: Fetch and filter PRs
+      - name: Fetch and filter PRs
         run: |-
           # Fetch open PRs from the target repository opened in the last 24 hours
           SINCE=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
@@ -407,6 +399,14 @@ jobs:
             echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
             echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
           fi
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
