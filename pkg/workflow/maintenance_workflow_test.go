@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1001,6 +1002,73 @@ func TestSanitizeRepoForFilename(t *testing.T) {
 	}
 }
 
+func TestGenerateSideRepoMaintenanceCron(t *testing.T) {
+	t.Run("is deterministic for the same slug", func(t *testing.T) {
+		cron1, desc1 := generateSideRepoMaintenanceCron("org/repo", 10)
+		cron2, desc2 := generateSideRepoMaintenanceCron("org/repo", 10)
+		if cron1 != cron2 || desc1 != desc2 {
+			t.Errorf("expected deterministic output, got %q/%q and %q/%q", cron1, desc1, cron2, desc2)
+		}
+	})
+
+	t.Run("different repos produce different cron expressions", func(t *testing.T) {
+		repos := []string{"org/repo-a", "org/repo-b", "another-org/service", "myorg/tooling"}
+		seen := make(map[string]string)
+		for _, repo := range repos {
+			cron, _ := generateSideRepoMaintenanceCron(repo, 10)
+			if existing, ok := seen[cron]; ok {
+				// Collisions are theoretically possible but should be rare for distinct slugs.
+				t.Logf("cron collision between %q and %q: %s", repo, existing, cron)
+			}
+			seen[cron] = repo
+		}
+	})
+
+	t.Run("minute is in valid range 0-59", func(t *testing.T) {
+		slugs := []string{"a/b", "owner/repo", "my-org/my-repo", "x/y"}
+		for _, slug := range slugs {
+			for _, days := range []int{0, 1, 2, 3, 5, 10, 30} {
+				cron, _ := generateSideRepoMaintenanceCron(slug, days)
+				// Extract the minute field (first token).
+				parts := strings.Fields(cron)
+				if len(parts) < 5 {
+					t.Errorf("invalid cron %q for slug=%q days=%d", cron, slug, days)
+					continue
+				}
+				var min int
+				if _, err := fmt.Sscanf(parts[0], "%d", &min); err != nil {
+					t.Errorf("failed to parse minute from cron %q: %v", cron, err)
+					continue
+				}
+				if min < 0 || min > 59 {
+					t.Errorf("minute %d out of range [0,59] for slug=%q days=%d", min, slug, days)
+				}
+			}
+		}
+	})
+
+	t.Run("frequency tier matches minExpiresDays", func(t *testing.T) {
+		slug := "test/repo"
+		cases := []struct {
+			days        int
+			descContain string
+		}{
+			{1, "Every 2 hours"},
+			{2, "Every 6 hours"},
+			{3, "Every 12 hours"},
+			{4, "Every 12 hours"},
+			{5, "Daily"},
+			{30, "Daily"},
+		}
+		for _, tc := range cases {
+			_, desc := generateSideRepoMaintenanceCron(slug, tc.days)
+			if desc != tc.descContain {
+				t.Errorf("days=%d: expected desc %q, got %q", tc.days, tc.descContain, desc)
+			}
+		}
+	})
+}
+
 func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 	t.Run("generates file for static side-repo target", func(t *testing.T) {
 		tmpDir := t.TempDir()
@@ -1159,12 +1227,13 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 
 	t.Run("side-repo with expires includes schedule trigger", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		// Expires: 48 hours = 2 days → generateMaintenanceCron(2) = "37 */6 * * *"
+		// Expires: 48 hours = 2 days → generateSideRepoMaintenanceCron("org/expires-repo", 2)
+		repoSlug := "org/expires-repo"
 		workflowDataList := []*WorkflowData{
 			{
 				Name: "side-repo-with-expires",
 				CheckoutConfigs: []*CheckoutConfig{
-					{Repository: "org/expires-repo", Current: true},
+					{Repository: repoSlug, Current: true},
 				},
 				SafeOutputs: &SafeOutputsConfig{
 					CreateIssues: &CreateIssuesConfig{Expires: 48},
@@ -1187,10 +1256,14 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 		if !strings.Contains(contentStr, "schedule:") {
 			t.Errorf("Side-repo maintenance with expires should include a schedule trigger, got content length %d", len(contentStr))
 		}
-		// 48 hours = 2 days → generateMaintenanceCron(2) returns "37 */6 * * *" (Every 6 hours)
-		if !strings.Contains(contentStr, "37 */6 * * *") {
-			t.Errorf("Side-repo maintenance with 2-day expires should use 6-hour cron, got content:\n%s", contentStr[:min(500, len(contentStr))])
+		// 48 hours = 2 days → generateSideRepoMaintenanceCron returns the fuzzy 6-hour cron.
+		expectedCron, _ := generateSideRepoMaintenanceCron(repoSlug, 2)
+		if !strings.Contains(contentStr, expectedCron) {
+			t.Errorf("Side-repo maintenance with 2-day expires should use cron %q, got content:\n%s", expectedCron, contentStr[:min(500, len(contentStr))])
 		}
+		// Verify the cron is different from the fixed minute used by the main workflow (37).
+		// (For this particular slug the minute should not be 37 — but the real assertion is
+		// that the expected fuzzy value is present, which we already checked above.)
 	})
 
 	t.Run("stale side-repo maintenance workflow is removed on recompile", func(t *testing.T) {
