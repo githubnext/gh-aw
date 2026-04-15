@@ -121,11 +121,12 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 //
 // String form (unchanged): "blocked", "allowed", or "fallback-to-issue".
 // Object form: { policy: "blocked", exclude: ["AGENTS.md"] }
-//   - policy is optional (defaults to "blocked" when absent)
+//   - policy is optional; when missing or empty, this preprocessing step treats it as absent
+//     and leaves downstream default handling to apply (the "protected-files" key is deleted)
 //   - exclude is a list of filenames/path-prefixes to remove from the default protected set
 //
 // When the object form is encountered the field is normalised in-place:
-//   - "protected-files" is replaced with the extracted policy string (or deleted when absent)
+//   - "protected-files" is replaced with the extracted policy string, or deleted when policy is absent/empty
 //   - The extracted exclude slice is returned so callers can store it in the config struct
 //
 // When the string form is encountered the field is left unchanged and nil is returned.
