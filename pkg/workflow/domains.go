@@ -352,6 +352,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "php": PHP/Composer
 //   - "playwright": Playwright testing framework
 //   - "python": Python/PyPI/Conda
+//   - "python-native": Python/PyPI/Conda + Rust crates (for packages with native extensions built with pyo3/maturin)
 //   - "ruby": Ruby/RubyGems
 //   - "rust": Rust/Cargo/Crates
 //   - "scala": Scala/SBT
@@ -433,6 +434,7 @@ var ecosystemPriority = []string{
 	"php",
 	"playwright",
 	"python",
+	"python-native", // superset of "python" — adds crates.io for pyo3/maturin native extensions
 	"ruby",
 	"scala",
 	"swift",
