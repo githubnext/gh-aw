@@ -91,14 +91,10 @@ async function hasExpirationComment(github, discussionId) {
 
 async function main() {
   // Resolve owner/repo — use GH_AW_TARGET_REPO_SLUG when set (SideRepoOps pattern).
-  let owner, repo;
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+  const [owner, repo] = targetRepoSlug && targetRepoSlug.includes("/") ? targetRepoSlug.split("/", 2) : [context.repo.owner, context.repo.repo];
   if (targetRepoSlug && targetRepoSlug.includes("/")) {
-    [owner, repo] = targetRepoSlug.split("/", 2);
     core.info(`Using target repository from GH_AW_TARGET_REPO_SLUG: ${owner}/${repo}`);
-  } else {
-    owner = context.repo.owner;
-    repo = context.repo.repo;
   }
 
   // Get workflow metadata for footer
