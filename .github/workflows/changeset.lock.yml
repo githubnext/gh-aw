@@ -517,9 +517,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   }
                 }
               },
@@ -551,9 +551,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "reason": {
                     "required": true,
@@ -574,10 +574,6 @@ jobs:
                   "draft": {
                     "type": "boolean"
                   },
-                  "metadata": {
-                    "type": "object",
-                    "isMetadata": true
-                  },
                   "operation": {
                     "type": "string",
                     "enum": [
@@ -585,6 +581,10 @@ jobs:
                       "append",
                       "prepend"
                     ]
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   },
                   "pull_request_number": {
                     "issueOrPRNumber": true

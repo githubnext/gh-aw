@@ -1017,9 +1017,9 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "reply_to_id": {
                     "type": "string",
@@ -1078,9 +1078,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "pull_request_number": {
                     "optionalPositiveInteger": true
@@ -1147,12 +1147,12 @@ jobs:
                     "itemSanitize": true,
                     "itemMaxLength": 128
                   },
-                  "metadata": {
-                    "type": "object",
-                    "isMetadata": true
-                  },
                   "parent": {
                     "issueOrPRNumber": true
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   },
                   "repo": {
                     "type": "string",
@@ -1261,9 +1261,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   }
                 }
               },
@@ -1295,9 +1295,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "reason": {
                     "required": true,
@@ -1332,9 +1332,9 @@ jobs:
                       "COMMENT"
                     ]
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   }
                 }
               },
@@ -1349,10 +1349,6 @@ jobs:
                   "draft": {
                     "type": "boolean"
                   },
-                  "metadata": {
-                    "type": "object",
-                    "isMetadata": true
-                  },
                   "operation": {
                     "type": "string",
                     "enum": [
@@ -1360,6 +1356,10 @@ jobs:
                       "append",
                       "prepend"
                     ]
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   },
                   "pull_request_number": {
                     "issueOrPRNumber": true

@@ -489,9 +489,9 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "reply_to_id": {
                     "type": "string",
@@ -537,12 +537,12 @@ jobs:
                     "itemSanitize": true,
                     "itemMaxLength": 128
                   },
-                  "metadata": {
-                    "type": "object",
-                    "isMetadata": true
-                  },
                   "parent": {
                     "issueOrPRNumber": true
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   },
                   "repo": {
                     "type": "string",
@@ -622,9 +622,9 @@ jobs:
                     "itemSanitize": true,
                     "itemMaxLength": 128
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "repo": {
                     "type": "string",
@@ -693,9 +693,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   }
                 }
               },
@@ -726,9 +726,9 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
-                  "metadata": {
+                  "payload": {
                     "type": "object",
-                    "isMetadata": true
+                    "isPayload": true
                   },
                   "reason": {
                     "required": true,
