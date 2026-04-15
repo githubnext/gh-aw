@@ -123,6 +123,23 @@ func (e *OpenCodeEngine) GetSecretValidationStep(workflowData *WorkflowData) Git
 	)
 }
 
+// GetAgentManifestFiles returns OpenCode-specific instruction files that should be
+// treated as security-sensitive manifests. Modifying these files can change the
+// agent's instructions, permissions, or configuration on the next run.
+// opencode.jsonc is the primary OpenCode config file; AGENTS.md is the cross-engine
+// convention that OpenCode also reads.
+func (e *OpenCodeEngine) GetAgentManifestFiles() []string {
+	return []string{"opencode.jsonc", "AGENTS.md"}
+}
+
+// GetAgentManifestPathPrefixes returns OpenCode-specific config directory prefixes
+// that must be protected from fork PR injection.
+// The .opencode/ directory contains agent configuration, instructions, and other
+// settings that could alter agent behaviour.
+func (e *OpenCodeEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".opencode/"}
+}
+
 // GetDeclaredOutputFiles returns the output files that OpenCode may produce.
 func (e *OpenCodeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}

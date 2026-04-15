@@ -92,6 +92,17 @@ func TestOpenCodeEngine(t *testing.T) {
 		assert.Empty(t, outputFiles, "Should have no declared output files")
 	})
 
+	t.Run("agent manifest files", func(t *testing.T) {
+		files := engine.GetAgentManifestFiles()
+		assert.Contains(t, files, "opencode.jsonc", "Should include opencode.jsonc config file")
+		assert.Contains(t, files, "AGENTS.md", "Should include cross-engine AGENTS.md")
+	})
+
+	t.Run("agent manifest path prefixes", func(t *testing.T) {
+		prefixes := engine.GetAgentManifestPathPrefixes()
+		assert.Contains(t, prefixes, ".opencode/", "Should include .opencode/ config directory")
+	})
+
 	t.Run("secret validation step without copilot-requests", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test",
