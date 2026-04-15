@@ -43,6 +43,27 @@ func getMaxConcurrentDownloads() int {
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, summaryFile string, safeOutputType string, filteredIntegrity bool, train bool, format string, artifactSets []string) error {
+	// When no explicit repo override is given, fall back to GITHUB_REPOSITORY so that
+	// `gh run list` and `gh run download` can operate without a git checkout.
+	// This is needed in agent sandbox environments (e.g., the audit-workflows agent)
+	// where git is not installed but GITHUB_REPOSITORY is set by GitHub Actions.
+	// We also set GH_REPO so that `gh api` calls using {owner}/{repo} template
+	// placeholders (e.g., fetchJobStatuses, fetchJobDetails) resolve correctly.
+	if repoOverride == "" {
+		if githubRepo := os.Getenv("GITHUB_REPOSITORY"); githubRepo != "" {
+			repoOverride = githubRepo
+			logsOrchestratorLog.Printf("Using GITHUB_REPOSITORY env var as repo override: %s", repoOverride)
+			if os.Getenv("GH_REPO") == "" {
+				if err := os.Setenv("GH_REPO", repoOverride); err != nil {
+					// Non-fatal: the primary listing and download paths use explicit --repo flags.
+					// Only gh api calls using {owner}/{repo} template placeholders (e.g. job status
+					// queries) will be unable to resolve the repository context.
+					logsOrchestratorLog.Printf("Failed to set GH_REPO env var (gh api {owner}/{repo} template calls may fail to resolve repo context): %v", err)
+				}
+			}
+		}
+	}
+
 	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, summaryFile=%s, safeOutputType=%s, filteredIntegrity=%v, train=%v, format=%s, artifactSets=%v", workflowName, count, startDate, endDate, outputDir, summaryFile, safeOutputType, filteredIntegrity, train, format, artifactSets)
 
 	// Validate and resolve artifact sets into a concrete filter (list of artifact base names).
