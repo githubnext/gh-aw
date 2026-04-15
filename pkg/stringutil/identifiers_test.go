@@ -140,6 +140,26 @@ func TestNormalizeSafeOutputIdentifier(t *testing.T) {
 			identifier: "---",
 			expected:   "___",
 		},
+		{
+			name:       "period in workflow name",
+			identifier: "executor-workflow.agent",
+			expected:   "executor_workflow_agent",
+		},
+		{
+			name:       "period only",
+			identifier: "my.workflow",
+			expected:   "my_workflow",
+		},
+		{
+			name:       "multiple periods",
+			identifier: "my.workflow.agent",
+			expected:   "my_workflow_agent",
+		},
+		{
+			name:       "period and dashes",
+			identifier: "my-workflow.agent",
+			expected:   "my_workflow_agent",
+		},
 	}
 
 	for _, tt := range tests {
