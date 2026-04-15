@@ -720,12 +720,13 @@ imports:
 		}
 		lockContent := string(lockFileContent)
 
-		// The engine max-turns should be resolved to the default value (10000)
+		// The engine max-turns should be resolved to the default value (10000).
+		// In the compiled lock file the value appears as the GH_AW_MAX_TURNS env var.
 		if strings.Contains(lockContent, "github.aw.import-inputs.claude-max-turns") {
 			t.Error("Lock file should not contain unresolved github.aw.import-inputs.claude-max-turns expression")
 		}
-		if !strings.Contains(lockContent, "10000") {
-			t.Errorf("Lock file should contain the default max-turns value 10000; got:\n%s", lockContent)
+		if !strings.Contains(lockContent, "GH_AW_MAX_TURNS: 10000") {
+			t.Errorf("Lock file should contain GH_AW_MAX_TURNS: 10000 from the schema default; got:\n%s", lockContent)
 		}
 	})
 
@@ -778,12 +779,13 @@ imports:
 		}
 		lockContent := string(lockFileContent)
 
-		// The safe-outputs expires should be resolved to the default value ("3d")
+		// The safe-outputs expires should be resolved to the default value ("3d" = 72 hours).
+		// In the compiled lock file the value appears as JSON in the safe-outputs config.
 		if strings.Contains(lockContent, "github.aw.import-inputs.expires") {
 			t.Error("Lock file should not contain unresolved github.aw.import-inputs.expires expression")
 		}
-		if !strings.Contains(lockContent, "3d") {
-			t.Errorf("Lock file should contain the default expires value '3d'; got:\n%s", lockContent)
+		if !strings.Contains(lockContent, `"expires":72`) {
+			t.Errorf("Lock file should contain expires:72 (3d = 72h) from the schema default; got:\n%s", lockContent)
 		}
 	})
 
@@ -838,8 +840,8 @@ imports:
 		if strings.Contains(lockContent, "github.aw.import-inputs.model") {
 			t.Error("Lock file should not contain unresolved github.aw.import-inputs.model expression")
 		}
-		if !strings.Contains(lockContent, "claude-sonnet-4-5") {
-			t.Errorf("Lock file should contain the default model value 'claude-sonnet-4-5'; got:\n%s", lockContent)
+		if !strings.Contains(lockContent, "ANTHROPIC_MODEL: claude-sonnet-4-5") {
+			t.Errorf("Lock file should contain ANTHROPIC_MODEL: claude-sonnet-4-5 from the schema default; got:\n%s", lockContent)
 		}
 	})
 }

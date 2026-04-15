@@ -82,28 +82,47 @@ func newImportAccumulator() *importAccumulator {
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
+	// Parse frontmatter once from the original content. This parse is reused for
+	// import-schema default extraction and schema validation, avoiding redundant YAML parsing.
+	// For builtin files we use the process-level cache.
+	origContent := string(content)
+	var origParsed *FrontmatterResult
+	var origParseErr error
+	if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) {
+		origParsed, origParseErr = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
+	} else {
+		origParsed, origParseErr = ExtractFrontmatterFromContent(origContent)
+	}
+	var origFm map[string]any
+	if origParseErr == nil {
+		origFm = origParsed.Frontmatter
+	} else {
+		origFm = make(map[string]any)
+	}
+
 	// Apply import-schema defaults before any YAML or markdown processing, even when no
 	// explicit 'with:' inputs were provided by the importing workflow. This enables
 	// ${{ github.aw.import-inputs.* }} expressions in the imported workflow's frontmatter
 	// fields (engine, safe-outputs, tools, runtimes, etc.) and markdown body to resolve
 	// to their declared default values rather than remaining as literal strings.
 	// Array and map values are serialized as JSON so they produce valid YAML inline syntax.
-	rawContent := string(content)
-	// Apply import-schema defaults for any optional parameters not supplied by the caller.
-	inputsWithDefaults := applyImportSchemaDefaults(rawContent, item.inputs)
+	// We reuse the already-parsed frontmatter to avoid a second YAML parse.
+	inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(origFm, item.inputs)
+	rawContent := origContent
 	if len(inputsWithDefaults) > 0 {
-		rawContent = substituteImportInputsInContent(rawContent, inputsWithDefaults)
+		rawContent = substituteImportInputsInContent(origContent, inputsWithDefaults)
 		// Add resolved defaults to acc.importInputs so the compile-time markdown
 		// substitution pass (generatePrompt) also has access to them.
 		maps.Copy(acc.importInputs, inputsWithDefaults)
 	}
+	wasSubstituted := rawContent != origContent
 
 	// Extract tools from imported file.
 	// When content was modified by substitution (either explicit inputs or schema defaults),
 	// we use the already-substituted content (to pick up any ${{ github.aw.import-inputs.* }}
 	// expressions in the tools/mcp-servers frontmatter) rather than re-reading the original file.
 	var toolsContent string
-	if string(content) != rawContent {
+	if wasSubstituted {
 		var err error
 		toolsContent, err = extractToolsFromContent(rawContent)
 		if err != nil {
@@ -125,11 +144,11 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	// prompt content and must not generate runtime-import macros.
 	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
 
-	if string(content) == rawContent && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
+	if !wasSubstituted && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
 		// No substitution happened and not a builtin - use runtime-import macro
 		acc.importPaths = append(acc.importPaths, importRelPath)
 		log.Printf("Added import path for runtime-import: %s", importRelPath)
-	} else if string(content) != rawContent {
+	} else if wasSubstituted {
 		// Content was modified by substitution - inline for compile-time substitution.
 		// Extract markdown from the already-substituted content so that import-inputs
 		// expressions embedded in the markdown body are resolved here.
@@ -151,48 +170,29 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
-	// Parse frontmatter once to avoid redundant YAML parsing for each field extraction.
-	// All subsequent field extractions use the pre-parsed result.
-	// When content was modified by substitution, parse the already-substituted content so
-	// that all frontmatter fields (runtimes, mcp-servers, engine, safe-outputs, etc.)
-	// reflect the resolved values.
-	// For builtin files where no substitution happened, use the process-level cache to
-	// avoid redundant YAML re-parsing (processIncludedFileWithVisited already populated it).
-	// Builtin files where substitution modified the content must skip the cache because
-	// the cached (unsubstituted) result would be stale.
-	var parsed *FrontmatterResult
-	var err error
-	if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) && string(content) == rawContent {
-		parsed, err = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
-	} else {
-		parsed, err = ExtractFrontmatterFromContent(rawContent)
-	}
+	// Parse frontmatter from the (possibly substituted) content for field extraction.
+	// All subsequent field extractions use this pre-parsed result.
+	// When substitution changed the content, reparse from rawContent so that all
+	// frontmatter fields (runtimes, mcp-servers, engine, safe-outputs, etc.) reflect
+	// the resolved values. When content is unchanged we reuse origFm, which was already
+	// parsed above — for builtin files the cache also applies.
 	var fm map[string]any
-	if err == nil {
-		fm = parsed.Frontmatter
+	if wasSubstituted {
+		if reparsed, rerr := ExtractFrontmatterFromContent(rawContent); rerr == nil {
+			fm = reparsed.Frontmatter
+		} else {
+			fm = make(map[string]any)
+		}
 	} else {
-		fm = make(map[string]any)
+		fm = origFm
 	}
 
 	// Validate 'with'/'inputs' values against the imported workflow's 'import-schema' (if present).
-	// Run validation even when inputs is nil/empty so required fields can be detected.
-	// Use the ORIGINAL (unsubstituted) frontmatter for schema lookup so the import-schema
+	// Always use the ORIGINAL (unsubstituted) frontmatter for schema lookup so the import-schema
 	// declaration itself is not affected by expression substitution.
-	if len(item.inputs) > 0 || string(content) != rawContent {
-		// When substitution happened, reload the original frontmatter for schema validation.
-		origParsed, origErr := ExtractFrontmatterFromContent(string(content))
-		if origErr == nil {
-			if _, hasSchema := origParsed.Frontmatter["import-schema"]; hasSchema {
-				if err := validateWithImportSchema(item.inputs, origParsed.Frontmatter, item.importPath); err != nil {
-					return err
-				}
-			}
-		}
-	} else {
-		if _, hasSchema := fm["import-schema"]; hasSchema {
-			if err := validateWithImportSchema(item.inputs, fm, item.importPath); err != nil {
-				return err
-			}
+	if _, hasSchema := origFm["import-schema"]; hasSchema {
+		if err := validateWithImportSchema(item.inputs, origFm, item.importPath); err != nil {
+			return err
 		}
 	}
 
@@ -696,18 +696,6 @@ func validateImportInputType(name string, value any, declaredType string, paramD
 		return validateObjectInput(name, value, paramDef, importPath)
 	}
 	return nil
-}
-
-// applyImportSchemaDefaults reads the import-schema from rawContent and returns a copy
-// of inputs augmented with default values for any schema parameters that are declared
-// with a "default" field but not present in the provided inputs map. Parameters that
-// are already in inputs are left unchanged.
-func applyImportSchemaDefaults(rawContent string, inputs map[string]any) map[string]any {
-	parsed, err := ExtractFrontmatterFromContent(rawContent)
-	if err != nil {
-		return inputs
-	}
-	return applyImportSchemaDefaultsFromFrontmatter(parsed.Frontmatter, inputs)
 }
 
 // applyImportSchemaDefaultsFromFrontmatter applies import-schema defaults from an

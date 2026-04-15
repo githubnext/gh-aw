@@ -311,11 +311,15 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if err == nil && result != nil {
 			inputsWithDefaults := applyImportSchemaDefaultsFromFrontmatter(result.Frontmatter, item.inputs)
 			if len(inputsWithDefaults) > 0 {
-				substituted := substituteImportInputsInContent(string(content), inputsWithDefaults)
-				// Re-parse the substituted content so that nested-import discovery sees
-				// the resolved 'with' values instead of literal expression strings.
-				if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
-					result = reparse
+				origContent := string(content)
+				substituted := substituteImportInputsInContent(origContent, inputsWithDefaults)
+				// Only re-parse when substitution actually changed the content.
+				// If no ${{ github.aw.import-inputs.* }} expressions were present,
+				// the content is unchanged and a YAML reparse would be wasteful.
+				if substituted != origContent {
+					if reparse, rerr := ExtractFrontmatterFromContent(substituted); rerr == nil {
+						result = reparse
+					}
 				}
 			}
 		}
