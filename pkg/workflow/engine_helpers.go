@@ -265,6 +265,10 @@ func BuildDefaultSecretValidationStep(workflowData *WorkflowData, secrets []stri
 		engineHelpersLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
 		return GitHubActionStep{}
 	}
+	if workflowData != nil && strings.TrimSpace(workflowData.Environment) != "" {
+		engineHelpersLog.Print("Skipping secret validation step: top-level environment is configured")
+		return GitHubActionStep{}
+	}
 	return GenerateMultiSecretValidationStep(secrets, name, docsURL, getEngineEnvOverrides(workflowData))
 }
 

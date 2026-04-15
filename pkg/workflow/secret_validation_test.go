@@ -280,3 +280,40 @@ func TestValidationStepUsesEngineEnvOverride(t *testing.T) {
 		})
 	}
 }
+
+func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
+	tests := []struct {
+		name   string
+		engine CodingAgentEngine
+	}{
+		{
+			name:   "copilot engine skips validation with environment",
+			engine: NewCopilotEngine(),
+		},
+		{
+			name:   "claude engine skips validation with environment",
+			engine: NewClaudeEngine(),
+		},
+		{
+			name:   "codex engine skips validation with environment",
+			engine: NewCodexEngine(),
+		},
+		{
+			name:   "gemini engine skips validation with environment",
+			engine: NewGeminiEngine(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Environment: "environment: production",
+			}
+
+			step := tt.engine.GetSecretValidationStep(workflowData)
+			if len(step) != 0 {
+				t.Fatalf("expected secret validation step to be skipped when environment is configured, got:\n%s", strings.Join(step, "\n"))
+			}
+		})
+	}
+}
