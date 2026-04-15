@@ -64,8 +64,13 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if handlerConfig != nil {
 			// Augment protected-files protection with engine-specific files for handlers that use it.
 			if _, hasProtected := handlerConfig["protected_files"]; hasProtected {
-				handlerConfig["protected_files"] = fullManifestFiles
-				handlerConfig["protected_path_prefixes"] = fullPathPrefixes
+				// Extract per-handler exclusions set by the handler builder (sentinel key).
+				// These are compile-time overrides and must not be forwarded to the runtime.
+				excludeFiles := extractStringSliceFromConfig(handlerConfig, "_protected_files_exclude")
+				delete(handlerConfig, "_protected_files_exclude")
+
+				handlerConfig["protected_files"] = excludeFromSlice(fullManifestFiles, excludeFiles...)
+				handlerConfig["protected_path_prefixes"] = excludeFromSlice(fullPathPrefixes, excludeFiles...)
 			}
 			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
 			config[handlerName] = handlerConfig
