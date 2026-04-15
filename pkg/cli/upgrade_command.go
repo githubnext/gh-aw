@@ -75,7 +75,7 @@ Examples:
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
-			approveUpgrade, _ := cmd.Flags().GetBool("approve-updates")
+			approveUpgrade, _ := cmd.Flags().GetBool("approve")
 
 			// Handle audit mode
 			if auditFlag {
@@ -111,7 +111,7 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
-	cmd.Flags().Bool("approve-updates", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
+	cmd.Flags().Bool("approve", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	addJSONFlag(cmd)
@@ -143,8 +143,8 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 
 // runUpgradeCommand executes the upgrade process
 func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, approve bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v, approve=%v",
-		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade, approve)
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
+		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary

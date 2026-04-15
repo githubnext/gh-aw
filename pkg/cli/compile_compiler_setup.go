@@ -160,7 +160,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	// regardless of the workflow's strict mode setting.
 	compiler.SetApprove(config.Approve)
 	if config.Approve {
-		compileCompilerSetupLog.Print("Safe update changes approved via --approve-updates flag: skipping safe update enforcement for new restricted secrets or unapproved action additions/removals")
+		compileCompilerSetupLog.Print("Safe update changes approved via --approve flag: skipping safe update enforcement for new restricted secrets or unapproved action additions/removals")
 	}
 
 	// Set require docker flag: when set, container image validation fails instead of

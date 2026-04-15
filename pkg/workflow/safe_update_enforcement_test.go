@@ -19,32 +19,53 @@ func TestEnforceSafeUpdate(t *testing.T) {
 		wantErrMsgs []string
 	}{
 		{
-			name:        "nil manifest (no lock file) enforces on first compile — new secret flagged",
+			name:        "nil manifest (lock file without manifest section) skips enforcement",
 			manifest:    nil,
 			secretNames: []string{"MY_SECRET"},
 			actionRefs:  []string{},
-			wantErr:     true,
-			wantErrMsgs: []string{"MY_SECRET", "safe update mode"},
+			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) enforces on first compile — custom action flagged",
+			name:        "nil manifest (lock file without manifest section) skips enforcement for actions",
 			manifest:    nil,
 			secretNames: []string{},
 			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
-			wantErr:     true,
-			wantErrMsgs: []string{"my-org/my-action", "safe update mode"},
+			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) allows GITHUB_TOKEN on first compile",
+			name:        "nil manifest (lock file without manifest section) skips with GITHUB_TOKEN",
 			manifest:    nil,
 			secretNames: []string{"GITHUB_TOKEN"},
 			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) with no secrets or actions passes",
+			name:        "nil manifest (lock file without manifest section) skips with no secrets",
 			manifest:    nil,
 			secretNames: []string{},
+			actionRefs:  []string{},
+			wantErr:     false,
+		},
+		{
+			name:        "empty non-nil manifest (no lock file) enforces — new secret flagged",
+			manifest:    &GHAWManifest{Version: currentGHAWManifestVersion},
+			secretNames: []string{"MY_SECRET"},
+			actionRefs:  []string{},
+			wantErr:     true,
+			wantErrMsgs: []string{"MY_SECRET", "safe update mode"},
+		},
+		{
+			name:        "empty non-nil manifest (no lock file) enforces — custom action flagged",
+			manifest:    &GHAWManifest{Version: currentGHAWManifestVersion},
+			secretNames: []string{},
+			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"my-org/my-action", "safe update mode"},
+		},
+		{
+			name:        "empty non-nil manifest (no lock file) allows GITHUB_TOKEN",
+			manifest:    &GHAWManifest{Version: currentGHAWManifestVersion},
+			secretNames: []string{"GITHUB_TOKEN"},
 			actionRefs:  []string{},
 			wantErr:     false,
 		},
@@ -291,7 +312,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		assert.Contains(t, msg, "safe update mode", "error message")
 		assert.Contains(t, msg, "NEW_SECRET", "violation in message")
 		assert.Contains(t, msg, "ANOTHER_SECRET", "violation in message")
-		assert.Contains(t, msg, "--approve-updates", "remediation guidance")
+		assert.Contains(t, msg, "--approve", "remediation guidance")
 	})
 
 	t.Run("added actions only", func(t *testing.T) {

@@ -163,7 +163,7 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
-// SetApprove configures whether to skip safe update enforcement via the CLI --approve-updates flag.
+// SetApprove configures whether to skip safe update enforcement via the CLI --approve flag.
 // When true, safe update enforcement is disabled regardless of strict mode setting,
 // approving all changes.
 func (c *Compiler) SetApprove(approve bool) {

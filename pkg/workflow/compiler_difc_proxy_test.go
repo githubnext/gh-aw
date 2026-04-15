@@ -772,6 +772,32 @@ func TestInjectProxyEnvIntoCustomSteps(t *testing.T) {
 			},
 			desc: "name field should appear before env in the output",
 		},
+		{
+			// Proxy routing vars must take precedence over user-defined values for the
+			// same keys so that traffic is always routed through the proxy. Non-routing
+			// vars (e.g. GH_TOKEN) are preserved. This behavior is normative in ADR-26322.
+			name: "conflicting proxy routing env vars are overwritten by proxy values",
+			customSteps: "steps:\n" +
+				"- name: Step with conflicting proxy env\n" +
+				"  env:\n" +
+				"    GH_TOKEN: ${{ github.token }}\n" +
+				"    GH_HOST: example.com\n" +
+				"    GITHUB_API_URL: https://example.com/api/v3\n" +
+				"  run: gh issue list\n",
+			expectedContains: []string{
+				"GH_TOKEN: ${{ github.token }}",
+				"GH_HOST: localhost:18443",
+				"GITHUB_API_URL: https://localhost:18443/api/v3",
+				"GH_REPO: ${{ github.repository }}",
+				"GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql",
+				"NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
+			},
+			expectedAbsent: []string{
+				"GH_HOST: example.com",
+				"GITHUB_API_URL: https://example.com/api/v3",
+			},
+			desc: "proxy routing env vars should take precedence over conflicting custom values",
+		},
 	}
 
 	for _, tt := range tests {

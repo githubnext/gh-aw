@@ -91,7 +91,7 @@ func manifestLockFileWithSecret(secretName string) string {
 }
 
 // TestSafeUpdateFirstCompileCreatesBaseline verifies that the first compilation
-// (with no prior manifest) still enforces safe update mode and emits a
+// (with no prior lock file) enforces safe update mode and emits a
 // SECURITY REVIEW REQUIRED warning so agents review newly introduced secrets.
 // The compile itself succeeds (warnings do not fail the build) and the lock file
 // written with the manifest serves as the baseline for future compilations.
@@ -122,7 +122,7 @@ func TestSafeUpdateFirstCompileCreatesBaseline(t *testing.T) {
 		"lock file should contain a gh-aw-manifest header after first compile")
 	assert.Contains(t, string(lockContent), "MY_API_SECRET",
 		"manifest should include the secret from the workflow")
-	t.Logf("First compile correctly created baseline without warnings.\nOutput:\n%s", outputStr)
+	t.Logf("First compile correctly emitted warnings.\nOutput:\n%s", outputStr)
 }
 
 // TestSafeUpdateFirstCompileCreatesBaselineForActions verifies that the first
@@ -400,7 +400,7 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 		"should write workflow file")
 
 	// Compile with --approve so we can inspect the manifest freely without safe update warnings.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -509,7 +509,7 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 		"should write workflow file")
 
 	// Compile with --approve so we can freely inspect the manifest without safe update warnings.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
