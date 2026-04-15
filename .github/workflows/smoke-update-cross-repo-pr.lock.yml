@@ -158,9 +158,6 @@ jobs:
             .claude
             .codex
             .gemini
-            AGENTS.md
-            CLAUDE.md
-            GEMINI.md
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration

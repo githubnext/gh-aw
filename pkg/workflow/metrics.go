@@ -23,13 +23,18 @@ type ToolCallInfo struct {
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	TokenUsage          int
-	EstimatedCost       float64
-	Turns               int            // Number of turns needed to complete the task
-	ToolCalls           []ToolCallInfo // Tool call statistics
-	ToolSequences       [][]string     // Sequences of tool calls preserving order
-	AvgTimeBetweenTurns time.Duration  // Average time between consecutive LLM API calls (computed from per-turn timestamps when available)
-	MaxTimeBetweenTurns time.Duration  // Maximum time between any two consecutive LLM API calls
+	TokenUsage             int
+	EstimatedCost          float64
+	Turns                  int            // Number of turns needed to complete the task
+	ToolCalls              []ToolCallInfo // Tool call statistics
+	ToolSequences          [][]string     // Sequences of tool calls preserving order
+	AvgTimeBetweenTurns    time.Duration  // Mean time between consecutive LLM API calls (computed from per-turn timestamps when available)
+	MaxTimeBetweenTurns    time.Duration  // Maximum time between any two consecutive LLM API calls
+	MedianTimeBetweenTurns time.Duration  // Median time between consecutive LLM API calls
+	// StdDevTimeBetweenTurns is the sample standard deviation (Bessel's correction, n-1
+	// denominator) of inter-turn intervals, treating the observed turns as a sample of
+	// the agent's execution behaviour rather than an exhaustive population.
+	StdDevTimeBetweenTurns time.Duration
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 

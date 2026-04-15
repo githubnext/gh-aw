@@ -134,7 +134,7 @@ You can customize the maintenance workflow runner or disable maintenance entirel
 }
 ```
 
-The `runs_on` field accepts a single string or an array of strings for multi-label runners (e.g., `["self-hosted", "linux"]`). The default runner is `ubuntu-slim`.
+The `runs_on` field accepts a single string or an array of strings for multi-label runners (e.g., `["self-hosted", "linux"]`). The default runner is `ubuntu-slim`. See [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/#configuring-the-maintenance-workflow-runner) for more details.
 
 **Disable maintenance entirely:**
 
