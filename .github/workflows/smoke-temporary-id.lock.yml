@@ -546,8 +546,7 @@ jobs:
                     "issueNumberOrTemporaryId": true
                   }
                 },
-                "customValidation": "parentAndSubDifferent",
-                "allowed-payload": false
+                "customValidation": "parentAndSubDifferent"
               },
               "missing_data": {
                 "defaultMax": 20,
@@ -572,8 +571,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "missing_tool": {
                 "defaultMax": 20,
@@ -594,8 +592,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "noop": {
                 "defaultMax": 1,

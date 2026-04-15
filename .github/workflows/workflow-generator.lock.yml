@@ -461,8 +461,7 @@ jobs:
                     "maxLength": 256
                   }
                 },
-                "customValidation": "requiresOneOf:issue_number,pull_number",
-                "allowed-payload": false
+                "customValidation": "requiresOneOf:issue_number,pull_number"
               },
               "missing_data": {
                 "defaultMax": 20,
@@ -487,8 +486,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "missing_tool": {
                 "defaultMax": 20,
@@ -509,8 +507,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "noop": {
                 "defaultMax": 1,

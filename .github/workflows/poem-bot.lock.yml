@@ -561,8 +561,7 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "close_pull_request": {
                 "defaultMax": 1,
@@ -752,8 +751,7 @@ jobs:
                     "optionalPositiveInteger": true
                   }
                 },
-                "customValidation": "startLineLessOrEqualLine",
-                "allowed-payload": false
+                "customValidation": "startLineLessOrEqualLine"
               },
               "link_sub_issue": {
                 "defaultMax": 5,
@@ -771,8 +769,7 @@ jobs:
                     "issueNumberOrTemporaryId": true
                   }
                 },
-                "customValidation": "parentAndSubDifferent",
-                "allowed-payload": false
+                "customValidation": "parentAndSubDifferent"
               },
               "missing_data": {
                 "defaultMax": 20,
@@ -797,8 +794,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "missing_tool": {
                 "defaultMax": 20,
@@ -819,8 +815,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "noop": {
                 "defaultMax": 1,
@@ -856,8 +851,7 @@ jobs:
                   "pull_request_number": {
                     "issueOrPRNumber": true
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "report_incomplete": {
                 "defaultMax": 5,

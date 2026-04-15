@@ -1049,8 +1049,7 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "add_reviewer": {
                 "defaultMax": 3,
@@ -1069,8 +1068,7 @@ jobs:
                     "itemSanitize": true,
                     "itemMaxLength": 39
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "close_pull_request": {
                 "defaultMax": 1,
@@ -1134,8 +1132,7 @@ jobs:
                       "note"
                     ]
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "create_issue": {
                 "defaultMax": 1,
@@ -1210,8 +1207,7 @@ jobs:
                     "optionalPositiveInteger": true
                   }
                 },
-                "customValidation": "startLineLessOrEqualLine",
-                "allowed-payload": false
+                "customValidation": "startLineLessOrEqualLine"
               },
               "missing_data": {
                 "defaultMax": 20,
@@ -1236,8 +1232,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "missing_tool": {
                 "defaultMax": 20,
@@ -1258,8 +1253,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "noop": {
                 "defaultMax": 1,
@@ -1295,8 +1289,7 @@ jobs:
                   "pull_request_number": {
                     "issueOrPRNumber": true
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "report_incomplete": {
                 "defaultMax": 5,
@@ -1326,8 +1319,7 @@ jobs:
                     "required": true,
                     "type": "string"
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "submit_pull_request_review": {
                 "defaultMax": 1,

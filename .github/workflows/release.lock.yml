@@ -460,8 +460,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "missing_tool": {
                 "defaultMax": 20,
@@ -482,8 +481,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                },
-                "allowed-payload": false
+                }
               },
               "noop": {
                 "defaultMax": 1,
@@ -545,8 +543,7 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                },
-                "allowed-payload": false
+                }
               }
             }
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
