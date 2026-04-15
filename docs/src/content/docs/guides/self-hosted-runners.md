@@ -107,6 +107,35 @@ safe-outputs:
 > [!NOTE]
 > `runs-on` controls only the main agent job. `runs-on-slim` controls all framework/generated jobs. `safe-outputs.runs-on` still takes precedence over `runs-on-slim` for safe-output jobs specifically.
 
+## Configuring the maintenance workflow runner
+
+The generated `agentics-maintenance.yml` workflow defaults to `ubuntu-slim` for all its jobs. To use a self-hosted runner for maintenance jobs, set `runs_on` in `.github/workflows/aw.json`:
+
+**Single label:**
+
+```json
+{
+  "maintenance": {
+    "runs_on": "self-hosted"
+  }
+}
+```
+
+**Multiple labels** (runner must match all):
+
+```json
+{
+  "maintenance": {
+    "runs_on": ["self-hosted", "linux", "x64"]
+  }
+}
+```
+
+This setting applies to every job in `agentics-maintenance.yml` (close-expired-entities, cleanup-cache-memory, run_operation, apply_safe_outputs, create_labels, and validate_workflows). Re-run `gh aw compile` after changing `aw.json` to regenerate the workflow.
+
+> [!NOTE]
+> `aw.json` is separate from individual workflow frontmatter. It provides repository-level settings for generated infrastructure workflows.
+
 ## Related documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) — `runs-on` and `runs-on-slim` syntax reference
@@ -114,3 +143,4 @@ safe-outputs:
 - [Threat Detection](/gh-aw/reference/threat-detection/) — detection job configuration
 - [Network Access](/gh-aw/reference/network/) — configuring outbound network permissions
 - [Sandbox](/gh-aw/reference/sandbox/) — container and Docker requirements
+- [Ephemerals](/gh-aw/guides/ephemerals/#maintenance-configuration) — full `aw.json` maintenance configuration reference
