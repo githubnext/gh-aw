@@ -101,7 +101,7 @@ workflow:foo Cleanup +50ms`,
 }
 
 // connectInMemory creates an in-memory MCP client-server connection for testing.
-// The caller is responsible for closing the returned session.
+// The session is closed automatically when the test ends via t.Cleanup.
 func connectInMemory(t *testing.T, server *mcp.Server) *mcp.ClientSession {
 	t.Helper()
 	ctx := context.Background()
