@@ -70,7 +70,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
 			c.trialMode,
 			c.trialLogicalRepoSlug,
-			GetActionPin,
+			getActionPin,
 		)
 		for _, line := range defaultLines {
 			yaml.WriteString(line)
@@ -90,7 +90,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Emit additional (non-default) user-configured checkouts
-	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(GetActionPin)
+	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(getActionPin)
 	for _, line := range additionalLines {
 		yaml.WriteString(line)
 	}
@@ -115,7 +115,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsGithubMerge {
 		compilerYamlLog.Printf("Adding merge remote .github folder step")
 		yaml.WriteString("      - name: Merge remote .github folder\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		yaml.WriteString("        env:\n")
 
 		// Set repository imports if present
@@ -315,7 +315,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Print("Adding activation artifact download step")
 	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
@@ -457,16 +457,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
-	c.generateLogParsing(yaml, engine)
+	c.generateLogParsing(yaml, data, engine)
 
 	// parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
 	if IsMCPScriptsEnabled(data.MCPScripts, data) {
-		c.generateMCPScriptsLogParsing(yaml)
+		c.generateMCPScriptsLogParsing(yaml, data)
 	}
 
 	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
-	c.generateMCPGatewayLogParsing(yaml)
+	c.generateMCPGatewayLogParsing(yaml, data)
 
 	// Add firewall log parsing and dedicated audit upload for all firewall-enabled engines.
 	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
@@ -480,7 +480,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
 	if isFirewallEnabled(data) {
-		c.generateTokenUsageSummary(yaml)
+		c.generateTokenUsageSummary(yaml, data)
 		// Include the aggregated agent_usage.json in the agent artifact so third-party
 		// tools can consume structured token data without parsing the step summary.
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
@@ -750,7 +750,7 @@ func (c *Compiler) generateRepositoryImportCheckouts(yaml *strings.Builder, repo
 
 		// Generate the checkout step
 		fmt.Fprintf(yaml, "      - name: Checkout repository import %s/%s@%s\n", owner, repo, ref)
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/checkout"))
 		yaml.WriteString("        with:\n")
 		fmt.Fprintf(yaml, "          repository: %s/%s\n", owner, repo)
 		fmt.Fprintf(yaml, "          ref: %s\n", ref)
@@ -812,7 +812,7 @@ func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agen
 
 	// Generate the checkout step
 	fmt.Fprintf(yaml, "      - name: Checkout agent import %s/%s@%s\n", owner, repo, ref)
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/checkout"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          repository: %s/%s\n", owner, repo)
 	fmt.Fprintf(yaml, "          ref: %s\n", ref)
@@ -840,7 +840,7 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 
 	// Step 1: Setup Go for building the CLI
 	yaml.WriteString("      - name: Setup Go for CLI build\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/setup-go"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/setup-go"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          go-version-file: go.mod\n")
 	yaml.WriteString("          cache: true\n")
@@ -864,12 +864,12 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 
 	// Step 3: Setup Docker Buildx
 	yaml.WriteString("      - name: Setup Docker Buildx\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("docker/setup-buildx-action"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("docker/setup-buildx-action"))
 
 	// Step 4: Build Docker image
 	// Use the Dockerfile at the repository root which expects BINARY build arg
 	yaml.WriteString("      - name: Build gh-aw Docker image\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("docker/build-push-action"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("docker/build-push-action"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          context: .\n")
 	yaml.WriteString("          platforms: linux/amd64\n")

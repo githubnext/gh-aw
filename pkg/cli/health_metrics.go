@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stats"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -78,10 +79,10 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 		}
 	}
 
-	// Calculate success and failure counts
+	// Accumulate success/failure counts and numerical metrics.
 	successCount := 0
 	failureCount := 0
-	var totalDuration time.Duration
+	var durationStats, tokenStats, costStats stats.StatVar
 	var totalTokens int
 	var totalCost float64
 
@@ -91,9 +92,11 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 		} else if isFailureConclusion(run.Conclusion) {
 			failureCount++
 		}
-		totalDuration += run.Duration
 		totalTokens += run.TokenUsage
 		totalCost += run.EstimatedCost
+		durationStats.Add(float64(run.Duration))
+		tokenStats.Add(float64(run.TokenUsage))
+		costStats.Add(run.EstimatedCost)
 	}
 
 	totalRuns := len(runs)
@@ -102,19 +105,9 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 		successRate = float64(successCount) / float64(totalRuns) * 100
 	}
 
-	// Calculate average duration
-	avgDuration := time.Duration(0)
-	if totalRuns > 0 {
-		avgDuration = totalDuration / time.Duration(totalRuns)
-	}
-
-	// Calculate average tokens and cost
-	avgTokens := 0
-	avgCost := 0.0
-	if totalRuns > 0 {
-		avgTokens = totalTokens / totalRuns
-		avgCost = totalCost / float64(totalRuns)
-	}
+	avgDuration := time.Duration(durationStats.Mean())
+	avgTokens := int(tokenStats.Mean())
+	avgCost := costStats.Mean()
 
 	// Calculate trend
 	trend := calculateTrend(runs)

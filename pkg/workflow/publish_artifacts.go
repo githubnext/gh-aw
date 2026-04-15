@@ -180,7 +180,7 @@ func generateSafeOutputsArtifactStagingUpload(builder *strings.Builder, data *Wo
 	builder.WriteString("      # Upload safe-outputs upload-artifact staging for the upload_artifact job\n")
 	builder.WriteString("      - name: Upload upload-artifact staging\n")
 	builder.WriteString("        if: always()\n")
-	fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+	fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          name: %s%s\n", prefix, SafeOutputsUploadArtifactStagingArtifactName)
 	fmt.Fprintf(builder, "          path: %s\n", artifactStagingDirExpr)

@@ -19,7 +19,7 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 func generateInstallCLISteps(actionMode ActionMode, version string, actionTag string, resolver ActionSHAResolver) string {
 	if actionMode == ActionModeDev {
 		return `      - name: Setup Go
-        uses: ` + GetActionPin("actions/setup-go") + `
+        uses: ` + getActionPin("actions/setup-go") + `
         with:
           go-version-file: go.mod
           cache: true

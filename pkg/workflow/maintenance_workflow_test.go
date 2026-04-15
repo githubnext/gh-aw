@@ -662,8 +662,8 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 		}
 		yaml := string(content)
 		// run_operation, create_labels, validate_workflows, and compile_workflows should use the same setup-go version
-		// (all use GetActionPin, not hardcoded pins). Exactly 4 occurrences expected.
-		setupGoPin := GetActionPin("actions/setup-go")
+		// (all use getActionPin, not hardcoded pins). Exactly 4 occurrences expected.
+		setupGoPin := getActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
 		if occurrences != 4 {
 			t.Errorf("Expected exactly 4 occurrences of pinned setup-go ref %q (run_operation + create_labels + validate_workflows + compile_workflows), got %d in:\n%s",

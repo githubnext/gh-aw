@@ -48,7 +48,7 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		artifactsLog.Printf("Added conditional: %s", config.IfCondition)
 	}
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
 	steps = append(steps, fmt.Sprintf("          path: %s\n", config.DownloadPath))
