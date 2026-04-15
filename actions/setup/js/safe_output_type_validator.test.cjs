@@ -508,4 +508,162 @@ describe("safe_output_type_validator", () => {
       expect(result.error).toContain("must contain only strings");
     });
   });
+
+  describe("payload validation", () => {
+    it("should accept a valid flat payload object when allowed-payload is true", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      resetValidationConfigCache();
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        add_comment: {
+          defaultMax: 1,
+          "allowed-payload": true,
+          fields: {
+            body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+            payload: { type: "object", isPayload: true },
+          },
+        },
+      });
+
+      const result = validateItem({ type: "add_comment", body: "Hello", payload: { verdict: "APPROVE", count: 5, passed: true, note: null } }, "add_comment", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.payload).toEqual({ verdict: "APPROVE", count: 5, passed: true, note: null });
+    });
+
+    it("should reject payload when allowed-payload is not set", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      resetValidationConfigCache();
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        add_comment: {
+          defaultMax: 1,
+          fields: {
+            body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          },
+        },
+      });
+
+      const result = validateItem({ type: "add_comment", body: "Hello", payload: { key: "value" } }, "add_comment", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("does not allow a 'payload' field");
+    });
+
+    it("should accept a comment without payload (no allowed-payload needed)", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      resetValidationConfigCache();
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        add_comment: {
+          defaultMax: 1,
+          "allowed-payload": true,
+          fields: {
+            body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+            payload: { type: "object", isPayload: true },
+          },
+        },
+      });
+
+      const result = validateItem({ type: "add_comment", body: "Hello" }, "add_comment", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.payload).toBeUndefined();
+    });
+
+    it("should reject payload with a nested object value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ key: { nested: "value" } }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a string, number, boolean, or null");
+    });
+
+    it("should reject payload with an array value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ tags: ["a", "b"] }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a string, number, boolean, or null");
+    });
+
+    it("should reject payload with an invalid key format", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ "123key": "value" }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must start with a letter");
+    });
+
+    it("should reject payload when value is passed as an array (not object)", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload(["a", "b"], "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a flat key-value object");
+    });
+
+    it("should reject payload with too many entries", async () => {
+      const { validatePayload, MAX_PAYLOAD_ENTRIES } = await import("./safe_output_type_validator.cjs");
+
+      const large = {};
+      for (let i = 0; i < MAX_PAYLOAD_ENTRIES + 1; i++) {
+        large[`key${i}`] = i;
+      }
+      const result = validatePayload(large, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must not have more than");
+    });
+
+    it("should reject payload with a string value exceeding max length", async () => {
+      const { validatePayload, MAX_PAYLOAD_VALUE_LENGTH } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ longKey: "x".repeat(MAX_PAYLOAD_VALUE_LENGTH + 1) }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must not exceed");
+    });
+
+    it("should reject NaN as a payload number value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ score: NaN }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be finite");
+    });
+
+    it("should reject Infinity as a payload number value", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ score: Infinity }, "payload", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be finite");
+    });
+
+    it("should sanitize HTML and XML comments in payload string values", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      // HTML/XML comments and tags must be stripped from string values for safety
+      const result = validatePayload({ marker: "<!-- secret -->APPROVE" }, "payload", 1);
+
+      expect(result.isValid).toBe(true);
+      // sanitizeContent strips XML comments, so the marker is cleaned
+      expect(result.normalizedValue.marker).not.toContain("<!--");
+      expect(result.normalizedValue.marker).toContain("APPROVE");
+    });
+
+    it("should preserve plain text string values in payload unchanged", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ verdict: "APPROVE", reason: "all checks passed" }, "payload", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedValue.verdict).toBe("APPROVE");
+      expect(result.normalizedValue.reason).toBe("all checks passed");
+    });
+  });
 });

@@ -480,6 +480,10 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reply_to_id": {
                     "type": "string",
                     "maxLength": 256
@@ -488,7 +492,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "create_issue": {
                 "defaultMax": 1,
@@ -508,6 +513,10 @@ jobs:
                   "parent": {
                     "issueOrPRNumber": true
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
@@ -521,7 +530,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "create_pull_request": {
                 "defaultMax": 1,
@@ -547,6 +557,10 @@ jobs:
                     "itemSanitize": true,
                     "itemMaxLength": 128
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
@@ -557,7 +571,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "missing_data": {
                 "defaultMax": 20,
@@ -613,8 +628,13 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "report_incomplete": {
                 "defaultMax": 5,
@@ -624,13 +644,18 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reason": {
                     "required": true,
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               }
             }
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9

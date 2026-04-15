@@ -32,7 +32,7 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
 /**
  * @typedef {Object} FieldValidation
  * @property {boolean} [required] - Whether the field is required
- * @property {string} [type] - Expected type: 'string', 'number', 'boolean', 'array'
+ * @property {string} [type] - Expected type: 'string', 'number', 'boolean', 'array', 'object'
  * @property {boolean} [sanitize] - Whether to sanitize string content
  * @property {number} [maxLength] - Maximum length for strings
  * @property {boolean} [positiveInteger] - Must be a positive integer
@@ -45,6 +45,7 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
  * @property {number} [itemMaxLength] - For arrays, max length per item
  * @property {string} [pattern] - Regex pattern the value must match
  * @property {string} [patternError] - Error message for pattern mismatch
+ * @property {boolean} [isPayload] - When true, validates as a flat key-value payload object (not sanitized through HTML sanitizer)
  */
 
 /**
@@ -124,6 +125,108 @@ function getMinRequiredForType(itemType, config) {
     return itemConfig.min;
   }
   return 0;
+}
+
+/**
+ * Maximum number of entries in a payload object
+ */
+const MAX_PAYLOAD_ENTRIES = 50;
+
+/**
+ * Maximum length for a payload key
+ */
+const MAX_PAYLOAD_KEY_LENGTH = 64;
+
+/**
+ * Maximum length for a string payload value
+ */
+const MAX_PAYLOAD_VALUE_LENGTH = 1024;
+
+/**
+ * Regex for valid payload keys: must start with a letter and contain only
+ * letters, digits, and underscores (safe identifier format).
+ */
+const PAYLOAD_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+
+/**
+ * Validate a payload object field.
+ * Payload must be a flat key-value object where:
+ * - Keys are safe identifiers (letter + alphanumeric/underscore)
+ * - Values are string, finite number, boolean, or null (no nested objects or arrays)
+ * String values are run through sanitizeContent() to strip HTML, XML comments,
+ * and injection patterns before being stored.
+ * @param {any} value - Value to validate
+ * @param {string} fieldName - Field name for error messages
+ * @param {number} lineNum - Line number for error messages
+ * @returns {{isValid: boolean, normalizedValue?: object, error?: string}}
+ */
+function validatePayload(value, fieldName, lineNum) {
+  if (value === undefined || value === null) {
+    return { isValid: true };
+  }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return {
+      isValid: false,
+      error: `Line ${lineNum}: '${fieldName}' must be a flat key-value object`,
+    };
+  }
+
+  const entries = Object.entries(value);
+  if (entries.length > MAX_PAYLOAD_ENTRIES) {
+    return {
+      isValid: false,
+      error: `Line ${lineNum}: '${fieldName}' must not have more than ${MAX_PAYLOAD_ENTRIES} entries (got ${entries.length})`,
+    };
+  }
+
+  const normalized = {};
+  for (const [key, val] of entries) {
+    // Validate key format
+    if (typeof key !== "string" || key.length === 0 || key.length > MAX_PAYLOAD_KEY_LENGTH) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: '${fieldName}' key '${key}' must be a non-empty string with at most ${MAX_PAYLOAD_KEY_LENGTH} characters`,
+      };
+    }
+    if (!PAYLOAD_KEY_PATTERN.test(key)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: '${fieldName}' key '${key}' must start with a letter and contain only letters, digits, and underscores`,
+      };
+    }
+
+    // Validate value type (primitives only — no nested objects or arrays)
+    if (val !== null && typeof val !== "string" && typeof val !== "number" && typeof val !== "boolean") {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: '${fieldName}' value for key '${key}' must be a string, number, boolean, or null (got ${Array.isArray(val) ? "array" : typeof val})`,
+      };
+    }
+
+    // Reject non-finite numbers (NaN/Infinity) — JSON.stringify converts them to null silently
+    if (typeof val === "number" && !Number.isFinite(val)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: '${fieldName}' number value for key '${key}' must be finite (NaN and Infinity are not allowed)`,
+      };
+    }
+
+    // Validate string value length
+    if (typeof val === "string" && val.length > MAX_PAYLOAD_VALUE_LENGTH) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: '${fieldName}' string value for key '${key}' must not exceed ${MAX_PAYLOAD_VALUE_LENGTH} characters`,
+      };
+    }
+
+    // Sanitize string values to strip HTML, XML comments, and injection patterns.
+    // Non-string primitives (number, boolean, null) are safe as-is.
+    const sanitizedVal = typeof val === "string" ? sanitizeContent(val, { maxLength: MAX_PAYLOAD_VALUE_LENGTH }) : val;
+    normalized[key] = sanitizedVal;
+  }
+
+  return { isValid: true, normalizedValue: normalized };
 }
 
 /**
@@ -285,6 +388,11 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   // Handle issueOrPRNumber validation
   if (validation.issueOrPRNumber) {
     return validateIssueOrPRNumber(value, `${itemType} '${fieldName}'`, lineNum);
+  }
+
+  // Handle payload validation — flat key-value objects not subject to HTML sanitization
+  if (validation.isPayload) {
+    return validatePayload(value, fieldName, lineNum);
   }
 
   // Handle type validation
@@ -501,6 +609,14 @@ function validateItem(item, itemType, lineNum, options) {
   const normalizedItem = { ...item };
   const errors = [];
 
+  // Guard: reject payload fields on types that have not opted in with allowed-payload: true
+  if (item.payload !== undefined && !typeConfig["allowed-payload"]) {
+    return {
+      isValid: false,
+      error: `Line ${lineNum}: ${itemType} does not allow a 'payload' field`,
+    };
+  }
+
   // Run custom validation first if defined
   if (typeConfig.customValidation) {
     const customResult = executeCustomValidation(item, typeConfig.customValidation, lineNum, itemType);
@@ -565,6 +681,7 @@ module.exports = {
   validateOptionalPositiveInteger,
   validateIssueOrPRNumber,
   validateIssueNumberOrTemporaryId,
+  validatePayload,
 
   // Configuration accessors
   loadValidationConfig,
@@ -578,4 +695,7 @@ module.exports = {
   // Constants
   MAX_BODY_LENGTH,
   MAX_GITHUB_USERNAME_LENGTH,
+  MAX_PAYLOAD_ENTRIES,
+  MAX_PAYLOAD_KEY_LENGTH,
+  MAX_PAYLOAD_VALUE_LENGTH,
 };

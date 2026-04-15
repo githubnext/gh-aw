@@ -1017,6 +1017,10 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reply_to_id": {
                     "type": "string",
                     "maxLength": 256
@@ -1025,7 +1029,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "add_labels": {
                 "defaultMax": 5,
@@ -1074,6 +1079,10 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "pull_request_number": {
                     "optionalPositiveInteger": true
                   },
@@ -1081,7 +1090,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "create_code_scanning_alert": {
                 "defaultMax": 40,
@@ -1142,6 +1152,10 @@ jobs:
                   "parent": {
                     "issueOrPRNumber": true
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
@@ -1155,7 +1169,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "create_pull_request_review_comment": {
                 "defaultMax": 1,
@@ -1248,8 +1263,13 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "push_to_pull_request_branch": {
                 "defaultMax": 1,
@@ -1279,13 +1299,18 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reason": {
                     "required": true,
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "resolve_pull_request_review_thread": {
                 "defaultMax": 10,
@@ -1311,8 +1336,13 @@ jobs:
                       "REQUEST_CHANGES",
                       "COMMENT"
                     ]
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "update_pull_request": {
                 "defaultMax": 1,
@@ -1333,6 +1363,10 @@ jobs:
                       "prepend"
                     ]
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "pull_request_number": {
                     "issueOrPRNumber": true
                   },
@@ -1346,7 +1380,8 @@ jobs:
                     "maxLength": 256
                   }
                 },
-                "customValidation": "requiresOneOf:title,body"
+                "customValidation": "requiresOneOf:title,body",
+                "allowed-payload": true
               }
             }
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9

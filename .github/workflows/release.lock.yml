@@ -491,8 +491,13 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "report_incomplete": {
                 "defaultMax": 5,
@@ -502,13 +507,18 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reason": {
                     "required": true,
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "update_release": {
                 "defaultMax": 1,

@@ -37,6 +37,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -60,6 +80,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -91,6 +131,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -160,6 +220,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -192,6 +272,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -219,6 +319,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -246,7 +366,7 @@
         },
         "reply_to_id": {
           "type": "string",
-          "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments — ignored for issue and pull request comments."
+          "description": "Node ID of the discussion comment to reply to, enabling threaded discussion comments. When provided, the new comment is posted as a reply to the specified top-level discussion comment. If the given node ID belongs to a nested reply, the handler automatically resolves it to the top-level parent. Only applicable for discussion comments \u2014 ignored for issue and pull request comments."
         },
         "secrecy": {
           "type": "string",
@@ -255,6 +375,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -301,6 +441,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -376,6 +536,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -755,6 +935,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -794,6 +994,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -855,7 +1075,7 @@
   },
   {
     "name": "upload_artifact",
-    "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be pre-staged in $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ or referenced by their original path — files not already in the staging directory are automatically copied there before upload. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorised step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
+    "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be pre-staged in $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/ or referenced by their original path \u2014 files not already in the staging directory are automatically copied there before upload. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorised step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -887,7 +1107,7 @@
         "temporary_id": {
           "type": "string",
           "pattern": "^aw_[A-Za-z0-9_]{3,12}$",
-          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' — for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
+          "description": "Optional temporary identifier for this artifact upload. Format: 'aw_' followed by 3 to 12 alphanumeric or underscore characters (e.g., 'aw_chart1', 'aw_img_out'). Declare this ID here if you plan to embed the artifact URL in a subsequent message body using '#aw_ID' \u2014 for example '![chart](#aw_chart1)' in a create_discussion body. The safe-outputs processor replaces '#aw_ID' references with the actual artifact download URL after upload. When skip-archive is true the URL points directly to the file and is suitable for inline images."
         },
         "secrecy": {
           "type": "string",
@@ -982,6 +1202,26 @@
         "integrity": {
           "type": "string",
           "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -1239,6 +1479,26 @@
         "details": {
           "type": "string",
           "description": "Optional extended details or diagnostic context about the failure (max 65000 characters)."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional key-value metadata for downstream workflows. Accepted keys must start with a letter and contain only letters, digits, and underscores. Values must be strings (max 1024 chars), numbers, booleans, or null. Maximum 50 entries. Unlike HTML comments (which the safe-output sanitizer strips), metadata survives all sanitization passes and is rendered as a machine-readable fenced code block in the output body.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false

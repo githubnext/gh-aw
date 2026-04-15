@@ -588,6 +588,10 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reply_to_id": {
                     "type": "string",
                     "maxLength": 256
@@ -596,7 +600,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "add_labels": {
                 "defaultMax": 5,
@@ -635,6 +640,10 @@ jobs:
                   "parent": {
                     "issueOrPRNumber": true
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
@@ -648,7 +657,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "hide_comment": {
                 "defaultMax": 5,
@@ -728,8 +738,13 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "remove_labels": {
                 "defaultMax": 5,
@@ -758,13 +773,18 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "payload": {
+                    "type": "object",
+                    "isPayload": true
+                  },
                   "reason": {
                     "required": true,
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "unassign_from_user": {
                 "defaultMax": 1,

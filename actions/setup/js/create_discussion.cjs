@@ -23,6 +23,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { renderPayloadBlock } = require("./payload_helpers.cjs");
 const { closeOlderDiscussions: closeOlderDiscussionsFunc } = require("./close_older_discussions.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -494,6 +495,12 @@ async function main(config = {}) {
 
     // Build body
     let bodyLines = processedBody.split("\n");
+
+    // Prepend structured payload block before the footer if the agent provided one.
+    const payloadBlock = renderPayloadBlock(message.payload);
+    if (payloadBlock) {
+      bodyLines.push(``, payloadBlock);
+    }
 
     // Add tracker ID
     const trackerIDComment = getTrackerID("markdown");

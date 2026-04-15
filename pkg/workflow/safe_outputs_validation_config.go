@@ -25,6 +25,11 @@ type FieldValidation struct {
 	Pattern                  string   `json:"pattern,omitempty"`
 	PatternError             string   `json:"patternError,omitempty"`
 	TemporaryID              bool     `json:"temporaryId,omitempty"`
+	// IsPayload marks this field as a structured payload object. Payload fields
+	// accept flat key-value maps (string keys, primitive values) and are NOT passed
+	// through the HTML/injection sanitizer. This allows agents to embed machine-readable
+	// markers without them being silently stripped by removeXmlComments().
+	IsPayload bool `json:"isPayload,omitempty"`
 }
 
 // TypeValidationConfig defines validation configuration for a safe output type
@@ -32,6 +37,9 @@ type TypeValidationConfig struct {
 	DefaultMax       int                        `json:"defaultMax"`
 	Fields           map[string]FieldValidation `json:"fields"`
 	CustomValidation string                     `json:"customValidation,omitempty"`
+	// AllowedPayload when true permits agents to supply a `payload` field on this type.
+	// Only types that explicitly opt-in can carry structured payload data.
+	AllowedPayload bool `json:"allowed-payload,omitempty"`
 }
 
 // Constants for validation
@@ -44,7 +52,8 @@ const (
 // This is the single source of truth for validation rules
 var ValidationConfig = map[string]TypeValidationConfig{
 	"create_issue": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"title":        {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
 			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
@@ -52,33 +61,40 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"parent":       {IssueOrPRNumber: true},
 			"temporary_id": {Type: "string"},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":      {Type: "object", IsPayload: true},
 		},
 	},
 	"create_agent_session": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
-			"body": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"repo": {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"body":    {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"repo":    {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload": {Type: "object", IsPayload: true},
 		},
 	},
 	"add_comment": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"body":        {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"item_number": {IssueOrPRNumber: true},
 			"reply_to_id": {Type: "string", MaxLength: 256}, // Optional: node ID of discussion comment to reply to (threading)
 			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":     {Type: "object", IsPayload: true},
 		},
 	},
 	"create_pull_request": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
-			"title":  {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"branch": {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
-			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
-			"draft":  {Type: "boolean"},
-			"repo":   {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"title":   {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":    {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"branch":  {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"labels":  {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"draft":   {Type: "boolean"},
+			"repo":    {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload": {Type: "object", IsPayload: true},
 		},
 	},
 	"add_labels": {
@@ -135,6 +151,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_issue": {
 		DefaultMax:       1,
+		AllowedPayload:   true,
 		CustomValidation: "requiresOneOf:status,title,body",
 		Fields: map[string]FieldValidation{
 			"status":       {Type: "string", Enum: []string{"open", "closed"}},
@@ -146,10 +163,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"milestone":    {OptionalPositiveInteger: true},
 			"issue_number": {IssueOrPRNumber: true},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":      {Type: "object", IsPayload: true},
 		},
 	},
 	"update_pull_request": {
 		DefaultMax:       1,
+		AllowedPayload:   true,
 		CustomValidation: "requiresOneOf:title,body",
 		Fields: map[string]FieldValidation{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
@@ -158,6 +177,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":             {Type: "object", IsPayload: true},
 		},
 	},
 	"push_to_pull_request_branch": {
@@ -182,10 +202,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"submit_pull_request_review": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
-			"body":  {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"event": {Type: "string", Enum: []string{"APPROVE", "REQUEST_CHANGES", "COMMENT"}},
+			"body":    {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"event":   {Type: "string", Enum: []string{"APPROVE", "REQUEST_CHANGES", "COMMENT"}},
+			"payload": {Type: "object", IsPayload: true},
 		},
 	},
 	"reply_to_pull_request_review_comment": {
@@ -204,37 +226,45 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"create_discussion": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"title":    {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
 			"body":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"category": {Type: "string", Sanitize: true, MaxLength: 128},
 			"repo":     {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":  {Type: "object", IsPayload: true},
 		},
 	},
 	"close_discussion": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"body":              {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"reason":            {Type: "string", Enum: []string{"RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"}},
 			"discussion_number": {OptionalPositiveInteger: true},
 			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":           {Type: "object", IsPayload: true},
 		},
 	},
 	"close_issue": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"issue_number": {OptionalPositiveInteger: true},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":      {Type: "object", IsPayload: true},
 		},
 	},
 	"close_pull_request": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"body":                {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"pull_request_number": {OptionalPositiveInteger: true},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"payload":             {Type: "object", IsPayload: true},
 		},
 	},
 	"missing_tool": {
@@ -260,9 +290,11 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"noop": {
-		DefaultMax: 1,
+		DefaultMax:     1,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"message": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"payload": {Type: "object", IsPayload: true},
 		},
 	},
 	"create_code_scanning_alert": {
@@ -363,10 +395,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"report_incomplete": {
-		DefaultMax: 5,
+		DefaultMax:     5,
+		AllowedPayload: true,
 		Fields: map[string]FieldValidation{
 			"reason":  {Required: true, Type: "string", Sanitize: true, MaxLength: 1024},
 			"details": {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"payload": {Type: "object", IsPayload: true},
 		},
 	},
 	"autofix_code_scanning_alert": {
