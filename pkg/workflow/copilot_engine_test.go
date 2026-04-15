@@ -736,7 +736,7 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineUsesPromptFilePath(t *testing.T) {
+func TestCopilotEnginePromptFilePath(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",

@@ -175,8 +175,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below).
-	// The --add-dir "${GITHUB_WORKSPACE}" and --prompt-file args are appended raw (not through
-	// shellJoinArgs) because --add-dir contains a shell variable reference that must expand at runtime.
+	// The --add-dir "${GITHUB_WORKSPACE}" arg is appended raw (not through shellJoinArgs)
+	// because it contains a shell variable reference that must expand at runtime.
 	//
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
