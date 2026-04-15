@@ -105,7 +105,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `RunFix` | `func(FixConfig) error` | Applies automatic codemods |
 | `GetAllCodemods` | `func() []Codemod` | Returns all available codemods |
 | `InitRepository` | `func(InitOptions) error` | Initializes a repo with the `gh-aw` setup |
-| `NewWorkflow` | `func(string, bool, bool, string) error` | Creates a new workflow markdown file |
+| `CreateWorkflowMarkdownFile` | `func(string, bool, bool, string) error` | Creates a new workflow markdown file |
 | `IsRunnable` | `func(string) (bool, error)` | Checks whether a workflow file is runnable |
 | `RunWorkflowInteractively` | `func(ctx, ...) error` | Interactive workflow selection and dispatch |
 | `AddMCPTool` | `func(string, string, ...) error` | Adds an MCP server to a workflow file |

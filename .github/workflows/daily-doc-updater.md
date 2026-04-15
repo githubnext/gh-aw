@@ -101,7 +101,7 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 ```
 
 For each closed issue:
-- **closed as completed**: Check whether a `[docs]` PR references it. If no such PR exists, treat it as an unaddressed gap and follow the normal Step 2 flow.
+- **closed as completed**: Check whether a `[docs]` PR references it. If no such PR exists, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found and its documentation change is complete, skip the issue. Otherwise, treat it as an unaddressed gap and follow the normal Step 2 flow.
 - **closed as not_planned**: Do not create documentation based solely on this issue. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
 
 ### 1d. Scan Cookie-Labeled Automation Issues

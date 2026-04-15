@@ -100,7 +100,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `default-safe-outputs` | Compound: `defaults` + `dev-tools` + `github` + `local` — recommended baseline for `safe-outputs.allowed-domains` |
 | `containers` | Docker Hub, GitHub Container Registry, Quay |
 | `linux-distros` | Debian, Alpine, and other Linux package repositories |
-| `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
+| `dotnet`, `dart`, `go`, `haskell`, `java`, `julia`, `lean`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `*.jsr.io`, `googleapis.deno.dev`, `fresh.deno.dev`) |
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains (see [Playwright Reference](/gh-aw/reference/playwright/)) |
