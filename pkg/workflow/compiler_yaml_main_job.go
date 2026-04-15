@@ -320,6 +320,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 
+	// Restore agent config folders from the base branch snapshot in the activation artifact.
+	// The activation job saved these before the PR checkout ran, so this step overwrites any
+	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
+	// The .mcp.json at the workspace root is also removed since it may come from the PR branch.
+	// The folder and file lists match those used in the save step (derived from engine registry).
+	if ShouldGeneratePRCheckoutStep(data) {
+		registry := GetGlobalEngineRegistry()
+		generateRestoreBaseGitHubFoldersStep(yaml,
+			registry.GetAllAgentManifestFolders(),
+			registry.GetAllAgentManifestFiles(),
+		)
+	}
+
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
 	artifactPaths = append(artifactPaths, "/tmp/gh-aw/aw-prompts/prompt.txt")

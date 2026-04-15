@@ -108,11 +108,21 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	return []string{logsFolder}
 }
 
-// GetAgentManifestFiles returns Copilot-specific instruction files that should be
-// treated as security-sensitive manifests.  Modifying these files could redirect
-// the AI agent's behaviour in subsequent runs.
+// GetAgentManifestFiles returns instruction files that should be treated as
+// security-sensitive manifests to protect against injection attacks in fork PRs.
+// AGENTS.md is the cross-engine convention read by Copilot; CLAUDE.md and GEMINI.md
+// are also protected so that multi-engine repositories cannot be poisoned via
+// whichever instruction file a given fork PR happens to target.
 func (e *CopilotEngine) GetAgentManifestFiles() []string {
-	return []string{"AGENTS.md"}
+	return []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
+}
+
+// GetAgentManifestPathPrefixes returns Copilot-specific config directory prefixes
+// that must be protected from fork PR injection.
+// The .github/ directory contains copilot-instructions.md, path-specific instruction
+// files, and copilot-setup-steps.yml — any of which can alter agent behaviour.
+func (e *CopilotEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".github/"}
 }
 
 // GetDriverScriptName returns the filename of the JavaScript driver script that wraps

@@ -180,11 +180,17 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	//
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
+	//
+	// Use ${GH_AW_NODE_BIN:-node} instead of plain `node` so the absolute node path
+	// (exported by install_awf_binary.sh as GH_AW_NODE_BIN when the bundle is installed)
+	// is used inside the AWF container. In AWF's chroot mode the host filesystem is
+	// accessible, so the absolute path works even when sudo resets PATH on GPU runners
+	// (e.g. aw-gpu-runner-T4) and the actions/setup-node directory is not in PATH.
 	driverScriptName := e.GetDriverScriptName()
 	var execPrefix string
 	if driverScriptName != "" {
-		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} expands in the shell context.
-		execPrefix = fmt.Sprintf(`node %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
+		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
+		execPrefix = fmt.Sprintf(`${GH_AW_NODE_BIN:-node} %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}
@@ -236,7 +242,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// Create the agent step summary file before AWF starts so it is accessible
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
-			PathSetup: "touch " + AgentStepSummaryPath,
+			//
+			// Resolve the absolute node binary path before `sudo -E awf` runs.
+			// On GPU runners (e.g. aw-gpu-runner-T4) sudo resets PATH via sudoers
+			// secure_path, stripping the actions/setup-node directory.  By capturing
+			// the path here (where PATH is still intact) and exporting it, sudo -E
+			// preserves the variable and AWF's --env-all forwards it into the container,
+			// where ${GH_AW_NODE_BIN:-node} resolves to the correct binary.
+			PathSetup: "touch " + AgentStepSummaryPath + "\n" +
+				"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+				"export GH_AW_NODE_BIN",
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
