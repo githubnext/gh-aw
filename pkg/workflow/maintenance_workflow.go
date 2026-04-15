@@ -749,9 +749,13 @@ type SideRepoTarget struct {
 // collectSideRepoTargets scans all compiled workflow data and returns the unique
 // SideRepoTarget entries inferred from checkout blocks with current: true.
 // Only checkouts with a static (non-expression) repository string are included.
+// When the same repository appears multiple times, a non-empty GitHubToken is
+// preferred over an empty one so that the generated workflow uses the custom
+// token rather than falling back to GH_AW_GITHUB_TOKEN.
 func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
-	seen := make(map[string]bool)
-	var targets []SideRepoTarget
+	// Use a map to accumulate the best token seen for each slug.
+	tokenByRepo := make(map[string]string)
+	var order []string // preserve first-seen order for stable output
 	for _, wd := range workflowDataList {
 		for _, checkout := range wd.CheckoutConfigs {
 			if !checkout.Current {
@@ -762,15 +766,22 @@ func collectSideRepoTargets(workflowDataList []*WorkflowData) []SideRepoTarget {
 				// Skip empty repositories and expression-based (dynamic) ones.
 				continue
 			}
-			if seen[repo] {
-				continue
+			existing, seen := tokenByRepo[repo]
+			if !seen {
+				order = append(order, repo)
+				tokenByRepo[repo] = checkout.GitHubToken
+			} else if existing == "" && checkout.GitHubToken != "" {
+				// Upgrade to a non-empty token when one is encountered later.
+				tokenByRepo[repo] = checkout.GitHubToken
 			}
-			seen[repo] = true
-			targets = append(targets, SideRepoTarget{
-				Repository:  repo,
-				GitHubToken: checkout.GitHubToken,
-			})
 		}
+	}
+	targets := make([]SideRepoTarget, 0, len(order))
+	for _, repo := range order {
+		targets = append(targets, SideRepoTarget{
+			Repository:  repo,
+			GitHubToken: tokenByRepo[repo],
+		})
 	}
 	maintenanceLog.Printf("Detected %d side-repo target(s) from checkout configs", len(targets))
 	return targets
@@ -815,12 +826,9 @@ func generateAllSideRepoMaintenanceWorkflows(
 	minExpiresDays int,
 ) error {
 	targets := collectSideRepoTargets(workflowDataList)
-	if len(targets) == 0 {
-		return nil
-	}
 
-	// Track which side-repo maintenance files we (re-)generate so we can later
-	// identify and clean up stale files from previous runs if the target repos change.
+	// Track which side-repo maintenance files we (re-)generate so we can identify
+	// and remove stale files from previous runs when target repos are renamed or removed.
 	generatedFiles := make(map[string]bool)
 
 	for _, target := range targets {
@@ -834,6 +842,30 @@ func generateAllSideRepoMaintenanceWorkflows(
 			return fmt.Errorf("failed to generate side-repo maintenance workflow for %s: %w", target.Repository, err)
 		}
 		fmt.Fprintf(os.Stderr, "  Generated side-repo maintenance workflow: %s\n", filename)
+	}
+
+	// Remove stale side-repo maintenance workflows that are no longer referenced.
+	entries, err := os.ReadDir(workflowDir)
+	if err != nil {
+		return fmt.Errorf("failed to read workflow directory %s for stale side-repo maintenance workflow cleanup: %w", workflowDir, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "agentics-maintenance-") || !strings.HasSuffix(name, ".yml") {
+			continue
+		}
+		if generatedFiles[name] {
+			continue
+		}
+		stalePath := filepath.Join(workflowDir, name)
+		maintenanceLog.Printf("Removing stale side-repo maintenance workflow: %s", name)
+		if err := os.Remove(stalePath); err != nil {
+			return fmt.Errorf("failed to remove stale side-repo maintenance workflow %s: %w", stalePath, err)
+		}
+		fmt.Fprintf(os.Stderr, "  Removed stale side-repo maintenance workflow: %s\n", name)
 	}
 
 	return nil
@@ -867,13 +899,28 @@ Or use the gh-aw CLI directly:
   ./gh-aw compile --validate --verbose
 
 This workflow is generated for the SideRepoOps target repository "` + repoSlug + `".
-It is invoked via workflow_call from the hosting repository's agentics-maintenance.yml
-and runs maintenance operations against the target repository.`
+It can be triggered via workflow_dispatch or called via workflow_call to run maintenance
+operations (safe-outputs replay, label creation, validation, expired-entity cleanup)
+against the target repository.`
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/maintenance_workflow.go", customInstructions)
 	yaml.WriteString(header)
 
-	yaml.WriteString(`name: Agentic Maintenance (` + repoSlug + `)
+	// Pre-compute cron schedule values (needed in both the on: section and the
+	// close-expired-entities job comment when hasExpires is true).
+	var cronSchedule, scheduleDesc string
+	if hasExpires {
+		if minExpiresDays > 0 {
+			cronSchedule, scheduleDesc = generateMaintenanceCron(minExpiresDays)
+		} else {
+			cronSchedule, scheduleDesc = "37 0 * * *", "Daily"
+		}
+	}
+
+	// Build the `on:` triggers. A schedule trigger is added when at least one
+	// workflow uses `expires`, because the close-expired-entities job's condition
+	// (`buildNotForkAndScheduled`) also matches scheduled runs.
+	onSection := `name: Agentic Maintenance (` + repoSlug + `)
 
 on:
   workflow_dispatch:
@@ -909,23 +956,23 @@ on:
       applied_run_url:
         description: 'The run URL that safe outputs were applied from'
         value: ${{ jobs.apply_safe_outputs.outputs.run_url }}
-
+`
+	if hasExpires {
+		onSection += `  schedule:
+    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + strconv.Itoa(minExpiresDays) + ` days)
+`
+	}
+	onSection += `
 permissions: {}
 
 jobs:
-`)
+`
+	yaml.WriteString(onSection)
 
 	setupActionRef := ResolveSetupActionReference(actionMode, version, actionTag, resolver)
 
 	// Add close-expired-entities job only when any workflow uses expires.
 	if hasExpires {
-		var cronSchedule, scheduleDesc string
-		if minExpiresDays > 0 {
-			cronSchedule, scheduleDesc = generateMaintenanceCron(minExpiresDays)
-		} else {
-			cronSchedule, scheduleDesc = "37 0 * * *", "Daily"
-		}
-
 		closeExpiredCondition := buildNotForkAndScheduled()
 		yaml.WriteString(`  close-expired-entities:
     if: ${{ ` + RenderCondition(closeExpiredCondition) + ` }}
@@ -1004,7 +1051,18 @@ jobs:
     outputs:
       run_url: ${{ steps.record.outputs.run_url }}
     steps:
-      - name: Setup Scripts
+`)
+
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
         with:
           destination: ${{ runner.temp }}/gh-aw/actions

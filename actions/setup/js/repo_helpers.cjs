@@ -308,15 +308,19 @@ function validateTargetRepo(repo, defaultRepo, allowedRepos) {
  * "owner/repo" slug the maintenance scripts should operate against that repo
  * instead of the workflow execution context (`context.repo`).
  *
+ * Throws when `GH_AW_TARGET_REPO_SLUG` is present but not in exact "owner/repo" format
+ * to prevent silently operating against the wrong repository.
+ *
  * @returns {{ owner: string, repo: string }}
  */
 function resolveExecutionOwnerRepo() {
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
   if (targetRepoSlug) {
     const parsed = parseRepoSlug(targetRepoSlug);
-    if (parsed) {
-      return parsed;
+    if (!parsed) {
+      throw new Error(`Invalid GH_AW_TARGET_REPO_SLUG: "${targetRepoSlug}". Expected exact "owner/repo" format (one slash, non-empty on both sides).`);
     }
+    return parsed;
   }
   return { owner: context.repo.owner, repo: context.repo.repo };
 }

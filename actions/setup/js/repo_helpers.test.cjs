@@ -569,17 +569,15 @@ describe("resolveExecutionOwnerRepo", () => {
     expect(result).toEqual({ owner: "my-org", repo: "target-repo" });
   });
 
-  it("should fall back to context.repo when slug is malformed (no slash)", async () => {
+  it("should throw when slug is malformed (no slash)", async () => {
     process.env.GH_AW_TARGET_REPO_SLUG = "malformed-slug";
     const { resolveExecutionOwnerRepo } = await import("./repo_helpers.cjs");
-    const result = resolveExecutionOwnerRepo();
-    expect(result).toEqual({ owner: "ctx-owner", repo: "ctx-repo" });
+    expect(() => resolveExecutionOwnerRepo()).toThrow(/Invalid GH_AW_TARGET_REPO_SLUG/);
   });
 
-  it("should fall back to context.repo when slug has multiple slashes", async () => {
+  it("should throw when slug has multiple slashes", async () => {
     process.env.GH_AW_TARGET_REPO_SLUG = "a/b/c";
     const { resolveExecutionOwnerRepo } = await import("./repo_helpers.cjs");
-    const result = resolveExecutionOwnerRepo();
-    expect(result).toEqual({ owner: "ctx-owner", repo: "ctx-repo" });
+    expect(() => resolveExecutionOwnerRepo()).toThrow(/Invalid GH_AW_TARGET_REPO_SLUG/);
   });
 });

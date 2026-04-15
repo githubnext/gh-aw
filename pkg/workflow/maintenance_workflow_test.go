@@ -933,6 +933,27 @@ func TestCollectSideRepoTargets(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("non-empty token is preferred when same repo appears multiple times", func(t *testing.T) {
+		workflows := []*WorkflowData{
+			{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
+				// First appearance has no token.
+				{Repository: "my-org/shared-repo", Current: true, GitHubToken: ""},
+			}},
+			{Name: "wf2", CheckoutConfigs: []*CheckoutConfig{
+				// Second appearance provides a token — should win.
+				{Repository: "my-org/shared-repo", Current: true, GitHubToken: "${{ secrets.SHARED_TOKEN }}"},
+			}},
+		}
+
+		targets := collectSideRepoTargets(workflows)
+		if len(targets) != 1 {
+			t.Fatalf("expected 1 target, got %d", len(targets))
+		}
+		if targets[0].GitHubToken != "${{ secrets.SHARED_TOKEN }}" {
+			t.Errorf("expected non-empty token to win, got %q", targets[0].GitHubToken)
+		}
+	})
 }
 
 func TestSanitizeRepoForFilename(t *testing.T) {
@@ -1108,6 +1129,77 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 			if strings.HasPrefix(entry.Name(), "agentics-maintenance-") {
 				t.Errorf("Unexpected side-repo maintenance file for dynamic repo: %s", entry.Name())
 			}
+		}
+	})
+
+	t.Run("side-repo with expires includes schedule trigger", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workflowDataList := []*WorkflowData{
+			{
+				Name: "side-repo-with-expires",
+				CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "org/expires-repo", Current: true},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{Expires: 48},
+				},
+			},
+		}
+
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		sideFile := filepath.Join(tmpDir, "agentics-maintenance-org-expires-repo.yml")
+		content, err := os.ReadFile(sideFile)
+		if err != nil {
+			t.Fatalf("Expected side-repo maintenance file to exist: %v", err)
+		}
+		contentStr := string(content)
+
+		if !strings.Contains(contentStr, "schedule:") {
+			t.Errorf("Side-repo maintenance with expires should include a schedule trigger, got content length %d", len(contentStr))
+		}
+		if !strings.Contains(contentStr, "cron:") {
+			t.Errorf("Side-repo maintenance with expires should include a cron expression, got content length %d", len(contentStr))
+		}
+	})
+
+	t.Run("stale side-repo maintenance workflow is removed on recompile", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// Simulate a stale file from a previous run.
+		staleName := "agentics-maintenance-old-org-old-repo.yml"
+		stalePath := filepath.Join(tmpDir, staleName)
+		if err := os.WriteFile(stalePath, []byte("stale"), 0644); err != nil {
+			t.Fatalf("Failed to create stale file: %v", err)
+		}
+
+		// Current run has a different target repo.
+		workflowDataList := []*WorkflowData{
+			{
+				Name: "new-workflow",
+				CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "new-org/new-repo", Current: true},
+				},
+			},
+		}
+
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// Stale file should have been removed.
+		if _, statErr := os.Stat(stalePath); !os.IsNotExist(statErr) {
+			t.Errorf("Stale side-repo maintenance file %s should have been removed", staleName)
+		}
+
+		// The new file should exist.
+		newFile := filepath.Join(tmpDir, "agentics-maintenance-new-org-new-repo.yml")
+		if _, statErr := os.Stat(newFile); statErr != nil {
+			t.Errorf("New side-repo maintenance file should exist: %v", statErr)
 		}
 	})
 }
