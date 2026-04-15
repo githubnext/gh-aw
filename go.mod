@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.5
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.3
-	github.com/charmbracelet/x/exp/golden v0.0.0-20260413095116-b18aac29f444
+	github.com/charmbracelet/x/exp/golden v0.0.0-20260413165052-6921c759c913
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0

@@ -296,14 +296,14 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "upload-asset requires contents write",
+			name: "upload-asset requires contents read",
 			safeOutputs: &SafeOutputsConfig{
 				UploadAssets: &UploadAssetsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
+				PermissionContents: PermissionRead,
 			},
 		},
 		{
