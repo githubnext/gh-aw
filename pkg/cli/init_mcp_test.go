@@ -77,24 +77,24 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		}
 	}
 
-	// Verify .vscode/mcp.json was created
-	mcpConfigPath := filepath.Join(tempDir, ".vscode", "mcp.json")
+	// Verify .mcp.json was created
+	mcpConfigPath := filepath.Join(tempDir, mcpConfigFilePath)
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Errorf("Expected .vscode/mcp.json to exist")
+		t.Errorf("Expected .mcp.json to exist")
 	} else {
 		// Verify content is valid JSON with gh-aw server
 		content, err := os.ReadFile(mcpConfigPath)
 		if err != nil {
-			t.Fatalf("Failed to read .vscode/mcp.json: %v", err)
+			t.Fatalf("Failed to read .mcp.json: %v", err)
 		}
 
 		var config MCPConfig
 		if err := json.Unmarshal(content, &config); err != nil {
-			t.Fatalf("Failed to parse .vscode/mcp.json: %v", err)
+			t.Fatalf("Failed to parse .mcp.json: %v", err)
 		}
 
 		if _, exists := config.Servers["github-agentic-workflows"]; !exists {
-			t.Errorf("Expected .vscode/mcp.json to contain github-agentic-workflows server")
+			t.Errorf("Expected .mcp.json to contain github-agentic-workflows server")
 		}
 
 		server := config.Servers["github-agentic-workflows"]
@@ -153,9 +153,9 @@ func TestInitRepository_MCP_Idempotent(t *testing.T) {
 		t.Errorf("Expected copilot-setup-steps.yml to exist after second call")
 	}
 
-	mcpConfigPath := filepath.Join(tempDir, ".vscode", "mcp.json")
+	mcpConfigPath := filepath.Join(tempDir, mcpConfigFilePath)
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Errorf("Expected .vscode/mcp.json to exist after second call")
+		t.Errorf("Expected .mcp.json to exist after second call")
 	}
 }
 
@@ -176,12 +176,7 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
 
-	// Create .vscode directory
-	if err := os.MkdirAll(".vscode", 0755); err != nil {
-		t.Fatalf("Failed to create .vscode directory: %v", err)
-	}
-
-	// Create initial mcp.json with a different server
+	// Create initial .mcp.json with a different server
 	initialConfig := MCPConfig{
 		Servers: map[string]VSCodeMCPServer{
 			"other-server": {
@@ -191,9 +186,9 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 		},
 	}
 	initialData, _ := json.MarshalIndent(initialConfig, "", "  ")
-	mcpConfigPath := filepath.Join(tempDir, ".vscode", "mcp.json")
+	mcpConfigPath := filepath.Join(tempDir, mcpConfigFilePath)
 	if err := os.WriteFile(mcpConfigPath, initialData, 0644); err != nil {
-		t.Fatalf("Failed to write initial mcp.json: %v", err)
+		t.Fatalf("Failed to write initial .mcp.json: %v", err)
 	}
 
 	// Call ensureMCPConfig
@@ -204,12 +199,12 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 	// Verify the config was NOT modified (file should remain unchanged)
 	content, err := os.ReadFile(mcpConfigPath)
 	if err != nil {
-		t.Fatalf("Failed to read mcp.json: %v", err)
+		t.Fatalf("Failed to read .mcp.json: %v", err)
 	}
 
 	var config MCPConfig
 	if err := json.Unmarshal(content, &config); err != nil {
-		t.Fatalf("Failed to parse mcp.json: %v", err)
+		t.Fatalf("Failed to parse .mcp.json: %v", err)
 	}
 
 	// Check that other-server still exists

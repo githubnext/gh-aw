@@ -67,6 +67,11 @@ type LogsSummary struct {
 	TotalEpisodes          int     `json:"total_episodes" console:"header:Total Episodes"`
 	HighConfidenceEpisodes int     `json:"high_confidence_episodes" console:"header:High Confidence Episodes"`
 	TotalGitHubAPICalls    int     `json:"total_github_api_calls,omitempty" console:"header:Total GitHub API Calls,format:number,omitempty"`
+	// EngineCounts maps engine_id (from aw_info.json) to the number of runs using that engine.
+	// Use this field to accurately classify engine types — do NOT infer engines by scanning
+	// lock files, which contain the word "copilot" in allowed-domains and workflow-source paths
+	// regardless of which engine the workflow actually uses.
+	EngineCounts map[string]int `json:"engine_counts,omitempty" console:"-"`
 }
 
 // RunData contains information about a single workflow run
@@ -134,6 +139,11 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalMissingData int
 	var totalSafeItems int
 	var totalGitHubAPICalls int
+	// engineCounts tracks the number of runs per engine_id, sourced from aw_info.json.
+	// This is the authoritative engine classification — do not infer engine type from
+	// lock file contents, which contain "copilot" in allowed-domains and source paths
+	// regardless of which engine the workflow uses.
+	engineCounts := make(map[string]int)
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
@@ -174,6 +184,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 		if awContext == nil {
 			awContext = pr.AwContext
+		}
+		// Accumulate engine counts from aw_info.json data (authoritative source).
+		if agentID != "" {
+			engineCounts[agentID]++
 		}
 
 		comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
@@ -254,6 +268,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalMissingData:     totalMissingData,
 		TotalSafeItems:       totalSafeItems,
 		TotalGitHubAPICalls:  totalGitHubAPICalls,
+	}
+	if len(engineCounts) > 0 {
+		summary.EngineCounts = engineCounts
 	}
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)

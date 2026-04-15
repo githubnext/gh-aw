@@ -10,6 +10,20 @@ import (
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
+// filterActionableDomains removes placeholder values from a domain list.
+// "-" and unknownDomain ("(unknown)") can appear when iptables drops traffic
+// before Squid identifies the destination; they are not real domains and should
+// not appear in allow-list recommendations.
+func filterActionableDomains(domains []string) []string {
+	result := make([]string, 0, len(domains))
+	for _, d := range domains {
+		if d != "-" && d != unknownDomain {
+			result = append(result, d)
+		}
+	}
+	return result
+}
+
 // generateFindings creates key findings from workflow run data
 func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo) []Finding {
 	auditReportLog.Printf("Generating findings: errors=%d, conclusion=%s", len(errors), processedRun.Run.Conclusion)
@@ -143,7 +157,7 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 
 	// Firewall findings
 	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 0 {
-		blockedDomains := processedRun.FirewallAnalysis.GetBlockedDomains()
+		blockedDomains := filterActionableDomains(processedRun.FirewallAnalysis.GetBlockedDomains())
 		var desc string
 		switch {
 		case len(blockedDomains) == 1:
@@ -253,7 +267,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 	// Recommendations for firewall blocks – trigger on any block so even a single
 	// domain denial (e.g. Codex CLI reporting one blocked domain) surfaces an action.
 	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.BlockedRequests > 0 {
-		blockedDomains := processedRun.FirewallAnalysis.GetBlockedDomains()
+		blockedDomains := filterActionableDomains(processedRun.FirewallAnalysis.GetBlockedDomains())
 		var example string
 		if len(blockedDomains) > 0 {
 			example = fmt.Sprintf(

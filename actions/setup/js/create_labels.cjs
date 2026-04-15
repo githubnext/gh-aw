@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 /**
  * Generate a deterministic pastel hex color string from a label name.
@@ -86,8 +87,11 @@ async function main() {
 
   core.info(`Found ${allLabels.size} unique label(s) in safe-outputs: ${[...allLabels].join(", ")}`);
 
-  // Fetch all existing labels from the repository
-  const { owner, repo } = context.repo;
+  // Fetch all existing labels from the repository.
+  // When GH_AW_TARGET_REPO_SLUG is set (SideRepoOps pattern), create labels in that
+  // repository instead of the execution context repository.
+  const { owner, repo } = resolveExecutionOwnerRepo();
+  core.info(`Operating on repository: ${owner}/${repo}`);
   let existingLabels;
   try {
     existingLabels = await github.paginate(github.rest.issues.listLabelsForRepo, {

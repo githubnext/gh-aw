@@ -396,7 +396,7 @@ astgrep_replace({
 **Tool Categories**:
 
 #### Category 1: GitHub MCP Server
-Comprehensive GitHub API access via Model Context Protocol:
+GitHub API access via Model Context Protocol:
 
 | Toolset | Tools Included | Example Operations |
 |---------|---------------|-------------------|

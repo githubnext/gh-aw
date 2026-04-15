@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -423,7 +424,7 @@ func TestAuditCachingBehavior(t *testing.T) {
 	// Verify that downloadRunArtifacts skips download when valid summary exists
 	// This is tested by checking that the function returns without error
 	// and doesn't attempt to call `gh run download`
-	err := downloadRunArtifacts(run.DatabaseID, runOutputDir, false, "", "", "", nil)
+	err := downloadRunArtifacts(context.Background(), run.DatabaseID, runOutputDir, false, "", "", "", nil)
 	if err != nil {
 		t.Errorf("downloadRunArtifacts should skip download when valid summary exists, but got error: %v", err)
 	}
@@ -579,7 +580,7 @@ func TestRenderAuditReportUsesProvidedMetrics(t *testing.T) {
 	// renderAuditReport should complete without error even without GitHub API access.
 	// No GitHub calls are made because WorkflowPath is empty, causing findPreviousSuccessfulWorkflowRuns
 	// to return early with an error before any network requests are issued.
-	err := renderAuditReport(processedRun, metrics, nil, runOutputDir, "", "", "", false, false, false)
+	err := renderAuditReport(context.Background(), processedRun, metrics, nil, runOutputDir, "", "", "", false, false, false)
 	if err != nil {
 		t.Errorf("renderAuditReport returned unexpected error: %v", err)
 	}

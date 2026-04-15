@@ -504,43 +504,6 @@ func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
 	return extractSkipField(frontmatter, "skip-bots")
 }
 
-// extractStringSliceField extracts a string slice from various input formats
-// Handles: string, []string, []any (with string elements)
-// Returns nil if the input is empty or invalid
-func extractStringSliceField(value any, fieldName string) []string {
-	switch v := value.(type) {
-	case string:
-		// Single string
-		if v == "" {
-			return nil
-		}
-		roleLog.Printf("Extracted single %s: %s", fieldName, v)
-		return []string{v}
-	case []string:
-		// Already a string slice
-		if len(v) == 0 {
-			return nil
-		}
-		roleLog.Printf("Extracted %d %s: %v", len(v), fieldName, v)
-		return v
-	case []any:
-		// Array of any - extract strings
-		var result []string
-		for _, item := range v {
-			if str, ok := item.(string); ok && str != "" {
-				result = append(result, str)
-			}
-		}
-		if len(result) == 0 {
-			return nil
-		}
-		roleLog.Printf("Extracted %d %s from array: %v", len(result), fieldName, result)
-		return result
-	}
-	roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
-	return nil
-}
-
 // mergeStringSlicesDedup merges two string slices with deduplication (preserving order of first occurrence).
 // Logs the merged result under the given logLabel when the result is non-empty.
 func mergeStringSlicesDedup(top, imported []string, logLabel string) []string {

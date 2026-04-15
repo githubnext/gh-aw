@@ -56,7 +56,7 @@ func TestActionModeString(t *testing.T) {
 
 // TestCompilerActionModeDefault tests that the compiler defaults to dev mode
 func TestCompilerActionModeDefault(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	if compiler.GetActionMode() != ActionModeDev {
 		t.Errorf("Default action mode should be dev, got %s", compiler.GetActionMode())
 	}
@@ -64,7 +64,7 @@ func TestCompilerActionModeDefault(t *testing.T) {
 
 // TestCompilerSetActionMode tests setting the action mode
 func TestCompilerSetActionMode(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	compiler.SetActionMode(ActionModeRelease)
 	if compiler.GetActionMode() != ActionModeRelease {
@@ -152,7 +152,7 @@ Test workflow with dev mode.
 	}
 
 	// Compile with dev mode (default)
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
@@ -209,7 +209,7 @@ Test workflow with script mode.
 	}
 
 	// Compile with script mode (will be overridden by feature flag)
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	compiler.SetNoEmit(false)
 
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -347,7 +347,7 @@ func TestVersionToGitRef(t *testing.T) {
 // event-driven relays) can find the actions/ directory instead of defaulting to the
 // caller's repo which has no actions/ directory.
 func TestCheckoutActionsFolderDevModeHasRepository(t *testing.T) {
-	compiler := NewCompilerWithVersion("dev")
+	compiler := NewCompiler(WithVersion("dev"))
 	compiler.SetActionMode(ActionModeDev)
 
 	lines := compiler.generateCheckoutActionsFolder(nil)
@@ -365,7 +365,7 @@ func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
 	versions := []string{"dev", "e284d1e", "v0.57.2-60-ge284d1e", "v1.2.3"}
 	for _, version := range versions {
 		t.Run(version, func(t *testing.T) {
-			compiler := NewCompilerWithVersion(version)
+			compiler := NewCompiler(WithVersion(version))
 			compiler.SetActionMode(ActionModeDev)
 
 			lines := compiler.generateCheckoutActionsFolder(nil)
@@ -402,7 +402,7 @@ func TestResolveSetupActionReferenceActionModeDevVersion(t *testing.T) {
 
 // TestCheckoutActionsFolderActionModeNoCheckout verifies that action mode does not generate a checkout step
 func TestCheckoutActionsFolderActionModeNoCheckout(t *testing.T) {
-	compiler := NewCompilerWithVersion("v1.2.3")
+	compiler := NewCompiler(WithVersion("v1.2.3"))
 	compiler.SetActionMode(ActionModeAction)
 
 	lines := compiler.generateCheckoutActionsFolder(nil)
@@ -431,7 +431,7 @@ Test workflow with action mode.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	compiler := NewCompilerWithVersion("v1.2.3")
+	compiler := NewCompiler(WithVersion("v1.2.3"))
 	compiler.SetActionMode(ActionModeAction)
 	compiler.SetNoEmit(false)
 

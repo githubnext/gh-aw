@@ -77,21 +77,20 @@ function unquoteCPath(s) {
 }
 
 /**
- * Read a blob from a specific commit as a base64-encoded string using
- * `git show <sha>:<path>`.  The raw bytes emitted by git are collected via
- * the `exec.exec` stdout listener so that binary files are not corrupted by
- * any UTF-8 decoding layer (unlike `exec.getExecOutput` which always passes
- * stdout through a `StringDecoder('utf8')`).
+ * Read a blob object as a base64-encoded string using `git cat-file blob <blobHash>`.
+ * The raw bytes emitted by git are collected via the `exec.exec` stdout
+ * listener so that binary files are not corrupted by any UTF-8 decoding
+ * layer (unlike `exec.getExecOutput` which always passes stdout through a
+ * `StringDecoder('utf8')`).
  *
- * @param {string} sha - Commit SHA to read the blob from
- * @param {string} filePath - Repo-relative path of the file
+ * @param {string} blobHash - Object hash of the blob (from `git diff-tree --raw` dstHash field)
  * @param {string} cwd - Working directory of the local git checkout
  * @returns {Promise<string>} Base64-encoded file contents
  */
-async function readBlobAsBase64(sha, filePath, cwd) {
+async function readBlobAsBase64(blobHash, cwd) {
   /** @type {Buffer[]} */
   const chunks = [];
-  await exec.exec("git", ["show", `${sha}:${filePath}`], {
+  await exec.exec("git", ["cat-file", "blob", blobHash], {
     cwd,
     silent: true,
     listeners: {
@@ -200,6 +199,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
         }
         const srcMode = modeFields[0]; // source file mode (e.g. 100644, 100755, 120000, 160000)
         const dstMode = modeFields[1]; // destination file mode (e.g. 100644, 100755, 120000, 160000)
+        const dstHash = modeFields[3]; // destination blob hash (object ID of the file in this commit)
         const status = modeFields[4]; // A=Added, M=Modified, D=Deleted, R=Renamed, C=Copied
 
         const paths = line.slice(tabIdx + 1).split("\t");
@@ -231,7 +231,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${renamedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          additions.push({ path: renamedPath, contents: await readBlobAsBase64(sha, renamedPath, cwd) });
+          additions.push({ path: renamedPath, contents: await readBlobAsBase64(dstHash, cwd) });
         } else if (status && status.startsWith("C")) {
           // Copy: source path is kept (no deletion), only the destination path is added
           const copiedPath = unquoteCPath(paths[1]);
@@ -250,7 +250,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${copiedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          additions.push({ path: copiedPath, contents: await readBlobAsBase64(sha, copiedPath, cwd) });
+          additions.push({ path: copiedPath, contents: await readBlobAsBase64(dstHash, cwd) });
         } else {
           // Added or Modified
           if (dstMode === "160000") {
@@ -264,7 +264,7 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${filePath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
           }
-          additions.push({ path: filePath, contents: await readBlobAsBase64(sha, filePath, cwd) });
+          additions.push({ path: filePath, contents: await readBlobAsBase64(dstHash, cwd) });
         }
       }
 

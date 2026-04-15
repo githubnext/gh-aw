@@ -66,6 +66,10 @@ Use the agentic-workflows MCP tool `logs` with parameters:
 Output is saved to: /tmp/gh-aw/aw-mcp/logs
 ```
 
+**Engine Classification**: Use `summary.engine_counts` from the `logs` tool output to report engine usage. Each run also has an `agent` field (e.g., `"copilot"`, `"claude"`, `"codex"`). Both are derived from the `engine_id` field in `aw_info.json`, which is the authoritative source for engine type.
+
+**IMPORTANT**: Do NOT infer engine type by scanning `.lock.yml` files. Lock files contain the word `copilot` in allowed-domains lists and workflow source paths regardless of which engine the workflow uses, causing false positives.
+
 **Analyze**: Review logs for:
 - Missing tools (patterns, frequency, legitimacy)
 - Errors (tool execution, MCP failures, auth, timeouts, resources)

@@ -88,7 +88,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion(tt.version)
+			compiler := NewCompiler(WithVersion(tt.version))
 
 			var data *WorkflowData
 			if !tt.nilData {
@@ -177,7 +177,7 @@ func TestResolveActionReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion(tt.version)
+			compiler := NewCompiler(WithVersion(tt.version))
 			compiler.SetActionMode(tt.actionMode)
 
 			data := &WorkflowData{}
@@ -245,7 +245,7 @@ func TestCompilerActionTag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion(tt.version)
+			compiler := NewCompiler(WithVersion(tt.version))
 			compiler.SetActionMode(ActionModeRelease)
 			if tt.compilerActionTag != "" {
 				compiler.SetActionTag(tt.compilerActionTag)

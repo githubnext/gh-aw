@@ -15,7 +15,7 @@ import (
 
 // TestGitHubMCPAppTokenConfiguration tests that app configuration is correctly parsed for GitHub tool
 func TestGitHubMCPAppTokenConfiguration(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -59,7 +59,7 @@ Test workflow with GitHub MCP Server app configuration.
 
 // TestGitHubMCPAppTokenMintingStep tests that token minting step is generated
 func TestGitHubMCPAppTokenMintingStep(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -122,7 +122,7 @@ Test workflow with GitHub MCP app token minting.
 
 // TestGitHubMCPAppTokenAndGitHubTokenMutuallyExclusive tests that setting both app and github-token is rejected
 func TestGitHubMCPAppTokenAndGitHubTokenMutuallyExclusive(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -156,7 +156,7 @@ Test that setting both app and github-token is an error.
 
 // TestGitHubMCPAppTokenWithRemoteMode tests that app token works with remote mode
 func TestGitHubMCPAppTokenWithRemoteMode(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -212,7 +212,7 @@ Test app token with remote GitHub MCP Server.
 
 // TestGitHubMCPAppTokenOrgWide tests org-wide GitHub MCP token with wildcard
 func TestGitHubMCPAppTokenOrgWide(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -267,7 +267,7 @@ Test org-wide GitHub MCP app token.
 // Repo-scoping from a GitHub App token does not substitute for author-integrity filtering
 // inside a repository; public repos still need automatic min-integrity: approved protection.
 func TestGitHubMCPAppTokenWithLockdownDetectionStep(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -324,7 +324,7 @@ Test that determine-automatic-lockdown is generated even when app is configured.
 // (see https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app),
 // which maps to "permission-vulnerability-alerts" in actions/create-github-app-token.
 func TestGitHubMCPAppTokenWithDependabotToolset(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -398,7 +398,7 @@ Test that permission-vulnerability-alerts is emitted in the App token minting st
 // This allows org-level permissions (e.g. members: read) that are not valid GitHub
 // Actions scopes but are supported by GitHub Apps.
 func TestGitHubMCPAppTokenWithExtraPermissions(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -453,7 +453,7 @@ Test extra org-level permissions in GitHub App token.
 // under tools.github.github-app.permissions can suppress a GitHub App-only scope
 // that was set at job level by overriding it with 'none' (nested wins).
 func TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -503,7 +503,7 @@ Test that nested permissions override job-level GitHub App-only scopes (nested w
 // rejects a workflow where tools.github.github-app.permissions contains a "write"
 // value, since write access is not allowed for GitHub App-only scopes in this section.
 func TestGitHubMCPAppTokenExtraPermissionsWriteRejected(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -589,7 +589,7 @@ Test workflow - top-level github-app checkout token must be minted in agent job.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompilerWithVersion("1.0.0")
+			compiler := NewCompiler(WithVersion("1.0.0"))
 			tmpDir := t.TempDir()
 			testFile := filepath.Join(tmpDir, "test.md")
 			err := os.WriteFile(testFile, []byte(tt.markdown), 0644)
@@ -641,7 +641,7 @@ Test workflow - top-level github-app checkout token must be minted in agent job.
 // as job outputs (runner v2.308+). By minting within the agent job the token is
 // available as steps.github-mcp-app-token.outputs.token.
 func TestGitHubMCPAppTokenMintedInAgentJob(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	markdown := `---
 on: issues
 permissions:

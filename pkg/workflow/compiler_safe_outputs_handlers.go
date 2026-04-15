@@ -385,6 +385,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
@@ -416,6 +417,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringPtr("protected_files_policy", c.ManifestFilesPolicy).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfNotEmpty("patch_format", c.PatchFormat).

@@ -65,6 +65,12 @@ gh aw compile --zizmor      # Security vulnerability scanner
 gh aw compile --poutine     # Supply chain security analyzer
 gh aw compile --runner-guard  # Runner constraint scanner (requires Docker)
 
+# Require Docker for container image validation (silently skipped without this flag when Docker is unavailable)
+gh aw compile --validate-images
+
+# Approve all safe update changes (new secrets, action additions/removals not in manifest)
+gh aw compile --approve
+
 # Strict mode with all scanners
 gh aw compile --actionlint --zizmor --poutine --runner-guard
 
@@ -2122,7 +2128,18 @@ Import files are in `.github/workflows/shared/` and can contain:
 - Text content
 - Mixed frontmatter + content
 
-Example import file with tools:
+The following frontmatter fields in imported files are merged into the importing workflow:
+
+- `tools:` - Merged with the importing workflow's tools
+- `safe-outputs:` - Merged with safe-output configuration
+- `env:` - Environment variables merged (last import wins per key; main workflow takes precedence)
+- `checkout:` - Checkout configurations appended (main workflow's checkouts take precedence)
+- `github-app:` - Top-level GitHub App credentials (first-wins across imports)
+- `on.github-app:` - Activation GitHub App credentials (first-wins across imports)
+- `steps:`, `pre-steps:`, `post-steps:` - Steps appended in import order
+- `runtimes:`, `network:`, `permissions:`, `services:`, `cache:`, `features:`, `mcp-servers:`
+
+Example import file:
 
 ```markdown
 ---
@@ -2132,6 +2149,10 @@ tools:
 safe-outputs:
   create-issue:
     labels: [automation]
+env:
+  MY_VAR: "shared-value"
+checkout:
+  fetch-depth: 0
 ---
 
 Additional instructions for the coding agent.

@@ -136,7 +136,7 @@ func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, o
 
 	// Load base run summary once (shared across all comparisons)
 	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for base run %d...", baseRunID)))
-	baseSummary, err := loadRunSummaryForDiff(baseRunID, outputDir, owner, repo, hostname, verbose, artifactFilter)
+	baseSummary, err := loadRunSummaryForDiff(ctx, baseRunID, outputDir, owner, repo, hostname, verbose, artifactFilter)
 	if err != nil {
 		return fmt.Errorf("failed to load data for base run %d: %w", baseRunID, err)
 	}
@@ -153,7 +153,7 @@ func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, o
 		}
 
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Loading data for run %d...", compareRunID)))
-		compareSummary, err := loadRunSummaryForDiff(compareRunID, outputDir, owner, repo, hostname, verbose, artifactFilter)
+		compareSummary, err := loadRunSummaryForDiff(ctx, compareRunID, outputDir, owner, repo, hostname, verbose, artifactFilter)
 		if err != nil {
 			return fmt.Errorf("failed to load data for run %d: %w", compareRunID, err)
 		}

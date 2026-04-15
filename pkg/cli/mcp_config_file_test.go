@@ -5,7 +5,6 @@ package cli
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -128,20 +127,14 @@ func TestEnsureMCPConfig(t *testing.T) {
 				t.Fatalf("Failed to change to temp directory: %v", err)
 			}
 
-			// Create .vscode directory and existing config if specified
+			// Create existing config if specified
 			if tt.existingConfig != nil {
-				vscodeDir := ".vscode"
-				if err := os.MkdirAll(vscodeDir, 0755); err != nil {
-					t.Fatalf("Failed to create .vscode directory: %v", err)
-				}
-
 				data, err := json.MarshalIndent(tt.existingConfig, "", "  ")
 				if err != nil {
 					t.Fatalf("Failed to marshal existing config: %v", err)
 				}
 
-				mcpConfigPath := filepath.Join(vscodeDir, "mcp.json")
-				if err := os.WriteFile(mcpConfigPath, data, 0644); err != nil {
+				if err := os.WriteFile(mcpConfigFilePath, data, 0644); err != nil {
 					t.Fatalf("Failed to write existing config: %v", err)
 				}
 			}
@@ -160,14 +153,13 @@ func TestEnsureMCPConfig(t *testing.T) {
 			}
 
 			// Verify the file was created
-			mcpConfigPath := filepath.Join(".vscode", "mcp.json")
-			if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-				t.Error("Expected .vscode/mcp.json to exist")
+			if _, err := os.Stat(mcpConfigFilePath); os.IsNotExist(err) {
+				t.Error("Expected .mcp.json to exist")
 				return
 			}
 
 			// Read and validate the content
-			data, err := os.ReadFile(mcpConfigPath)
+			data, err := os.ReadFile(mcpConfigFilePath)
 			if err != nil {
 				t.Fatalf("Failed to read mcp.json: %v", err)
 			}
@@ -314,28 +306,15 @@ func TestEnsureMCPConfigDirectoryCreation(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Call function when .vscode doesn't exist
+	// Call function when .mcp.json doesn't exist
 	err = ensureMCPConfig(false)
 	if err != nil {
 		t.Fatalf("ensureMCPConfig() failed: %v", err)
 	}
 
-	// Verify .vscode directory was created
-	vscodeDir := ".vscode"
-	info, err := os.Stat(vscodeDir)
-	if os.IsNotExist(err) {
-		t.Error("Expected .vscode directory to be created")
-		return
-	}
-
-	if !info.IsDir() {
-		t.Error("Expected .vscode to be a directory")
-	}
-
-	// Verify mcp.json was created
-	mcpConfigPath := filepath.Join(vscodeDir, "mcp.json")
-	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Error("Expected mcp.json to be created")
+	// Verify .mcp.json was created
+	if _, err := os.Stat(mcpConfigFilePath); os.IsNotExist(err) {
+		t.Error("Expected .mcp.json to be created")
 	}
 }
 
@@ -360,10 +339,9 @@ func TestMCPConfigFilePermissions(t *testing.T) {
 	}
 
 	// Check file permissions
-	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
-	info, err := os.Stat(mcpConfigPath)
+	info, err := os.Stat(mcpConfigFilePath)
 	if err != nil {
-		t.Fatalf("Failed to stat mcp.json: %v", err)
+		t.Fatalf("Failed to stat .mcp.json: %v", err)
 	}
 
 	// Verify file is readable and writable (at minimum)

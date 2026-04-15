@@ -15,8 +15,8 @@ import (
 
 var commandsLog = logger.New("cli:commands")
 
-// NewWorkflow creates a new workflow markdown file with template content
-func NewWorkflow(workflowName string, verbose bool, force bool, engine string) error {
+// CreateWorkflowMarkdownFile creates a new workflow markdown file with template content
+func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, engine string) error {
 	commandsLog.Printf("Creating new workflow: name=%s, force=%v, engine=%s", workflowName, force, engine)
 
 	// Normalize the workflow name by removing .md extension if present

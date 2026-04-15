@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var mcpConfigLog = logger.New("cli:mcp_config_file")
+
+// mcpConfigFilePath is the path to the MCP configuration file used by GitHub Copilot CLI.
+// GitHub Copilot CLI reads .mcp.json from the repository root.
+const mcpConfigFilePath = ".mcp.json"
 
 // VSCodeMCPServer represents a single MCP server configuration for VSCode mcp.json
 type VSCodeMCPServer struct {
@@ -23,19 +26,12 @@ type MCPConfig struct {
 	Servers map[string]VSCodeMCPServer `json:"servers"`
 }
 
-// ensureMCPConfig creates .vscode/mcp.json with gh-aw MCP server configuration
+// ensureMCPConfig creates .mcp.json with gh-aw MCP server configuration
 // If the file already exists, it renders console instructions instead of editing
 func ensureMCPConfig(verbose bool) error {
-	mcpConfigLog.Print("Creating .vscode/mcp.json")
+	mcpConfigLog.Print("Creating .mcp.json")
 
-	// Create .vscode directory if it doesn't exist
-	vscodeDir := ".vscode"
-	if err := os.MkdirAll(vscodeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .vscode directory: %w", err)
-	}
-	mcpConfigLog.Printf("Ensured directory exists: %s", vscodeDir)
-
-	mcpConfigPath := filepath.Join(vscodeDir, "mcp.json")
+	mcpConfigPath := mcpConfigFilePath
 
 	// Add or update gh-aw MCP server configuration
 	ghAwServerName := "github-agentic-workflows"
@@ -94,7 +90,7 @@ func ensureMCPConfig(verbose bool) error {
 	return nil
 }
 
-// renderMCPConfigUpdateInstructions renders console instructions for updating .vscode/mcp.json
+// renderMCPConfigUpdateInstructions renders console instructions for updating .mcp.json
 func renderMCPConfigUpdateInstructions(filePath, serverName string, serverConfig VSCodeMCPServer) {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "%s %s\n",
@@ -102,7 +98,7 @@ func renderMCPConfigUpdateInstructions(filePath, serverName string, serverConfig
 		"Existing file detected: "+filePath)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent MCP server integration, please add the following")
-	fmt.Fprintln(os.Stderr, "to the \"servers\" section of your .vscode/mcp.json file:")
+	fmt.Fprintln(os.Stderr, "to the \"servers\" section of your .mcp.json file:")
 	fmt.Fprintln(os.Stderr)
 
 	// Generate the JSON to add

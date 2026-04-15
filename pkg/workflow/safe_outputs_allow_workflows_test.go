@@ -185,7 +185,7 @@ func TestAllowWorkflowsValidationRequiresGitHubApp(t *testing.T) {
 
 // TestAllowWorkflowsParsing tests that allow-workflows is correctly parsed from frontmatter.
 func TestAllowWorkflowsParsing(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -222,7 +222,7 @@ Test workflow with allow-workflows on create-pull-request.
 
 // TestAllowWorkflowsParsingPushToPullRequestBranch tests parsing for push-to-pull-request-branch.
 func TestAllowWorkflowsParsingPushToPullRequestBranch(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: pull_request
@@ -259,7 +259,7 @@ Test workflow with allow-workflows on push-to-pull-request-branch.
 // TestAllowWorkflowsAppTokenPermission tests that when allow-workflows is true
 // and a GitHub App is configured, the compiled output includes permission-workflows: write.
 func TestAllowWorkflowsAppTokenPermission(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -300,7 +300,7 @@ Test workflow checking permission-workflows: write in GitHub App token.
 // TestAllowWorkflowsCompileErrorWithoutGitHubApp tests that compiling a workflow
 // with allow-workflows: true but no GitHub App produces a compile error.
 func TestAllowWorkflowsCompileErrorWithoutGitHubApp(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues

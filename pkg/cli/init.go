@@ -92,13 +92,13 @@ func InitRepository(opts InitOptions) error {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
 		}
 
-		// Create .vscode/mcp.json
+		// Create .mcp.json
 		if err := ensureMCPConfig(opts.Verbose); err != nil {
 			initLog.Printf("Failed to create MCP config: %v", err)
 			return fmt.Errorf("failed to create MCP config: %w", err)
 		}
 		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .vscode/mcp.json"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .mcp.json"))
 		}
 	}
 

@@ -767,3 +767,238 @@ Uses all imported neutral tools.
 		t.Error("Expected compiled workflow to contain startup-timeout configuration (90 seconds)")
 	}
 }
+
+// TestBashMainWorkflowOverridesImportBashList verifies that bash: true in the main workflow
+// (unrestricted bash) takes precedence over a specific bash command list defined in an import.
+// This prevents imports from accidentally restricting the main workflow's bash permissions.
+func TestBashMainWorkflowOverridesImportBashList(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow with a restricted bash tool list
+	sharedPath := filepath.Join(tempDir, "bash-restricted.md")
+	sharedContent := `---
+description: "Shared workflow that restricts bash to specific commands"
+tools:
+  bash:
+    - "ls"
+    - "cat"
+---
+
+# Restricted Bash Import
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Main workflow with bash: true (unrestricted), importing the restricted shared file
+	workflowPath := filepath.Join(tempDir, "my-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: read
+tools:
+  bash: true
+sandbox:
+  agent: false
+imports:
+  - bash-restricted.md
+---
+
+# My Workflow
+
+This workflow needs unrestricted bash.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// The compiled output must NOT contain shell(ls) or shell(cat) — those would indicate
+	// the import's restricted list won over the main workflow's bash: true.
+	restrictedCmds := []string{"shell(ls)", "shell(cat)"}
+	for _, cmd := range restrictedCmds {
+		if strings.Contains(workflowData, cmd) {
+			t.Errorf("Expected compiled workflow to NOT contain %q (bash: true in main workflow should override import's restricted bash list)", cmd)
+		}
+	}
+
+	// bash: true gets converted to unrestricted bash (["*"]), which produces --allow-all-tools.
+	if !strings.Contains(workflowData, "--allow-all-tools") {
+		t.Error("Expected compiled workflow to contain '--allow-all-tools' (unrestricted bash from bash: true in main workflow)")
+	}
+}
+
+// TestCacheMemoryMapOverridesBoolInImportChain verifies that when a parent import sets
+// tools.cache-memory: {key: "specific-key"}, and a further-nested (child) import sets
+// tools.cache-memory: true, the parent import's specific key wins.
+// This preserves custom cache isolation across workflow runs.
+func TestCacheMemoryMapOverridesBoolInImportChain(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a deeply nested import that sets cache-memory: true (generic)
+	childPath := filepath.Join(tempDir, "generic-cache.md")
+	childContent := `---
+description: "A utility import that enables cache-memory generically"
+tools:
+  cache-memory: true
+---
+
+# Generic Cache Utility
+`
+	if err := os.WriteFile(childPath, []byte(childContent), 0644); err != nil {
+		t.Fatalf("Failed to write child shared file: %v", err)
+	}
+
+	// Create a parent import that sets a specific cache-memory key and imports the child
+	parentPath := filepath.Join(tempDir, "specific-cache.md")
+	parentContent := `---
+description: "Parent import with a specific cache-memory key"
+tools:
+  cache-memory:
+    key: my-specific-cache-key
+imports:
+  - generic-cache.md
+---
+
+# Specific Cache Parent
+`
+	if err := os.WriteFile(parentPath, []byte(parentContent), 0644); err != nil {
+		t.Fatalf("Failed to write parent shared file: %v", err)
+	}
+
+	// Main workflow with no cache-memory of its own, importing the parent
+	workflowPath := filepath.Join(tempDir, "my-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: read
+sandbox:
+  agent: false
+imports:
+  - specific-cache.md
+---
+
+# My Workflow
+
+This workflow relies on the parent import's cache-memory key.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// The specific key from the parent import must appear in the compiled cache key.
+	if !strings.Contains(workflowData, "my-specific-cache-key") {
+		t.Error("Expected compiled workflow to contain 'my-specific-cache-key' in the cache key (parent import's specific key should win over child's generic cache-memory: true)")
+	}
+
+	// The generic default key pattern (using GH_AW_WORKFLOW_ID_SANITIZED) must NOT be
+	// used as the cache key suffix, which would indicate cache-memory: true won.
+	// Note: GH_AW_WORKFLOW_ID_SANITIZED is also set as an env var; we look for it in the
+	// context of a "key:" line to distinguish the two.
+	if strings.Contains(workflowData, "key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}") {
+		t.Error("Expected compiled workflow cache key to NOT use the default GH_AW_WORKFLOW_ID_SANITIZED pattern (parent import's specific key should win)")
+	}
+}
+
+// TestGitHubToolFalseOverridesImport verifies that tools.github: false in the main workflow
+// takes precedence over tools.github.mode: remote (or any github tool config) from an import.
+func TestGitHubToolFalseOverridesImport(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Create a shared workflow that enables the GitHub MCP server
+	sharedPath := filepath.Join(tempDir, "side-repository.md")
+	sharedContent := `---
+description: "Shared side-repo configuration with GitHub MCP"
+tools:
+  github:
+    mode: remote
+---
+
+# Shared Side Repository Configuration
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared file: %v", err)
+	}
+
+	// Create main workflow that explicitly disables github tools, but imports the shared file
+	workflowPath := filepath.Join(tempDir, "my-workflow.md")
+	workflowContent := `---
+on: issues
+engine: copilot
+strict: false
+permissions:
+  contents: read
+  issues: read
+tools:
+  github: false
+sandbox:
+  agent: false
+imports:
+  - side-repository.md
+---
+
+# My Workflow
+
+This workflow explicitly opts out of GitHub MCP tools.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed: %v", err)
+	}
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockFileContent, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	workflowData := string(lockFileContent)
+
+	// The GitHub MCP server should NOT appear in the compiled output because
+	// tools.github: false in the main workflow must override the import.
+	githubMCPIndicators := []string{
+		"X-MCP-Toolsets",
+		"api.githubcopilot.com/mcp/",
+		"ghcr.io/github/github-mcp-server",
+	}
+	for _, indicator := range githubMCPIndicators {
+		if strings.Contains(workflowData, indicator) {
+			t.Errorf("Expected compiled workflow to NOT contain GitHub MCP server indicator %q (github MCP server should be disabled by tools.github: false)", indicator)
+		}
+	}
+}

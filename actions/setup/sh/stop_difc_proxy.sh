@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Stop DIFC proxy for pre-agent gh CLI steps
-# This script stops the awmg proxy container, removes the proxy CA certificate from the
-# system trust store (if it was installed), and clears the GH_HOST environment variable.
+# This script stops the awmg proxy container and removes the proxy CA certificate
+# from the system trust store (if it was installed).
 # The proxy must be stopped before the MCP gateway starts to avoid double-filtering traffic.
 #
-# Environment:
-#   GITHUB_ENV - Path to GitHub Actions environment file
+# This script does NOT modify $GITHUB_ENV. The proxy routing env vars (GH_HOST,
+# GITHUB_API_URL, etc.) are injected as step-level env by the compiler and are
+# never written to $GITHUB_ENV, so no restore/clear is needed here.
 
 set -e
 
@@ -21,22 +22,5 @@ if [ -f "$DIFC_PROXY_CA_CERT" ]; then
     sudo update-ca-certificates || true
   fi
 fi
-
-# Only clear GH_HOST if it was set to the proxy address; preserve any pre-existing
-# GH_HOST value (e.g., from configure_gh_for_ghe.sh on GitHub Enterprise runners).
-if [ "${GH_HOST:-}" = "localhost:18443" ]; then
-  echo "GH_HOST=" >> "$GITHUB_ENV"
-fi
-
-# Restore GITHUB_API_URL and GITHUB_GRAPHQL_URL to their original values.
-if [ "${GITHUB_API_URL:-}" = "https://localhost:18443/api/v3" ]; then
-  echo "GITHUB_API_URL=${GH_AW_ORIGINAL_GITHUB_API_URL:-}" >> "$GITHUB_ENV"
-fi
-if [ "${GITHUB_GRAPHQL_URL:-}" = "https://localhost:18443/api/graphql" ]; then
-  echo "GITHUB_GRAPHQL_URL=${GH_AW_ORIGINAL_GITHUB_GRAPHQL_URL:-}" >> "$GITHUB_ENV"
-fi
-
-# Clear the Node.js CA certs override set by start_difc_proxy.sh.
-echo "NODE_EXTRA_CA_CERTS=" >> "$GITHUB_ENV"
 
 echo "DIFC proxy stopped"

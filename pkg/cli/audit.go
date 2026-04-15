@@ -221,14 +221,14 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		// file reads (created items, aw_info, etc.) resolve correctly even if the run
 		// directory has been moved or copied since the summary was first written.
 		processedRun.Run.LogsPath = runOutputDir
-		return renderAuditReport(processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+		return renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
 	}
 
 	// Check if we have locally cached artifacts first
 	hasLocalCache := fileutil.DirExists(runOutputDir) && !fileutil.IsDirEmpty(runOutputDir)
 
 	// Try to get run metadata from GitHub API
-	run, metadataErr := fetchWorkflowRunMetadata(runID, owner, repo, hostname, verbose)
+	run, metadataErr := fetchWorkflowRunMetadata(ctx, runID, owner, repo, hostname, verbose)
 	var useLocalCache bool
 
 	if metadataErr != nil {
@@ -259,7 +259,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 
 		// Download artifacts for the run
 		auditLog.Printf("Downloading artifacts for run %d", runID)
-		err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter)
+		err := downloadRunArtifacts(ctx, runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter)
 		if err != nil {
 			// Gracefully handle cases where the run legitimately has no artifacts
 			if errors.Is(err, ErrNoArtifacts) {
@@ -483,20 +483,20 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		}
 	}
 
-	return renderAuditReport(processedRun, metrics, mcpToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+	return renderAuditReport(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
 }
 
 // renderAuditReport builds and renders the audit report from a fully-populated processedRun.
 // It is called both when serving from a cached run summary and after a fresh processing pass,
 // ensuring that the two paths produce identical output.
-func renderAuditReport(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, owner, repo, hostname string, verbose bool, parse bool, jsonOutput bool) error {
+func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, owner, repo, hostname string, verbose bool, parse bool, jsonOutput bool) error {
 	runID := processedRun.Run.DatabaseID
 
 	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
 	processedRun.Run.SafeItemsCount = len(currentCreatedItems)
 
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
-	comparison := buildAuditComparisonForRun(processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
+	comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
 
 	// Build structured audit data
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
@@ -752,7 +752,7 @@ func findFirstFailingStep(jobLog string) (int, string) {
 }
 
 // fetchWorkflowRunMetadata fetches metadata for a single workflow run
-func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
+func fetchWorkflowRunMetadata(ctx context.Context, runID int64, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
 	// Build the API endpoint
 	var endpoint string
 	if owner != "" && repo != "" {
@@ -780,7 +780,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
-	output, err := workflow.RunGHCombined("Fetching run metadata...", args...)
+	output, err := workflow.RunGHCombinedContext(ctx, "Fetching run metadata...", args...)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
@@ -807,7 +807,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 	// that were cancelled or failed before any jobs started), resolve the actual workflow
 	// display name so that audit output is consistent with 'gh aw logs'.
 	if strings.HasPrefix(run.WorkflowName, ".github/") {
-		if displayName := resolveWorkflowDisplayName(run.WorkflowPath, owner, repo, hostname); displayName != "" {
+		if displayName := resolveWorkflowDisplayName(ctx, run.WorkflowPath, owner, repo, hostname); displayName != "" {
 			auditLog.Printf("Resolved workflow display name: %q -> %q", run.WorkflowName, displayName)
 			run.WorkflowName = displayName
 		}
@@ -821,7 +821,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 // relative to the git repository root so that it works from any working directory inside
 // the repo); if that fails it falls back to a GitHub API call.  An empty string is
 // returned on any error so that callers can gracefully keep the original value.
-func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) string {
+func resolveWorkflowDisplayName(ctx context.Context, workflowPath, owner, repo, hostname string) string {
 	// Try local file first.  workflowPath is a repo-relative path like
 	// ".github/workflows/foo.lock.yml", so we resolve it against the git root to
 	// produce a correct absolute path regardless of the current working directory.
@@ -849,7 +849,7 @@ func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) stri
 	}
 	args = append(args, endpoint, "--jq", ".name")
 
-	out, err := workflow.RunGHCombined("Fetching workflow name...", args...)
+	out, err := workflow.RunGHCombinedContext(ctx, "Fetching workflow name...", args...)
 	if err != nil {
 		auditLog.Printf("Failed to fetch workflow display name for %q: %v", workflowPath, err)
 		return ""

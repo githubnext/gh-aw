@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -18,7 +19,7 @@ import (
 var downloadLog = logger.New("cli:download_workflow")
 
 // downloadWorkflowContentViaGit downloads a workflow file using git archive
-func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte, error) {
+func downloadWorkflowContentViaGit(ctx context.Context, repo, path, ref string, verbose bool) ([]byte, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git", repo, path, ref)))
 	}
@@ -31,12 +32,12 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
 	// #nosec G204 -- repoURL, ref, and path are from workflow import configuration authored by the
-	// developer; exec.Command with separate args (not shell execution) prevents shell injection.
-	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
+	// developer; exec.CommandContext with separate args (not shell execution) prevents shell injection.
+	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
 		// If git archive fails, try with git clone + read file as a fallback
-		return downloadWorkflowContentViaGitClone(repo, path, ref, verbose)
+		return downloadWorkflowContentViaGitClone(ctx, repo, path, ref, verbose)
 	}
 
 	// Extract the file from the tar archive using Go's archive/tar (cross-platform)
@@ -53,7 +54,7 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 }
 
 // downloadWorkflowContentViaGitClone downloads a workflow file by shallow cloning with sparse checkout
-func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([]byte, error) {
+func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref string, verbose bool) ([]byte, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git clone", repo, path, ref)))
 	}
@@ -71,19 +72,19 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Initialize git repository
-	initCmd := exec.Command("git", "-C", tmpDir, "init")
+	initCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "init")
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("failed to initialize git repository: %w\nOutput: %s", err, string(output))
 	}
 
 	// Add remote
-	remoteCmd := exec.Command("git", "-C", tmpDir, "remote", "add", "origin", repoURL)
+	remoteCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "remote", "add", "origin", repoURL)
 	if output, err := remoteCmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("failed to add remote: %w\nOutput: %s", err, string(output))
 	}
 
 	// Enable sparse-checkout
-	sparseCmd := exec.Command("git", "-C", tmpDir, "config", "core.sparseCheckout", "true")
+	sparseCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "config", "core.sparseCheckout", "true")
 	if output, err := sparseCmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("failed to enable sparse checkout: %w\nOutput: %s", err, string(output))
 	}
@@ -109,29 +110,29 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 		// Note: sparse-checkout with SHA refs may not reduce bandwidth as much as with branch refs,
 		// because the server needs to send enough history to reach the specific commit.
 		// However, it still limits the working directory to only the requested file.
-		fetchCmd := exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
+		fetchCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
 		if _, err := fetchCmd.CombinedOutput(); err != nil {
 			// If fetching specific SHA fails, try fetching all branches with depth 1
-			fetchCmd = exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin")
+			fetchCmd = exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin")
 			if output, err := fetchCmd.CombinedOutput(); err != nil {
 				return nil, fmt.Errorf("failed to fetch repository: %w\nOutput: %s", err, string(output))
 			}
 		}
 
 		// Checkout the specific commit
-		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", ref)
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
 		}
 	} else {
 		// For branch/tag refs, fetch the specific ref
-		fetchCmd := exec.Command("git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
+		fetchCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
 		if output, err := fetchCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to fetch ref %s: %w\nOutput: %s", ref, err, string(output))
 		}
 
 		// Checkout FETCH_HEAD
-		checkoutCmd := exec.Command("git", "-C", tmpDir, "checkout", "FETCH_HEAD")
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "FETCH_HEAD")
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to checkout FETCH_HEAD: %w\nOutput: %s", err, string(output))
 		}
@@ -155,21 +156,21 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 }
 
 // downloadWorkflowContent downloads the content of a workflow file from GitHub
-func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, error) {
+func downloadWorkflowContent(ctx context.Context, repo, path, ref string, verbose bool) ([]byte, error) {
 	downloadLog.Printf("Downloading workflow content: %s/%s@%s", repo, path, ref)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s", repo, path, ref)))
 	}
 
 	// Use gh CLI to download the file
-	output, err := workflow.RunGHCombined("Downloading workflow...", "api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
+	output, err := workflow.RunGHCombinedContext(ctx, "Downloading workflow...", "api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
 		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", repo, path, ref)
 			// Try fallback using git commands
-			content, gitErr := downloadWorkflowContentViaGit(repo, path, ref, verbose)
+			content, gitErr := downloadWorkflowContentViaGit(ctx, repo, path, ref, verbose)
 			if gitErr != nil {
 				return nil, fmt.Errorf("failed to fetch file content via GitHub API and git: API error: %w, Git error: %w", err, gitErr)
 			}

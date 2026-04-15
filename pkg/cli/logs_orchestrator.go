@@ -715,7 +715,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 			}
 
 			// No cached summary or version mismatch - download and process
-			err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose, dlOwner, dlRepo, "", artifactFilter)
+			err := downloadRunArtifacts(ctx, run.DatabaseID, runOutputDir, verbose, dlOwner, dlRepo, "", artifactFilter)
 
 			result := DownloadResult{
 				Run:      run,

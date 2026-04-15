@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -681,7 +682,7 @@ func formatCountChange(count1, count2 int) string {
 // metrics); otherwise it downloads artifacts and analyzes firewall logs, returning a partial
 // summary with only FirewallAnalysis populated.
 // artifactFilter restricts which artifacts are downloaded; nil means download all.
-func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname string, verbose bool, artifactFilter []string) (*RunSummary, error) {
+func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, owner, repo, hostname string, verbose bool, artifactFilter []string) (*RunSummary, error) {
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
 	if absDir, err := filepath.Abs(runOutputDir); err == nil {
 		runOutputDir = absDir
@@ -694,7 +695,7 @@ func loadRunSummaryForDiff(runID int64, outputDir string, owner, repo, hostname 
 	}
 
 	// Download artifacts if needed
-	if err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter); err != nil {
+	if err := downloadRunArtifacts(ctx, runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter); err != nil {
 		if !errors.Is(err, ErrNoArtifacts) {
 			return nil, fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
 		}

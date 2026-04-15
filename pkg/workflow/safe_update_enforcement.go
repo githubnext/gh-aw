@@ -31,12 +31,14 @@ var ghAwInternalSecrets = map[string]bool{
 // changes have been introduced compared to those recorded in the existing manifest.
 //
 // manifest is the gh-aw-manifest extracted from the current lock file before
-// recompilation. When nil (no lock file exists yet, or the lock file predates
-// the safe-updates feature), it is treated as an empty baseline so that all
-// non-GITHUB_TOKEN secrets and all custom actions are flagged on the very first
-// compilation. This ensures agents receive a SECURITY REVIEW REQUIRED prompt even
-// on the initial code-generation run. The newly generated lock file then embeds
-// the manifest as the baseline for future compilations.
+// recompilation.
+//
+//   - nil means a lock file was found but it predates the safe-updates feature
+//     (no gh-aw-manifest section). Enforcement is skipped so legacy lock files
+//     are not flagged on upgrade.
+//   - non-nil (including an empty &GHAWManifest{}) means the caller has a
+//     baseline to compare against. Pass &GHAWManifest{} when no lock file
+//     exists yet (first compilation); all new secrets/actions will be flagged.
 //
 // secretNames contains the raw names produced by CollectSecretReferences (i.e.
 // they may or may not carry the "secrets." prefix; both forms are normalized
@@ -48,10 +50,10 @@ var ghAwInternalSecrets = map[string]bool{
 // Returns a structured, actionable error when violations are found.
 func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string) error {
 	if manifest == nil {
-		// Treat no prior manifest as an empty baseline so that newly introduced
-		// secrets and actions are flagged on first compilation as well.
-		safeUpdateLog.Print("No existing manifest found; enforcing safe update with empty baseline (new secrets/actions will be flagged)")
-		manifest = &GHAWManifest{Version: currentGHAWManifestVersion}
+		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
+		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
+		safeUpdateLog.Print("Lock file has no gh-aw-manifest; skipping safe update enforcement (legacy lock file)")
+		return nil
 	}
 
 	secretViolations := collectSecretViolations(manifest, secretNames)
@@ -213,7 +215,7 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 		sb.WriteString(strings.Join(removedActions, "\n  - "))
 	}
 
-	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve-updates flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
+	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
 	return fmt.Errorf("%s", sb.String())
 }
 

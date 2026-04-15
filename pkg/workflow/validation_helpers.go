@@ -11,6 +11,12 @@
 //   - validateMountStringFormat() - Parses and validates a "source:dest:mode" mount string
 //   - containsTrigger() - Reports whether an 'on:' section includes a named trigger
 //
+// # Type Conversion Helpers (any → []string)
+//
+//   - parseStringSliceAny() - Canonical coercion of []string/[]any to []string; skips non-strings
+//   - toStringSlice() - Strict variant: returns error on non-string elements; also accepts bare string
+//   - extractStringSliceField() - Accepts string/[]string/[]any; skips empty strings; wraps bare string
+//
 // # Design Rationale
 //
 // These helpers consolidate 76+ duplicate validation patterns identified in the
@@ -114,6 +120,140 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 		}
 		delete(configData, fieldName)
 	}
+}
+
+// preprocessProtectedFilesField preprocesses the "protected-files" field in configData,
+// handling both the legacy string-enum form and the new object form.
+//
+// String form (unchanged): "blocked", "allowed", or "fallback-to-issue".
+// Object form: { policy: "blocked", exclude: ["AGENTS.md"] }
+//   - policy is optional; when missing or empty, this preprocessing step treats it as absent
+//     and leaves downstream default handling to apply (the "protected-files" key is deleted)
+//   - exclude is a list of filenames/path-prefixes to remove from the default protected set
+//
+// When the object form is encountered the field is normalised in-place:
+//   - "protected-files" is replaced with the extracted policy string, or deleted when policy is absent/empty
+//   - The extracted exclude slice is returned so callers can store it in the config struct
+//
+// When the string form is encountered the field is left unchanged and nil is returned.
+// The log parameter is optional; pass nil to suppress debug output.
+func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger) []string {
+	if configData == nil {
+		return nil
+	}
+	raw, exists := configData["protected-files"]
+	if !exists || raw == nil {
+		return nil
+	}
+	pfMap, ok := raw.(map[string]any)
+	if !ok {
+		// String form — left for validateStringEnumField to handle
+		return nil
+	}
+	// Object form: extract policy and exclude
+	if policy, ok := pfMap["policy"].(string); ok && policy != "" {
+		configData["protected-files"] = policy
+		if log != nil {
+			log.Printf("protected-files object form: policy=%s", policy)
+		}
+	} else {
+		delete(configData, "protected-files")
+		if log != nil {
+			log.Print("protected-files object form: no policy, using default")
+		}
+	}
+	return parseStringSliceAny(pfMap["exclude"], log)
+}
+
+// parseStringSliceAny coerces a raw any value into a []string.
+// It accepts a []string (returned as-is), []any (string elements extracted),
+// or nil (returns nil). The log parameter is optional; pass nil to suppress
+// debug output about skipped non-string elements.
+func parseStringSliceAny(raw any, log *logger.Logger) []string {
+	if raw == nil {
+		return nil
+	}
+	switch v := raw.(type) {
+	case []string:
+		// Already the right type — return directly without copying.
+		return v
+	case []any:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			} else if log != nil {
+				log.Printf("parseStringSliceAny: skipping non-string item: %T", item)
+			}
+		}
+		return result
+	default:
+		if log != nil {
+			log.Printf("parseStringSliceAny: unexpected type %T, ignoring", raw)
+		}
+		return nil
+	}
+}
+
+// toStringSlice converts an any value to a []string, supporting []string, []any, and string.
+// Unlike parseStringSliceAny, this function returns an error when a []any element is not a string,
+// and also accepts a bare string value (wrapping it in a single-element slice).
+func toStringSlice(val any) ([]string, error) {
+	switch v := val.(type) {
+	case []string:
+		return v, nil
+	case []any:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			s, ok := item.(string)
+			if !ok {
+				return nil, errors.New("non-string item in list")
+			}
+			result = append(result, s)
+		}
+		return result, nil
+	case string:
+		return []string{v}, nil
+	default:
+		return nil, fmt.Errorf("unsupported type %T", val)
+	}
+}
+
+// extractStringSliceField extracts a string slice from various input formats.
+// Handles: string, []string, []any (with string elements).
+// Returns nil if the input is empty or invalid.
+func extractStringSliceField(value any, fieldName string) []string {
+	switch v := value.(type) {
+	case string:
+		// Single string
+		if v == "" {
+			return nil
+		}
+		validationHelpersLog.Printf("Extracted single %s: %s", fieldName, v)
+		return []string{v}
+	case []string:
+		// Already a string slice
+		if len(v) == 0 {
+			return nil
+		}
+		validationHelpersLog.Printf("Extracted %d %s: %v", len(v), fieldName, v)
+		return v
+	case []any:
+		// Array of any - extract strings
+		var result []string
+		for _, item := range v {
+			if str, ok := item.(string); ok && str != "" {
+				result = append(result, str)
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		validationHelpersLog.Printf("Extracted %d %s from array: %v", len(result), fieldName, result)
+		return result
+	}
+	validationHelpersLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
+	return nil
 }
 
 // validateNoDuplicateIDs checks that all items have unique IDs extracted by idFunc.
