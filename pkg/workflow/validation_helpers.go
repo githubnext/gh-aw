@@ -129,6 +129,7 @@ func validateStringEnumField(configData map[string]any, fieldName string, allowe
 //   - The extracted exclude slice is returned so callers can store it in the config struct
 //
 // When the string form is encountered the field is left unchanged and nil is returned.
+// The log parameter is optional; pass nil to suppress debug output.
 func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger) []string {
 	if configData == nil {
 		return nil
@@ -158,13 +159,16 @@ func preprocessProtectedFilesField(configData map[string]any, log *logger.Logger
 }
 
 // parseStringSliceAny coerces a raw any value into a []string.
-// It accepts a []string, []any (elements coerced to strings), or nil.
+// It accepts a []string (returned as-is), []any (string elements extracted),
+// or nil (returns nil). The log parameter is optional; pass nil to suppress
+// debug output about skipped non-string elements.
 func parseStringSliceAny(raw any, log *logger.Logger) []string {
 	if raw == nil {
 		return nil
 	}
 	switch v := raw.(type) {
 	case []string:
+		// Already the right type — return directly without copying.
 		return v
 	case []any:
 		result := make([]string, 0, len(v))
