@@ -718,7 +718,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				log.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
 			}
 		} else {
-			log.Printf("Lock file %s not found on filesystem either (new workflow or not yet written). Safe update enforcement will treat as empty manifest.", lockFile)
+			// No lock file anywhere — this is a brand-new workflow.  Use an empty
+			// (non-nil) manifest so EnforceSafeUpdate applies enforcement and flags
+			// any newly introduced secrets or actions for review.
+			log.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
+			oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 		}
 	}
 
