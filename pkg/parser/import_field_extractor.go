@@ -19,7 +19,7 @@ import (
 type importAccumulator struct {
 	toolsBuilder             strings.Builder
 	mcpServersBuilder        strings.Builder
-	markdownBuilder          strings.Builder // Only used for imports WITH inputs (compile-time substitution)
+	markdownBuilder          strings.Builder // imports with substituted inputs or schema defaults (compile-time substitution)
 	importPaths              []string        // Import paths for runtime-import macro generation
 	stepsBuilder             strings.Builder
 	copilotSetupStepsBuilder strings.Builder // Steps from copilot-setup-steps.yml (inserted at start)
@@ -82,26 +82,28 @@ func newImportAccumulator() *importAccumulator {
 func (acc *importAccumulator) extractAllImportFields(content []byte, item importQueueItem, visited map[string]bool) error {
 	log.Printf("Extracting all import fields: path=%s, section=%s, inputs=%d, content_size=%d bytes", item.fullPath, item.sectionName, len(item.inputs), len(content))
 
-	// When the import provides 'with' inputs, apply expression substitution to the raw
-	// content before any YAML or markdown processing. This enables ${{ github.aw.import-inputs.* }}
-	// expressions in the imported workflow's frontmatter fields (tools, runtimes, etc.)
-	// as well as in the markdown body. Array and map values are serialized as JSON so they
-	// produce valid YAML inline syntax (e.g. ["go","typescript"]).
+	// Apply import-schema defaults before any YAML or markdown processing, even when no
+	// explicit 'with:' inputs were provided by the importing workflow. This enables
+	// ${{ github.aw.import-inputs.* }} expressions in the imported workflow's frontmatter
+	// fields (engine, safe-outputs, tools, runtimes, etc.) and markdown body to resolve
+	// to their declared default values rather than remaining as literal strings.
+	// Array and map values are serialized as JSON so they produce valid YAML inline syntax.
 	rawContent := string(content)
-	if len(item.inputs) > 0 {
-		// Apply import-schema defaults for any optional parameters not supplied by the caller,
-		// so that ${{ github.aw.import-inputs.<key> }} expressions for defaulted parameters
-		// are replaced with their declared default values rather than left as literal strings.
-		inputsWithDefaults := applyImportSchemaDefaults(rawContent, item.inputs)
+	// Apply import-schema defaults for any optional parameters not supplied by the caller.
+	inputsWithDefaults := applyImportSchemaDefaults(rawContent, item.inputs)
+	if len(inputsWithDefaults) > 0 {
 		rawContent = substituteImportInputsInContent(rawContent, inputsWithDefaults)
+		// Add resolved defaults to acc.importInputs so the compile-time markdown
+		// substitution pass (generatePrompt) also has access to them.
+		maps.Copy(acc.importInputs, inputsWithDefaults)
 	}
 
 	// Extract tools from imported file.
-	// When inputs are present we use the already-substituted content (to pick up any
-	// ${{ github.aw.import-inputs.* }} expressions in the tools/mcp-servers frontmatter)
-	// rather than re-reading the original file from disk.
+	// When content was modified by substitution (either explicit inputs or schema defaults),
+	// we use the already-substituted content (to pick up any ${{ github.aw.import-inputs.* }}
+	// expressions in the tools/mcp-servers frontmatter) rather than re-reading the original file.
 	var toolsContent string
-	if len(item.inputs) > 0 {
+	if string(content) != rawContent {
 		var err error
 		toolsContent, err = extractToolsFromContent(rawContent)
 		if err != nil {
@@ -116,21 +118,22 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 	}
 	acc.toolsBuilder.WriteString(toolsContent + "\n")
 
-	// Track import path for runtime-import macro generation (only if no inputs).
-	// Imports with inputs must be inlined for compile-time substitution.
+	// Track import path for runtime-import macro generation (only if no substitution happened).
+	// Imports with substituted inputs (explicit or via schema defaults) must be inlined for
+	// compile-time substitution so that ${{ github.aw.import-inputs.* }} expressions are resolved.
 	// Builtin paths (@builtin:…) are pure configuration — they carry no user-visible
 	// prompt content and must not generate runtime-import macros.
 	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
 
-	if len(item.inputs) == 0 && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
-		// No inputs and not a builtin - use runtime-import macro
+	if string(content) == rawContent && !strings.HasPrefix(importRelPath, BuiltinPathPrefix) {
+		// No substitution happened and not a builtin - use runtime-import macro
 		acc.importPaths = append(acc.importPaths, importRelPath)
 		log.Printf("Added import path for runtime-import: %s", importRelPath)
-	} else if len(item.inputs) > 0 {
-		// Has inputs - must inline for compile-time substitution.
+	} else if string(content) != rawContent {
+		// Content was modified by substitution - inline for compile-time substitution.
 		// Extract markdown from the already-substituted content so that import-inputs
 		// expressions embedded in the markdown body are resolved here.
-		log.Printf("Import %s has inputs - will be inlined for compile-time substitution", importRelPath)
+		log.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
 		markdownContent, err := ExtractMarkdownContent(rawContent)
 		if err != nil {
 			return fmt.Errorf("failed to extract markdown from imported file '%s': %w", item.fullPath, err)
@@ -150,15 +153,16 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 
 	// Parse frontmatter once to avoid redundant YAML parsing for each field extraction.
 	// All subsequent field extractions use the pre-parsed result.
-	// When inputs are present we parse the already-substituted content so that all
-	// frontmatter fields (runtimes, mcp-servers, etc.) reflect the resolved values.
-	// For builtin files without inputs, use the process-level cache to avoid redundant
-	// YAML re-parsing (processIncludedFileWithVisited already populated this cache).
-	// Builtin files WITH inputs must skip the cache because input substitution modifies
-	// the content, so the cached (unsubstituted) result would be stale.
+	// When content was modified by substitution, parse the already-substituted content so
+	// that all frontmatter fields (runtimes, mcp-servers, engine, safe-outputs, etc.)
+	// reflect the resolved values.
+	// For builtin files where no substitution happened, use the process-level cache to
+	// avoid redundant YAML re-parsing (processIncludedFileWithVisited already populated it).
+	// Builtin files where substitution modified the content must skip the cache because
+	// the cached (unsubstituted) result would be stale.
 	var parsed *FrontmatterResult
 	var err error
-	if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) && len(item.inputs) == 0 {
+	if strings.HasPrefix(item.fullPath, BuiltinPathPrefix) && string(content) == rawContent {
 		parsed, err = ExtractFrontmatterFromBuiltinFile(item.fullPath, content)
 	} else {
 		parsed, err = ExtractFrontmatterFromContent(rawContent)

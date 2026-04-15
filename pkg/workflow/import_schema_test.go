@@ -658,3 +658,188 @@ imports:
 		}
 	})
 }
+
+// TestImportSchemaDefaultsNoExplicitInputs tests that import-schema default values are
+// applied when no explicit 'with:' inputs are provided by the importing workflow.
+// This verifies the fix where ${{ github.aw.import-inputs.* }} expressions in 'engine'
+// and 'safe-outputs' sections were not resolved to their default values when no inputs
+// were passed.
+func TestImportSchemaDefaultsNoExplicitInputs(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-import-defaults-no-inputs-*")
+
+	sharedDir := filepath.Join(tempDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	t.Run("engine section with schema default", func(t *testing.T) {
+		sharedPath := filepath.Join(sharedDir, "engine-defaults.md")
+		sharedContent := `---
+import-schema:
+  claude-max-turns:
+    type: integer
+    default: 10000
+    description: Maximum number of chat iterations per run
+
+engine:
+  id: claude
+  max-turns: ${{ github.aw.import-inputs.claude-max-turns }}
+---
+
+# Shared Engine Workflow
+`
+		if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+			t.Fatalf("Failed to write shared file: %v", err)
+		}
+
+		workflowPath := filepath.Join(tempDir, "main-engine.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+imports:
+  - shared/engine-defaults.md
+---
+
+# Main Workflow
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("CompileWorkflow failed: %v", err)
+		}
+
+		lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+		lockFileContent, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		lockContent := string(lockFileContent)
+
+		// The engine max-turns should be resolved to the default value (10000)
+		if strings.Contains(lockContent, "github.aw.import-inputs.claude-max-turns") {
+			t.Error("Lock file should not contain unresolved github.aw.import-inputs.claude-max-turns expression")
+		}
+		if !strings.Contains(lockContent, "10000") {
+			t.Errorf("Lock file should contain the default max-turns value 10000; got:\n%s", lockContent)
+		}
+	})
+
+	t.Run("safe-outputs section with schema default", func(t *testing.T) {
+		sharedPath := filepath.Join(sharedDir, "safe-outputs-defaults.md")
+		sharedContent := `---
+import-schema:
+  expires:
+    type: string
+    default: "3d"
+    description: "How long to keep discussions before expiry"
+
+safe-outputs:
+  create-discussion:
+    expires: ${{ github.aw.import-inputs.expires }}
+---
+
+# Shared Safe Outputs Workflow
+`
+		if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+			t.Fatalf("Failed to write shared file: %v", err)
+		}
+
+		workflowPath := filepath.Join(tempDir, "main-safe-outputs.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+imports:
+  - shared/safe-outputs-defaults.md
+---
+
+# Main Workflow
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("CompileWorkflow failed: %v", err)
+		}
+
+		lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+		lockFileContent, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		lockContent := string(lockFileContent)
+
+		// The safe-outputs expires should be resolved to the default value ("3d")
+		if strings.Contains(lockContent, "github.aw.import-inputs.expires") {
+			t.Error("Lock file should not contain unresolved github.aw.import-inputs.expires expression")
+		}
+		if !strings.Contains(lockContent, "3d") {
+			t.Errorf("Lock file should contain the default expires value '3d'; got:\n%s", lockContent)
+		}
+	})
+
+	t.Run("uses/with syntax with no with block", func(t *testing.T) {
+		sharedPath := filepath.Join(sharedDir, "uses-defaults.md")
+		sharedContent := `---
+import-schema:
+  model:
+    type: string
+    default: "claude-sonnet-4-5"
+    description: "AI model to use"
+
+engine:
+  id: claude
+  model: ${{ github.aw.import-inputs.model }}
+---
+
+# Shared Uses Workflow
+`
+		if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+			t.Fatalf("Failed to write shared file: %v", err)
+		}
+
+		workflowPath := filepath.Join(tempDir, "main-uses.md")
+		workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+imports:
+  - uses: shared/uses-defaults.md
+---
+
+# Main Workflow
+`
+		if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		compiler := workflow.NewCompiler()
+		if err := compiler.CompileWorkflow(workflowPath); err != nil {
+			t.Fatalf("CompileWorkflow failed: %v", err)
+		}
+
+		lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+		lockFileContent, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		lockContent := string(lockFileContent)
+
+		if strings.Contains(lockContent, "github.aw.import-inputs.model") {
+			t.Error("Lock file should not contain unresolved github.aw.import-inputs.model expression")
+		}
+		if !strings.Contains(lockContent, "claude-sonnet-4-5") {
+			t.Errorf("Lock file should contain the default model value 'claude-sonnet-4-5'; got:\n%s", lockContent)
+		}
+	})
+}
