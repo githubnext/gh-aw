@@ -4,13 +4,13 @@
 
 ## Overview
 
-The `workflow` package is the compilation core of `gh-aw`. It transforms parsed markdown frontmatter (from `pkg/parser`) and markdown body text into complete GitHub Actions `.lock.yml` files. Compilation covers the full lifecycle: frontmatter parsing into strongly-typed configuration structs, multi-pass validation (schema, permissions, security, strict mode), engine-specific step generation (Copilot, Claude, Codex, custom), safe-output job construction, and final YAML serialization.
+The `workflow` package is the compilation core of `gh-aw`. It transforms parsed markdown frontmatter (from `pkg/parser`) and markdown body text into complete GitHub Actions `.lock.yml` files. Compilation covers the full lifecycle: frontmatter parsing into strongly-typed configuration structs, multi-pass validation (schema, permissions, security, strict mode), engine-specific step generation (Copilot, Claude, Codex, Gemini, custom), safe-output job construction, and final YAML serialization.
 
 The package is organized around three major subsystems:
 
 1. **Compiler** (`compiler*.go`, `compiler_types.go`): The `Compiler` struct drives the main compilation pipeline. It accepts a markdown file path (or pre-parsed `WorkflowData`), builds the full GitHub Actions workflow YAML, and writes the `.lock.yml` file only when the content has changed.
 
-2. **Engine registry** (`agentic_engine.go`, `*_engine.go`): A pluggable engine architecture where each AI engine (`copilot`, `claude`, `codex`, `custom`) implements a set of focused interfaces (`Engine`, `CapabilityProvider`, `WorkflowExecutor`, `MCPConfigProvider`, etc.). Engines are registered in a global `EngineRegistry` and looked up by name at compile time.
+2. **Engine registry** (`agentic_engine.go`, `*_engine.go`): A pluggable engine architecture where each AI engine (`copilot`, `claude`, `codex`, `gemini`, `custom`) implements a set of focused interfaces (`Engine`, `CapabilityProvider`, `WorkflowExecutor`, `MCPConfigProvider`, etc.). Engines are registered in a global `EngineRegistry` and looked up by name at compile time.
 
 3. **Validation** (`validation.go`, `strict_mode_*.go`, `*_validation.go`): A layered validation system organized by domain. Each validator is a focused file under 300 lines. Validation runs both at compile time and optionally in strict mode for production deployments.
 
@@ -67,6 +67,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `CopilotEngine` | struct | Copilot coding agent engine |
 | `ClaudeEngine` | struct | Claude coding agent engine |
 | `CodexEngine` | struct | OpenAI Codex coding agent engine |
+| `GeminiEngine` | struct | Google Gemini CLI coding agent engine |
 
 #### Engine Registry Functions
 
@@ -77,6 +78,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `NewCopilotEngine` | `func() *CopilotEngine` | Creates the Copilot engine |
 | `NewClaudeEngine` | `func() *ClaudeEngine` | Creates the Claude engine |
 | `NewCodexEngine` | `func() *CodexEngine` | Creates the Codex engine |
+| `NewGeminiEngine` | `func() *GeminiEngine` | Creates the Gemini engine |
 
 ### Frontmatter Configuration Types
 

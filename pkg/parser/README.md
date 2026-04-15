@@ -147,6 +147,20 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `IsLabelOnlyEvent` | `func(eventValue any) bool` | Detects whether a trigger only activates on label events |
 | `IsNonConflictingCommandEvent` | `func(eventValue any) bool` | Detects whether a trigger is a non-conflicting slash command |
 
+#### Virtual Filesystem and Workflow Update Helpers
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `RegisterBuiltinVirtualFile` | `func(path string, content []byte)` | Registers embedded virtual file content under an `@builtin:` path |
+| `BuiltinVirtualFileExists` | `func(path string) bool` | Returns whether a built-in virtual file path has been registered |
+| `GetBuiltinFrontmatterCache` | `func(path string) (*FrontmatterResult, bool)` | Gets cached frontmatter parse results for built-in virtual files |
+| `SetBuiltinFrontmatterCache` | `func(path string, result *FrontmatterResult) *FrontmatterResult` | Stores a frontmatter parse result in the built-in cache |
+| `ReadFile` | `func(path string) ([]byte, error)` | Reads file content through parser virtual/builtin-aware file resolution |
+| `MergeTools` | `func(base, additional map[string]any) (map[string]any, error)` | Merges two tool configuration maps with MCP-aware conflict handling |
+| `UpdateWorkflowFrontmatter` | `func(workflowPath string, updateFunc func(frontmatter map[string]any) error, verbose bool) error` | Reads, updates, and rewrites workflow frontmatter with a callback |
+| `EnsureToolsSection` | `func(frontmatter map[string]any) map[string]any` | Ensures `tools` exists and is a map in frontmatter |
+| `QuoteCronExpressions` | `func(yamlContent string) string` | Ensures schedule cron values in YAML are quoted |
+
 ### Constants / Variables
 
 | Name | Type | Description |

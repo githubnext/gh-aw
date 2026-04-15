@@ -112,6 +112,10 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `InspectWorkflowMCP` | `func(string, ...) error` | Inspects MCP server configurations |
 | `ListWorkflowMCP` | `func(string, bool) error` | Lists MCP server info for a workflow |
 | `UpdateActions` | `func(bool, bool, bool) error` | Bulk-updates GitHub Action versions in workflows |
+| `ActionsBuildCommand` | `func() error` | Builds all custom actions in `actions/` |
+| `ActionsValidateCommand` | `func() error` | Validates all `action.yml` files under `actions/` |
+| `ActionsCleanCommand` | `func() error` | Removes generated action build artifacts |
+| `GenerateActionMetadataCommand` | `func() error` | Generates `action.yml` and README metadata for selected action modules |
 | `UpdateWorkflows` | `func([]string, ...) error` | Updates workflows from upstream sources |
 | `RemoveWorkflows` | `func(string, bool, string) error` | Removes workflow files |
 | `ValidateWorkflowName` | `func(string) error` | Validates a workflow name identifier |
