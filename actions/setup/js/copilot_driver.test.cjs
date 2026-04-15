@@ -1,4 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { createRequire } from "module";
+import fs from "fs";
+import os from "os";
+import path from "path";
+
+const require = createRequire(import.meta.url);
+const { resolvePromptFileArgs, buildPromptFileFallbackInstruction, PROMPT_FILE_INLINE_THRESHOLD_BYTES } = require("./copilot_driver.cjs");
 
 describe("copilot_driver.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
@@ -281,6 +288,30 @@ describe("copilot_driver.cjs", () => {
         delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
         expect(delay).toBeLessThanOrEqual(MAX_DELAY_MS);
       }
+    });
+  });
+
+  describe("prompt-file support", () => {
+    it("inlines small prompt files as -p", () => {
+      const promptFile = path.join(os.tmpdir(), `copilot-driver-small-${Date.now()}.txt`);
+      fs.writeFileSync(promptFile, "small prompt body", "utf8");
+
+      const resolved = resolvePromptFileArgs(["--add-dir", "/tmp", "--prompt-file", promptFile, "--allow-all-tools"]);
+      expect(resolved).toEqual(["--add-dir", "/tmp", "-p", "small prompt body", "--allow-all-tools"]);
+    });
+
+    it("uses compact fallback prompt when prompt file is larger than 100KB", () => {
+      const promptFile = path.join(os.tmpdir(), `copilot-driver-large-${Date.now()}.txt`);
+      fs.writeFileSync(promptFile, "x".repeat(PROMPT_FILE_INLINE_THRESHOLD_BYTES + 1), "utf8");
+
+      const resolved = resolvePromptFileArgs(["--prompt-file", promptFile, "--allow-all-tools"]);
+      expect(resolved).toEqual(["-p", buildPromptFileFallbackInstruction(promptFile), "--allow-all-tools"]);
+    });
+
+    it("keeps --prompt-file arguments unchanged when file resolution fails", () => {
+      const missingPath = path.join(os.tmpdir(), `copilot-driver-missing-${Date.now()}.txt`);
+      const resolved = resolvePromptFileArgs(["--prompt-file", missingPath, "--allow-all-tools"]);
+      expect(resolved).toEqual(["--prompt-file", missingPath, "--allow-all-tools"]);
     });
   });
 
