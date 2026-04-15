@@ -263,6 +263,31 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowDispatchNumberInputType(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": map[string]any{
+				"inputs": map[string]any{
+					"max_retries": map[string]any{
+						"description": "Maximum retries",
+						"type":        "number",
+						"default":     3,
+						"required":    false,
+					},
+				},
+			},
+		},
+		"engine": "copilot",
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/workflow_dispatch_number_test.md")
+	if err != nil {
+		t.Fatalf("expected workflow_dispatch number input type to validate, got: %v", err)
+	}
+}
+
 func TestGetSafeOutputTypeKeys(t *testing.T) {
 	keys, err := GetSafeOutputTypeKeys()
 	if err != nil {
