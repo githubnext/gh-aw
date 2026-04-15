@@ -56,7 +56,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// correctly handling all relay patterns including cross-repo and cross-org scenarios.
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding resolve-host-repo step for workflow_call trigger")
-		steps = append(steps, c.generateResolveHostRepoStep())
+		steps = append(steps, c.generateResolveHostRepoStep(data))
 	}
 
 	// In workflow_call context, compute a unique artifact prefix from a hash of the
@@ -157,7 +157,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(reactionCondition)))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")
@@ -226,7 +226,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if !data.StaleCheckDisabled {
 		steps = append(steps, "      - name: Check workflow lock file\n")
 		steps = append(steps, "        id: check-lock-file\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
 		// Inject the GitHub Actions context workflow_ref expression as GH_AW_CONTEXT_WORKFLOW_REF
@@ -254,7 +254,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// If the download fails, the check is skipped (soft failure).
 	if !data.UpdateCheckDisabled && IsReleasedVersion(c.version) {
 		steps = append(steps, "      - name: Check compile-agentic version\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMPILED_VERSION: \"%s\"\n", c.version))
 		steps = append(steps, "        with:\n")
@@ -272,7 +272,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: sanitized\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		if len(data.Bots) > 0 {
 			steps = append(steps, "        env:\n")
 			steps = append(steps, formatYAMLEnv("          ", "GH_AW_ALLOWED_BOTS", strings.Join(data.Bots, ",")))
@@ -296,7 +296,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "      - name: Add comment with workflow run link\n")
 		steps = append(steps, "        id: add-comment\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(reactionCondition)))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")
@@ -351,7 +351,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "      - name: Lock issue for agent workflow\n")
 		steps = append(steps, "        id: lock-issue\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(lockCondition)))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("lock-issue.cjs"))
@@ -396,7 +396,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// workflow_dispatch we skip it silently via the env-based label check.
 		steps = append(steps, "      - name: Remove trigger label\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.RemoveTriggerLabelStepID))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		steps = append(steps, "        env:\n")
 		// Pass label names as a JSON array so the script can validate the label
 		labelNamesJSON, err := json.Marshal(data.LabelCommand)
@@ -422,7 +422,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// (plus a `label_name` alias).
 		steps = append(steps, "      - name: Get trigger label name\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.GetTriggerLabelStepID))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 		// Pass the pre-computed matched slash-command (if any) so the script can provide a
 		// unified command_name for workflows that have both label_command and slash_command.
 		if len(data.Command) > 0 {
@@ -528,7 +528,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	activationArtifactName := artifactPrefixExprForActivationJob(data) + constants.ActivationArtifactName
 	steps = append(steps, "      - name: Upload activation artifact\n")
 	steps = append(steps, "        if: success()\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          name: %s\n", activationArtifactName))
 	steps = append(steps, "          path: |\n")
@@ -651,11 +651,11 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 //
 // job.workflow_sha provides the immutable commit SHA of the workflow being executed, ensuring
 // the activation checkout pins to the exact revision rather than a moving branch/tag ref.
-func (c *Compiler) generateResolveHostRepoStep() string {
+func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
 	step.WriteString("        id: resolve-host-repo\n")
-	step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	step.WriteString(fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	step.WriteString("        env:\n")
 	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
 	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")
@@ -730,7 +730,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			activationToken,
-			GetActionPin,
+			getActionPin,
 			extraPaths...,
 		)
 		// When no custom token is configured, GITHUB_TOKEN is scoped to the calling
@@ -752,7 +752,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// Root instruction files are always fetched by cone mode but are also listed explicitly
 	// so the intent is visible in the generated YAML.
 	compilerActivationJobLog.Print("Adding .github, .agents, engine-specific dirs, and root instruction files to sparse checkout")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, getActionPin, extraPaths...)
 }
 
 // addSameRepoIfConditionToSteps injects an if: condition into each step that restricts

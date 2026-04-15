@@ -38,7 +38,7 @@ func generateGitHubScriptWithRequire(scriptPath string) string {
 //   - condition: Optional if condition (e.g., "always()"). Empty string means no condition.
 //
 // Returns a string containing the complete YAML for the github-script step.
-func generateInlineGitHubScriptStep(stepName, script, condition string) string {
+func generateInlineGitHubScriptStep(stepName, script, condition string, data *WorkflowData) string {
 	compilerGitHubActionsStepsLog.Printf("Generating inline GitHub script step: name=%q, condition=%q", stepName, condition)
 	var step strings.Builder
 
@@ -46,7 +46,7 @@ func generateInlineGitHubScriptStep(stepName, script, condition string) string {
 	if condition != "" {
 		step.WriteString("        if: " + condition + "\n")
 	}
-	step.WriteString("        uses: " + GetActionPin("actions/github-script") + "\n")
+	step.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")
 	step.WriteString(script)
@@ -57,7 +57,7 @@ func generateInlineGitHubScriptStep(stepName, script, condition string) string {
 // generatePlaceholderSubstitutionStep generates a JavaScript-based step that performs
 // safe placeholder substitution using the substitute_placeholders script.
 // This replaces the multiple sed commands with a single JavaScript step.
-func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
+func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string, data *WorkflowData) {
 	if len(expressionMappings) == 0 {
 		return
 	}
@@ -66,7 +66,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 
 	// Use actions/github-script to perform the substitutions
 	yaml.WriteString(indent + "- name: Substitute placeholders\n")
-	fmt.Fprintf(yaml, indent+"  uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, indent+"  uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString(indent + "  env:\n")
 	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 

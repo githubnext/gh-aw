@@ -331,7 +331,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache"))
+		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/cache"))
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -487,9 +487,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// Use actions/cache/restore@v4 when restore-only or threat detection enabled
 		// Use actions/cache@v4 for normal caches
 		if useRestoreOnly {
-			fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache/restore"))
+			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/cache/restore"))
 		} else {
-			fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache"))
+			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/cache"))
 		}
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
@@ -614,7 +614,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		if !useBackwardCompatiblePaths {
 			stepName = fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 		}
-		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()"))
+		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()", data))
 	}
 }
 
@@ -662,7 +662,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		} else {
 			fmt.Fprintf(builder, "      - name: Upload cache-memory data as artifact (%s)\n", cache.ID)
 		}
-		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format, with prefix in workflow_call context
@@ -842,7 +842,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		downloadStepID := strings.ReplaceAll("download_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
 		fmt.Fprintf(&downloadStep, "        id: %s\n", downloadStepID)
-		fmt.Fprintf(&downloadStep, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+		fmt.Fprintf(&downloadStep, "        uses: %s\n", getActionPin("actions/download-artifact"))
 		downloadStep.WriteString("        continue-on-error: true\n")
 		downloadStep.WriteString("        with:\n")
 		fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
@@ -884,7 +884,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			// Generate validation step using helper with condition to only run if cache has content
 			stepName := fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 			condition := fmt.Sprintf("steps.%s.outputs.has_content == 'true'", checkStepID)
-			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition))
+			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition, data))
 		}
 
 		// Generate cache key using integrity-aware format (matches generateCacheMemorySteps)
@@ -904,7 +904,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		var saveStep strings.Builder
 		fmt.Fprintf(&saveStep, "      - name: Save cache-memory to cache (%s)\n", cache.ID)
 		fmt.Fprintf(&saveStep, "        if: steps.%s.outputs.has_content == 'true'\n", checkStepID)
-		fmt.Fprintf(&saveStep, "        uses: %s\n", GetActionPin("actions/cache/save"))
+		fmt.Fprintf(&saveStep, "        uses: %s\n", getActionPin("actions/cache/save"))
 		saveStep.WriteString("        with:\n")
 		fmt.Fprintf(&saveStep, "          key: %s\n", cacheKey)
 		fmt.Fprintf(&saveStep, "          path: %s\n", cacheDir)

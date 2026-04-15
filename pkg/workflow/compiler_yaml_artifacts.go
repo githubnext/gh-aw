@@ -42,7 +42,7 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	yaml.WriteString("      - name: Upload agent artifacts\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", artifactName)
 

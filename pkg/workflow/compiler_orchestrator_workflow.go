@@ -422,7 +422,7 @@ func (c *Compiler) processOnSectionAndFilters(
 		}
 		typedSteps, convErr := SliceToSteps(anySteps)
 		if convErr == nil {
-			typedSteps = ApplyActionPinsToTypedSteps(typedSteps, workflowData)
+			typedSteps = applyActionPinsToTypedSteps(typedSteps, workflowData)
 			for i, s := range typedSteps {
 				onSteps[i] = s.ToMap()
 			}

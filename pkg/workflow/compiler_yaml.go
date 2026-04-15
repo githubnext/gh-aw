@@ -616,7 +616,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// (like changeset.md) need to be substituted after the file is imported
 	// Now includes the known needs.* expressions
 	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
+		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ", data)
 	}
 
 	// Validate that all placeholders have been substituted
@@ -804,7 +804,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", escapedTokenWeightsJSON)
 		}
 	}
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
@@ -827,7 +827,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
