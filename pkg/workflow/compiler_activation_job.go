@@ -706,20 +706,6 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		extraPaths = append(extraPaths, "actions/setup")
 	}
 
-	// Add engine-specific agent config directories and root instruction files to the sparse checkout.
-	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
-	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are always fetched by cone mode
-	// but are listed explicitly here so the intent is visible in the generated YAML.
-	defaultSparseCheckoutDirs := map[string]bool{".github": true, ".agents": true}
-	registry := GetGlobalEngineRegistry()
-	for _, folder := range registry.GetAllAgentManifestFolders() {
-		if !defaultSparseCheckoutDirs[folder] {
-			extraPaths = append(extraPaths, folder)
-		}
-	}
-	extraPaths = append(extraPaths, registry.GetAllAgentManifestFiles()...)
-	compilerActivationJobLog.Printf("Adding %d engine-specific paths to sparse-checkout: %v", len(extraPaths), extraPaths)
-
 	cm := NewCheckoutManager(nil)
 	activationToken := c.resolveActivationToken(data)
 	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
@@ -746,12 +732,10 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 		return checkoutSteps
 	}
 
-	// For activation job, always add sparse checkout of .github and .agents folders plus
-	// any engine-specific directories and root instruction files.
-	// sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
-	// Root instruction files are always fetched by cone mode but are also listed explicitly
-	// so the intent is visible in the generated YAML.
-	compilerActivationJobLog.Print("Adding .github, .agents, engine-specific dirs, and root instruction files to sparse checkout")
+	// For activation job, sparse checkout only .github and .agents folders (plus actions/setup
+	// in dev mode). Agent manifest files and engine-specific config directories are not needed
+	// during activation and are excluded to keep the shallow checkout minimal.
+	compilerActivationJobLog.Print("Adding .github and .agents to sparse checkout for activation job")
 	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
 }
 
