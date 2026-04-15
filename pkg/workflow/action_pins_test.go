@@ -43,7 +43,7 @@ func TestActionPinsExist(t *testing.T) {
 	}
 }
 
-// TestGetActionPinReturnsValidSHA tests that GetActionPin returns valid SHA references
+// TestGetActionPinReturnsValidSHA tests that getActionPin returns valid SHA references
 func TestGetActionPinReturnsValidSHA(t *testing.T) {
 	// Generate test cases dynamically from action pins JSON
 	actionPins := getActionPins()
@@ -54,13 +54,13 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 	for _, pin := range actionPins {
 		t.Run(pin.Repo, func(t *testing.T) {
-			result := GetActionPin(pin.Repo)
+			result := getActionPin(pin.Repo)
 
 			// Check that the result contains a SHA (40-char hex after @ and before #)
 			// Format is: repo@sha # version
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {
-				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
+				t.Errorf("getActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
 				return
 			}
 
@@ -68,7 +68,7 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 			shaAndComment := parts[1]
 			before, _, ok := strings.Cut(shaAndComment, " # ")
 			if !ok {
-				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
+				t.Errorf("getActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
 				return
 			}
 
@@ -76,18 +76,18 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 			// All action pins should have valid SHAs
 			if !isValidSHA(sha) {
-				t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
+				t.Errorf("getActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
 			}
 		})
 	}
 }
 
-// TestGetActionPinFallback tests that GetActionPin returns empty string for unknown actions
+// TestGetActionPinFallback tests that getActionPin returns empty string for unknown actions
 func TestGetActionPinFallback(t *testing.T) {
-	result := GetActionPin("unknown/action")
+	result := getActionPin("unknown/action")
 	expected := ""
 	if result != expected {
-		t.Errorf("GetActionPin(unknown/action) = %s, want %s (empty string)", result, expected)
+		t.Errorf("getActionPin(unknown/action) = %s, want %s (empty string)", result, expected)
 	}
 }
 

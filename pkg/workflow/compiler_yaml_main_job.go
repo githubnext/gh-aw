@@ -70,7 +70,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
 			c.trialMode,
 			c.trialLogicalRepoSlug,
-			GetActionPin,
+			getActionPin,
 		)
 		for _, line := range defaultLines {
 			yaml.WriteString(line)
@@ -90,7 +90,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Emit additional (non-default) user-configured checkouts
-	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(GetActionPin)
+	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(getActionPin)
 	for _, line := range additionalLines {
 		yaml.WriteString(line)
 	}
@@ -315,7 +315,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Print("Adding activation artifact download step")
 	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
@@ -737,7 +737,7 @@ func (c *Compiler) generateRepositoryImportCheckouts(yaml *strings.Builder, repo
 
 		// Generate the checkout step
 		fmt.Fprintf(yaml, "      - name: Checkout repository import %s/%s@%s\n", owner, repo, ref)
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/checkout"))
 		yaml.WriteString("        with:\n")
 		fmt.Fprintf(yaml, "          repository: %s/%s\n", owner, repo)
 		fmt.Fprintf(yaml, "          ref: %s\n", ref)
@@ -799,7 +799,7 @@ func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agen
 
 	// Generate the checkout step
 	fmt.Fprintf(yaml, "      - name: Checkout agent import %s/%s@%s\n", owner, repo, ref)
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/checkout"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          repository: %s/%s\n", owner, repo)
 	fmt.Fprintf(yaml, "          ref: %s\n", ref)
@@ -827,7 +827,7 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 
 	// Step 1: Setup Go for building the CLI
 	yaml.WriteString("      - name: Setup Go for CLI build\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/setup-go"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/setup-go"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          go-version-file: go.mod\n")
 	yaml.WriteString("          cache: true\n")
@@ -851,12 +851,12 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 
 	// Step 3: Setup Docker Buildx
 	yaml.WriteString("      - name: Setup Docker Buildx\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("docker/setup-buildx-action"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("docker/setup-buildx-action"))
 
 	// Step 4: Build Docker image
 	// Use the Dockerfile at the repository root which expects BINARY build arg
 	yaml.WriteString("      - name: Build gh-aw Docker image\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("docker/build-push-action"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("docker/build-push-action"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          context: .\n")
 	yaml.WriteString("          platforms: linux/amd64\n")

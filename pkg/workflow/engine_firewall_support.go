@@ -105,7 +105,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 		"      - name: Upload Firewall Logs",
 		"        if: always()",
 		"        continue-on-error: true",
-		"        uses: " + GetActionPin("actions/upload-artifact"),
+		"        uses: " + getActionPin("actions/upload-artifact"),
 		"        with:",
 		"          name: " + artifactName,
 		"          path: " + firewallLogsDir,

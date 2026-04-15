@@ -1357,7 +1357,7 @@ func TestWorkspaceCheckoutForDetectionStep(t *testing.T) {
 	}
 
 	// Step should use pinned actions/checkout
-	checkoutPin := GetActionPin("actions/checkout")
+	checkoutPin := getActionPin("actions/checkout")
 	if checkoutPin == "" {
 		t.Fatal("Expected actions/checkout to have a pin")
 	}

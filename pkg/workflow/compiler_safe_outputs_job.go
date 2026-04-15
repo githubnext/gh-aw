@@ -188,7 +188,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps,
 			"      - name: Download upload-artifact staging\n",
 			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")),
+			fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")),
 			"        with:\n",
 			fmt.Sprintf("          name: %s\n", stagingArtifactName),
 			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
@@ -659,7 +659,7 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload Safe Outputs Items\n",
 		"        if: always()\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SafeOutputItemsArtifactName),
 		"          path: |\n",
@@ -684,7 +684,7 @@ func buildSarifArtifactUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload SARIF artifact\n",
 		"        if: steps.process_safe_outputs.outputs.sarif_file != ''\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SarifArtifactName),
 		"          path: ${{ steps.process_safe_outputs.outputs.sarif_file }}\n",

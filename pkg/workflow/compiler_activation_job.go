@@ -515,7 +515,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	activationArtifactName := artifactPrefixExprForActivationJob(data) + constants.ActivationArtifactName
 	steps = append(steps, "      - name: Upload activation artifact\n")
 	steps = append(steps, "        if: success()\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          name: %s\n", activationArtifactName))
 	steps = append(steps, "          path: |\n")
@@ -702,7 +702,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			cm.GetCrossRepoTargetRepo(),
 			cm.GetCrossRepoTargetRef(),
 			activationToken,
-			GetActionPin,
+			getActionPin,
 			extraPaths...,
 		)
 		// When no custom token is configured, GITHUB_TOKEN is scoped to the calling
@@ -722,7 +722,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// This is needed for runtime imports during prompt generation
 	// sparse-checkout-cone-mode: true ensures subdirectories under .github/ are recursively included
 	compilerActivationJobLog.Print("Adding .github and .agents sparse checkout in activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, GetActionPin, extraPaths...)
+	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, getActionPin, extraPaths...)
 }
 
 // addSameRepoIfConditionToSteps injects an if: condition into each step that restricts

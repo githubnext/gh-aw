@@ -41,7 +41,7 @@ func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string,
 	pushToPullRequestBranchLog.Printf("Building checkout repository step: targetRepo=%s, trialMode=%t", targetRepoSlug, c.trialMode)
 
 	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
 
 	// Determine which repository to check out

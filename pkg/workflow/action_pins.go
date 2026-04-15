@@ -145,11 +145,11 @@ func getActionPinsByRepo(repo string) []ActionPin {
 	return cachedActionPinsByRepo[repo]
 }
 
-// GetActionPin returns the pinned action reference for a given action repository
+// getActionPin returns the pinned action reference for a given action repository
 // When multiple versions exist for the same repo, it returns the latest version by semver
 // If no pin is found, it returns an empty string
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
-func GetActionPin(actionRepo string) string {
+func getActionPin(actionRepo string) string {
 	// Use the pre-built per-repo index for O(1) lookup (avoids scanning all pins).
 	matchingPins := getActionPinsByRepo(actionRepo)
 
@@ -418,19 +418,19 @@ func ApplyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*W
 // same SHA for a given action, preventing split-SHA issues when the cache and
 // embedded pins are out of sync.
 //
-// Falls back to GetActionPin when data is nil or the cache has no entry for this
+// Falls back to getActionPin when data is nil or the cache has no entry for this
 // action's canonical version.
 func GetCachedActionPin(repo string, data *WorkflowData) string {
 	if data == nil {
-		return GetActionPin(repo)
+		return getActionPin(repo)
 	}
 
 	// Get the canonical version for this repo from embedded pins.
 	matchingPins := getActionPinsByRepo(repo)
 	if len(matchingPins) == 0 {
-		// No embedded pin for this repo — fall back to bare GetActionPin (which will
+		// No embedded pin for this repo — fall back to bare getActionPin (which will
 		// return an empty string or whatever the default behaviour is).
-		return GetActionPin(repo)
+		return getActionPin(repo)
 	}
 
 	// Use the latest embedded version as the canonical lookup key so that the same
@@ -441,7 +441,7 @@ func GetCachedActionPin(repo string, data *WorkflowData) string {
 	// GetActionPinWithData checks the cache first, then falls back to embedded pins.
 	pinnedRef, err := GetActionPinWithData(repo, latestVersion, data)
 	if err != nil || pinnedRef == "" {
-		return GetActionPin(repo)
+		return getActionPin(repo)
 	}
 	return pinnedRef
 }
