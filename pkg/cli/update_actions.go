@@ -447,7 +447,7 @@ func getActionSHAForTag(ctx context.Context, repo, tag string) (string, error) {
 		}
 		sha = strings.TrimSpace(string(output2))
 		if len(sha) != 40 {
-			return "", fmt.Errorf("invalid peeled SHA format: %s", sha)
+			return "", fmt.Errorf("invalid peeled SHA format: expected 40 hex characters, got %d (%s)", len(sha), sha)
 		}
 		updateLog.Printf("Peeled annotated tag %s@%s to commit SHA: %s", repo, tag, sha)
 	}

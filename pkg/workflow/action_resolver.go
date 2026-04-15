@@ -87,7 +87,7 @@ func ParseTagRefTSV(line string) (sha, objType string, err error) {
 	sha = parts[0]
 	objType = parts[1]
 	if len(sha) != 40 {
-		return "", "", fmt.Errorf("invalid SHA format: %s", sha)
+		return "", "", fmt.Errorf("invalid SHA format: expected 40 hex characters, got %d (%s)", len(sha), sha)
 	}
 	return sha, objType, nil
 }
@@ -134,7 +134,7 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 		}
 		sha = strings.TrimSpace(string(output2))
 		if len(sha) != 40 {
-			return "", fmt.Errorf("invalid peeled SHA format for %s@%s: %s", repo, version, sha)
+			return "", fmt.Errorf("invalid peeled SHA format for %s@%s: expected 40 hex characters, got %d (%s)", repo, version, len(sha), sha)
 		}
 		resolverLog.Printf("Peeled annotated tag %s@%s to commit SHA: %s", repo, version, sha)
 	}
