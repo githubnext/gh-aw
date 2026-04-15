@@ -818,6 +818,37 @@ async function sendJobConclusionSpan(spanName, options = {}) {
         })
     : [];
 
+  const agentStartMs = options.startMs;
+  let agentEndMs = null;
+  try {
+    agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;
+  } catch {
+    // agent_output.json may not exist for non-agent jobs; skip dedicated span.
+  }
+
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  if (typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
+    const agentPayload = buildOTLPPayload({
+      traceId,
+      spanId: generateSpanId(),
+      ...(parentSpanId ? { parentSpanId } : {}),
+      spanName: jobName ? `gh-aw.${jobName}.agent` : "gh-aw.job.agent",
+      startMs: agentStartMs,
+      endMs: agentEndMs,
+      serviceName,
+      scopeVersion: version,
+      attributes,
+      resourceAttributes,
+      statusCode,
+      statusMessage,
+      events: spanEvents,
+    });
+    appendToOTLPJSONL(agentPayload);
+    if (endpoint) {
+      await sendOTLPSpan(endpoint, agentPayload, { skipJSONL: true });
+    }
+  }
+
   const payload = buildOTLPPayload({
     traceId,
     spanId: generateSpanId(),
@@ -837,7 +868,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Always mirror to JSONL — the artifact is useful even without a live collector.
   appendToOTLPJSONL(payload);
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   if (!endpoint) {
     return;
   }
