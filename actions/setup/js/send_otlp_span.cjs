@@ -798,25 +798,62 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // name="exception" with "exception.type" and "exception.message" attributes,
   // making individual errors queryable and classifiable in backends like
   // Grafana Tempo, Honeycomb, and Datadog.
-  const errorTimeNano = toNanoString(nowMs());
-  const spanEvents = isAgentFailure
-    ? outputErrors
-        .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
-        .filter(Boolean)
-        .map(msg => {
-          // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")
-          const colonIdx = msg.indexOf(":");
-          const prefix = msg.slice(0, colonIdx);
-          const hasValidPrefix = colonIdx > 0 && colonIdx < 64 && /^[a-z_][a-z0-9_.]*$/i.test(prefix);
-          const exceptionType = hasValidPrefix ? `gh-aw.${prefix.toLowerCase()}` : "gh-aw.AgentError";
-          const exceptionMessage = (hasValidPrefix ? msg.slice(colonIdx + 1).trim() : msg).slice(0, MAX_ATTR_VALUE_LENGTH);
-          return {
-            timeUnixNano: errorTimeNano,
-            name: "exception",
-            attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)],
-          };
-        })
-    : [];
+  const buildSpanEvents = eventTimeMs => {
+    if (!isAgentFailure) {
+      return [];
+    }
+    const errorTimeNano = toNanoString(eventTimeMs);
+    return outputErrors
+      .map(e => (e && typeof e.message === "string" ? e.message : String(e)))
+      .filter(Boolean)
+      .map(msg => {
+        // Extract colon-prefixed type when available ("push_to_pull_request_branch:...")
+        const colonIdx = msg.indexOf(":");
+        const prefix = msg.slice(0, colonIdx);
+        const hasValidPrefix = colonIdx > 0 && colonIdx < 64 && /^[a-z_][a-z0-9_.]*$/i.test(prefix);
+        const exceptionType = hasValidPrefix ? `gh-aw.${prefix.toLowerCase()}` : "gh-aw.AgentError";
+        const exceptionMessage = (hasValidPrefix ? msg.slice(colonIdx + 1).trim() : msg).slice(0, MAX_ATTR_VALUE_LENGTH);
+        return {
+          timeUnixNano: errorTimeNano,
+          name: "exception",
+          attributes: [buildAttr("exception.type", exceptionType), buildAttr("exception.message", exceptionMessage)],
+        };
+      });
+  };
+
+  const spanEvents = buildSpanEvents(nowMs());
+
+  const agentStartMs = options.startMs;
+  let agentEndMs = null;
+  try {
+    agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;
+  } catch {
+    // agent_output.json may not exist for non-agent jobs; skip dedicated span.
+  }
+
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
+  if (typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
+    const agentSpanEvents = buildSpanEvents(agentEndMs);
+    const agentPayload = buildOTLPPayload({
+      traceId,
+      spanId: generateSpanId(),
+      ...(parentSpanId ? { parentSpanId } : {}),
+      spanName: jobName ? `gh-aw.${jobName}.agent` : "gh-aw.job.agent",
+      startMs: agentStartMs,
+      endMs: agentEndMs,
+      serviceName,
+      scopeVersion: version,
+      attributes,
+      resourceAttributes,
+      statusCode,
+      statusMessage,
+      events: agentSpanEvents,
+    });
+    appendToOTLPJSONL(agentPayload);
+    if (endpoint) {
+      await sendOTLPSpan(endpoint, agentPayload, { skipJSONL: true });
+    }
+  }
 
   const payload = buildOTLPPayload({
     traceId,
@@ -837,7 +874,6 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Always mirror to JSONL — the artifact is useful even without a live collector.
   appendToOTLPJSONL(payload);
 
-  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   if (!endpoint) {
     return;
   }

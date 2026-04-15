@@ -21,7 +21,7 @@
  *   - Maximum 3 retry attempts after the initial run.
  *
  * Usage: node copilot_driver.cjs <command> [args...]
- * Example: node copilot_driver.cjs copilot --add-dir /tmp/ --prompt "..."
+ * Example: node copilot_driver.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
 "use strict";
@@ -37,6 +37,9 @@ const INITIAL_DELAY_MS = 5000;
 const BACKOFF_MULTIPLIER = 2;
 // Maximum delay cap in milliseconds
 const MAX_DELAY_MS = 60000;
+// If prompt files are larger than this threshold, avoid inlining into argv.
+const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
+const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -167,7 +170,7 @@ function runProcess(command, args, attempt) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Redact --prompt value from logs to avoid leaking prompt content
-    const safeArgs = args.map((arg, i) => (args[i - 1] === "--prompt" ? "<redacted>" : arg));
+    const safeArgs = args.map((arg, i) => (args[i - 1] === "--prompt" || args[i - 1] === "-p" ? "<redacted>" : arg));
     log(`attempt ${attempt + 1}: spawning: ${command} ${safeArgs.join(" ")}`);
 
     const child = spawn(command, args, {
@@ -236,6 +239,63 @@ function runProcess(command, args, attempt) {
 }
 
 /**
+ * Build a compact fallback prompt that asks the agent to read instructions from disk.
+ * @param {string} promptFile
+ * @returns {string}
+ */
+function buildPromptFileFallbackInstruction(promptFile) {
+  return `Read the full instructions from ${promptFile} and execute them exactly as written.`;
+}
+
+/**
+ * Replace --prompt-file arguments with -p prompt text to support older Copilot CLIs.
+ * For files over 100KB, emit a compact fallback prompt that instructs the agent to
+ * read and execute the full prompt file from disk.
+ * @param {string[]} args
+ * @returns {string[]}
+ */
+function resolvePromptFileArgs(args) {
+  /** @type {string[]} */
+  const resolvedArgs = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg !== "--prompt-file") {
+      resolvedArgs.push(arg);
+      continue;
+    }
+
+    if (i + 1 >= args.length) {
+      log("warning: --prompt-file provided without a path; leaving arguments unchanged");
+      resolvedArgs.push(arg);
+      continue;
+    }
+    const promptFile = args[i + 1];
+
+    try {
+      const stat = fs.statSync(promptFile);
+      log(`resolved --prompt-file: path=${promptFile} size=${stat.size}B`);
+
+      if (stat.size > PROMPT_FILE_INLINE_THRESHOLD_BYTES) {
+        log(`prompt file exceeds ${PROMPT_FILE_INLINE_THRESHOLD_LABEL}; using compact fallback prompt`);
+        resolvedArgs.push("-p", buildPromptFileFallbackInstruction(promptFile));
+      } else {
+        const promptText = fs.readFileSync(promptFile, "utf8");
+        resolvedArgs.push("-p", promptText);
+      }
+      i++; // Skip the prompt-file path argument
+    } catch (error) {
+      const err = /** @type {Error} */ error;
+      log(`warning: failed to resolve --prompt-file ${promptFile}: ${err.message}; leaving arguments unchanged`);
+      resolvedArgs.push(arg, promptFile);
+      i++; // Skip the prompt-file path argument
+    }
+  }
+
+  return resolvedArgs;
+}
+
+/**
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
@@ -249,6 +309,7 @@ async function main() {
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   await checkCommandAccessible(command);
+  const resolvedArgs = resolvePromptFileArgs(args);
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
@@ -256,7 +317,7 @@ async function main() {
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Add --continue flag on retries so the copilot session continues from where it left off
-    const currentArgs = attempt > 0 ? [...args, "--continue"] : args;
+    const currentArgs = attempt > 0 ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
     if (attempt > 0) {
       log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --continue`);
@@ -335,7 +396,17 @@ async function main() {
   process.exit(lastExitCode);
 }
 
-main().catch(err => {
-  log(`unexpected error: ${err.message}`);
-  process.exit(1);
-});
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    PROMPT_FILE_INLINE_THRESHOLD_BYTES,
+    buildPromptFileFallbackInstruction,
+    resolvePromptFileArgs,
+  };
+}
+
+if (require.main === module) {
+  main().catch(err => {
+    log(`unexpected error: ${err.message}`);
+    process.exit(1);
+  });
+}

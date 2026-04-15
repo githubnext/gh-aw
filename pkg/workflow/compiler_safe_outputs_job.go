@@ -107,7 +107,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
-			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			pinnedStep := applyActionPinToTypedStep(typedStep, data)
 			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
@@ -188,7 +188,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps,
 			"      - name: Download upload-artifact staging\n",
 			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")),
+			fmt.Sprintf("        uses: %s\n", getActionPin("actions/download-artifact")),
 			"        with:\n",
 			fmt.Sprintf("          name: %s\n", stagingArtifactName),
 			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
@@ -254,7 +254,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			steps = append(steps, "        id: assign_copilot_to_created_issues\n")
 			steps = append(steps, "        if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''\n")
 			steps = append(steps, "        continue-on-error: true\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 			steps = append(steps, "        env:\n")
 			steps = append(steps, "          GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}\n")
 			steps = append(steps, "        with:\n")
@@ -659,7 +659,7 @@ func buildSafeOutputItemsManifestUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload Safe Outputs Items\n",
 		"        if: always()\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SafeOutputItemsArtifactName),
 		"          path: |\n",
@@ -684,7 +684,7 @@ func buildSarifArtifactUploadStep(prefix string) []string {
 	return []string{
 		"      - name: Upload SARIF artifact\n",
 		"        if: steps.process_safe_outputs.outputs.sarif_file != ''\n",
-		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")),
+		fmt.Sprintf("        uses: %s\n", getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: %s%s\n", prefix, constants.SarifArtifactName),
 		"          path: ${{ steps.process_safe_outputs.outputs.sarif_file }}\n",

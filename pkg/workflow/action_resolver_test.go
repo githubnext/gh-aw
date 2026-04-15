@@ -105,3 +105,99 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 
 // Note: Testing the actual GitHub API resolution requires network access
 // and is tested in integration tests or with network-dependent test tags
+
+// TestParseTagRefTSV verifies that ParseTagRefTSV correctly parses the tab-separated
+// output produced by the GitHub API jq expression `[.object.sha, .object.type] | @tsv`.
+// This is the core parsing step used when resolving action tags to SHAs; it must
+// distinguish lightweight tags (type "commit") from annotated tags (type "tag") so
+// that annotated tags can be peeled to their underlying commit SHA.
+func TestParseTagRefTSV(t *testing.T) {
+	const (
+		commitSHA    = "ea222e359276c0702a5f5203547ff9d88d0ddd76"
+		tagObjectSHA = "2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc"
+	)
+
+	tests := []struct {
+		name        string
+		input       string
+		wantSHA     string
+		wantType    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "lightweight tag returns commit type",
+			input:    commitSHA + "\tcommit\n",
+			wantSHA:  commitSHA,
+			wantType: "commit",
+		},
+		{
+			name:     "annotated tag returns tag type",
+			input:    tagObjectSHA + "\ttag\n",
+			wantSHA:  tagObjectSHA,
+			wantType: "tag",
+		},
+		{
+			name:     "input without trailing newline",
+			input:    commitSHA + "\tcommit",
+			wantSHA:  commitSHA,
+			wantType: "commit",
+		},
+		{
+			name:        "empty input is rejected",
+			input:       "",
+			wantErr:     true,
+			errContains: "unexpected format",
+		},
+		{
+			name:        "missing tab separator is rejected",
+			input:       commitSHA,
+			wantErr:     true,
+			errContains: "unexpected format",
+		},
+		{
+			name:        "empty type field is rejected",
+			input:       commitSHA + "\t",
+			wantErr:     true,
+			errContains: "unexpected format",
+		},
+		{
+			name:        "short SHA is rejected",
+			input:       "abc123\tcommit",
+			wantErr:     true,
+			errContains: "invalid SHA format",
+		},
+		{
+			name:        "non-hex SHA is rejected",
+			input:       "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\tcommit",
+			wantErr:     true,
+			errContains: "invalid SHA format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sha, objType, err := ParseTagRefTSV(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ParseTagRefTSV(%q): expected error, got nil", tt.input)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ParseTagRefTSV(%q): error = %q, want it to contain %q", tt.input, err.Error(), tt.errContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ParseTagRefTSV(%q): unexpected error: %v", tt.input, err)
+				return
+			}
+			if sha != tt.wantSHA {
+				t.Errorf("ParseTagRefTSV(%q): sha = %q, want %q", tt.input, sha, tt.wantSHA)
+			}
+			if objType != tt.wantType {
+				t.Errorf("ParseTagRefTSV(%q): type = %q, want %q", tt.input, objType, tt.wantType)
+			}
+		})
+	}
+}

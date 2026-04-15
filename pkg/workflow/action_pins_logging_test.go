@@ -72,7 +72,7 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+			result, err := getActionPinWithData(tt.repo, tt.requestedVer, data)
 
 			w.Close()
 			os.Stderr = oldStderr
@@ -82,18 +82,18 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			stderr := buf.String()
 
 			if err != nil {
-				t.Errorf("GetActionPinWithData() error = %v", err)
+				t.Errorf("getActionPinWithData() error = %v", err)
 				return
 			}
 
 			if result == "" {
-				t.Errorf("GetActionPinWithData() returned empty result")
+				t.Errorf("getActionPinWithData() returned empty result")
 				return
 			}
 
 			// Check if the result contains the expected version in the comment
 			if !strings.Contains(result, "# "+tt.expectedCommentVer) {
-				t.Errorf("GetActionPinWithData() = %s, expected to contain '# %s'", result, tt.expectedCommentVer)
+				t.Errorf("getActionPinWithData() = %s, expected to contain '# %s'", result, tt.expectedCommentVer)
 			}
 
 			// For mismatched versions, we should see a warning
@@ -157,7 +157,7 @@ func TestActionPinResolutionWithStrictMode(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+			result, err := getActionPinWithData(tt.repo, tt.requestedVer, data)
 
 			w.Close()
 			os.Stderr = oldStderr

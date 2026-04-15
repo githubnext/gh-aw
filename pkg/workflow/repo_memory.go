@@ -498,7 +498,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 			fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
 		}
 		builder.WriteString("        if: always()\n")
-		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
 		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
@@ -612,7 +612,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// We use sparse-checkout to avoid downloading files since we'll checkout the memory branch
 	var checkoutStep strings.Builder
 	checkoutStep.WriteString("      - name: Checkout repository\n")
-	fmt.Fprintf(&checkoutStep, "        uses: %s\n", GetActionPin("actions/checkout"))
+	fmt.Fprintf(&checkoutStep, "        uses: %s\n", getActionPin("actions/checkout"))
 	checkoutStep.WriteString("        with:\n")
 	checkoutStep.WriteString("          persist-credentials: false\n")
 	checkoutStep.WriteString("          sparse-checkout: .\n")
@@ -637,7 +637,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		} else {
 			fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
 		}
-		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+		fmt.Fprintf(&step, "        uses: %s\n", getActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
 		fmt.Fprintf(&step, "          name: %srepo-memory-%s\n", repoMemoryPrefix, sanitizedID)
@@ -676,7 +676,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		}
 		fmt.Fprintf(&step, "        id: push_repo_memory_%s\n", memory.ID)
 		step.WriteString("        if: always()\n")
-		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		step.WriteString("        env:\n")
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")

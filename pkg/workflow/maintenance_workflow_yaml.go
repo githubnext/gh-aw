@@ -3,7 +3,11 @@ package workflow
 import (
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var maintenanceWorkflowYAMLLog = logger.New("workflow:maintenance_workflow_yaml")
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
 // agentics-maintenance.yml workflow. It is called by GenerateMaintenanceWorkflow
@@ -17,6 +21,8 @@ func buildMaintenanceWorkflowYAML(
 	resolver ActionSHAResolver,
 	configuredRunsOn RunsOnValue,
 ) string {
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q", actionMode, minExpiresDays, cronSchedule)
+
 	var yaml strings.Builder
 
 	// Add workflow header with logo and instructions
@@ -97,8 +103,9 @@ jobs:
 
 	// Add checkout step only in dev/script mode (for local action paths)
 	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		maintenanceWorkflowYAMLLog.Printf("Adding checkout step for close-expired-entities (actionMode=%s)", actionMode)
 		yaml.WriteString("      - name: Checkout actions folder\n")
-		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          sparse-checkout: |\n")
 		yaml.WriteString("            actions\n")
@@ -112,7 +119,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Close expired discussions
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
 `)
@@ -124,7 +131,7 @@ jobs:
             await main();
 
       - name: Close expired issues
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
 `)
@@ -136,7 +143,7 @@ jobs:
             await main();
 
       - name: Close expired pull requests
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
 `)
@@ -164,7 +171,7 @@ jobs:
 	// Add checkout step only in dev/script mode (for local action paths)
 	if actionMode == ActionModeDev || actionMode == ActionModeScript {
 		yaml.WriteString("      - name: Checkout actions folder\n")
-		yaml.WriteString("        uses: " + GetActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          sparse-checkout: |\n")
 		yaml.WriteString("            actions\n")
@@ -177,7 +184,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Cleanup outdated cache-memory entries
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -200,7 +207,7 @@ jobs:
       operation: ${{ steps.record.outputs.operation }}
     steps:
       - name: Checkout repository
-        uses: ` + GetActionPin("actions/checkout") + `
+        uses: ` + getActionPin("actions/checkout") + `
         with:
           persist-credentials: false
 
@@ -210,7 +217,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -223,7 +230,7 @@ jobs:
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Run operation
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_OPERATION: ${{ inputs.operation }}
@@ -256,7 +263,7 @@ jobs:
       run_url: ${{ steps.record.outputs.run_url }}
     steps:
       - name: Checkout actions folder
-        uses: ` + GetActionPin("actions/checkout") + `
+        uses: ` + getActionPin("actions/checkout") + `
         with:
           sparse-checkout: |
             actions
@@ -268,7 +275,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -278,7 +285,7 @@ jobs:
             await main();
 
       - name: Apply Safe Outputs
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_RUN_URL: ${{ inputs.run_url }}
@@ -305,7 +312,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout repository
-        uses: ` + GetActionPin("actions/checkout") + `
+        uses: ` + getActionPin("actions/checkout") + `
         with:
           persist-credentials: false
 
@@ -315,7 +322,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -328,7 +335,7 @@ jobs:
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Create missing labels
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         with:
@@ -352,7 +359,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout repository
-        uses: ` + GetActionPin("actions/checkout") + `
+        uses: ` + getActionPin("actions/checkout") + `
         with:
           persist-credentials: false
 
@@ -362,7 +369,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -376,7 +383,7 @@ jobs:
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 
 	yaml.WriteString(`      - name: Validate workflows and file issue on findings
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         with:
@@ -392,6 +399,7 @@ jobs:
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
 	// User repositories won't have these dependencies, so we skip them in release mode
 	if actionMode == ActionModeDev {
+		maintenanceWorkflowYAMLLog.Printf("Adding dev-only jobs: compile-workflows and secret-validation")
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:
@@ -423,7 +431,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check for out-of-sync workflows and create issue if needed
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -441,7 +449,7 @@ jobs:
 
 		// Add checkout step only in dev mode (for local action paths)
 		yaml.WriteString(`      - name: Checkout actions folder
-        uses: ` + GetActionPin("actions/checkout") + `
+        uses: ` + getActionPin("actions/checkout") + `
         with:
           sparse-checkout: |
             actions
@@ -460,7 +468,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Validate Secrets
-        uses: ` + GetActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           # GitHub tokens
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
@@ -482,7 +490,7 @@ jobs:
 
       - name: Upload secret validation report
         if: always()
-        uses: ` + GetActionPin("actions/upload-artifact") + `
+        uses: ` + getActionPin("actions/upload-artifact") + `
         with:
           name: secret-validation-report
           path: secret-validation-report.md

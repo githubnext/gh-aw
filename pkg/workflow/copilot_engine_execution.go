@@ -175,8 +175,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below).
-	// The --add-dir "${GITHUB_WORKSPACE}" and --prompt args are appended raw (not through
-	// shellJoinArgs) because they contain shell variable references that must expand at runtime.
+	// The --add-dir "${GITHUB_WORKSPACE}" arg is appended raw (not through shellJoinArgs)
+	// because it contains a shell variable reference that must expand at runtime.
 	//
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
@@ -196,11 +196,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	if sandboxEnabled {
-		// Sandbox mode: add workspace dir and inline prompt (read inside AWF container)
-		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, execPrefix, shellJoinArgs(copilotArgs))
+		// Sandbox mode: add workspace dir and pass prompt file path directly
+		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	} else {
-		// Non-sandbox mode: prompt is read from a shell variable set earlier in the script
-		copilotCommand = fmt.Sprintf(`%s %s --prompt "$COPILOT_CLI_INSTRUCTION"`, execPrefix, shellJoinArgs(copilotArgs))
+		// Non-sandbox mode: pass prompt file path directly
+		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	}
 
 	// Conditionally wrap with sandbox (AWF only)
@@ -262,7 +262,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		command = fmt.Sprintf(`set -o pipefail
 touch %s
 (umask 177 && touch %s)
-COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, mkdirCommands.String(), copilotCommand, logFile)
 	}
 

@@ -173,11 +173,6 @@ jobs:
             .claude
             .codex
             .gemini
-            .opencode
-            AGENTS.md
-            CLAUDE.md
-            GEMINI.md
-            opencode.jsonc
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration

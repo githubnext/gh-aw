@@ -2,8 +2,13 @@
 
 package cli
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var gatewayLogsAggregationLog = logger.New("cli:gateway_logs_aggregation")
+
 // calculateGatewayAggregates calculates aggregate statistics
 func calculateGatewayAggregates(metrics *GatewayMetrics) {
+	gatewayLogsAggregationLog.Printf("Calculating gateway aggregates: servers=%d", len(metrics.Servers))
 	for _, server := range metrics.Servers {
 		for _, tool := range server.Tools {
 			if tool.CallCount > 0 {
@@ -15,6 +20,7 @@ func calculateGatewayAggregates(metrics *GatewayMetrics) {
 
 // buildGuardPolicySummary creates a GuardPolicySummary from GatewayMetrics.
 func buildGuardPolicySummary(metrics *GatewayMetrics) *GuardPolicySummary {
+	gatewayLogsAggregationLog.Printf("Building guard policy summary: totalBlocked=%d events=%d", metrics.TotalGuardBlocked, len(metrics.GuardPolicyEvents))
 	summary := &GuardPolicySummary{
 		TotalBlocked:        metrics.TotalGuardBlocked,
 		Events:              metrics.GuardPolicyEvents,

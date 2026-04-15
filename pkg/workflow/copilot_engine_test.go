@@ -126,6 +126,14 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected command to pass prompt file path directly, got:\n%s", stepContent)
+	}
+
+	if strings.Contains(stepContent, "COPILOT_CLI_INSTRUCTION=") {
+		t.Errorf("Expected command to avoid loading prompt into shell variable, got:\n%s", stepContent)
+	}
+
 	if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
 		t.Errorf("Expected COPILOT_GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
 	}
@@ -728,7 +736,7 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
+func TestCopilotEnginePromptFilePath(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -760,14 +768,12 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
 	}
 
-	// The $COPILOT_CLI_INSTRUCTION should NOT be wrapped in additional single quotes
-	if strings.Contains(copilotCommand, `'"$COPILOT_CLI_INSTRUCTION"'`) {
-		t.Errorf("$COPILOT_CLI_INSTRUCTION should not be wrapped in single quotes: %s", copilotCommand)
+	if !strings.Contains(copilotCommand, "--prompt-file /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected prompt to be passed via --prompt-file, got: %s", copilotCommand)
 	}
 
-	// The $COPILOT_CLI_INSTRUCTION should remain double-quoted for variable expansion
-	if !strings.Contains(copilotCommand, `"$COPILOT_CLI_INSTRUCTION"`) {
-		t.Errorf("$COPILOT_CLI_INSTRUCTION should remain double-quoted: %s", copilotCommand)
+	if strings.Contains(copilotCommand, "--prompt ") {
+		t.Errorf("Expected no inline --prompt argument expansion, got: %s", copilotCommand)
 	}
 }
 

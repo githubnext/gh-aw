@@ -139,7 +139,7 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions(t *te
 	// Generate the substitution step separately (as done in compiler_yaml.go)
 	var substYaml strings.Builder
 	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ", nil)
 	}
 
 	// Verify substitution step is generated
@@ -544,7 +544,7 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	// Generate the substitution step separately to verify cache dir is in substitutions
 	var substYaml strings.Builder
 	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ", nil)
 	}
 	substOutput := substYaml.String()
 	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
@@ -647,7 +647,7 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	// Generate the substitution step separately to verify cache dir is in substitutions
 	var substYaml strings.Builder
 	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ", nil)
 	}
 	substOutput := substYaml.String()
 	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")

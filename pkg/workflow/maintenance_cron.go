@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"hash/fnv"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var maintenanceCronLog = logger.New("workflow:maintenance_cron")
 
 // generateMaintenanceCron generates a cron schedule based on the minimum expires value in days
 // Schedule runs at minimum required frequency to check expirations at appropriate intervals
@@ -16,16 +20,20 @@ func generateMaintenanceCron(minExpiresDays int) (string, string) {
 	// Run at least as often as the shortest expiration would need
 	if minExpiresDays <= 1 {
 		// For 1 day or less, run every 2 hours
+		maintenanceCronLog.Printf("Selected cron frequency: every 2 hours (minExpiresDays=%d)", minExpiresDays)
 		return fmt.Sprintf("%d */2 * * *", minute), "Every 2 hours"
 	} else if minExpiresDays == 2 {
 		// For 2 days, run every 6 hours
+		maintenanceCronLog.Printf("Selected cron frequency: every 6 hours (minExpiresDays=%d)", minExpiresDays)
 		return fmt.Sprintf("%d */6 * * *", minute), "Every 6 hours"
 	} else if minExpiresDays <= 4 {
 		// For 3-4 days, run every 12 hours
+		maintenanceCronLog.Printf("Selected cron frequency: every 12 hours (minExpiresDays=%d)", minExpiresDays)
 		return fmt.Sprintf("%d */12 * * *", minute), "Every 12 hours"
 	}
 
 	// For more than 4 days, run daily
+	maintenanceCronLog.Printf("Selected cron frequency: daily (minExpiresDays=%d)", minExpiresDays)
 	return fmt.Sprintf("%d %d * * *", minute, 0), "Daily"
 }
 
@@ -48,20 +56,26 @@ func generateSideRepoMaintenanceCron(repoSlug string, minExpiresDays int) (strin
 	// Derive a deterministic minute in 0-59 from the seed.
 	minute := int(seed % 60)
 
+	maintenanceCronLog.Printf("Generating side-repo cron: repoSlug=%q minExpiresDays=%d minute=%d", repoSlug, minExpiresDays, minute)
+
 	if minExpiresDays <= 1 {
 		// Every 2 hours — vary the starting minute only.
+		maintenanceCronLog.Printf("Selected side-repo cron frequency: every 2 hours")
 		return fmt.Sprintf("%d */2 * * *", minute), "Every 2 hours"
 	} else if minExpiresDays == 2 {
 		// Every 6 hours — vary the starting hour within the 6-hour window.
 		startHour := int((seed >> 8) % 6)
+		maintenanceCronLog.Printf("Selected side-repo cron frequency: every 6 hours (startHour=%d)", startHour)
 		return fmt.Sprintf("%d %d,%d,%d,%d * * *", minute, startHour, startHour+6, startHour+12, startHour+18), "Every 6 hours"
 	} else if minExpiresDays <= 4 {
 		// Every 12 hours — vary the starting hour within the 12-hour window.
 		startHour := int((seed >> 8) % 12)
+		maintenanceCronLog.Printf("Selected side-repo cron frequency: every 12 hours (startHour=%d)", startHour)
 		return fmt.Sprintf("%d %d,%d * * *", minute, startHour, startHour+12), "Every 12 hours"
 	}
 
 	// Daily — vary the hour of day (0-23) to spread load.
 	hour := int((seed >> 8) % 24)
+	maintenanceCronLog.Printf("Selected side-repo cron frequency: daily (hour=%d)", hour)
 	return fmt.Sprintf("%d %d * * *", minute, hour), "Daily"
 }

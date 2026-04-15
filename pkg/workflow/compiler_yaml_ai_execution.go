@@ -21,7 +21,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 }
 
 // generateLogParsing generates a step that parses the agent's logs and adds them to the step summary
-func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine) {
+func (c *Compiler) generateLogParsing(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
@@ -43,7 +43,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
@@ -58,12 +58,12 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 }
 
 // generateMCPScriptsLogParsing generates a step that parses mcp-scripts logs and adds them to the step summary
-func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder) {
+func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder, data *WorkflowData) {
 	compilerYamlLog.Print("Generating mcp-scripts log parsing step")
 
 	yaml.WriteString("      - name: Parse MCP Scripts logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -76,13 +76,13 @@ func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder) {
 }
 
 // generateMCPGatewayLogParsing generates a step that parses MCP gateway logs and adds them to the step summary
-func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
+func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder, data *WorkflowData) {
 	compilerYamlLog.Print("Generating MCP gateway log parsing step")
 
 	yaml.WriteString("      - name: Parse MCP Gateway logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        id: %s\n", constants.ParseMCPGatewayStepID)
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -106,7 +106,7 @@ func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Generate observability summary\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
@@ -179,13 +179,13 @@ func (c *Compiler) generateAgentStepSummaryAppend(yaml *strings.Builder) {
 // token-usage.jsonl and appends a markdown table to $GITHUB_STEP_SUMMARY.
 // The step also writes aggregated token totals to /tmp/gh-aw/agent_usage.json
 // so they are bundled in the agent artifact for third-party tools.
-func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder) {
+func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder, data *WorkflowData) {
 	compilerYamlLog.Print("Generating token usage summary step")
 
 	yaml.WriteString("      - name: Parse token usage for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")

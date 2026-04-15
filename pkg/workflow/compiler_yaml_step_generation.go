@@ -39,7 +39,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	if c.actionMode.IsScript() {
 		lines := []string{
 			"      - name: Checkout actions folder\n",
-			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+			fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")),
 			"        with:\n",
 			"          repository: github/gh-aw\n",
 		}
@@ -63,7 +63,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	if c.actionMode.IsDev() {
 		lines := []string{
 			"      - name: Checkout actions folder\n",
-			fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+			fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")),
 			"        with:\n",
 			"          repository: github/gh-aw\n",
 			"          sparse-checkout: |\n",
@@ -93,7 +93,7 @@ func (c *Compiler) generateRestoreActionsSetupStep() string {
 	var step strings.Builder
 	step.WriteString("      - name: Restore actions folder\n")
 	step.WriteString("        if: always()\n")
-	fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/checkout"))
+	fmt.Fprintf(&step, "        uses: %s\n", getActionPin("actions/checkout"))
 	step.WriteString("        with:\n")
 	step.WriteString("          repository: github/gh-aw\n")
 	step.WriteString("          sparse-checkout: |\n")

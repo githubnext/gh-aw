@@ -167,7 +167,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		secretMaskingLog.Printf("Generating redaction step for %d secret(s)", len(secretReferences))
 		yaml.WriteString("      - name: Redact secrets in logs\n")
 		yaml.WriteString("        if: always()\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 
