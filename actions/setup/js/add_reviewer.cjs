@@ -3,7 +3,17 @@
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ * @typedef {import('./types/handler-factory').HandlerConfig} HandlerConfig
+ * @typedef {import('./types/handler-factory').ResolvedTemporaryIds} ResolvedTemporaryIds
+ * @typedef {import('./types/handler-factory').HandlerResult} HandlerResult
  */
+
+/**
+ * @typedef {{ reviewers?: Array<string|null|undefined|false>, pull_request_number?: number|string }} AddReviewerMessage
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "add_reviewer";
 
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -32,9 +42,9 @@ async function main(config = {}) {
   let processedCount = 0;
 
   /**
-   * @param {Object} message - The add_reviewer message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status
+   * @param {AddReviewerMessage} message - The add_reviewer message to process
+   * @param {ResolvedTemporaryIds} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<HandlerResult>} Result with success/error status
    */
   return async function handleAddReviewer(message, resolvedTemporaryIds) {
     if (processedCount >= maxCount) {
