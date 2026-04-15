@@ -39,7 +39,7 @@ type TypeValidationConfig struct {
 	CustomValidation string                     `json:"customValidation,omitempty"`
 	// AllowedPayload when true permits agents to supply a `payload` field on this type.
 	// Only types that explicitly opt-in can carry structured payload data.
-	AllowedPayload bool `json:"allowed-payload,omitempty"`
+	AllowedPayload bool `json:"allowed-payload"`
 }
 
 // Constants for validation

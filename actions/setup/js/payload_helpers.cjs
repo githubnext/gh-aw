@@ -30,12 +30,15 @@
 const PAYLOAD_FENCE_INFO = "json gh-aw-payload";
 
 /**
- * Render a validated payload object as a fenced code block.
+ * Render a validated payload object as a collapsible details section containing
+ * a pretty-printed fenced JSON code block.
+ * The object is always round-tripped through JSON.parse/JSON.stringify to normalize it
+ * (removes undefined values, coerces types, etc.) before rendering.
  * Returns an empty string when payload is absent or empty so callers can
  * unconditionally append the result without producing stray blank lines.
  *
  * @param {Record<string, string|number|boolean|null>|null|undefined} payload - The payload object to render
- * @returns {string} Markdown fenced code block, or empty string if no payload
+ * @returns {string} Markdown details section with fenced code block, or empty string if no payload
  */
 function renderPayloadBlock(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -45,16 +48,29 @@ function renderPayloadBlock(payload) {
     return "";
   }
 
-  const json = JSON.stringify(payload);
+  // Always roundtrip through JSON to normalize the object (removes undefined values,
+  // coerces types, and ensures the result is serializable)
+  let normalized;
+  try {
+    normalized = JSON.parse(JSON.stringify(payload));
+  } catch {
+    return "";
+  }
 
-  // Enforce valid JSON — verify the serialized output is parseable before embedding
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return "";
+  }
+
+  const json = JSON.stringify(normalized, null, 2);
+
+  // Verify the pretty-printed JSON round-trips cleanly
   try {
     JSON.parse(json);
   } catch {
     return "";
   }
 
-  return `\`\`\`${PAYLOAD_FENCE_INFO}\n${json}\n\`\`\``;
+  return `<details>\n<summary>payload</summary>\n\n\`\`\`${PAYLOAD_FENCE_INFO}\n${json}\n\`\`\`\n\n</details>`;
 }
 
 /**

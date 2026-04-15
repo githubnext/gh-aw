@@ -5,9 +5,9 @@ const { renderPayloadBlock, parsePayloadFromBody, PAYLOAD_FENCE_INFO } = await i
 
 describe("payload_helpers", () => {
   describe("renderPayloadBlock", () => {
-    it("should render a simple payload object as a fenced code block", () => {
+    it("should render a simple payload object as a details section with pretty-printed JSON", () => {
       const result = renderPayloadBlock({ verdict: "APPROVE", count: 5 });
-      expect(result).toBe('```json gh-aw-payload\n{"verdict":"APPROVE","count":5}\n```');
+      expect(result).toBe('<details>\n<summary>payload</summary>\n\n```json gh-aw-payload\n{\n  "verdict": "APPROVE",\n  "count": 5\n}\n```\n\n</details>');
     });
 
     it("should return empty string for null", () => {
@@ -29,8 +29,10 @@ describe("payload_helpers", () => {
 
     it("should handle boolean, number and null values", () => {
       const result = renderPayloadBlock({ passed: true, score: 42, note: null });
-      const json = result.split("\n")[1];
-      const parsed = JSON.parse(json);
+      // Extract the JSON content between the fences
+      const fenceStart = result.indexOf("```json gh-aw-payload\n") + "```json gh-aw-payload\n".length;
+      const fenceEnd = result.lastIndexOf("\n```");
+      const parsed = JSON.parse(result.slice(fenceStart, fenceEnd));
       expect(parsed.passed).toBe(true);
       expect(parsed.score).toBe(42);
       expect(parsed.note).toBeNull();
@@ -38,26 +40,48 @@ describe("payload_helpers", () => {
 
     it("should produce a block with the correct fence info string", () => {
       const result = renderPayloadBlock({ key: "value" });
-      expect(result.startsWith("```" + PAYLOAD_FENCE_INFO)).toBe(true);
-      expect(result.endsWith("```")).toBe(true);
+      expect(result).toContain("```" + PAYLOAD_FENCE_INFO);
+      expect(result).toContain("```\n\n</details>");
     });
 
-    it("should return empty string when JSON.stringify produces invalid JSON", () => {
-      // Simulate an object that would break JSON.parse (e.g., via proxy that yields undefined)
-      // In practice we test by passing an object where JSON.stringify returns non-parseable JSON.
-      // The simplest verifiable case: a plain object always produces valid JSON, so we verify
-      // that the guard doesn't reject valid inputs.
+    it("should wrap payload in a details/summary section", () => {
       const result = renderPayloadBlock({ ok: true });
-      // Valid JSON round-trips cleanly
-      const json = result.split("\n")[1];
-      expect(() => JSON.parse(json)).not.toThrow();
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>payload</summary>");
+      expect(result).toContain("</details>");
+    });
+
+    it("should always roundtrip JSON to normalize — extracted JSON is valid and parseable", () => {
+      const result = renderPayloadBlock({ ok: true });
+      const fenceStart = result.indexOf("```json gh-aw-payload\n") + "```json gh-aw-payload\n".length;
+      const fenceEnd = result.lastIndexOf("\n```");
+      expect(() => JSON.parse(result.slice(fenceStart, fenceEnd))).not.toThrow();
+    });
+
+    it("should pretty-print JSON with indentation", () => {
+      const result = renderPayloadBlock({ a: 1, b: "two" });
+      // Pretty-printed JSON contains newlines and spaces inside the fence
+      expect(result).toContain('  "a": 1');
+      expect(result).toContain('  "b": "two"');
     });
   });
 
   describe("parsePayloadFromBody", () => {
-    it("should parse payload back from a rendered body", () => {
+    it("should parse payload back from a compact single-line fenced block (backward compat)", () => {
       const body = '```json gh-aw-payload\n{"verdict":"APPROVE","count":5}\n```';
       const result = parsePayloadFromBody(body);
+      expect(result).toEqual({ verdict: "APPROVE", count: 5 });
+    });
+
+    it("should parse payload from a pretty-printed fenced block", () => {
+      const body = '```json gh-aw-payload\n{\n  "verdict": "APPROVE",\n  "count": 5\n}\n```';
+      const result = parsePayloadFromBody(body);
+      expect(result).toEqual({ verdict: "APPROVE", count: 5 });
+    });
+
+    it("should parse payload from a details-wrapped block (new render format)", () => {
+      const rendered = renderPayloadBlock({ verdict: "APPROVE", count: 5 });
+      const result = parsePayloadFromBody(rendered);
       expect(result).toEqual({ verdict: "APPROVE", count: 5 });
     });
 
