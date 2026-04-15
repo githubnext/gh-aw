@@ -143,6 +143,17 @@ exec ${node_bin} /usr/local/lib/awf/awf-bundle.js "\$@"
 WRAPPER
   sudo chmod +x "${AWF_INSTALL_DIR}/${AWF_INSTALL_NAME}"
 
+  # Export the absolute node path for subsequent steps.
+  # On GPU runners (e.g. aw-gpu-runner-T4), sudo may reset PATH so the
+  # actions/setup-node path is not visible when AWF runs. Exporting the
+  # absolute path via GITHUB_ENV lets the AWF execute step reference it
+  # as ${GH_AW_NODE_BIN} to invoke node scripts inside the AWF chroot
+  # environment where the host filesystem is accessible.
+  if [ -n "${GITHUB_ENV}" ]; then
+    echo "GH_AW_NODE_BIN=${node_bin}" >> "${GITHUB_ENV}"
+    echo "✓ Exported GH_AW_NODE_BIN=${node_bin}"
+  fi
+
   echo "✓ Installed awf bundle to ${AWF_LIB_DIR}/${bundle_name}"
 }
 

@@ -180,11 +180,17 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	//
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
+	//
+	// Use ${GH_AW_NODE_BIN:-node} instead of plain `node` so the absolute node path
+	// (exported by install_awf_binary.sh as GH_AW_NODE_BIN when the bundle is installed)
+	// is used inside the AWF container. In AWF's chroot mode the host filesystem is
+	// accessible, so the absolute path works even when sudo resets PATH on GPU runners
+	// (e.g. aw-gpu-runner-T4) and the actions/setup-node directory is not in PATH.
 	driverScriptName := e.GetDriverScriptName()
 	var execPrefix string
 	if driverScriptName != "" {
-		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} expands in the shell context.
-		execPrefix = fmt.Sprintf(`node %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
+		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
+		execPrefix = fmt.Sprintf(`${GH_AW_NODE_BIN:-node} %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}
