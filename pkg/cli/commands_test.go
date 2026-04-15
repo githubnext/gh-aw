@@ -405,7 +405,7 @@ Test workflow for command existence.`
 	}
 }
 
-func TestNewWorkflow(t *testing.T) {
+func TestCreateWorkflowMarkdownFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "test-new-workflow-*")
 	if err != nil {
@@ -483,7 +483,7 @@ func TestNewWorkflow(t *testing.T) {
 			}
 
 			// Run the function
-			err := NewWorkflow(test.workflowName, false, test.force, "")
+			err := CreateWorkflowMarkdownFile(test.workflowName, false, test.force, "")
 
 			// Check error expectation
 			if test.expectedError && err == nil {

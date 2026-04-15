@@ -159,7 +159,7 @@ Examples:
 
 		// Template mode with workflow name
 		workflowName := args[0]
-		return cli.NewWorkflow(workflowName, verbose, forceFlag, engineOverride)
+		return cli.CreateWorkflowMarkdownFile(workflowName, verbose, forceFlag, engineOverride)
 	},
 }
 
