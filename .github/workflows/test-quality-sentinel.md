@@ -68,6 +68,7 @@ timeout-minutes: 15
 imports:
   - shared/reporting.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

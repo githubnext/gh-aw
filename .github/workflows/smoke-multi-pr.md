@@ -43,6 +43,8 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Smoke Test: Multiple Pull Request Creation

@@ -47,6 +47,8 @@ tools:
     - "wc:*"
     - "find:*"
     - "echo:*"
+features:
+  mcp-cli: true
 ---
 
 # Design Decision Gate 🏗️

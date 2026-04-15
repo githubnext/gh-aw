@@ -30,6 +30,8 @@ imports:
       expires: 1d
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 # Daily Team Evolution Insights
 

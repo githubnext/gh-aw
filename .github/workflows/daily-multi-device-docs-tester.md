@@ -54,6 +54,8 @@ imports:
   - shared/docs-server-lifecycle.md
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

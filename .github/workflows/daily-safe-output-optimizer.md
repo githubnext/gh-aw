@@ -29,6 +29,8 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Safe Output Tool Optimizer

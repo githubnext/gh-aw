@@ -37,6 +37,7 @@ imports:
 timeout-minutes: 15
 
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 # Copilot PR Prompt Pattern Analysis

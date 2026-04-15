@@ -31,6 +31,8 @@ strict: true
 imports:
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Daily OTel Instrumentation Advisor

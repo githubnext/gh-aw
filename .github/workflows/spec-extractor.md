@@ -56,6 +56,7 @@ safe-outputs:
 
 timeout-minutes: 30
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

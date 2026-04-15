@@ -20,7 +20,8 @@ safe-outputs:
 
 tools:
   cache-memory: true
-
+features:
+  mcp-cli: true
 ---
 
 # Test Create PR Error Handling

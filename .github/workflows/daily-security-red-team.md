@@ -24,6 +24,8 @@ imports:
   - shared/security-analysis-base.md
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Daily Security Red Team Agent

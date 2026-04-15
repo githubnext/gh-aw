@@ -48,6 +48,8 @@ imports:
   - shared/reporting.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md
+features:
+  mcp-cli: true
 ---
 
 # Automated Portfolio Analyst

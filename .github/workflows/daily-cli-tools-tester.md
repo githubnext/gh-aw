@@ -24,6 +24,8 @@ strict: true
 imports:
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Daily CLI Tools Exploratory Tester

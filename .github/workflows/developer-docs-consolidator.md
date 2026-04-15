@@ -53,7 +53,8 @@ imports:
       title-prefix: "[developer-docs] "
   - shared/reporting.md
   - shared/mcp/serena-go.md
-
+features:
+  mcp-cli: true
 ---
 # Developer Documentation Consolidator
 

@@ -39,7 +39,8 @@ tools:
     - "git log --since='*' --pretty=format:'%h %s' -- docs/"
 
 timeout-minutes: 15
-
+features:
+  mcp-cli: true
 ---
 
 # Instructions Janitor

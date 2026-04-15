@@ -30,6 +30,8 @@ timeout-minutes: 15
 imports:
   - shared/security-analysis-base.md
   - shared/pr-code-review-config.md
+features:
+  mcp-cli: true
 ---
 
 # Security Review Agent 🔒

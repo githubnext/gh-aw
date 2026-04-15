@@ -35,6 +35,8 @@ jobs:
               issue_number: prNumber,
               body: `👋 Hey @${actor}! Here's your ACE editor session link for this pull request:\n\n🔗 **${aceUrl}**\n\nCopy and paste this link into Slack to invite your teammates into the session! 🚀`,
             });
+features:
+  mcp-cli: true
 ---
 
 Classic action that generates an ACE editor session link on pull request comment slash command.

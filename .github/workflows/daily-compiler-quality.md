@@ -33,6 +33,7 @@ tools:
 timeout-minutes: 30
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

@@ -48,6 +48,8 @@ imports:
   - shared/activation-app.md
   - shared/reporting.md
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Daily Rendering Scripts Verifier

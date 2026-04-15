@@ -38,6 +38,7 @@ tools:
 timeout-minutes: 15
 
 features:
+  mcp-cli: true
   copilot-requests: true
 imports:
   - shared/observability-otlp.md

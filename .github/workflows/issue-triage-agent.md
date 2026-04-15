@@ -17,6 +17,8 @@ safe-outputs:
 imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
+features:
+  mcp-cli: true
 ---
 
 # Issue Triage Agent

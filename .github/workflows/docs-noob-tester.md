@@ -37,6 +37,7 @@ imports:
   - shared/reporting.md
   - shared/keep-it-short.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
