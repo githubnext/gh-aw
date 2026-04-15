@@ -351,17 +351,35 @@ func TestRunGHFunctions(t *testing.T) {
 		os.Setenv("GITHUB_TOKEN", originalGitHubToken)
 	}()
 
-	// Set up test environment - no tokens so command won't actually execute
+	// Set up test environment with no tokens to keep behavior deterministic for unit tests.
 	os.Unsetenv("GH_TOKEN")
 	os.Unsetenv("GITHUB_TOKEN")
 
-	// Verify both public functions can be called; they delegate to RunGHContext/RunGHCombinedContext.
-	// We expect an error since gh requires auth, but no panic.
-	_, err := RunGH("Test spinner...", "auth", "status")
-	_ = err
+	t.Run("RunGH matches RunGHContext", func(t *testing.T) {
+		gotOut, gotErr := RunGH("Test spinner...", "auth", "status")
+		wantOut, wantErr := RunGHContext(context.Background(), "Test spinner...", "auth", "status")
 
-	_, err = RunGHCombined("Test spinner...", "auth", "status")
-	_ = err
+		assert.Equal(t, wantOut, gotOut, "RunGH should return the same output as RunGHContext")
+		if wantErr == nil {
+			assert.NoError(t, gotErr, "RunGH should match RunGHContext error behavior")
+		} else {
+			require.Error(t, gotErr, "RunGH should match RunGHContext error behavior")
+			assert.Equal(t, wantErr.Error(), gotErr.Error(), "RunGH should return the same error text as RunGHContext")
+		}
+	})
+
+	t.Run("RunGHCombined matches RunGHCombinedContext", func(t *testing.T) {
+		gotOut, gotErr := RunGHCombined("Test spinner...", "auth", "status")
+		wantOut, wantErr := RunGHCombinedContext(context.Background(), "Test spinner...", "auth", "status")
+
+		assert.Equal(t, wantOut, gotOut, "RunGHCombined should return the same output as RunGHCombinedContext")
+		if wantErr == nil {
+			assert.NoError(t, gotErr, "RunGHCombined should match RunGHCombinedContext error behavior")
+		} else {
+			require.Error(t, gotErr, "RunGHCombined should match RunGHCombinedContext error behavior")
+			assert.Equal(t, wantErr.Error(), gotErr.Error(), "RunGHCombined should return the same error text as RunGHCombinedContext")
+		}
+	})
 }
 
 // TestEnrichGHError tests that enrichGHError appends stderr from *exec.ExitError

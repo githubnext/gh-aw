@@ -33,7 +33,7 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	}
 
 	if ghToken != "" || githubToken != "" {
-		githubCLILog.Printf("Using gh CLI for command: gh %v", args)
+		githubCLILog.Printf("Token detected, using gh CLI for command: gh %v", args)
 	} else {
 		githubCLILog.Printf("No token available, using default gh CLI for command: gh %v", args)
 	}
