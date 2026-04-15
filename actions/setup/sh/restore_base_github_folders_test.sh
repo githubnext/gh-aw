@@ -22,6 +22,10 @@ assert() {
   fi
 }
 
+# Simulated engine-registry values (matches what the Go compiler would emit)
+AGENT_FOLDERS=".agents .claude .codex .gemini .github"
+AGENT_FILES="AGENTS.md CLAUDE.md GEMINI.md"
+
 cleanup() {
   rm -rf "${TEST_WORKSPACE:-}" "/tmp/gh-aw/base"
 }
@@ -30,7 +34,7 @@ trap cleanup EXIT
 echo "Testing restore_base_github_folders.sh..."
 echo ""
 
-# ── Test 1: Core folders + root files restored, .mcp.json removed ────────────
+# ── Test 1: Snapshot present → restores folders, root files, removes .mcp.json
 echo "Test 1: Snapshot present → restores folders, root files, removes .mcp.json"
 TEST_WORKSPACE=$(mktemp -d)
 
@@ -51,7 +55,8 @@ echo "evil agents" >"${TEST_WORKSPACE}/AGENTS.md"
 echo "evil claude" >"${TEST_WORKSPACE}/CLAUDE.md"
 echo '{"mcpServers":{}}' >"${TEST_WORKSPACE}/.mcp.json"
 
-GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
+GH_AW_AGENT_FOLDERS="${AGENT_FOLDERS}" GH_AW_AGENT_FILES="${AGENT_FILES}" \
+  GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 
 assert ".github/skills/SKILL.md restored to trusted" "grep -q 'trusted skill' '${TEST_WORKSPACE}/.github/skills/SKILL.md'"
 assert ".agents/agent.md restored to trusted" "grep -q 'trusted agent' '${TEST_WORKSPACE}/.agents/agent.md'"
@@ -62,7 +67,7 @@ rm -rf "${TEST_WORKSPACE}" /tmp/gh-aw/base
 echo ""
 
 # ── Test 2: Engine-specific folders restored ─────────────────────────────────
-echo "Test 2: Engine-specific folders (.claude, .gemini, .cursor, .windsurf, .codex) restored"
+echo "Test 2: Engine-specific .claude and .gemini folders restored"
 TEST_WORKSPACE=$(mktemp -d)
 
 mkdir -p /tmp/gh-aw/base/.claude/commands
@@ -76,7 +81,8 @@ echo "evil cmd" >"${TEST_WORKSPACE}/.claude/commands/cmd.md"
 mkdir -p "${TEST_WORKSPACE}/.gemini"
 echo '{"evil":true}' >"${TEST_WORKSPACE}/.gemini/settings.json"
 
-GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
+GH_AW_AGENT_FOLDERS="${AGENT_FOLDERS}" GH_AW_AGENT_FILES="${AGENT_FILES}" \
+  GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 
 assert ".claude/commands/cmd.md restored" "grep -q 'trusted cmd' '${TEST_WORKSPACE}/.claude/commands/cmd.md'"
 assert ".gemini/settings.json restored" "grep -q 'trusted' '${TEST_WORKSPACE}/.gemini/settings.json'"
@@ -91,10 +97,10 @@ rm -rf /tmp/gh-aw/base
 # PR branch injected .claude but base has no .claude
 mkdir -p "${TEST_WORKSPACE}/.claude"
 echo "evil instructions" >"${TEST_WORKSPACE}/.claude/CLAUDE.md"
-# PR branch also injected AGENTS.md
 echo "evil agents" >"${TEST_WORKSPACE}/AGENTS.md"
 
-GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
+GH_AW_AGENT_FOLDERS="${AGENT_FOLDERS}" GH_AW_AGENT_FILES="${AGENT_FILES}" \
+  GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 EXIT_CODE=$?
 
 assert "exits 0" "[ ${EXIT_CODE} -eq 0 ]"
@@ -103,55 +109,57 @@ assert "AGENTS.md removed (not in base)" "[ ! -f '${TEST_WORKSPACE}/AGENTS.md' ]
 rm -rf "${TEST_WORKSPACE}"
 echo ""
 
-# ── Test 4: PR-injected items absent from base are removed ───────────────────
-echo "Test 4: No /tmp/gh-aw/base → PR-branch injected items removed"
+# ── Test 4: Empty env vars → no folder operations, .mcp.json still removed ───
+echo "Test 4: Empty env vars → no folder/file ops, .mcp.json still removed"
 TEST_WORKSPACE=$(mktemp -d)
-mkdir -p "${TEST_WORKSPACE}/.cursor/rules"
-echo "evil cursor rule" >"${TEST_WORKSPACE}/.cursor/rules/rule.mdc"
-echo "evil gemini" >"${TEST_WORKSPACE}/GEMINI.md"
 rm -rf /tmp/gh-aw/base
+mkdir -p "${TEST_WORKSPACE}/.claude"
+echo "evil" >"${TEST_WORKSPACE}/.claude/CLAUDE.md"
+echo '{"evil":true}' >"${TEST_WORKSPACE}/.mcp.json"
 
-GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
+GH_AW_AGENT_FOLDERS="" GH_AW_AGENT_FILES="" \
+  GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 EXIT_CODE=$?
 
 assert "exits 0" "[ ${EXIT_CODE} -eq 0 ]"
-assert ".cursor removed (no base snapshot)" "[ ! -d '${TEST_WORKSPACE}/.cursor' ]"
-assert "GEMINI.md removed (no base snapshot)" "[ ! -f '${TEST_WORKSPACE}/GEMINI.md' ]"
+assert ".mcp.json removed even with empty env vars" "[ ! -f '${TEST_WORKSPACE}/.mcp.json' ]"
 rm -rf "${TEST_WORKSPACE}"
 echo ""
 
-# ── Test 5: .mcp.json absent → exits 0 without error ────────────────────────
+# ── Test 5: .mcp.json absent → exits 0 without error ─────────────────────────
 echo "Test 5: No .mcp.json in workspace → exits 0"
 TEST_WORKSPACE=$(mktemp -d)
 rm -rf /tmp/gh-aw/base
 
 EXIT_CODE=0
-GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1 || EXIT_CODE=$?
+GH_AW_AGENT_FOLDERS="" GH_AW_AGENT_FILES="" \
+  GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1 || EXIT_CODE=$?
 
 assert "exits 0 when .mcp.json absent" "[ ${EXIT_CODE} -eq 0 ]"
 rm -rf "${TEST_WORKSPACE}"
 echo ""
 
-# ── Test 6: Partial snapshot — only some items present ────────────────────────
-echo "Test 6: Partial snapshot → only present items restored; absent PR items removed"
+# ── Test 6: Partial snapshot → present items restored; absent PR items removed
+echo "Test 6: Partial snapshot → present items restored; absent PR items removed"
 TEST_WORKSPACE=$(mktemp -d)
 
-# Base has .github but not .windsurf
+# Base has .github but not .codex
 mkdir -p /tmp/gh-aw/base/.github
 echo "trusted" >/tmp/gh-aw/base/.github/trusted.md
-# no .windsurf in base
+# no .codex in base
 
 # PR has both
 mkdir -p "${TEST_WORKSPACE}/.github"
 echo "evil" >"${TEST_WORKSPACE}/.github/evil.md"
-mkdir -p "${TEST_WORKSPACE}/.windsurf/rules"
-echo "evil rule" >"${TEST_WORKSPACE}/.windsurf/rules/rule.md"
+mkdir -p "${TEST_WORKSPACE}/.codex"
+echo "evil codex" >"${TEST_WORKSPACE}/.codex/config"
 
-GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
+GH_AW_AGENT_FOLDERS="${AGENT_FOLDERS}" GH_AW_AGENT_FILES="${AGENT_FILES}" \
+  GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 
 assert ".github restored from base" "[ -f '${TEST_WORKSPACE}/.github/trusted.md' ]"
 assert "evil .github file removed" "[ ! -f '${TEST_WORKSPACE}/.github/evil.md' ]"
-assert ".windsurf removed (not in base)" "[ ! -d '${TEST_WORKSPACE}/.windsurf' ]"
+assert ".codex removed (not in base)" "[ ! -d '${TEST_WORKSPACE}/.codex' ]"
 rm -rf "${TEST_WORKSPACE}" /tmp/gh-aw/base
 echo ""
 

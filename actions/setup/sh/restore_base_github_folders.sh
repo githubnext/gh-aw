@@ -15,9 +15,13 @@
 #   - If absent from the base snapshot but present in the workspace: remove it
 #     (prevent the PR branch from injecting files that the base branch doesn't have)
 #
-# Covered items:
-#   Directories: .github  .agents  .claude  .gemini  .cursor  .windsurf  .codex
-#   Root files:  AGENTS.md  CLAUDE.md  GEMINI.md
+# The lists of folders and files MUST match those used in save_base_github_folders.sh
+# and are passed via the same environment variables:
+#
+#   GH_AW_AGENT_FOLDERS  - space-separated list of directories to restore
+#                          (e.g. ".agents .claude .codex .gemini .github")
+#   GH_AW_AGENT_FILES    - space-separated list of root files to restore
+#                          (e.g. "AGENTS.md CLAUDE.md GEMINI.md")
 #
 # Exit codes:
 #   0 - Success
@@ -27,13 +31,12 @@ set -euo pipefail
 WORKSPACE="${GITHUB_WORKSPACE:-$(pwd)}"
 SRC="/tmp/gh-aw/base"
 
-# Engine-specific configuration directories to restore
-FOLDERS=(.github .agents .claude .gemini .cursor .windsurf .codex)
+# Parse the engine-registry-derived lists from environment variables.
+# These must match the values used in save_base_github_folders.sh.
+IFS=' ' read -ra FOLDERS <<< "${GH_AW_AGENT_FOLDERS:-}"
+IFS=' ' read -ra ROOT_FILES <<< "${GH_AW_AGENT_FILES:-}"
 
-# Root-level instruction/agent files to restore
-ROOT_FILES=(AGENTS.md CLAUDE.md GEMINI.md)
-
-for FOLDER in "${FOLDERS[@]}"; do
+for FOLDER in "${FOLDERS[@]+"${FOLDERS[@]}"}"; do
   SNAPSHOT="${SRC}/${FOLDER}"
   DEST="${WORKSPACE}/${FOLDER}"
   if [ -d "${SNAPSHOT}" ]; then
@@ -49,7 +52,7 @@ for FOLDER in "${FOLDERS[@]}"; do
   fi
 done
 
-for FILE in "${ROOT_FILES[@]}"; do
+for FILE in "${ROOT_FILES[@]+"${ROOT_FILES[@]}"}"; do
   SNAPSHOT="${SRC}/${FILE}"
   DEST="${WORKSPACE}/${FILE}"
   if [ -f "${SNAPSHOT}" ]; then
