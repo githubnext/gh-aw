@@ -46,7 +46,7 @@ func generateInlineGitHubScriptStep(stepName, script, condition string, data *Wo
 	if condition != "" {
 		step.WriteString("        if: " + condition + "\n")
 	}
-	step.WriteString("        uses: " + GetCachedActionPin("actions/github-script", data) + "\n")
+	step.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")
 	step.WriteString(script)
@@ -66,7 +66,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 
 	// Use actions/github-script to perform the substitutions
 	yaml.WriteString(indent + "- name: Substitute placeholders\n")
-	fmt.Fprintf(yaml, indent+"  uses: %s\n", GetCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, indent+"  uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString(indent + "  env:\n")
 	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 

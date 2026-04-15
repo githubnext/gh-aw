@@ -73,7 +73,7 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 				actionSHACheckerLog.Printf("Found action: %s@%s (version: %s)", repo, sha, version)
 			} else {
 				// Fallback: try to determine the version tag from action_pins.json
-				if pin, found := GetActionPinByRepo(repo); found {
+				if pin, found := getActionPinByRepo(repo); found {
 					version = pin.Version
 					actionSHACheckerLog.Printf("Found action: %s@%s (version from pins: %s)", repo, sha, version)
 				} else {

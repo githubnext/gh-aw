@@ -107,7 +107,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to typed step: %w", i, err)
 			}
-			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			pinnedStep := applyActionPinToTypedStep(typedStep, data)
 			stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to convert safe-outputs step at index %d to YAML: %w", i, err)
@@ -254,7 +254,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			steps = append(steps, "        id: assign_copilot_to_created_issues\n")
 			steps = append(steps, "        if: steps.process_safe_outputs.outputs.issues_to_assign_copilot != ''\n")
 			steps = append(steps, "        continue-on-error: true\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetCachedActionPin("actions/github-script", data)))
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 			steps = append(steps, "        env:\n")
 			steps = append(steps, "          GH_AW_ISSUES_TO_ASSIGN_COPILOT: ${{ steps.process_safe_outputs.outputs.issues_to_assign_copilot }}\n")
 			steps = append(steps, "        with:\n")

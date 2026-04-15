@@ -76,23 +76,23 @@ func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) str
 }
 
 // --------------------------------------------------------------------------
-// Public API — delegates to pkg/actionpins with a PinContext from WorkflowData
+// Package-private API — delegates to pkg/actionpins with a PinContext from WorkflowData
 // --------------------------------------------------------------------------
 
-// GetActionPinByRepo returns the latest ActionPin for a given repository, if any.
-func GetActionPinByRepo(repo string) (ActionPin, bool) {
+// getActionPinByRepo returns the latest ActionPin for a given repository, if any.
+func getActionPinByRepo(repo string) (ActionPin, bool) {
 	return actionpins.GetActionPinByRepo(repo)
 }
 
-// GetActionPinWithData returns the pinned action reference for a given action@version,
+// getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
-func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
+func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
 	return actionpins.GetActionPinWithData(actionRepo, version, data.PinContext())
 }
 
-// GetCachedActionPin returns the pinned action reference for a given repository,
+// getCachedActionPin returns the pinned action reference for a given repository,
 // preferring the dynamic resolver from WorkflowData over the embedded pins.
-func GetCachedActionPin(repo string, data *WorkflowData) string {
+func getCachedActionPin(repo string, data *WorkflowData) string {
 	return actionpins.GetCachedActionPin(repo, data.PinContext())
 }
 
@@ -100,10 +100,10 @@ func GetCachedActionPin(repo string, data *WorkflowData) string {
 // Step-level helpers that depend on WorkflowStep (stay in pkg/workflow)
 // --------------------------------------------------------------------------
 
-// ApplyActionPinToTypedStep applies SHA pinning to a WorkflowStep if it uses an action.
+// applyActionPinToTypedStep applies SHA pinning to a WorkflowStep if it uses an action.
 // Returns a modified copy of the step with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original step.
-func ApplyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *WorkflowStep {
+func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *WorkflowStep {
 	if step == nil || !step.IsUsesStep() {
 		return step
 	}
@@ -122,7 +122,7 @@ func ApplyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 	// Uses strings like "repo@sha # version" are treated as already-pinned.
 	rawVersion, _, _ := strings.Cut(version, " ")
 
-	pinnedRef, err := GetActionPinWithData(actionRepo, rawVersion, data)
+	pinnedRef, err := getActionPinWithData(actionRepo, rawVersion, data)
 	if err != nil || pinnedRef == "" {
 		return step
 	}
@@ -132,9 +132,9 @@ func ApplyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 	return result
 }
 
-// ApplyActionPinsToTypedSteps applies SHA pinning to a slice of typed WorkflowStep pointers.
+// applyActionPinsToTypedSteps applies SHA pinning to a slice of typed WorkflowStep pointers.
 // Returns a new slice with pinned references.
-func ApplyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*WorkflowStep {
+func applyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*WorkflowStep {
 	if steps == nil {
 		return nil
 	}
@@ -145,7 +145,7 @@ func ApplyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*W
 			result = append(result, nil)
 			continue
 		}
-		result = append(result, ApplyActionPinToTypedStep(step, data))
+		result = append(result, applyActionPinToTypedStep(step, data))
 	}
 	return result
 }

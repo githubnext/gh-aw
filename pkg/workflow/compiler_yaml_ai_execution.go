@@ -43,7 +43,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, data *WorkflowData,
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
@@ -63,7 +63,7 @@ func (c *Compiler) generateMCPScriptsLogParsing(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Parse MCP Scripts logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -82,7 +82,7 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder, data *Wor
 	yaml.WriteString("      - name: Parse MCP Gateway logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        id: %s\n", constants.ParseMCPGatewayStepID)
-	fmt.Fprintf(yaml, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -106,7 +106,7 @@ func (c *Compiler) generateObservabilitySummary(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Generate observability summary\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
@@ -185,7 +185,7 @@ func (c *Compiler) generateTokenUsageSummary(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("      - name: Parse token usage for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")

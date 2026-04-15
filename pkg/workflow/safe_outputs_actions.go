@@ -192,7 +192,7 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 		resolvedRef = config.Uses // local paths stay as-is
 	} else {
 		// Pin the action ref for security.
-		pinned, pinErr := GetActionPinWithData(ref.Repo, ref.Ref, data)
+		pinned, pinErr := getActionPinWithData(ref.Repo, ref.Ref, data)
 		var fetchRef string
 		if pinErr != nil {
 			safeOutputActionsLog.Printf("Warning: failed to pin action %q (%s@%s): %v", actionName, ref.Repo, ref.Ref, pinErr)

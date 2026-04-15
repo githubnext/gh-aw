@@ -676,7 +676,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		}
 		fmt.Fprintf(&step, "        id: push_repo_memory_%s\n", memory.ID)
 		step.WriteString("        if: always()\n")
-		fmt.Fprintf(&step, "        uses: %s\n", GetCachedActionPin("actions/github-script", data))
+		fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		step.WriteString("        env:\n")
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
