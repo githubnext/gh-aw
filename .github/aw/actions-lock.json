@@ -143,25 +143,25 @@
       "version": "v1.24",
       "sha": "3077b49d03fe1e281e5e5bc79084f079e9bf93ca"
     },
-    "github/codeql-action/upload-sarif@v4.35.1": {
+    "github/codeql-action/upload-sarif@v4.35.2": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.35.1",
-      "sha": "0e9f55954318745b37b7933c693bc093f7336125"
+      "version": "v4.35.2",
+      "sha": "7fc6561ed893d15cec696e062df840b21db27eb0"
     },
-    "github/gh-aw-actions/setup@v0.68.2": {
+    "github/gh-aw-actions/setup@v0.68.3": {
       "repo": "github/gh-aw-actions/setup",
-      "version": "v0.68.2",
-      "sha": "19c436149e80e5be4f0adbd9cdeb391acea5fa91"
+      "version": "v0.68.3",
+      "sha": "ba90f2186d7ad780ec640f364005fa24e797b360"
     },
     "github/stale-repos@v9.0.8": {
       "repo": "github/stale-repos",
       "version": "v9.0.8",
       "sha": "5f2e18fc5432823f96c1feb69327f665c2acab59"
     },
-    "haskell-actions/setup@v2.10.4": {
+    "haskell-actions/setup@v2.11": {
       "repo": "haskell-actions/setup",
-      "version": "v2.10.4",
-      "sha": "77bff5043ea8b8189e09903b6f29125b16c531f9"
+      "version": "v2.11",
+      "sha": "1cb3cd8a008d80c9fa129c0f0823d69584905f5b"
     },
     "microsoft/apm-action@v1.4.1": {
       "repo": "microsoft/apm-action",
