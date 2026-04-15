@@ -1563,10 +1563,12 @@ describe("sendJobConclusionSpan", () => {
 
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
     process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
 
     const startMs = 1_700_000_000_000;
     const endMs = 1_700_000_005_000;
-    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {fs.Stats} */ { mtimeMs: endMs });
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
 
     await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
 
@@ -1582,6 +1584,9 @@ describe("sendJobConclusionSpan", () => {
     const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
     expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(agentSpan.traceId).toBe(conclusionSpan.traceId);
+    expect(agentSpan.parentSpanId).toBe("abcdef1234567890");
+    expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
   });
 
   it("does not emit a dedicated agent span when agent_output mtime is unavailable", async () => {
