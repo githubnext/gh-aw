@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -156,6 +157,14 @@ from where the previous request stopped due to timeout.`,
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
 		}
 
+		// Pass --repo from GITHUB_REPOSITORY to avoid git dependency in restricted environments
+		// (e.g., MCP server containers where git is not installed).
+		// GITHUB_REPOSITORY is set as an env_var in the agentic-workflows MCP server configuration
+		// and is passed through to subprocesses spawned by the MCP server.
+		if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" {
+			cmdArgs = append(cmdArgs, "--repo", repo)
+		}
+
 		// Set timeout to 1 minute for MCP server if not explicitly specified
 		timeoutValue := args.Timeout
 		if timeoutValue == 0 {
@@ -299,6 +308,14 @@ Returns JSON with the following structure:
 		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
 		if len(args.Artifacts) > 0 {
 			cmdArgs = append(cmdArgs, "--artifacts", strings.Join(args.Artifacts, ","))
+		}
+
+		// Pass --repo from GITHUB_REPOSITORY to avoid git dependency in restricted environments
+		// (e.g., MCP server containers where git is not installed).
+		// Only needed when the input is a bare numeric run ID (not a URL with embedded owner/repo),
+		// but passing it is safe since the audit command ignores --repo when owner/repo is in the URL.
+		if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" {
+			cmdArgs = append(cmdArgs, "--repo", repo)
 		}
 
 		// Execute the CLI command
