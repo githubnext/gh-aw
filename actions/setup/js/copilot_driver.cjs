@@ -39,6 +39,7 @@ const BACKOFF_MULTIPLIER = 2;
 const MAX_DELAY_MS = 60000;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
+const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -264,19 +265,19 @@ function resolvePromptFileArgs(args) {
       continue;
     }
 
-    const promptFile = args[i + 1];
-    if (!promptFile) {
+    if (i + 1 >= args.length) {
       log("warning: --prompt-file provided without a path; leaving arguments unchanged");
       resolvedArgs.push(arg);
       continue;
     }
+    const promptFile = args[i + 1];
 
     try {
       const stat = fs.statSync(promptFile);
       log(`resolved --prompt-file: path=${promptFile} size=${stat.size}B`);
 
       if (stat.size > PROMPT_FILE_INLINE_THRESHOLD_BYTES) {
-        log(`prompt file exceeds ${PROMPT_FILE_INLINE_THRESHOLD_BYTES}B; using compact fallback prompt`);
+        log(`prompt file exceeds ${PROMPT_FILE_INLINE_THRESHOLD_LABEL}; using compact fallback prompt`);
         resolvedArgs.push("-p", buildPromptFileFallbackInstruction(promptFile));
       } else {
         const promptText = fs.readFileSync(promptFile, "utf8");
