@@ -182,6 +182,70 @@ func TestMergeTools(t *testing.T) {
 				},
 			},
 		},
+		{
+			// bash: true in main workflow (or parent import) must win over an import's
+			// specific bash command list, e.g. ["ls", "cat"]. Both are valid bash tool
+			// configurations, but they are different types (bool vs array).
+			name: "base bash true overrides additional bash array (bash: true wins)",
+			base: map[string]any{
+				"bash": true,
+			},
+			additional: map[string]any{
+				"bash": []any{"ls", "cat"},
+			},
+			expected: map[string]any{
+				"bash": true,
+			},
+		},
+		{
+			// A parent import's specific bash command list must not be overridden by a
+			// child import's unrestricted bash: true.
+			name: "base bash array not overridden by additional bash true",
+			base: map[string]any{
+				"bash": []any{"ls", "cat"},
+			},
+			additional: map[string]any{
+				"bash": true,
+			},
+			expected: map[string]any{
+				"bash": []any{"ls", "cat"},
+			},
+		},
+		{
+			// cache-memory: {key: "specific-name"} in a parent import must win over a
+			// child import's generic cache-memory: true. The specific key provides
+			// more information and should not be overwritten by a generic boolean.
+			name: "base cache-memory map with key overrides additional cache-memory true",
+			base: map[string]any{
+				"cache-memory": map[string]any{
+					"key": "my-specific-cache-key-${{ github.run_id }}",
+				},
+			},
+			additional: map[string]any{
+				"cache-memory": true,
+			},
+			expected: map[string]any{
+				"cache-memory": map[string]any{
+					"key": "my-specific-cache-key-${{ github.run_id }}",
+				},
+			},
+		},
+		{
+			// cache-memory: true in main workflow must not be overridden by an import's
+			// specific cache-memory map configuration.
+			name: "base cache-memory true not overridden by additional cache-memory map",
+			base: map[string]any{
+				"cache-memory": true,
+			},
+			additional: map[string]any{
+				"cache-memory": map[string]any{
+					"key": "import-specific-key-${{ github.run_id }}",
+				},
+			},
+			expected: map[string]any{
+				"cache-memory": true,
+			},
+		},
 	}
 
 	for _, tt := range tests {
