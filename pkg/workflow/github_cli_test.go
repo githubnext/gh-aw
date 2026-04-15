@@ -341,10 +341,8 @@ func TestSetupGHCommand(t *testing.T) {
 	}
 }
 
-// TestRunGHWithSpinner tests the core runGHWithSpinner function
-// Note: This test validates the function exists and handles arguments correctly
-// Actual spinner behavior is tested via RunGH and RunGHCombined
-func TestRunGHWithSpinnerHelperExists(t *testing.T) {
+// TestRunGHFunctions tests that RunGH and RunGHCombined delegate correctly to their context variants.
+func TestRunGHFunctions(t *testing.T) {
 	// Save original environment
 	originalGHToken := os.Getenv("GH_TOKEN")
 	originalGitHubToken := os.Getenv("GITHUB_TOKEN")
@@ -357,33 +355,13 @@ func TestRunGHWithSpinnerHelperExists(t *testing.T) {
 	os.Unsetenv("GH_TOKEN")
 	os.Unsetenv("GITHUB_TOKEN")
 
-	// Test that the function exists and can be called
-	// We use a command that will fail quickly without credentials
-	// to verify the integration works
-	tests := []struct {
-		name     string
-		combined bool
-	}{
-		{
-			name:     "Test stdout mode",
-			combined: false,
-		},
-		{
-			name:     "Test combined mode",
-			combined: true,
-		},
-	}
+	// Verify both public functions can be called; they delegate to RunGHContext/RunGHCombinedContext.
+	// We expect an error since gh requires auth, but no panic.
+	_, err := RunGH("Test spinner...", "auth", "status")
+	_ = err
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Just verify the function can be called
-			// We expect it to fail since gh command requires auth
-			_, err := runGHWithSpinner("Test spinner...", tt.combined, "auth", "status")
-			// We don't care about the error - we just want to verify the function exists
-			// and doesn't panic when called
-			_ = err
-		})
-	}
+	_, err = RunGHCombined("Test spinner...", "auth", "status")
+	_ = err
 }
 
 // TestEnrichGHError tests that enrichGHError appends stderr from *exec.ExitError
