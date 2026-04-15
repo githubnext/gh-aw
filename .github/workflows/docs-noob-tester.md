@@ -20,9 +20,9 @@ tools:
   bash:
     - "*"
 safe-outputs:
-  upload-artifact:
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    max: 10
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 network:
   allowed:
     - defaults
@@ -171,13 +171,8 @@ For each confusing or broken area:
 - Take a screenshot showing the issue
 - Save it to a descriptive filename (e.g., "confusing-quick-start-step-3.png") in `/tmp/gh-aw/screenshots/`
 - Note the page URL and specific section
-- Stage and upload the screenshot:
-  ```bash
-  mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts
-  cp /tmp/gh-aw/screenshots/<filename>.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
-  ```
-  Then call the `upload_artifact` safe-output tool with `path: "<filename>.png"`.
-  Record the returned `aw_*` ID.
+- Upload the screenshot by calling the `upload_asset` safe-output tool with the absolute file path `path: "/tmp/gh-aw/screenshots/<filename>.png"`.
+  Record the returned asset URL.
 
 ## Step 5: Create Discussion Report
 
@@ -203,9 +198,9 @@ Create a GitHub discussion titled "📚 Documentation Noob Test Report - [Date]"
 - Longer-term documentation improvements
 
 ### Screenshots
-For each uploaded screenshot, include its `aw_*` ID and a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) where reviewers can download them. Format:
+For each uploaded screenshot, include its asset URL. Format:
 ```
-📎 **[filename.png]** — artifact `aw_XXXXXXXX` (download from workflow run artifacts)
+📎 **[filename.png]** — asset URL: https://github.com/.../blob/.../filename.png?raw=true
 ```
 
 Label the discussion with: `documentation`, `user-experience`, `automated-testing`

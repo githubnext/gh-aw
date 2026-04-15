@@ -14,8 +14,9 @@ tools:
   agentic-workflows:
   timeout: 300
 safe-outputs:
-  upload-artifact:
-    retention-days: 30
+  upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -51,7 +52,7 @@ Generate 2 charts from past 30 days workflow data:
 2. **Token & Cost**: Daily tokens (bar/area) + cost line + 7-day moving average
 
 Save to: `/tmp/gh-aw/python/charts/{workflow_health,token_cost}_trends.png`
-Upload charts, embed in discussion with 2-3 sentence analysis each. Stage chart files to `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/` and call the `upload_artifact` safe-output tool for each chart. Record the returned `aw_*` IDs and include them in the discussion body along with a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) so readers can download the charts.
+Upload charts and embed them in the discussion with 2-3 sentence analysis each. Call the `upload_asset` safe-output tool for each chart using the absolute chart path. Record the returned asset URLs and include them in the discussion body.
 
 ---
 

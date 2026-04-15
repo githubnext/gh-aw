@@ -15,10 +15,9 @@ tools:
   agentic-workflows:
   timeout: 300
 safe-outputs:
-  upload-artifact:
-    max-uploads: 5
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    max: 5
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 45
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -299,34 +298,19 @@ Use `sns.set_theme(style="darkgrid")` for a professional dark-grid look and `plt
 
 ---
 
-## Step 5 — Upload Charts as Artifacts
+## Step 5 — Upload Charts as Assets
 
-**You MUST copy the chart files to the staging directory before calling `upload_artifact`.**
+Call `upload_asset` directly with absolute chart paths.
 
-The `upload_artifact` tool only reads files from `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/`. Run these commands first:
+Call `upload_asset` once per chart (5 total), using absolute paths:
 
-```bash
-mkdir -p "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-cp /tmp/gh-aw/python/charts/*.png "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-```
+- `/tmp/gh-aw/python/charts/api_calls_trend.png`
+- `/tmp/gh-aw/python/charts/workflow_api_trend.png`
+- `/tmp/gh-aw/python/charts/api_heatmap.png`
+- `/tmp/gh-aw/python/charts/api_burners_donut.png`
+- `/tmp/gh-aw/python/charts/api_by_workflow.png`
 
-Then verify the files are in the staging directory:
-
-```bash
-ls -la "$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/"
-```
-
-After confirming the files exist in the staging directory, call `upload_artifact` for each chart using the **filename only** (not a subdirectory path). For example, use `path: "api_calls_trend.png"` — NOT `path: "charts/api_calls_trend.png"`.
-
-Call `upload_artifact` once per chart (5 total), specifying the `temporary_id` for each so the chart can be embedded as an inline image in the discussion:
-
-| Chart file | `temporary_id` |
-|---|---|
-| `api_calls_trend.png` | `aw_api_trend` |
-| `workflow_api_trend.png` | `aw_wf_trend` |
-| `api_heatmap.png` | `aw_heatmap` |
-| `api_burners_donut.png` | `aw_donut` |
-| `api_by_workflow.png` | `aw_by_wf` |
+Record each returned asset URL and embed those URLs directly in the discussion body.
 
 ---
 
