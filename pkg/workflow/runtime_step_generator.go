@@ -20,7 +20,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 		steps = append(steps, generateSetupStep(&req))
 
 		// Add environment variable capture steps after setup actions for AWF chroot mode.
-		// Most env vars are inherited via AWF_HOST_PATH, but Go is special.
+		// Most env vars are inherited via AWF_HOST_PATH, but some runtimes need extra work.
 		switch req.Runtime.ID {
 		case "go":
 			// GitHub Actions uses "trimmed" Go binaries that require GOROOT to be explicitly set.
@@ -29,8 +29,19 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 			// environment, so we must capture it explicitly.
 			runtimeStepGeneratorLog.Print("Adding GOROOT capture step for chroot mode compatibility")
 			steps = append(steps, generateEnvCaptureStep("GOROOT", "go env GOROOT"))
+		case "node":
+			// actions/setup-node installs Node.js into the toolcache directory
+			// (e.g., /home/runner/work/_tool/node/24.x.x/x64/bin/node) on custom image
+			// runners. AWF's chroot container may not have access to these toolcache paths
+			// on certain runner types (e.g., aw-gpu-runner-T4 GPU runners), causing
+			// `node: command not found` errors inside the AWF sandbox even though PATH is
+			// set correctly. Copy the node binary to /usr/local/bin/node — a standard
+			// system path that is always accessible inside AWF's chroot — to ensure that
+			// the Copilot driver script and other node-dependent scripts can execute.
+			runtimeStepGeneratorLog.Print("Adding node system path step for AWF chroot mode compatibility")
+			steps = append(steps, generateNodeSystemPathStep())
 		}
-		// Note: Java and .NET don't need capture steps anymore because:
+		// Note: Java and .NET don't need capture steps because:
 		// - AWF_HOST_PATH captures the complete host PATH including $JAVA_HOME/bin and $DOTNET_ROOT
 		// - AWF's entrypoint.sh exports PATH="${AWF_HOST_PATH}" which preserves all setup-* additions
 	}
@@ -46,6 +57,30 @@ func generateEnvCaptureStep(envVar string, captureCmd string) GitHubActionStep {
 	return GitHubActionStep{
 		fmt.Sprintf("      - name: Capture %s for AWF chroot mode", envVar),
 		fmt.Sprintf("        run: echo \"%s=$(%s)\" >> \"$GITHUB_ENV\"", envVar, captureCmd),
+	}
+}
+
+// generateNodeSystemPathStep creates a step that copies the node binary to a standard
+// system path (/usr/local/bin/node) after actions/setup-node installs it.
+//
+// On custom image runners (e.g., aw-gpu-runner-T4 GPU runners), actions/setup-node
+// installs Node.js in the toolcache (e.g., /home/runner/work/_tool/node/24.x.x/x64/bin/).
+// AWF's chroot container may not have access to these toolcache paths, causing
+// `node: command not found` when the Copilot driver script runs inside the sandbox.
+// Copying to /usr/local/bin/node ensures the binary is accessible at a well-known
+// system path that is always available inside AWF's chroot container.
+func generateNodeSystemPathStep() GitHubActionStep {
+	return GitHubActionStep{
+		"      - name: Copy node to standard system path for AWF sandbox",
+		"        run: |",
+		"          # AWF chroot container may not include the toolcache path where",
+		"          # actions/setup-node installs Node.js on custom image runners.",
+		"          # Copy to /usr/local/bin/node to ensure it's accessible inside AWF.",
+		"          NODE_BIN=\"$(command -v node 2>/dev/null || true)\"",
+		"          if [ -n \"$NODE_BIN\" ] && [ \"$NODE_BIN\" != \"/usr/local/bin/node\" ]; then",
+		"            sudo cp -f \"$NODE_BIN\" /usr/local/bin/node",
+		"            sudo chmod +x /usr/local/bin/node",
+		"          fi",
 	}
 }
 

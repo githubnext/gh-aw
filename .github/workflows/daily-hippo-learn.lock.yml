@@ -345,6 +345,16 @@ jobs:
         with:
           node-version: '22'
           package-manager-cache: false
+      - name: Copy node to standard system path for AWF sandbox
+        run: |
+          # AWF chroot container may not include the toolcache path where
+          # actions/setup-node installs Node.js on custom image runners.
+          # Copy to /usr/local/bin/node to ensure it's accessible inside AWF.
+          NODE_BIN="$(command -v node 2>/dev/null || true)"
+          if [ -n "$NODE_BIN" ] && [ "$NODE_BIN" != "/usr/local/bin/node" ]; then
+            sudo cp -f "$NODE_BIN" /usr/local/bin/node
+            sudo chmod +x /usr/local/bin/node
+          fi
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise

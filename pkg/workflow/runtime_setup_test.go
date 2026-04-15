@@ -296,11 +296,12 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			requirements: []RuntimeRequirement{
 				{Runtime: findRuntimeByID("node"), Version: "20"},
 			},
-			expectSteps: 1,
+			expectSteps: 2, // setup + copy to standard system path for AWF chroot mode
 			checkContent: []string{
 				"Setup Node.js",
 				"actions/setup-node@",
 				"node-version: '20'",
+				"Copy node to standard system path for AWF sandbox",
 			},
 		},
 		{
@@ -381,10 +382,11 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 				{Runtime: findRuntimeByID("node"), Version: "24"},
 				{Runtime: findRuntimeByID("python"), Version: "3.12"},
 			},
-			expectSteps: 2,
+			expectSteps: 3, // node setup + node system path + python setup
 			checkContent: []string{
 				"Setup Node.js",
 				"Setup Python",
+				"Copy node to standard system path for AWF sandbox",
 			},
 		},
 		{
@@ -392,9 +394,10 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			requirements: []RuntimeRequirement{
 				{Runtime: findRuntimeByID("node"), Version: ""},
 			},
-			expectSteps: 1,
+			expectSteps: 2, // setup + copy to standard system path for AWF chroot mode
 			checkContent: []string{
 				"node-version: '24'",
+				"Copy node to standard system path for AWF sandbox",
 			},
 		},
 		{
@@ -818,12 +821,13 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 					IfCondition: "hashFiles('package.json') != ''",
 				},
 			},
-			expectSteps: 1,
+			expectSteps: 2, // setup + copy to standard system path for AWF chroot mode
 			checkContent: []string{
 				"Setup Node.js",
 				"actions/setup-node@",
 				"node-version: '20'",
 				"if: hashFiles('package.json') != ''",
+				"Copy node to standard system path for AWF sandbox",
 			},
 		},
 		{
@@ -845,7 +849,7 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 					IfCondition: "hashFiles('package.json') != ''",
 				},
 			},
-			expectSteps: 4, // go setup + GOROOT capture + python setup + node setup
+			expectSteps: 5, // go setup + GOROOT capture + python setup + node setup + node copy
 			checkContent: []string{
 				"Setup Go",
 				"if: hashFiles('go.mod') != ''",
@@ -853,6 +857,7 @@ func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
 				"if: hashFiles('requirements.txt') != ''",
 				"Setup Node.js",
 				"if: hashFiles('package.json') != ''",
+				"Copy node to standard system path for AWF sandbox",
 			},
 		},
 	}
