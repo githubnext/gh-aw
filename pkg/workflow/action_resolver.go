@@ -73,6 +73,25 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	return sha, nil
 }
 
+// ParseTagRefTSV parses the tab-separated output from the GitHub API
+// `[.object.sha, .object.type] | @tsv` jq expression.
+// It returns the object SHA and type, or an error if the output is malformed.
+// This is a standalone helper so that the parsing logic can be unit-tested
+// independently of network calls.
+func ParseTagRefTSV(line string) (sha, objType string, err error) {
+	line = strings.TrimSpace(line)
+	parts := strings.SplitN(line, "\t", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("unexpected format: %q", line)
+	}
+	sha = parts[0]
+	objType = parts[1]
+	if len(sha) != 40 {
+		return "", "", fmt.Errorf("invalid SHA format: %s", sha)
+	}
+	return sha, objType, nil
+}
+
 // resolveFromGitHub uses gh CLI to resolve the SHA for an action@version
 func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error) {
 	// Extract base repository (for actions like "github/codeql-action/upload-sarif")
@@ -84,24 +103,40 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := ExecGHContext(ctx, "api", apiPath, "--jq", ".object.sha")
+	// Fetch both SHA and object type to detect annotated tags.
+	// Annotated tags have type "tag" and their SHA points to the tag object,
+	// not the underlying commit. We must peel to get the commit SHA.
+	cmd := ExecGHContext(ctx, "api", apiPath, "--jq", "[.object.sha, .object.type] | @tsv")
 	output, err := cmd.Output()
 	if err != nil {
-		// Try without "refs/tags/" prefix in case version is already a ref
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
 	}
 
-	sha := strings.TrimSpace(string(output))
-	if sha == "" {
-		return "", fmt.Errorf("empty SHA returned for %s@%s", repo, version)
+	sha, objType, err := ParseTagRefTSV(string(output))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse API response for %s@%s: %w", repo, version, err)
 	}
 
-	// Validate SHA format (should be 40 hex characters)
-	if len(sha) != 40 {
-		return "", fmt.Errorf("invalid SHA format for %s@%s: %s", repo, version, sha)
+	// Annotated tags point to a tag object, not directly to a commit.
+	// Peel the tag object to get the underlying commit SHA so that
+	// emitted action pins use the stable commit SHA rather than the
+	// mutable tag object SHA (which changes when the tag is re-created).
+	if objType == "tag" {
+		resolverLog.Printf("Detected annotated tag for %s@%s (tag object SHA: %s), peeling to commit SHA", repo, version, sha)
+		tagPath := fmt.Sprintf("/repos/%s/git/tags/%s", baseRepo, sha)
+		cmd2 := ExecGHContext(ctx, "api", tagPath, "--jq", ".object.sha")
+		output2, err := cmd2.Output()
+		if err != nil {
+			return "", fmt.Errorf("failed to peel annotated tag %s@%s: %w", repo, version, err)
+		}
+		sha = strings.TrimSpace(string(output2))
+		if len(sha) != 40 {
+			return "", fmt.Errorf("invalid peeled SHA format for %s@%s: %s", repo, version, sha)
+		}
+		resolverLog.Printf("Peeled annotated tag %s@%s to commit SHA: %s", repo, version, sha)
 	}
 
 	return sha, nil
