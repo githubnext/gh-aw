@@ -737,19 +737,55 @@ func addSameRepoIfConditionToSteps(steps []string) []string {
 	return result
 }
 
-// injectIfConditionAfterName inserts an "if:" field immediately after the first line
-// (the "- name:" line) of a YAML step string. Returns the step unchanged if the
-// insertion point cannot be found.
-//
-// The 8-space prefix matches the YAML indentation used throughout the step generator:
-// steps are nested 6 spaces deep ("      - name:") and step fields are at 8 spaces
-// ("        uses:", "        with:", etc.). This is consistent with all other
-// step fields emitted by GenerateGitHubFolderCheckoutStep.
+// injectIfConditionAfterName inserts an "if:" field immediately after the "- name:"
+// line of a YAML step string. The field indentation is derived from the step's existing
+// content so this remains stable if the step formatter changes indentation.
+// Returns the step unchanged if a "- name:" line cannot be found, and is idempotent
+// (does nothing if an "if:" field is already present).
 func injectIfConditionAfterName(step, condition string) string {
-	idx := strings.Index(step, "\n")
-	if idx < 0 {
-		compilerActivationJobLog.Printf("Warning: could not inject if-condition %q — step has no newline: %q", condition, step)
+	lines := strings.Split(step, "\n")
+
+	// Find the "- name:" line
+	nameLineIdx := -1
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "- name:") {
+			nameLineIdx = i
+			break
+		}
+	}
+	if nameLineIdx < 0 {
+		compilerActivationJobLog.Printf("Warning: could not inject if-condition %q — step has no '- name:' line: %q", condition, step)
 		return step
 	}
-	return step[:idx+1] + "        if: " + condition + "\n" + step[idx+1:]
+
+	// Idempotency: don't inject if an "if:" field is already present
+	for i := nameLineIdx + 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "if:") {
+			return step
+		}
+	}
+
+	// Derive the field indentation from the first non-empty line after "- name:"
+	fieldIndent := ""
+	for i := nameLineIdx + 1; i < len(lines); i++ {
+		line := lines[i]
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		fieldIndent = line[:len(line)-len(strings.TrimLeft(line, " "))]
+		break
+	}
+	if fieldIndent == "" {
+		// Fall back: indent = name-line indent + 2 spaces
+		nameLine := lines[nameLineIdx]
+		nameIndent := nameLine[:len(nameLine)-len(strings.TrimLeft(nameLine, " "))]
+		fieldIndent = nameIndent + "  "
+	}
+
+	newLines := make([]string, 0, len(lines)+1)
+	newLines = append(newLines, lines[:nameLineIdx+1]...)
+	newLines = append(newLines, fieldIndent+"if: "+condition)
+	newLines = append(newLines, lines[nameLineIdx+1:]...)
+	return strings.Join(newLines, "\n")
 }

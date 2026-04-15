@@ -875,3 +875,33 @@ func TestHashCheckTokenPropagation(t *testing.T) {
 		})
 	}
 }
+
+// TestInjectIfConditionAfterName verifies the robust line-oriented implementation of
+// injectIfConditionAfterName: it finds "- name:", derives indentation from context,
+// is idempotent, and logs a warning when no name line is found.
+func TestInjectIfConditionAfterName(t *testing.T) {
+	const cond = "some.condition == true"
+
+	t.Run("injects after - name: line with inferred indent", func(t *testing.T) {
+		step := "      - name: My step\n        uses: actions/checkout@abc\n"
+		got := injectIfConditionAfterName(step, cond)
+		assert.Contains(t, got, "        if: "+cond+"\n",
+			"if: field should appear with the same 8-space indent as other fields")
+		assert.Less(t, strings.Index(got, "if: "+cond), strings.Index(got, "uses:"),
+			"if: field should appear before uses:")
+	})
+
+	t.Run("idempotent — does not double-inject", func(t *testing.T) {
+		step := "      - name: My step\n        if: " + cond + "\n        uses: actions/checkout@abc\n"
+		got := injectIfConditionAfterName(step, cond)
+		assert.Equal(t, step, got, "step should be unchanged when if: is already present")
+		assert.Equal(t, 1, strings.Count(got, "if: "+cond),
+			"if: condition should appear exactly once")
+	})
+
+	t.Run("returns step unchanged when no - name: line found", func(t *testing.T) {
+		step := "        uses: actions/checkout@abc\n        with:\n          fetch-depth: 1\n"
+		got := injectIfConditionAfterName(step, cond)
+		assert.Equal(t, step, got, "step without - name: should be returned unchanged")
+	})
+}
