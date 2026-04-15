@@ -17,6 +17,13 @@ import (
 
 var firewallLogLog = logger.New("cli:firewall_log")
 
+// unknownDomain is a sentinel value used in RequestsByDomain when iptables drops
+// traffic before Squid can identify the destination, and no fallback IP:port is
+// available (both domain and destIPPort are "-"). These entries are tracked for
+// informational purposes but excluded from BlockedDomains/AllowedDomains since
+// they carry no actionable domain information.
+const unknownDomain = "(unknown)"
+
 // Pre-compiled regexes for firewall log parsing (performance optimization)
 var (
 	firewallLogFieldSplitter = regexp.MustCompile(`(?:[^\s"]+|"[^"]*")+`)
@@ -312,16 +319,22 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 		domain := entry.Domain
 		if domain == "-" && entry.DestIPPort != "-" && entry.DestIPPort != "-:-" {
 			domain = entry.DestIPPort
+		} else if domain == "-" {
+			// Both domain and destIPPort are placeholders: iptables dropped the traffic before
+			// Squid could identify the destination. Use a sentinel so the entry appears in
+			// RequestsByDomain for informational purposes, but do NOT add it to the domain sets
+			// since "-" is not an actionable domain name.
+			domain = unknownDomain
 		}
 
 		if isAllowed {
 			analysis.AllowedRequests++
-			if !allowedDomainsSet[domain] {
+			if domain != unknownDomain && !allowedDomainsSet[domain] {
 				allowedDomainsSet[domain] = true
 			}
 		} else {
 			analysis.BlockedRequests++
-			if !blockedDomainsSet[domain] {
+			if domain != unknownDomain && !blockedDomainsSet[domain] {
 				blockedDomainsSet[domain] = true
 			}
 		}
