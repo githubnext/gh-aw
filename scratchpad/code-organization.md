@@ -280,7 +280,7 @@ The compiler is split across multiple files:
 - `compiler.go` (1596 lines) - Main compilation logic
 - `compiler_yaml.go` (1020 lines) - YAML generation
 - `compiler_jobs.go` (806 lines) - Job generation
-- `compiler_test.go` (6058 lines) - Comprehensive tests
+- `compiler_test.go` (6058 lines) - Tests
 
 This demonstrates that even large subsystems benefit from logical file splits.
 

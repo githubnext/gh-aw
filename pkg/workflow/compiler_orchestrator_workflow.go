@@ -296,6 +296,29 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Merge checkout configs from imported shared workflows.
+	// Imported configs are appended after the main workflow's configs so that the main
+	// workflow's entries take precedence when CheckoutManager deduplicates by (repository, path).
+	// checkout: false in the main workflow disables all checkout (including imports).
+	if !workflowData.CheckoutDisabled && importsResult.MergedCheckout != "" {
+		for line := range strings.SplitSeq(strings.TrimSpace(importsResult.MergedCheckout), "\n") {
+			if line == "" {
+				continue
+			}
+			var raw any
+			if err := json.Unmarshal([]byte(line), &raw); err != nil {
+				orchestratorWorkflowLog.Printf("Failed to unmarshal imported checkout JSON: %v", err)
+				continue
+			}
+			importedConfigs, err := ParseCheckoutConfigs(raw)
+			if err != nil {
+				orchestratorWorkflowLog.Printf("Failed to parse imported checkout configs: %v", err)
+				continue
+			}
+			workflowData.CheckoutConfigs = append(workflowData.CheckoutConfigs, importedConfigs...)
+		}
+	}
+
 	// Populate check-for-updates flag: disabled when check-for-updates: false is set in frontmatter.
 	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.UpdateCheck != nil {
 		workflowData.UpdateCheckDisabled = !*toolsResult.parsedFrontmatter.UpdateCheck

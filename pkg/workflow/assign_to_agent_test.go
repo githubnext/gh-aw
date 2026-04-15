@@ -34,7 +34,7 @@ This workflow tests canonical 'name' key.
 	err := os.WriteFile(testFile, []byte(workflow), 0644)
 	require.NoError(t, err, "Failed to write test workflow")
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse workflow")
 

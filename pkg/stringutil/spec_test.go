@@ -390,13 +390,13 @@ func TestSpec_PublicAPI_ExtractDomainFromURL(t *testing.T) {
 //	| PATTypeOAuth        | "oauth"        | gho_         |
 //	| PATTypeUnknown      | "unknown"      | (other)      |
 func TestSpec_Constants_PATType(t *testing.T) {
-	assert.Equal(t, PATType("fine-grained"), PATTypeFineGrained,
+	assert.Equal(t, PATTypeFineGrained, PATType("fine-grained"),
 		"PATTypeFineGrained should have documented value 'fine-grained'")
-	assert.Equal(t, PATType("classic"), PATTypeClassic,
+	assert.Equal(t, PATTypeClassic, PATType("classic"),
 		"PATTypeClassic should have documented value 'classic'")
-	assert.Equal(t, PATType("oauth"), PATTypeOAuth,
+	assert.Equal(t, PATTypeOAuth, PATType("oauth"),
 		"PATTypeOAuth should have documented value 'oauth'")
-	assert.Equal(t, PATType("unknown"), PATTypeUnknown,
+	assert.Equal(t, PATTypeUnknown, PATType("unknown"),
 		"PATTypeUnknown should have documented value 'unknown'")
 }
 

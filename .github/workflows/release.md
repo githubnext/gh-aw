@@ -315,18 +315,7 @@ jobs:
           path: |
             sbom.spdx.json
             sbom.cdx.json
-          retention-days: 7  # Minimize exposure window
-
-      - name: Upload SBOM files to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Uploading SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" \
-            sbom.spdx.json \
-            sbom.cdx.json
-          echo "✓ SBOM files uploaded to release"
+          retention-days: 90  # Long retention since SBOMs are not attached to the release
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v4

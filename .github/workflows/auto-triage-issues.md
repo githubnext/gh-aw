@@ -32,14 +32,13 @@ tools:
     - "jq *"
     - "cat *"
 steps:
-  pre-agent:
-    - name: Fetch unlabeled issues
-      run: |
-        mkdir -p /tmp/gh-aw/agent
-        gh api "repos/github/gh-aw/issues?state=open&labels=&per_page=30" \
-          --jq '[.[] | select(.labels | length == 0) | {number: .number, title: .title, body: .body}]' \
-          > /tmp/gh-aw/agent/unlabeled-issues.json
-        echo "Unlabeled issues: $(jq length /tmp/gh-aw/agent/unlabeled-issues.json)"
+  - name: Fetch unlabeled issues
+    run: |
+      mkdir -p /tmp/gh-aw/agent
+      gh api "repos/github/gh-aw/issues?state=open&labels=&per_page=30" \
+        --jq '[.[] | select(.labels | length == 0) | {number: .number, title: .title, body: .body}]' \
+        > /tmp/gh-aw/agent/unlabeled-issues.json
+      echo "Unlabeled issues: $(jq length /tmp/gh-aw/agent/unlabeled-issues.json)"
 safe-outputs:
   add-labels:
     max: 10

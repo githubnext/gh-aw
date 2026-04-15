@@ -681,7 +681,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const rawParentSpanId = (process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID || "").trim().toLowerCase();
   const parentSpanId = isValidSpanId(rawParentSpanId) ? rawParentSpanId : "";
 
-  const workflowName = awInfo.workflow_name || "";
+  const workflowName = awInfo.workflow_name || process.env.GH_AW_INFO_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "";
   const engineId = awInfo.engine_id || "";
   const model = awInfo.model || "";
   const staged = awInfo.staged === true;

@@ -261,14 +261,11 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
-	// Note: "permission-discussions" is not a declared input in actions/create-github-app-token's action.yml,
-	// but the action reads ALL INPUT_PERMISSION-* env vars via process.env (see lib/get-permissions-from-inputs.js).
-	// GitHub Actions sets INPUT_PERMISSION-DISCUSSIONS for any `with: permission-discussions:` field, so
-	// the value IS forwarded to the GitHub API despite the "Unexpected input" warning.
-	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those permissions
-	// (returning undefined → inherit-all only when zero permission-* inputs are present). Since the compiler
-	// always emits other permission-* fields, omitting permission-discussions causes the minted token to
-	// lack discussions access even when the GitHub App installation has that permission.
+	// "permission-discussions" is a declared input in actions/create-github-app-token v3+.
+	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those
+	// permissions (returning undefined → inherit-all only when zero permission-* inputs are present).
+	// Since the compiler always emits other permission-* fields, omitting permission-discussions causes
+	// the minted token to lack discussions access even when the GitHub App installation has that permission.
 	if level, ok := permissions.Get(PermissionDiscussions); ok {
 		fields["permission-discussions"] = string(level)
 	}

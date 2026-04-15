@@ -5,6 +5,7 @@ const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs"
 const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
+const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 
 /**
  * Add comment to a GitHub Pull Request using REST API
@@ -46,8 +47,8 @@ async function closePullRequest(github, owner, repo, prNumber) {
 }
 
 async function main() {
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
+  const { owner, repo } = resolveExecutionOwnerRepo();
+  core.info(`Operating on repository: ${owner}/${repo}`);
 
   // Get workflow metadata for footer
   const { workflowName, workflowId, runUrl } = getWorkflowMetadata(owner, repo);

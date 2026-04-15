@@ -2012,3 +2012,151 @@ func TestAddHandlerManagerConfigEnvVar_CallWorkflow(t *testing.T) {
 	assert.Equal(t, "./.github/workflows/worker-a.lock.yml", filesMap["worker-a"], "worker-a path should match")
 	assert.Equal(t, "./.github/workflows/worker-b.lock.yml", filesMap["worker-b"], "worker-b path should match")
 }
+
+// TestProtectedFilesExclude verifies that the _protected_files_exclude sentinel key is
+// used at compile time to filter manifest files and is NOT forwarded to the runtime config.
+func TestProtectedFilesExclude(t *testing.T) {
+	tests := []struct {
+		name               string
+		excludeFiles       []string
+		wantExcludedFromPF []string // files that must NOT be in the final protected_files list
+		wantPresentInPF    []string // files that must still be in the protected_files list
+	}{
+		{
+			name:               "exclude AGENTS.md from create-pull-request",
+			excludeFiles:       []string{"AGENTS.md"},
+			wantExcludedFromPF: []string{"AGENTS.md"},
+			wantPresentInPF:    []string{"package.json", "go.mod", "CODEOWNERS"},
+		},
+		{
+			name:               "exclude multiple files",
+			excludeFiles:       []string{"AGENTS.md", "CLAUDE.md"},
+			wantExcludedFromPF: []string{"AGENTS.md", "CLAUDE.md"},
+			wantPresentInPF:    []string{"package.json", "go.mod"},
+		},
+		{
+			name:               "empty exclude list leaves defaults intact",
+			excludeFiles:       nil,
+			wantExcludedFromPF: nil,
+			wantPresentInPF:    []string{"package.json", "go.mod"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreatePullRequests: &CreatePullRequestsConfig{
+						BaseSafeOutputConfig:  BaseSafeOutputConfig{Max: strPtr("1")},
+						ProtectedFilesExclude: tt.excludeFiles,
+					},
+				},
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			require.NotEmpty(t, steps, "should produce config steps")
+
+			stepsContent := strings.Join(steps, "")
+			require.Contains(t, stepsContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", "should produce handler config")
+
+			// Extract JSON
+			var configJSON string
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					require.Len(t, parts, 2, "should be able to split env var line")
+					configJSON = strings.TrimSpace(parts[1])
+					configJSON = strings.Trim(configJSON, "\"")
+					configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+				}
+			}
+			require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+			var config map[string]map[string]any
+			require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+			prConfig, ok := config["create_pull_request"]
+			require.True(t, ok, "should have create_pull_request config")
+
+			// Sentinel key must NOT appear in the final runtime config
+			_, hasSentinel := prConfig["_protected_files_exclude"]
+			assert.False(t, hasSentinel, "_protected_files_exclude sentinel must not appear in runtime config")
+
+			// Check protected_files list
+			pfRaw, ok := prConfig["protected_files"]
+			require.True(t, ok, "should have protected_files field")
+			pfAny, ok := pfRaw.([]any)
+			require.True(t, ok, "protected_files should be a slice")
+			pfStrings := make([]string, 0, len(pfAny))
+			for _, v := range pfAny {
+				if s, ok := v.(string); ok {
+					pfStrings = append(pfStrings, s)
+				}
+			}
+
+			for _, excluded := range tt.wantExcludedFromPF {
+				assert.NotContains(t, pfStrings, excluded,
+					"excluded file %q should not appear in protected_files", excluded)
+			}
+			for _, present := range tt.wantPresentInPF {
+				assert.Contains(t, pfStrings, present,
+					"non-excluded file %q should still appear in protected_files", present)
+			}
+		})
+	}
+}
+
+// TestProtectedFilesExcludePushToPRBranch verifies the same exclusion logic for
+// the push_to_pull_request_branch handler.
+func TestProtectedFilesExcludePushToPRBranch(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+				ProtectedFilesExclude: []string{"AGENTS.md"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+	require.NotEmpty(t, steps, "should produce config steps")
+
+	var configJSON string
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			require.Len(t, parts, 2, "should split env var line")
+			configJSON = strings.TrimSpace(parts[1])
+			configJSON = strings.Trim(configJSON, "\"")
+			configJSON = strings.ReplaceAll(configJSON, "\\\"", "\"")
+		}
+	}
+	require.NotEmpty(t, configJSON, "should have extracted JSON")
+
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config), "config JSON should be valid")
+
+	pushConfig, ok := config["push_to_pull_request_branch"]
+	require.True(t, ok, "should have push_to_pull_request_branch config")
+
+	_, hasSentinel := pushConfig["_protected_files_exclude"]
+	assert.False(t, hasSentinel, "_protected_files_exclude sentinel must not appear in runtime config")
+
+	pfRaw, ok := pushConfig["protected_files"]
+	require.True(t, ok, "should have protected_files field")
+	pfAny, ok := pfRaw.([]any)
+	require.True(t, ok, "protected_files should be a slice")
+	pfStrings := make([]string, 0, len(pfAny))
+	for _, v := range pfAny {
+		if s, ok := v.(string); ok {
+			pfStrings = append(pfStrings, s)
+		}
+	}
+	assert.NotContains(t, pfStrings, "AGENTS.md", "AGENTS.md should be excluded from protected_files")
+	assert.Contains(t, pfStrings, "package.json", "package.json should still be in protected_files")
+}

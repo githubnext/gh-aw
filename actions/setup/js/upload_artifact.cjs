@@ -565,7 +565,20 @@ async function main(config = {}) {
         };
       }
     } else {
-      core.info(`Staged mode: skipping artifact upload for slot ${i}`);
+      // Emit a staged mode preview summary.
+      let summaryContent = "## 🎭 Staged Mode: Upload Artifact Preview\n\n";
+      summaryContent += "The following artifact upload would be performed if staged mode was disabled:\n\n";
+      summaryContent += `**Artifact Name:** ${artifactName}\n\n`;
+      summaryContent += `**Files (${files.length}):**\n\n`;
+      for (const file of files) {
+        summaryContent += `- \`${file}\`\n`;
+      }
+      summaryContent += `\n**Total Size:** ${totalSize} bytes\n\n`;
+      summaryContent += `**Retention:** ${retentionDays} days\n\n`;
+      summaryContent += `> ℹ️ Upload skipped (staged mode active)\n\n`;
+
+      await core.summary.addRaw(summaryContent).write();
+      core.info("📝 Upload artifact preview written to step summary");
     }
 
     // Set step outputs so downstream jobs can reference the tmp ID.

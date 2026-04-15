@@ -464,7 +464,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 5 comment(s) can be added.",
+                "add_comment": " CONSTRAINTS: Maximum 5 comment(s) can be added. Supports reply_to_id for discussion threading.",
                 "create_issue": " CONSTRAINTS: Maximum 3 issue(s) can be created. Title will be prefixed with \"[performance] \". Labels [\"performance\" \"automation\" \"cookie\"] will be automatically added."
               },
               "repo_params": {},
@@ -483,6 +483,10 @@ jobs:
                   },
                   "item_number": {
                     "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
                   },
                   "repo": {
                     "type": "string",

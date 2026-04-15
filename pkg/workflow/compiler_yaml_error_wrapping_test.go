@@ -59,7 +59,7 @@ jobs:
 			require.NoError(t, err, "Failed to create test file")
 
 			// Create compiler and try to compile
-			compiler := NewCompilerWithVersion("1.0.0")
+			compiler := NewCompiler(WithVersion("1.0.0"))
 			err = compiler.CompileWorkflow(testFile)
 
 			// Should return an error
@@ -109,7 +109,7 @@ jobs:
 	err := os.WriteFile(testFile, []byte(workflowContent), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	err = compiler.CompileWorkflow(testFile)
 
 	require.Error(t, err, "Expected error from invalid job dependency")
@@ -182,7 +182,7 @@ jobs:
 			err := os.WriteFile(testFile, []byte(tt.workflowContent), 0644)
 			require.NoError(t, err)
 
-			compiler := NewCompilerWithVersion("1.0.0")
+			compiler := NewCompiler(WithVersion("1.0.0"))
 			err = compiler.CompileWorkflow(testFile)
 
 			require.Error(t, err, "Expected error")

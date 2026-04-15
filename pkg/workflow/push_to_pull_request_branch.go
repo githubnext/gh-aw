@@ -21,6 +21,7 @@ type PushToPullRequestBranchConfig struct {
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories in format "owner/repo" that push to pull request branch can target
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" creates a review issue instead of pushing.
+	ProtectedFilesExclude          []string `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during parsing.
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
@@ -139,7 +140,10 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			// Parse allowed-repos for cross-repository push
 			pushToBranchConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
 
-			// Parse protected-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
+			// Parse protected-files: supports string enum OR object form {policy, exclude}.
+			exclude := preprocessProtectedFilesField(configMap, pushToPullRequestBranchLog)
+			pushToBranchConfig.ProtectedFilesExclude = exclude
+			// Validate policy string (no-op if the field was replaced by preprocessor)
 			manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
 			validateStringEnumField(configMap, "protected-files", manifestFilesEnums, pushToPullRequestBranchLog)
 			if strVal, ok := configMap["protected-files"].(string); ok {

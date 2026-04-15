@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -174,6 +175,9 @@ func parseEventsJSONLFile(path string, verbose bool) (workflow.LogMetrics, error
 	totalTokens := 0
 	foundAnyEvent := false
 
+	// Per-turn timestamps used to compute Time Between Turns (TBT)
+	var turnTimestamps []time.Time
+
 	scanner := bufio.NewScanner(file)
 	buf := make([]byte, maxScannerBufferSize)
 	scanner.Buffer(buf, maxScannerBufferSize)
@@ -204,6 +208,14 @@ func parseEventsJSONLFile(path string, verbose bool) (workflow.LogMetrics, error
 			if len(currentSequence) > 0 {
 				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
 				currentSequence = []string{}
+			}
+			// Record the timestamp for TBT computation.
+			if entry.Timestamp != "" {
+				if ts, parseErr := time.Parse(time.RFC3339Nano, entry.Timestamp); parseErr == nil {
+					turnTimestamps = append(turnTimestamps, ts)
+				} else if ts, parseErr = time.Parse(time.RFC3339, entry.Timestamp); parseErr == nil {
+					turnTimestamps = append(turnTimestamps, ts)
+				}
 			}
 			copilotEventsJSONLLog.Printf("user.message: turn=%d", turns)
 
@@ -266,6 +278,32 @@ func parseEventsJSONLFile(path string, verbose bool) (workflow.LogMetrics, error
 
 	metrics.TokenUsage = totalTokens
 	metrics.Turns = turns
+
+	// Compute Time Between Turns (TBT) from per-turn timestamps.
+	// TBT[i] = timestamp[i] - timestamp[i-1] for i > 0. Two or more timestamps
+	// are required to measure at least one interval. Only positive intervals are
+	// included so that identical or out-of-order timestamps don't skew the average.
+	if len(turnTimestamps) >= 2 {
+		var totalTBT time.Duration
+		var maxTBT time.Duration
+		validIntervals := 0
+		for i := 1; i < len(turnTimestamps); i++ {
+			tbt := turnTimestamps[i].Sub(turnTimestamps[i-1])
+			if tbt > 0 {
+				totalTBT += tbt
+				validIntervals++
+				if tbt > maxTBT {
+					maxTBT = tbt
+				}
+			}
+		}
+		if validIntervals > 0 {
+			metrics.AvgTimeBetweenTurns = totalTBT / time.Duration(validIntervals)
+			metrics.MaxTimeBetweenTurns = maxTBT
+			copilotEventsJSONLLog.Printf("TBT computed: avg=%s max=%s intervals=%d",
+				metrics.AvgTimeBetweenTurns, metrics.MaxTimeBetweenTurns, validIntervals)
+		}
+	}
 
 	copilotEventsJSONLLog.Printf("Parsed events.jsonl: turns=%d totalTokens=%d toolCalls=%d sequences=%d",
 		turns, totalTokens, len(toolCallMap), len(metrics.ToolSequences))

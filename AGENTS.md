@@ -858,7 +858,7 @@ npm view @github/copilot 2>&1 | cat | tee output.txt
 ```
 
 **Prevention layers:**
-1. **Compiler sanitization**: The workflow compiler (`pkg/workflow/compiler_yaml.go`) automatically strips ANSI codes from descriptions, sources, and comments using `stringutil.StripANSIEscapeCodes()`
+1. **Compiler sanitization**: The workflow compiler (`pkg/workflow/compiler_yaml.go`) automatically strips ANSI codes from descriptions, sources, and comments using `stringutil.StripANSI()`
 2. **CI validation**: The `validate-yaml` job in `.github/workflows/ci.yml` scans all YAML files for ANSI escape sequences before other jobs run
 3. **Detection command**: Run `find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs grep -P '\x1b\[[0-9;]*[a-zA-Z]'` to check for ANSI codes
 

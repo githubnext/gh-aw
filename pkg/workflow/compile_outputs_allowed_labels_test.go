@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAllowedLabelsConfigParsing(t *testing.T) {
@@ -302,7 +303,8 @@ This workflow tests that allowed-labels are included in safe outputs config JSON
 	}
 
 	// Generate safe outputs config
-	configJSON := generateSafeOutputsConfig(workflowData)
+	configJSON, err := generateSafeOutputsConfig(workflowData)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 
 	// Verify that allowed_labels is in the config
 	if !strings.Contains(configJSON, `"allowed_labels"`) {

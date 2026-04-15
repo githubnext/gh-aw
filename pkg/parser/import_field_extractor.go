@@ -57,6 +57,8 @@ type importAccumulator struct {
 	activationGitHubApp   string // JSON-encoded GitHubAppConfig
 	// First top-level github-app found across all imported files (first-wins strategy)
 	topLevelGitHubApp string // JSON-encoded GitHubAppConfig
+	// Checkout configs from all imported files (append in order; main workflow's checkouts take precedence)
+	checkouts []string // JSON-encoded checkout values, one per import
 }
 
 // newImportAccumulator creates and initializes a new importAccumulator.
@@ -324,6 +326,14 @@ func (acc *importAccumulator) extractAllImportFields(content []byte, item import
 		}
 	}
 
+	// Extract checkout from imported file (append in order; main workflow's checkouts take precedence).
+	// The checkout field may be a single object or an array of objects; store the raw JSON for
+	// later parsing by the compiler.
+	if checkoutJSON, checkoutErr := extractFieldJSONFromMap(fm, "checkout", ""); checkoutErr == nil && checkoutJSON != "" && checkoutJSON != "null" && checkoutJSON != "false" {
+		acc.checkouts = append(acc.checkouts, checkoutJSON)
+		log.Printf("Extracted checkout from import: %s", item.fullPath)
+	}
+
 	// Extract pre-steps from imported file (prepend in order)
 	preStepsContent, err := extractYAMLFieldFromMap(fm, "pre-steps")
 	if err == nil && preStepsContent != "" {
@@ -470,6 +480,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedActivationGitHubToken: acc.activationGitHubToken,
 		MergedActivationGitHubApp:   acc.activationGitHubApp,
 		MergedTopLevelGitHubApp:     acc.topLevelGitHubApp,
+		MergedCheckout:              strings.Join(acc.checkouts, "\n"),
 	}
 }
 

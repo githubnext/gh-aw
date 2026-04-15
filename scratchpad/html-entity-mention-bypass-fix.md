@@ -66,7 +66,7 @@ Output (safe text)
 
 ## Test Coverage
 
-Comprehensive test suite in `actions/setup/js/sanitize_content.test.cjs` covers:
+Test suite in `actions/setup/js/sanitize_content.test.cjs` covers:
 
 - ✅ Named entity decoding (`&commat;`)
 - ✅ Double-encoded named entities (`&amp;commat;`)
@@ -131,7 +131,7 @@ sanitizeContent("&amp;#64;pelikhan")
 
 This fix follows defense-in-depth principles:
 1. **Early decoding**: Entities decoded at Step 2 of Unicode hardening
-2. **Comprehensive coverage**: Handles all entity types and double-encoding  
+2. **Coverage**: Handles all entity types and double-encoding  
 3. **Validation**: Rejects invalid Unicode code points
 4. **Universal application**: Applies to all content sanitization flows
 5. **Test coverage**: Extensive test suite validates all attack vectors

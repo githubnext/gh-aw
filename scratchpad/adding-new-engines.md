@@ -1,6 +1,6 @@
 # Adding New Agentic Engines to gh-aw
 
-This guide provides comprehensive instructions for adding a new agentic engine (AI coding agent) to GitHub Agentic Workflows.
+This guide provides instructions for adding a new agentic engine (AI coding agent) to GitHub Agentic Workflows.
 
 ## Table of Contents
 

@@ -99,7 +99,7 @@ gh aw logs <run-id> --artifacts firewall --json
 
 ## Testing
 
-Comprehensive tests ensure compatibility:
+Tests ensure compatibility:
 - `TestArtifactNamingBackwardCompatibility`: Tests both old and new naming
 - `TestAuditCommandFindsNewArtifacts`: Verifies audit command works with new names
 - `TestFlattenSingleFileArtifactsWithAuditFiles`: Tests flattening with new names

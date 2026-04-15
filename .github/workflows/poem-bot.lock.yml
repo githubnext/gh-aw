@@ -501,7 +501,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 3 comment(s) can be added. Target: *.",
+                "add_comment": " CONSTRAINTS: Maximum 3 comment(s) can be added. Target: *. Supports reply_to_id for discussion threading.",
                 "add_labels": " CONSTRAINTS: Maximum 5 label(s) can be added. Only these labels are allowed: [\"poetry\" \"creative\" \"automation\" \"ai-generated\" \"epic\" \"haiku\" \"sonnet\" \"limerick\"].",
                 "close_pull_request": " CONSTRAINTS: Maximum 2 pull request(s) can be closed. Target: *. Only PRs with labels [poetry automation] can be closed. Only PRs with title prefix \"[🎨 POETRY]\" can be closed.",
                 "create_agent_session": " CONSTRAINTS: Maximum 1 agent task(s) can be created. Base branch for tasks: \"main\".",
@@ -528,6 +528,10 @@ jobs:
                   },
                   "item_number": {
                     "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
                   },
                   "repo": {
                     "type": "string",

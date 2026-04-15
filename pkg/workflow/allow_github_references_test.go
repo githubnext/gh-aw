@@ -98,7 +98,7 @@ func TestAllowGitHubReferencesConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompilerWithVersion("1.0.0")
+			c := NewCompiler(WithVersion("1.0.0"))
 			config := c.extractSafeOutputsConfig(tt.frontmatter)
 			require.NotNil(t, config, "extractSafeOutputsConfig() should not return nil")
 

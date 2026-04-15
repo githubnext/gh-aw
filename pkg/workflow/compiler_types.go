@@ -42,6 +42,11 @@ func WithWorkflowIdentifier(identifier string) CompilerOption {
 	return func(c *Compiler) { c.workflowIdentifier = identifier }
 }
 
+// WithVersion sets the compiler version, used to determine action mode and version-specific behavior
+func WithVersion(version string) CompilerOption {
+	return func(c *Compiler) { c.version = version }
+}
+
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
@@ -57,7 +62,7 @@ type Compiler struct {
 	skipValidation          bool                     // If true, skip schema validation
 	noEmit                  bool                     // If true, validate without generating lock files
 	strictMode              bool                     // If true, enforce strict validation requirements
-	safeUpdate              bool                     // If true, enforce safe update mode (reject newly introduced secrets)
+	approve                 bool                     // If true, approve safe update changes (skip safe update enforcement)
 	trialMode               bool                     // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug    string                   // If set in trial mode, the logical repository to checkout
 	refreshStopTime         bool                     // If true, regenerate stop-after times instead of preserving existing ones
@@ -131,16 +136,6 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 	return c
 }
 
-// NewCompilerWithVersion creates a new workflow compiler with the legacy signature.
-// Deprecated: Use NewCompiler with functional options instead.
-// This function is kept for backward compatibility during migration.
-func NewCompilerWithVersion(version string) *Compiler {
-	c := NewCompiler()
-	c.version = version
-	c.actionMode = DetectActionMode(c.version)
-	return c
-}
-
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
@@ -163,12 +158,11 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
-// SetSafeUpdate configures whether to force-enable safe update mode via the CLI flag.
-// Safe update mode is normally equivalent to strict mode (active when strict mode is active).
-// This flag provides an additional override to enable safe update mode independently of
-// the strict mode setting.
-func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
-	c.safeUpdate = safeUpdate
+// SetApprove configures whether to skip safe update enforcement via the CLI --approve flag.
+// When true, safe update enforcement is disabled regardless of strict mode setting,
+// approving all changes.
+func (c *Compiler) SetApprove(approve bool) {
+	c.approve = approve
 }
 
 // SetFileTracker sets the file tracker for tracking created files

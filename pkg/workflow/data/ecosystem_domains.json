@@ -160,6 +160,7 @@
   ],
   "julia": ["pkg.julialang.org", "*.pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org", "storage.julialang.net"],
   "kotlin": ["download.jetbrains.com", "ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
+  "lean": ["elan.lean-lang.org", "lean-lang.org", "leanprover.github.io", "reservoir.lean-lang.org", "static.lean-lang.org"],
   "linux-distros": [
     "deb.debian.org",
     "security.debian.org",
@@ -226,10 +227,7 @@
     "binstar.org",
     "anaconda.org",
     "repo.continuum.io",
-    "repo.anaconda.com",
-    "crates.io",
-    "index.crates.io",
-    "static.crates.io"
+    "repo.anaconda.com"
   ],
   "r": ["cloud.r-project.org", "cran.r-project.org", "cran.rstudio.com", "r-project.org"],
   "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],

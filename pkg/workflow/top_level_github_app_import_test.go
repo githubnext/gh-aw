@@ -14,7 +14,7 @@ import (
 // TestTopLevelGitHubAppImport tests that a top-level github-app can be imported
 // from a shared agent workflow and propagated as a fallback for all nested operations.
 func TestTopLevelGitHubAppImport(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	// Create a temporary directory simulating .github/workflows layout
 	tmpDir := t.TempDir()
@@ -81,7 +81,7 @@ This workflow imports the top-level github-app from the shared workflow.
 // TestTopLevelGitHubAppImportOverride tests that the current workflow's own top-level
 // github-app takes precedence over one imported from a shared workflow.
 func TestTopLevelGitHubAppImportOverride(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -140,7 +140,7 @@ This workflow's own top-level github-app takes precedence over the imported one.
 // TestTopLevelGitHubAppToolsGitHubTokenSkip tests that the fallback is NOT applied
 // to tools.github when a custom github-token is already configured for the MCP server.
 func TestTopLevelGitHubAppToolsGitHubTokenSkip(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	// Use ParseWorkflowFile directly with inline frontmatter
 	tmpDir := t.TempDir()
@@ -193,7 +193,7 @@ When tools.github.github-token is set, the top-level github-app fallback should 
 // TestTopLevelGitHubAppToolsGitHubFalseSkip tests that the fallback is NOT applied
 // to tools.github when github is explicitly disabled (github: false).
 func TestTopLevelGitHubAppToolsGitHubFalseSkip(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -238,7 +238,7 @@ When tools.github is set to false, the top-level github-app fallback should NOT 
 
 // workflow is propagated to the activation job (reactions/status comments).
 func TestTopLevelGitHubAppImportActivation(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -293,7 +293,7 @@ safe-outputs:
 // TestTopLevelGitHubAppActivationOverride tests that an explicit on.github-app configuration
 // takes precedence over the top-level github-app fallback.
 func TestTopLevelGitHubAppActivationOverride(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -347,7 +347,7 @@ When on.github-app is explicitly set, it takes precedence over the top-level git
 // at runtime app tokens take precedence over tokens and injecting the fallback would flip
 // the user's intended auth precedence.
 func TestTopLevelGitHubAppActivationTokenSkip(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -394,7 +394,7 @@ When on.github-token is set, the top-level github-app must NOT be applied to act
 // TestTopLevelGitHubAppSafeOutputsFallback tests that the top-level github-app is applied
 // to safe-outputs when no section-specific github-app is configured.
 func TestTopLevelGitHubAppSafeOutputsFallback(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -435,7 +435,7 @@ engine: copilot
 // TestTopLevelGitHubAppSafeOutputsOverride tests that a section-specific safe-outputs.github-app
 // takes precedence over the top-level github-app fallback.
 func TestTopLevelGitHubAppSafeOutputsOverride(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -478,7 +478,7 @@ engine: copilot
 // TestTopLevelGitHubAppSafeOutputsTokenSkip tests that the top-level github-app fallback
 // is NOT applied to safe-outputs when safe-outputs.github-token is explicitly set.
 func TestTopLevelGitHubAppSafeOutputsTokenSkip(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -520,7 +520,7 @@ engine: copilot
 // TestTopLevelGitHubAppCheckoutFallback tests that the top-level github-app is applied
 // to a checkout entry that has no explicit auth (no github-app, no github-token).
 func TestTopLevelGitHubAppCheckoutFallback(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -564,7 +564,7 @@ engine: copilot
 // TestTopLevelGitHubAppCheckoutOverride tests that a section-specific checkout.github-app
 // takes precedence over the top-level github-app fallback.
 func TestTopLevelGitHubAppCheckoutOverride(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -610,7 +610,7 @@ engine: copilot
 // TestTopLevelGitHubAppCheckoutTokenSkip tests that the top-level github-app fallback is NOT
 // applied to a checkout entry that has an explicit github-token set.
 func TestTopLevelGitHubAppCheckoutTokenSkip(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -655,7 +655,7 @@ engine: copilot
 // TestTopLevelGitHubAppToolsFallback tests that the top-level github-app is applied
 // to tools.github when no section-specific auth is configured.
 func TestTopLevelGitHubAppToolsFallback(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -701,7 +701,7 @@ engine: copilot
 // TestTopLevelGitHubAppToolsOverride tests that a section-specific tools.github.github-app
 // takes precedence over the top-level github-app fallback.
 func TestTopLevelGitHubAppToolsOverride(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

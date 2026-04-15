@@ -11,6 +11,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateTargetRepo, resolveTargetRepoConfig } = require("./repo_helpers.cjs");
+const { ERR_API } = require("./error_codes.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -401,7 +402,7 @@ function createCloseEntityHandler(config, entityConfig, callbacks, githubClient)
           );
           // commentPosted stays false; close operation continues
         } else {
-          throw commentError;
+          throw new Error(`${ERR_API}: Failed to add comment to ${entityConfig.displayName} #${entityNumber}: ${errorMsg}`, { cause: commentError });
         }
       }
 

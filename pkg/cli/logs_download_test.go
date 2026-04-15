@@ -258,7 +258,7 @@ func TestRetryCriticalArtifactsSkipsExisting(t *testing.T) {
 	}
 
 	// Should complete without panic or error — all dirs exist so no gh CLI calls are made
-	retryCriticalArtifacts(12345, tmpDir, false, "owner", "repo", "", nil)
+	retryCriticalArtifacts(context.Background(), 12345, tmpDir, false, "owner", "repo", "", nil)
 
 	// Verify the directories are still intact
 	for _, name := range criticalArtifactNames {

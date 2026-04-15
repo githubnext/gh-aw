@@ -130,6 +130,122 @@ func TestMergeTools(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "base false overrides additional map (tools.github: false)",
+			base: map[string]any{
+				"github": false,
+			},
+			additional: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+			expected: map[string]any{
+				"github": false,
+			},
+		},
+		{
+			name: "base map not overridden by additional false",
+			base: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+			additional: map[string]any{
+				"github": false,
+			},
+			expected: map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+		},
+		{
+			name: "base scalar values override additional scalars in nested maps",
+			base: map[string]any{
+				"tool1": map[string]any{
+					"config": "base-value",
+					"other":  "kept",
+				},
+			},
+			additional: map[string]any{
+				"tool1": map[string]any{
+					"config":  "additional-value",
+					"new-key": "added",
+				},
+			},
+			expected: map[string]any{
+				"tool1": map[string]any{
+					"config":  "base-value",
+					"other":   "kept",
+					"new-key": "added",
+				},
+			},
+		},
+		{
+			// bash: true in main workflow (or parent import) must win over an import's
+			// specific bash command list, e.g. ["ls", "cat"]. Both are valid bash tool
+			// configurations, but they are different types (bool vs array).
+			name: "base bash true overrides additional bash array",
+			base: map[string]any{
+				"bash": true,
+			},
+			additional: map[string]any{
+				"bash": []any{"ls", "cat"},
+			},
+			expected: map[string]any{
+				"bash": true,
+			},
+		},
+		{
+			// A parent import's specific bash command list must not be overridden by a
+			// child import's unrestricted bash: true.
+			name: "base bash array not overridden by additional bash true",
+			base: map[string]any{
+				"bash": []any{"ls", "cat"},
+			},
+			additional: map[string]any{
+				"bash": true,
+			},
+			expected: map[string]any{
+				"bash": []any{"ls", "cat"},
+			},
+		},
+		{
+			// cache-memory: {key: "specific-name"} in a parent import must win over a
+			// child import's generic cache-memory: true. The specific key provides
+			// more information and should not be overwritten by a generic boolean.
+			name: "base cache-memory map with key overrides additional cache-memory true",
+			base: map[string]any{
+				"cache-memory": map[string]any{
+					"key": "my-specific-cache-key-${{ github.run_id }}",
+				},
+			},
+			additional: map[string]any{
+				"cache-memory": true,
+			},
+			expected: map[string]any{
+				"cache-memory": map[string]any{
+					"key": "my-specific-cache-key-${{ github.run_id }}",
+				},
+			},
+		},
+		{
+			// cache-memory: true in main workflow must not be overridden by an import's
+			// specific cache-memory map configuration.
+			name: "base cache-memory true not overridden by additional cache-memory map",
+			base: map[string]any{
+				"cache-memory": true,
+			},
+			additional: map[string]any{
+				"cache-memory": map[string]any{
+					"key": "import-specific-key-${{ github.run_id }}",
+				},
+			},
+			expected: map[string]any{
+				"cache-memory": true,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -211,7 +327,7 @@ func TestMergeToolsFromJSON(t *testing.T) {
 			name: "objects with overlapping keys",
 			content: `{"tool1": {"enabled": true, "config": "old"}}
 {"tool1": {"config": "new", "version": 2}}`,
-			expected: `{"tool1":{"config":"new","enabled":true,"version":2}}`,
+			expected: `{"tool1":{"config":"old","enabled":true,"version":2}}`,
 			wantErr:  false,
 		},
 		{

@@ -12,6 +12,7 @@ package cli
 
 import (
 	"archive/zip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -278,7 +279,7 @@ func flattenAgentOutputsArtifact(outputDir string, verbose bool) error {
 }
 
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
-func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
+func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
 	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
 
 	// Create a temporary file for the zip download
@@ -303,7 +304,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool, owner,
 		args = append(args, "--hostname", hostname)
 	}
 
-	output, err := workflow.RunGH("Downloading workflow logs...", args...)
+	output, err := workflow.RunGHContext(ctx, "Downloading workflow logs...", args...)
 	if err != nil {
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
@@ -487,7 +488,7 @@ func isDockerBuildArtifact(name string) bool {
 
 // listRunArtifactNames returns the names of all artifacts for the given workflow run
 // by querying the GitHub Actions API. Returns an error if the API call fails.
-func listRunArtifactNames(runID int64, owner, repo, hostname string, verbose bool) ([]string, error) {
+func listRunArtifactNames(ctx context.Context, runID int64, owner, repo, hostname string, verbose bool) ([]string, error) {
 	var endpoint string
 	if owner != "" && repo != "" {
 		endpoint = fmt.Sprintf("repos/%s/%s/actions/runs/%d/artifacts", owner, repo, runID)
@@ -505,7 +506,7 @@ func listRunArtifactNames(runID int64, owner, repo, hostname string, verbose boo
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Listing artifacts: gh "+strings.Join(args, " ")))
 	}
 
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list artifacts for run %d: %w", runID, err)
@@ -524,7 +525,7 @@ func listRunArtifactNames(runID int64, owner, repo, hostname string, verbose boo
 // downloadArtifactsByName downloads a list of artifacts individually by name.
 // This is used when some artifacts (e.g. .dockerbuild) need to be skipped and
 // only a subset of the run's artifacts should be downloaded.
-func downloadArtifactsByName(runID int64, outputDir string, names []string, verbose bool, owner, repo, hostname string) error {
+func downloadArtifactsByName(ctx context.Context, runID int64, outputDir string, names []string, verbose bool, owner, repo, hostname string) error {
 	var repoFlag string
 	if owner != "" && repo != "" {
 		if hostname != "" && hostname != "github.com" {
@@ -545,7 +546,7 @@ func downloadArtifactsByName(runID int64, outputDir string, names []string, verb
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Downloading artifact: "+name))
 		}
 
-		cmd := workflow.ExecGH(args...)
+		cmd := workflow.ExecGHContext(ctx, args...)
 		cmdOutput, cmdErr := cmd.CombinedOutput()
 		if cmdErr != nil {
 			logsDownloadLog.Printf("Failed to download artifact %q: %v (%s)", name, cmdErr, string(cmdOutput))
@@ -570,7 +571,7 @@ var criticalArtifactNames = []string{"activation", "agent"}
 // was only partially successful. gh run download aborts on the first non-zip artifact,
 // which may prevent valid artifacts from being downloaded.
 // artifactFilter limits which critical artifacts are retried; nil means retry all.
-func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) {
+func retryCriticalArtifacts(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) {
 	// Build the repo flag once for reuse across retries
 	var repoFlag string
 	if owner != "" && repo != "" {
@@ -603,7 +604,7 @@ func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, 
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Retrying download for missing artifact: "+name))
 		}
 
-		retryCmd := workflow.ExecGH(retryArgs...)
+		retryCmd := workflow.ExecGHContext(ctx, retryArgs...)
 		retryOutput, retryErr := retryCmd.CombinedOutput()
 		if retryErr != nil {
 			logsDownloadLog.Printf("Failed to download artifact %q individually: %v (%s)", name, retryErr, string(retryOutput))
@@ -621,7 +622,7 @@ func retryCriticalArtifacts(runID int64, outputDir string, verbose bool, owner, 
 
 // downloadRunArtifacts downloads artifacts for a specific workflow run.
 // artifactFilter is a list of artifact base names to download; nil means download all.
-func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) error {
+func downloadRunArtifacts(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string, artifactFilter []string) error {
 	logsDownloadLog.Printf("Downloading run artifacts: run_id=%d, output_dir=%s, owner=%s, repo=%s, artifactFilter=%v", runID, outputDir, owner, repo, artifactFilter)
 
 	// Check if artifacts already exist on disk (since they're immutable)
@@ -677,7 +678,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 	// Proactively list artifacts to detect .dockerbuild files that gh run download cannot
 	// extract (they are not zip archives). When found, skip them and download the
 	// remaining artifacts individually so the bulk download never encounters them.
-	artifactNames, listErr := listRunArtifactNames(runID, owner, repo, hostname, verbose)
+	artifactNames, listErr := listRunArtifactNames(ctx, runID, owner, repo, hostname, verbose)
 	var dockerBuildArtifacts, downloadableNames []string
 	if listErr == nil {
 		for _, name := range artifactNames {
@@ -712,7 +713,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		if len(downloadableNames) == 0 {
 			// Nothing to download (all artifacts are either .dockerbuild or excluded by filter).
 			// Attempt workflow run logs for diagnostics before returning.
-			if logErr := downloadWorkflowRunLogs(runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
+			if logErr := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
 				}
@@ -724,7 +725,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 			}
 			return ErrNoArtifacts
 		}
-		if err := downloadArtifactsByName(runID, outputDir, downloadableNames, verbose, owner, repo, hostname); err != nil {
+		if err := downloadArtifactsByName(ctx, runID, outputDir, downloadableNames, verbose, owner, repo, hostname); err != nil {
 			return err
 		}
 		if fileutil.IsDirEmpty(outputDir) {
@@ -747,7 +748,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(ghArgs, " ")))
 		}
 
-		cmd := workflow.ExecGH(ghArgs...)
+		cmd := workflow.ExecGHContext(ctx, ghArgs...)
 		output, err := cmd.CombinedOutput()
 
 		// skippedNonZipArtifacts is set when gh run download fails due to non-zip artifacts
@@ -770,7 +771,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 				}
 				// Even with no artifacts, attempt to download workflow run logs so that
 				// pre-agent step failures (e.g., activation job errors) can be diagnosed.
-				if logErr := downloadWorkflowRunLogs(runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
+				if logErr := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); logErr != nil {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", logErr)))
 					}
@@ -807,7 +808,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 		// before downloading all valid artifacts. Retry individually for critical artifacts
 		// that are missing, so flattening and audit analysis can proceed.
 		if skippedNonZipArtifacts {
-			retryCriticalArtifacts(runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
+			retryCriticalArtifacts(ctx, runID, outputDir, verbose, owner, repo, hostname, artifactFilter)
 		}
 
 		if skippedNonZipArtifacts && fileutil.IsDirEmpty(outputDir) {
@@ -844,7 +845,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool, owner, re
 	}
 
 	// Download and unzip workflow run logs
-	if err := downloadWorkflowRunLogs(runID, outputDir, verbose, owner, repo, hostname); err != nil {
+	if err := downloadWorkflowRunLogs(ctx, runID, outputDir, verbose, owner, repo, hostname); err != nil {
 		// Log the error but don't fail the entire download process
 		// Logs may not be available for all runs (e.g., expired or deleted)
 		if verbose {

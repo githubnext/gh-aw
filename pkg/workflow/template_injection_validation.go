@@ -67,6 +67,84 @@ var (
 	unsafeContextRegex = regexp.MustCompile(`\$\{\{\s*(github\.event\.|steps\.[^}]+\.outputs\.|inputs\.)[^}]+\}\}`)
 )
 
+// hasUnsafeExpressionInRunContent performs a fast line-by-line text scan to determine
+// whether any unsafe context expression (${{ github.event.* }},
+// ${{ steps.*.outputs.* }}, or ${{ inputs.* }}) appears inside the content of a
+// YAML run: block.
+//
+// This is used as an efficient pre-flight check in generateAndValidateYAML.
+// Most compiler-generated workflows place unsafe expressions only in env: values
+// (the compiler's normal output pattern), so the expensive full YAML parse for
+// template-injection validation can be skipped in the common case.
+//
+// The scanner is intentionally lightweight rather than fully conservative: when it
+// encounters `run:` with no inline content (rest == ""), it enters run-block scanning
+// mode and only returns true if a subsequent indented line matches unsafeContextRegex.
+func hasUnsafeExpressionInRunContent(yamlContent string) bool {
+	// Fast-path: no unsafe expressions anywhere → definitely no violation.
+	if !unsafeContextRegex.MatchString(yamlContent) {
+		return false
+	}
+
+	// Unsafe expressions exist somewhere; scan for any that appear inside a run: block
+	// without doing a full YAML parse.
+	lines := strings.Split(yamlContent, "\n")
+	inRunBlock := false
+	runBlockIndent := 0
+
+	for _, line := range lines {
+		// Compute indentation first; skip blank and all-whitespace lines in one step.
+		trimmed := strings.TrimLeft(line, " \t")
+		if len(trimmed) == 0 {
+			// Blank / all-whitespace lines are allowed inside block scalars.
+			continue
+		}
+		indent := len(line) - len(trimmed)
+
+		if inRunBlock {
+			// A non-blank line at the same or lesser indentation ends the block.
+			if indent <= runBlockIndent {
+				inRunBlock = false
+				// Fall through: check whether this line starts a new run: block.
+			} else {
+				// Inside run block content — check for unsafe expressions.
+				if unsafeContextRegex.MatchString(line) {
+					return true
+				}
+				continue
+			}
+		}
+
+		// Outside a run block: look for a run: key.
+		// Handle both "run: ..." (map key) and "- run: ..." (inline sequence item).
+		keyPart := trimmed
+		if strings.HasPrefix(keyPart, "-") {
+			keyPart = strings.TrimSpace(keyPart[1:])
+		}
+		if !strings.HasPrefix(keyPart, "run:") {
+			continue
+		}
+		rest := strings.TrimSpace(keyPart[4:]) // text after "run:"
+
+		if rest == "" {
+			// Empty run: value is unusual; treat conservatively as if block content follows.
+			inRunBlock = true
+			runBlockIndent = indent
+		} else if rest[0] == '|' || rest[0] == '>' {
+			// Literal or folded block scalar — content is on subsequent lines.
+			inRunBlock = true
+			runBlockIndent = indent
+		} else {
+			// Inline run value, e.g. run: echo "hello ${{ github.event.foo }}".
+			if unsafeContextRegex.MatchString(rest) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // validateNoTemplateInjection checks compiled YAML for template injection vulnerabilities
 // It detects cases where GitHub Actions expressions are used directly in shell commands
 // instead of being passed through environment variables

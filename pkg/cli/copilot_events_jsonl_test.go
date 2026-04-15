@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -289,5 +290,68 @@ func TestExtractLogMetrics_EventsJSONLPriority(t *testing.T) {
 
 		// Should fall back to log parsing and find at least 1 turn
 		assert.GreaterOrEqual(t, metrics.Turns, 1, "should detect at least one turn from log file")
+	})
+}
+
+// TestParseEventsJSONLFile_TBT verifies that Time Between Turns is computed
+// correctly from per-turn timestamps embedded in user.message events.
+func TestParseEventsJSONLFile_TBT(t *testing.T) {
+	// Helper that produces an events.jsonl line with a specific RFC3339 timestamp.
+	lineWithTimestamp := func(eventType, dataJSON, timestamp string) string {
+		return `{"type":"` + eventType + `","data":` + dataJSON + `,"id":"test-id","timestamp":"` + timestamp + `"}`
+	}
+
+	t.Run("computes avg and max TBT from multi-turn timestamps", func(t *testing.T) {
+		// Turn 1 at T+0s, Turn 2 at T+30s, Turn 3 at T+90s → intervals: 30s, 60s → avg 45s, max 60s
+		content := lineWithTimestamp("session.start", `{"sessionId":"s1","copilotVersion":"1.0.0"}`, "2026-01-01T10:00:00Z") + "\n" +
+			lineWithTimestamp("user.message", `{"content":"turn 1"}`, "2026-01-01T10:00:00Z") + "\n" +
+			lineWithTimestamp("user.message", `{"content":"turn 2"}`, "2026-01-01T10:00:30Z") + "\n" +
+			lineWithTimestamp("user.message", `{"content":"turn 3"}`, "2026-01-01T10:01:30Z") + "\n" +
+			lineWithTimestamp("session.shutdown", `{"shutdownType":"routine","totalPremiumRequests":3,"modelMetrics":{"m":{"usage":{"inputTokens":100,"outputTokens":10}}}}`, "2026-01-01T10:02:00Z") + "\n"
+
+		dir := t.TempDir()
+		eventsPath := filepath.Join(dir, "events.jsonl")
+		require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
+
+		metrics, err := parseEventsJSONLFile(eventsPath, false)
+		require.NoError(t, err, "should parse without error")
+
+		assert.Equal(t, 3, metrics.Turns, "should detect 3 turns")
+		assert.Equal(t, 45*time.Second, metrics.AvgTimeBetweenTurns, "avg TBT should be 45s")
+		assert.Equal(t, 60*time.Second, metrics.MaxTimeBetweenTurns, "max TBT should be 60s")
+	})
+
+	t.Run("no TBT when only one turn", func(t *testing.T) {
+		content := lineWithTimestamp("user.message", `{"content":"single turn"}`, "2026-01-01T10:00:00Z") + "\n" +
+			lineWithTimestamp("session.shutdown", `{"shutdownType":"routine","totalPremiumRequests":1,"modelMetrics":{"m":{"usage":{"inputTokens":50,"outputTokens":5}}}}`, "2026-01-01T10:01:00Z") + "\n"
+
+		dir := t.TempDir()
+		eventsPath := filepath.Join(dir, "events.jsonl")
+		require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
+
+		metrics, err := parseEventsJSONLFile(eventsPath, false)
+		require.NoError(t, err, "should parse without error")
+
+		assert.Equal(t, 1, metrics.Turns, "should detect 1 turn")
+		assert.Zero(t, metrics.AvgTimeBetweenTurns, "no TBT with a single turn")
+		assert.Zero(t, metrics.MaxTimeBetweenTurns, "no TBT with a single turn")
+	})
+
+	t.Run("no TBT when all timestamps are identical", func(t *testing.T) {
+		// Use realFormatEventsLine which always uses the same timestamp — no intervals.
+		content := realFormatEventsLine("user.message", `{"content":"turn 1"}`) + "\n" +
+			realFormatEventsLine("user.message", `{"content":"turn 2"}`) + "\n" +
+			realFormatEventsLine("session.shutdown", `{"shutdownType":"routine","totalPremiumRequests":2,"modelMetrics":{"m":{"usage":{"inputTokens":50,"outputTokens":5}}}}`) + "\n"
+
+		dir := t.TempDir()
+		eventsPath := filepath.Join(dir, "events.jsonl")
+		require.NoError(t, os.WriteFile(eventsPath, []byte(content), 0644))
+
+		metrics, err := parseEventsJSONLFile(eventsPath, false)
+		require.NoError(t, err, "should parse without error")
+
+		assert.Equal(t, 2, metrics.Turns, "should detect 2 turns")
+		// All user.message events share the same timestamp → interval is 0 → TBT stays zero.
+		assert.Zero(t, metrics.AvgTimeBetweenTurns, "TBT should be zero when all timestamps are identical")
 	})
 }

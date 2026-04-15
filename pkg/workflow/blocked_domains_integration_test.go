@@ -50,7 +50,7 @@ Test workflow with blocked domains.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-blocked-domains")
+		compiler := NewCompiler(WithVersion("test-blocked-domains"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -126,7 +126,7 @@ Test workflow with blocked ecosystem.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-blocked-ecosystem")
+		compiler := NewCompiler(WithVersion("test-blocked-ecosystem"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -195,7 +195,7 @@ Test workflow without blocked domains.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-no-blocked")
+		compiler := NewCompiler(WithVersion("test-no-blocked"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -257,7 +257,7 @@ Test Claude workflow with blocked domains.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-claude-blocked")
+		compiler := NewCompiler(WithVersion("test-claude-blocked"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -319,7 +319,7 @@ Test Codex workflow with blocked domains.
 		}
 
 		// Compile the workflow
-		compiler := NewCompilerWithVersion("test-codex-blocked")
+		compiler := NewCompiler(WithVersion("test-codex-blocked"))
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {

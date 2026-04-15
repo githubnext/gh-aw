@@ -785,7 +785,7 @@ func TestGetActionSHAForTag(t *testing.T) {
 	}
 
 	// Test with a known action and version
-	sha, err := getActionSHAForTag("actions/checkout", "v4")
+	sha, err := getActionSHAForTag(context.Background(), "actions/checkout", "v4")
 	if err != nil {
 		t.Skipf("Could not resolve action SHA (network or auth issue): %v", err)
 	}
@@ -813,7 +813,7 @@ func TestUpdateActions_NoFile(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should not error when file doesn't exist
-	err := UpdateActions(false, false, false)
+	err := UpdateActions(context.Background(), false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when actions-lock.json doesn't exist, got: %v", err)
 	}
@@ -844,7 +844,7 @@ func TestUpdateActions_EmptyFile(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should not error with empty file
-	err := UpdateActions(false, false, false)
+	err := UpdateActions(context.Background(), false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error with empty actions-lock.json, got: %v", err)
 	}
@@ -873,7 +873,7 @@ func TestUpdateActions_InvalidJSON(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Should error with invalid JSON
-	err := UpdateActions(false, false, false)
+	err := UpdateActions(context.Background(), false, false, false)
 	if err == nil {
 		t.Error("Expected error with invalid JSON, got nil")
 	}
@@ -894,7 +894,7 @@ func TestResolveLatestRef_CommitSHA(t *testing.T) {
 	// in authenticated environments it will succeed. Either outcome is
 	// acceptable — the key invariant is that the SHA is correctly
 	// identified (tested above) and the function does not panic.
-	_, _ = resolveLatestRef("test/repo", sha, false, false)
+	_, _ = resolveLatestRef(context.Background(), "test/repo", sha, false, false)
 }
 
 // TestResolveLatestRef_NotCommitSHA tests that non-SHA refs are handled appropriately

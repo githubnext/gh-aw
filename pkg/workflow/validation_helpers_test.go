@@ -541,3 +541,106 @@ func TestContainsTrigger(t *testing.T) {
 		})
 	}
 }
+
+// TestPreprocessProtectedFilesField tests the preprocessProtectedFilesField helper.
+func TestPreprocessProtectedFilesField(t *testing.T) {
+	tests := []struct {
+		name          string
+		configData    map[string]any
+		wantExclude   []string
+		wantPFAfter   any  // expected value of configData["protected-files"] after preprocessing
+		wantPFPresent bool // whether configData["protected-files"] should exist after preprocessing
+	}{
+		{
+			name:          "string form passes through unchanged",
+			configData:    map[string]any{"protected-files": "blocked"},
+			wantExclude:   nil,
+			wantPFAfter:   "blocked",
+			wantPFPresent: true,
+		},
+		{
+			name:          "string form allowed passes through unchanged",
+			configData:    map[string]any{"protected-files": "allowed"},
+			wantExclude:   nil,
+			wantPFAfter:   "allowed",
+			wantPFPresent: true,
+		},
+		{
+			name: "object form with policy and exclude",
+			configData: map[string]any{
+				"protected-files": map[string]any{
+					"policy":  "fallback-to-issue",
+					"exclude": []any{"AGENTS.md", "CLAUDE.md"},
+				},
+			},
+			wantExclude:   []string{"AGENTS.md", "CLAUDE.md"},
+			wantPFAfter:   "fallback-to-issue",
+			wantPFPresent: true,
+		},
+		{
+			name: "object form with exclude only (no policy)",
+			configData: map[string]any{
+				"protected-files": map[string]any{
+					"exclude": []any{"AGENTS.md"},
+				},
+			},
+			wantExclude:   []string{"AGENTS.md"},
+			wantPFPresent: false, // key removed when no policy
+		},
+		{
+			name: "object form with empty policy string",
+			configData: map[string]any{
+				"protected-files": map[string]any{
+					"policy":  "",
+					"exclude": []any{"AGENTS.md"},
+				},
+			},
+			wantExclude:   []string{"AGENTS.md"},
+			wantPFPresent: false, // empty policy treated as absent
+		},
+		{
+			name:          "nil configData returns nil",
+			configData:    nil,
+			wantExclude:   nil,
+			wantPFPresent: false,
+		},
+		{
+			name:          "absent field returns nil",
+			configData:    map[string]any{"other": "value"},
+			wantExclude:   nil,
+			wantPFPresent: false,
+		},
+		{
+			name: "object form with empty exclude list",
+			configData: map[string]any{
+				"protected-files": map[string]any{
+					"policy":  "blocked",
+					"exclude": []any{},
+				},
+			},
+			wantExclude:   nil,
+			wantPFAfter:   "blocked",
+			wantPFPresent: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := preprocessProtectedFilesField(tt.configData, nil)
+			if len(tt.wantExclude) == 0 {
+				assert.Empty(t, got, "exclude list should be empty/nil")
+			} else {
+				assert.Equal(t, tt.wantExclude, got, "exclude list should match")
+			}
+
+			if tt.configData == nil {
+				return
+			}
+			pfVal, pfPresent := tt.configData["protected-files"]
+			assert.Equal(t, tt.wantPFPresent, pfPresent, "protected-files presence should match")
+			if tt.wantPFPresent {
+				assert.Equal(t, tt.wantPFAfter, pfVal, "protected-files value should match after preprocessing")
+			}
+		})
+	}
+}

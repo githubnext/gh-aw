@@ -175,6 +175,7 @@ jobs:
           echo "::error::For cross-repo workflow_call, secrets must be set in the repository that triggers the workflow."
           echo "::error::See: https://github.github.com/gh-aw/patterns/central-repo-ops/#cross-repo-setup"
       - name: Checkout .github and .agents folders
+        if: steps.resolve-host-repo.outputs.target_repo == github.repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -448,7 +449,7 @@ jobs:
           GH_AW_TOOLS_META_JSON: |
             {
               "description_suffixes": {
-                "add_comment": " CONSTRAINTS: Maximum 1 comment(s) can be added."
+                "add_comment": " CONSTRAINTS: Maximum 1 comment(s) can be added. Supports reply_to_id for discussion threading."
               },
               "repo_params": {},
               "dynamic_tools": []
@@ -466,6 +467,10 @@ jobs:
                   },
                   "item_number": {
                     "issueOrPRNumber": true
+                  },
+                  "reply_to_id": {
+                    "type": "string",
+                    "maxLength": 256
                   },
                   "repo": {
                     "type": "string",

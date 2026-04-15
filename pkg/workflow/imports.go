@@ -219,6 +219,11 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 	// staged, env, github-token, max-patch-size, runs-on) as well as those defining safe output types.
 	// Meta fields can be imported even when no safe output types are defined.
 	var importedConfigs []map[string]any
+	// Collect protected-files exclude lists from type-conflicting imports so they can be
+	// merged as a set even when the importing config already defines the same handler type.
+	// These are keyed by handler type name (e.g. "create-pull-request").
+	accumulatedExclude := map[string][]string{}
+
 	for _, configJSON := range importedSafeOutputsJSON {
 		if configJSON == "" || configJSON == "{}" {
 			continue
@@ -231,11 +236,22 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		}
 
 		// Check for conflicts and remove types already defined in top-level config
-		// Main workflow definitions take precedence over imports (override behavior)
+		// Main workflow definitions take precedence over imports (override behavior).
+		// Exception: protected-files.exclude is always extracted before deletion so that
+		// exclude lists from imported configs are merged as a set into the result.
 		for _, key := range typeKeys {
 			if _, exists := config[key]; exists {
 				if topDefinedTypes[key] {
-					// Main workflow overrides imported definition - remove from imported config
+					// Main workflow overrides imported definition — extract protected-files
+					// exclude lists before removing the type entry.
+					if handlerCfg, ok := config[key].(map[string]any); ok {
+						if pf, ok := handlerCfg["protected-files"].(map[string]any); ok {
+							if excludeFiles := parseStringSliceAny(pf["exclude"], importsLog); len(excludeFiles) > 0 {
+								accumulatedExclude[key] = mergeUnique(accumulatedExclude[key], excludeFiles...)
+								importsLog.Printf("Saved protected-files exclude from overridden import %s: %v", key, excludeFiles)
+							}
+						}
+					}
 					importsLog.Printf("Main workflow overrides imported safe-output: %s", key)
 					delete(config, key)
 					continue
@@ -269,6 +285,30 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 		result, err = mergeSafeOutputConfig(result, config, c)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	// Apply protected-files exclude lists accumulated from type-conflicting imports.
+	// These are merged as a set so that importing a base workflow can add to exclusions
+	// without completely replacing the main workflow's handler configuration.
+	if len(accumulatedExclude) > 0 {
+		if result.CreatePullRequests != nil {
+			if excludeFiles, ok := accumulatedExclude["create-pull-request"]; ok && len(excludeFiles) > 0 {
+				result.CreatePullRequests.ProtectedFilesExclude = mergeUnique(
+					result.CreatePullRequests.ProtectedFilesExclude,
+					excludeFiles...,
+				)
+				importsLog.Printf("Merged %d accumulated protected-files exclude(s) into create-pull-request", len(excludeFiles))
+			}
+		}
+		if result.PushToPullRequestBranch != nil {
+			if excludeFiles, ok := accumulatedExclude["push-to-pull-request-branch"]; ok && len(excludeFiles) > 0 {
+				result.PushToPullRequestBranch.ProtectedFilesExclude = mergeUnique(
+					result.PushToPullRequestBranch.ProtectedFilesExclude,
+					excludeFiles...,
+				)
+				importsLog.Printf("Merged %d accumulated protected-files exclude(s) into push-to-pull-request-branch", len(excludeFiles))
+			}
 		}
 	}
 
@@ -416,6 +456,13 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.CreatePullRequests == nil && importedConfig.CreatePullRequests != nil {
 		result.CreatePullRequests = importedConfig.CreatePullRequests
+	} else if result.CreatePullRequests != nil && importedConfig.CreatePullRequests != nil {
+		// Merge protected-files exclude lists as a set so that imports can extend exclusions
+		// without replacing the top-level configuration entirely.
+		result.CreatePullRequests.ProtectedFilesExclude = mergeUnique(
+			result.CreatePullRequests.ProtectedFilesExclude,
+			importedConfig.CreatePullRequests.ProtectedFilesExclude...,
+		)
 	}
 	if result.CreatePullRequestReviewComments == nil && importedConfig.CreatePullRequestReviewComments != nil {
 		result.CreatePullRequestReviewComments = importedConfig.CreatePullRequestReviewComments
@@ -461,6 +508,13 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.PushToPullRequestBranch == nil && importedConfig.PushToPullRequestBranch != nil {
 		result.PushToPullRequestBranch = importedConfig.PushToPullRequestBranch
+	} else if result.PushToPullRequestBranch != nil && importedConfig.PushToPullRequestBranch != nil {
+		// Merge protected-files exclude lists as a set so that imports can extend exclusions
+		// without replacing the top-level configuration entirely.
+		result.PushToPullRequestBranch.ProtectedFilesExclude = mergeUnique(
+			result.PushToPullRequestBranch.ProtectedFilesExclude,
+			importedConfig.PushToPullRequestBranch.ProtectedFilesExclude...,
+		)
 	}
 	if result.UploadAssets == nil && importedConfig.UploadAssets != nil {
 		result.UploadAssets = importedConfig.UploadAssets
