@@ -86,8 +86,18 @@ async function main() {
 
   core.info(`Found ${allLabels.size} unique label(s) in safe-outputs: ${[...allLabels].join(", ")}`);
 
-  // Fetch all existing labels from the repository
-  const { owner, repo } = context.repo;
+  // Fetch all existing labels from the repository.
+  // When GH_AW_TARGET_REPO_SLUG is set (SideRepoOps pattern), create labels in that
+  // repository instead of the execution context repository.
+  let owner, repo;
+  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+  if (targetRepoSlug && targetRepoSlug.includes("/")) {
+    [owner, repo] = targetRepoSlug.split("/", 2);
+    core.info(`Using target repository from GH_AW_TARGET_REPO_SLUG: ${owner}/${repo}`);
+  } else {
+    owner = context.repo.owner;
+    repo = context.repo.repo;
+  }
   let existingLabels;
   try {
     existingLabels = await github.paginate(github.rest.issues.listLabelsForRepo, {

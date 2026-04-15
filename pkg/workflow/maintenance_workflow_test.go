@@ -827,3 +827,282 @@ func TestGenerateMaintenanceWorkflow_RepoConfig(t *testing.T) {
 		}
 	})
 }
+
+func TestCollectSideRepoTargets(t *testing.T) {
+	tests := []struct {
+		name          string
+		workflows     []*WorkflowData
+		expectedRepos []string
+	}{
+		{
+			name:          "no workflows returns empty",
+			workflows:     nil,
+			expectedRepos: nil,
+		},
+		{
+			name: "workflow without checkout returns empty",
+			workflows: []*WorkflowData{
+				{Name: "wf", CheckoutConfigs: nil},
+			},
+			expectedRepos: nil,
+		},
+		{
+			name: "checkout without current:true is ignored",
+			workflows: []*WorkflowData{
+				{Name: "wf", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "org/repo", Current: false},
+				}},
+			},
+			expectedRepos: nil,
+		},
+		{
+			name: "checkout with current:true and static repo is detected",
+			workflows: []*WorkflowData{
+				{Name: "wf", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "my-org/main-repo", Current: true, GitHubToken: "${{ secrets.GH_AW_MAIN_REPO_TOKEN }}"},
+				}},
+			},
+			expectedRepos: []string{"my-org/main-repo"},
+		},
+		{
+			name: "expression-based repository is skipped",
+			workflows: []*WorkflowData{
+				{Name: "wf", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "${{ inputs.target_repo }}", Current: true},
+				}},
+			},
+			expectedRepos: nil,
+		},
+		{
+			name: "empty repository is skipped",
+			workflows: []*WorkflowData{
+				{Name: "wf", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "", Current: true},
+				}},
+			},
+			expectedRepos: nil,
+		},
+		{
+			name: "duplicate repos across workflows are deduplicated",
+			workflows: []*WorkflowData{
+				{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "my-org/main-repo", Current: true},
+				}},
+				{Name: "wf2", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "my-org/main-repo", Current: true},
+				}},
+			},
+			expectedRepos: []string{"my-org/main-repo"},
+		},
+		{
+			name: "multiple distinct repos are all detected",
+			workflows: []*WorkflowData{
+				{Name: "wf1", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "org/repo-a", Current: true},
+				}},
+				{Name: "wf2", CheckoutConfigs: []*CheckoutConfig{
+					{Repository: "org/repo-b", Current: true},
+				}},
+			},
+			expectedRepos: []string{"org/repo-a", "org/repo-b"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targets := collectSideRepoTargets(tt.workflows)
+
+			var got []string
+			for _, tgt := range targets {
+				got = append(got, tgt.Repository)
+			}
+
+			if len(got) != len(tt.expectedRepos) {
+				t.Errorf("expected %d targets, got %d: %v", len(tt.expectedRepos), len(got), got)
+				return
+			}
+			for i, repo := range tt.expectedRepos {
+				if got[i] != repo {
+					t.Errorf("target[%d]: expected %q, got %q", i, repo, got[i])
+				}
+			}
+		})
+	}
+}
+
+func TestSanitizeRepoForFilename(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"my-org/main-repo", "my-org-main-repo"},
+		{"org/repo", "org-repo"},
+		{"my.org/my_repo", "my.org-my_repo"},
+		{"owner/repo-name.git", "owner-repo-name.git"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := sanitizeRepoForFilename(tt.input)
+			if got != tt.expected {
+				t.Errorf("sanitizeRepoForFilename(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
+	t.Run("generates file for static side-repo target", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workflowDataList := []*WorkflowData{
+			{
+				Name: "side-repo-workflow",
+				CheckoutConfigs: []*CheckoutConfig{
+					{
+						Repository:  "my-org/target-repo",
+						Current:     true,
+						GitHubToken: "${{ secrets.GH_AW_TARGET_TOKEN }}",
+					},
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{
+						Expires: 48,
+					},
+				},
+			},
+		}
+
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// The standard hosting-repo maintenance should be generated (has expires).
+		if _, statErr := os.Stat(filepath.Join(tmpDir, "agentics-maintenance.yml")); statErr != nil {
+			t.Errorf("Expected standard agentics-maintenance.yml to exist")
+		}
+
+		// The side-repo maintenance should also be generated.
+		sideFile := filepath.Join(tmpDir, "agentics-maintenance-my-org-target-repo.yml")
+		content, err := os.ReadFile(sideFile)
+		if err != nil {
+			t.Fatalf("Expected side-repo maintenance file %s to exist: %v", sideFile, err)
+		}
+
+		contentStr := string(content)
+		if !strings.Contains(contentStr, "my-org/target-repo") {
+			t.Errorf("Side-repo maintenance should reference target repo, got:\n%s", contentStr[:200])
+		}
+		if !strings.Contains(contentStr, "${{ secrets.GH_AW_TARGET_TOKEN }}") {
+			t.Errorf("Side-repo maintenance should use custom token, got:\n%s", contentStr[:200])
+		}
+		if !strings.Contains(contentStr, "GH_AW_TARGET_REPO_SLUG") {
+			t.Errorf("Side-repo maintenance should set GH_AW_TARGET_REPO_SLUG, got:\n%s", contentStr[:200])
+		}
+		if !strings.Contains(contentStr, "workflow_call") {
+			t.Errorf("Side-repo maintenance should have workflow_call trigger, got:\n%s", contentStr[:200])
+		}
+		if !strings.Contains(contentStr, "apply_safe_outputs") {
+			t.Errorf("Side-repo maintenance should include apply_safe_outputs job, got:\n%s", contentStr[:200])
+		}
+		if !strings.Contains(contentStr, "create_labels") {
+			t.Errorf("Side-repo maintenance should include create_labels job, got:\n%s", contentStr[:200])
+		}
+	})
+
+	t.Run("no side-repo file generated when no current checkout", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workflowDataList := []*WorkflowData{
+			{
+				Name: "normal-workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{
+						Expires: 48,
+					},
+				},
+			},
+		}
+
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// Only standard maintenance should exist.
+		entries, _ := os.ReadDir(tmpDir)
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), "agentics-maintenance-") {
+				t.Errorf("Unexpected side-repo maintenance file: %s", entry.Name())
+			}
+		}
+	})
+
+	t.Run("side-repo generated without expires uses safe_outputs and create_labels only", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workflowDataList := []*WorkflowData{
+			{
+				Name: "side-repo-no-expires",
+				CheckoutConfigs: []*CheckoutConfig{
+					{
+						Repository: "org/no-expires-repo",
+						Current:    true,
+					},
+				},
+				// No expires configured — standard maintenance won't be generated.
+			},
+		}
+
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// Standard maintenance should NOT be generated (no expires).
+		if _, statErr := os.Stat(filepath.Join(tmpDir, "agentics-maintenance.yml")); !os.IsNotExist(statErr) {
+			t.Errorf("Standard agentics-maintenance.yml should not exist when no expires")
+		}
+
+		// Side-repo maintenance should be generated.
+		sideFile := filepath.Join(tmpDir, "agentics-maintenance-org-no-expires-repo.yml")
+		content, err := os.ReadFile(sideFile)
+		if err != nil {
+			t.Fatalf("Expected side-repo maintenance file to exist: %v", err)
+		}
+		contentStr := string(content)
+
+		// Should use fallback token when none specified.
+		if !strings.Contains(contentStr, "GH_AW_GITHUB_TOKEN") {
+			t.Errorf("Side-repo maintenance should use fallback token GH_AW_GITHUB_TOKEN, got:\n%s", contentStr[:200])
+		}
+		// Should NOT include close-expired-entities (no expires).
+		if strings.Contains(contentStr, "close-expired-entities") {
+			t.Errorf("Side-repo maintenance should NOT include close-expired-entities when no expires, got:\n%s", contentStr[:300])
+		}
+	})
+
+	t.Run("expression-based repository does not generate side-repo maintenance", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		workflowDataList := []*WorkflowData{
+			{
+				Name: "dynamic-repo-workflow",
+				CheckoutConfigs: []*CheckoutConfig{
+					{
+						Repository: "${{ inputs.target_repo }}",
+						Current:    true,
+					},
+				},
+			},
+		}
+
+		err := GenerateMaintenanceWorkflow(workflowDataList, tmpDir, "v1.0.0", ActionModeDev, "", false, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		entries, _ := os.ReadDir(tmpDir)
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), "agentics-maintenance-") {
+				t.Errorf("Unexpected side-repo maintenance file for dynamic repo: %s", entry.Name())
+			}
+		}
+	})
+}
