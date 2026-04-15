@@ -143,9 +143,11 @@ func TestLogsToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 			var capturedArgs []string
 			mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 				capturedArgs = append([]string(nil), args...)
-				// Return a command that exits with code 1 so the handler returns an
-				// error without writing any files, keeping the test self-contained.
-				return exec.CommandContext(ctx, "false")
+				// Use a non-existent command so the subprocess fails on all platforms
+				// without depending on Unix-specific commands like "false".
+				// cmd.Output() will return a "executable file not found" error, which
+				// the handler treats as a failure — we only care about the captured args.
+				return exec.CommandContext(ctx, "nonexistent-command-for-testing-only")
 			}
 
 			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
@@ -154,7 +156,7 @@ func TestLogsToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 
 			session := connectInMemory(t, server)
 
-			// Call the tool — it will fail because the mock command exits with code 1,
+			// Call the tool — it will fail because the mock command is not found,
 			// but we only care about the captured args.
 			ctx := context.Background()
 			_, _ = session.CallTool(ctx, &mcp.CallToolParams{
@@ -212,7 +214,9 @@ func TestAuditToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 			var capturedArgs []string
 			mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 				capturedArgs = append([]string(nil), args...)
-				return exec.CommandContext(ctx, "false")
+				// Use a non-existent command so the subprocess fails on all platforms
+				// without depending on Unix-specific commands like "false".
+				return exec.CommandContext(ctx, "nonexistent-command-for-testing-only")
 			}
 
 			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
