@@ -393,7 +393,7 @@ func TestValidateImportInputType_Number(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects non numeric values", func(t *testing.T) {
+	t.Run("rejects non-numeric values", func(t *testing.T) {
 		t.Parallel()
 
 		err := validateImportInputType("retries", "3", "number", paramDef, importPath)
