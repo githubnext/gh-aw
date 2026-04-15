@@ -517,6 +517,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   }
                 }
               },
@@ -527,6 +531,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "reason": {
                     "required": true,
@@ -558,6 +566,10 @@ jobs:
                     "itemType": "string",
                     "itemSanitize": true,
                     "itemMaxLength": 128
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "milestone": {
                     "optionalPositiveInteger": true

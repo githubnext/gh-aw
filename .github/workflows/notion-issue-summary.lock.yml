@@ -477,6 +477,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   }
                 }
               },
@@ -487,6 +491,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "reason": {
                     "required": true,

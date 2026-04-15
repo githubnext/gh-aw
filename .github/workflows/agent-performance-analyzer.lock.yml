@@ -499,6 +499,10 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
+                  },
                   "reply_to_id": {
                     "type": "string",
                     "maxLength": 256
@@ -522,6 +526,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 128
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "repo": {
                     "type": "string",
@@ -549,6 +557,10 @@ jobs:
                     "itemType": "string",
                     "itemSanitize": true,
                     "itemMaxLength": 128
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "parent": {
                     "issueOrPRNumber": true
@@ -622,6 +634,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   }
                 }
               },
@@ -632,6 +648,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "reason": {
                     "required": true,

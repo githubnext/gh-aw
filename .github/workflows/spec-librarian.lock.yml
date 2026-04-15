@@ -458,6 +458,10 @@ jobs:
                     "itemSanitize": true,
                     "itemMaxLength": 128
                   },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
+                  },
                   "parent": {
                     "issueOrPRNumber": true
                   },
@@ -530,6 +534,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   }
                 }
               },
@@ -540,6 +548,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "reason": {
                     "required": true,

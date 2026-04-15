@@ -446,6 +446,10 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
+                  },
                   "repo": {
                     "type": "string",
                     "maxLength": 256
@@ -512,6 +516,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   }
                 }
               },
@@ -522,6 +530,10 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "isMetadata": true
                   },
                   "reason": {
                     "required": true,

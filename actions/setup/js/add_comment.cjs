@@ -25,6 +25,7 @@ const { ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { isPayloadUserBot } = require("./resolve_mentions.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { renderMetadataBlock } = require("./metadata_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -497,6 +498,15 @@ async function main(config = {}) {
         success: false,
         error: errorMessage,
       };
+    }
+
+    // Append structured metadata block if the agent provided a metadata field.
+    // This is done AFTER body sanitization so the fenced block is not subjected to
+    // the HTML/injection sanitizer (which would strip HTML comments inside it).
+    // The metadata was already validated as safe primitives by the type validator.
+    const metadataBlock = renderMetadataBlock(message.metadata);
+    if (metadataBlock) {
+      processedBody += "\n\n" + metadataBlock;
     }
 
     // Add tracker ID and footer

@@ -508,4 +508,112 @@ describe("safe_output_type_validator", () => {
       expect(result.error).toContain("must contain only strings");
     });
   });
+
+  describe("metadata validation", () => {
+    it("should accept a valid flat metadata object", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      resetValidationConfigCache();
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        add_comment: {
+          defaultMax: 1,
+          fields: {
+            body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+            metadata: { type: "object", isMetadata: true },
+          },
+        },
+      });
+
+      const result = validateItem({ type: "add_comment", body: "Hello", metadata: { verdict: "APPROVE", count: 5, passed: true, note: null } }, "add_comment", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.metadata).toEqual({ verdict: "APPROVE", count: 5, passed: true, note: null });
+    });
+
+    it("should accept a comment without metadata", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      resetValidationConfigCache();
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        add_comment: {
+          defaultMax: 1,
+          fields: {
+            body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+            metadata: { type: "object", isMetadata: true },
+          },
+        },
+      });
+
+      const result = validateItem({ type: "add_comment", body: "Hello" }, "add_comment", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.metadata).toBeUndefined();
+    });
+
+    it("should reject metadata with a nested object value", async () => {
+      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateMetadata({ key: { nested: "value" } }, "metadata", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a string, number, boolean, or null");
+    });
+
+    it("should reject metadata with an array value", async () => {
+      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateMetadata({ tags: ["a", "b"] }, "metadata", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a string, number, boolean, or null");
+    });
+
+    it("should reject metadata with an invalid key format", async () => {
+      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateMetadata({ "123key": "value" }, "metadata", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must start with a letter");
+    });
+
+    it("should reject metadata when value is passed as an array (not object)", async () => {
+      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateMetadata(["a", "b"], "metadata", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must be a flat key-value object");
+    });
+
+    it("should reject metadata with too many entries", async () => {
+      const { validateMetadata, MAX_METADATA_ENTRIES } = await import("./safe_output_type_validator.cjs");
+
+      const large = {};
+      for (let i = 0; i < MAX_METADATA_ENTRIES + 1; i++) {
+        large[`key${i}`] = i;
+      }
+      const result = validateMetadata(large, "metadata", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must not have more than");
+    });
+
+    it("should reject metadata with a string value exceeding max length", async () => {
+      const { validateMetadata, MAX_METADATA_VALUE_LENGTH } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateMetadata({ longKey: "x".repeat(MAX_METADATA_VALUE_LENGTH + 1) }, "metadata", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("must not exceed");
+    });
+
+    it("should NOT sanitize HTML comments in metadata string values", async () => {
+      const { validateMetadata } = await import("./safe_output_type_validator.cjs");
+
+      // HTML comments are preserved (not stripped) — that is the whole point of metadata
+      const result = validateMetadata({ marker: "<!-- [PIPELINE-VERDICT] APPROVE -->" }, "metadata", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedValue.marker).toBe("<!-- [PIPELINE-VERDICT] APPROVE -->");
+    });
+  });
 });
