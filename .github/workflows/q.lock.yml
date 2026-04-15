@@ -654,7 +654,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": false
               },
               "create_pull_request": {
                 "defaultMax": 1,
@@ -720,7 +721,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": false
               },
               "missing_tool": {
                 "defaultMax": 20,
@@ -741,7 +743,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": false
               },
               "noop": {
                 "defaultMax": 1,
