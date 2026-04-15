@@ -3,7 +3,11 @@ package workflow
 import (
 	"strconv"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var maintenanceWorkflowYAMLLog = logger.New("workflow:maintenance_workflow_yaml")
 
 // buildMaintenanceWorkflowYAML generates the complete YAML content for the
 // agentics-maintenance.yml workflow. It is called by GenerateMaintenanceWorkflow
@@ -17,6 +21,8 @@ func buildMaintenanceWorkflowYAML(
 	resolver ActionSHAResolver,
 	configuredRunsOn RunsOnValue,
 ) string {
+	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q", actionMode, minExpiresDays, cronSchedule)
+
 	var yaml strings.Builder
 
 	// Add workflow header with logo and instructions
@@ -97,6 +103,7 @@ jobs:
 
 	// Add checkout step only in dev/script mode (for local action paths)
 	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		maintenanceWorkflowYAMLLog.Printf("Adding checkout step for close-expired-entities (actionMode=%s)", actionMode)
 		yaml.WriteString("      - name: Checkout actions folder\n")
 		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
 		yaml.WriteString("        with:\n")
@@ -392,6 +399,7 @@ jobs:
 	// These jobs are specific to the gh-aw repository and require go.mod, make build, etc.
 	// User repositories won't have these dependencies, so we skip them in release mode
 	if actionMode == ActionModeDev {
+		maintenanceWorkflowYAMLLog.Printf("Adding dev-only jobs: compile-workflows and secret-validation")
 		// Add compile-workflows job
 		yaml.WriteString(`
   compile-workflows:

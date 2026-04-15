@@ -4,7 +4,10 @@ import (
 	"strings"
 
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var actionPinsLog = logger.New("workflow:action_pins")
 
 // Type aliases — callers within pkg/workflow use these names directly.
 
@@ -48,6 +51,7 @@ func extractActionVersion(uses string) string {
 func getActionPin(repo string) string {
 	pins := actionpins.GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
+		actionPinsLog.Printf("No embedded pins found for repo: %s", repo)
 		return ""
 	}
 	return actionpins.FormatReference(repo, pins[0].SHA, pins[0].Version)
@@ -124,9 +128,11 @@ func applyActionPinToTypedStep(step *WorkflowStep, data *WorkflowData) *Workflow
 
 	pinnedRef, err := getActionPinWithData(actionRepo, rawVersion, data)
 	if err != nil || pinnedRef == "" {
+		actionPinsLog.Printf("Skipping pin for %s@%s: no pin available", actionRepo, rawVersion)
 		return step
 	}
 
+	actionPinsLog.Printf("Pinned action: %s@%s -> %s", actionRepo, rawVersion, pinnedRef)
 	result := step.Clone()
 	result.Uses = pinnedRef
 	return result
