@@ -92,7 +92,7 @@ Test workflow`
 	}
 }
 
-func TestSecretVerificationSkippedWhenTopLevelEnvironmentConfigured(t *testing.T) {
+func TestSecretVerificationSkippedWithEnvironment(t *testing.T) {
 	testDir := testutil.TempDir(t, "test-secret-verification-environment-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
 
@@ -104,7 +104,7 @@ environment: production
 
 Test workflow`
 
-	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
