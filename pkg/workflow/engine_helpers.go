@@ -261,7 +261,7 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 // Returns:
 //   - GitHubActionStep: The validation step, or an empty step if a custom command is set
 func BuildDefaultSecretValidationStep(workflowData *WorkflowData, secrets []string, name, docsURL string) GitHubActionStep {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		engineHelpersLog.Printf("Skipping secret validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
 		return GitHubActionStep{}
 	}

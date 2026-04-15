@@ -317,3 +317,21 @@ func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildDefaultSecretValidationStepHandlesNilWorkflowData(t *testing.T) {
+	step := BuildDefaultSecretValidationStep(
+		nil,
+		[]string{"COPILOT_GITHUB_TOKEN"},
+		"GitHub Copilot CLI",
+		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+	)
+
+	if len(step) == 0 {
+		t.Fatal("expected non-empty validation step for nil workflowData")
+	}
+
+	stepContent := strings.Join(step, "\n")
+	if !strings.Contains(stepContent, "Validate COPILOT_GITHUB_TOKEN secret") {
+		t.Errorf("expected validation step to include COPILOT_GITHUB_TOKEN check, got:\n%s", stepContent)
+	}
+}
