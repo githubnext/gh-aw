@@ -14,7 +14,7 @@ import (
 
 // TestParseDispatchRepositoryConfig_SingleTool tests parsing a single dispatch_repository tool
 func TestParseDispatchRepositoryConfig_SingleTool(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"dispatch_repository": map[string]any{
@@ -43,7 +43,7 @@ func TestParseDispatchRepositoryConfig_SingleTool(t *testing.T) {
 
 // TestParseDispatchRepositoryConfig_MultipleTools tests parsing multiple tools
 func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"dispatch_repository": map[string]any{
@@ -92,7 +92,7 @@ func TestParseDispatchRepositoryConfig_MultipleTools(t *testing.T) {
 
 // TestParseDispatchRepositoryConfig_DashAlias tests that "dispatch-repository" (dash) also works
 func TestParseDispatchRepositoryConfig_DashAlias(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"dispatch-repository": map[string]any{
@@ -111,7 +111,7 @@ func TestParseDispatchRepositoryConfig_DashAlias(t *testing.T) {
 
 // TestParseDispatchRepositoryConfig_Absent tests that nil is returned when key is absent
 func TestParseDispatchRepositoryConfig_Absent(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"create_issue": map[string]any{},
@@ -123,7 +123,7 @@ func TestParseDispatchRepositoryConfig_Absent(t *testing.T) {
 
 // TestParseDispatchRepositoryConfig_MaxCap tests that max is capped at 50
 func TestParseDispatchRepositoryConfig_MaxCap(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	outputMap := map[string]any{
 		"dispatch_repository": map[string]any{
@@ -143,7 +143,7 @@ func TestParseDispatchRepositoryConfig_MaxCap(t *testing.T) {
 
 // TestValidateDispatchRepository_Valid tests that valid config passes validation
 func TestValidateDispatchRepository_Valid(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -174,7 +174,7 @@ func TestValidateDispatchRepository_Valid(t *testing.T) {
 
 // TestValidateDispatchRepository_MissingWorkflow tests error when workflow field is missing
 func TestValidateDispatchRepository_MissingWorkflow(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -206,7 +206,7 @@ func TestValidateDispatchRepository_MissingWorkflow(t *testing.T) {
 
 // TestValidateDispatchRepository_MissingEventType tests error when event_type field is missing
 func TestValidateDispatchRepository_MissingEventType(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -238,7 +238,7 @@ func TestValidateDispatchRepository_MissingEventType(t *testing.T) {
 
 // TestValidateDispatchRepository_MissingRepository tests error when no repository is specified
 func TestValidateDispatchRepository_MissingRepository(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -270,7 +270,7 @@ func TestValidateDispatchRepository_MissingRepository(t *testing.T) {
 
 // TestValidateDispatchRepository_AllowedRepositories tests valid config with allowed_repositories
 func TestValidateDispatchRepository_AllowedRepositories(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -301,7 +301,7 @@ func TestValidateDispatchRepository_AllowedRepositories(t *testing.T) {
 
 // TestValidateDispatchRepository_InvalidRepoFormat tests error for malformed repository slug
 func TestValidateDispatchRepository_InvalidRepoFormat(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -333,7 +333,7 @@ func TestValidateDispatchRepository_InvalidRepoFormat(t *testing.T) {
 
 // TestValidateDispatchRepository_GitHubExpression tests that GitHub Actions expressions are accepted
 func TestValidateDispatchRepository_GitHubExpression(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -364,7 +364,7 @@ func TestValidateDispatchRepository_GitHubExpression(t *testing.T) {
 
 // TestValidateDispatchRepository_EmptyTools tests error when no tools are defined
 func TestValidateDispatchRepository_EmptyTools(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowPath := filepath.Join(tmpDir, "dispatcher.md")
@@ -386,7 +386,7 @@ func TestValidateDispatchRepository_EmptyTools(t *testing.T) {
 
 // TestValidateDispatchRepository_NilConfig tests that nil config is OK (no-op)
 func TestValidateDispatchRepository_NilConfig(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -511,7 +511,7 @@ func TestDispatchRepositoryConfigSerialization(t *testing.T) {
 
 // TestDispatchRepositoryInWorkflowCompilation tests end-to-end compilation
 func TestDispatchRepositoryInWorkflowCompilation(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -564,7 +564,7 @@ This workflow dispatches repository events.
 
 // TestDispatchRepositoryValidation_InCompiler tests validation runs during compilation
 func TestDispatchRepositoryValidation_InCompiler(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")

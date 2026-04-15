@@ -141,7 +141,7 @@ func TestSafeOutputsConfigYAMLTags(t *testing.T) {
 // (Footer, AllowGitHubReferences, GroupReports, MaxBotMentions, Mentions) are correctly
 // merged from imported workflow configs when absent in the top-level config.
 func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tests := []struct {
 		name      string
@@ -260,7 +260,7 @@ func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 // TestMergeProtectedFilesExcludeAsSet verifies that when both the top-level and imported
 // configs define the same handler, their protected-files exclude lists are merged as a set.
 func TestMergeProtectedFilesExcludeAsSet(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tests := []struct {
 		name      string

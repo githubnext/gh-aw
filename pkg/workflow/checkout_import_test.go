@@ -14,7 +14,7 @@ import (
 // TestCheckoutImportFromSharedWorkflow tests that a checkout block defined in a shared
 // workflow is inherited by the importing workflow.
 func TestCheckoutImportFromSharedWorkflow(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -70,7 +70,7 @@ This workflow inherits the checkout configuration from the shared workflow.
 // TestCheckoutImportMainWorkflowTakesPrecedence tests that the main workflow's checkout
 // takes precedence over an imported checkout for the same (repository, path) key.
 func TestCheckoutImportMainWorkflowTakesPrecedence(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -131,7 +131,7 @@ This workflow overrides the checkout from the shared workflow.
 // TestCheckoutImportDisabledByMainWorkflow tests that checkout: false in the main workflow
 // suppresses imported checkout configs.
 func TestCheckoutImportDisabledByMainWorkflow(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -179,7 +179,7 @@ This workflow disables checkout entirely.
 // TestCheckoutImportMultipleImports tests that checkout configs from multiple shared
 // workflows are all merged into the importing workflow.
 func TestCheckoutImportMultipleImports(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -240,7 +240,7 @@ imports:
 // when an imported shared workflow defines conflicting auth for the same (repository, path).
 // A main workflow github-token must not be overridden by an imported github-app, and vice versa.
 func TestCheckoutImportAuthPrecedence(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

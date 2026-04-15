@@ -13,7 +13,7 @@ import (
 
 // TestValidateCallWorkflow_EmptyList tests that empty workflow list returns an error
 func TestValidateCallWorkflow_EmptyList(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -40,7 +40,7 @@ func TestValidateCallWorkflow_EmptyList(t *testing.T) {
 
 // TestValidateCallWorkflow_NoConfig tests that nil config passes validation
 func TestValidateCallWorkflow_NoConfig(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{},
@@ -52,7 +52,7 @@ func TestValidateCallWorkflow_NoConfig(t *testing.T) {
 
 // TestValidateCallWorkflow_SelfReference tests that self-reference is rejected
 func TestValidateCallWorkflow_SelfReference(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -80,7 +80,7 @@ func TestValidateCallWorkflow_SelfReference(t *testing.T) {
 
 // TestValidateCallWorkflow_WorkflowNotFound tests that a missing workflow fails validation
 func TestValidateCallWorkflow_WorkflowNotFound(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -109,7 +109,7 @@ func TestValidateCallWorkflow_WorkflowNotFound(t *testing.T) {
 // TestValidateCallWorkflow_WorkflowWithoutWorkflowCall tests that a workflow missing
 // workflow_call trigger fails validation
 func TestValidateCallWorkflow_WorkflowWithoutWorkflowCall(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -154,7 +154,7 @@ jobs:
 
 // TestValidateCallWorkflow_ValidWorkflow tests that a valid worker passes validation
 func TestValidateCallWorkflow_ValidWorkflow(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -201,7 +201,7 @@ jobs:
 // TestValidateCallWorkflow_MDSourceWithWorkflowCall tests that a .md source with workflow_call
 // trigger passes validation (same-batch compilation target)
 func TestValidateCallWorkflow_MDSourceWithWorkflowCall(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")

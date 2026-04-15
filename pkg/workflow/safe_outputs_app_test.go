@@ -14,7 +14,7 @@ import (
 
 // TestSafeOutputsAppConfiguration tests that app configuration is correctly parsed
 func TestSafeOutputsAppConfiguration(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -52,7 +52,7 @@ Test workflow with app configuration.
 
 // TestSafeOutputsAppConfigurationMinimal tests minimal app configuration without repositories
 func TestSafeOutputsAppConfigurationMinimal(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -87,7 +87,7 @@ Test workflow with minimal app configuration.
 
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
 func TestSafeOutputsAppWithoutSafeOutputs(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
@@ -118,7 +118,7 @@ Test workflow without safe outputs.
 // When any permission-* input is specified, the action scopes the token to ONLY those permissions,
 // so omitting permission-discussions would exclude discussions access from the minted token.
 func TestSafeOutputsAppTokenDiscussionsPermission(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
 on: issues
