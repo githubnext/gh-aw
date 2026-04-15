@@ -106,7 +106,7 @@ func TestActionResolverFailedResolutionCache(t *testing.T) {
 // Note: Testing the actual GitHub API resolution requires network access
 // and is tested in integration tests or with network-dependent test tags
 
-// TestParseTagRefTSV verifies that parseTagRefTSV correctly parses the tab-separated
+// TestParseTagRefTSV verifies that ParseTagRefTSV correctly parses the tab-separated
 // output produced by the GitHub API jq expression `[.object.sha, .object.type] | @tsv`.
 // This is the core parsing step used when resolving action tags to SHAs; it must
 // distinguish lightweight tags (type "commit") from annotated tags (type "tag") so
@@ -164,6 +164,12 @@ func TestParseTagRefTSV(t *testing.T) {
 		{
 			name:        "short SHA is rejected",
 			input:       "abc123\tcommit",
+			wantErr:     true,
+			errContains: "invalid SHA format",
+		},
+		{
+			name:        "non-hex SHA is rejected",
+			input:       "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\tcommit",
 			wantErr:     true,
 			errContains: "invalid SHA format",
 		},

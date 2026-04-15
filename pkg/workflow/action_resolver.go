@@ -86,7 +86,7 @@ func ParseTagRefTSV(line string) (sha, objType string, err error) {
 	}
 	sha = parts[0]
 	objType = parts[1]
-	if len(sha) != 40 {
+	if len(sha) != 40 || !gitutil.IsHexString(sha) {
 		return "", "", fmt.Errorf("invalid SHA format: expected 40 hex characters, got %d (%s)", len(sha), sha)
 	}
 	return sha, objType, nil
@@ -120,24 +120,30 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 		return "", fmt.Errorf("failed to parse API response for %s@%s: %w", repo, version, err)
 	}
 
-	// Annotated tags point to a tag object, not directly to a commit.
-	// Peel the tag object to get the underlying commit SHA so that
-	// emitted action pins use the stable commit SHA rather than the
+	// Annotated tags (and chained tag objects) point to a tag object rather than
+	// directly to a commit. Iteratively peel until we reach a non-tag object so
+	// that emitted action pins use the stable underlying commit SHA rather than a
 	// mutable tag object SHA (which changes when the tag is re-created).
-	if objType == "tag" {
-		resolverLog.Printf("Detected annotated tag for %s@%s (tag object SHA: %s), peeling to commit SHA", repo, version, sha)
+	const maxTagPeelDepth = 10
+	for depth := 0; objType == "tag"; depth++ {
+		if depth >= maxTagPeelDepth {
+			return "", fmt.Errorf("failed to resolve %s@%s: exceeded max tag peel depth %d", repo, version, maxTagPeelDepth)
+		}
+		resolverLog.Printf("Detected annotated tag for %s@%s (depth %d, tag object SHA: %s), peeling to underlying object", repo, version, depth, sha)
 		tagPath := fmt.Sprintf("/repos/%s/git/tags/%s", baseRepo, sha)
-		cmd2 := ExecGHContext(ctx, "api", tagPath, "--jq", ".object.sha")
-		output2, err := cmd2.Output()
+		peelCtx, peelCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		cmd2 := ExecGHContext(peelCtx, "api", tagPath, "--jq", "[.object.sha, .object.type] | @tsv")
+		output2, peelErr := cmd2.Output()
+		peelCancel()
+		if peelErr != nil {
+			return "", fmt.Errorf("failed to peel annotated tag %s@%s: %w", repo, version, peelErr)
+		}
+		sha, objType, err = ParseTagRefTSV(string(output2))
 		if err != nil {
-			return "", fmt.Errorf("failed to peel annotated tag %s@%s: %w", repo, version, err)
+			return "", fmt.Errorf("failed to parse peeled tag API response for %s@%s: %w", repo, version, err)
 		}
-		sha = strings.TrimSpace(string(output2))
-		if len(sha) != 40 {
-			return "", fmt.Errorf("invalid peeled SHA format for %s@%s: expected 40 hex characters, got %d (%s)", repo, version, len(sha), sha)
-		}
-		resolverLog.Printf("Peeled annotated tag %s@%s to commit SHA: %s", repo, version, sha)
 	}
+	resolverLog.Printf("Resolved %s@%s to %s SHA: %s", repo, version, objType, sha)
 
 	return sha, nil
 }

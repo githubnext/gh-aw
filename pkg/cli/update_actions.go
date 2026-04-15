@@ -417,8 +417,8 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 }
 
 // getActionSHAForTag gets the commit SHA for a given tag in an action repository.
-// For annotated tags, it peels the tag object to return the underlying commit SHA
-// rather than the tag object SHA, matching what tools like Renovate expect.
+// For annotated tags (and chained tag objects), it iteratively peels until it
+// reaches the underlying non-tag object SHA, matching what tools like Renovate expect.
 func getActionSHAForTag(ctx context.Context, repo, tag string) (string, error) {
 	updateLog.Printf("Getting SHA for %s@%s", repo, tag)
 
@@ -435,22 +435,26 @@ func getActionSHAForTag(ctx context.Context, repo, tag string) (string, error) {
 		return "", fmt.Errorf("failed to parse API response for %s@%s: %w", repo, tag, err)
 	}
 
-	// Annotated tags point to a tag object, not directly to a commit.
-	// Peel the tag object to get the underlying commit SHA so that
-	// emitted action pins use the stable commit SHA rather than the
+	// Annotated tags (and chained tag objects) point to a tag object rather than
+	// directly to a commit. Iteratively peel until we reach a non-tag object so
+	// that emitted action pins use the stable underlying commit SHA rather than a
 	// mutable tag object SHA (which changes when the tag is re-created).
-	if objType == "tag" {
-		updateLog.Printf("Detected annotated tag for %s@%s (tag object SHA: %s), peeling to commit SHA", repo, tag, sha)
-		output2, err := workflow.RunGHContext(ctx, "Peeling annotated tag...", "api", fmt.Sprintf("/repos/%s/git/tags/%s", repo, sha), "--jq", ".object.sha")
+	const maxTagPeelDepth = 10
+	for depth := 0; objType == "tag"; depth++ {
+		if depth >= maxTagPeelDepth {
+			return "", fmt.Errorf("failed to peel annotated tag: exceeded max depth %d for %s@%s", maxTagPeelDepth, repo, tag)
+		}
+		updateLog.Printf("Detected annotated tag for %s@%s (depth %d, tag object SHA: %s), peeling to underlying object", repo, tag, depth, sha)
+		output2, err := workflow.RunGHContext(ctx, "Peeling annotated tag...", "api", fmt.Sprintf("/repos/%s/git/tags/%s", repo, sha), "--jq", "[.object.sha, .object.type] | @tsv")
 		if err != nil {
 			return "", fmt.Errorf("failed to peel annotated tag: %w", err)
 		}
-		sha = strings.TrimSpace(string(output2))
-		if len(sha) != 40 {
-			return "", fmt.Errorf("invalid peeled SHA format: expected 40 hex characters, got %d (%s)", len(sha), sha)
+		sha, objType, err = workflow.ParseTagRefTSV(string(output2))
+		if err != nil {
+			return "", fmt.Errorf("failed to parse peeled tag API response for %s@%s: %w", repo, tag, err)
 		}
-		updateLog.Printf("Peeled annotated tag %s@%s to commit SHA: %s", repo, tag, sha)
 	}
+	updateLog.Printf("Resolved %s@%s to %s SHA: %s", repo, tag, objType, sha)
 
 	return sha, nil
 }
