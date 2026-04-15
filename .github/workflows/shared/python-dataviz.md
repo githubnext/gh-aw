@@ -286,8 +286,8 @@ Chart images are uploaded individually via the `upload_asset` safe-output tool. 
 **Chart Image Upload:**
 - Tool: `upload_asset` (safe-output)
 - Config: up to 5 uploads per run with image-only extensions
-- Allowed: PNG, JPG, SVG files
-- Retention: 30 days
+- Allowed: PNG, JPG, JPEG, SVG files
+- Persistence: stored as persistent assets (not 30-day artifacts)
 - Returns: persistent asset URL with direct link
 
 **Source and Data Artifact:**
