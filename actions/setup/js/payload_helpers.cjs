@@ -46,6 +46,14 @@ function renderPayloadBlock(payload) {
   }
 
   const json = JSON.stringify(payload);
+
+  // Enforce valid JSON — verify the serialized output is parseable before embedding
+  try {
+    JSON.parse(json);
+  } catch {
+    return "";
+  }
+
   return `\`\`\`${PAYLOAD_FENCE_INFO}\n${json}\n\`\`\``;
 }
 

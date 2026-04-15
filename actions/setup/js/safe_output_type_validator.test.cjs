@@ -510,12 +510,13 @@ describe("safe_output_type_validator", () => {
   });
 
   describe("payload validation", () => {
-    it("should accept a valid flat payload object", async () => {
+    it("should accept a valid flat payload object when allowed-payload is true", async () => {
       const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
       resetValidationConfigCache();
       process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
         add_comment: {
           defaultMax: 1,
+          "allowed-payload": true,
           fields: {
             body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
             payload: { type: "object", isPayload: true },
@@ -529,12 +530,31 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.payload).toEqual({ verdict: "APPROVE", count: 5, passed: true, note: null });
     });
 
-    it("should accept a comment without payload", async () => {
+    it("should reject payload when allowed-payload is not set", async () => {
       const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
       resetValidationConfigCache();
       process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
         add_comment: {
           defaultMax: 1,
+          fields: {
+            body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+          },
+        },
+      });
+
+      const result = validateItem({ type: "add_comment", body: "Hello", payload: { key: "value" } }, "add_comment", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("does not allow a 'payload' field");
+    });
+
+    it("should accept a comment without payload (no allowed-payload needed)", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      resetValidationConfigCache();
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify({
+        add_comment: {
+          defaultMax: 1,
+          "allowed-payload": true,
           fields: {
             body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
             payload: { type: "object", isPayload: true },

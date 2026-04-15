@@ -606,6 +606,14 @@ function validateItem(item, itemType, lineNum, options) {
   const normalizedItem = { ...item };
   const errors = [];
 
+  // Guard: reject payload fields on types that have not opted in with allowed-payload: true
+  if (item.payload !== undefined && !typeConfig["allowed-payload"]) {
+    return {
+      isValid: false,
+      error: `Line ${lineNum}: ${itemType} does not allow a 'payload' field`,
+    };
+  }
+
   // Run custom validation first if defined
   if (typeConfig.customValidation) {
     const customResult = executeCustomValidation(item, typeConfig.customValidation, lineNum, itemType);

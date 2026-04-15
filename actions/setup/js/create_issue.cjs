@@ -43,6 +43,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { renderPayloadBlock } = require("./payload_helpers.cjs");
 const { withRetry } = require("./error_recovery.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
@@ -481,6 +482,12 @@ async function main(config = {}) {
     // with the caller's identity so close-older-issues can distinguish callers precisely.
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
     const runUrl = buildWorkflowRunUrl(context, context.repo);
+
+    // Prepend structured payload block before the footer if the agent provided one.
+    const payloadBlock = renderPayloadBlock(message.payload);
+    if (payloadBlock) {
+      bodyLines.push(``, payloadBlock);
+    }
 
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");

@@ -28,6 +28,7 @@ const { checkFileProtection } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, encodePathSegments } = require("./messages_core.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL, MAX_ASSIGNEES } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { renderPayloadBlock } = require("./payload_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
@@ -759,6 +760,12 @@ async function main(config = {}) {
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
     const triggeringPRNumber = context.payload.pull_request?.number;
     const triggeringDiscussionNumber = context.payload.discussion?.number;
+
+    // Prepend structured payload block before the footer if the agent provided one.
+    const payloadBlock = renderPayloadBlock(message.payload);
+    if (payloadBlock) {
+      bodyLines.push(``, payloadBlock);
+    }
 
     // Add fingerprint comment if present
     const trackerIDComment = getTrackerID("markdown");

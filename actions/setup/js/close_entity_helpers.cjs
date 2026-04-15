@@ -12,6 +12,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { validateTargetRepo, resolveTargetRepoConfig } = require("./repo_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
+const { renderPayloadBlock } = require("./payload_helpers.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -45,16 +46,25 @@ const { ERR_API } = require("./error_codes.cjs");
  * @param {string} body - The original comment body
  * @param {number|undefined} triggeringIssueNumber - Issue number that triggered this workflow
  * @param {number|undefined} triggeringPRNumber - PR number that triggered this workflow
+ * @param {Record<string, string|number|boolean|null>|null|undefined} [payload] - Optional structured payload to prepend before footer
  * @returns {string} The complete comment body with tracker ID and footer
  */
-function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
+function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber, payload) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildWorkflowRunUrl(context, context.repo);
 
   // Caller is responsible for sanitizing body before passing it here.
-  return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+  let result = body.trim();
+
+  // Prepend structured payload block before the tracker ID and footer.
+  const payloadBlock = renderPayloadBlock(payload);
+  if (payloadBlock) {
+    result += "\n\n" + payloadBlock;
+  }
+
+  return result + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 }
 
 /**
@@ -524,9 +534,9 @@ async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
         core.info(`${config.displayNameCapitalized} #${entityNumber} is already closed, but will still add comment`);
       }
 
-      // Build comment body (sanitize first, then append tracker/footer)
+      // Build comment body (sanitize first, then prepend payload and append tracker/footer)
       const sanitizedItemBody = sanitizeContent(item.body);
-      const commentBody = buildCommentBody(sanitizedItemBody, triggeringIssueNumber, triggeringPRNumber);
+      const commentBody = buildCommentBody(sanitizedItemBody, triggeringIssueNumber, triggeringPRNumber, item.payload);
 
       // Add comment before closing (or to already-closed entity)
       const comment = await callbacks.addComment(github, context.repo.owner, context.repo.repo, entityNumber, commentBody);

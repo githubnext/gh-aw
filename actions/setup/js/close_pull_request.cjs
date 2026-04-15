@@ -121,10 +121,10 @@ async function main(config = {}) {
         return { valid: true };
       },
 
-      buildCommentBody(sanitizedBody) {
+      buildCommentBody(sanitizedBody, item) {
         const triggeringPRNumber = context.payload?.pull_request?.number;
         const triggeringIssueNumber = context.payload?.issue?.number;
-        return buildCommentBody(sanitizedBody, triggeringIssueNumber, triggeringPRNumber);
+        return buildCommentBody(sanitizedBody, triggeringIssueNumber, triggeringPRNumber, item?.payload);
       },
 
       addComment: addPullRequestComment,
