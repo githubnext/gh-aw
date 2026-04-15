@@ -362,7 +362,7 @@ var runCmd = &cobra.Command{
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
-When called without workflow arguments, enters interactive mode with:
+When called without workflow arguments, this command enters interactive mode and shows:
 - List of workflows that support workflow_dispatch
 - Display of required and optional inputs
 - Input collection with validation
@@ -735,7 +735,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
-	runCmd.Flags().Bool("approve", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
+	runCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

@@ -34,7 +34,7 @@ func NewUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Upgrade repository with latest agent files and apply codemods to all workflows",
-		Long: `Upgrade the repository for the latest version of agentic workflows.
+		Long: `Upgrade the repository to the latest version of agentic workflows.
 
 This command:
   1. Updates the dispatcher agent file to the latest template (like 'init' command)
@@ -111,7 +111,7 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
-	cmd.Flags().Bool("approve", false, "Approve all safe update changes during compilation (skip safe update enforcement)")
+	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	addJSONFlag(cmd)
