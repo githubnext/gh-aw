@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -906,5 +908,55 @@ func TestDeriveRunClassification(t *testing.T) {
 				t.Errorf("deriveRunClassification() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestBuildLogsDataEngineCountsFromAwInfo verifies that engine_counts in the summary
+// is populated from aw_info.json data (the authoritative engine source), not from
+// lock file string matching.
+func TestBuildLogsDataEngineCountsFromAwInfo(t *testing.T) {
+	createRunDir := func(engineID string) string {
+		dir := t.TempDir()
+		awInfo := `{"engine_id":"` + engineID + `","engine_name":"Test","workflow_name":"test","created_at":"2024-01-01T00:00:00Z"}`
+		if err := os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(awInfo), 0600); err != nil {
+			t.Fatalf("Failed to write aw_info.json: %v", err)
+		}
+		return dir
+	}
+
+	claudeDir := createRunDir("claude")
+	claudeDir2 := createRunDir("claude")
+	copilotDir := createRunDir("copilot")
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf-claude-1", LogsPath: claudeDir}},
+		{Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf-claude-2", LogsPath: claudeDir2}},
+		{Run: WorkflowRun{DatabaseID: 3, WorkflowName: "wf-copilot", LogsPath: copilotDir}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	if data.Summary.EngineCounts == nil {
+		t.Fatal("EngineCounts should not be nil when runs have aw_info.json")
+	}
+	if got := data.Summary.EngineCounts["claude"]; got != 2 {
+		t.Errorf("Expected 2 claude runs, got %d", got)
+	}
+	if got := data.Summary.EngineCounts["copilot"]; got != 1 {
+		t.Errorf("Expected 1 copilot run, got %d", got)
+	}
+	// Verify individual RunData.Agent fields also reflect the engine from aw_info.json
+	agentsByID := make(map[int64]string)
+	for _, run := range data.Runs {
+		agentsByID[run.DatabaseID] = run.Agent
+	}
+	if agentsByID[1] != "claude" {
+		t.Errorf("Run 1: expected agent=claude, got %q", agentsByID[1])
+	}
+	if agentsByID[2] != "claude" {
+		t.Errorf("Run 2: expected agent=claude, got %q", agentsByID[2])
+	}
+	if agentsByID[3] != "copilot" {
+		t.Errorf("Run 3: expected agent=copilot, got %q", agentsByID[3])
 	}
 }
