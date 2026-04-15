@@ -153,8 +153,8 @@ const PAYLOAD_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
  * Payload must be a flat key-value object where:
  * - Keys are safe identifiers (letter + alphanumeric/underscore)
  * - Values are string, finite number, boolean, or null (no nested objects or arrays)
- * Values are NOT run through the HTML/injection sanitizer; the structural
- * constraints above prevent injection via nested content.
+ * String values are run through sanitizeContent() to strip HTML, XML comments,
+ * and injection patterns before being stored.
  * @param {any} value - Value to validate
  * @param {string} fieldName - Field name for error messages
  * @param {number} lineNum - Line number for error messages
@@ -220,7 +220,10 @@ function validatePayload(value, fieldName, lineNum) {
       };
     }
 
-    normalized[key] = val;
+    // Sanitize string values to strip HTML, XML comments, and injection patterns.
+    // Non-string primitives (number, boolean, null) are safe as-is.
+    const sanitizedVal = typeof val === "string" ? sanitizeContent(val, { maxLength: MAX_PAYLOAD_VALUE_LENGTH }) : val;
+    normalized[key] = sanitizedVal;
   }
 
   return { isValid: true, normalizedValue: normalized };

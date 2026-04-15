@@ -674,7 +674,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "add_labels": {
                 "defaultMax": 5,
@@ -723,7 +724,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "create_issue": {
                 "defaultMax": 1,
@@ -760,7 +762,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "create_pull_request_review_comment": {
                 "defaultMax": 1,
@@ -858,7 +861,8 @@ jobs:
                     "type": "object",
                     "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "remove_labels": {
                 "defaultMax": 5,
@@ -919,7 +923,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "set_issue_type": {
                 "defaultMax": 5,
@@ -959,7 +964,8 @@ jobs:
                     "type": "object",
                     "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               }
             }
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9

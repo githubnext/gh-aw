@@ -600,7 +600,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "add_labels": {
                 "defaultMax": 5,
@@ -656,7 +657,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 128
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "hide_comment": {
                 "defaultMax": 5,
@@ -741,7 +743,8 @@ jobs:
                     "type": "object",
                     "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "remove_labels": {
                 "defaultMax": 5,
@@ -780,7 +783,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "unassign_from_user": {
                 "defaultMax": 1,

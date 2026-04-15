@@ -489,7 +489,8 @@ jobs:
                     "type": "object",
                     "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "report_incomplete": {
                 "defaultMax": 5,
@@ -509,7 +510,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "update_project": {
                 "defaultMax": 10,

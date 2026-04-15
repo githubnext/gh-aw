@@ -644,14 +644,26 @@ describe("safe_output_type_validator", () => {
       expect(result.error).toContain("must be finite");
     });
 
-    it("should NOT sanitize HTML comments in payload string values", async () => {
+    it("should sanitize HTML and XML comments in payload string values", async () => {
       const { validatePayload } = await import("./safe_output_type_validator.cjs");
 
-      // HTML comments are preserved (not stripped) — that is the whole point of payload
-      const result = validatePayload({ marker: "<!-- [PIPELINE-VERDICT] APPROVE -->" }, "payload", 1);
+      // HTML/XML comments and tags must be stripped from string values for safety
+      const result = validatePayload({ marker: "<!-- secret -->APPROVE" }, "payload", 1);
 
       expect(result.isValid).toBe(true);
-      expect(result.normalizedValue.marker).toBe("<!-- [PIPELINE-VERDICT] APPROVE -->");
+      // sanitizeContent strips XML comments, so the marker is cleaned
+      expect(result.normalizedValue.marker).not.toContain("<!--");
+      expect(result.normalizedValue.marker).toContain("APPROVE");
+    });
+
+    it("should preserve plain text string values in payload unchanged", async () => {
+      const { validatePayload } = await import("./safe_output_type_validator.cjs");
+
+      const result = validatePayload({ verdict: "APPROVE", reason: "all checks passed" }, "payload", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedValue.verdict).toBe("APPROVE");
+      expect(result.normalizedValue.reason).toBe("all checks passed");
     });
   });
 });

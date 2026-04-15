@@ -806,7 +806,8 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "assign_to_agent": {
                 "defaultMax": 1,
@@ -892,7 +893,8 @@ jobs:
                     "type": "object",
                     "isPayload": true
                   }
-                }
+                },
+                "allowed-payload": true
               },
               "report_incomplete": {
                 "defaultMax": 5,
@@ -912,7 +914,8 @@ jobs:
                     "sanitize": true,
                     "maxLength": 1024
                   }
-                }
+                },
+                "allowed-payload": true
               }
             }
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
