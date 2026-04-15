@@ -22,15 +22,7 @@ func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
 func generateSaveBaseGitHubFoldersStep() []string {
 	var lines []string
 	lines = append(lines, "      - name: Save .github and .agents for base branch restoration\n")
-	lines = append(lines, "        run: |\n")
-	lines = append(lines, "          if [ -d \"${GITHUB_WORKSPACE}/.github\" ]; then\n")
-	lines = append(lines, "            mkdir -p /tmp/gh-aw/base\n")
-	lines = append(lines, "            cp -r \"${GITHUB_WORKSPACE}/.github\" /tmp/gh-aw/base/.github\n")
-	lines = append(lines, "          fi\n")
-	lines = append(lines, "          if [ -d \"${GITHUB_WORKSPACE}/.agents\" ]; then\n")
-	lines = append(lines, "            mkdir -p /tmp/gh-aw/base\n")
-	lines = append(lines, "            cp -r \"${GITHUB_WORKSPACE}/.agents\" /tmp/gh-aw/base/.agents\n")
-	lines = append(lines, "          fi\n")
+	lines = append(lines, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh\"\n")
 	return lines
 }
 
@@ -44,16 +36,7 @@ func generateRestoreBaseGitHubFoldersStep(yaml *strings.Builder) {
 	prLog.Print("Generating step to restore .github and .agents from base branch")
 	yaml.WriteString("      - name: Restore .github and .agents from base branch\n")
 	yaml.WriteString("        if: steps.checkout-pr.outcome == 'success'\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          if [ -d \"/tmp/gh-aw/base/.github\" ]; then\n")
-	yaml.WriteString("            rm -rf \"${GITHUB_WORKSPACE}/.github\"\n")
-	yaml.WriteString("            cp -r /tmp/gh-aw/base/.github \"${GITHUB_WORKSPACE}/.github\"\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("          if [ -d \"/tmp/gh-aw/base/.agents\" ]; then\n")
-	yaml.WriteString("            rm -rf \"${GITHUB_WORKSPACE}/.agents\"\n")
-	yaml.WriteString("            cp -r /tmp/gh-aw/base/.agents \"${GITHUB_WORKSPACE}/.agents\"\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("          rm -f \"${GITHUB_WORKSPACE}/.mcp.json\"\n")
+	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh\"\n")
 }
 
 // generatePRReadyForReviewCheckout generates a step to checkout the PR branch when PR context is available

@@ -137,15 +137,7 @@ jobs:
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save .github and .agents for base branch restoration
-        run: |
-          if [ -d "${GITHUB_WORKSPACE}/.github" ]; then
-            mkdir -p /tmp/gh-aw/base
-            cp -r "${GITHUB_WORKSPACE}/.github" /tmp/gh-aw/base/.github
-          fi
-          if [ -d "${GITHUB_WORKSPACE}/.agents" ]; then
-            mkdir -p /tmp/gh-aw/base
-            cp -r "${GITHUB_WORKSPACE}/.agents" /tmp/gh-aw/base/.agents
-          fi
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
         id: check-lock-file
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
