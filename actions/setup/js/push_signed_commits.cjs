@@ -77,11 +77,11 @@ function unquoteCPath(s) {
 }
 
 /**
- * Read a blob object as a base64-encoded string using `git cat-file blob
- * <blobHash>`.  The raw bytes emitted by git are collected via the
- * `exec.exec` stdout listener so that binary files are not corrupted by any
- * UTF-8 decoding layer (unlike `exec.getExecOutput` which always passes
- * stdout through a `StringDecoder('utf8')`).
+ * Read a blob object as a base64-encoded string using `git cat-file blob <blobHash>`.
+ * The raw bytes emitted by git are collected via the `exec.exec` stdout
+ * listener so that binary files are not corrupted by any UTF-8 decoding
+ * layer (unlike `exec.getExecOutput` which always passes stdout through a
+ * `StringDecoder('utf8')`).
  *
  * @param {string} blobHash - Object hash of the blob (from `git diff-tree --raw` dstHash field)
  * @param {string} cwd - Working directory of the local git checkout
