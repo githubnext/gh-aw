@@ -15,7 +15,7 @@ var nodejsLog = logger.New("workflow:nodejs")
 func GenerateNodeJsSetupStep() GitHubActionStep {
 	return GitHubActionStep{
 		"      - name: Setup Node.js",
-		"        uses: " + GetActionPin("actions/setup-node"),
+		"        uses: " + getActionPin("actions/setup-node"),
 		"        with:",
 		fmt.Sprintf("          node-version: '%s'", constants.DefaultNodeVersion),
 		"          package-manager-cache: false",

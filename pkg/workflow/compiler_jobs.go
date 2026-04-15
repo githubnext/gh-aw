@@ -783,7 +783,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 								}
 
 								// Apply action pinning using type-safe version
-								pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+								pinnedStep := applyActionPinToTypedStep(typedStep, data)
 
 								// Convert back to map for YAML generation
 								stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())

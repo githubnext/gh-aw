@@ -1,0 +1,289 @@
+{
+  "entries": {
+    "actions-ecosystem/action-add-labels@v1.1.3": {
+      "repo": "actions-ecosystem/action-add-labels",
+      "version": "v1.1.3",
+      "sha": "c96b68fec76a0987cd93957189e9abd0b9a72ff1",
+      "inputs": {
+        "github_token": {
+          "description": "A GitHub token.",
+          "default": "${{ github.token }}"
+        },
+        "labels": {
+          "description": "The labels' name to be added. Must be separated with line breaks if there're multiple labels.",
+          "required": true
+        },
+        "number": {
+          "description": "The number of the issue or pull request."
+        },
+        "repo": {
+          "description": "The owner and repository name. e.g.) Codertocat/Hello-World",
+          "default": "${{ github.repository }}"
+        }
+      },
+      "action_description": "Add labels to an issue or a pull request."
+    },
+    "actions/ai-inference@v2.0.8": {
+      "repo": "actions/ai-inference",
+      "version": "v2.0.8",
+      "sha": "af6ad2c4ac4edf01884054fc3a6caa6d2567c13a"
+    },
+    "actions/attest-build-provenance@v4.1.0": {
+      "repo": "actions/attest-build-provenance",
+      "version": "v4.1.0",
+      "sha": "a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
+    },
+    "actions/cache/restore@v5.0.5": {
+      "repo": "actions/cache/restore",
+      "version": "v5.0.5",
+      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
+    },
+    "actions/cache/save@v5.0.5": {
+      "repo": "actions/cache/save",
+      "version": "v5.0.5",
+      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
+    },
+    "actions/cache@v5.0.5": {
+      "repo": "actions/cache",
+      "version": "v5.0.5",
+      "sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae"
+    },
+    "actions/checkout@v6.0.2": {
+      "repo": "actions/checkout",
+      "version": "v6.0.2",
+      "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+    },
+    "actions/create-github-app-token@v3.1.1": {
+      "repo": "actions/create-github-app-token",
+      "version": "v3.1.1",
+      "sha": "1b10c78c7865c340bc4f6099eb2f838309f1e8c3"
+    },
+    "actions/download-artifact@v8.0.1": {
+      "repo": "actions/download-artifact",
+      "version": "v8.0.1",
+      "sha": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+    },
+    "actions/github-script@v9": {
+      "repo": "actions/github-script",
+      "version": "v9",
+      "sha": "373c709c69115d41ff229c7e5df9f8788daa9553"
+    },
+    "actions/setup-dotnet@v5.2.0": {
+      "repo": "actions/setup-dotnet",
+      "version": "v5.2.0",
+      "sha": "c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7"
+    },
+    "actions/setup-go@v6.4.0": {
+      "repo": "actions/setup-go",
+      "version": "v6.4.0",
+      "sha": "4a3601121dd01d1626a1e23e37211e3254c1c06c"
+    },
+    "actions/setup-java@v5.2.0": {
+      "repo": "actions/setup-java",
+      "version": "v5.2.0",
+      "sha": "be666c2fcd27ec809703dec50e508c2fdc7f6654"
+    },
+    "actions/setup-node@v6.3.0": {
+      "repo": "actions/setup-node",
+      "version": "v6.3.0",
+      "sha": "53b83947a5a98c8d113130e565377fae1a50d02f"
+    },
+    "actions/setup-python@v6.2.0": {
+      "repo": "actions/setup-python",
+      "version": "v6.2.0",
+      "sha": "a309ff8b426b58ec0e2a45f0f869d46889d02405"
+    },
+    "actions/upload-artifact@v7.0.1": {
+      "repo": "actions/upload-artifact",
+      "version": "v7.0.1",
+      "sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    },
+    "anchore/sbom-action@v0.24.0": {
+      "repo": "anchore/sbom-action",
+      "version": "v0.24.0",
+      "sha": "e22c389904149dbc22b58101806040fa8d37a610"
+    },
+    "astral-sh/setup-uv@v8.0.0": {
+      "repo": "astral-sh/setup-uv",
+      "version": "v8.0.0",
+      "sha": "cec208311dfd045dd5311c1add060b2062131d57"
+    },
+    "cli/gh-extension-precompile@v2.1.0": {
+      "repo": "cli/gh-extension-precompile",
+      "version": "v2.1.0",
+      "sha": "9e2237c30f869ad3bcaed6a4be2cd43564dd421b"
+    },
+    "denoland/setup-deno@v2.0.4": {
+      "repo": "denoland/setup-deno",
+      "version": "v2.0.4",
+      "sha": "667a34cdef165d8d2b2e98dde39547c9daac7282"
+    },
+    "docker/build-push-action@v7.1.0": {
+      "repo": "docker/build-push-action",
+      "version": "v7.1.0",
+      "sha": "bcafcacb16a39f128d818304e6c9c0c18556b85f"
+    },
+    "docker/login-action@v4.1.0": {
+      "repo": "docker/login-action",
+      "version": "v4.1.0",
+      "sha": "4907a6ddec9925e35a0a9e82d7399ccc52663121"
+    },
+    "docker/metadata-action@v6": {
+      "repo": "docker/metadata-action",
+      "version": "v6",
+      "sha": "030e881283bb7a6894de51c315a6bfe6a94e05cf"
+    },
+    "docker/setup-buildx-action@v4": {
+      "repo": "docker/setup-buildx-action",
+      "version": "v4",
+      "sha": "4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd"
+    },
+    "erlef/setup-beam@v1.24": {
+      "repo": "erlef/setup-beam",
+      "version": "v1.24",
+      "sha": "3077b49d03fe1e281e5e5bc79084f079e9bf93ca"
+    },
+    "github/codeql-action/upload-sarif@v4.35.1": {
+      "repo": "github/codeql-action/upload-sarif",
+      "version": "v4.35.1",
+      "sha": "0e9f55954318745b37b7933c693bc093f7336125"
+    },
+    "github/gh-aw-actions/setup@v0.68.2": {
+      "repo": "github/gh-aw-actions/setup",
+      "version": "v0.68.2",
+      "sha": "19c436149e80e5be4f0adbd9cdeb391acea5fa91"
+    },
+    "github/stale-repos@v9.0.8": {
+      "repo": "github/stale-repos",
+      "version": "v9.0.8",
+      "sha": "5f2e18fc5432823f96c1feb69327f665c2acab59"
+    },
+    "haskell-actions/setup@v2.10.4": {
+      "repo": "haskell-actions/setup",
+      "version": "v2.10.4",
+      "sha": "77bff5043ea8b8189e09903b6f29125b16c531f9"
+    },
+    "microsoft/apm-action@v1.4.1": {
+      "repo": "microsoft/apm-action",
+      "version": "v1.4.1",
+      "sha": "a190b0b1a91031057144dc136acf9757a59c9e4d"
+    },
+    "oven-sh/setup-bun@v2.2.0": {
+      "repo": "oven-sh/setup-bun",
+      "version": "v2.2.0",
+      "sha": "0c5077e51419868618aeaa5fe8019c62421857d6"
+    },
+    "ruby/setup-ruby@v1.301.0": {
+      "repo": "ruby/setup-ruby",
+      "version": "v1.301.0",
+      "sha": "4c56a21280b36d862b5fc31348f463d60bdc55d5"
+    },
+    "super-linter/super-linter@v8.6.0": {
+      "repo": "super-linter/super-linter",
+      "version": "v8.6.0",
+      "sha": "9e863354e3ff62e0727d37183162c4a88873df41"
+    }
+  },
+  "containers": {
+    "docker.io/mcp/brave-search": {
+      "image": "docker.io/mcp/brave-search",
+      "digest": "sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22",
+      "pinned_image": "docker.io/mcp/brave-search@sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22"
+    },
+    "ghcr.io/github/gh-aw-firewall/agent:0.25.18": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.25.18",
+      "digest": "sha256:c77e8c26bab6c39e8568d8e2f8c17015944849a8cbcdfb4bd9725d8893725ca2",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.25.18@sha256:c77e8c26bab6c39e8568d8e2f8c17015944849a8cbcdfb4bd9725d8893725ca2"
+    },
+    "ghcr.io/github/gh-aw-firewall/agent:0.25.20": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.25.20",
+      "digest": "sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.25.20@sha256:9161f2415a3306a344aca34dd671ee69f122317e0a512e66dc64c94b9c508682"
+    },
+    "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18": {
+      "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18",
+      "digest": "sha256:d16a40a3ca6e989896d0cef9f31b9412bb1fcc8755bafcafb95012ae1078539b",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.18@sha256:d16a40a3ca6e989896d0cef9f31b9412bb1fcc8755bafcafb95012ae1078539b"
+    },
+    "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20": {
+      "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20",
+      "digest": "sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.25.20@sha256:6971639e381e82e45134bcd333181f456df3a52cd6f818a3e3d6de068ff91519"
+    },
+    "ghcr.io/github/gh-aw-firewall/squid:0.25.18": {
+      "image": "ghcr.io/github/gh-aw-firewall/squid:0.25.18",
+      "digest": "sha256:eb102afcfbae26ffcec016adebb74d3be7b0a5bf376ba306599cdf3effbe288e",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.25.18@sha256:eb102afcfbae26ffcec016adebb74d3be7b0a5bf376ba306599cdf3effbe288e"
+    },
+    "ghcr.io/github/gh-aw-firewall/squid:0.25.20": {
+      "image": "ghcr.io/github/gh-aw-firewall/squid:0.25.20",
+      "digest": "sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.25.20@sha256:5411d903f73ee597e6a084971c2adef3eb0bd405910df3ed7bf5e3d6bd58a236"
+    },
+    "ghcr.io/github/gh-aw-mcpg:v0.2.19": {
+      "image": "ghcr.io/github/gh-aw-mcpg:v0.2.19",
+      "digest": "sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd",
+      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.2.19@sha256:44d4d8de7e6c37aaea484eba489940c52df6a0b54078ddcbc9327592d5b3c3dd"
+    },
+    "ghcr.io/github/github-mcp-server:v0.32.0": {
+      "image": "ghcr.io/github/github-mcp-server:v0.32.0",
+      "digest": "sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v0.32.0@sha256:2763823c63bcca718ce53850a1d7fcf2f501ec84028394f1b63ce7e9f4f9be28"
+    },
+    "ghcr.io/github/serena-mcp-server:latest": {
+      "image": "ghcr.io/github/serena-mcp-server:latest",
+      "digest": "sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5",
+      "pinned_image": "ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"
+    },
+    "mcp/arxiv-mcp-server": {
+      "image": "mcp/arxiv-mcp-server",
+      "digest": "sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e",
+      "pinned_image": "mcp/arxiv-mcp-server@sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e"
+    },
+    "mcp/ast-grep:latest": {
+      "image": "mcp/ast-grep:latest",
+      "digest": "sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72",
+      "pinned_image": "mcp/ast-grep:latest@sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72"
+    },
+    "mcp/context7": {
+      "image": "mcp/context7",
+      "digest": "sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836",
+      "pinned_image": "mcp/context7@sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836"
+    },
+    "mcp/markitdown": {
+      "image": "mcp/markitdown",
+      "digest": "sha256:1cef3bf502503310ed0884441874ccf6cdaac20136dc1179797fa048269dc4cb",
+      "pinned_image": "mcp/markitdown@sha256:1cef3bf502503310ed0884441874ccf6cdaac20136dc1179797fa048269dc4cb"
+    },
+    "mcp/memory": {
+      "image": "mcp/memory",
+      "digest": "sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f",
+      "pinned_image": "mcp/memory@sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f"
+    },
+    "mcp/notion": {
+      "image": "mcp/notion",
+      "digest": "sha256:4de8eb0de33402fcbd3740b4f4039918e4893155c7ea833c7a0c472001b88367",
+      "pinned_image": "mcp/notion@sha256:4de8eb0de33402fcbd3740b4f4039918e4893155c7ea833c7a0c472001b88367"
+    },
+    "mcr.microsoft.com/playwright/mcp": {
+      "image": "mcr.microsoft.com/playwright/mcp",
+      "digest": "sha256:7b82f29c6ef83480a97f612d53ac3fd5f30a32df3fea1e06923d4204d3532bb2",
+      "pinned_image": "mcr.microsoft.com/playwright/mcp@sha256:7b82f29c6ef83480a97f612d53ac3fd5f30a32df3fea1e06923d4204d3532bb2"
+    },
+    "node:lts-alpine": {
+      "image": "node:lts-alpine",
+      "digest": "sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b",
+      "pinned_image": "node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"
+    },
+    "python:alpine": {
+      "image": "python:alpine",
+      "digest": "sha256:6f873e340e6786787a632c919ecfb1d2301eb33ccfbe9f0d0add16cbc0892116",
+      "pinned_image": "python:alpine@sha256:6f873e340e6786787a632c919ecfb1d2301eb33ccfbe9f0d0add16cbc0892116"
+    },
+    "semgrep/semgrep:latest": {
+      "image": "semgrep/semgrep:latest",
+      "digest": "sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2",
+      "pinned_image": "semgrep/semgrep:latest@sha256:17d89ddd91a7729bbd5de09402f7f79a70204289e2a94635086e9db532a495f2"
+    }
+  }
+}

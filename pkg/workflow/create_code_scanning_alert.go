@@ -119,7 +119,7 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	// a PR) which would leave HEAD pointing at a different commit. The SARIF upload action
 	// requires HEAD to match the commit being scanned, otherwise it fails with "commit not found".
 	steps = append(steps, "      - name: Restore checkout to triggering commit\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          ref: ${{ github.sha }}\n")
 	steps = append(steps, fmt.Sprintf("          token: %s\n", restoreToken))
@@ -143,7 +143,7 @@ func (c *Compiler) buildCodeScanningUploadJob(data *WorkflowData) (*Job, error) 
 	// Step: Upload SARIF file to GitHub Code Scanning.
 	steps = append(steps, "      - name: Upload SARIF to GitHub Code Scanning\n")
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.UploadCodeScanningJobName))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("github/codeql-action/upload-sarif")))
 	steps = append(steps, "        with:\n")
 	// NOTE: github/codeql-action/upload-sarif uses 'token' as the input name, not 'github-token'
 	// Pass restoreToken as the fallback so GitHub App-minted tokens flow through consistently.

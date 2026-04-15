@@ -58,7 +58,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	steps = append(steps, "      - name: Unlock issue after agent workflow\n")
 	steps = append(steps, "        id: unlock-issue\n")
 	steps = append(steps, fmt.Sprintf("        if: %s\n", RenderCondition(unlockCondition)))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("unlock-issue.cjs"))
