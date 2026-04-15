@@ -3,6 +3,7 @@ package workflow
 import (
 	"os"
 
+	actionpins "github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -479,6 +480,28 @@ type WorkflowData struct {
 	EngineConfigSteps           []map[string]any          // steps returned by engine.RenderConfig — prepended before execution steps
 	ServicePortExpressions      string                    // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts           bool                      // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
+}
+
+// PinContext returns an actionpins.PinContext backed by this WorkflowData.
+// It is used to pass the resolver and warnings state to pkg/actionpins functions
+// without introducing an import cycle.
+func (d *WorkflowData) PinContext() *actionpins.PinContext {
+	if d == nil {
+		return nil
+	}
+	if d.ActionPinWarnings == nil {
+		d.ActionPinWarnings = make(map[string]bool)
+	}
+	ctx := &actionpins.PinContext{
+		StrictMode: d.StrictMode,
+		Warnings:   d.ActionPinWarnings,
+	}
+	// Only set Resolver if non-nil to avoid passing a typed nil interface value
+	// (which would be non-nil in actionpins but crash on method call).
+	if d.ActionResolver != nil {
+		ctx.Resolver = d.ActionResolver
+	}
+	return ctx
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types

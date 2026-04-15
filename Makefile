@@ -668,9 +668,9 @@ clean-docs:
 # Sync action pins from .github/aw to pkg/workflow/data
 .PHONY: sync-action-pins
 sync-action-pins:
-	@echo "Syncing actions-lock.json from .github/aw to pkg/workflow/data/action_pins.json..."
+	@echo "Syncing actions-lock.json from .github/aw to pkg/actionpins/data/action_pins.json..."
 	@if [ -f .github/aw/actions-lock.json ]; then \
-		cp .github/aw/actions-lock.json pkg/workflow/data/action_pins.json; \
+		cp .github/aw/actions-lock.json pkg/actionpins/data/action_pins.json; \
 		echo "✓ Action pins synced successfully"; \
 	else \
 		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \

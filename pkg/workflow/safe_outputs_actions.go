@@ -32,13 +32,6 @@ type SafeOutputActionConfig struct {
 	ActionDescription string                      `yaml:"-"` // Description from action.yml
 }
 
-// ActionYAMLInput holds an input definition parsed from a GitHub Action's action.yml.
-type ActionYAMLInput struct {
-	Description string `yaml:"description,omitempty" json:"description,omitempty"`
-	Required    bool   `yaml:"required,omitempty"    json:"required,omitempty"`
-	Default     string `yaml:"default,omitempty"     json:"default,omitempty"`
-}
-
 // actionYAMLFile is the parsed structure of a GitHub Action's action.yml.
 type actionYAMLFile struct {
 	Name        string                      `yaml:"name"`

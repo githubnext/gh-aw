@@ -302,7 +302,11 @@ func TestGetActionPinsSorting(t *testing.T) {
 	// hardcoding a number that breaks when new pins are added or when
 	// the Go test cache contains a stale binary.
 	var jsonData ActionPinsData
-	if err := json.Unmarshal(actionPinsJSON, &jsonData); err != nil {
+	rawJSON, err := os.ReadFile("../actionpins/data/action_pins.json")
+	if err != nil {
+		t.Fatalf("Failed to read action_pins.json: %v", err)
+	}
+	if err := json.Unmarshal(rawJSON, &jsonData); err != nil {
 		t.Fatalf("Failed to parse action_pins.json: %v", err)
 	}
 	expectedCount := len(jsonData.Entries)
