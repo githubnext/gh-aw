@@ -307,7 +307,7 @@ func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Environment: "environment: production",
+				Environment: "production",
 			}
 
 			step := tt.engine.GetSecretValidationStep(workflowData)

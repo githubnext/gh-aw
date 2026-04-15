@@ -120,6 +120,9 @@ Test workflow`
 	}
 
 	lockStr := string(lockContent)
+	if !strings.Contains(lockStr, "environment: production") {
+		t.Error("Expected compiled workflow to include environment: production")
+	}
 	if strings.Contains(lockStr, "id: validate-secret") {
 		t.Error("Expected validate-secret step to be skipped when top-level environment is configured")
 	}
