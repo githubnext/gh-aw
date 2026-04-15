@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateMultiSecretValidationStep(t *testing.T) {
@@ -326,12 +329,8 @@ func TestBuildDefaultSecretValidationStepHandlesNilWorkflowData(t *testing.T) {
 		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
 	)
 
-	if len(step) == 0 {
-		t.Fatal("expected non-empty validation step for nil workflowData")
-	}
+	require.NotEmpty(t, step, "expected non-empty validation step for nil workflowData")
 
 	stepContent := strings.Join(step, "\n")
-	if !strings.Contains(stepContent, "Validate COPILOT_GITHUB_TOKEN secret") {
-		t.Errorf("expected validation step to include COPILOT_GITHUB_TOKEN check, got:\n%s", stepContent)
-	}
+	assert.Contains(t, stepContent, "Validate COPILOT_GITHUB_TOKEN secret", "expected validation step to include COPILOT_GITHUB_TOKEN check")
 }
