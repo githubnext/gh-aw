@@ -91,10 +91,8 @@ func manifestLockFileWithSecret(secretName string) string {
 }
 
 // TestSafeUpdateFirstCompileCreatesBaseline verifies that the first compilation
-// (with no prior manifest) still enforces safe update mode and emits a
-// SECURITY REVIEW REQUIRED warning so agents review newly introduced secrets.
-// The compile itself succeeds (warnings do not fail the build) and the lock file
-// written with the manifest serves as the baseline for future compilations.
+// (with no prior manifest) creates the manifest baseline silently without any
+// safe update warnings. Enforcement only kicks in on subsequent compilations.
 func TestSafeUpdateFirstCompileCreatesBaseline(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -103,17 +101,17 @@ func TestSafeUpdateFirstCompileCreatesBaseline(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithSecret), 0o644),
 		"should write workflow file")
 
-	// First compile with no prior lock file: should succeed but emit safe update
-	// warnings because the agent must review newly introduced secrets.
+	// First compile with no prior lock file: should succeed without safe update warnings
+	// because there is no prior manifest to compare against.
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
-	// Safe update warning must be emitted even on first compile so the agent reviews secrets.
-	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
-		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
+	assert.NoError(t, err, "first compile should succeed\nOutput:\n%s", outputStr)
+	// No safe update warnings on first compile (no prior manifest to compare against)
+	assert.NotContains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should not emit safe update warnings when no prior manifest exists")
 	// Lock file must be written with the manifest baseline
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-secret.lock.yml")
 	lockContent, readErr := os.ReadFile(lockFilePath)
@@ -126,9 +124,8 @@ func TestSafeUpdateFirstCompileCreatesBaseline(t *testing.T) {
 }
 
 // TestSafeUpdateFirstCompileCreatesBaselineForActions verifies that the first
-// compilation with a custom action and no prior manifest still enforces safe
-// update mode, emitting a SECURITY REVIEW REQUIRED warning. The compile succeeds
-// (warnings do not fail the build) and the new lock file serves as the baseline.
+// compilation with a custom action and no prior manifest creates the baseline
+// silently without safe update warnings.
 func TestSafeUpdateFirstCompileCreatesBaselineForActions(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -137,21 +134,20 @@ func TestSafeUpdateFirstCompileCreatesBaselineForActions(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithCustomAction), 0o644),
 		"should write workflow file")
 
-	// First compile with no prior lock file: should succeed but emit safe update
-	// warning so the agent reviews the newly introduced custom action.
+	// First compile with no prior lock file: should succeed without safe update warnings.
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
-	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
-		"first compile should emit safe update warnings so the agent reviews newly introduced actions")
+	assert.NoError(t, err, "first compile should succeed\nOutput:\n%s", outputStr)
+	assert.NotContains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should not emit safe update warnings when no prior manifest exists")
 	// Lock file must be written
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-action.lock.yml")
 	_, statErr := os.Stat(lockFilePath)
 	assert.NoError(t, statErr, "lock file should be written after first compile")
-	t.Logf("First compile correctly emitted warnings for new action.\nOutput:\n%s", outputStr)
+	t.Logf("First compile correctly created baseline without warnings.\nOutput:\n%s", outputStr)
 }
 
 // TestSafeUpdateAllowsKnownSecretWithPriorManifest verifies that safe update
@@ -400,7 +396,7 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 		"should write workflow file")
 
 	// Compile with --approve so we can inspect the manifest freely without safe update warnings.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -420,10 +416,8 @@ func TestSafeUpdateManifestIncludesImportedSecret(t *testing.T) {
 }
 
 // TestSafeUpdateFirstCompileCreatesBaselineForImport verifies that the first compilation
-// of a workflow that imports a shared config containing a secret emits a
-// SECURITY REVIEW REQUIRED warning so the agent reviews newly introduced secrets.
-// The compile succeeds (warnings don't fail the build) and the lock file written
-// serves as the baseline for future compilations.
+// of a workflow that imports a shared config containing a secret creates the baseline
+// manifest silently without safe update warnings.
 func TestSafeUpdateFirstCompileCreatesBaselineForImport(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -434,17 +428,17 @@ func TestSafeUpdateFirstCompileCreatesBaselineForImport(t *testing.T) {
 	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithImport), 0o644),
 		"should write workflow file")
 
-	// No prior lock file — first compile enforces safe update and emits a warning.
+	// No prior lock file — first compile creates baseline silently.
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
 	assert.NoError(t, err,
-		"first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
-	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
-		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
-	t.Logf("First compile correctly emitted warnings for imported secret.\nOutput:\n%s", outputStr)
+		"first compile should succeed\nOutput:\n%s", outputStr)
+	assert.NotContains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should not emit safe update warnings when no prior manifest exists")
+	t.Logf("First compile correctly created baseline without warnings.\nOutput:\n%s", outputStr)
 }
 
 // TestSafeUpdateAllowsImportedSecretWithPriorManifest verifies that safe update
@@ -509,7 +503,7 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 		"should write workflow file")
 
 	// Compile with --approve so we can freely inspect the manifest without safe update warnings.
-	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve-updates")
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath, "--approve")
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -528,11 +522,7 @@ func TestSafeUpdateManifestIncludesTransitivelyImportedSecret(t *testing.T) {
 	}
 }
 
-// TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport verifies that
-// the first compilation of a workflow with a transitive import chain enforces
-// safe update mode and emits a SECURITY REVIEW REQUIRED warning. The compile
-// succeeds (warnings don't fail the build) and the new lock file serves as
-// the baseline.
+// TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport verifies that\n// the first compilation of a workflow with a transitive import chain creates the\n// baseline manifest silently without safe update warnings.
 func TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -544,15 +534,15 @@ func TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport(t *testing.T) 
 		os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithTransitiveImport), 0o644),
 		"should write workflow file")
 
-	// No prior lock file — first compile enforces safe update and emits a warning.
+	// No prior lock file — first compile creates baseline silently.
 	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
 	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
 	assert.NoError(t, err,
-		"first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
-	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
-		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
-	t.Logf("First compile correctly emitted warnings for transitively imported secret.\nOutput:\n%s", outputStr)
+		"first compile should succeed\nOutput:\n%s", outputStr)
+	assert.NotContains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should not emit safe update warnings when no prior manifest exists")
+	t.Logf("First compile correctly created baseline without warnings.\nOutput:\n%s", outputStr)
 }

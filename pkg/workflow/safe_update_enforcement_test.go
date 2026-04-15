@@ -19,20 +19,18 @@ func TestEnforceSafeUpdate(t *testing.T) {
 		wantErrMsgs []string
 	}{
 		{
-			name:        "nil manifest (no lock file) enforces on first compile — new secret flagged",
+			name:        "nil manifest (no lock file) skips enforcement on first compile",
 			manifest:    nil,
 			secretNames: []string{"MY_SECRET"},
 			actionRefs:  []string{},
-			wantErr:     true,
-			wantErrMsgs: []string{"MY_SECRET", "safe update mode"},
+			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) enforces on first compile — custom action flagged",
+			name:        "nil manifest (no lock file) skips enforcement for custom actions",
 			manifest:    nil,
 			secretNames: []string{},
 			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
-			wantErr:     true,
-			wantErrMsgs: []string{"my-org/my-action", "safe update mode"},
+			wantErr:     false,
 		},
 		{
 			name:        "nil manifest (no lock file) allows GITHUB_TOKEN on first compile",
@@ -291,7 +289,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		assert.Contains(t, msg, "safe update mode", "error message")
 		assert.Contains(t, msg, "NEW_SECRET", "violation in message")
 		assert.Contains(t, msg, "ANOTHER_SECRET", "violation in message")
-		assert.Contains(t, msg, "--approve-updates", "remediation guidance")
+		assert.Contains(t, msg, "--approve", "remediation guidance")
 	})
 
 	t.Run("added actions only", func(t *testing.T) {

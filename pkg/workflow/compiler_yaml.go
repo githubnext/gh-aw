@@ -37,7 +37,7 @@ func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
 // effectiveSafeUpdate returns true when safe update mode should be enforced for
 // the given workflow. Safe update mode is equivalent to strict mode: it is
 // enabled whenever strict mode is active (CLI --strict flag, frontmatter
-// strict: true, or the default). It can be disabled via the CLI --approve-updates flag
+// strict: true, or the default). It can be disabled via the CLI --approve flag
 // to approve all changes.
 func (c *Compiler) effectiveSafeUpdate(data *WorkflowData) bool {
 	if c.approve {
