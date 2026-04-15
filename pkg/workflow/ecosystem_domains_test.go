@@ -198,9 +198,9 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 	})
 
-	t.Run("python ecosystem includes Rust FFI domains for native packages", func(t *testing.T) {
+	t.Run("python-native ecosystem includes Rust FFI domains for native packages", func(t *testing.T) {
 		permissions := &NetworkPermissions{
-			Allowed: []string{"python"},
+			Allowed: []string{"python-native"},
 		}
 		domains := GetAllowedDomains(permissions)
 
@@ -215,7 +215,27 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		for _, expectedDomain := range expectedDomains {
 			found := slices.Contains(domains, expectedDomain)
 			if !found {
-				t.Errorf("Expected domain '%s' to be included in python ecosystem, but it was not found", expectedDomain)
+				t.Errorf("Expected domain '%s' to be included in python-native ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
+	t.Run("python ecosystem does not include crates domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"python"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		cratesDomains := []string{
+			"crates.io",
+			"index.crates.io",
+			"static.crates.io",
+		}
+
+		for _, domain := range cratesDomains {
+			found := slices.Contains(domains, domain)
+			if found {
+				t.Errorf("Expected domain '%s' to NOT be included in python ecosystem, but it was found", domain)
 			}
 		}
 	})
@@ -413,7 +433,7 @@ func TestAllEcosystemDomainFunctions(t *testing.T) {
 	ecosystemCategories := []string{
 		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
 		"terraform", "haskell", "java", "julia", "kotlin", "linux-distros", "lua", "node",
-		"ocaml", "perl", "php", "playwright", "python", "r", "ruby", "rust", "swift",
+		"ocaml", "perl", "php", "playwright", "python", "python-native", "r", "ruby", "rust", "swift",
 	}
 
 	for _, category := range ecosystemCategories {
@@ -438,7 +458,7 @@ func TestEcosystemDomainsUniqueness(t *testing.T) {
 	ecosystemCategories := []string{
 		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
 		"terraform", "haskell", "java", "julia", "kotlin", "linux-distros", "lua", "node",
-		"ocaml", "perl", "php", "playwright", "python", "r", "ruby", "rust", "swift",
+		"ocaml", "perl", "php", "playwright", "python", "python-native", "r", "ruby", "rust", "swift",
 	}
 
 	for _, category := range ecosystemCategories {
