@@ -64,6 +64,17 @@ func getActionPinsByRepo(repo string) []ActionPin {
 	return actionpins.GetActionPinsByRepo(repo)
 }
 
+// getCachedActionPinFromResolver returns the pinned action reference for repo,
+// preferring dynamic resolution via resolver over the embedded pins.
+// For use within pkg/workflow when only a resolver is available (no WorkflowData).
+func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) string {
+	ctx := &actionpins.PinContext{}
+	if resolver != nil {
+		ctx.Resolver = resolver
+	}
+	return actionpins.GetCachedActionPin(repo, ctx)
+}
+
 // --------------------------------------------------------------------------
 // Public API — delegates to pkg/actionpins with a PinContext from WorkflowData
 // --------------------------------------------------------------------------

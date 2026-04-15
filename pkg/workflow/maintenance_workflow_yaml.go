@@ -112,7 +112,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Close expired discussions
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
 `)
@@ -124,7 +124,7 @@ jobs:
             await main();
 
       - name: Close expired issues
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
 `)
@@ -136,7 +136,7 @@ jobs:
             await main();
 
       - name: Close expired pull requests
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
 `)
@@ -177,7 +177,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Cleanup outdated cache-memory entries
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -210,7 +210,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -223,7 +223,7 @@ jobs:
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Run operation
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_OPERATION: ${{ inputs.operation }}
@@ -268,7 +268,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -278,7 +278,7 @@ jobs:
             await main();
 
       - name: Apply Safe Outputs
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_RUN_URL: ${{ inputs.run_url }}
@@ -315,7 +315,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -328,7 +328,7 @@ jobs:
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 	yaml.WriteString(`      - name: Create missing labels
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         with:
@@ -362,7 +362,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check admin/maintainer permissions
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -376,7 +376,7 @@ jobs:
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
 
 	yaml.WriteString(`      - name: Validate workflows and file issue on findings
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
         with:
@@ -423,7 +423,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Check for out-of-sync workflows and create issue if needed
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -460,7 +460,7 @@ jobs:
           destination: ${{ runner.temp }}/gh-aw/actions
 
       - name: Validate Secrets
-        uses: ` + getActionPin("actions/github-script") + `
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           # GitHub tokens
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
