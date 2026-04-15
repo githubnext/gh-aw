@@ -76,7 +76,7 @@ The following gosec rules are globally excluded across the entire codebase:
   - Panics are recovered at appropriate boundaries
   - Known false positives with switch statement bounds checks
 - **Mitigation**:
-  - Comprehensive unit tests cover slice operations
+  - Unit tests cover slice operations
   - Integration tests validate real-world usage patterns
   - Panics are handled gracefully at API boundaries
 - **Review Date**: 2025-12-25
