@@ -31,7 +31,7 @@ steps:
 
   - name: Upload source files and data
     if: always()
-    uses: actions/upload-artifact@v7
+    uses: actions/upload-artifact@v7.0.1
     with:
       name: trending-source-and-data
       path: |

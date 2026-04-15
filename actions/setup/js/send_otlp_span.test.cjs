@@ -1557,6 +1557,57 @@ describe("sendJobConclusionSpan", () => {
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
   });
 
+  it("emits a dedicated gh-aw.<job>.agent span when startMs and agent_output mtime are available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
+    expect(agentSpan.endTimeUnixNano).toBe(toNanoString(endMs));
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(agentSpan.traceId).toBe(conclusionSpan.traceId);
+    expect(agentSpan.parentSpanId).toBe("abcdef1234567890");
+    expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
+  });
+
+  it("does not emit a dedicated agent span when agent_output mtime is unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion", { startMs: 1_700_000_000_000 });
+
+    statSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.name).toBe("gh-aw.job.conclusion");
+  });
+
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
