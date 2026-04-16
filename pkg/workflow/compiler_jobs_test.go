@@ -2243,6 +2243,138 @@ func TestBuildCustomJobsAutomaticActivationDependency(t *testing.T) {
 	}
 }
 
+// TestBuildCustomJobsThenBuiltinDependencies verifies that jobs.<name>.then
+// registers dependency edges onto builtin jobs.
+func TestBuildCustomJobsThenBuiltinDependencies(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	if err := compiler.jobManager.AddJob(activationJob); err != nil {
+		t.Fatal(err)
+	}
+	safeOutputsJob := &Job{
+		Name:  string(constants.SafeOutputsJobName),
+		Needs: []string{string(constants.AgentJobName)},
+	}
+	if err := compiler.jobManager.AddJob(safeOutputsJob); err != nil {
+		t.Fatal(err)
+	}
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		Jobs: map[string]any{
+			"prepare_safe_outputs": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"then":    "safe_outputs",
+				"steps": []any{
+					map[string]any{"run": "echo preparing"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, true)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned error: %v", err)
+	}
+	err = compiler.applyThenJobDependencies(data)
+	if err != nil {
+		t.Fatalf("applyThenJobDependencies() returned error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob(string(constants.SafeOutputsJobName))
+	if !exists {
+		t.Fatal("Expected safe_outputs job to exist")
+	}
+	if !slices.Contains(job.Needs, "prepare_safe_outputs") {
+		t.Error("Expected safe_outputs job to depend on prepare_safe_outputs from then mapping")
+	}
+}
+
+// TestBuildCustomJobsThenRejectsCustomJobTargets verifies that then only accepts builtin jobs.
+func TestBuildCustomJobsThenRejectsCustomJobTargets(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		Jobs: map[string]any{
+			"job_a": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"steps":   []any{map[string]any{"run": "echo a"}},
+			},
+			"job_b": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"then":    "job_a",
+				"steps":   []any{map[string]any{"run": "echo b"}},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err == nil {
+		t.Fatal("Expected buildCustomJobs to fail for then targeting a custom job")
+	}
+	if !strings.Contains(err.Error(), "unsupported builtin then target") {
+		t.Fatalf("Expected builtin target validation error, got: %v", err)
+	}
+}
+
+// TestBuildCustomJobsThenSupportsBuiltinAliases verifies dash aliases normalize to builtin IDs.
+func TestBuildCustomJobsThenSupportsBuiltinAliases(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	preActivationJob := &Job{Name: string(constants.PreActivationJobName)}
+	if err := compiler.jobManager.AddJob(preActivationJob); err != nil {
+		t.Fatal(err)
+	}
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	if err := compiler.jobManager.AddJob(activationJob); err != nil {
+		t.Fatal(err)
+	}
+	safeOutputsJob := &Job{Name: string(constants.SafeOutputsJobName)}
+	if err := compiler.jobManager.AddJob(safeOutputsJob); err != nil {
+		t.Fatal(err)
+	}
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		Jobs: map[string]any{
+			"prep": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"then":    []any{"pre-activation", "safe-outputs"},
+				"steps":   []any{map[string]any{"run": "echo prep"}},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, true)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned error: %v", err)
+	}
+	err = compiler.applyThenJobDependencies(data)
+	if err != nil {
+		t.Fatalf("applyThenJobDependencies() returned error: %v", err)
+	}
+
+	preJob, _ := compiler.jobManager.GetJob(string(constants.PreActivationJobName))
+	safeJob, _ := compiler.jobManager.GetJob(string(constants.SafeOutputsJobName))
+	if !slices.Contains(preJob.Needs, "prep") {
+		t.Error("Expected pre_activation to depend on prep")
+	}
+	if !slices.Contains(safeJob.Needs, "prep") {
+		t.Error("Expected safe_outputs to depend on prep")
+	}
+}
+
 // TestBuildCustomJobsSkipsPreActivationJob tests that pre_activation jobs are skipped
 func TestBuildCustomJobsSkipsPreActivationJob(t *testing.T) {
 	compiler := NewCompiler()

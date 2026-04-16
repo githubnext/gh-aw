@@ -2402,6 +2402,22 @@
             ],
             "description": "List of job IDs that must complete successfully before this job runs. Creates job dependencies for workflow orchestration."
           },
+          "then": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Single builtin job target that should run after this custom job"
+              },
+              {
+                "type": "array",
+                "description": "Multiple builtin job targets that should run after this custom job",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ],
+            "description": "Declares builtin jobs that should depend on this custom job, allowing it to run as a pre-step for those builtin jobs."
+          },
           "env": {
             "type": "object",
             "description": "Environment variables for the job",

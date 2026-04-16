@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -178,6 +179,7 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 // This function orchestrates the building of all job types by delegating to focused helper functions.
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	compilerJobsLog.Printf("Building jobs for workflow: %s", markdownPath)
+	data.PendingThenJobDependencies = make(map[string][]string)
 
 	// Try to read frontmatter to determine event types for safe events check.
 	// Use contentOverride first (set by ParseWorkflowString for wasm/string API mode),
@@ -232,6 +234,11 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Build memory management jobs (repo-memory and cache-memory)
 	if err := c.buildMemoryManagementJobs(data); err != nil {
+		return err
+	}
+
+	// Wire custom then-jobs as dependencies of builtin jobs.
+	if err := c.applyThenJobDependencies(data); err != nil {
 		return err
 	}
 
@@ -474,6 +481,9 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
 func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
+	if data.PendingThenJobDependencies == nil {
+		data.PendingThenJobDependencies = make(map[string][]string)
+	}
 
 	// Pre-compute jobs referenced in the markdown body with no explicit needs.
 	// These run before activation (not after), so we must not auto-add activation to them.
@@ -508,6 +518,22 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				} else if needStr, ok := needs.(string); ok {
 					// Single dependency as string
 					job.Needs = append(job.Needs, needStr)
+				}
+			}
+
+			thenTargets, err := extractThenBuiltinTargets(configMap)
+			if err != nil {
+				return fmt.Errorf("failed to parse then targets for job '%s': %w", jobName, err)
+			}
+			if len(thenTargets) > 0 {
+				for _, target := range thenTargets {
+					if target == jobName {
+						return fmt.Errorf("jobs.%s.then cannot target itself", jobName)
+					}
+					if _, isCustomJob := data.Jobs[target]; isCustomJob {
+						return fmt.Errorf("jobs.%s.then target %q must be a builtin job", jobName, target)
+					}
+					data.PendingThenJobDependencies[target] = append(data.PendingThenJobDependencies[target], jobName)
 				}
 			}
 
@@ -805,6 +831,102 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	}
 
 	compilerJobsLog.Print("Completed building all custom jobs")
+	return nil
+}
+
+func extractThenBuiltinTargets(configMap map[string]any) ([]string, error) {
+	thenRaw, hasThen := configMap["then"]
+	if !hasThen {
+		return nil, nil
+	}
+
+	var values []string
+	switch thenTyped := thenRaw.(type) {
+	case string:
+		if thenTyped != "" {
+			values = append(values, thenTyped)
+		}
+	case []any:
+		for _, raw := range thenTyped {
+			target, ok := raw.(string)
+			if !ok {
+				return nil, errors.New("then entries must be strings")
+			}
+			if target != "" {
+				values = append(values, target)
+			}
+		}
+	default:
+		return nil, errors.New("then must be a string or array of strings")
+	}
+
+	seen := make(map[string]bool, len(values))
+	var targets []string
+	for _, target := range values {
+		normalizedTarget := normalizeThenBuiltinTarget(target)
+		if !isSupportedThenBuiltinTarget(normalizedTarget) {
+			return nil, fmt.Errorf("unsupported builtin then target %q", target)
+		}
+		if !seen[normalizedTarget] {
+			seen[normalizedTarget] = true
+			targets = append(targets, normalizedTarget)
+		}
+	}
+
+	return targets, nil
+}
+
+func normalizeThenBuiltinTarget(target string) string {
+	switch target {
+	case "pre-activation":
+		return string(constants.PreActivationJobName)
+	case "safe-outputs":
+		return string(constants.SafeOutputsJobName)
+	default:
+		return target
+	}
+}
+
+func isSupportedThenBuiltinTarget(jobName string) bool {
+	switch jobName {
+	case string(constants.PreActivationJobName),
+		string(constants.ActivationJobName),
+		string(constants.AgentJobName),
+		string(constants.DetectionJobName),
+		string(constants.SafeOutputsJobName),
+		string(constants.UploadAssetsJobName),
+		string(constants.UploadCodeScanningJobName),
+		string(constants.UnlockJobName),
+		string(constants.ConclusionJobName),
+		"push_repo_memory",
+		"update_cache_memory":
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Compiler) applyThenJobDependencies(data *WorkflowData) error {
+	if data == nil || len(data.PendingThenJobDependencies) == 0 {
+		return nil
+	}
+
+	for targetJobName, dependencyJobs := range data.PendingThenJobDependencies {
+		targetJob, exists := c.jobManager.GetJob(targetJobName)
+		if !exists {
+			return fmt.Errorf("then target job %q does not exist in the compiled workflow", targetJobName)
+		}
+		existingNeeds := make(map[string]bool, len(targetJob.Needs))
+		for _, existingNeed := range targetJob.Needs {
+			existingNeeds[existingNeed] = true
+		}
+		for _, dependencyJob := range dependencyJobs {
+			if !existingNeeds[dependencyJob] {
+				targetJob.Needs = append(targetJob.Needs, dependencyJob)
+				existingNeeds[dependencyJob] = true
+			}
+		}
+	}
 	return nil
 }
 
