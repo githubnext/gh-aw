@@ -77,11 +77,6 @@ func CaptureStderr(t *testing.T, fn func()) string {
 	if err != nil {
 		t.Fatalf("CaptureStderr: failed to create pipe: %v", err)
 	}
-	defer func() {
-		if closeErr := r.Close(); closeErr != nil {
-			t.Logf("Warning: failed to close stderr capture reader: %v", closeErr)
-		}
-	}()
 
 	origStderr := os.Stderr
 	os.Stderr = w
@@ -95,6 +90,9 @@ func CaptureStderr(t *testing.T, fn func()) string {
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(r); err != nil {
 		t.Fatalf("CaptureStderr: failed to read pipe: %v", err)
+	}
+	if err = r.Close(); err != nil {
+		t.Logf("Warning: failed to close stderr capture reader: %v", err)
 	}
 	return buf.String()
 }
