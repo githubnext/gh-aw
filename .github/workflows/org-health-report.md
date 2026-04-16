@@ -11,6 +11,7 @@ permissions:
   discussions: read
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets:
@@ -42,6 +43,9 @@ imports:
   - shared/python-dataviz.md
   - shared/jqschema.md
   - shared/reporting.md
+
+features:
+  mcp-cli: true
 ---
 
 # Organization Health Report

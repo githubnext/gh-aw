@@ -23,6 +23,7 @@ imports:
   - shared/activation-app.md
 timeout-minutes: 45
 tools:
+  mount-as-clis: true
   cache-memory: true
   playwright:
     version: "v1.56.1"

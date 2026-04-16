@@ -32,6 +32,7 @@ imports:
   - shared/reporting.md
 
 tools:
+  mount-as-clis: true
   cache-memory: true
 
 safe-outputs:

@@ -18,6 +18,12 @@ strict: true
 imports:
   - shared/security-analysis-base.md
   - shared/reporting-otlp.md
+
+tools:
+  mount-as-clis: true
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

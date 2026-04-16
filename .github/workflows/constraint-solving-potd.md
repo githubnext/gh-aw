@@ -7,6 +7,7 @@ permissions:
   models: read
 
 tools:
+  mount-as-clis: true
   cache-memory: true
 
 safe-outputs:

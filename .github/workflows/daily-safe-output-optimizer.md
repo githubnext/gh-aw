@@ -30,6 +30,9 @@ imports:
   - shared/reporting-otlp.md
 features:
   mcp-cli: true
+
+tools:
+  mount-as-clis: true
 ---
 
 # Safe Output Tool Optimizer

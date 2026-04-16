@@ -12,6 +12,7 @@ permissions:
 engine: copilot
 
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -36,6 +37,7 @@ imports:
 timeout-minutes: 20
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

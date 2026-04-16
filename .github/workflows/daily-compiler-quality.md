@@ -17,6 +17,7 @@ imports:
       expires: 1d
   - shared/go-source-analysis.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - default

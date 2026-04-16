@@ -21,6 +21,7 @@ network:
     - mossaka.github.io
 
 tools:
+  mount-as-clis: true
   playwright:
   web-fetch:
   bash:

@@ -13,6 +13,7 @@ engine: copilot
 strict: true
 tracker-id: daily-performance-summary
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions]
 safe-outputs:
@@ -26,6 +27,9 @@ imports:
       title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
   - shared/trending-charts-simple.md
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

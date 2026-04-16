@@ -9,6 +9,7 @@ engine: copilot
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [pull_requests, repos, issues]
@@ -28,6 +29,9 @@ timeout-minutes: 30
 concurrency:
   group: "refiner-${{ github.event.pull_request.number }}"
   cancel-in-progress: true
+
+features:
+  mcp-cli: true
 ---
 
 # Code Refiner

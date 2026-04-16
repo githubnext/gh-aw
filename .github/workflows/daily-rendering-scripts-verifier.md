@@ -17,6 +17,7 @@ engine: claude
 strict: true
 
 tools:
+  mount-as-clis: true
   agentic-workflows:
   cache-memory: true
   bash:

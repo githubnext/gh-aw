@@ -25,6 +25,7 @@ network:
     - defaults
     - github
 tools:
+  mount-as-clis: true
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1
@@ -47,6 +48,9 @@ safe-outputs:
     allowed-reasons: [spam]
   threat-detection: false
 checkout: false
+
+features:
+  mcp-cli: true
 ---
 
 # AI Moderator

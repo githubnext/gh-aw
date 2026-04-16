@@ -39,6 +39,7 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -288,6 +289,7 @@ imports:
   - shared/reporting-otlp.md
   - shared/trends.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

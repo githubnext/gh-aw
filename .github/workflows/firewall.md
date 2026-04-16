@@ -18,6 +18,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  mount-as-clis: true
   web-fetch:
 
 timeout-minutes: 5

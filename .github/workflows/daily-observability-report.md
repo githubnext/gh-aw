@@ -11,6 +11,7 @@ engine: codex
 strict: true
 tracker-id: daily-observability-report
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions, actions]
   agentic-workflows: true
@@ -20,6 +21,9 @@ imports:
     with:
       title-prefix: "[observability] "
       expires: 1d
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

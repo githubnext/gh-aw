@@ -11,6 +11,7 @@ permissions:
 engine: copilot
 strict: true
 tools:
+  mount-as-clis: true
   github:
     toolsets: [pull_requests, repos]
   bash:
@@ -29,6 +30,7 @@ safe-outputs:
     run-failure: "❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed."
 timeout-minutes: 20
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

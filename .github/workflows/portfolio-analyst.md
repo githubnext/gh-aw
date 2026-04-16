@@ -13,6 +13,7 @@ engine: copilot
 network:
   allowed: [python]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets: [default]

@@ -28,6 +28,7 @@ network:
     - go
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
 

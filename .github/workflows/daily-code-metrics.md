@@ -10,6 +10,7 @@ permissions:
 tracker-id: daily-code-metrics
 engine: claude
 tools:
+  mount-as-clis: true
   repo-memory:
     branch-prefix: daily
     description: "Historical code quality and health metrics"
@@ -25,6 +26,9 @@ imports:
       title-prefix: "[daily-code-metrics] "
   - shared/python-dataviz.md
   - shared/trends.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -34,6 +34,7 @@ safe-outputs:
     run-failure: "🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance..."
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   web-fetch:
   web-search:

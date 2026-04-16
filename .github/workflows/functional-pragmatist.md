@@ -30,6 +30,7 @@ safe-outputs:
     expires: 1d
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -38,6 +39,9 @@ tools:
 
 timeout-minutes: 45
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # Functional and Immutability Enhancer 🔄

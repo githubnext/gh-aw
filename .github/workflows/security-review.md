@@ -12,6 +12,7 @@ permissions:
   issues: read
   security-events: read
 tools:
+  mount-as-clis: true
   github:
     toolsets: [all]
   agentic-workflows:

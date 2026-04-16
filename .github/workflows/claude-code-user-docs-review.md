@@ -23,6 +23,7 @@ network:
     - github
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default, discussions]
@@ -39,6 +40,7 @@ imports:
   - shared/reporting.md
 
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 # Claude Code User Documentation Review

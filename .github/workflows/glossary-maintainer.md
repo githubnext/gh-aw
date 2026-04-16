@@ -35,6 +35,7 @@ safe-outputs:
     draft: false
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   repo-memory:
     wiki: true
@@ -80,6 +81,8 @@ steps:
       echo "Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)"
       echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
 
+features:
+  mcp-cli: true
 ---
 
 # Glossary Maintainer

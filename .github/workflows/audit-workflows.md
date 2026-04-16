@@ -11,6 +11,7 @@ permissions:
 tracker-id: audit-workflows-daily
 engine: claude
 tools:
+  mount-as-clis: true
   agentic-workflows:
   timeout: 300
 safe-outputs:
@@ -30,6 +31,9 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trending-charts-simple.md
+
+features:
+  mcp-cli: true
 ---
 
 # Agentic Workflow Audit Agent

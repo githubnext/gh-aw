@@ -16,6 +16,7 @@ network:
     - githubnext.com
     - www.githubnext.com
 tools:
+  mount-as-clis: true
   playwright:
   bash:
     - "date *"
