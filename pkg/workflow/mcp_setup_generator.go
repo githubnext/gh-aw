@@ -696,6 +696,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString(" --group-add $(stat -c '%g' /var/run/docker.sock)")
 	containerCmd.WriteString(" -v /var/run/docker.sock:/var/run/docker.sock") // Enable docker-in-docker for MCP gateway
 	// Pass required gateway environment variables
 	containerCmd.WriteString(" -e MCP_GATEWAY_PORT")
