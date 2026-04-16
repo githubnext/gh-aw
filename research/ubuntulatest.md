@@ -1,7 +1,7 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-04-09
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260406/images/ubuntu/Ubuntu2404-Readme.md)
+**Last Updated**: 2026-04-16
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260406.80/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04.4 LTS
 **Image Version**: 20260406.80.1
 **Kernel Version**: 6.17.0-1010-azure
