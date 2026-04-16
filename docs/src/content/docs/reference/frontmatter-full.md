@@ -57,16 +57,19 @@ metadata:
 
 # Workflow specifications to import. Supports array form (list of paths) or object
 # form with 'aw' (agentic workflow paths) and 'apm-packages' (APM packages)
-# subfields.
+# subfields. Path resolution: (1) relative paths (e.g., 'shared/file.md') are
+# resolved relative to the workflow's directory; (2) paths starting with
+# '.github/' or '/' are resolved from the repository root (repo-root-relative);
+# (3) paths matching 'owner/repo/path@ref' are fetched from GitHub at compile time
+# (cross-repo).
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Array of workflow specifications to import (similar to @include
-# directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
-# githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or
-# objects with path and inputs. Any markdown files under .github/agents directory
-# are treated as custom agent files and only one agent file is allowed per
-# workflow.
+# Option 1: Array of workflow specifications to import. Three path formats are
+# supported: relative paths ('shared/file.md'), repo-root-relative paths
+# ('.github/agents/my-agent.md'), and cross-repo paths ('owner/repo/path@ref').
+# Any markdown files under .github/agents directory are treated as custom agent
+# files and only one agent file is allowed per workflow.
 imports: []
   # Array items: undefined
 
@@ -103,178 +106,11 @@ imports:
     # GitHub App credentials for minting installation access tokens used by APM to
     # access cross-org private repositories.
     # (optional)
-    github-app:
-      # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-      app-id: "example-value"
+    # This field supports multiple formats (anyOf):
 
-      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-      # mint a GitHub App token.
-      private-key: "example-value"
+    # Option 1: undefined
 
-      # Optional owner of the GitHub App installation (defaults to current repository
-      # owner if not specified)
-      # (optional)
-      owner: "example-value"
-
-      # Optional list of repositories to grant access to (defaults to current repository
-      # if not specified)
-      # (optional)
-      repositories: []
-        # Array of strings
-
-      # Optional extra GitHub App-only permissions to merge into the minted token. Only
-      # takes effect for tools.github.github-app; ignored in other github-app contexts.
-      # (optional)
-      permissions:
-        # Permission level for repository administration (read/none; "write" is rejected
-        # by the compiler). GitHub App-only permission for repository administration.
-        # (optional)
-        administration: "read"
-
-        # Permission level for Codespaces (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        codespaces: "read"
-
-        # Permission level for Codespaces lifecycle administration (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        codespaces-lifecycle-admin: "read"
-
-        # Permission level for Codespaces metadata (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        codespaces-metadata: "read"
-
-        # Permission level for user email addresses (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        email-addresses: "read"
-
-        # Permission level for repository environments (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        environments: "read"
-
-        # Permission level for git signing (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        git-signing: "read"
-
-        # Permission level for organization members (read/none; "write" is rejected by the
-        # compiler). Required for org team membership API calls.
-        # (optional)
-        members: "read"
-
-        # Permission level for organization administration (read/none; "write" is rejected
-        # by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-administration: "read"
-
-        # Permission level for organization announcement banners (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-announcement-banners: "read"
-
-        # Permission level for organization Codespaces (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        organization-codespaces: "read"
-
-        # Permission level for organization Copilot (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        organization-copilot: "read"
-
-        # Permission level for organization custom org roles (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-custom-org-roles: "read"
-
-        # Permission level for organization custom properties (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-custom-properties: "read"
-
-        # Permission level for organization custom repository roles (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-custom-repository-roles: "read"
-
-        # Permission level for organization events (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        organization-events: "read"
-
-        # Permission level for organization webhooks (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        organization-hooks: "read"
-
-        # Permission level for organization members management (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-members: "read"
-
-        # Permission level for organization packages (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        organization-packages: "read"
-
-        # Permission level for organization personal access token requests (read/none;
-        # "write" is rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-personal-access-token-requests: "read"
-
-        # Permission level for organization personal access tokens (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-personal-access-tokens: "read"
-
-        # Permission level for organization plan (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        organization-plan: "read"
-
-        # Permission level for organization self-hosted runners (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-self-hosted-runners: "read"
-
-        # Permission level for organization user blocking (read/none; "write" is rejected
-        # by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-user-blocking: "read"
-
-        # Permission level for repository custom properties (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        repository-custom-properties: "read"
-
-        # Permission level for repository webhooks (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        repository-hooks: "read"
-
-        # Permission level for single file access (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        single-file: "read"
-
-        # Permission level for team discussions (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        team-discussions: "read"
-
-        # Permission level for Dependabot vulnerability alerts (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        vulnerability-alerts: "read"
-
-        # Permission level for GitHub Actions workflow files (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        workflows: "read"
+    # Option 2: undefined
 
     # Environment variables to set on the APM pack step.
     # (optional)
@@ -1021,13 +857,33 @@ on:
   # to +1 and -1 strings respectively.
   reaction: 1
 
-  # Whether to post status comments (started/completed) on the triggering item. When
-  # true, adds a comment with workflow run link and updates it on completion. When
-  # false or not specified, no status comments are posted. Must be explicitly set to
-  # true to enable status comments - there is no automatic bundling with
-  # ai-reaction.
+  # Whether to post status comments (started/completed) on the triggering item.
+  # Boolean form enables/disables status comments globally. Object form implies
+  # enabled status comments and supports optional `issues`, `pull-requests`, and
+  # `discussions` fields to control trigger groups independently. Automatically
+  # enabled for slash_command and label_command triggers when not explicitly
+  # configured.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: boolean
   status-comment: true
+
+  # Option 2: object
+  status-comment:
+    # Whether status comments are allowed for issue triggers (issues, issue_comment).
+    # (optional)
+    issues: true
+
+    # Whether status comments are allowed for pull request triggers (pull_request,
+    # pull_request_review_comment).
+    # (optional)
+    pull-requests: true
+
+    # Whether status comments are allowed for discussion and discussion_comment
+    # triggers.
+    # (optional)
+    discussions: true
 
   # Custom GitHub token for pre-activation reactions, activation status comments,
   # and skip-if search queries. When specified, overrides the default GITHUB_TOKEN
@@ -1041,178 +897,11 @@ on:
   # these operations instead of using the default GITHUB_TOKEN. Can be defined in a
   # shared agentic workflow and inherited by importing workflows.
   # (optional)
-  github-app:
-    # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-    app-id: "example-value"
+  # This field supports multiple formats (anyOf):
 
-    # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-    # mint a GitHub App token.
-    private-key: "example-value"
+  # Option 1: undefined
 
-    # Optional owner of the GitHub App installation (defaults to current repository
-    # owner if not specified)
-    # (optional)
-    owner: "example-value"
-
-    # Optional list of repositories to grant access to (defaults to current repository
-    # if not specified)
-    # (optional)
-    repositories: []
-      # Array of strings
-
-    # Optional extra GitHub App-only permissions to merge into the minted token. Only
-    # takes effect for tools.github.github-app; ignored in other github-app contexts.
-    # (optional)
-    permissions:
-      # Permission level for repository administration (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission for repository administration.
-      # (optional)
-      administration: "read"
-
-      # Permission level for Codespaces (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      codespaces: "read"
-
-      # Permission level for Codespaces lifecycle administration (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      codespaces-lifecycle-admin: "read"
-
-      # Permission level for Codespaces metadata (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      codespaces-metadata: "read"
-
-      # Permission level for user email addresses (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      email-addresses: "read"
-
-      # Permission level for repository environments (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      environments: "read"
-
-      # Permission level for git signing (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      git-signing: "read"
-
-      # Permission level for organization members (read/none; "write" is rejected by the
-      # compiler). Required for org team membership API calls.
-      # (optional)
-      members: "read"
-
-      # Permission level for organization administration (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-administration: "read"
-
-      # Permission level for organization announcement banners (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-announcement-banners: "read"
-
-      # Permission level for organization Codespaces (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-codespaces: "read"
-
-      # Permission level for organization Copilot (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-copilot: "read"
-
-      # Permission level for organization custom org roles (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-org-roles: "read"
-
-      # Permission level for organization custom properties (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-properties: "read"
-
-      # Permission level for organization custom repository roles (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-repository-roles: "read"
-
-      # Permission level for organization events (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-events: "read"
-
-      # Permission level for organization webhooks (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-hooks: "read"
-
-      # Permission level for organization members management (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-members: "read"
-
-      # Permission level for organization packages (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-packages: "read"
-
-      # Permission level for organization personal access token requests (read/none;
-      # "write" is rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-personal-access-token-requests: "read"
-
-      # Permission level for organization personal access tokens (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-personal-access-tokens: "read"
-
-      # Permission level for organization plan (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-plan: "read"
-
-      # Permission level for organization self-hosted runners (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-self-hosted-runners: "read"
-
-      # Permission level for organization user blocking (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-user-blocking: "read"
-
-      # Permission level for repository custom properties (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      repository-custom-properties: "read"
-
-      # Permission level for repository webhooks (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      repository-hooks: "read"
-
-      # Permission level for single file access (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      single-file: "read"
-
-      # Permission level for team discussions (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      team-discussions: "read"
-
-      # Permission level for Dependabot vulnerability alerts (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      vulnerability-alerts: "read"
-
-      # Permission level for GitHub Actions workflow files (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      workflows: "read"
+  # Option 2: undefined
 
   # Steps to inject into the pre-activation job. These steps run after all built-in
   # checks (membership, stop-time, skip-if, etc.) and their results are exposed as
@@ -1374,7 +1063,8 @@ runs-on-slim: "example-value"
 
 # Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20
 # minutes for agentic workflows. Has sensible defaults and can typically be
-# omitted. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for
+# omitted. Custom runners support longer timeouts beyond the GitHub-hosted runner
+# limit. Supports GitHub Actions expressions (e.g. '${{ inputs.timeout }}') for
 # reusable workflow_call workflows.
 # (optional)
 # This field supports multiple formats (oneOf):
@@ -1631,7 +1321,7 @@ sandbox:
       # Array of Mount specification in format 'source:destination:mode'
 
     # Memory limit for the AWF container (e.g., '4g', '8g'). Passed as --memory-limit
-    # to AWF. If not specified, AWF's default memory limit of 6g is used.
+    # to AWF. If not specified, AWF's default memory limit is used.
     # (optional)
     memory: "example-value"
 
@@ -1735,6 +1425,13 @@ sandbox:
     # (optional)
     domain: "localhost"
 
+    # Keepalive ping interval in seconds for HTTP MCP backends. Sends periodic pings
+    # to prevent session expiry during long-running agent tasks. Set to -1 to disable
+    # keepalive pings. Unset or 0 uses the gateway default (1500 seconds = 25
+    # minutes).
+    # (optional)
+    keepalive-interval: 1
+
 # Conditional execution expression
 # (optional)
 if: "example-value"
@@ -1749,6 +1446,22 @@ steps:
 
 # Option 2: array
 steps: []
+  # Array items: undefined
+
+# Custom workflow steps to run at the very beginning of the agent job, before
+# checkout and any other built-in steps. Use pre-steps to mint short-lived tokens
+# or perform any setup that must happen before the repository is checked out. Step
+# outputs are available via ${{ steps.<id>.outputs.<name> }} and can be referenced
+# in checkout.token to avoid masked-value cross-job-boundary issues.
+# (optional)
+# This field supports multiple formats (oneOf):
+
+# Option 1: object
+pre-steps:
+  {}
+
+# Option 2: array
+pre-steps: []
   # Array items: undefined
 
 # Custom workflow steps to run after AI execution
@@ -1867,34 +1580,57 @@ engine:
   # (optional)
   api-target: "example-value"
 
+  # Custom model token weights for effective token computation. Overrides or extends
+  # the built-in model multipliers from model_multipliers.json. Useful for custom
+  # models or adjusted cost ratios.
+  # (optional)
+  token-weights:
+    # Per-model cost multipliers relative to the reference model (claude-sonnet-4.5 =
+    # 1.0). Keys are model names (case-insensitive, prefix matching supported). Values
+    # are numeric multipliers.
+    # (optional)
+    multipliers:
+      {}
+
+    # Per-token-class weights applied before the model multiplier. Any specified
+    # weight overrides the corresponding default.
+    # (optional)
+    token-class-weights:
+      # Weight for input tokens (default: 1.0)
+      # (optional)
+      input: 1
+
+      # Weight for cached input tokens (default: 0.1)
+      # (optional)
+      cached-input: 1
+
+      # Weight for output tokens (default: 4.0)
+      # (optional)
+      output: 1
+
+      # Weight for reasoning tokens (default: 4.0)
+      # (optional)
+      reasoning: 1
+
+      # Weight for cache write tokens (default: 1.0)
+      # (optional)
+      cache-write: 1
+
   # Optional array of command-line arguments to pass to the AI engine CLI. These
   # arguments are injected after all other args but before the prompt.
   # (optional)
   args: []
     # Array of strings
 
-  # Custom model token weights for effective token computation. Overrides or
-  # extends the built-in model multipliers from model_multipliers.json. Useful
-  # for custom models or adjusted cost ratios.
+  # When true, disables automatic loading of context and custom instructions by the
+  # AI engine. The engine-specific flag depends on the engine: copilot uses
+  # --no-custom-instructions (suppresses .github/AGENTS.md and user-level custom
+  # instructions), claude uses --bare (suppresses CLAUDE.md memory files), codex
+  # uses --no-system-prompt (suppresses the default system prompt), gemini sets
+  # GEMINI_SYSTEM_MD=/dev/null (overrides the built-in system prompt with an empty
+  # one). Defaults to false.
   # (optional)
-  token-weights:
-    # Per-model cost multipliers relative to the reference model
-    # (claude-sonnet-4.5 = 1.0). Keys are model names (case-insensitive,
-    # prefix matching supported).
-    # (optional)
-    multipliers:
-      my-custom-model: 2.5
-
-    # Per-token-class weights applied before the model multiplier. Defaults:
-    # input: 1.0, cached-input: 0.1, output: 4.0, reasoning: 4.0,
-    # cache-write: 1.0
-    # (optional)
-    token-class-weights:
-      input: 1.0
-      cached-input: 0.1
-      output: 4.0
-      reasoning: 4.0
-      cache-write: 1.0
+  bare: true
 
 # Option 3: Inline engine definition: specifies a runtime adapter and optional
 # provider settings directly in the workflow frontmatter, without requiring a
@@ -1974,6 +1710,13 @@ engine:
       # (optional)
       body-inject:
         {}
+
+  # When true, disables automatic loading of context and custom instructions by the
+  # AI engine. The engine-specific flag depends on the engine: copilot uses
+  # --no-custom-instructions, claude uses --bare, codex uses --no-system-prompt,
+  # gemini sets GEMINI_SYSTEM_MD=/dev/null. Defaults to false.
+  # (optional)
+  bare: true
 
 # Option 4: Engine definition: full declarative metadata for a named engine entry
 # (used in builtin engine shared workflow files such as @builtin:engines/*.md)
@@ -2234,183 +1977,48 @@ tools:
     # expression resolving to such a list (e.g. '${{ vars.APPROVAL_LABELS }}')
     approval-labels: "example-value"
 
+    # Guard policy: GitHub reaction types that promote a content item's integrity to
+    # 'approved' when added by maintainers. Only enforced in proxy mode (DIFC/CLI
+    # proxy); ignored in MCP gateway mode because reaction authors cannot be
+    # identified. Optional; defaults to ["THUMBS_UP", "HEART"] when the
+    # integrity-reactions feature flag is enabled. Requires 'min-integrity' to be set
+    # and MCPG >= v0.2.18.
+    # (optional)
+    endorsement-reactions: []
+      # Array of GitHub ReactionContent enum value
+
+    # Guard policy: GitHub reaction types that demote content integrity when added by
+    # maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP
+    # gateway mode because reaction authors cannot be identified. Optional; defaults
+    # to ["THUMBS_DOWN", "CONFUSED"] when the integrity-reactions feature flag is
+    # enabled. Disapproval overrides endorsement (safe default). Requires
+    # 'min-integrity' to be set and MCPG >= v0.2.18.
+    # (optional)
+    disapproval-reactions: []
+      # Array of GitHub ReactionContent enum value
+
+    # Guard policy: integrity level assigned when a disapproval reaction is present.
+    # Optional, defaults to 'none'. Requires the 'integrity-reactions' feature flag
+    # and MCPG >= v0.2.18.
+    # (optional)
+    disapproval-integrity: "none"
+
+    # Guard policy: minimum integrity level required for an endorser (reactor) to
+    # promote content. Optional, defaults to 'approved'. Requires the
+    # 'integrity-reactions' feature flag and MCPG >= v0.2.18.
+    # (optional)
+    endorser-min-integrity: "unapproved"
+
     # GitHub App configuration for token minting. When configured, a GitHub App
     # installation access token is minted at workflow start and used instead of the
     # default token. This token overrides any custom github-token setting and provides
     # fine-grained permissions matching the agent job requirements.
     # (optional)
-    github-app:
-      # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-      app-id: "example-value"
+    # This field supports multiple formats (anyOf):
 
-      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-      # mint a GitHub App token.
-      private-key: "example-value"
+    # Option 1: undefined
 
-      # Optional owner of the GitHub App installation (defaults to current repository
-      # owner if not specified)
-      # (optional)
-      owner: "example-value"
-
-      # Optional list of repositories to grant access to (defaults to current repository
-      # if not specified)
-      # (optional)
-      repositories: []
-        # Array of strings
-
-      # Optional extra GitHub App-only permissions to merge into the minted token. Only
-      # takes effect for tools.github.github-app; ignored in other github-app contexts.
-      # (optional)
-      permissions:
-        # Permission level for repository administration (read/none; "write" is rejected
-        # by the compiler). GitHub App-only permission for repository administration.
-        # (optional)
-        administration: "read"
-
-        # Permission level for Codespaces (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        codespaces: "read"
-
-        # Permission level for Codespaces lifecycle administration (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        codespaces-lifecycle-admin: "read"
-
-        # Permission level for Codespaces metadata (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        codespaces-metadata: "read"
-
-        # Permission level for user email addresses (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        email-addresses: "read"
-
-        # Permission level for repository environments (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        environments: "read"
-
-        # Permission level for git signing (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        git-signing: "read"
-
-        # Permission level for organization members (read/none; "write" is rejected by the
-        # compiler). Required for org team membership API calls.
-        # (optional)
-        members: "read"
-
-        # Permission level for organization administration (read/none; "write" is rejected
-        # by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-administration: "read"
-
-        # Permission level for organization announcement banners (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-announcement-banners: "read"
-
-        # Permission level for organization Codespaces (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        organization-codespaces: "read"
-
-        # Permission level for organization Copilot (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        organization-copilot: "read"
-
-        # Permission level for organization custom org roles (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-custom-org-roles: "read"
-
-        # Permission level for organization custom properties (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-custom-properties: "read"
-
-        # Permission level for organization custom repository roles (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-custom-repository-roles: "read"
-
-        # Permission level for organization events (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        organization-events: "read"
-
-        # Permission level for organization webhooks (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        organization-hooks: "read"
-
-        # Permission level for organization members management (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-members: "read"
-
-        # Permission level for organization packages (read/none; "write" is rejected by
-        # the compiler). GitHub App-only permission.
-        # (optional)
-        organization-packages: "read"
-
-        # Permission level for organization personal access token requests (read/none;
-        # "write" is rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-personal-access-token-requests: "read"
-
-        # Permission level for organization personal access tokens (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-personal-access-tokens: "read"
-
-        # Permission level for organization plan (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        organization-plan: "read"
-
-        # Permission level for organization self-hosted runners (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-self-hosted-runners: "read"
-
-        # Permission level for organization user blocking (read/none; "write" is rejected
-        # by the compiler). GitHub App-only permission.
-        # (optional)
-        organization-user-blocking: "read"
-
-        # Permission level for repository custom properties (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        repository-custom-properties: "read"
-
-        # Permission level for repository webhooks (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        repository-hooks: "read"
-
-        # Permission level for single file access (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        single-file: "read"
-
-        # Permission level for team discussions (read/none; "write" is rejected by the
-        # compiler). GitHub App-only permission.
-        # (optional)
-        team-discussions: "read"
-
-        # Permission level for Dependabot vulnerability alerts (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        vulnerability-alerts: "read"
-
-        # Permission level for GitHub Actions workflow files (read/none; "write" is
-        # rejected by the compiler). GitHub App-only permission.
-        # (optional)
-        workflows: "read"
+    # Option 2: undefined
 
   # Bash shell command execution tool. Supports wildcards: '*' (all commands),
   # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
@@ -2499,43 +2107,6 @@ tools:
   # Option 2: Enable agentic-workflows tool with default settings (same as true)
   agentic-workflows: null
 
-  # qmd documentation search tool (https://github.com/tobi/qmd). Builds a local
-  # vector search index in a dedicated indexing job and shares it with the agent job
-  # via GitHub Actions cache. The agent job mounts a search MCP server over the
-  # pre-built index and does not need contents:read permission.
-  # (optional)
-  qmd:
-    # List of named documentation collections built from checked-out repositories.
-    # Each entry can optionally specify its own checkout configuration to target a
-    # different repository.
-    # (optional)
-    checkouts: []
-
-    # List of GitHub search queries whose results are downloaded and added to the qmd
-    # index.
-    # (optional)
-    searches: []
-
-    # GitHub Actions cache key used to persist the qmd index across workflow runs.
-    # When set without any indexing sources (checkouts/searches), qmd operates in
-    # read-only mode: the index is restored from cache and all indexing steps are
-    # skipped.
-    # (optional)
-    cache-key: "example-value"
-
-    # Enable GPU acceleration for the embedding model (node-llama-cpp). Defaults to
-    # false: NODE_LLAMA_CPP_GPU=false is injected into the indexing step so GPU
-    # probing is skipped on CPU-only runners. Set to true only when the indexing
-    # runner has a GPU.
-    # (optional)
-    gpu: true
-
-    # Override the runner image for the qmd indexing job. Defaults to the same runner
-    # as the agent job. Use this when the indexing job requires a different runner
-    # (e.g. a GPU runner).
-    # (optional)
-    runs-on: "example-value"
-
   # Cache memory MCP configuration for persistent memory storage
   # (optional)
   # This field supports multiple formats (oneOf):
@@ -2608,6 +2179,14 @@ tools:
 
   # Option 2: GitHub Actions expression (e.g. '${{ inputs.startup-timeout }}')
   startup-timeout: "example-value"
+
+  # When true, each user-facing MCP server is mounted as a standalone CLI tool on
+  # PATH. The agent can then call MCP servers via shell commands (e.g. 'github
+  # issue_read --method get ...'). CLI-mounted servers remain in the MCP gateway
+  # config so their containers can start, and are removed only from the agent's
+  # final config during convert_gateway_config_*.sh processing. Default: false.
+  # (optional)
+  mount-as-clis: true
 
   # Repo memory configuration for git-based persistent storage
   # (optional)
@@ -3694,22 +3273,21 @@ safe-outputs:
       # Array of strings
 
     # Controls whether the workflow requests discussions:write permission for
-    # add-comment and includes discussions in the event trigger condition. Default:
-    # true (includes discussions:write). Set to false if your GitHub App lacks
-    # Discussions permission to prevent 422 errors during token generation.
+    # add-comment. Default: true (includes discussions:write). Set to false if your
+    # GitHub App lacks Discussions permission to prevent 422 errors during token
+    # generation.
     # (optional)
     discussions: true
 
-    # Controls whether the workflow requests issues:write permission for add-comment
-    # and includes issues in the event trigger condition. Default: true (includes
-    # issues:write). Set to false to disable issue commenting.
+    # Controls whether the workflow requests issues:write permission for add-comment.
+    # Default: true (includes issues:write). Set to false to disable issue commenting
+    # permissions.
     # (optional)
     issues: true
 
     # Controls whether the workflow requests pull-requests:write permission for
-    # add-comment and includes pull requests in the event trigger condition. Default:
-    # true (includes pull-requests:write). Set to false to disable pull request
-    # commenting.
+    # add-comment. Default: true (includes pull-requests:write). Set to false to
+    # disable pull request commenting permissions.
     # (optional)
     pull-requests: true
 
@@ -3783,6 +3361,24 @@ safe-outputs:
     # 'copilot' to request a code review from GitHub Copilot using the
     # copilot-pull-request-reviewer[bot].
     reviewers: []
+      # Array items: string
+
+    # Optional assignee(s) for a fallback issue created when pull request creation
+    # cannot proceed, including protected-files fallback-to-issue and pull request
+    # creation or push failures. Accepts either a single string or an array of
+    # usernames.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single username to assign to a fallback issue created when pull
+    # request creation cannot proceed, including protected-files fallback-to-issue and
+    # pull request creation or push failures.
+    assignees: "example-value"
+
+    # Option 2: List of usernames to assign to a fallback issue created when pull
+    # request creation cannot proceed, including protected-files fallback-to-issue and
+    # pull request creation or push failures.
+    assignees: []
       # Array items: string
 
     # Whether to create pull request as draft (defaults to true). Accepts a boolean or
@@ -3875,13 +3471,36 @@ safe-outputs:
     # (optional)
     github-token-for-extra-empty-commit: "example-value"
 
-    # Controls protected-file protection. blocked (default): hard-block any patch that
-    # modifies package manifests (e.g. package.json, go.mod), engine instruction files
-    # (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes.
-    # fallback-to-issue: push the branch but create a review issue instead of a PR, so
-    # a human can review the manifest changes before merging.
+    # Controls protected-file protection. String form: blocked (default), allowed, or
+    # fallback-to-issue. Object form: { policy, exclude } to customise the
+    # protected-file set.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Controls protected-file protection. blocked (default): hard-block any
+    # patch that modifies package manifests (e.g. package.json, go.mod), engine
+    # instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow
+    # all changes. fallback-to-issue: push the branch but create a review issue
+    # instead of a PR, so a human can review the manifest changes before merging.
     protected-files: "blocked"
+
+    # Option 2: Object form for granular control over the protected-file set. Use the
+    # exclude list to remove specific files from the default protection while keeping
+    # the rest.
+    protected-files:
+      # Protection policy. blocked (default): hard-block any patch that modifies
+      # protected files. allowed: allow all changes. fallback-to-issue: push the branch
+      # but create a review issue instead of a PR.
+      # (optional)
+      policy: "blocked"
+
+      # List of filenames or path prefixes to remove from the default protected-file
+      # set. Items are matched by basename (e.g. "AGENTS.md") or path prefix (e.g.
+      # ".agents/"). Use this to allow the agent to modify specific files that are
+      # otherwise blocked by default.
+      # (optional)
+      exclude: []
+        # Array of strings
 
     # Exclusive allowlist of glob patterns. When set, every file in the patch must
     # match at least one pattern — files outside the list are always refused,
@@ -4048,10 +3667,10 @@ safe-outputs:
 
     # Optional list of allowed review event types. If omitted, all event types
     # (APPROVE, COMMENT, REQUEST_CHANGES) are allowed. Use this to restrict the agent
-    # to specific event types at the infrastructure level.
+    # to specific event types, e.g. [COMMENT, REQUEST_CHANGES] to prevent approvals.
     # (optional)
     allowed-events: []
-      # Array of strings (APPROVE, COMMENT, REQUEST_CHANGES)
+      # Array of strings
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
@@ -4949,13 +4568,36 @@ safe-outputs:
     allowed-repos: []
       # Array of strings
 
-    # Controls protected-file protection. blocked (default): hard-block any patch that
-    # modifies package manifests (e.g. package.json, go.mod), engine instruction files
-    # (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes.
-    # fallback-to-issue: create a review issue instead of pushing to the PR branch, so
-    # a human can review the changes before applying.
+    # Controls protected-file protection. String form: blocked (default), allowed, or
+    # fallback-to-issue. Object form: { policy, exclude } to customise the
+    # protected-file set.
     # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Controls protected-file protection. blocked (default): hard-block any
+    # patch that modifies package manifests (e.g. package.json, go.mod), engine
+    # instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow
+    # all changes. fallback-to-issue: create a review issue instead of pushing to the
+    # PR branch, so a human can review the changes before applying.
     protected-files: "blocked"
+
+    # Option 2: Object form for granular control over the protected-file set. Use the
+    # exclude list to remove specific files from the default protection while keeping
+    # the rest.
+    protected-files:
+      # Protection policy. blocked (default): hard-block any patch that modifies
+      # protected files. allowed: allow all changes. fallback-to-issue: create a review
+      # issue instead of pushing.
+      # (optional)
+      policy: "blocked"
+
+      # List of filenames or path prefixes to remove from the default protected-file
+      # set. Items are matched by basename (e.g. "AGENTS.md") or path prefix (e.g.
+      # ".agents/"). Use this to allow the agent to modify specific files that are
+      # otherwise blocked by default.
+      # (optional)
+      exclude: []
+        # Array of strings
 
     # Exclusive allowlist of glob patterns. When set, every file in the patch must
     # match at least one pattern — files outside the list are always refused,
@@ -5378,6 +5020,86 @@ safe-outputs:
   # Option 2: Enable asset publishing with default configuration
   upload-asset: null
 
+  # Enable AI agents to upload files as run-scoped GitHub Actions artifacts. Returns
+  # a temporary artifact ID rather than a raw download URL, keeping authorization
+  # centralized.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for uploading files as run-scoped GitHub Actions
+  # artifacts
+  upload-artifact:
+    # Maximum number of upload_artifact tool calls allowed per run (default: 1)
+    # (optional)
+    max-uploads: 1
+
+    # Artifact retention period in days (fixed; the agent cannot override this value).
+    # Supports integer or GitHub Actions expression (e.g. '${{ inputs.retention-days
+    # }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
+    retention-days: 1
+
+    # Option 2: string
+    retention-days: "example-value"
+
+    # Upload files directly without zip archiving (fixed; the agent cannot override
+    # this value). Only valid for single-file uploads. Supports boolean or GitHub
+    # Actions expression (e.g. '${{ inputs.skip-archive }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: boolean
+    skip-archive: true
+
+    # Option 2: string
+    skip-archive: "example-value"
+
+    # Maximum total upload size in bytes per slot (default: 104857600 = 100 MB)
+    # (optional)
+    max-size-bytes: 1
+
+    # Glob patterns restricting which paths relative to the staging directory the
+    # model may upload
+    # (optional)
+    allowed-paths: []
+      # Array of strings
+
+    # Default include/exclude glob filters applied on top of allowed-paths
+    # (optional)
+    filters:
+      # Glob patterns for files to include
+      # (optional)
+      include: []
+        # Array of strings
+
+      # Glob patterns for files to exclude
+      # (optional)
+      exclude: []
+        # Array of strings
+
+    # Default values injected when the model omits a field
+    # (optional)
+    defaults:
+      # Behaviour when no files match: 'error' (default) or 'ignore'
+      # (optional)
+      if-no-files: "error"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # If true, emit step summary messages instead of making GitHub Actions artifact
+    # uploads (preview mode)
+    # (optional)
+    staged: true
+
+  # Option 2: Enable artifact uploads with default configuration
+  upload-artifact: null
+
   # Enable AI agents to edit and update GitHub release content, including release
   # notes, assets, and metadata.
   # (optional)
@@ -5433,178 +5155,11 @@ safe-outputs:
   # a token will be generated using the app credentials and used for all safe output
   # operations.
   # (optional)
-  github-app:
-    # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-    app-id: "example-value"
+  # This field supports multiple formats (anyOf):
 
-    # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-    # mint a GitHub App token.
-    private-key: "example-value"
+  # Option 1: undefined
 
-    # Optional owner of the GitHub App installation (defaults to current repository
-    # owner if not specified)
-    # (optional)
-    owner: "example-value"
-
-    # Optional list of repositories to grant access to (defaults to current repository
-    # if not specified)
-    # (optional)
-    repositories: []
-      # Array of strings
-
-    # Optional extra GitHub App-only permissions to merge into the minted token. Only
-    # takes effect for tools.github.github-app; ignored in other github-app contexts.
-    # (optional)
-    permissions:
-      # Permission level for repository administration (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission for repository administration.
-      # (optional)
-      administration: "read"
-
-      # Permission level for Codespaces (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      codespaces: "read"
-
-      # Permission level for Codespaces lifecycle administration (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      codespaces-lifecycle-admin: "read"
-
-      # Permission level for Codespaces metadata (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      codespaces-metadata: "read"
-
-      # Permission level for user email addresses (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      email-addresses: "read"
-
-      # Permission level for repository environments (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      environments: "read"
-
-      # Permission level for git signing (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      git-signing: "read"
-
-      # Permission level for organization members (read/none; "write" is rejected by the
-      # compiler). Required for org team membership API calls.
-      # (optional)
-      members: "read"
-
-      # Permission level for organization administration (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-administration: "read"
-
-      # Permission level for organization announcement banners (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-announcement-banners: "read"
-
-      # Permission level for organization Codespaces (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-codespaces: "read"
-
-      # Permission level for organization Copilot (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-copilot: "read"
-
-      # Permission level for organization custom org roles (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-org-roles: "read"
-
-      # Permission level for organization custom properties (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-properties: "read"
-
-      # Permission level for organization custom repository roles (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-repository-roles: "read"
-
-      # Permission level for organization events (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-events: "read"
-
-      # Permission level for organization webhooks (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-hooks: "read"
-
-      # Permission level for organization members management (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-members: "read"
-
-      # Permission level for organization packages (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-packages: "read"
-
-      # Permission level for organization personal access token requests (read/none;
-      # "write" is rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-personal-access-token-requests: "read"
-
-      # Permission level for organization personal access tokens (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-personal-access-tokens: "read"
-
-      # Permission level for organization plan (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-plan: "read"
-
-      # Permission level for organization self-hosted runners (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-self-hosted-runners: "read"
-
-      # Permission level for organization user blocking (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-user-blocking: "read"
-
-      # Permission level for repository custom properties (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      repository-custom-properties: "read"
-
-      # Permission level for repository webhooks (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      repository-hooks: "read"
-
-      # Permission level for single file access (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      single-file: "read"
-
-      # Permission level for team discussions (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      team-discussions: "read"
-
-      # Permission level for Dependabot vulnerability alerts (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      vulnerability-alerts: "read"
-
-      # Permission level for GitHub Actions workflow files (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      workflows: "read"
+  # Option 2: undefined
 
   # Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1
   # MB). If patch exceeds this size, the job will fail.
@@ -5653,6 +5208,12 @@ safe-outputs:
     # detection job only. Defaults to agent.runs-on.
     # (optional)
     runs-on: "example-value"
+
+    # When true (default), detection failures produce warnings and allow safe outputs
+    # to proceed with a caution notice and 'needs-review' label. When false, detection
+    # failures block safe outputs entirely.
+    # (optional)
+    continue-on-error: true
 
   # Custom safe-output jobs that can be executed based on agentic workflow output.
   # Job names containing dashes will be automatically normalized to underscores
@@ -5916,6 +5477,57 @@ safe-outputs:
   actions:
     {}
 
+  # Enable AI agents to signal that a task could not be completed due to
+  # infrastructure or tool failures (e.g., MCP crash, missing auth, inaccessible
+  # repository). Activates failure handling even when the agent exits 0.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for report_incomplete safe output
+  report-incomplete:
+    # Maximum number of report_incomplete signals (default: 5). Supports integer or
+    # GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
+    max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Whether to create or update GitHub issues when the task was incomplete (default:
+    # true)
+    # (optional)
+    create-issue: true
+
+    # Prefix for issue titles when creating issues for incomplete runs (default:
+    # '[incomplete]')
+    # (optional)
+    title-prefix: "example-value"
+
+    # Labels to add to created issues for incomplete runs
+    # (optional)
+    labels: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # If true, emit step summary messages instead of making GitHub API calls for this
+    # specific output type (preview mode)
+    # (optional)
+    staged: true
+
+  # Option 2: Enable report_incomplete with default configuration
+  report-incomplete: null
+
+  # Option 3: Explicitly disable report_incomplete (false). report_incomplete is
+  # enabled by default when safe-outputs is configured.
+  report-incomplete: true
+
 # Configuration for secret redaction behavior in workflow outputs and artifacts
 # (optional)
 secret-masking:
@@ -5926,7 +5538,23 @@ secret-masking:
 
 # Optional observability output settings for workflow runs.
 # (optional)
-observability: {}
+observability:
+  # OTLP (OpenTelemetry Protocol) trace export configuration.
+  # (optional)
+  otlp:
+    # OTLP collector endpoint URL (e.g. 'https://traces.example.com:4317'). Supports
+    # GitHub Actions expressions such as ${{ secrets.OTLP_ENDPOINT }}. When a static
+    # URL is provided, its hostname is automatically added to the network firewall
+    # allowlist.
+    # (optional)
+    endpoint: "example-value"
+
+    # Comma-separated list of key=value HTTP headers to include with every OTLP export
+    # request (e.g. 'Authorization=Bearer <token>'). Supports GitHub Actions
+    # expressions such as ${{ secrets.OTLP_HEADERS }}. Injected as the
+    # OTEL_EXPORTER_OTLP_HEADERS environment variable.
+    # (optional)
+    headers: "example-value"
 
 # Allow list of bot identifiers that can trigger the workflow even if they don't
 # meet the required role permissions. When the actor is in this list, the bot must
@@ -6002,6 +5630,17 @@ private: true
 # (optional)
 check-for-updates: true
 
+# Allow npm pre/post install scripts to execute during package installation. By
+# default, --ignore-scripts is added to all generated npm install commands to
+# prevent supply chain attacks via malicious install hooks. Setting
+# run-install-scripts: true disables this protection globally (all runtimes). A
+# supply chain security warning is emitted at compile time; in strict mode this is
+# an error. Per-runtime control is also available via
+# runtimes.<runtime>.run-install-scripts. See:
+# https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts
+# (optional)
+run-install-scripts: true
+
 # MCP Scripts configuration for defining custom lightweight MCP tools as
 # JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
 # and have access to secrets specified by the user. Only one of 'script'
@@ -6058,178 +5697,11 @@ dependencies:
   # GitHub App credentials for minting installation access tokens used by APM to
   # access cross-org private repositories.
   # (optional)
-  github-app:
-    # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-    app-id: "example-value"
+  # This field supports multiple formats (anyOf):
 
-    # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-    # mint a GitHub App token.
-    private-key: "example-value"
+  # Option 1: undefined
 
-    # Optional owner of the GitHub App installation (defaults to current repository
-    # owner if not specified)
-    # (optional)
-    owner: "example-value"
-
-    # Optional list of repositories to grant access to (defaults to current repository
-    # if not specified)
-    # (optional)
-    repositories: []
-      # Array of strings
-
-    # Optional extra GitHub App-only permissions to merge into the minted token. Only
-    # takes effect for tools.github.github-app; ignored in other github-app contexts.
-    # (optional)
-    permissions:
-      # Permission level for repository administration (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission for repository administration.
-      # (optional)
-      administration: "read"
-
-      # Permission level for Codespaces (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      codespaces: "read"
-
-      # Permission level for Codespaces lifecycle administration (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      codespaces-lifecycle-admin: "read"
-
-      # Permission level for Codespaces metadata (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      codespaces-metadata: "read"
-
-      # Permission level for user email addresses (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      email-addresses: "read"
-
-      # Permission level for repository environments (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      environments: "read"
-
-      # Permission level for git signing (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      git-signing: "read"
-
-      # Permission level for organization members (read/none; "write" is rejected by the
-      # compiler). Required for org team membership API calls.
-      # (optional)
-      members: "read"
-
-      # Permission level for organization administration (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-administration: "read"
-
-      # Permission level for organization announcement banners (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-announcement-banners: "read"
-
-      # Permission level for organization Codespaces (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-codespaces: "read"
-
-      # Permission level for organization Copilot (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-copilot: "read"
-
-      # Permission level for organization custom org roles (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-org-roles: "read"
-
-      # Permission level for organization custom properties (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-properties: "read"
-
-      # Permission level for organization custom repository roles (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-custom-repository-roles: "read"
-
-      # Permission level for organization events (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-events: "read"
-
-      # Permission level for organization webhooks (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-hooks: "read"
-
-      # Permission level for organization members management (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-members: "read"
-
-      # Permission level for organization packages (read/none; "write" is rejected by
-      # the compiler). GitHub App-only permission.
-      # (optional)
-      organization-packages: "read"
-
-      # Permission level for organization personal access token requests (read/none;
-      # "write" is rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-personal-access-token-requests: "read"
-
-      # Permission level for organization personal access tokens (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-personal-access-tokens: "read"
-
-      # Permission level for organization plan (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      organization-plan: "read"
-
-      # Permission level for organization self-hosted runners (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-self-hosted-runners: "read"
-
-      # Permission level for organization user blocking (read/none; "write" is rejected
-      # by the compiler). GitHub App-only permission.
-      # (optional)
-      organization-user-blocking: "read"
-
-      # Permission level for repository custom properties (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      repository-custom-properties: "read"
-
-      # Permission level for repository webhooks (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      repository-hooks: "read"
-
-      # Permission level for single file access (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      single-file: "read"
-
-      # Permission level for team discussions (read/none; "write" is rejected by the
-      # compiler). GitHub App-only permission.
-      # (optional)
-      team-discussions: "read"
-
-      # Permission level for Dependabot vulnerability alerts (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      vulnerability-alerts: "read"
-
-      # Permission level for GitHub Actions workflow files (read/none; "write" is
-      # rejected by the compiler). GitHub App-only permission.
-      # (optional)
-      workflows: "read"
+  # Option 2: undefined
 
   # Environment variables to set on the APM pack step (e.g., tokens or registry
   # URLs).
@@ -6249,178 +5721,11 @@ dependencies:
 # dependencies). When a nested section does not define its own github-app, this
 # top-level configuration is used automatically.
 # (optional)
-github-app:
-  # GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.
-  app-id: "example-value"
+# This field supports multiple formats (anyOf):
 
-  # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
-  # mint a GitHub App token.
-  private-key: "example-value"
+# Option 1: undefined
 
-  # Optional owner of the GitHub App installation (defaults to current repository
-  # owner if not specified)
-  # (optional)
-  owner: "example-value"
-
-  # Optional list of repositories to grant access to (defaults to current repository
-  # if not specified)
-  # (optional)
-  repositories: []
-    # Array of strings
-
-  # Optional extra GitHub App-only permissions to merge into the minted token. Only
-  # takes effect for tools.github.github-app; ignored in other github-app contexts.
-  # (optional)
-  permissions:
-    # Permission level for repository administration (read/none; "write" is rejected
-    # by the compiler). GitHub App-only permission for repository administration.
-    # (optional)
-    administration: "read"
-
-    # Permission level for Codespaces (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    codespaces: "read"
-
-    # Permission level for Codespaces lifecycle administration (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    codespaces-lifecycle-admin: "read"
-
-    # Permission level for Codespaces metadata (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    codespaces-metadata: "read"
-
-    # Permission level for user email addresses (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    email-addresses: "read"
-
-    # Permission level for repository environments (read/none; "write" is rejected by
-    # the compiler). GitHub App-only permission.
-    # (optional)
-    environments: "read"
-
-    # Permission level for git signing (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    git-signing: "read"
-
-    # Permission level for organization members (read/none; "write" is rejected by the
-    # compiler). Required for org team membership API calls.
-    # (optional)
-    members: "read"
-
-    # Permission level for organization administration (read/none; "write" is rejected
-    # by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-administration: "read"
-
-    # Permission level for organization announcement banners (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-announcement-banners: "read"
-
-    # Permission level for organization Codespaces (read/none; "write" is rejected by
-    # the compiler). GitHub App-only permission.
-    # (optional)
-    organization-codespaces: "read"
-
-    # Permission level for organization Copilot (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    organization-copilot: "read"
-
-    # Permission level for organization custom org roles (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-custom-org-roles: "read"
-
-    # Permission level for organization custom properties (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-custom-properties: "read"
-
-    # Permission level for organization custom repository roles (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-custom-repository-roles: "read"
-
-    # Permission level for organization events (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    organization-events: "read"
-
-    # Permission level for organization webhooks (read/none; "write" is rejected by
-    # the compiler). GitHub App-only permission.
-    # (optional)
-    organization-hooks: "read"
-
-    # Permission level for organization members management (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-members: "read"
-
-    # Permission level for organization packages (read/none; "write" is rejected by
-    # the compiler). GitHub App-only permission.
-    # (optional)
-    organization-packages: "read"
-
-    # Permission level for organization personal access token requests (read/none;
-    # "write" is rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-personal-access-token-requests: "read"
-
-    # Permission level for organization personal access tokens (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-personal-access-tokens: "read"
-
-    # Permission level for organization plan (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    organization-plan: "read"
-
-    # Permission level for organization self-hosted runners (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-self-hosted-runners: "read"
-
-    # Permission level for organization user blocking (read/none; "write" is rejected
-    # by the compiler). GitHub App-only permission.
-    # (optional)
-    organization-user-blocking: "read"
-
-    # Permission level for repository custom properties (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    repository-custom-properties: "read"
-
-    # Permission level for repository webhooks (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    repository-hooks: "read"
-
-    # Permission level for single file access (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    single-file: "read"
-
-    # Permission level for team discussions (read/none; "write" is rejected by the
-    # compiler). GitHub App-only permission.
-    # (optional)
-    team-discussions: "read"
-
-    # Permission level for Dependabot vulnerability alerts (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    vulnerability-alerts: "read"
-
-    # Permission level for GitHub Actions workflow files (read/none; "write" is
-    # rejected by the compiler). GitHub App-only permission.
-    # (optional)
-    workflows: "read"
+# Option 2: undefined
 
 # Schema for validating 'with' input values when this workflow is imported by
 # another workflow using the 'uses'/'with' syntax. Defines the expected

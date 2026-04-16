@@ -1229,7 +1229,7 @@ The top-level `environment:` field is automatically propagated to all safe-outpu
 safe-outputs:
   environment: dev   # overrides top-level environment for safe-output jobs only
   github-app:
-    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    client-id: ${{ secrets.WORKFLOW_APP_ID }}
     private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
 ```
 

@@ -377,6 +377,33 @@ When `status-comment: true`, the activation job posts a comment when the workflo
 
 To suppress status comments, omit `status-comment:` or set it to `false`.
 
+#### Selective target control (object form)
+
+Use an object to enable status comments while selectively disabling specific targets. The object form implies status comments are enabled; each field defaults to `true`:
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+  discussion:
+    types: [created]
+  status-comment:
+    issues: true          # post on issue events (default)
+    pull-requests: false  # skip pull request events
+    discussions: false    # skip discussion events
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `issues` | boolean | `true` | Enable status comments for `issues` and `issue_comment` events |
+| `pull-requests` | boolean | `true` | Enable status comments for `pull_request` and `pull_request_review_comment` events |
+| `discussions` | boolean | `true` | Enable status comments for `discussion` and `discussion_comment` events |
+
+> [!NOTE]
+> Setting all three fields to `false` is a compilation error. If no targets are enabled, use `status-comment: false` instead.
+
 ### Activation Token (`on.github-token:`, `on.github-app:`)
 
 Configure a custom GitHub token or GitHub App for the activation job **and all skip-if search checks**. The activation job posts the initial reaction (and status comment if `status-comment: true`) on the triggering item, and skip-if checks use the same token to query the GitHub Search API. By default all of these operations use the workflow's `GITHUB_TOKEN`.
@@ -399,7 +426,7 @@ on:
     types: [opened]
   reaction: "rocket"
   github-app:
-    app-id: ${{ vars.APP_ID }}
+    client-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_KEY }}
 ```
 
@@ -412,7 +439,7 @@ Both `github-token` and `github-app` can be defined in a **shared agentic workfl
 on:
   workflow_call:
   github-app:
-    app-id: ${{ secrets.ORG_APP_ID }}
+    client-id: ${{ secrets.ORG_APP_ID }}
     private-key: ${{ secrets.ORG_APP_PRIVATE_KEY }}
     owner: myorg
 ```
@@ -485,7 +512,7 @@ on:
     query: "org:myorg label:ops:in-progress is:issue is:open"
     scope: none
   github-app:
-    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    client-id: ${{ secrets.WORKFLOW_APP_ID }}
     private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
     owner: myorg
 ```
@@ -527,7 +554,7 @@ on:
     query: "org:myorg label:agent-fix -label:ops:agentic is:issue is:open"
     scope: none
   github-app:
-    app-id: ${{ secrets.WORKFLOW_APP_ID }}
+    client-id: ${{ secrets.WORKFLOW_APP_ID }}
     private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}
     owner: myorg
 ```

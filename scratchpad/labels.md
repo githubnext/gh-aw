@@ -129,7 +129,7 @@ Analysis of the repository (as of December 2024) shows:
 - **Total open issues**: 35
 - **Issues with `plan`**: 16 (45.7%)
 - **Issues with `ai-generated`**: 16 (45.7%)
-- **Perfect overlap**: All `plan` issues also have `ai-generated`
+- **100% overlap**: All `plan` issues also have `ai-generated`
 - **Unlabeled issues**: 0 (100% labeled)
 
 ### Key Findings

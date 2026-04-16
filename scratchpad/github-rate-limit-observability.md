@@ -51,7 +51,7 @@ Reads `x-ratelimit-*` headers from the REST response. No additional API call. Sk
 await fetchAndLogRateLimit(github, "startup");
 ```
 
-Calls `github.rest.rateLimit.get()` and writes one entry per resource category (core, search, graphql, etc.). Use at job start/end for a comprehensive view.
+Calls `github.rest.rateLimit.get()` and writes one entry per resource category (core, search, graphql, etc.). Use at job start/end to observe all rate limit categories.
 
 ### 3. Automatic wrapping (zero call-site changes)
 
