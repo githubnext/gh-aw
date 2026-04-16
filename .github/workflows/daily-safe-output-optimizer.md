@@ -27,8 +27,7 @@ imports:
   - shared/aw-logs-24h-fetch.md
   - shared/activation-app.md
   - shared/jqschema.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
 ---

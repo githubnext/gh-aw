@@ -13,8 +13,7 @@ permissions:
 tracker-id: daily-team-status
 network: defaults
 imports:
-  - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 safe-outputs:
   create-issue:
     expires: 1d

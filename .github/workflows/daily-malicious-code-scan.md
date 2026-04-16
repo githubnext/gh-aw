@@ -17,8 +17,7 @@ timeout-minutes: 15
 strict: true
 imports:
   - shared/security-analysis-base.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

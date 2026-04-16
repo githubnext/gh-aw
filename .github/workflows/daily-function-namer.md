@@ -15,9 +15,8 @@ tracker-id: daily-function-namer
 engine: claude
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:

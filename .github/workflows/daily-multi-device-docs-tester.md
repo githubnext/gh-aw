@@ -52,8 +52,7 @@ network:
 
 imports:
   - shared/docs-server-lifecycle.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
 ---

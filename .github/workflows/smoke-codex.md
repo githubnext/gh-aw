@@ -16,9 +16,8 @@ engine: codex
 strict: false
 imports:
   - shared/gh.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
 network:
   allowed:
     - defaults

@@ -18,10 +18,9 @@ engine: copilot
 runs-on: ubuntu-24.04-arm
 imports:
   - shared/gh.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
 network:
   allowed:
     - defaults

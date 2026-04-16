@@ -285,9 +285,8 @@ imports:
       description: "Historical news digest data"
   - shared/mcp/tavily.md
   - shared/jqschema.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---

@@ -22,8 +22,7 @@ safe-outputs:
 timeout-minutes: 60
 strict: true
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
 ---

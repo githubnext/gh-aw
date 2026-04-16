@@ -31,8 +31,7 @@ safe-outputs:
   noop:
 
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 
 timeout-minutes: 20
 strict: true

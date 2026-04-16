@@ -49,8 +49,7 @@ tools:
 timeout-minutes: 45
 
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
