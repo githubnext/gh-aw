@@ -319,15 +319,14 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
   };
 
   let stopped = false;
-  let pingInFlight = false;
   let pingId = 1000;
+  /** @type {NodeJS.Timeout | null} */
+  let nextTimer = null;
 
-  const timer = setInterval(async () => {
-    if (stopped || pingInFlight) {
+  const runPing = async () => {
+    if (stopped) {
       return;
     }
-
-    pingInFlight = true;
     const startMs = Date.now();
     const currentPingId = pingId++;
 
@@ -351,14 +350,13 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
       const message = err instanceof Error ? err.message : String(err);
       core.warning(`[${serverName}] MCP keepalive ping failed: ${message}`);
       auditLog(serverName, { event: "keepalive_ping_error", pingId: currentPingId, error: message, elapsedMs });
-    } finally {
-      pingInFlight = false;
     }
-  }, KEEPALIVE_PING_INTERVAL_MS);
+    if (!stopped) {
+      nextTimer = setTimeout(runPing, KEEPALIVE_PING_INTERVAL_MS);
+    }
+  };
 
-  if (typeof timer.unref === "function") {
-    timer.unref();
-  }
+  nextTimer = setTimeout(runPing, KEEPALIVE_PING_INTERVAL_MS);
 
   auditLog(serverName, { event: "keepalive_started", intervalMs: KEEPALIVE_PING_INTERVAL_MS });
   core.info(`[${serverName}] MCP keepalive started (interval=${KEEPALIVE_PING_INTERVAL_MS}ms)`);
@@ -368,7 +366,10 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
       return;
     }
     stopped = true;
-    clearInterval(timer);
+    if (nextTimer) {
+      clearTimeout(nextTimer);
+      nextTimer = null;
+    }
     auditLog(serverName, { event: "keepalive_stopped" });
     core.info(`[${serverName}] MCP keepalive stopped`);
   };
