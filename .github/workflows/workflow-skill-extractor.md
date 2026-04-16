@@ -63,10 +63,28 @@ steps:
           const frontmatter = frontmatterMatch ? frontmatterMatch[1] : '';
 
           const imports = Array.from(frontmatter.matchAll(/^\s*-\s+(shared\/\S+)/gm), (m) => m[1]);
-          const engineBlockMatch = frontmatter.match(/^engine:\s*\n((?:^[ \t].*\n?)*)/m);
-          const engineBlock = engineBlockMatch ? engineBlockMatch[1] : '';
-          const engineIDMatch = engineBlock.match(/^\s*id:\s*(\S+)/m);
-          const engine = engineIDMatch ? engineIDMatch[1] : null;
+          let engine = null;
+          const frontmatterLines = frontmatter.split('\n');
+          let inEngineBlock = false;
+
+          for (const line of frontmatterLines) {
+            if (!inEngineBlock) {
+              if (/^engine:\s*$/.test(line)) {
+                inEngineBlock = true;
+              }
+              continue;
+            }
+
+            if (!/^[ \t]/.test(line)) {
+              break;
+            }
+
+            const engineIDMatch = line.match(/^\s*id:\s*(\S+)/);
+            if (engineIDMatch) {
+              engine = engineIDMatch[1];
+              break;
+            }
+          }
 
           index.push({
             file: entry.name,
@@ -80,7 +98,7 @@ steps:
         }
 
         fs.mkdirSync('/tmp/gh-aw/agent', { recursive: true });
-        fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', `${JSON.stringify(index, null, 2)}\n`, 'utf8');
+        fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', JSON.stringify(index, null, 2) + '\n', 'utf8');
         core.info(`Indexed ${index.length} workflows`);
 features:
   mcp-cli: true
