@@ -374,7 +374,9 @@ async function main() {
   core.info("Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)");
   core.info("");
 
-  const maxAttempts = 120;
+  const maxTotalAttempts = 120;
+  // withRetry's maxRetries excludes the initial attempt.
+  const maxRetryCount = maxTotalAttempts - 1;
   const initialRetryDelayMs = 250;
   let httpCode = 0;
   let healthBody = "";
@@ -385,10 +387,11 @@ async function main() {
   try {
     await withRetry(
       async () => {
+        // Counts total health-check attempts, including the final successful attempt.
         attemptsMade += 1;
         const elapsedSec = Math.floor((nowMs() - healthCheckStart) / 1000);
         if (attemptsMade % 10 === 1 || attemptsMade === 1) {
-          core.info(`Attempt ${attemptsMade}/${maxAttempts} (${elapsedSec}s elapsed)...`);
+          core.info(`Attempt ${attemptsMade}/${maxTotalAttempts} (${elapsedSec}s elapsed)...`);
         }
 
         const res = await httpGet(healthUrl, 2000);
@@ -402,7 +405,7 @@ async function main() {
         throw new Error(`Health endpoint not ready (HTTP ${httpCode || 0})`);
       },
       {
-        maxRetries: maxAttempts - 1,
+        maxRetries: maxRetryCount,
         initialDelayMs: initialRetryDelayMs,
         maxDelayMs: 1000,
         backoffMultiplier: 2,
