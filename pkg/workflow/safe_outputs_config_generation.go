@@ -38,18 +38,15 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	// Standard handler configs — sourced from handlerRegistry (same as GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
 	for handlerName, builder := range handlerRegistry {
 		if handlerCfg := builder(data.SafeOutputs); handlerCfg != nil {
+			excludeFiles := extractStringSliceFromConfig(handlerCfg, "_protected_files_exclude")
 			// Strip the internal sentinel key used by the handler manager for compile-time
 			// exclusion processing — it must not be forwarded to the runtime config.json.
 			delete(handlerCfg, "_protected_files_exclude")
 			if _, hasProtectedFiles := handlerCfg["protected_files"]; hasProtectedFiles {
-				handlerCfg["protected_files"] = mergeUnique(
-					extractStringSliceFromConfig(handlerCfg, "protected_files"),
-					engineManifestFiles...,
-				)
-				handlerCfg["protected_path_prefixes"] = mergeUnique(
-					extractStringSliceFromConfig(handlerCfg, "protected_path_prefixes"),
-					engineManifestPathPrefixes...,
-				)
+				fullManifestFiles := getAllManifestFiles(engineManifestFiles...)
+				fullPathPrefixes := getProtectedPathPrefixes(engineManifestPathPrefixes...)
+				handlerCfg["protected_files"] = excludeFromSlice(fullManifestFiles, excludeFiles...)
+				handlerCfg["protected_path_prefixes"] = excludeFromSlice(fullPathPrefixes, excludeFiles...)
 			}
 			safeOutputsConfig[handlerName] = handlerCfg
 		}
@@ -211,7 +208,7 @@ func getEngineAgentFileInfoFromWorkflowData(data *WorkflowData) (manifestFiles [
 		return nil, nil
 	}
 
-	engineRegistry := NewEngineRegistry()
+	engineRegistry := GetGlobalEngineRegistry()
 	engine, err := engineRegistry.GetEngine(data.EngineConfig.ID)
 	if err != nil {
 		safeOutputsConfigLog.Printf("Engine lookup failed for %q: %v — skipping agent manifest file injection", data.EngineConfig.ID, err)
