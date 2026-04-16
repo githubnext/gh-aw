@@ -100,7 +100,7 @@ func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsage
 		toolStats[info.Name] = &cloned
 	}
 
-	addToolUsage := func(name string, callCount, maxInputSize, maxOutputSize int, maxDuration string) {
+	addOrUpdateToolUsage := func(name string, callCount, maxInputSize, maxOutputSize int, maxDuration string) {
 		normalizedName := strings.TrimSpace(name)
 		if normalizedName == "" {
 			return
@@ -114,8 +114,16 @@ func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsage
 			if maxOutputSize > existing.MaxOutputSize {
 				existing.MaxOutputSize = maxOutputSize
 			}
-			if maxDuration != "" && (existing.MaxDuration == "" || parseDurationString(maxDuration) > parseDurationString(existing.MaxDuration)) {
-				existing.MaxDuration = maxDuration
+			if maxDuration != "" {
+				maxDurationValue := parseDurationString(maxDuration)
+				if existing.MaxDuration == "" {
+					existing.MaxDuration = maxDuration
+				} else {
+					existingMaxDurationValue := parseDurationString(existing.MaxDuration)
+					if maxDurationValue > existingMaxDurationValue {
+						existing.MaxDuration = maxDuration
+					}
+				}
 			}
 			return
 		}
@@ -133,18 +141,18 @@ func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsage
 		for _, summary := range mcpToolUsage.Summary {
 			switch {
 			case summary.ServerName != "" && summary.ToolName != "":
-				addToolUsage(summary.ServerName+"."+summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
+				addOrUpdateToolUsage(summary.ServerName+"."+summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
 			case summary.ToolName != "":
-				addToolUsage(summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
+				addOrUpdateToolUsage(summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
 			}
 		}
 	} else {
 		for _, call := range mcpToolUsage.ToolCalls {
 			switch {
 			case call.ServerName != "" && call.ToolName != "":
-				addToolUsage(call.ServerName+"."+call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
+				addOrUpdateToolUsage(call.ServerName+"."+call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
 			case call.ToolName != "":
-				addToolUsage(call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
+				addOrUpdateToolUsage(call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
 			}
 		}
 	}
