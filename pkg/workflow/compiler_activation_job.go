@@ -125,11 +125,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Build the combined permissions needed for all activation steps.
 		// For label removal we only add the scopes required by the enabled events.
 		appPerms := NewPermissions()
-		if hasReaction || hasStatusComment {
-			appPerms.Set(PermissionIssues, PermissionWrite)
-			appPerms.Set(PermissionPullRequests, PermissionWrite)
-			appPerms.Set(PermissionDiscussions, PermissionWrite)
-		}
+		addActivationInteractionPermissions(appPerms, data.On, hasReaction, hasStatusComment)
 		if shouldRemoveLabel {
 			if slices.Contains(filteredLabelEvents, "issues") || slices.Contains(filteredLabelEvents, "pull_request") {
 				appPerms.Set(PermissionIssues, PermissionWrite)
@@ -554,20 +550,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap[PermissionActions] = PermissionRead
 	}
 
-	if hasReaction {
-		permsMap[PermissionDiscussions] = PermissionWrite
-		permsMap[PermissionIssues] = PermissionWrite
-		permsMap[PermissionPullRequests] = PermissionWrite
-	}
-
-	// Add write permissions if status comments are enabled (even without a reaction).
-	// Status comments post to issues, PRs, and discussions, so write access is required.
-	// Assigning write to the map is safe here - it does not downgrade existing permissions.
-	if hasStatusComment {
-		permsMap[PermissionDiscussions] = PermissionWrite
-		permsMap[PermissionIssues] = PermissionWrite
-		permsMap[PermissionPullRequests] = PermissionWrite
-	}
+	addActivationInteractionPermissionsMap(permsMap, data.On, hasReaction, hasStatusComment)
 
 	// Add issues:write permission if lock-for-agent is enabled (even without reaction)
 	if data.LockForAgent {
@@ -619,6 +602,72 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	return job, nil
+}
+
+func addActivationInteractionPermissions(perms *Permissions, onSection string, hasReaction bool, hasStatusComment bool) {
+	if perms == nil {
+		return
+	}
+	permsMap := make(map[PermissionScope]PermissionLevel)
+	addActivationInteractionPermissionsMap(permsMap, onSection, hasReaction, hasStatusComment)
+	for scope, level := range permsMap {
+		perms.Set(scope, level)
+	}
+}
+
+func addActivationInteractionPermissionsMap(
+	permsMap map[PermissionScope]PermissionLevel,
+	onSection string,
+	hasReaction bool,
+	hasStatusComment bool,
+) {
+	if !hasReaction && !hasStatusComment {
+		return
+	}
+
+	// Fallback for unit tests or synthetic WorkflowData instances that do not populate the "on" section.
+	// Real compiled workflows always have a populated trigger section.
+	if onSection == "" {
+		if hasReaction || hasStatusComment {
+			permsMap[PermissionIssues] = PermissionWrite
+			permsMap[PermissionPullRequests] = PermissionWrite
+			permsMap[PermissionDiscussions] = PermissionWrite
+		}
+		return
+	}
+
+	hasIssuesEvent := strings.Contains(onSection, "issues:")
+	hasIssueCommentEvent := strings.Contains(onSection, "issue_comment:")
+	hasPullRequestEvent := strings.Contains(onSection, "pull_request:")
+	hasPullRequestReviewCommentEvent := strings.Contains(onSection, "pull_request_review_comment:")
+	hasDiscussionEvent := strings.Contains(onSection, "discussion:")
+	hasDiscussionCommentEvent := strings.Contains(onSection, "discussion_comment:")
+
+	if hasReaction {
+		// Reactions on issues, issue comments, and pull requests use issues endpoints.
+		if hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent {
+			permsMap[PermissionIssues] = PermissionWrite
+		}
+		// Reactions on PR review comments use pull request review comment endpoints.
+		if hasPullRequestReviewCommentEvent {
+			permsMap[PermissionPullRequests] = PermissionWrite
+		}
+		// Reactions on discussions use GraphQL discussion APIs.
+		if hasDiscussionEvent || hasDiscussionCommentEvent {
+			permsMap[PermissionDiscussions] = PermissionWrite
+		}
+	}
+
+	if hasStatusComment {
+		// Status comments for issue and pull request related events use issue comment endpoints.
+		if hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent || hasPullRequestReviewCommentEvent {
+			permsMap[PermissionIssues] = PermissionWrite
+		}
+		// Status comments for discussions use discussion comment APIs.
+		if hasDiscussionEvent || hasDiscussionCommentEvent {
+			permsMap[PermissionDiscussions] = PermissionWrite
+		}
+	}
 }
 
 // generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
