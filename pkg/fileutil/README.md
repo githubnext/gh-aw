@@ -88,3 +88,7 @@ if err != nil {
 - All debug output uses `logger.New("fileutil:fileutil")` and `logger.New("fileutil:tar")` and is only emitted when `DEBUG=fileutil:*`.
 - `MustBeWithin` resolves symlinks before comparison, providing defence-in-depth against symlink attacks in addition to the `..` checking that `ValidateAbsolutePath` provides.
 - `ExtractFileFromTar` rejects path-traversal payloads in both the caller-supplied path and in tar entry names using `filepath.IsLocal`.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

@@ -182,11 +182,34 @@ Splits a log line into tokens on whitespace boundaries.
 
 #### `StageSequence(events []AgentEvent) string`
 
-Returns a comma-separated string of the stages from a slice of events. Useful for summarizing pipeline execution paths.
+Returns a space-separated string of the stages from a slice of events (e.g. `"plan tool_call tool_result finish"`). Useful for summarizing pipeline execution paths.
+
+### `Snapshot` / `SnapshotCluster`
+
+Serializable representations of miner state used for persistence.
+
+```go
+type Snapshot struct {
+    Config   Config            // Miner configuration
+    Clusters []SnapshotCluster // Serialized cluster list
+    NextID   int               // Next cluster ID counter
+}
+
+type SnapshotCluster struct {
+    ID       int      // Cluster identifier
+    Template []string // Tokenized template with wildcards
+    Size     int      // Number of lines assigned to cluster
+    Stage    string   // Pipeline stage
+}
+```
+
+These types are returned and consumed by `SaveSnapshots` / `LoadSnapshots` and are serialized as JSON.
 
 ## Default Weights
 
 The package embeds a set of default trained weights (in `data/`) via `//go:embed`. Call `coord.LoadDefaultWeights()` to initialize the coordinator with pre-trained cluster weights rather than starting cold.
+
+Update embedded weights by running `gh aw logs --train --output <dir>` and copying the resulting `drain3_weights.json` to `pkg/agentdrain/data/default_weights.json`, then rebuilding the binary.
 
 ## Design Notes
 
@@ -194,3 +217,7 @@ The package embeds a set of default trained weights (in `data/`) via `//go:embed
 - `SimThreshold` of `0.4` means at least 40% of tokens must match exactly (excluding wildcards) for a line to join an existing cluster.
 - The `Coordinator` routes each `AgentEvent` to its stage-specific `Miner` so that templates from different stages do not interfere.
 - `SaveJSON`/`LoadJSON` serialize the parse tree and cluster list to enable persistence across workflow runs.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*
