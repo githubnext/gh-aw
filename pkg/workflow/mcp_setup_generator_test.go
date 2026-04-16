@@ -514,7 +514,7 @@ tools:
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
 		"Docker command should mount the Docker socket")
-	assert.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
+	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
 }
 
