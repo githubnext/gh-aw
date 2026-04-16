@@ -68,7 +68,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 		// Use the compiler's shared action cache to benefit from cached resolutions
 		actionCache := compiler.GetSharedActionCache()
 		if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
-			return fmt.Errorf("action SHA validation failed: %w", err)
+			return fmt.Errorf("action SHA validation failed (run 'gh aw update-actions' and recompile): %w", err)
 		}
 	}
 
@@ -135,7 +135,7 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 		// Use the compiler's shared action cache to benefit from cached resolutions
 		actionCache := compiler.GetSharedActionCache()
 		if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
-			return fmt.Errorf("action SHA validation failed: %w", err)
+			return fmt.Errorf("action SHA validation failed (run 'gh aw update-actions' and recompile): %w", err)
 		}
 	}
 

@@ -491,7 +491,7 @@ func (c *ActionCache) ValidateUniqueActionSHAs() error {
 	}
 
 	sort.Strings(conflicts)
-	return fmt.Errorf("in actions-lock.json, two different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
+	return fmt.Errorf("in actions-lock.json, different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
 }
 
 // deduplicateEntries removes duplicate entries by keeping only the most precise version reference

@@ -67,7 +67,7 @@ func ValidateDistinctActionSHAs(actions []ActionUsage) error {
 
 	if len(conflicts) > 0 {
 		sort.Strings(conflicts)
-		return fmt.Errorf("two different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
+		return fmt.Errorf("different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
 	}
 
 	return nil
