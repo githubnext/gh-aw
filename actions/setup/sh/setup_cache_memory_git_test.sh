@@ -150,13 +150,47 @@ assert "keep.json not executable" "[ ! -x '${D}/keep.json' ]"
 assert "drop.sh removed"         "[ ! -f '${D}/drop.sh' ]"
 echo ""
 
-# ── Test 8: Extension comparison is case-sensitive (.JSON != .json) ───────────
-echo "Test 8: Extension comparison is case-sensitive"
+# ── Test 8: Extension matching is case-insensitive ───────────────────────────
+echo "Test 8: Extension matching is case-insensitive"
 D="${WORKSPACE}/test8"
-make_cache_dir "${D}" "data.json" "data.JSON"
+make_cache_dir "${D}" "data.json" "data.JSON" "notes.MD"
+# Allow list uses lowercase; both .json and .JSON files, and .MD files, should be kept
+run_script "${D}" none ".json:.md"
+assert "data.json kept (exact match)"     "[ -f '${D}/data.json' ]"
+assert "data.JSON kept (uppercase file)"  "[ -f '${D}/data.JSON' ]"
+assert "notes.MD kept (uppercase file)"   "[ -f '${D}/notes.MD' ]"
+echo ""
+
+# ── Test 9: Whitespace in GH_AW_ALLOWED_EXTENSIONS is trimmed ────────────────
+echo "Test 9: Whitespace in allowed extensions list is trimmed"
+D="${WORKSPACE}/test9"
+make_cache_dir "${D}" "data.json" "note.md" "drop.sh"
+# Extensions with leading/trailing spaces should still match
+run_script "${D}" none " .json : .md "
+assert "data.json kept (trimmed .json)"  "[ -f '${D}/data.json' ]"
+assert "note.md kept (trimmed .md)"      "[ -f '${D}/note.md' ]"
+assert "drop.sh removed"                 "[ ! -f '${D}/drop.sh' ]"
+echo ""
+
+# ── Test 10: Symlinks are deleted unconditionally ────────────────────────────
+echo "Test 10: Symlinks in working tree are deleted"
+D="${WORKSPACE}/test10"
+make_cache_dir "${D}" "real.json"
+# Plant a symlink (simulating a compromised prior run)
+ln -s /etc/passwd "${D}/evil-link"
+assert "symlink exists before script"    "[ -L '${D}/evil-link' ]"
+run_script "${D}" none >/dev/null
+assert "symlink removed by script"       "[ ! -L '${D}/evil-link' ]"
+assert "real file still exists"          "[ -f '${D}/real.json' ]"
+echo ""
+
+# ── Test 11: Files with spaces in name are handled correctly ─────────────────
+echo "Test 11: Files with spaces in names are handled correctly"
+D="${WORKSPACE}/test11"
+make_cache_dir "${D}" "my data.json" "my script.sh"
 run_script "${D}" none ".json"
-assert "data.json kept"    "[ -f '${D}/data.json' ]"
-assert "data.JSON removed" "[ ! -f '${D}/data.JSON' ]"
+assert "file with space and .json kept"    "[ -f '${D}/my data.json' ]"
+assert "file with space and .sh removed"   "[ ! -f '${D}/my script.sh' ]"
 echo ""
 
 # ── Summary ──────────────────────────────────────────────────────────────────

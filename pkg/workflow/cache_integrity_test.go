@@ -651,3 +651,50 @@ func TestCacheMemorySteps_NoExtensionsNoSanitizationEnvVar(t *testing.T) {
 	assert.NotContains(t, output, "GH_AW_ALLOWED_EXTENSIONS",
 		"Should NOT pass GH_AW_ALLOWED_EXTENSIONS when all extensions are allowed (empty list)")
 }
+
+// TestCacheMemoryAllowedExtensions_ValidationAndEscaping verifies that:
+//   - Valid extensions (e.g. ".json", ".md") are accepted.
+//   - Extensions not matching ^\.[A-Za-z0-9]+$ (e.g. containing single quotes, spaces,
+//     or missing a leading dot) are rejected with a descriptive error.
+//   - When emitting the env var, single quotes in extension values are doubled (”) for
+//     safe embedding in YAML single-quoted scalars.
+func TestCacheMemoryAllowedExtensions_ValidationAndEscaping(t *testing.T) {
+	t.Run("isValidFileExtension helper", func(t *testing.T) {
+		valid := []string{".json", ".md", ".txt", ".csv", ".JSON", ".MD", ".1"}
+		for _, ext := range valid {
+			assert.True(t, isValidFileExtension(ext), "Expected %q to be valid", ext)
+		}
+		invalid := []string{"json", ".json.bak", ".json ", ".", ".json'evil", ".json\nevil", "", "."}
+		for _, ext := range invalid {
+			assert.False(t, isValidFileExtension(ext), "Expected %q to be invalid", ext)
+		}
+	})
+
+	t.Run("invalid extension rejected at parse time", func(t *testing.T) {
+		toolsMap := map[string]any{
+			"cache-memory": map[string]any{
+				"allowed-extensions": []any{".json", "no-leading-dot"},
+			},
+		}
+		toolsConfig, err := ParseToolsConfig(toolsMap)
+		require.NoError(t, err, "Should parse tools config")
+		compiler := NewCompiler()
+		_, err = compiler.extractCacheMemoryConfig(toolsConfig)
+		require.Error(t, err, "Should reject invalid extension at parse time")
+		assert.Contains(t, err.Error(), "no-leading-dot", "Error should identify the bad value")
+	})
+
+	t.Run("single-quote escaping in emitted YAML", func(t *testing.T) {
+		// This bypasses parse-time validation to confirm the emit escaping is independent.
+		cache := CacheMemoryEntry{
+			ID:                "default",
+			AllowedExtensions: []string{".json", ".it'"},
+		}
+		var builder strings.Builder
+		generateCacheMemoryGitSetupStep(&builder, cache, "/tmp/gh-aw/cache-memory", "none", true)
+		output := builder.String()
+		// Single quote must be doubled for safe YAML single-quoted scalar embedding
+		assert.Contains(t, output, "GH_AW_ALLOWED_EXTENSIONS: '.json:.it'''",
+			"Single quotes in extension values must be escaped as '' in YAML output")
+	})
+}

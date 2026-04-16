@@ -18,6 +18,24 @@ var cacheLog = logger.New("workflow:cache")
 // validCacheMemoryScopes defines the allowed values for cache-memory scope
 var validCacheMemoryScopes = []string{"workflow", "repo"}
 
+// isValidFileExtension reports whether s is a valid file extension of the form ^\.[A-Za-z0-9]+$
+// (e.g. ".json", ".md"). This strict pattern prevents YAML injection when extensions are
+// embedded in generated workflow YAML as single-quoted scalars.
+func isValidFileExtension(s string) bool {
+	if len(s) < 2 || s[0] != '.' {
+		return false
+	}
+	for _, c := range s[1:] {
+		isLower := c >= 'a' && c <= 'z'
+		isUpper := c >= 'A' && c <= 'Z'
+		isDigit := c >= '0' && c <= '9'
+		if !isLower && !isUpper && !isDigit {
+			return false
+		}
+	}
+	return true
+}
+
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
 	Caches []CacheMemoryEntry `yaml:"caches,omitempty"` // cache configurations
@@ -164,6 +182,11 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 			entry.AllowedExtensions = make([]string, 0, len(extArray))
 			for _, ext := range extArray {
 				if extStr, ok := ext.(string); ok {
+					// Validate: must be of the form ^\.[A-Za-z0-9]+$ to prevent YAML injection
+					// and ensure the shell sanitization script handles them correctly.
+					if !isValidFileExtension(extStr) {
+						return entry, fmt.Errorf("invalid allowed-extension %q: must start with '.' followed by alphanumeric characters only (e.g. .json)", extStr)
+					}
 					entry.AllowedExtensions = append(entry.AllowedExtensions, extStr)
 				}
 			}
@@ -526,8 +549,11 @@ func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemory
 	fmt.Fprintf(builder, "          GH_AW_MIN_INTEGRITY: %s\n", integrityLevel)
 	// Pass colon-separated allowed extensions so the setup script can remove disallowed files
 	// before the agent runs (pre-agent sanitization). Skip when the list is empty (allow all).
+	// Single quotes in the value are escaped ('' in YAML single-quoted scalars) as defense-in-depth,
+	// even though isValidFileExtension already rejects values containing single quotes at parse time.
 	if len(cache.AllowedExtensions) > 0 {
-		fmt.Fprintf(builder, "          GH_AW_ALLOWED_EXTENSIONS: '%s'\n", strings.Join(cache.AllowedExtensions, ":"))
+		escaped := strings.ReplaceAll(strings.Join(cache.AllowedExtensions, ":"), "'", "''")
+		fmt.Fprintf(builder, "          GH_AW_ALLOWED_EXTENSIONS: '%s'\n", escaped)
 	}
 	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\"\n")
 }
