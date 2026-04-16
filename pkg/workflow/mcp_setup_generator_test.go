@@ -508,12 +508,9 @@ tools:
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	assert.Contains(t, yamlStr, `--group-add $(stat -c '\''%g'\'' /var/run/docker.sock)`,
-		"Docker command should add the docker socket GID as a supplementary group")
-
-	dockerCmdPattern := `docker run.*--group-add .* -v /var/run/docker\.sock:/var/run/docker\.sock`
+	dockerCmdPattern := `docker run -i --rm --network host --group-add \$\(stat -c (?:'%g'|'\\''%g'\\'') /var/run/docker\.sock\) -v /var/run/docker\.sock:/var/run/docker\.sock`
 	assert.Regexp(t, dockerCmdPattern, yamlStr,
-		"Docker command should add the supplementary group before mounting the Docker socket")
+		"Docker command should include the docker socket supplementary group in the expected position")
 }
 
 // TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
