@@ -732,10 +732,8 @@ func addActivationInteractionPermissionsMap(
 
 	if hasStatusComment {
 		// Status comments for issue and pull request related events use issue comment endpoints.
-		if statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent) {
-			permsMap[PermissionIssues] = PermissionWrite
-		}
-		if statusCommentIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent) {
+		if (statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)) ||
+			(statusCommentIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent)) {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Status comments for discussions use discussion comment APIs and can be disabled via frontmatter.

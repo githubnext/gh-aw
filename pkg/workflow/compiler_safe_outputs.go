@@ -102,7 +102,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					workflowData.StatusCommentPullRequests = &statusCommentPullRequests
 					workflowData.StatusCommentDiscussions = &statusCommentDiscussions
 					if !statusCommentIssues && !statusCommentPullRequests && !statusCommentDiscussions {
-						return errors.New("status-comment object requires at least one target to be enabled (set issues: true, pull-requests: true, or discussions: true, or use status-comment: false)")
+						return errors.New("status-comment object requires at least one target to be enabled (issues, pull-requests, or discussions)")
 					}
 					compilerSafeOutputsLog.Printf(
 						"status-comment object set: issues=%v pullRequests=%v discussions=%v",
