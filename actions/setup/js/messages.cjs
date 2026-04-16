@@ -24,7 +24,7 @@
 const { getMessages, renderTemplate, renderTemplateFromFile } = require("./messages_core.cjs");
 
 // Re-export footer messages
-const { getFooterMessage, getFooterInstallMessage, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
+const { getDetectionCautionAlert, getFooterMessage, getFooterInstallMessage, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateFooterWithMessages, generateXMLMarker } = require("./messages_footer.cjs");
 
 // Re-export staged mode messages
 const { getStagedTitle, getStagedDescription } = require("./messages_staged.cjs");
@@ -39,6 +39,7 @@ module.exports = {
   getMessages,
   renderTemplate,
   renderTemplateFromFile,
+  getDetectionCautionAlert,
   getFooterMessage,
   getFooterInstallMessage,
   getFooterAgentFailureIssueMessage,
