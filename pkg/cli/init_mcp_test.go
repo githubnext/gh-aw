@@ -93,11 +93,11 @@ func TestInitRepository_WithMCP(t *testing.T) {
 			t.Fatalf("Failed to parse .mcp.json: %v", err)
 		}
 
-		if _, exists := config.Servers["github-agentic-workflows"]; !exists {
+		if _, exists := config.MCPServers["github-agentic-workflows"]; !exists {
 			t.Errorf("Expected .mcp.json to contain github-agentic-workflows server")
 		}
 
-		server := config.Servers["github-agentic-workflows"]
+		server := config.MCPServers["github-agentic-workflows"]
 		if server.Command != "gh" {
 			t.Errorf("Expected command to be 'gh', got %s", server.Command)
 		}
@@ -178,7 +178,7 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 
 	// Create initial .mcp.json with a different server
 	initialConfig := MCPConfig{
-		Servers: map[string]VSCodeMCPServer{
+		MCPServers: map[string]VSCodeMCPServer{
 			"other-server": {
 				Command: "other-command",
 				Args:    []string{"arg1"},
@@ -208,12 +208,12 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 	}
 
 	// Check that other-server still exists
-	if _, exists := config.Servers["other-server"]; !exists {
+	if _, exists := config.MCPServers["other-server"]; !exists {
 		t.Errorf("Expected existing 'other-server' to be preserved")
 	}
 
 	// Check that github-agentic-workflows was NOT added (file should not be modified)
-	if _, exists := config.Servers["github-agentic-workflows"]; exists {
+	if _, exists := config.MCPServers["github-agentic-workflows"]; exists {
 		t.Errorf("Expected 'github-agentic-workflows' server to NOT be added (should render instructions instead)")
 	}
 }

@@ -23,8 +23,8 @@ type VSCodeMCPServer struct {
 
 // MCPConfig represents the structure of .mcp.json for Claude Code.
 type MCPConfig struct {
-	Servers       map[string]VSCodeMCPServer `json:"mcpServers,omitempty"`
-	LegacyServers map[string]VSCodeMCPServer `json:"servers,omitempty"`
+	MCPServers map[string]VSCodeMCPServer `json:"mcpServers,omitempty"`
+	Servers    map[string]VSCodeMCPServer `json:"servers,omitempty"`
 }
 
 // ensureMCPConfig creates .mcp.json with gh-aw MCP server configuration
@@ -52,7 +52,7 @@ func ensureMCPConfig(verbose bool) error {
 		}
 
 		// Check if the server is already configured correctly
-		if existingConfig, exists := config.Servers[ghAwServerName]; exists {
+		if existingConfig, exists := config.MCPServers[ghAwServerName]; exists {
 			existingJSON, _ := json.Marshal(existingConfig)
 			newJSON, _ := json.Marshal(ghAwConfig)
 			if string(existingJSON) == string(newJSON) {
@@ -73,9 +73,9 @@ func ensureMCPConfig(verbose bool) error {
 	// File doesn't exist - create it
 	mcpConfigLog.Print("No existing config found, creating new one")
 	config := MCPConfig{
-		Servers: make(map[string]VSCodeMCPServer),
+		MCPServers: make(map[string]VSCodeMCPServer),
 	}
-	config.Servers[ghAwServerName] = ghAwConfig
+	config.MCPServers[ghAwServerName] = ghAwConfig
 
 	// Write config file with proper indentation
 	data, err := json.MarshalIndent(config, "", "  ")
