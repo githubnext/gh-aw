@@ -65,7 +65,18 @@ func BuildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 // BuildReactionCondition creates a condition tree for the add_reaction job
 func BuildReactionCondition() ConditionNode {
 	expressionBuilderLog.Print("Building reaction condition for multiple event types")
-	return buildReactionLikeCondition(true, true, true)
+	return BuildReactionConditionForTargets(true, true, true)
+}
+
+// BuildReactionConditionForTargets creates a condition tree for reactions scoped to target groups.
+func BuildReactionConditionForTargets(includeIssues bool, includePullRequests bool, includeDiscussions bool) ConditionNode {
+	expressionBuilderLog.Printf(
+		"Building reaction condition: includeIssues=%t includePullRequests=%t includeDiscussions=%t",
+		includeIssues,
+		includePullRequests,
+		includeDiscussions,
+	)
+	return buildReactionLikeCondition(includeIssues, includePullRequests, includeDiscussions)
 }
 
 // BuildStatusCommentCondition creates a condition tree for activation status comments.

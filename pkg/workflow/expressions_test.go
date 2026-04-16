@@ -176,6 +176,21 @@ func TestBuildReactionCondition(t *testing.T) {
 	}
 }
 
+func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
+	result := BuildReactionConditionForTargets(true, false, true)
+	rendered := result.Render()
+
+	if strings.Contains(rendered, "github.event_name == 'pull_request'") {
+		t.Errorf("Expected pull_request event to be excluded when pull request reactions are disabled, got: %s", rendered)
+	}
+	if strings.Contains(rendered, "github.event_name == 'pull_request_review_comment'") {
+		t.Errorf("Expected pull_request_review_comment event to be excluded when pull request reactions are disabled, got: %s", rendered)
+	}
+	if !strings.Contains(rendered, "github.event_name == 'issues'") {
+		t.Errorf("Expected issues event to remain when issue reactions are enabled, got: %s", rendered)
+	}
+}
+
 func TestFunctionCallNode_Render(t *testing.T) {
 	tests := []struct {
 		name     string

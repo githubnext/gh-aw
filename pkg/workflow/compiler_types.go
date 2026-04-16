@@ -436,6 +436,9 @@ type WorkflowData struct {
 	LabelCommandOtherEvents     map[string]any            // for merging label-command with other events
 	LabelCommandRemoveLabel     bool                      // whether to automatically remove the triggering label (default: true)
 	AIReaction                  string                    // AI reaction type like "eyes", "heart", etc.
+	ReactionIssues              *bool                     // whether reactions are allowed on issues/issue_comment triggers (default: true)
+	ReactionPullRequests        *bool                     // whether reactions are allowed on pull_request/pull_request_review_comment triggers (default: true)
+	ReactionDiscussions         *bool                     // whether reactions are allowed on discussion/discussion_comment triggers (default: true)
 	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
 	StatusCommentIssues         *bool                     // whether status comments are allowed on issues/issue_comment triggers (default: true)
 	StatusCommentPullRequests   *bool                     // whether status comments are allowed on pull_request/pull_request_review_comment triggers (default: true)

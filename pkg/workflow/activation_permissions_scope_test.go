@@ -78,6 +78,44 @@ engine: copilot
 	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write for PR review comment reactions")
 }
 
+func TestActivationPermissionsReactionPullRequestsDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-reaction-pr-disabled")
+	testFile := filepath.Join(tmpDir, "reaction-pr-disabled.md")
+	testContent := `---
+on:
+  reaction:
+    type: eyes
+    pull-requests: false
+  status-comment: false
+  pull_request:
+    types: [opened]
+engine: copilot
+---
+
+# Reaction pull_request target disabled
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "Add eyes reaction for immediate feedback", "activation job should include reaction step")
+	assert.Contains(t, activationJobSection, "github.event_name == 'issues'", "reaction condition should still include issues when reaction.issues is enabled")
+	assert.Contains(t, activationJobSection, "github.event_name == 'discussion'", "reaction condition should still include discussions when reaction.discussions is enabled")
+	assert.NotContains(t, activationJobSection, "github.event_name == 'pull_request'", "reaction condition should exclude pull_request when reaction.pull-requests is false")
+	assert.NotContains(t, activationJobSection, "github.event_name == 'pull_request_review_comment'", "reaction condition should exclude pull_request_review_comment when reaction.pull-requests is false")
+	assert.NotContains(t, activationJobSection, "issues: write", "activation job should not include issues: write when pull request reactions are disabled")
+	assert.NotContains(t, activationJobSection, "pull-requests: write", "activation job should not include pull-requests: write when pull request reactions are disabled")
+	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write when no discussion triggers are configured")
+}
+
 func TestActivationPermissionsStatusCommentDiscussionsDisabled(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "activation-perms-status-comment-discussions-disabled")
 	testFile := filepath.Join(tmpDir, "status-comment-discussions-disabled.md")
@@ -116,7 +154,16 @@ engine: copilot
 func TestAddActivationInteractionPermissionsMapFallsBackOnInvalidOnYAML(t *testing.T) {
 	permsMap := map[PermissionScope]PermissionLevel{}
 
-	addActivationInteractionPermissionsMap(permsMap, "on: [", true, true, true, true, true)
+	addActivationInteractionPermissionsMap(permsMap, "on: [",
+		/* hasReaction */ true,
+		/* reactionIncludesIssues */ true,
+		/* reactionIncludesPullRequests */ true,
+		/* reactionIncludesDiscussions */ true,
+		/* hasStatusComment */ true,
+		/* statusCommentIncludesIssues */ true,
+		/* statusCommentIncludesPullRequests */ true,
+		/* statusCommentIncludesDiscussions */ true,
+	)
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write")
 	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "fallback should include pull-requests:write")
@@ -126,7 +173,16 @@ func TestAddActivationInteractionPermissionsMapFallsBackOnInvalidOnYAML(t *testi
 func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentDiscussionsToggle(t *testing.T) {
 	permsMap := map[PermissionScope]PermissionLevel{}
 
-	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, true, true, false)
+	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key",
+		/* hasReaction */ false,
+		/* reactionIncludesIssues */ true,
+		/* reactionIncludesPullRequests */ true,
+		/* reactionIncludesDiscussions */ true,
+		/* hasStatusComment */ true,
+		/* statusCommentIncludesIssues */ true,
+		/* statusCommentIncludesPullRequests */ true,
+		/* statusCommentIncludesDiscussions */ false,
+	)
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write for status comments")
 	_, hasPullRequests := permsMap[PermissionPullRequests]
@@ -175,7 +231,16 @@ engine: copilot
 func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentIssuesToggle(t *testing.T) {
 	permsMap := map[PermissionScope]PermissionLevel{}
 
-	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, false, false, true)
+	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key",
+		/* hasReaction */ false,
+		/* reactionIncludesIssues */ true,
+		/* reactionIncludesPullRequests */ true,
+		/* reactionIncludesDiscussions */ true,
+		/* hasStatusComment */ true,
+		/* statusCommentIncludesIssues */ false,
+		/* statusCommentIncludesPullRequests */ false,
+		/* statusCommentIncludesDiscussions */ true,
+	)
 
 	_, hasIssues := permsMap[PermissionIssues]
 	_, hasPullRequests := permsMap[PermissionPullRequests]
@@ -249,7 +314,16 @@ engine: copilot
 func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentPullRequestsToggle(t *testing.T) {
 	permsMap := map[PermissionScope]PermissionLevel{}
 
-	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, false, false, true)
+	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key",
+		/* hasReaction */ false,
+		/* reactionIncludesIssues */ true,
+		/* reactionIncludesPullRequests */ true,
+		/* reactionIncludesDiscussions */ true,
+		/* hasStatusComment */ true,
+		/* statusCommentIncludesIssues */ false,
+		/* statusCommentIncludesPullRequests */ false,
+		/* statusCommentIncludesDiscussions */ true,
+	)
 
 	_, hasIssues := permsMap[PermissionIssues]
 	_, hasPullRequests := permsMap[PermissionPullRequests]

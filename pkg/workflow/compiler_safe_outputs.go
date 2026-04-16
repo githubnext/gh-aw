@@ -50,7 +50,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
-				reactionStr, err := parseReactionValue(reactionValue)
+				reactionStr, reactionIssues, reactionPullRequests, reactionDiscussions, err := parseReactionConfig(reactionValue)
 				if err != nil {
 					return err
 				}
@@ -60,6 +60,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				}
 				// Set AIReaction even if it's "none" - "none" explicitly disables reactions
 				workflowData.AIReaction = reactionStr
+				workflowData.ReactionIssues = reactionIssues
+				workflowData.ReactionPullRequests = reactionPullRequests
+				workflowData.ReactionDiscussions = reactionDiscussions
 			}
 
 			// Extract status-comment from on section
