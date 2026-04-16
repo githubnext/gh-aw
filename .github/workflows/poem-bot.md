@@ -28,6 +28,7 @@ permissions:
 engine:
   id: copilot
   model: gpt-5
+  bare: true
 
 # Import shared reporting guidelines
 imports:

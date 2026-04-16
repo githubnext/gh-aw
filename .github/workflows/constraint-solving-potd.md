@@ -6,6 +6,10 @@ on:
 permissions:
   models: read
 
+engine:
+  id: copilot
+  bare: true
+
 tools:
   mount-as-clis: true
   cache-memory: true

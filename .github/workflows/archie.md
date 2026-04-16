@@ -12,7 +12,9 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-engine: copilot
+engine:
+  id: copilot
+  agent: adr-writer
 strict: true
 imports:
   - shared/mcp/serena-go.md

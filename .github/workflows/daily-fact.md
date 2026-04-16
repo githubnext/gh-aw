@@ -14,6 +14,7 @@ tracker-id: daily-fact-thread
 engine:
   id: codex
   model: gpt-5.1-codex-mini
+  bare: true
 strict: true
 timeout-minutes: 15
 runs-on: aw-gpu-runner-T4
