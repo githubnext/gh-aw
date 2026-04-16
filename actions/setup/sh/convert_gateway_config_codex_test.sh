@@ -85,8 +85,9 @@ if ! grep -q 'persistence = "none"' /tmp/gh-aw/mcp-config/config.toml; then
   exit 1
 fi
 
-# Check that URLs are correctly formatted with domain and port
-if ! grep -q 'url = "http://host.docker.internal:80/mcp/github"' /tmp/gh-aw/mcp-config/config.toml; then
+# Check that URLs are correctly formatted with resolved domain and port
+# Note: The script resolves host.docker.internal to 172.30.0.1 for Rust DNS compatibility
+if ! grep -q 'url = "http://172.30.0.1:80/mcp/github"' /tmp/gh-aw/mcp-config/config.toml; then
   echo "✗ FAIL: URL not correctly formatted for github server"
   cat /tmp/gh-aw/mcp-config/config.toml
   exit 1
@@ -111,8 +112,68 @@ else
 fi
 echo ""
 
-# Test 3: Error handling - missing MCP_GATEWAY_OUTPUT
-echo "Test 3: Error handling for missing MCP_GATEWAY_OUTPUT"
+# Test 3: Safeoutputs server gets direct connection with env var reference
+echo "Test 3: Safeoutputs server uses direct connection with env var reference"
+
+cat > "$TEST_DIR/gateway-output-safeoutputs.json" << 'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp/github",
+      "headers": {
+        "Authorization": "gateway-api-key-123"
+      }
+    },
+    "safeoutputs": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp/safeoutputs",
+      "headers": {
+        "Authorization": "gateway-api-key-123"
+      }
+    }
+  }
+}
+EOF
+
+export MCP_GATEWAY_OUTPUT="$TEST_DIR/gateway-output-safeoutputs.json"
+export GH_AW_SAFE_OUTPUTS_PORT="3001"
+bash "$SCRIPT_PATH" > /dev/null 2>&1
+
+# safeoutputs should use direct URL (not gateway proxy URL)
+if grep -q 'url = "http://172.30.0.1:80/mcp/safeoutputs"' /tmp/gh-aw/mcp-config/config.toml; then
+  echo "✗ FAIL: safeoutputs should NOT use gateway proxy URL"
+  cat /tmp/gh-aw/mcp-config/config.toml
+  exit 1
+fi
+
+if ! grep -q 'url = "http://172.30.0.1:3001"' /tmp/gh-aw/mcp-config/config.toml; then
+  echo "✗ FAIL: safeoutputs should use direct URL with safe outputs port"
+  cat /tmp/gh-aw/mcp-config/config.toml
+  exit 1
+fi
+
+# safeoutputs Authorization should be env var reference, not gateway key
+# Check safeoutputs section specifically (after its url line)
+if ! python3 -c "
+import re
+content = open('/tmp/gh-aw/mcp-config/config.toml').read()
+# Find the safeoutputs section
+section = re.search(r'\[mcp_servers\.safeoutputs\].*?(?=\[|$)', content, re.DOTALL)
+assert section, 'safeoutputs section not found'
+assert '\${GH_AW_SAFE_OUTPUTS_API_KEY}' in section.group(), 'env var reference not found in safeoutputs section'
+assert 'gateway-api-key-123' not in section.group(), 'gateway key should not be in safeoutputs section'
+" 2>/dev/null; then
+  echo "✗ FAIL: safeoutputs section should use env var reference, not gateway key"
+  cat /tmp/gh-aw/mcp-config/config.toml
+  exit 1
+fi
+
+echo "✓ PASS: Safeoutputs server uses direct connection with env var reference"
+echo ""
+
+# Test 4: Error handling - missing MCP_GATEWAY_OUTPUT
+echo "Test 4: Error handling for missing MCP_GATEWAY_OUTPUT"
 unset MCP_GATEWAY_OUTPUT
 if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
   echo "✗ FAIL: Script should fail when MCP_GATEWAY_OUTPUT is not set"
@@ -122,8 +183,8 @@ else
 fi
 echo ""
 
-# Test 4: Error handling - missing gateway output file
-echo "Test 4: Error handling for missing gateway output file"
+# Test 5: Error handling - missing gateway output file
+echo "Test 5: Error handling for missing gateway output file"
 export MCP_GATEWAY_OUTPUT="$TEST_DIR/nonexistent.json"
 if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
   echo "✗ FAIL: Script should fail when gateway output file doesn't exist"
@@ -133,8 +194,8 @@ else
 fi
 echo ""
 
-# Test 5: Error handling - missing MCP_GATEWAY_DOMAIN
-echo "Test 5: Error handling for missing MCP_GATEWAY_DOMAIN"
+# Test 6: Error handling - missing MCP_GATEWAY_DOMAIN
+echo "Test 6: Error handling for missing MCP_GATEWAY_DOMAIN"
 export MCP_GATEWAY_OUTPUT="$TEST_DIR/gateway-output.json"
 unset MCP_GATEWAY_DOMAIN
 if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
@@ -146,8 +207,8 @@ fi
 export MCP_GATEWAY_DOMAIN="host.docker.internal"
 echo ""
 
-# Test 6: Error handling - missing MCP_GATEWAY_PORT
-echo "Test 6: Error handling for missing MCP_GATEWAY_PORT"
+# Test 7: Error handling - missing MCP_GATEWAY_PORT
+echo "Test 7: Error handling for missing MCP_GATEWAY_PORT"
 unset MCP_GATEWAY_PORT
 if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
   echo "✗ FAIL: Script should fail when MCP_GATEWAY_PORT is not set"

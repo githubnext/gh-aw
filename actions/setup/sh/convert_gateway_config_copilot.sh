@@ -76,15 +76,37 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 # Build the correct URL prefix using the configured domain and port
 URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 
-jq --arg urlPrefix "$URL_PREFIX" '
+# The safeoutputs write-sink gets a direct connection (bypassing the gateway)
+# with an env var reference for the Authorization header. This prevents bash
+# subprocesses from reading the shared MCP gateway bearer token and using it
+# to call the safeoutputs write-sink, bypassing the read-only permission ceiling.
+# The Copilot CLI expands ${GH_AW_SAFE_OUTPUTS_API_KEY} at connection time; the
+# LD_PRELOAD one-shot library protects the env var from bash subprocess access.
+SAFE_OUTPUTS_PORT="${GH_AW_SAFE_OUTPUTS_PORT:-3001}"
+SAFE_OUTPUTS_DIRECT_URL="http://${MCP_GATEWAY_DOMAIN}:${SAFE_OUTPUTS_PORT}"
+
+jq --arg urlPrefix "$URL_PREFIX" \
+   --arg safeOutputsUrl "$SAFE_OUTPUTS_DIRECT_URL" '
   .mcpServers |= with_entries(
-    .value |= (
-      # Add tools field if not present
-      (if .tools then . else . + {"tools": ["*"]} end) |
-      # Fix the URL to use the correct domain
-      # Replace http://anything:port/mcp/ with http://domain:port/mcp/
-      .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
-    )
+    if .key == "safeoutputs" then
+      # Use direct URL and env var reference for Authorization (not gateway key)
+      .value = {
+        "type": "http",
+        "url": $safeOutputsUrl,
+        "tools": ["*"],
+        "headers": {
+          "Authorization": "${GH_AW_SAFE_OUTPUTS_API_KEY}"
+        }
+      }
+    else
+      .value |= (
+        # Add tools field if not present
+        (if .tools then . else . + {"tools": ["*"]} end) |
+        # Fix the URL to use the correct domain
+        # Replace http://anything:port/mcp/ with http://domain:port/mcp/
+        .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
+      )
+    end
   )
 ' "$MCP_GATEWAY_OUTPUT" > /home/runner/.copilot/mcp-config.json
 

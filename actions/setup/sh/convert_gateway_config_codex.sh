@@ -77,6 +77,15 @@ else
 fi
 URL_PREFIX="http://${RESOLVED_DOMAIN}:${MCP_GATEWAY_PORT}"
 
+# The safeoutputs write-sink gets a direct connection (bypassing the gateway)
+# with an env var reference for the Authorization header. This prevents bash
+# subprocesses from reading the shared MCP gateway bearer token and using it
+# to call the safeoutputs write-sink, bypassing the read-only permission ceiling.
+# The ${...} reference is written literally; Codex expands it at runtime.
+# The LD_PRELOAD one-shot library protects the env var from bash subprocess access.
+SAFE_OUTPUTS_PORT="${GH_AW_SAFE_OUTPUTS_PORT:-3001}"
+SAFE_OUTPUTS_DIRECT_URL="http://${RESOLVED_DOMAIN}:${SAFE_OUTPUTS_PORT}"
+
 # Create the TOML configuration
 cat > /tmp/gh-aw/mcp-config/config.toml << 'TOML_EOF'
 [history]
@@ -84,11 +93,18 @@ persistence = "none"
 
 TOML_EOF
 
-jq -r --arg urlPrefix "$URL_PREFIX" '
+jq -r --arg urlPrefix "$URL_PREFIX" \
+      --arg safeOutputsUrl "$SAFE_OUTPUTS_DIRECT_URL" '
   .mcpServers | to_entries[] |
-  "[mcp_servers.\(.key)]\n" +
-  "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
-  "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
+  if .key == "safeoutputs" then
+    "[mcp_servers.\(.key)]\n" +
+    "url = \"" + $safeOutputsUrl + "\"\n" +
+    "http_headers = { Authorization = \"${GH_AW_SAFE_OUTPUTS_API_KEY}\" }\n"
+  else
+    "[mcp_servers.\(.key)]\n" +
+    "url = \"" + ($urlPrefix + "/mcp/" + .key) + "\"\n" +
+    "http_headers = { Authorization = \"\(.value.headers.Authorization)\" }\n"
+  end
 ' "$MCP_GATEWAY_OUTPUT" >> /tmp/gh-aw/mcp-config/config.toml
 
 # Restrict permissions so only the runner process owner can read this file.

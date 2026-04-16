@@ -93,14 +93,35 @@ GEMINI_SETTINGS_FILE="${GEMINI_SETTINGS_DIR}/settings.json"
 
 mkdir -p "$GEMINI_SETTINGS_DIR"
 
-jq --arg urlPrefix "$URL_PREFIX" --argjson cliServers "${GH_AW_MCP_CLI_SERVERS:-[]}" '
+# The safeoutputs write-sink gets a direct connection (bypassing the gateway)
+# with an env var reference for the Authorization header. This prevents bash
+# subprocesses from reading the shared MCP gateway bearer token and using it
+# to call the safeoutputs write-sink, bypassing the read-only permission ceiling.
+# The Gemini CLI expands ${GH_AW_SAFE_OUTPUTS_API_KEY} at connection time; the
+# LD_PRELOAD one-shot library protects the env var from bash subprocess access.
+SAFE_OUTPUTS_PORT="${GH_AW_SAFE_OUTPUTS_PORT:-3001}"
+SAFE_OUTPUTS_DIRECT_URL="http://${MCP_GATEWAY_DOMAIN}:${SAFE_OUTPUTS_PORT}"
+
+jq --arg urlPrefix "$URL_PREFIX" \
+   --argjson cliServers "${GH_AW_MCP_CLI_SERVERS:-[]}" \
+   --arg safeOutputsUrl "$SAFE_OUTPUTS_DIRECT_URL" '
   .mcpServers |= with_entries(
     select(.key | IN($cliServers[]) | not) |
-    .value |= (
-      (del(.type)) |
-      # Fix the URL to use the correct domain
-      .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
-    )
+    if .key == "safeoutputs" then
+      # Use direct URL and env var reference for Authorization (not gateway key)
+      .value = {
+        "url": $safeOutputsUrl,
+        "headers": {
+          "Authorization": "${GH_AW_SAFE_OUTPUTS_API_KEY}"
+        }
+      }
+    else
+      .value |= (
+        (del(.type)) |
+        # Fix the URL to use the correct domain
+        .url |= (. | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/"))
+      )
+    end
   ) |
   # Allow Gemini CLI to read/write files from /tmp/ (e.g. MCP payload files, cache-memory, agent outputs)
   .context.includeDirectories = ["/tmp/"]

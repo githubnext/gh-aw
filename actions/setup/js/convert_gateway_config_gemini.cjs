@@ -13,6 +13,14 @@ require("./shim.cjs");
  * (Gemini uses transport auto-detection), rewrites URLs to use the correct
  * domain, and adds /tmp/ to context.includeDirectories.
  *
+ * Security: The safeoutputs write-sink server is given a direct connection (bypassing
+ * the gateway) using an env var reference for the Authorization header rather than
+ * the shared MCP_GATEWAY_API_KEY. This prevents bash subprocesses from reading the
+ * gateway bearer token and using it to call the write-sink, which would bypass the
+ * declared read-only permission ceiling. The Gemini CLI expands ${...} references
+ * at connection time; the LD_PRELOAD one-shot token library prevents bash subprocesses
+ * from reading GH_AW_SAFE_OUTPUTS_API_KEY from the environment.
+ *
  * Gemini CLI reads MCP server configuration from settings.json files:
  * - Global: ~/.gemini/settings.json
  * - Project: .gemini/settings.json (used here)
@@ -27,10 +35,14 @@ require("./shim.cjs");
  *
  * Optional:
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
+ * - GH_AW_SAFE_OUTPUTS_PORT: Port for the safe-outputs HTTP server (default: 3001)
  */
 
 const fs = require("fs");
 const path = require("path");
+
+/** Server ID for the safe-outputs write-sink MCP server. */
+const SAFEOUTPUTS_SERVER_ID = "safeoutputs";
 
 /**
  * Rewrite a gateway URL to use the configured domain and port.
@@ -94,6 +106,31 @@ function main() {
   const result = {};
   for (const [name, value] of Object.entries(servers)) {
     if (cliServers.has(name)) continue;
+
+    if (name === SAFEOUTPUTS_SERVER_ID) {
+      // The safeoutputs write-sink uses a direct connection with an env var reference
+      // for the Authorization header instead of the shared MCP gateway API key.
+      // This ensures that a bash subprocess reading the gateway bearer token from
+      // settings.json cannot use that token to reach the safeoutputs write-sink,
+      // which would bypass the declared read-only permission ceiling.
+      //
+      // The Gemini CLI expands ${GH_AW_SAFE_OUTPUTS_API_KEY} at connection time from
+      // the process environment. The LD_PRELOAD one-shot token library prevents bash
+      // subprocesses from reading GH_AW_SAFE_OUTPUTS_API_KEY from the environment
+      // after the agent process has consumed it on startup.
+      const safeOutputsPort = process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001";
+      result[name] = {
+        // No "type" field — Gemini uses transport auto-detection
+        url: `http://${domain}:${safeOutputsPort}`,
+        headers: {
+          // Literal env var reference — NOT expanded here. The Gemini CLI resolves it.
+          Authorization: "${GH_AW_SAFE_OUTPUTS_API_KEY}",
+        },
+      };
+      core.info(`safeoutputs: using direct connection at port ${safeOutputsPort} with env var reference`);
+      continue;
+    }
+
     const entry = { ...value };
     // Remove "type" field — Gemini uses transport auto-detection from url/httpUrl
     delete entry.type;

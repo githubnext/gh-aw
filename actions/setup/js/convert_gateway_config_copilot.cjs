@@ -12,6 +12,14 @@ require("./shim.cjs");
  * CLI-mounted servers, adds tools:["*"] if missing, rewrites URLs to use the
  * correct domain, and writes the result to /home/runner/.copilot/mcp-config.json.
  *
+ * Security: The safeoutputs write-sink server is given a direct connection (bypassing
+ * the gateway) using an env var reference for the Authorization header rather than
+ * the shared MCP_GATEWAY_API_KEY. This prevents bash subprocesses from reading the
+ * gateway bearer token and using it to call the write-sink, which would bypass the
+ * declared read-only permission ceiling. The Copilot CLI expands ${...} references
+ * at connection time; the LD_PRELOAD one-shot token library prevents bash subprocesses
+ * from reading GH_AW_SAFE_OUTPUTS_API_KEY from the environment.
+ *
  * Required environment variables:
  * - MCP_GATEWAY_OUTPUT: Path to gateway output configuration file
  * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
@@ -19,12 +27,16 @@ require("./shim.cjs");
  *
  * Optional:
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
+ * - GH_AW_SAFE_OUTPUTS_PORT: Port for the safe-outputs HTTP server (default: 3001)
  */
 
 const fs = require("fs");
 const path = require("path");
 
 const OUTPUT_PATH = "/home/runner/.copilot/mcp-config.json";
+
+/** Server ID for the safe-outputs write-sink MCP server. */
+const SAFEOUTPUTS_SERVER_ID = "safeoutputs";
 
 /**
  * Rewrite a gateway URL to use the configured domain and port.
@@ -83,6 +95,32 @@ function main() {
   const result = {};
   for (const [name, value] of Object.entries(servers)) {
     if (cliServers.has(name)) continue;
+
+    if (name === SAFEOUTPUTS_SERVER_ID) {
+      // The safeoutputs write-sink uses a direct connection with an env var reference
+      // for the Authorization header instead of the shared MCP gateway API key.
+      // This ensures that a bash subprocess reading the gateway bearer token from
+      // mcp-config.json cannot use that token to reach the safeoutputs write-sink,
+      // which would bypass the declared read-only permission ceiling.
+      //
+      // The Copilot CLI expands ${GH_AW_SAFE_OUTPUTS_API_KEY} at connection time from
+      // the process environment. The LD_PRELOAD one-shot token library prevents bash
+      // subprocesses from reading GH_AW_SAFE_OUTPUTS_API_KEY from the environment
+      // after the agent process has consumed it on startup.
+      const safeOutputsPort = process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001";
+      result[name] = {
+        type: "http",
+        url: `http://${domain}:${safeOutputsPort}`,
+        tools: ["*"],
+        headers: {
+          // Literal env var reference — NOT expanded here. The Copilot CLI resolves it.
+          Authorization: "${GH_AW_SAFE_OUTPUTS_API_KEY}",
+        },
+      };
+      core.info(`safeoutputs: using direct connection at port ${safeOutputsPort} with env var reference`);
+      continue;
+    }
+
     const entry = { ...value };
     // Add tools field if not present
     if (!entry.tools) {
