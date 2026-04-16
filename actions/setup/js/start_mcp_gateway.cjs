@@ -375,7 +375,7 @@ async function main() {
 
   const maxRetries = 120;
   const initialRetryDelayMs = 250;
-  const maxRetryDelayMs = 1000;
+  // delay = initialRetryDelayMs * 2^min(attempt-1, maxRetryExponent)
   // 250ms -> 500ms -> 1000ms, then capped at 1000ms.
   const maxRetryExponent = 2;
   let httpCode = 0;
@@ -406,7 +406,7 @@ async function main() {
 
     if (attempt < maxRetries) {
       const retryExponent = Math.min(attempt - 1, maxRetryExponent);
-      const retryDelayMs = Math.min(initialRetryDelayMs * 2 ** retryExponent, maxRetryDelayMs);
+      const retryDelayMs = initialRetryDelayMs * 2 ** retryExponent;
       await sleep(retryDelayMs);
     }
   }
