@@ -3,8 +3,13 @@
 /**
  * Add `data-label` attributes to markdown table cells at build time.
  * This ensures mobile card-style tables have labels even when JavaScript is disabled.
+ *
+ * @returns {(tree: import('unist').Node) => void}
  */
 export default function remarkTableDataLabels() {
+	/**
+	 * @param {import('unist').Node} tree
+	 */
 	return function transform(tree) {
 		visit(tree);
 	};
@@ -35,9 +40,7 @@ function visit(node) {
 				if (!cell.data.hProperties || typeof cell.data.hProperties !== 'object') {
 					cell.data.hProperties = {};
 				}
-				if (!cell.data.hProperties['data-label']) {
-					cell.data.hProperties['data-label'] = label;
-				}
+				cell.data.hProperties['data-label'] = label;
 			}
 		}
 	}
