@@ -59,13 +59,23 @@ steps:
           fm_match = re.search(r'^---\n(.*?)\n---', content, re.DOTALL)
           frontmatter = fm_match.group(1) if fm_match else ""
           imports = re.findall(r"^\s*-\s+(shared/\S+)", frontmatter, re.MULTILINE)
-          engine_match = re.search(r"^\s*id:\s*(\S+)", frontmatter, re.MULTILINE)
+          engine = None
+          engine_block_match = re.search(
+              r"(?ms)^engine:\s*\n((?:^[ \t].*\n?)*)", frontmatter
+          )
+          if engine_block_match:
+              engine_block = engine_block_match.group(1)
+              engine_id_match = re.search(
+                  r"^\s*id:\s*(\S+)", engine_block, re.MULTILINE
+              )
+              if engine_id_match:
+                  engine = engine_id_match.group(1)
           index.append(
               {
                   "file": fn,
                   "path": path,
                   "imports": imports,
-                  "engine": engine_match.group(1) if engine_match else None,
+                  "engine": engine,
                   "has_github_tools": "github:" in frontmatter,
                   "has_safe_outputs": "safe-outputs:" in frontmatter,
                   "frontmatter_preview": frontmatter[:400],
