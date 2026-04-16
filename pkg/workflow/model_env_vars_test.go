@@ -218,16 +218,29 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 		name           string
 		safeOutputs    *SafeOutputsConfig
 		expectedOrgVar string
+		features       map[string]any
+		expectedTail   string
 	}{
 		{
 			name:           "Agent job maps GH_AW_MODEL_AGENT_COPILOT to COPILOT_MODEL",
 			safeOutputs:    &SafeOutputsConfig{},
 			expectedOrgVar: constants.EnvVarModelAgentCopilot,
+			expectedTail:   "''",
+		},
+		{
+			name:        "Agent job with byok-copilot uses non-empty COPILOT_MODEL fallback",
+			safeOutputs: &SafeOutputsConfig{},
+			features: map[string]any{
+				string(constants.ByokCopilotFeatureFlag): true,
+			},
+			expectedOrgVar: constants.EnvVarModelAgentCopilot,
+			expectedTail:   "'" + constants.CopilotBYOKDefaultModel + "'",
 		},
 		{
 			name:           "Detection job maps GH_AW_MODEL_DETECTION_COPILOT to COPILOT_MODEL",
 			safeOutputs:    nil,
 			expectedOrgVar: constants.EnvVarModelDetectionCopilot,
+			expectedTail:   "''",
 		},
 	}
 
@@ -240,6 +253,7 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 					"bash": []any{"echo"},
 				},
 				SafeOutputs: tt.safeOutputs,
+				Features:    tt.features,
 			}
 
 			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
@@ -259,7 +273,7 @@ func TestCopilotFallbackModelMapsToNativeEnvVar(t *testing.T) {
 			stepsContent := stepsStr.String()
 
 			// The model must be passed via COPILOT_MODEL env var pointing to the org variable
-			expectedEnvLine := constants.CopilotCLIModelEnvVar + ": ${{ vars." + tt.expectedOrgVar + " || '' }}"
+			expectedEnvLine := constants.CopilotCLIModelEnvVar + ": ${{ vars." + tt.expectedOrgVar + " || " + tt.expectedTail + " }}"
 			if !strings.Contains(stepsContent, expectedEnvLine) {
 				t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 			}

@@ -392,12 +392,17 @@ touch %s
 	// When model is explicitly configured, use its value directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set
 	// a default via GitHub Actions variables without requiring per-workflow frontmatter changes.
+	// In byok-copilot mode, use a non-empty fallback because BYOK providers require an explicit model.
 	if modelConfigured {
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		// No model configured - map org variable to native COPILOT_MODEL env var
-		env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CopilotBYOKDefaultModel)
+		} else {
+			// No model configured - map org variable to native COPILOT_MODEL env var
+			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		}
 	}
 
 	// Add custom environment variables from engine config
