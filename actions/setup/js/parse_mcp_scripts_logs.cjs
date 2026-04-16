@@ -163,7 +163,7 @@ function generatePlainTextSummary(logEntries) {
     if (!message) continue;
 
     // Parse: "  [gh] Invoking handler with args: { ... }"
-    const invokingMatch = message.match(/\[\s*([^\]]+)\s*\]\s+Invoking handler with args:\s*(\{[\s\S]*\})\s*$/i);
+    const invokingMatch = message.match(/\[\s*([^\]]+)\s*\]\s+Invoking handler with args:\s*(\{[\s\S]*?\})\s*$/i);
     if (invokingMatch) {
       const tool = invokingMatch[1].trim();
       const parsedArgs = parseJSON(invokingMatch[2]);
@@ -188,7 +188,7 @@ function generatePlainTextSummary(logEntries) {
     }
 
     // Parse: "callBackendTool ... toolName=gh, args=map[args:pr view ...]"
-    const backendToolMatch = message.match(/toolName=([^\s,]+),\s+args=map\[args:([^\]]+)\]\s*$/i);
+    const backendToolMatch = message.match(/toolName=([^\s,]+),\s+args=map\[args:([^\]]+?)\]\s*$/i);
     if (backendToolMatch) {
       const tool = backendToolMatch[1].trim();
       const argsDisplay = ` · args: "${truncate(backendToolMatch[2], 90)}"`;
@@ -203,7 +203,7 @@ function generatePlainTextSummary(logEntries) {
     }
 
     // Parse: "  [gh] Serialized result: {...}"
-    const serializedResultMatch = message.match(/\[\s*([^\]]+)\s*\]\s+Serialized result:\s*(\{[\s\S]*\}|\[[\s\S]*\]|.+)\s*$/i);
+    const serializedResultMatch = message.match(/\[\s*([^\]]+)\s*\]\s+Serialized result:\s*(\{[\s\S]*?\}|\[[\s\S]*?\]|.+?)\s*$/i);
     if (serializedResultMatch) {
       const tool = serializedResultMatch[1].trim();
       const resultRaw = serializedResultMatch[2].trim();
