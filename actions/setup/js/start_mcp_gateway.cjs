@@ -410,6 +410,7 @@ async function main() {
         maxDelayMs: 1000,
         backoffMultiplier: 2,
         jitterMs: 0,
+        // Preserve previous loop behavior: retry any health-check failure until attempts are exhausted.
         shouldRetry: () => true,
       },
       "MCP gateway health check"
