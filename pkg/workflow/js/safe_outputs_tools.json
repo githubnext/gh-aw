@@ -1590,7 +1590,7 @@
     },
     {
         "name": "upload_artifact",
-        "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be referenced by their original absolute path (auto-copied into the staging area) or by a short relative filename if already staged. Shell variable references like $RUNNER_TEMP must NOT appear in the path value because they are not expanded in JSON strings. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorised step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
+        "description": "Upload files as a run-scoped GitHub Actions artifact. Files can be referenced by their original absolute path (auto-copied into the staging area) or by a short relative filename if already staged. Shell variable references like $RUNNER_TEMP must NOT appear in the path value because they are not expanded in JSON strings. Absolute paths and paths relative to the workspace are supported. Returns a temporary artifact ID (aw_*) that can be resolved to a download URL by an authorized step. Retention and archive settings are fixed by workflow configuration. Exactly one of path or filters must be present.",
         "inputSchema": {
             "type": "object",
             "properties": {
