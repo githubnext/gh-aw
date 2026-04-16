@@ -13,7 +13,9 @@ permissions:
   discussions: read
 
 tracker-id: daily-hippo-learn
-engine: copilot
+engine:
+  id: copilot
+  bare: true
 
 timeout-minutes: 30
 
