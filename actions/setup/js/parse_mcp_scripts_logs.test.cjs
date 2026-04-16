@@ -179,7 +179,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26450 --repo github/gh-aw --json number"');
+      expect(summary).toContain('● gh (MCP: mcp-gateway) · args: "pr view 26450 --repo github/gh-aw --json number"');
     });
 
     it("should include multiple tool calls", () => {

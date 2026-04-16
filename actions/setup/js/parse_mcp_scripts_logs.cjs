@@ -127,6 +127,7 @@ function generatePlainTextSummary(logEntries) {
   /**
    * @typedef {Object} RenderedToolCall
    * @property {string} tool
+   * @property {string} serverName
    * @property {string} argsDisplay
    * @property {string} resultPreview
    */
@@ -154,7 +155,7 @@ function generatePlainTextSummary(logEntries) {
     } else {
       pendingByTool.set(key, pending);
     }
-    return index ?? -1;
+    return index;
   };
 
   for (const entry of logEntries) {
@@ -178,6 +179,7 @@ function generatePlainTextSummary(logEntries) {
       }
       const callIndex = renderedCalls.push({
         tool,
+        serverName: entry.serverName || "mcpscripts",
         argsDisplay,
         resultPreview: "",
       });
@@ -192,6 +194,7 @@ function generatePlainTextSummary(logEntries) {
       const argsDisplay = ` · args: "${truncate(backendToolMatch[2], 90)}"`;
       const callIndex = renderedCalls.push({
         tool,
+        serverName: entry.serverName || "mcpscripts",
         argsDisplay,
         resultPreview: "",
       });
@@ -238,7 +241,7 @@ function generatePlainTextSummary(logEntries) {
   }
 
   for (const call of renderedCalls) {
-    lines.push(`● ${call.tool} (MCP: mcpscripts)${call.argsDisplay}`);
+    lines.push(`● ${call.tool} (MCP: ${call.serverName || "mcpscripts"})${call.argsDisplay}`);
     if (call.resultPreview) {
       lines.push(`  └ ${call.resultPreview}`);
     }
