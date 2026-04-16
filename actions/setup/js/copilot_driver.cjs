@@ -123,27 +123,54 @@ function sleep(ms) {
 }
 
 /**
+ * Build a structured report_incomplete payload for infrastructure failures.
+ * @param {string} details
+ * @returns {string}
+ */
+function buildInfrastructureIncompletePayload(details) {
+  return JSON.stringify({
+    type: "report_incomplete",
+    reason: "infrastructure_error",
+    details,
+  });
+}
+
+/**
+ * Append one safe-output entry line.
+ * @param {(path: string, data: string, encoding: string) => void} appendFileSync
+ * @param {string} safeOutputsPath
+ * @param {string} payload
+ */
+function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
+  appendFileSync(safeOutputsPath, payload + "\n", "utf8");
+}
+
+/**
  * Append a structured report_incomplete signal when infrastructure failures prevent completion.
  * This allows downstream failure handling to classify transient infrastructure errors explicitly.
  * @param {string} details
+ * @param {{
+ *   safeOutputsPath?: string,
+ *   appendFileSync?: (path: string, data: string, encoding: string) => void,
+ *   logger?: (message: string) => void
+ * }=} options
  */
-function emitInfrastructureIncomplete(details) {
-  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
+function emitInfrastructureIncomplete(details, options) {
+  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
+  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
+  const logger = options && options.logger ? options.logger : log;
+
   if (!safeOutputsPath) {
-    log("report_incomplete skipped: GH_AW_SAFE_OUTPUTS is not set");
+    logger("report_incomplete skipped: GH_AW_SAFE_OUTPUTS is not set");
     return;
   }
   try {
-    const payload = JSON.stringify({
-      type: "report_incomplete",
-      reason: "infrastructure_error",
-      details,
-    });
-    fs.appendFileSync(safeOutputsPath, payload + "\n", "utf8");
-    log(`report_incomplete emitted: ${safeOutputsPath}`);
+    const payload = buildInfrastructureIncompletePayload(details);
+    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
+    logger(`report_incomplete emitted: ${safeOutputsPath}`);
   } catch (error) {
     const err = /** @type {Error} */ error;
-    log(`report_incomplete emission failed: ${err.message}`);
+    logger(`report_incomplete emission failed: ${err.message}`);
   }
 }
 
@@ -343,6 +370,7 @@ async function main() {
   let lastExitCode = 1;
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
   let scheduledExit2Retries = 0;
+  let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
   const driverStartTime = Date.now();
 
@@ -411,11 +439,15 @@ async function main() {
     // Scheduled runs: retry once on exit code 2 even when no output was produced.
     // This specifically targets transient Copilot API outages at startup where there is no
     // partial session state to continue from.
-    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES) {
+    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
       scheduledExit2Retries += 1;
+      scheduledExit2RetryAttempted = true;
       useContinueOnRetry = false;
       log(`attempt ${attempt + 1}: scheduled startup interruption (exit code 2, no output)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
       continue;
+    }
+    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= MAX_RETRIES) {
+      log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
     }
 
     if (attempt < MAX_RETRIES && result.hasOutput) {
@@ -435,7 +467,7 @@ async function main() {
     break;
   }
 
-  if (isScheduledRun && lastExitCode === 2) {
+  if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
     emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
   }
 
@@ -446,7 +478,10 @@ async function main() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     PROMPT_FILE_INLINE_THRESHOLD_BYTES,
+    appendSafeOutputLine,
     buildPromptFileFallbackInstruction,
+    buildInfrastructureIncompletePayload,
+    emitInfrastructureIncomplete,
     resolvePromptFileArgs,
   };
 }

@@ -5,7 +5,7 @@ import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { resolvePromptFileArgs, buildPromptFileFallbackInstruction, PROMPT_FILE_INLINE_THRESHOLD_BYTES } = require("./copilot_driver.cjs");
+const { appendSafeOutputLine, buildInfrastructureIncompletePayload, buildPromptFileFallbackInstruction, emitInfrastructureIncomplete, PROMPT_FILE_INLINE_THRESHOLD_BYTES, resolvePromptFileArgs } = require("./copilot_driver.cjs");
 
 describe("copilot_driver.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
@@ -109,7 +109,7 @@ describe("copilot_driver.cjs", () => {
       if (result.exitCode === 0) return false;
 
       // Scheduled startup outage: retry once even when no output was produced.
-      if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES) {
+      if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
         return true;
       }
 
@@ -123,6 +123,11 @@ describe("copilot_driver.cjs", () => {
       expect(shouldRetry(result, 1, true, 1)).toBe(false);
     });
 
+    it("does not claim a retry when already at max retry attempt", () => {
+      const result = { exitCode: 2, hasOutput: false };
+      expect(shouldRetry(result, MAX_RETRIES, true, 0)).toBe(false);
+    });
+
     it("does not apply startup retry for non-scheduled runs", () => {
       const result = { exitCode: 2, hasOutput: false };
       expect(shouldRetry(result, 0, false, 0)).toBe(false);
@@ -131,6 +136,53 @@ describe("copilot_driver.cjs", () => {
     it("continues to use partial-execution retries when output exists", () => {
       const result = { exitCode: 2, hasOutput: true };
       expect(shouldRetry(result, 0, true, 0)).toBe(true);
+    });
+  });
+
+  describe("infrastructure report_incomplete emission helpers", () => {
+    it("builds report_incomplete payload with infrastructure_error reason", () => {
+      const payload = buildInfrastructureIncompletePayload("temporary outage");
+      expect(JSON.parse(payload)).toEqual({
+        type: "report_incomplete",
+        reason: "infrastructure_error",
+        details: "temporary outage",
+      });
+    });
+
+    it("appends one JSONL line through appendSafeOutputLine", () => {
+      const writes = [];
+      const appendStub = (file, data, encoding) => writes.push({ file, data, encoding });
+      appendSafeOutputLine(appendStub, "/tmp/safeoutputs.jsonl", '{"type":"report_incomplete"}');
+      expect(writes).toEqual([{ file: "/tmp/safeoutputs.jsonl", data: '{"type":"report_incomplete"}\n', encoding: "utf8" }]);
+    });
+
+    it("emitInfrastructureIncomplete writes payload when path is configured", () => {
+      const writes = [];
+      const logs = [];
+      emitInfrastructureIncomplete("temporary outage", {
+        safeOutputsPath: "/tmp/safeoutputs.jsonl",
+        appendFileSync: (file, data, encoding) => writes.push({ file, data, encoding }),
+        logger: message => logs.push(message),
+      });
+      expect(writes).toHaveLength(1);
+      expect(writes[0].file).toBe("/tmp/safeoutputs.jsonl");
+      const parsed = JSON.parse(writes[0].data.trim());
+      expect(parsed.type).toBe("report_incomplete");
+      expect(parsed.reason).toBe("infrastructure_error");
+      expect(parsed.details).toBe("temporary outage");
+      expect(logs.some(message => message.includes("report_incomplete emitted"))).toBe(true);
+    });
+
+    it("emitInfrastructureIncomplete skips when path is missing", () => {
+      const writes = [];
+      const logs = [];
+      emitInfrastructureIncomplete("temporary outage", {
+        safeOutputsPath: "",
+        appendFileSync: () => writes.push("write"),
+        logger: message => logs.push(message),
+      });
+      expect(writes).toHaveLength(0);
+      expect(logs.some(message => message.includes("skipped"))).toBe(true);
     });
   });
 
