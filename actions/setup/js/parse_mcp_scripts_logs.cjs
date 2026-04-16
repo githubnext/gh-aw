@@ -109,101 +109,175 @@ function parseMCPScriptsLogLine(line) {
 function generatePlainTextSummary(logEntries) {
   const lines = [];
 
-  // Header
-  lines.push("=== MCP Scripts Server Logs ===");
-  lines.push("");
-
-  // Count events by type
-  const eventCounts = {
-    startup: 0,
-    toolRegistration: 0,
-    toolExecution: 0,
-    errors: 0,
-    other: 0,
+  const truncate = (value, max = 120) => {
+    if (!value) return "";
+    const normalized = String(value).replace(/\s+/g, " ").trim();
+    if (normalized.length <= max) return normalized;
+    return `${normalized.slice(0, max - 3)}...`;
   };
 
-  const errors = [];
-  const toolCalls = [];
+  const parseJSON = value => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
+
+  const extractToolAndPayload = (message, marker) => {
+    const markerIndex = message.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    const prefix = message.slice(0, markerIndex).trimEnd();
+    const payload = message.slice(markerIndex + marker.length).trim();
+
+    const toolMatch = prefix.match(/\[\s*([^\]]+)\s*\]\s*$/);
+    if (!toolMatch) return null;
+
+    return {
+      tool: toolMatch[1].trim(),
+      payload,
+    };
+  };
+
+  /**
+   * @typedef {Object} RenderedToolCall
+   * @property {string} tool
+   * @property {string} serverName
+   * @property {string} argsDisplay
+   * @property {string} resultPreview
+   */
+
+  /** @type {Array<RenderedToolCall>} */
+  const renderedCalls = [];
+  /** @type {Map<string, number[]>} */
+  const pendingByTool = new Map();
+  const diagnostics = [];
+
+  const addPending = (tool, index) => {
+    const key = tool.toLowerCase();
+    const pending = pendingByTool.get(key);
+    if (pending) {
+      pending.push(index);
+      return;
+    }
+    pendingByTool.set(key, [index]);
+  };
+
+  const consumePending = tool => {
+    const key = tool.toLowerCase();
+    const pending = pendingByTool.get(key);
+    if (!pending || pending.length === 0) return -1;
+    const index = pending.shift();
+    if (pending.length === 0) {
+      pendingByTool.delete(key);
+    }
+    return index;
+  };
 
   for (const entry of logEntries) {
-    const msg = entry.message.toLowerCase();
+    const message = (entry.message || "").trim();
+    if (!message) continue;
 
-    // Categorize log entries
-    if (msg.includes("starting mcp-scripts") || msg.includes("server started")) {
-      eventCounts.startup++;
-    } else if (msg.includes("registering tool") || msg.includes("tool registration")) {
-      eventCounts.toolRegistration++;
-    } else if (msg.includes("calling handler") || msg.includes("handler returned")) {
-      eventCounts.toolExecution++;
-      if (msg.includes("calling handler")) {
-        // Extract tool name from message like "Calling handler for tool: my-tool"
-        const toolMatch = entry.message.match(/tool:\s*(\S+)/i);
-        if (toolMatch) {
-          toolCalls.push({
-            tool: toolMatch[1],
-            timestamp: entry.timestamp,
-          });
+    // Parse: "  [gh] Invoking handler with args: { ... }"
+    const invokingPayload = extractToolAndPayload(message, "Invoking handler with args:");
+    if (invokingPayload) {
+      const tool = invokingPayload.tool;
+      const parsedArgs = parseJSON(invokingPayload.payload);
+      let argsDisplay = "";
+      if (parsedArgs && typeof parsedArgs === "object" && parsedArgs !== null) {
+        if (typeof parsedArgs.args === "string" && parsedArgs.args.trim()) {
+          argsDisplay = ` · args: "${truncate(parsedArgs.args, 90)}"`;
+        } else {
+          argsDisplay = ` · args: "${truncate(JSON.stringify(parsedArgs), 90)}"`;
         }
+      } else {
+        argsDisplay = ` · args: "${truncate(invokingPayload.payload, 90)}"`;
       }
-    } else if (msg.includes("error") || msg.includes("failed")) {
-      eventCounts.errors++;
-      errors.push(entry);
-    } else {
-      eventCounts.other++;
+      const callIndex = renderedCalls.push({
+        tool,
+        serverName: entry.serverName || "mcpscripts",
+        argsDisplay,
+        resultPreview: "",
+      });
+      addPending(tool, callIndex - 1);
+      continue;
+    }
+
+    // Parse: "callBackendTool ... toolName=gh, args=map[args:pr view ...]"
+    const backendToolPrefix = "toolName=";
+    const backendArgsPrefix = "args=map[args:";
+    const backendToolIndex = message.indexOf(backendToolPrefix);
+    const backendArgsIndex = message.indexOf(backendArgsPrefix);
+    if (backendToolIndex !== -1 && backendArgsIndex !== -1 && backendArgsIndex > backendToolIndex) {
+      const toolPart = message.slice(backendToolIndex + backendToolPrefix.length, backendArgsIndex);
+      const tool = toolPart.replace(",", "").trim();
+      const argsStart = backendArgsIndex + backendArgsPrefix.length;
+      const argsEnd = message.indexOf("]", argsStart);
+      const argsRaw = argsEnd === -1 ? message.slice(argsStart) : message.slice(argsStart, argsEnd);
+      const argsDisplay = ` · args: "${truncate(argsRaw, 90)}"`;
+      const callIndex = renderedCalls.push({
+        tool,
+        serverName: entry.serverName || "mcpscripts",
+        argsDisplay,
+        resultPreview: "",
+      });
+      addPending(tool, callIndex - 1);
+      continue;
+    }
+
+    // Parse: "  [gh] Serialized result: {...}"
+    const serializedResultPayload = extractToolAndPayload(message, "Serialized result:");
+    if (serializedResultPayload) {
+      const tool = serializedResultPayload.tool;
+      const resultRaw = serializedResultPayload.payload;
+      const parsedResult = parseJSON(resultRaw);
+      const preview = parsedResult ? truncate(JSON.stringify(parsedResult), 110) : truncate(resultRaw, 110);
+      const callIndex = consumePending(tool);
+      if (callIndex >= 0) {
+        renderedCalls[callIndex].resultPreview = preview;
+      }
+      continue;
+    }
+
+    if (/\b(error|failed)\b/i.test(message)) {
+      diagnostics.push(`✗ ${truncate(message, 150)}`);
     }
   }
 
-  // Log events summary
-  lines.push("Log Events:");
-  lines.push(`  Total entries: ${logEntries.length}`);
-  lines.push(`  Startup events: ${eventCounts.startup}`);
-  lines.push(`  Tool registrations: ${eventCounts.toolRegistration}`);
-  lines.push(`  Tool executions: ${eventCounts.toolExecution}`);
-  if (eventCounts.errors > 0) {
-    lines.push(`  Errors: ${eventCounts.errors}`);
-  }
-  lines.push("");
-
-  // Tool execution details
-  if (toolCalls.length > 0) {
-    lines.push("Tool Executions:");
-    for (const call of toolCalls) {
-      const time = call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : "N/A";
-      lines.push(`  ✓ ${time} - ${call.tool}`);
+  if (renderedCalls.length === 0) {
+    // Fallback to raw logs when no recognizable tool calls exist.
+    let lineCount = 0;
+    for (const entry of logEntries) {
+      if (lineCount >= 200) {
+        lines.push(`... (truncated, showing first 200 lines of ${logEntries.length} total entries)`);
+        break;
+      }
+      if (entry.raw) {
+        lines.push(truncate(entry.message, 150));
+      } else {
+        const server = entry.serverName ? `[${entry.serverName}] ` : "";
+        lines.push(truncate(`${server}${entry.message}`.trim(), 150));
+      }
+      lineCount++;
     }
+    return lines.join("\n");
+  }
+
+  for (const call of renderedCalls) {
+    lines.push(`● ${call.tool} (MCP: ${call.serverName || "mcpscripts"})${call.argsDisplay}`);
+    if (call.resultPreview) {
+      lines.push(`  └ ${call.resultPreview}`);
+    }
+  }
+
+  if (diagnostics.length > 0) {
     lines.push("");
-  }
-
-  // Errors (if any)
-  if (errors.length > 0) {
-    lines.push("Errors:");
-    for (const error of errors) {
-      const time = error.timestamp ? `[${error.timestamp}]` : "";
-      const server = error.serverName ? `[${error.serverName}]` : "";
-      lines.push(`  ✗ ${time} ${server} ${error.message}`);
+    lines.push("Additional MCP diagnostics:");
+    lines.push(...diagnostics.slice(0, 20));
+    if (diagnostics.length > 20) {
+      lines.push(`... (${diagnostics.length - 20} more diagnostics)`);
     }
-    lines.push("");
-  }
-
-  // Full logs section (limited to first 5000 lines)
-  lines.push("Full Logs (first 5000 lines):");
-  lines.push("");
-
-  let lineCount = 0;
-  for (const entry of logEntries) {
-    if (lineCount >= 5000) {
-      lines.push(`... (truncated, showing first 5000 lines of ${logEntries.length} total entries)`);
-      break;
-    }
-
-    if (entry.raw) {
-      // Display unparsed lines as-is
-      lines.push(entry.message);
-    } else {
-      const server = entry.serverName ? `[${entry.serverName}]` : "";
-      lines.push(`${server} ${entry.message}`.trim());
-    }
-    lineCount++;
   }
 
   return lines.join("\n");

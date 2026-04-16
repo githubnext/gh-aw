@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/github/gh-aw/pkg/testutil"
 )
@@ -58,7 +59,7 @@ func TestSpec_PublicAPI_TempDir_CreatesSubdirectory(t *testing.T) {
 	assert.NotEmpty(t, dir, "TempDir should return a non-empty path")
 
 	info, err := os.Stat(dir)
-	assert.NoError(t, err, "TempDir should create an actual directory on disk")
+	require.NoError(t, err, "TempDir should create an actual directory on disk")
 	assert.True(t, info.IsDir(), "TempDir should create a directory, not a file")
 
 	runDir := testutil.GetTestRunDir()
