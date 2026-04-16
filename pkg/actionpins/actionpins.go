@@ -62,6 +62,9 @@ type PinContext struct {
 	Warnings map[string]bool
 }
 
+// fullSHARegex matches a valid 40-character lowercase hexadecimal SHA.
+var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
 var (
 	cachedActionPins       []ActionPin
 	cachedActionPinsByRepo map[string][]ActionPin
@@ -196,8 +199,18 @@ func ExtractVersion(uses string) string {
 
 // isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA.
 func isValidFullSHA(s string) bool {
-	matched, err := regexp.MatchString(`^[0-9a-f]{40}$`, s)
-	return err == nil && matched
+	return fullSHARegex.MatchString(s)
+}
+
+// findCompatiblePin returns the first pin whose version is semver-compatible with
+// the requested version, or ActionPin{}, false if no compatible pin is found.
+func findCompatiblePin(pins []ActionPin, version string) (ActionPin, bool) {
+	for _, pin := range pins {
+		if semverutil.IsCompatible(pin.Version, version) {
+			return pin, true
+		}
+	}
+	return ActionPin{}, false
 }
 
 // GetActionPinWithData returns the pinned action reference for a given action@version.
@@ -256,16 +269,7 @@ func GetActionPinWithData(actionRepo, version string, ctx *PinContext) (string, 
 		}
 
 		if !ctx.StrictMode && len(matchingPins) > 0 {
-			var selectedPin ActionPin
-			foundCompatible := false
-			for _, pin := range matchingPins {
-				if semverutil.IsCompatible(pin.Version, version) {
-					selectedPin = pin
-					foundCompatible = true
-					break
-				}
-			}
-
+			selectedPin, foundCompatible := findCompatiblePin(matchingPins, version)
 			if foundCompatible {
 				log.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
 			} else {

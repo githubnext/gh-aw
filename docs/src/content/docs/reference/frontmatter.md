@@ -30,7 +30,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 
 - Standard GitHub Actions triggers (push, pull_request, issues, schedule, etc.)
 - `reaction:` - Add emoji reactions to triggering items
-- `status-comment:` - Post a started/completed comment with a workflow run link (automatically enabled for `slash_command` and `label_command` triggers; must be explicitly set to `true` for other trigger types)
+- `status-comment:` - Post a started/completed comment with a workflow run link (automatically enabled for `slash_command` and `label_command` triggers; must be explicitly set to `true` for other trigger types). Accepts a boolean or an object with optional `issues`, `pull-requests`, and `discussions` toggle fields to selectively disable status comments for specific target types.
 - `stop-after:` - Automatically disable triggers after a deadline
 - `manual-approval:` - Require manual approval using environment protection rules
 - `forks:` - Configure fork filtering for pull_request triggers
@@ -418,6 +418,21 @@ Debug workflow using script mode for custom actions.
 ```
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
+
+#### Copilot BYOK Mode (`features.byok-copilot`)
+
+Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling three required behaviors: injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path, implicitly enabling `cli-proxy`, and forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+
+```yaml wrap
+engine: copilot
+features:
+  byok-copilot: true
+```
+
+Without this flag, BYOK mode requires manual composition of all three behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+
+> [!NOTE]
+> `byok-copilot` applies only to `engine: copilot` workflows. The implicit `cli-proxy` enablement does not apply to other engines.
 
 #### Reaction-based Trust Signals (`features.integrity-reactions`)
 

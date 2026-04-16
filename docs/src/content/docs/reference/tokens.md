@@ -273,7 +273,7 @@ Reference them in your workflow frontmatter:
 tools:
   github:
     github-app:
-      app-id: ${{ vars.APP_ID }}
+      client-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       owner: "my-org"                    # Optional: defaults to current repo owner
       repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only

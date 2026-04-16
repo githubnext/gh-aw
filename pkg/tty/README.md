@@ -38,3 +38,7 @@ if tty.IsStderrTerminal() {
 - The WASM stub (`tty_wasm.go`) always returns `false` so that components built for the browser never attempt to use ANSI escape codes.
 - Prefer this package over calling `term.IsTerminal` directly to keep the TTY detection logic centralized and easily testable.
 - Components that need to adapt output for terminals (spinners, progress bars, colored messages) should call `IsStderrTerminal()` rather than checking `os.Stderr` directly.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*
