@@ -165,10 +165,10 @@ func TestMCPScriptsTimeoutInJSON(t *testing.T) {
 	}
 
 	expected := map[string]int{
-		"mcpscripts-fast-tool":    30,
-		"mcpscripts-slow-tool":    120,
-		"mcpscripts-default-tool": 60,
-		"mcpscripts-go-tool":      180,
+		"fast-tool":    30,
+		"slow-tool":    120,
+		"default-tool": 60,
+		"go-tool":      180,
 	}
 
 	for toolName, expectedTimeout := range expected {

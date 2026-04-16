@@ -96,19 +96,19 @@ func TestGenerateMCPScriptsMCPServerScript(t *testing.T) {
 		t.Error("Tools config should contain server name 'safeinputs'")
 	}
 
-	if !strings.Contains(toolsJSON, `"name": "mcpscripts-search-issues"`) {
+	if !strings.Contains(toolsJSON, `"name": "search-issues"`) {
 		t.Error("Tools config should contain search-issues tool")
 	}
 
-	if !strings.Contains(toolsJSON, `"name": "mcpscripts-echo-message"`) {
+	if !strings.Contains(toolsJSON, `"name": "echo-message"`) {
 		t.Error("Tools config should contain echo-message tool")
 	}
 
-	if !strings.Contains(toolsJSON, `"name": "mcpscripts-analyze-data"`) {
+	if !strings.Contains(toolsJSON, `"name": "analyze-data"`) {
 		t.Error("Tools config should contain analyze-data tool")
 	}
 
-	if !strings.Contains(toolsJSON, `"name": "mcpscripts-process-data"`) {
+	if !strings.Contains(toolsJSON, `"name": "process-data"`) {
 		t.Error("Tools config should contain process-data tool")
 	}
 
@@ -192,28 +192,6 @@ func TestGenerateMCPScriptsToolsConfigWithEnv(t *testing.T) {
 	// Verify that $ prefix is not used (which might suggest variable expansion)
 	if strings.Contains(toolsJSON, `"$GH_TOKEN"`) {
 		t.Error("Tools config should NOT contain $ prefix in env values")
-	}
-}
-
-func TestGenerateMCPScriptsToolsConfigDoesNotDoublePrefixToolNames(t *testing.T) {
-	config := &MCPScriptsConfig{
-		Tools: map[string]*MCPScriptToolConfig{
-			"mcpscripts-gh": {
-				Name:        "mcpscripts-gh",
-				Description: "Execute gh CLI command",
-				Run:         "gh pr list --limit 1",
-			},
-		},
-	}
-
-	toolsJSON := GenerateMCPScriptsToolsConfig(config)
-
-	if !strings.Contains(toolsJSON, `"name": "mcpscripts-gh"`) {
-		t.Error("Tools config should keep already-prefixed tool names unchanged")
-	}
-
-	if strings.Contains(toolsJSON, `"name": "mcpscripts-mcpscripts-gh"`) {
-		t.Error("Tools config should not double-prefix already-prefixed tool names")
 	}
 }
 
@@ -490,9 +468,9 @@ func TestMCPScriptsStableCodeGeneration(t *testing.T) {
 	}
 
 	// Verify tools appear in sorted order in tools.json (alpha-tool before middle-tool before zebra-tool)
-	alphaPos := strings.Index(toolsConfigs[0], `"name": "mcpscripts-alpha-tool"`)
-	middlePos := strings.Index(toolsConfigs[0], `"name": "mcpscripts-middle-tool"`)
-	zebraPos := strings.Index(toolsConfigs[0], `"name": "mcpscripts-zebra-tool"`)
+	alphaPos := strings.Index(toolsConfigs[0], `"name": "alpha-tool"`)
+	middlePos := strings.Index(toolsConfigs[0], `"name": "middle-tool"`)
+	zebraPos := strings.Index(toolsConfigs[0], `"name": "zebra-tool"`)
 
 	if alphaPos == -1 || middlePos == -1 || zebraPos == -1 {
 		t.Error("Tools config should contain all tools")

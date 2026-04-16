@@ -1414,7 +1414,7 @@ jobs:
             "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
             "tools": [
               {
-                "name": "mcpscripts-gh",
+                "name": "gh",
                 "description": "Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
@@ -1436,7 +1436,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "mcpscripts-github-discussion-query",
+                "name": "github-discussion-query",
                 "description": "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -1462,7 +1462,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "mcpscripts-github-issue-query",
+                "name": "github-issue-query",
                 "description": "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -1492,7 +1492,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "mcpscripts-github-pr-query",
+                "name": "github-pr-query",
                 "description": "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -1522,7 +1522,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "mcpscripts-go",
+                "name": "go",
                 "description": "Execute any Go command. This tool is accessible as 'mcpscripts-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
@@ -1540,7 +1540,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "mcpscripts-make",
+                "name": "make",
                 "description": "Execute any Make target. This tool is accessible as 'mcpscripts-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {

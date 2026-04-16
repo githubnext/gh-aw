@@ -31,14 +31,6 @@ type MCPScriptsConfigJSON struct {
 	Tools      []MCPScriptsToolJSON `json:"tools"`
 }
 
-func formatMCPScriptsToolName(toolName string) string {
-	prefix := constants.MCPScriptsMCPServerID.String() + "-"
-	if strings.HasPrefix(toolName, prefix) {
-		return toolName
-	}
-	return prefix + toolName
-}
-
 // GenerateMCPScriptsToolsConfig generates the tools.json configuration for the mcp-scripts MCP server
 func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 	mcpScriptsGeneratorLog.Printf("Generating mcp-scripts tools.json config: tool_count=%d", len(mcpScripts.Tools))
@@ -129,7 +121,7 @@ func GenerateMCPScriptsToolsConfig(mcpScripts *MCPScriptsConfig) string {
 		}
 
 		config.Tools = append(config.Tools, MCPScriptsToolJSON{
-			Name:        formatMCPScriptsToolName(toolName),
+			Name:        toolName,
 			Description: toolConfig.Description,
 			InputSchema: inputSchema,
 			Handler:     handler,

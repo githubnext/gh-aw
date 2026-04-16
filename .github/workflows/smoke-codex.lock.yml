@@ -856,7 +856,7 @@ jobs:
             "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
             "tools": [
               {
-                "name": "mcpscripts-gh",
+                "name": "gh",
                 "description": "Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
