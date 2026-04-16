@@ -1499,6 +1499,30 @@ func TestCopilotEngineEnvOverridesTokenExpression(t *testing.T) {
 	})
 }
 
+func TestCopilotEngineByokFeatureSetsDummyAPIKey(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Features: map[string]any{
+			string(constants.ByokCopilotFeatureFlag): true,
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	expected := "COPILOT_API_KEY: " + constants.CopilotBYOKDummyAPIKey
+	if !strings.Contains(stepContent, expected) {
+		t.Errorf("Expected byok-copilot to inject dummy COPILOT_API_KEY, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineDriverScript(t *testing.T) {
 	engine := NewCopilotEngine()
 

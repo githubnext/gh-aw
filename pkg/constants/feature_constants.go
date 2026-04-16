@@ -49,6 +49,17 @@ const (
 	//	features:
 	//	  copilot-integration-id: true
 	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
+	// ByokCopilotFeatureFlag enables Copilot CLI offline BYOK mode.
+	// When enabled with engine: copilot, the compiler:
+	//   - injects a dummy COPILOT_API_KEY into the agent env to trigger AWF BYOK runtime behavior
+	//   - implicitly enables the cli-proxy feature
+	//   - installs the latest Copilot CLI version (un-pinned)
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  byok-copilot: true
+	ByokCopilotFeatureFlag FeatureFlag = "byok-copilot"
 	// IntegrityReactionsFeatureFlag enables reaction-based integrity promotion/demotion
 	// in the MCPG allow-only policy. When enabled, the compiler injects
 	// endorsement-reactions and disapproval-reactions fields into the allow-only policy.

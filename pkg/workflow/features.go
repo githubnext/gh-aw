@@ -19,6 +19,18 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 	flagLower := strings.ToLower(strings.TrimSpace(string(flag)))
 	featuresLog.Printf("Checking if feature is enabled: %s", flagLower)
 
+	// byok-copilot implicitly enables cli-proxy for copilot engine workflows.
+	// This keeps the byok-copilot frontmatter minimal while ensuring gh CLI
+	// access is routed through the authenticated DIFC proxy.
+	if flag == constants.CliProxyFeatureFlag &&
+		workflowData != nil &&
+		workflowData.EngineConfig != nil &&
+		strings.EqualFold(workflowData.EngineConfig.ID, string(constants.CopilotEngine)) &&
+		isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+		featuresLog.Print("cli-proxy implicitly enabled by byok-copilot feature flag")
+		return true
+	}
+
 	// First, check if the feature is explicitly set in frontmatter
 	if workflowData != nil && workflowData.Features != nil {
 		if value, exists := workflowData.Features[flagLower]; exists {
