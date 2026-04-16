@@ -63,11 +63,6 @@ func getActionPins() []ActionPin {
 	return actionpins.GetActionPins()
 }
 
-// getActionPinsByRepo returns the sorted pins for a repo. Package-private.
-func getActionPinsByRepo(repo string) []ActionPin {
-	return actionpins.GetActionPinsByRepo(repo)
-}
-
 // getCachedActionPinFromResolver returns the pinned action reference for repo,
 // preferring dynamic resolution via resolver over the embedded pins.
 // For use within pkg/workflow when only a resolver is available (no WorkflowData).
