@@ -1,5 +1,15 @@
-// This file contains MCP validation entry points and MCP config extraction/type inference
-// helpers. Detailed property/mount validation helpers are split into focused files.
+// This file contains MCP (Model Context Protocol) validation entry points.
+//
+// # MCP Validation Entry Points
+//
+//   - ValidateMCPConfigs() - Orchestrates MCP validation for merged tools map entries
+//   - ValidateToolsSection() - Validates built-in tool names in tools:
+//   - getRawMCPConfig() - Extracts raw MCP config fields and checks unknown properties
+//   - inferMCPType() - Infers MCP type (http/stdio) from present fields
+//
+// Detailed property and mount validation helpers are intentionally split into:
+//   - mcp_property_validation.go
+//   - mcp_mount_validation.go
 
 package workflow
 

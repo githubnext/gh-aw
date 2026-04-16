@@ -1,3 +1,14 @@
+// This file provides focused MCP mount syntax validation helpers.
+//
+// # MCP Mount Validation
+//
+// validateMCPMountsSyntax() validates mount strings for containerized stdio MCP
+// servers. Required format (MCP Gateway v0.1.5+):
+//
+//	source:destination:mode
+//
+// where mode is either "ro" or "rw".
+
 package workflow
 
 import (

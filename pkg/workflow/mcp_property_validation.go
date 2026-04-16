@@ -1,3 +1,14 @@
+// This file provides focused MCP property and schema-shaping validation helpers.
+//
+// # MCP Property Validation
+//
+//   - validateStringProperty() - Validates required MCP string properties
+//   - validateMCPRequirements() - Validates type-specific MCP requirements
+//   - buildSchemaMCPConfig() - Projects tool config to schema-compatible MCP fields
+//
+// This file contains validation details used by entry points in
+// mcp_config_validation.go.
+
 package workflow
 
 import (
