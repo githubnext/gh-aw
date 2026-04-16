@@ -3374,6 +3374,37 @@
         }
       ]
     },
+    "pre-agent-steps": {
+      "description": "Custom workflow steps to run immediately before AI execution, after all initialization and setup steps in the agent job.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "examples": [
+            [
+              {
+                "name": "Prepare final context",
+                "run": "echo \"ready\""
+              }
+            ]
+          ]
+        }
+      ]
+    },
     "post-steps": {
       "description": "Custom workflow steps to run after AI execution",
       "oneOf": [

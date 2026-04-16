@@ -649,6 +649,18 @@ Use custom steps to precompute data, filter triggers, or prepare context for AI 
 
 Custom steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
 
+## Pre-Agent Steps (`pre-agent-steps:`)
+
+Add custom steps immediately before the agent execution step, after all initialization/setup logic in the agent job.
+
+```yaml wrap
+pre-agent-steps:
+  - name: Finalize Context
+    run: ./scripts/prepare-agent-context.sh
+```
+
+Use pre-agent steps when work must happen right before the engine runs (for example, final context preparation or last-moment validations).
+
 ## Post-Execution Steps (`post-steps:`)
 
 Add custom steps after agentic execution. Run after AI engine completes regardless of success/failure (unless conditional expressions are used).

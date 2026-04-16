@@ -180,16 +180,17 @@ type FrontmatterConfig struct {
 	Secrets  map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
-	RunsOn      string         `json:"runs-on,omitempty"`
-	RunsOnSlim  string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
-	RunName     string         `json:"run-name,omitempty"`
-	PreSteps    []any          `json:"pre-steps,omitempty"`   // Pre-workflow steps (run before checkout)
-	Steps       []any          `json:"steps,omitempty"`       // Custom workflow steps
-	PostSteps   []any          `json:"post-steps,omitempty"`  // Post-workflow steps
-	Environment map[string]any `json:"environment,omitempty"` // GitHub environment
-	Container   map[string]any `json:"container,omitempty"`
-	Services    map[string]any `json:"services,omitempty"`
-	Cache       map[string]any `json:"cache,omitempty"`
+	RunsOn        string         `json:"runs-on,omitempty"`
+	RunsOnSlim    string         `json:"runs-on-slim,omitempty"` // Runner for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
+	RunName       string         `json:"run-name,omitempty"`
+	PreSteps      []any          `json:"pre-steps,omitempty"`       // Pre-workflow steps (run before checkout)
+	Steps         []any          `json:"steps,omitempty"`           // Custom workflow steps
+	PreAgentSteps []any          `json:"pre-agent-steps,omitempty"` // Steps run immediately before agent execution
+	PostSteps     []any          `json:"post-steps,omitempty"`      // Post-workflow steps
+	Environment   map[string]any `json:"environment,omitempty"`     // GitHub environment
+	Container     map[string]any `json:"container,omitempty"`
+	Services      map[string]any `json:"services,omitempty"`
+	Cache         map[string]any `json:"cache,omitempty"`
 
 	// Import and inclusion
 	Imports        any            `json:"imports,omitempty"`         // Can be string or array

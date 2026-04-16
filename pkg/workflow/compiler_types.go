@@ -404,6 +404,7 @@ type WorkflowData struct {
 	TimeoutMinutes              string
 	CustomSteps                 string
 	PreSteps                    string // steps to run at the very start of the agent job, before checkout
+	PreAgentSteps               string // steps to run immediately before the agent execution step
 	PostSteps                   string // steps to run after AI execution
 	RunsOn                      string
 	RunsOnSlim                  string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
