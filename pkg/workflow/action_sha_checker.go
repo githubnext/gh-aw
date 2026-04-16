@@ -206,7 +206,7 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 
 	// Canary check: distinct action repositories must not resolve to the same SHA.
 	if err := ValidateDistinctActionSHAs(actions); err != nil {
-		return fmt.Errorf("action SHA integrity check failed: %w", err)
+		return fmt.Errorf("action SHA integrity check failed: %w. Run 'gh aw update-actions' and recompile, or inspect .github/aw/actions-lock.json for incorrect pins", err)
 	}
 
 	// Create resolver for checking latest SHAs

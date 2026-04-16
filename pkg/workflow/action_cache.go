@@ -16,6 +16,8 @@ var actionCacheLog = logger.New("workflow:action_cache")
 const (
 	// CacheFileName is the name of the cache file in .github/aw/.
 	CacheFileName = "actions-lock.json"
+	// ShortActionSHALength is the truncated SHA length used in user-facing messages.
+	ShortActionSHALength = 12
 )
 
 // ActionCacheEntry represents a cached action pin resolution.
@@ -477,8 +479,8 @@ func (c *ActionCache) ValidateUniqueActionSHAs() error {
 		sort.Strings(repos)
 
 		shortSHA := sha
-		if len(shortSHA) > 12 {
-			shortSHA = shortSHA[:12]
+		if len(shortSHA) > ShortActionSHALength {
+			shortSHA = shortSHA[:ShortActionSHALength]
 		}
 
 		conflicts = append(conflicts, fmt.Sprintf("%s shared by %s", shortSHA, strings.Join(repos, ", ")))
@@ -489,7 +491,7 @@ func (c *ActionCache) ValidateUniqueActionSHAs() error {
 	}
 
 	sort.Strings(conflicts)
-	return fmt.Errorf("two different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
+	return fmt.Errorf("in actions-lock.json, two different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
 }
 
 // deduplicateEntries removes duplicate entries by keeping only the most precise version reference
