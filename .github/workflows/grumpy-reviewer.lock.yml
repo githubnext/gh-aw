@@ -82,6 +82,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
     outputs:
