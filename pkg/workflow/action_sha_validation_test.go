@@ -269,3 +269,28 @@ jobs:
 		t.Fatalf("expected error to include both repositories, got: %v", err)
 	}
 }
+
+func TestValidateActionSHAsInLockFile_AllowsSameRepositorySharingSHA(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-*")
+	lockFile := filepath.Join(testDir, "same-repo.lock.yml")
+	sharedSHA := "2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc"
+
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@` + sharedSHA + ` # v5
+      - uses: actions/checkout@` + sharedSHA + ` # v5.0.1
+`
+	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	cache := NewActionCache(testDir)
+	if err := ValidateActionSHAsInLockFile(lockFile, cache, false); err != nil {
+		t.Fatalf("expected no error when the same repository reuses a SHA, got: %v", err)
+	}
+}
