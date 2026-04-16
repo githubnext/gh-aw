@@ -40,6 +40,17 @@ const (
 	//	  cli-proxy: true
 	CliProxyFeatureFlag FeatureFlag = "cli-proxy"
 	// CopilotIntegrationIDFeatureFlag previously gated injection of the
+	// AwfDiagnosticLogsFeatureFlag enables AWF operational Docker diagnostics
+	// collection on failure. When enabled, AWF collects capped container logs,
+	// container exit codes, mount metadata, and sanitized compose config into
+	// the diagnostics subdirectory of the firewall audit artifact.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  awf-diagnostic-logs: true
+	AwfDiagnosticLogsFeatureFlag FeatureFlag = "awf-diagnostic-logs"
+	// CopilotIntegrationIDFeatureFlag gates injection of the
 	// GITHUB_COPILOT_INTEGRATION_ID environment variable into the agent step.
 	// Deprecated: The integration ID is now always injected for Copilot runs.
 	//

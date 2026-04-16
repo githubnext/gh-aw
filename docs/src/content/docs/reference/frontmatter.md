@@ -434,6 +434,17 @@ Without this flag, BYOK mode requires manual composition of all three behaviors.
 > [!NOTE]
 > `byok-copilot` applies only to `engine: copilot` workflows. The implicit `cli-proxy` enablement does not apply to other engines.
 
+#### AWF Failure Diagnostics (`features.awf-diagnostic-logs`)
+
+Enables AWF Docker operational diagnostics collection on failure by adding `--diagnostic-logs` to AWF runtime arguments.
+
+When enabled, AWF includes failure diagnostics under the `diagnostics/` subdirectory in the `firewall-audit-logs` artifact (for example, container logs, exit codes, mount metadata, and sanitized compose configuration).
+
+```yaml wrap
+features:
+  awf-diagnostic-logs: true
+```
+
 #### Reaction-based Trust Signals (`features.integrity-reactions`)
 
 Enables maintainers to promote or demote content past the integrity filter using GitHub reactions (👍, ❤️, 👎, 😕), without adding labels or modifying issue state. Available from gh-aw v0.68.2.
