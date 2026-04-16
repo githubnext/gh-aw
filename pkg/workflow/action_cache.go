@@ -448,6 +448,9 @@ func (c *ActionCache) GetCachePath() string {
 
 // ValidateUniqueActionSHAs ensures that the same commit SHA is not shared across
 // different action repositories.
+// Different repositories are identified by full action paths (for example
+// "github/gh-aw-actions/setup" vs "github/gh-aw-actions/setup-cli").
+// Multiple versions of the same repository are allowed to share a SHA.
 func (c *ActionCache) ValidateUniqueActionSHAs() error {
 	shaToRepos := make(map[string]map[string]struct{})
 

@@ -35,6 +35,9 @@ type ActionUpdateCheck struct {
 
 // ValidateDistinctActionSHAs ensures the same SHA is not used across different
 // action repositories within a single lock file.
+// Different repositories are identified by full action paths (for example
+// "github/gh-aw-actions/setup" vs "github/gh-aw-actions/setup-cli").
+// Multiple versions of the same repository are allowed to share a SHA.
 func ValidateDistinctActionSHAs(actions []ActionUsage) error {
 	shaToRepos := make(map[string]map[string]struct{})
 
