@@ -26,7 +26,6 @@ timeout-minutes: 45
 
 imports:
   - shared/github-guard-policy.md
-  - shared/python-dataviz.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md
   - shared/reporting.md
