@@ -512,7 +512,7 @@ func ProcessImportsFromFrontmatter(
 - Frontmatter structure varies by workflow
 - Input values can be different types (string, number, boolean)
 - Schema validation happens separately
-- Allows flexible configuration without code changes
+- Allows configuration without code changes
 
 #### Tool Configuration
 
