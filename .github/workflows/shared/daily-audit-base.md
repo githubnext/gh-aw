@@ -23,7 +23,7 @@ imports:
   - uses: shared/daily-audit-discussion.md
     with:
       title-prefix: "${{ github.aw.import-inputs.title-prefix }}"
-      expires: ${{ github.aw.import-inputs.expires }}
+      expires: "${{ github.aw.import-inputs.expires }}"
   - shared/reporting.md
   - shared/observability-otlp.md
 ---
