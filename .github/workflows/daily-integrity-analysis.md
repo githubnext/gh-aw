@@ -51,12 +51,10 @@ tools:
 timeout-minutes: 30
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[integrity] "
-  - shared/reporting.md
   - shared/python-dataviz.md
-  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

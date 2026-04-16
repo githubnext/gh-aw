@@ -21,7 +21,7 @@ runtimes:
     version: "24"
 imports:
   - shared/github-guard-policy.md
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily issues] "
   - shared/jqschema.md
@@ -29,8 +29,6 @@ imports:
   - shared/python-dataviz.md
   - shared/python-nlp.md
   - shared/trends.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
 features:
   mcp-cli: true
 ---
