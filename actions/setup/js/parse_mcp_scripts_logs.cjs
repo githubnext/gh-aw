@@ -124,6 +124,22 @@ function generatePlainTextSummary(logEntries) {
     }
   };
 
+  const extractToolAndPayload = (message, marker) => {
+    const markerIndex = message.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    const prefix = message.slice(0, markerIndex).trimEnd();
+    const payload = message.slice(markerIndex + marker.length).trim();
+
+    const toolMatch = prefix.match(/\[\s*([^\]]+)\s*\]\s*$/);
+    if (!toolMatch) return null;
+
+    return {
+      tool: toolMatch[1].trim(),
+      payload,
+    };
+  };
+
   /**
    * @typedef {Object} RenderedToolCall
    * @property {string} tool
@@ -163,10 +179,10 @@ function generatePlainTextSummary(logEntries) {
     if (!message) continue;
 
     // Parse: "  [gh] Invoking handler with args: { ... }"
-    const invokingMatch = message.match(/\[\s*([^\]]+)\s*\]\s+Invoking handler with args:\s*(\{[\s\S]*?\})\s*$/i);
-    if (invokingMatch) {
-      const tool = invokingMatch[1].trim();
-      const parsedArgs = parseJSON(invokingMatch[2]);
+    const invokingPayload = extractToolAndPayload(message, "Invoking handler with args:");
+    if (invokingPayload) {
+      const tool = invokingPayload.tool;
+      const parsedArgs = parseJSON(invokingPayload.payload);
       let argsDisplay = "";
       if (parsedArgs && typeof parsedArgs === "object" && parsedArgs !== null) {
         if (typeof parsedArgs.args === "string" && parsedArgs.args.trim()) {
@@ -175,7 +191,7 @@ function generatePlainTextSummary(logEntries) {
           argsDisplay = ` · args: "${truncate(JSON.stringify(parsedArgs), 90)}"`;
         }
       } else {
-        argsDisplay = ` · args: "${truncate(invokingMatch[2], 90)}"`;
+        argsDisplay = ` · args: "${truncate(invokingPayload.payload, 90)}"`;
       }
       const callIndex = renderedCalls.push({
         tool,
@@ -188,10 +204,17 @@ function generatePlainTextSummary(logEntries) {
     }
 
     // Parse: "callBackendTool ... toolName=gh, args=map[args:pr view ...]"
-    const backendToolMatch = message.match(/toolName=([^\s,]+),\s+args=map\[args:([^\]]+?)\]\s*$/i);
-    if (backendToolMatch) {
-      const tool = backendToolMatch[1].trim();
-      const argsDisplay = ` · args: "${truncate(backendToolMatch[2], 90)}"`;
+    const backendToolPrefix = "toolName=";
+    const backendArgsPrefix = "args=map[args:";
+    const backendToolIndex = message.indexOf(backendToolPrefix);
+    const backendArgsIndex = message.indexOf(backendArgsPrefix);
+    if (backendToolIndex !== -1 && backendArgsIndex !== -1 && backendArgsIndex > backendToolIndex) {
+      const toolPart = message.slice(backendToolIndex + backendToolPrefix.length, backendArgsIndex);
+      const tool = toolPart.replace(",", "").trim();
+      const argsStart = backendArgsIndex + backendArgsPrefix.length;
+      const argsEnd = message.indexOf("]", argsStart);
+      const argsRaw = argsEnd === -1 ? message.slice(argsStart) : message.slice(argsStart, argsEnd);
+      const argsDisplay = ` · args: "${truncate(argsRaw, 90)}"`;
       const callIndex = renderedCalls.push({
         tool,
         serverName: entry.serverName || "mcpscripts",
@@ -203,10 +226,10 @@ function generatePlainTextSummary(logEntries) {
     }
 
     // Parse: "  [gh] Serialized result: {...}"
-    const serializedResultMatch = message.match(/\[\s*([^\]]+)\s*\]\s+Serialized result:\s*(\{[\s\S]*?\}|\[[\s\S]*?\]|.+?)\s*$/i);
-    if (serializedResultMatch) {
-      const tool = serializedResultMatch[1].trim();
-      const resultRaw = serializedResultMatch[2].trim();
+    const serializedResultPayload = extractToolAndPayload(message, "Serialized result:");
+    if (serializedResultPayload) {
+      const tool = serializedResultPayload.tool;
+      const resultRaw = serializedResultPayload.payload;
       const parsedResult = parseJSON(resultRaw);
       const preview = parsedResult ? truncate(JSON.stringify(parsedResult), 110) : truncate(resultRaw, 110);
       const callIndex = consumePending(tool);
