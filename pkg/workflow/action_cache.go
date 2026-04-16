@@ -453,6 +453,8 @@ func (c *ActionCache) GetCachePath() string {
 // Different repositories are identified by full action paths (for example
 // "github/gh-aw-actions/setup" vs "github/gh-aw-actions/setup-cli").
 // Multiple versions of the same repository are allowed to share a SHA.
+// Returns nil when no conflicts are found, otherwise an error describing all
+// conflicting SHAs and repositories.
 func (c *ActionCache) ValidateUniqueActionSHAs() error {
 	shaToRepos := make(map[string]map[string]struct{})
 
