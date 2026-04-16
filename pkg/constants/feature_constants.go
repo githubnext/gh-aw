@@ -39,7 +39,6 @@ const (
 	//	features:
 	//	  cli-proxy: true
 	CliProxyFeatureFlag FeatureFlag = "cli-proxy"
-	// CopilotIntegrationIDFeatureFlag previously gated injection of the
 	// AwfDiagnosticLogsFeatureFlag enables AWF operational Docker diagnostics
 	// collection on failure. When enabled, AWF collects capped container logs,
 	// container exit codes, mount metadata, and sanitized compose config into
@@ -50,15 +49,6 @@ const (
 	//	features:
 	//	  awf-diagnostic-logs: true
 	AwfDiagnosticLogsFeatureFlag FeatureFlag = "awf-diagnostic-logs"
-	// CopilotIntegrationIDFeatureFlag gates injection of the
-	// GITHUB_COPILOT_INTEGRATION_ID environment variable into the agent step.
-	// Deprecated: The integration ID is now always injected for Copilot runs.
-	//
-	// Workflow frontmatter usage:
-	//
-	//	features:
-	//	  copilot-integration-id: true
-	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
 	// ByokCopilotFeatureFlag enables Copilot CLI offline BYOK mode.
 	// When enabled with engine: copilot, the compiler:
 	//   - injects a dummy COPILOT_API_KEY into the agent env to trigger AWF BYOK runtime behavior
