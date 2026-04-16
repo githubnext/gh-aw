@@ -18,6 +18,6 @@ func TestGetAllScriptFilenamesReturnsSortedResults(t *testing.T) {
 func TestGetAllScriptFilenamesReturnsOnlyCJSFiles(t *testing.T) {
 	filenames := GetAllScriptFilenames()
 	for _, filename := range filenames {
-		assert.True(t, strings.HasSuffix(filename, ".cjs"), "GetAllScriptFilenames should only return .cjs files, got %q", filename)
+		assert.Truef(t, strings.HasSuffix(filename, ".cjs"), "GetAllScriptFilenames should only return .cjs files, got %q", filename)
 	}
 }
