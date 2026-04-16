@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -101,6 +102,39 @@ func TestActionCacheGetCachePath(t *testing.T) {
 	if cache.GetCachePath() != expectedPath {
 		t.Errorf("Expected cache path '%s', got '%s'", expectedPath, cache.GetCachePath())
 	}
+}
+
+func TestActionCacheValidateUniqueActionSHAs(t *testing.T) {
+	t.Run("allows same repository with same SHA", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "test-*")
+		cache := NewActionCache(tmpDir)
+		cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
+		cache.Set("actions/checkout", "v5.0.1", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
+
+		err := cache.ValidateUniqueActionSHAs()
+		if err != nil {
+			t.Fatalf("expected no error for same repository sharing SHA, got: %v", err)
+		}
+	})
+
+	t.Run("rejects different repositories with same SHA", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "test-*")
+		cache := NewActionCache(tmpDir)
+		sharedSHA := "2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc"
+		cache.Set("github/gh-aw-actions/setup", "v0.68.1", sharedSHA)
+		cache.Set("github/gh-aw-actions/setup-cli", "v0.68.1", sharedSHA)
+
+		err := cache.ValidateUniqueActionSHAs()
+		if err == nil {
+			t.Fatal("expected duplicate SHA validation error, got nil")
+		}
+		if !strings.Contains(err.Error(), sharedSHA[:12]) {
+			t.Fatalf("expected error to include shared SHA prefix, got: %v", err)
+		}
+		if !strings.Contains(err.Error(), "github/gh-aw-actions/setup") || !strings.Contains(err.Error(), "github/gh-aw-actions/setup-cli") {
+			t.Fatalf("expected error to include both repositories, got: %v", err)
+		}
+	})
 }
 
 func TestActionCacheTrailingNewline(t *testing.T) {

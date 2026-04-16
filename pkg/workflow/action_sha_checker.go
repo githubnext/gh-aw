@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -29,6 +31,43 @@ type ActionUpdateCheck struct {
 	NeedsUpdate bool
 	LatestSHA   string
 	Message     string
+}
+
+// ValidateDistinctActionSHAs ensures the same SHA is not used across different
+// action repositories within a single lock file.
+func ValidateDistinctActionSHAs(actions []ActionUsage) error {
+	shaToRepos := make(map[string]map[string]struct{})
+
+	for _, action := range actions {
+		if action.SHA == "" || action.Repo == "" {
+			continue
+		}
+		if _, ok := shaToRepos[action.SHA]; !ok {
+			shaToRepos[action.SHA] = make(map[string]struct{})
+		}
+		shaToRepos[action.SHA][action.Repo] = struct{}{}
+	}
+
+	var conflicts []string
+	for sha, reposSet := range shaToRepos {
+		if len(reposSet) <= 1 {
+			continue
+		}
+
+		repos := make([]string, 0, len(reposSet))
+		for repo := range reposSet {
+			repos = append(repos, repo)
+		}
+		sort.Strings(repos)
+		conflicts = append(conflicts, fmt.Sprintf("%s: %s", sha, strings.Join(repos, ", ")))
+	}
+
+	if len(conflicts) > 0 {
+		sort.Strings(conflicts)
+		return fmt.Errorf("two different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
+	}
+
+	return nil
 }
 
 // ExtractActionsFromLockFile parses a lock.yml file and extracts all action usages
@@ -160,6 +199,11 @@ func ValidateActionSHAsInLockFile(lockFilePath string, cache *ActionCache, verbo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No pinned actions to validate"))
 		}
 		return nil
+	}
+
+	// Canary check: distinct action repositories must not resolve to the same SHA.
+	if err := ValidateDistinctActionSHAs(actions); err != nil {
+		return fmt.Errorf("action SHA integrity check failed: %w", err)
 	}
 
 	// Create resolver for checking latest SHAs

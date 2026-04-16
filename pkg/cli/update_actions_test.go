@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -173,6 +174,42 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 		t.Error("safe-outputs action inputs were lost after update (expected to be preserved)")
 	} else if _, hasFoo := safeEntry.Inputs["foo"]; !hasFoo {
 		t.Errorf("safe-outputs action inputs missing 'foo' key; got %v", safeEntry.Inputs)
+	}
+}
+
+func TestUpdateActions_FailsOnDuplicateSHAAcrossDifferentActions(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	cache := workflow.NewActionCache(tmpDir)
+	sharedSHA := "2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc"
+	cache.Set("github/gh-aw-actions/setup", "v0.68.1", sharedSHA)
+	cache.Set("github/gh-aw-actions/setup-cli", "v0.68.1", sharedSHA)
+	if err := cache.Save(); err != nil {
+		t.Fatalf("failed to save cache: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if chdirErr := os.Chdir(wd); chdirErr != nil {
+			t.Errorf("failed to restore working directory: %v", chdirErr)
+		}
+	})
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	err = UpdateActions(context.Background(), false, false, false)
+	if err == nil {
+		t.Fatal("expected integrity check error for duplicate SHA across different actions")
+	}
+	if !strings.Contains(err.Error(), "integrity check failed") {
+		t.Fatalf("expected integrity check error message, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "github/gh-aw-actions/setup") || !strings.Contains(err.Error(), "github/gh-aw-actions/setup-cli") {
+		t.Fatalf("expected error to include both action repositories, got: %v", err)
 	}
 }
 

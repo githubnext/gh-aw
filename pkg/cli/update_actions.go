@@ -52,6 +52,9 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 	if err := actionCache.Load(); err != nil {
 		return fmt.Errorf("failed to parse actions lock file: %w", err)
 	}
+	if err := actionCache.ValidateUniqueActionSHAs(); err != nil {
+		return fmt.Errorf("actions-lock.json integrity check failed: %w", err)
+	}
 
 	updateLog.Printf("Loaded %d action entries from actions-lock.json", len(actionCache.Entries))
 
@@ -148,6 +151,11 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.name, f.err)
 		}
 		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Canary runtime check to ensure one commit SHA does not map to multiple action repositories.
+	if err := actionCache.ValidateUniqueActionSHAs(); err != nil {
+		return fmt.Errorf("actions-lock.json integrity check failed: %w", err)
 	}
 
 	// Save the updated actions lock file using ActionCache.Save which preserves

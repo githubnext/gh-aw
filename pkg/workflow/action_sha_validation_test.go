@@ -237,3 +237,35 @@ jobs:
 	// In CI with gh CLI access, the cache would be saved if updates were found
 	t.Logf("Validation completed successfully")
 }
+
+func TestValidateActionSHAsInLockFile_DuplicateSHAAcrossRepositories(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-*")
+	lockFile := filepath.Join(testDir, "duplicate.lock.yml")
+	sharedSHA := "2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc"
+
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/gh-aw-actions/setup@` + sharedSHA + ` # v0.68.1
+      - uses: github/gh-aw-actions/setup-cli@` + sharedSHA + ` # v0.68.1
+`
+	if err := os.WriteFile(lockFile, []byte(lockContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	cache := NewActionCache(testDir)
+	err := ValidateActionSHAsInLockFile(lockFile, cache, false)
+	if err == nil {
+		t.Fatal("expected duplicate SHA integrity error, got nil")
+	}
+	if !strings.Contains(err.Error(), sharedSHA) {
+		t.Fatalf("expected error to include shared SHA, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "github/gh-aw-actions/setup") || !strings.Contains(err.Error(), "github/gh-aw-actions/setup-cli") {
+		t.Fatalf("expected error to include both repositories, got: %v", err)
+	}
+}

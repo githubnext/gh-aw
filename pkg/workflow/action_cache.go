@@ -446,6 +446,49 @@ func (c *ActionCache) GetCachePath() string {
 	return c.path
 }
 
+// ValidateUniqueActionSHAs ensures that the same commit SHA is not shared across
+// different action repositories.
+func (c *ActionCache) ValidateUniqueActionSHAs() error {
+	shaToRepos := make(map[string]map[string]struct{})
+
+	for _, entry := range c.Entries {
+		if entry.SHA == "" || entry.Repo == "" {
+			continue
+		}
+		if _, ok := shaToRepos[entry.SHA]; !ok {
+			shaToRepos[entry.SHA] = make(map[string]struct{})
+		}
+		shaToRepos[entry.SHA][entry.Repo] = struct{}{}
+	}
+
+	var conflicts []string
+	for sha, reposSet := range shaToRepos {
+		if len(reposSet) <= 1 {
+			continue
+		}
+
+		repos := make([]string, 0, len(reposSet))
+		for repo := range reposSet {
+			repos = append(repos, repo)
+		}
+		sort.Strings(repos)
+
+		shortSHA := sha
+		if len(shortSHA) > 12 {
+			shortSHA = shortSHA[:12]
+		}
+
+		conflicts = append(conflicts, fmt.Sprintf("%s shared by %s", shortSHA, strings.Join(repos, ", ")))
+	}
+
+	if len(conflicts) == 0 {
+		return nil
+	}
+
+	sort.Strings(conflicts)
+	return fmt.Errorf("two different actions share the same commit SHA: %s", strings.Join(conflicts, "; "))
+}
+
 // deduplicateEntries removes duplicate entries by keeping only the most precise version reference
 // for each repo+SHA combination. For example, if both "actions/cache@v4" and "actions/cache@v4.3.0"
 // point to the same SHA and version, only "actions/cache@v4.3.0" is kept.
