@@ -255,6 +255,70 @@ name: "Test Workflow"`;
     });
   });
 
+  describe("extractLockFileHashFromMetadata", () => {
+    const { extractLockFileHashFromMetadata } = require("./frontmatter_hash_pure.cjs");
+
+    it("should extract lock_file_hash from v4 metadata on first line", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"abc","lock_file_hash":"def456"}
+name: test
+on: push`;
+      expect(extractLockFileHashFromMetadata(content)).toBe("def456");
+    });
+
+    it("should return empty string when lock_file_hash is absent (pre-v4)", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc"}
+name: test`;
+      expect(extractLockFileHashFromMetadata(content)).toBe("");
+    });
+
+    it("should return empty string when first line is not a metadata comment", () => {
+      const content = `name: test
+# gh-aw-metadata: {"schema_version":"v4","lock_file_hash":"abc"}`;
+      expect(extractLockFileHashFromMetadata(content)).toBe("");
+    });
+
+    it("should return empty string for legacy frontmatter-hash format", () => {
+      const content = `# frontmatter-hash: abc123
+name: test`;
+      expect(extractLockFileHashFromMetadata(content)).toBe("");
+    });
+  });
+
+  describe("computeLockFileBodyHash", () => {
+    const { computeLockFileBodyHash } = require("./frontmatter_hash_pure.cjs");
+    const crypto = require("crypto");
+
+    it("should compute SHA-256 of content after the metadata line", () => {
+      const body = `name: test workflow\non: push\n`;
+      const metadataLine = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"abc"}`;
+      const lockFileContent = metadataLine + "\n" + body;
+
+      const expected = crypto.createHash("sha256").update(body, "utf8").digest("hex");
+      expect(computeLockFileBodyHash(lockFileContent)).toBe(expected);
+    });
+
+    it("should return empty string when first line is not a metadata comment", () => {
+      const content = `name: test\non: push\n`;
+      expect(computeLockFileBodyHash(content)).toBe("");
+    });
+
+    it("should return empty string for content without a newline", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v4"}`;
+      expect(computeLockFileBodyHash(content)).toBe("");
+    });
+
+    it("should match the hash embedded by InjectLockFileHash (round-trip)", () => {
+      // Verify that the hash computeLockFileBodyHash produces for a v4 lock file
+      // matches the lock_file_hash stored in the metadata
+      const body = `# gh-aw-manifest: {}\nname: test\non: push\n`;
+      const expectedBodyHash = crypto.createHash("sha256").update(body, "utf8").digest("hex");
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"abc","lock_file_hash":"${expectedBodyHash}"}\n` + body;
+
+      const { extractLockFileHashFromMetadata: extract } = require("./frontmatter_hash_pure.cjs");
+      expect(computeLockFileBodyHash(lockFileContent)).toBe(extract(lockFileContent));
+    });
+  });
+
   describe("normalizeFrontmatterText", () => {
     it("should trim whitespace", () => {
       const text = `  engine: copilot  

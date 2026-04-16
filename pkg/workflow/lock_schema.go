@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -25,14 +27,17 @@ const (
 	LockSchemaV1 LockSchemaVersion = "v1"
 	// LockSchemaV2 is the lock file schema version that adds the strict field
 	LockSchemaV2 LockSchemaVersion = "v2"
-	// LockSchemaV3 is the current lock file schema version (adds agent id/model and detection agent id/model fields)
+	// LockSchemaV3 is the lock file schema version that adds agent id/model and detection agent id/model fields
 	LockSchemaV3 LockSchemaVersion = "v3"
+	// LockSchemaV4 is the current lock file schema version (adds lock_file_hash for tamper detection)
+	LockSchemaV4 LockSchemaVersion = "v4"
 )
 
 // LockMetadata represents the structured metadata embedded in lock files
 type LockMetadata struct {
 	SchemaVersion       LockSchemaVersion `json:"schema_version"`
 	FrontmatterHash     string            `json:"frontmatter_hash,omitempty"`
+	LockFileHash        string            `json:"lock_file_hash,omitempty"`
 	StopTime            string            `json:"stop_time,omitempty"`
 	CompilerVersion     string            `json:"compiler_version,omitempty"`
 	Strict              bool              `json:"strict,omitempty"`
@@ -55,6 +60,7 @@ var SupportedSchemaVersions = []LockSchemaVersion{
 	LockSchemaV1,
 	LockSchemaV2,
 	LockSchemaV3,
+	LockSchemaV4,
 }
 
 // IsSchemaVersionSupported checks if a schema version is supported
@@ -131,4 +137,53 @@ func (m *LockMetadata) ToJSON() (string, error) {
 		return "", fmt.Errorf("failed to serialize lock metadata: %w", err)
 	}
 	return string(bytes), nil
+}
+
+// metadataLinePrefix is the prefix used for the metadata comment line
+const metadataLinePrefix = "# gh-aw-metadata: "
+
+// InjectLockFileHash computes the SHA-256 hash of the YAML content after the metadata
+// comment line and injects it into the metadata as "lock_file_hash", upgrading the
+// schema version to LockSchemaV4. This hash covers the entire compiled YAML body and
+// provides tamper evidence: any modification to the YAML after compilation will cause
+// the stored hash to no longer match the recomputed one.
+//
+// If the content does not start with a metadata comment line, it is returned unchanged.
+func InjectLockFileHash(yamlContent string) (string, error) {
+	// Split on the first newline to isolate the metadata line from the rest
+	firstLine, rest, found := strings.Cut(yamlContent, "\n")
+	if !found {
+		// Single-line or empty content — nothing to hash
+		return yamlContent, nil
+	}
+
+	// Only process if the first line is a metadata comment
+	matches := lockMetadataPattern.FindStringSubmatch(firstLine)
+	if len(matches) < 2 {
+		return yamlContent, nil
+	}
+
+	// Parse existing metadata
+	var metadata LockMetadata
+	if err := json.Unmarshal([]byte(matches[1]), &metadata); err != nil {
+		return yamlContent, fmt.Errorf("failed to parse lock metadata for hash injection: %w", err)
+	}
+
+	// Compute SHA-256 hash of all content after the metadata line.
+	// This covers the entire compiled YAML body (excluding the metadata comment itself),
+	// so any post-compilation edit to the body will invalidate the stored hash.
+	sum := sha256.Sum256([]byte(rest))
+	metadata.LockFileHash = hex.EncodeToString(sum[:])
+	metadata.SchemaVersion = LockSchemaV4
+
+	// Re-serialize metadata
+	updatedJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return yamlContent, fmt.Errorf("failed to serialize updated lock metadata: %w", err)
+	}
+
+	// Reconstruct the first line with the updated metadata
+	updatedFirstLine := metadataLinePrefix + string(updatedJSON)
+	lockSchemaLog.Printf("Injected lock_file_hash into metadata (schema bumped to %s)", LockSchemaV4)
+	return updatedFirstLine + "\n" + rest, nil
 }

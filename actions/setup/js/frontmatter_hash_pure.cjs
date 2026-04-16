@@ -382,6 +382,55 @@ function extractHashFromLockFile(lockFileContent) {
 }
 
 /**
+ * Extract lock_file_hash from the metadata comment on the first line of a lock file.
+ * This hash covers the YAML body after the metadata line and is used to detect
+ * post-compilation tampering of the compiled lock file.
+ * @param {string} lockFileContent - Content of the .lock.yml file
+ * @returns {string} The extracted lock_file_hash or empty string if not present
+ */
+function extractLockFileHashFromMetadata(lockFileContent) {
+  const firstNewlineIdx = lockFileContent.indexOf("\n");
+  const firstLine = firstNewlineIdx >= 0 ? lockFileContent.substring(0, firstNewlineIdx) : lockFileContent;
+
+  const metadataMatch = firstLine.match(/^#\s*gh-aw-metadata:\s*(\{.+\})/);
+  if (!metadataMatch) {
+    return "";
+  }
+
+  try {
+    const metadata = JSON.parse(metadataMatch[1]);
+    return metadata.lock_file_hash || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+/**
+ * Compute SHA-256 hash of the lock file body — everything after the first line
+ * (the metadata comment). This replicates the hash embedded by the compiler so
+ * the activation step can detect any post-compilation edit to the YAML body.
+ * @param {string} lockFileContent - Content of the .lock.yml file
+ * @returns {string} The SHA-256 hash as a lowercase hexadecimal string, or empty string
+ *                   if the first line is not a metadata comment
+ */
+function computeLockFileBodyHash(lockFileContent) {
+  const firstNewlineIdx = lockFileContent.indexOf("\n");
+  if (firstNewlineIdx < 0) {
+    return "";
+  }
+
+  const firstLine = lockFileContent.substring(0, firstNewlineIdx);
+  // Only compute when the first line is a gh-aw-metadata comment
+  if (!firstLine.match(/^#\s*gh-aw-metadata:\s*\{.+\}/)) {
+    return "";
+  }
+
+  // Hash all content after the metadata line — same slice the compiler hashed
+  const body = lockFileContent.substring(firstNewlineIdx + 1);
+  return crypto.createHash("sha256").update(body, "utf8").digest("hex");
+}
+
+/**
  * Creates a file reader that uses GitHub's getFileContent API
  * @param {Object} github - GitHub API client (@actions/github)
  * @param {string} owner - Repository owner
@@ -420,6 +469,8 @@ module.exports = {
   marshalCanonicalJSON,
   marshalSorted,
   extractHashFromLockFile,
+  extractLockFileHashFromMetadata,
+  computeLockFileBodyHash,
   normalizeFrontmatterText,
   parseBoolFromFrontmatter,
   processImportsTextBased,

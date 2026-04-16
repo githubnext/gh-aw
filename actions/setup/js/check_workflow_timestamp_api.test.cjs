@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 
 const mockCore = {
   debug: vi.fn(),
@@ -1317,6 +1318,123 @@ engine: copilot
       const infoMessages = mockCore.info.mock.calls.map(c => c[0]);
       expect(infoMessages.some(m => m.includes("Debug hash recomputation"))).toBe(false);
       expect(infoMessages.some(m => m.includes("[hash-debug]"))).toBe(false);
+    });
+  });
+
+  describe("lock file body hash verification (tamper detection)", () => {
+    beforeEach(() => {
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+    });
+
+    it("should pass when lock_file_hash matches (unmodified v4 lock file)", async () => {
+      // Valid frontmatter hash for "engine: copilot"
+      const frontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+
+      const lockFileBody = `# gh-aw-manifest: {}
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+`;
+      const lockFileHash = crypto.createHash("sha256").update(lockFileBody, "utf8").digest("hex");
+
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${frontmatterHash}","lock_file_hash":"${lockFileHash}"}
+${lockFileBody}`;
+
+      const mdFileContent = `---
+engine: copilot
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("stale_lock_file_failed", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      // Should log the body hash verification result
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("YAML body is unmodified"));
+    });
+
+    it("should fail when lock_file_hash does not match (YAML body tampered)", async () => {
+      // Valid frontmatter hash for "engine: copilot"
+      const frontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+
+      const originalBody = `# gh-aw-manifest: {}
+name: Test Workflow
+on: push
+jobs:
+  activation:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+`;
+      // lock_file_hash was computed for the original (non-tampered) body
+      const lockFileHash = crypto.createHash("sha256").update(originalBody, "utf8").digest("hex");
+
+      // Simulate post-compilation YAML tampering: change "issues: read" → "issues: write"
+      const tamperedBody = originalBody.replace("issues: read", "issues: write");
+
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"${frontmatterHash}","lock_file_hash":"${lockFileHash}"}
+${tamperedBody}`;
+
+      const mdFileContent = `---
+engine: copilot
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("stale_lock_file_failed", "true");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("tampered"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("body hash mismatch"));
+    });
+
+    it("should pass gracefully when lock_file_hash is absent (pre-v4 lock file)", async () => {
+      // Pre-v4 lock files without lock_file_hash should continue to work unchanged
+      const frontmatterHash = "c2a79263dc72f28c76177afda9bf0935481b26da094407a50155a6e0244084e3";
+      const lockFileContent = `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"${frontmatterHash}"}
+name: Test Workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+`;
+
+      const mdFileContent = `---
+engine: copilot
+---
+# Test Workflow`;
+
+      mockGithub.rest.repos.getContent
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(lockFileContent).toString("base64") },
+        })
+        .mockResolvedValueOnce({
+          data: { type: "file", encoding: "base64", content: Buffer.from(mdFileContent).toString("base64") },
+        });
+
+      await main();
+
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("stale_lock_file_failed", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      // Should log that the check was skipped for pre-v4 lock files
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("pre-v4"));
     });
   });
 });

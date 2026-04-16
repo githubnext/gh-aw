@@ -3,6 +3,9 @@
 package workflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -84,12 +87,12 @@ name: test
 			expectError:  false,
 		},
 		{
-			name: "future version (v4)",
-			content: `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"future"}
+			name: "future version (v5)",
+			content: `# gh-aw-metadata: {"schema_version":"v5","frontmatter_hash":"future"}
 name: test
 `,
 			expectMetadata: &LockMetadata{
-				SchemaVersion:   "v4",
+				SchemaVersion:   "v5",
 				FrontmatterHash: "future",
 			},
 			expectLegacy: false,
@@ -176,13 +179,21 @@ name: test
 			expectError: false,
 		},
 		{
+			name: "valid v4 schema",
+			content: `# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"abc","lock_file_hash":"def","strict":true}
+name: test
+`,
+			lockPath:    "test-v4.lock.yml",
+			expectError: false,
+		},
+		{
 			name: "unsupported future version fails",
-			content: `# gh-aw-metadata: {"schema_version":"v4"}
+			content: `# gh-aw-metadata: {"schema_version":"v5"}
 name: test
 `,
 			lockPath:    "future.lock.yml",
 			expectError: true,
-			errorText:   "unsupported schema version 'v4'",
+			errorText:   "unsupported schema version 'v5'",
 		},
 		{
 			name: "missing metadata fails",
@@ -242,8 +253,13 @@ func TestIsSchemaVersionSupported(t *testing.T) {
 			supported: true,
 		},
 		{
-			name:      "v4 is not supported",
-			version:   "v4",
+			name:      "v4 is supported",
+			version:   LockSchemaV4,
+			supported: true,
+		},
+		{
+			name:      "v5 is not supported",
+			version:   "v5",
 			supported: false,
 		},
 		{
@@ -538,6 +554,7 @@ func TestFormatSupportedVersions(t *testing.T) {
 	assert.Contains(t, formatted, "v1", "Should include v1")
 	assert.Contains(t, formatted, "v2", "Should include v2")
 	assert.Contains(t, formatted, "v3", "Should include v3")
+	assert.Contains(t, formatted, "v4", "Should include v4")
 }
 
 func TestLockMetadataJSONCompact(t *testing.T) {
@@ -558,6 +575,7 @@ func TestSchemaVersionAsString(t *testing.T) {
 	assert.Equal(t, "v1", string(LockSchemaV1))
 	assert.Equal(t, "v2", string(LockSchemaV2))
 	assert.Equal(t, "v3", string(LockSchemaV3))
+	assert.Equal(t, "v4", string(LockSchemaV4))
 }
 
 func TestExtractMetadataWithStopTime(t *testing.T) {
@@ -674,4 +692,119 @@ name: test
 	assert.Equal(t, "gpt-5", metadata.AgentModel, "Should extract agent model")
 	assert.Equal(t, "copilot", metadata.DetectionAgentID, "Should extract detection agent ID")
 	assert.Equal(t, "gpt-5.1-codex-mini", metadata.DetectionAgentModel, "Should extract detection agent model")
+}
+
+func TestInjectLockFileHash(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		wantV4        bool
+		wantLockHash  bool
+		wantUnchanged bool
+	}{
+		{
+			name: "injects lock_file_hash and bumps schema to v4",
+			input: `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc123"}
+name: test workflow
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+`,
+			wantV4:       true,
+			wantLockHash: true,
+		},
+		{
+			name: "content without metadata line is returned unchanged",
+			input: `name: test
+on: push
+`,
+			wantUnchanged: true,
+		},
+		{
+			name:          "single-line content without newline is returned unchanged",
+			input:         `# gh-aw-metadata: {"schema_version":"v3"}`,
+			wantUnchanged: true,
+		},
+		{
+			name: "metadata not on first line is returned unchanged",
+			input: `name: test
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc"}
+on: push
+`,
+			wantUnchanged: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := InjectLockFileHash(tt.input)
+			require.NoError(t, err, "InjectLockFileHash should not return an error")
+
+			if tt.wantUnchanged {
+				assert.Equal(t, tt.input, result, "Content should be unchanged when no metadata on first line")
+				return
+			}
+
+			// Verify schema version was bumped to v4
+			if tt.wantV4 {
+				assert.Contains(t, result, `"schema_version":"v4"`, "Schema should be bumped to v4")
+			}
+
+			// Verify lock_file_hash was injected
+			if tt.wantLockHash {
+				assert.Contains(t, result, `"lock_file_hash":"`, "lock_file_hash should be injected")
+			}
+
+			// Verify that the body (everything after line 1) is the same
+			_, originalBody, _ := strings.Cut(tt.input, "\n")
+			_, resultBody, _ := strings.Cut(result, "\n")
+			assert.Equal(t, originalBody, resultBody, "Body content should be unchanged after injection")
+		})
+	}
+}
+
+func TestInjectLockFileHashDeterministic(t *testing.T) {
+	// Calling InjectLockFileHash twice on the same content should produce the same hash
+	input := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc123"}
+name: test
+on: push
+`
+	result1, err := InjectLockFileHash(input)
+	require.NoError(t, err, "First injection should not error")
+
+	result2, err := InjectLockFileHash(input)
+	require.NoError(t, err, "Second injection should not error")
+
+	assert.Equal(t, result1, result2, "InjectLockFileHash should be deterministic")
+}
+
+func TestInjectLockFileHashBodyImmutability(t *testing.T) {
+	// The lock_file_hash stored in the metadata must equal the SHA-256 of the body
+	// after the first line. This is the core property the tamper check relies on.
+	input := `# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"abc123"}
+name: test workflow
+on: push
+jobs:
+  activation:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+`
+	result, err := InjectLockFileHash(input)
+	require.NoError(t, err)
+
+	// Extract the injected lock_file_hash from the metadata
+	metadata, _, err := ExtractMetadataFromLockFile(result)
+	require.NoError(t, err)
+	require.NotNil(t, metadata)
+	require.NotEmpty(t, metadata.LockFileHash, "lock_file_hash should be non-empty")
+
+	// Verify it equals SHA-256 of the body (everything after the first line)
+	_, body, found := strings.Cut(result, "\n")
+	require.True(t, found, "Result must have a newline separating metadata from body")
+
+	expected := sha256.Sum256([]byte(body))
+	expectedHex := hex.EncodeToString(expected[:])
+	assert.Equal(t, expectedHex, metadata.LockFileHash, "lock_file_hash must equal SHA-256 of body after metadata line")
 }

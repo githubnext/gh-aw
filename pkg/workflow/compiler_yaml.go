@@ -351,6 +351,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent := yaml.String()
 
+	// Inject lock_file_hash into the metadata comment so that any post-compilation
+	// edit to the YAML body can be detected at activation time.
+	if injected, err := InjectLockFileHash(yamlContent); err != nil {
+		compilerYamlLog.Printf("Warning: failed to inject lock_file_hash: %v", err)
+	} else {
+		yamlContent = injected
+	}
+
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {

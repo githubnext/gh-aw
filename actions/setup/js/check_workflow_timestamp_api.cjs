@@ -18,7 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
+const { extractHashFromLockFile, computeFrontmatterHash, createGitHubFileReader, extractLockFileHashFromMetadata, computeLockFileBodyHash } = require("./frontmatter_hash_pure.cjs");
 const { getFileContent } = require("./github_api_helpers.cjs");
 const { ERR_CONFIG } = require("./error_codes.cjs");
 
@@ -234,7 +234,7 @@ async function main() {
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
 
-      return { match, storedHash, recomputedHash };
+      return { match, storedHash, recomputedHash, lockFileContent: localLockContent };
     } catch (error) {
       core.info(`Could not compute frontmatter hash from local files: ${getErrorMessage(error)}`);
       return null;
@@ -271,7 +271,7 @@ async function main() {
       core.info(`  Recomputed hash:   ${recomputedHash}`);
       core.info(`  Status: ${match ? "✅ Hashes match" : "⚠️  Hashes differ"}`);
 
-      return { match, storedHash, recomputedHash };
+      return { match, storedHash, recomputedHash, lockFileContent };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.info(`Could not compute frontmatter hash via API: ${errorMessage}`);
@@ -333,6 +333,38 @@ async function main() {
     core.info("═══ End of debug hash recomputation ═══");
   }
 
+  /**
+   * Verifies the lock file body hash — the SHA-256 of everything after the metadata
+   * comment line — to detect post-compilation tampering of the compiled YAML.
+   * Returns null when the lock file predates schema v4 (no lock_file_hash present),
+   * in which case the check is silently skipped to preserve backward compatibility.
+   * @param {string} lockFileContent - Full content of the .lock.yml file
+   * @returns {{ match: boolean, storedHash: string, computedHash: string } | null}
+   */
+  function verifyLockFileBodyHash(lockFileContent) {
+    const storedLockHash = extractLockFileHashFromMetadata(lockFileContent);
+    if (!storedLockHash) {
+      // Schema v1–v3 lock files do not embed a lock_file_hash; skip silently.
+      core.info("No lock_file_hash in metadata — skipping body integrity check (pre-v4 lock file)");
+      return null;
+    }
+
+    const computedLockHash = computeLockFileBodyHash(lockFileContent);
+    if (!computedLockHash) {
+      core.info("Could not compute lock file body hash — skipping body integrity check");
+      return null;
+    }
+
+    const match = storedLockHash === computedLockHash;
+
+    core.info(`Lock file body hash verification:`);
+    core.info(`  Stored hash:   ${storedLockHash}`);
+    core.info(`  Computed hash: ${computedLockHash}`);
+    core.info(`  Status: ${match ? "✅ Hashes match (YAML body is unmodified)" : "❌ Hashes differ (YAML body has been tampered)"}`);
+
+    return { match, storedHash: storedLockHash, computedHash: computedLockHash };
+  }
+
   const hashComparison = await compareFrontmatterHashes();
 
   if (!hashComparison) {
@@ -354,11 +386,8 @@ async function main() {
 
     core.setOutput("stale_lock_file_failed", "true");
     core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
-  } else if (hashComparison.match) {
-    // Hashes match - lock file is up to date
-    core.info("✅ Lock file is up to date (hashes match)");
-  } else {
-    // Hashes differ - run verbose pass for debugging then fail
+  } else if (!hashComparison.match) {
+    // Frontmatter hashes differ - run verbose pass for debugging then fail
     await recomputeHashWithDebugLogging();
 
     const warningMessage = `Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' frontmatter has changed. Run 'gh aw compile' to regenerate the lock file.`;
@@ -381,6 +410,34 @@ async function main() {
 
     // Fail the step to prevent workflow from running with outdated configuration
     core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
+  } else {
+    // Frontmatter hashes match — also verify the lock file body hash if present
+    const bodyHashResult = verifyLockFileBodyHash(hashComparison.lockFileContent);
+
+    if (bodyHashResult !== null && !bodyHashResult.match) {
+      // Body hash mismatch: the YAML was edited after compilation
+      const warningMessage = `Lock file '${lockFilePath}' has been tampered! The compiled YAML body does not match the stored body hash. Run 'gh aw compile' to regenerate the lock file.`;
+
+      let summary = core.summary
+        .addRaw("### 🚨 Workflow Lock File Integrity Failure\n\n")
+        .addRaw("**SECURITY WARNING**: Lock file body has been modified after compilation (body hash mismatch).\n\n")
+        .addRaw("This may indicate that the compiled YAML was manually edited to change permissions,\n")
+        .addRaw("network rules, or other security-sensitive settings without recompiling the source.\n\n")
+        .addRaw("**Files:**\n")
+        .addRaw(`- Source: \`${workflowMdPath}\`\n`)
+        .addRaw(`- Lock: \`${lockFilePath}\`\n`)
+        .addRaw(`  - Stored body hash: \`${bodyHashResult.storedHash.substring(0, 12)}...\`\n`)
+        .addRaw(`  - Computed body hash: \`${bodyHashResult.computedHash.substring(0, 12)}...\`\n\n`)
+        .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file from source.\n\n");
+
+      await summary.write();
+
+      core.setOutput("stale_lock_file_failed", "true");
+      core.setFailed(`${ERR_CONFIG}: ${warningMessage}`);
+    } else {
+      // All checks passed
+      core.info("✅ Lock file is up to date (hashes match)");
+    }
   }
 }
 
