@@ -1,6 +1,7 @@
 ---
 description: Aligns code style with repository conventions, detects security issues, and improves tests
 on: pull_request labeled refine
+strict: true
 permissions:
   contents: read
   pull-requests: read
@@ -42,7 +43,7 @@ You are an automated code refinement system responsible for aligning code style 
 
 - **Repository**: ${{ github.repository }}
 - **Pull Request**: #${{ github.event.pull_request.number }}
-- **PR Title**: ${{ github.event.pull_request.title }}
+- **PR Title**: ${{ steps.sanitized.outputs.title }}
 - **Run ID**: ${{ github.run_id }}
 
 ## Your Mission
