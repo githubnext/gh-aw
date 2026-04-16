@@ -477,6 +477,41 @@ Test that TAVILY_API_KEY is passed to gateway container.
 		"Docker command should include -e TAVILY_API_KEY before the container image")
 }
 
+// TestMCPGatewayRunsAsRunnerUser ensures the generated gateway container command
+// includes an explicit --user flag so gateway-written log files are readable by
+// downstream redaction and artifact upload steps.
+func TestMCPGatewayRunsAsRunnerUser(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+---
+
+# Test MCP Gateway user
+`
+
+	compiler := NewCompiler()
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	assert.Contains(t, yamlStr, "--user $(id -u):$(id -g)",
+		"Docker command should run MCP gateway as the current runner user")
+}
+
 // TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
 // with different secrets all get their environment variables passed to the gateway container
 func TestMultipleHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {
