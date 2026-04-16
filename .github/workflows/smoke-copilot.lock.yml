@@ -96,6 +96,7 @@ jobs:
       actions: read
       contents: read
       issues: write
+      pull-requests: write
     outputs:
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
       comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
