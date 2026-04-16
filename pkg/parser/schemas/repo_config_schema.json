@@ -45,6 +45,12 @@
                   ]
                 }
               ]
+            },
+            "action_failure_issue_expires": {
+              "description": "Expiration time in hours for action failure issues opened by the conclusion job. Defaults to 168 (7 days).",
+              "type": "integer",
+              "minimum": 1,
+              "examples": [24, 72, 168]
             }
           }
         }

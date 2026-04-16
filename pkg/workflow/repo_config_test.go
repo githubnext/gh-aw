@@ -72,6 +72,17 @@ func TestLoadRepoConfig_MaintenanceEmptyObject(t *testing.T) {
 	assert.Empty(t, cfg.Maintenance.RunsOn, "runs_on should be empty when not specified")
 }
 
+func TestLoadRepoConfig_ActionFailureIssueExpires(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"action_failure_issue_expires": 72}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	assert.Equal(t, 72, cfg.Maintenance.ActionFailureIssueExpires, "action_failure_issue_expires should be parsed from aw.json")
+	assert.Equal(t, 72, cfg.ActionFailureIssueExpiresHours(), "accessor should return configured expiration")
+}
+
 func TestLoadRepoConfig_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSONRaw(t, dir, `not-json`)
@@ -97,6 +108,14 @@ func TestLoadRepoConfig_UnknownProperty(t *testing.T) {
 	assert.Error(t, err, "unknown property should fail schema validation (additionalProperties: false)")
 }
 
+func TestLoadRepoConfig_InvalidActionFailureIssueExpires(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"action_failure_issue_expires": 0}}`)
+
+	_, err := LoadRepoConfig(dir)
+	assert.Error(t, err, "action_failure_issue_expires must be >= 1")
+}
+
 // TestFormatRunsOn tests the YAML serialisation of runs-on values.
 func TestFormatRunsOn(t *testing.T) {
 	const def = "ubuntu-slim"
@@ -120,6 +139,11 @@ func TestFormatRunsOn(t *testing.T) {
 			assert.Equal(t, tt.expected, got, "FormatRunsOn should return expected YAML value")
 		})
 	}
+}
+
+func TestActionFailureIssueExpiresHours_Default(t *testing.T) {
+	cfg := &RepoConfig{}
+	assert.Equal(t, DefaultActionFailureIssueExpiresHours, cfg.ActionFailureIssueExpiresHours(), "default should be returned when aw.json does not set action_failure_issue_expires")
 }
 
 // writeAWJSON creates .github/workflows/aw.json with the given JSON content.
