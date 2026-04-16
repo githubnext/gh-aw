@@ -511,13 +511,13 @@ tools:
 	groupAddPrefix := "--group-add $(stat -c "
 	groupAddSuffix := " /var/run/docker.sock)"
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
-	assert.Contains(t, yamlStr, groupAddPrefix,
+	require.Contains(t, yamlStr, groupAddPrefix,
 		"Docker command should include the --group-add stat prefix for docker socket group mapping")
-	assert.Contains(t, yamlStr, "%g",
+	require.Contains(t, yamlStr, "%g",
 		"Docker command should resolve the Docker socket group ID via stat format token")
-	assert.Contains(t, yamlStr, groupAddSuffix,
+	require.Contains(t, yamlStr, groupAddSuffix,
 		"Docker command should target /var/run/docker.sock for supplementary group mapping")
-	assert.Contains(t, yamlStr, mountSnippet,
+	require.Contains(t, yamlStr, mountSnippet,
 		"Docker command should mount the Docker socket")
 	assert.Less(t, strings.Index(yamlStr, groupAddPrefix), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
