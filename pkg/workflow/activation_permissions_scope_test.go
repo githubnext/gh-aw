@@ -108,6 +108,8 @@ engine: copilot
 	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
 	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write when status-comment.discussions is false")
 	assert.Contains(t, activationJobSection, "Add comment with workflow run link", "activation job should still include status comment step when enabled")
+	assert.Contains(t, activationJobSection, "github.event_name == 'issues'", "status comment condition should still include issue events")
+	assert.Contains(t, activationJobSection, "github.event_name == 'issue_comment'", "status comment condition should still include issue_comment events")
 	assert.NotContains(t, activationJobSection, "github.event_name == 'discussion'", "status comment condition should not include discussion events when status-comment.discussions is false")
 	assert.NotContains(t, activationJobSection, "github.event_name == 'discussion_comment'", "status comment condition should not include discussion_comment events when status-comment.discussions is false")
 }
