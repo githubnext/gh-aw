@@ -72,7 +72,7 @@ Alternatively, create `.mcp.json` manually:
 
 ```json wrap
 {
-  "servers": {
+  "mcpServers": {
     "github-agentic-workflows": {
       "command": "gh",
       "args": ["aw", "mcp-server"]

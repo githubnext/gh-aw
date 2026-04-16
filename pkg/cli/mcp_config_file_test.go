@@ -189,7 +189,7 @@ func TestMCPConfigParsing(t *testing.T) {
 		{
 			name: "valid config with single server",
 			jsonData: `{
-				"servers": {
+				"mcpServers": {
 					"test-server": {
 						"command": "node",
 						"args": ["server.js"]
@@ -202,7 +202,7 @@ func TestMCPConfigParsing(t *testing.T) {
 		{
 			name: "valid config with CWD",
 			jsonData: `{
-				"servers": {
+				"mcpServers": {
 					"test-server": {
 						"command": "gh",
 						"args": ["aw", "mcp-server"],
@@ -215,14 +215,27 @@ func TestMCPConfigParsing(t *testing.T) {
 		},
 		{
 			name:      "invalid JSON",
-			jsonData:  `{"servers": invalid}`,
+			jsonData:  `{"mcpServers": invalid}`,
 			wantErr:   true,
 			wantValid: false,
 		},
 		{
 			name: "empty config",
 			jsonData: `{
-				"servers": {}
+				"mcpServers": {}
+			}`,
+			wantErr:   false,
+			wantValid: true,
+		},
+		{
+			name: "legacy config key",
+			jsonData: `{
+				"servers": {
+					"test-server": {
+						"command": "node",
+						"args": ["server.js"]
+					}
+				}
 			}`,
 			wantErr:   false,
 			wantValid: true,
@@ -240,8 +253,8 @@ func TestMCPConfigParsing(t *testing.T) {
 			}
 
 			if !tt.wantErr && tt.wantValid {
-				if config.Servers == nil {
-					t.Error("Expected servers map to be initialized")
+				if config.Servers == nil && config.LegacyServers == nil {
+					t.Error("Expected mcpServers or legacy servers map to be initialized")
 				}
 			}
 		})

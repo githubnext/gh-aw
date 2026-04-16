@@ -21,9 +21,10 @@ type VSCodeMCPServer struct {
 	CWD     string   `json:"cwd,omitempty"`
 }
 
-// MCPConfig represents the structure of mcp.json
+// MCPConfig represents the structure of .mcp.json for Claude Code.
 type MCPConfig struct {
-	Servers map[string]VSCodeMCPServer `json:"servers"`
+	Servers       map[string]VSCodeMCPServer `json:"mcpServers,omitempty"`
+	LegacyServers map[string]VSCodeMCPServer `json:"servers,omitempty"`
 }
 
 // ensureMCPConfig creates .mcp.json with gh-aw MCP server configuration
@@ -98,7 +99,7 @@ func renderMCPConfigUpdateInstructions(filePath, serverName string, serverConfig
 		"Existing file detected: "+filePath)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "To enable GitHub Copilot Agent MCP server integration, please add the following")
-	fmt.Fprintln(os.Stderr, "to the \"servers\" section of your .mcp.json file:")
+	fmt.Fprintln(os.Stderr, "to the \"mcpServers\" section of your .mcp.json file:")
 	fmt.Fprintln(os.Stderr)
 
 	// Generate the JSON to add
