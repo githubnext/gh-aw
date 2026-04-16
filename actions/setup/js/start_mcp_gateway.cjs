@@ -370,16 +370,20 @@ async function main() {
 
   core.info(`Health endpoint: ${healthUrl}`);
   core.info(`(Note: MCP_GATEWAY_DOMAIN is '${gatewayDomain}' for container access)`);
-  core.info("Retrying up to 120 times with 1s delay (120s total timeout)");
+  core.info("Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)");
   core.info("");
 
   const maxRetries = 120;
+  const initialRetryDelayMs = 250;
+  const maxRetryDelayMs = 1000;
   let httpCode = 0;
   let healthBody = "";
   let succeeded = false;
+  let attemptsMade = 0;
 
   core.info("=== Health Check Progress ===");
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    attemptsMade = attempt;
     const elapsedSec = Math.floor((nowMs() - healthCheckStart) / 1000);
     if (attempt % 10 === 1 || attempt === 1) {
       core.info(`Attempt ${attempt}/${maxRetries} (${elapsedSec}s elapsed)...`);
@@ -399,14 +403,15 @@ async function main() {
     }
 
     if (attempt < maxRetries) {
-      await sleep(1000);
+      const retryDelayMs = Math.min(initialRetryDelayMs * 2 ** (attempt - 1), maxRetryDelayMs);
+      await sleep(retryDelayMs);
     }
   }
   core.info("=== End Health Check Progress ===");
   core.info("");
 
   core.info(`Final HTTP code: ${httpCode}`);
-  core.info(`Total attempts: ${maxRetries}`);
+  core.info(`Total attempts: ${attemptsMade}`);
   if (healthBody) {
     core.info(`Health response body: ${healthBody}`);
   } else {
