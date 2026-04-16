@@ -744,17 +744,15 @@ func addActivationInteractionPermissionsMap(
 	hasDiscussionCommentEvent := eventSet["discussion_comment"]
 
 	if hasReaction {
-		// Reactions on issues, issue comments, and pull requests all use issues endpoints.
-		// Both issue and pull request reactions require issues:write because PR reactions
-		// are created via /issues/{number}/reactions.
+		// Reactions on issues, issue comments, and pull requests use issues endpoints.
 		needsIssuesWriteForIssueEvents := reactionIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)
 		needsIssuesWriteForPullRequestEvents := reactionIncludesPullRequests && hasPullRequestEvent
 		needsIssuesWriteForReaction := needsIssuesWriteForIssueEvents || needsIssuesWriteForPullRequestEvents
 		if needsIssuesWriteForReaction {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
-		// Reactions on PR review comments use pull request review comment endpoints.
-		if reactionIncludesPullRequests && hasPullRequestReviewCommentEvent {
+		// Reactions on pull requests and PR review comments require pull-requests:write.
+		if reactionIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent) {
 			permsMap[PermissionPullRequests] = PermissionWrite
 		}
 		// Reactions on discussions use GraphQL discussion APIs.

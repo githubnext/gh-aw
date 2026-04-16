@@ -78,6 +78,37 @@ engine: copilot
 	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write for PR review comment reactions")
 }
 
+func TestActivationPermissionsPullRequestReactionRequiresPullRequestsWrite(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-pull-request-reaction")
+	testFile := filepath.Join(tmpDir, "pull-request-reaction.md")
+	testContent := `---
+on:
+  reaction: eyes
+  status-comment: false
+  pull_request:
+    types: [opened]
+engine: copilot
+---
+
+# Pull request reaction permissions
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "issues: write", "activation job should include issues: write for pull_request reactions")
+	assert.Contains(t, activationJobSection, "pull-requests: write", "activation job should include pull-requests: write for pull_request reactions")
+	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write for pull_request reactions")
+}
+
 func TestActivationPermissionsReactionPullRequestsDisabled(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "activation-perms-reaction-pr-disabled")
 	testFile := filepath.Join(tmpDir, "reaction-pr-disabled.md")
