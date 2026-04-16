@@ -21,9 +21,11 @@ export default function remarkTableDataLabels() {
 function visit(node) {
 	if (!node || typeof node !== 'object') return;
 
-	if (node.type === 'table' && Array.isArray(node.children) && node.children.length > 1) {
+	if (node.type === 'table' && Array.isArray(node.children) && node.children.length > 0) {
 		const [headerRow, ...bodyRows] = node.children;
-		const headers = Array.isArray(headerRow?.children)
+		const hasHeaderRow =
+			headerRow && headerRow.type === 'tableRow' && Array.isArray(headerRow.children);
+		const headers = hasHeaderRow
 			? headerRow.children.map((cell) => getText(cell).trim())
 			: [];
 
@@ -34,11 +36,8 @@ function visit(node) {
 				const label = headers[index];
 				if (!label || !cell || typeof cell !== 'object') continue;
 
-				if (!cell.data || typeof cell.data !== 'object') {
-					cell.data = {};
-				}
-				if (!cell.data.hProperties || typeof cell.data.hProperties !== 'object') {
-					cell.data.hProperties = {};
+				if (!cell.data?.hProperties || typeof cell.data.hProperties !== 'object') {
+					cell.data = { ...(cell.data || {}), hProperties: {} };
 				}
 				cell.data.hProperties['data-label'] = label;
 			}

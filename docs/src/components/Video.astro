@@ -51,7 +51,12 @@ const ratioMap: Record<string, string> = {
     'auto': '0'
 }
 const paddingBottom = ratioMap[aspectRatio]
-const accessibilityLabel = title || caption
+const fallbackLabel = src
+    .split('/')
+    .pop()
+    ?.replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+const accessibilityLabel = title || caption || fallbackLabel
 ---
 
 <div class="gh-aw-video-wrapper" style={`max-width: ${maxWidth};`}>
