@@ -1879,11 +1879,43 @@
                   "type": "integer",
                   "enum": [1, -1],
                   "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"]
+                        },
+                        {
+                          "type": "integer",
+                          "enum": [1, -1],
+                          "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
+                        }
+                      ],
+                      "description": "Reaction type. Defaults to 'eyes' when omitted."
+                    },
+                    "issues": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for issue triggers (issues, issue_comment)."
+                    },
+                    "pull-requests": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for pull request triggers (pull_request, pull_request_review_comment)."
+                    },
+                    "discussions": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for discussion and discussion_comment triggers."
+                    }
+                  }
                 }
               ],
               "default": "eyes",
-              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified.",
-              "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
+              "description": "AI reaction to add/remove on triggering item. Scalar form accepts one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies enabled reactions and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently; use `type` to choose the reaction emoji (defaults to `eyes` when omitted). Use 'none' to disable reactions.",
+              "examples": ["eyes", "rocket", "+1", 1, -1, "none", { "type": "rocket", "pull-requests": false }, { "issues": false, "discussions": true }]
             },
             "status-comment": {
               "oneOf": [

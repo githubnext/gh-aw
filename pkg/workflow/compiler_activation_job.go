@@ -117,6 +117,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Compute reaction/comment/label flags early so the app token and reaction steps can be
 	// inserted right after generate_aw_info for fast user feedback.
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+	reactionIncludesIssues := shouldIncludeIssueReactions(data)
+	reactionIncludesPullRequests := shouldIncludePullRequestReactions(data)
+	reactionIncludesDiscussions := shouldIncludeDiscussionReactions(data)
 	hasStatusComment := data.StatusComment != nil && *data.StatusComment
 	statusCommentIncludesIssues := shouldIncludeIssueStatusComments(data)
 	statusCommentIncludesPullRequests := shouldIncludePullRequestStatusComments(data)
@@ -144,6 +147,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			appPerms,
 			data.On,
 			hasReaction,
+			reactionIncludesIssues,
+			reactionIncludesPullRequests,
+			reactionIncludesDiscussions,
 			hasStatusComment,
 			statusCommentIncludesIssues,
 			statusCommentIncludesPullRequests,
@@ -171,7 +177,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// possible. generate_aw_info runs first so its data is captured even if the reaction fails.
 	// This runs in the activation job so it can use any configured github-token or github-app.
 	if hasReaction {
-		reactionCondition := BuildReactionCondition()
+		reactionCondition := BuildReactionConditionForTargets(
+			reactionIncludesIssues,
+			reactionIncludesPullRequests,
+			reactionIncludesDiscussions,
+		)
 
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction for immediate feedback\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
@@ -581,6 +591,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap,
 		data.On,
 		hasReaction,
+		reactionIncludesIssues,
+		reactionIncludesPullRequests,
+		reactionIncludesDiscussions,
 		hasStatusComment,
 		statusCommentIncludesIssues,
 		statusCommentIncludesPullRequests,
@@ -643,6 +656,9 @@ func addActivationInteractionPermissions(
 	perms *Permissions,
 	onSection string,
 	hasReaction bool,
+	reactionIncludesIssues bool,
+	reactionIncludesPullRequests bool,
+	reactionIncludesDiscussions bool,
 	hasStatusComment bool,
 	statusCommentIncludesIssues bool,
 	statusCommentIncludesPullRequests bool,
@@ -656,6 +672,9 @@ func addActivationInteractionPermissions(
 		permsMap,
 		onSection,
 		hasReaction,
+		reactionIncludesIssues,
+		reactionIncludesPullRequests,
+		reactionIncludesDiscussions,
 		hasStatusComment,
 		statusCommentIncludesIssues,
 		statusCommentIncludesPullRequests,
@@ -670,6 +689,9 @@ func addActivationInteractionPermissionsMap(
 	permsMap map[PermissionScope]PermissionLevel,
 	onSection string,
 	hasReaction bool,
+	reactionIncludesIssues bool,
+	reactionIncludesPullRequests bool,
+	reactionIncludesDiscussions bool,
 	hasStatusComment bool,
 	statusCommentIncludesIssues bool,
 	statusCommentIncludesPullRequests bool,
@@ -686,6 +708,9 @@ func addActivationInteractionPermissionsMap(
 		addBroadActivationInteractionPermissions(
 			permsMap,
 			hasReaction,
+			reactionIncludesIssues,
+			reactionIncludesPullRequests,
+			reactionIncludesDiscussions,
 			hasStatusComment,
 			statusCommentIncludesIssues,
 			statusCommentIncludesPullRequests,
@@ -700,6 +725,9 @@ func addActivationInteractionPermissionsMap(
 		addBroadActivationInteractionPermissions(
 			permsMap,
 			hasReaction,
+			reactionIncludesIssues,
+			reactionIncludesPullRequests,
+			reactionIncludesDiscussions,
 			hasStatusComment,
 			statusCommentIncludesIssues,
 			statusCommentIncludesPullRequests,
@@ -717,15 +745,18 @@ func addActivationInteractionPermissionsMap(
 
 	if hasReaction {
 		// Reactions on issues, issue comments, and pull requests all use issues endpoints.
-		if hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent {
+		if reactionIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent) {
+			permsMap[PermissionIssues] = PermissionWrite
+		}
+		if reactionIncludesPullRequests && hasPullRequestEvent {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Reactions on PR review comments use pull request review comment endpoints.
-		if hasPullRequestReviewCommentEvent {
+		if reactionIncludesPullRequests && hasPullRequestReviewCommentEvent {
 			permsMap[PermissionPullRequests] = PermissionWrite
 		}
 		// Reactions on discussions use GraphQL discussion APIs.
-		if hasDiscussionEvent || hasDiscussionCommentEvent {
+		if reactionIncludesDiscussions && (hasDiscussionEvent || hasDiscussionCommentEvent) {
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
 	}
@@ -746,6 +777,9 @@ func addActivationInteractionPermissionsMap(
 func addBroadActivationInteractionPermissions(
 	permsMap map[PermissionScope]PermissionLevel,
 	hasReaction bool,
+	reactionIncludesIssues bool,
+	reactionIncludesPullRequests bool,
+	reactionIncludesDiscussions bool,
 	hasStatusComment bool,
 	statusCommentIncludesIssues bool,
 	statusCommentIncludesPullRequests bool,
@@ -755,15 +789,36 @@ func addBroadActivationInteractionPermissions(
 		return
 	}
 
-	if hasReaction || statusCommentIncludesIssues || statusCommentIncludesPullRequests {
+	if (hasReaction && (reactionIncludesIssues || reactionIncludesPullRequests)) || statusCommentIncludesIssues || statusCommentIncludesPullRequests {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
-	if hasReaction {
+	if hasReaction && reactionIncludesPullRequests {
 		permsMap[PermissionPullRequests] = PermissionWrite
 	}
-	if hasReaction || statusCommentIncludesDiscussions {
+	if (hasReaction && reactionIncludesDiscussions) || statusCommentIncludesDiscussions {
 		permsMap[PermissionDiscussions] = PermissionWrite
 	}
+}
+
+func shouldIncludeIssueReactions(data *WorkflowData) bool {
+	if data == nil || data.ReactionIssues == nil {
+		return true
+	}
+	return *data.ReactionIssues
+}
+
+func shouldIncludePullRequestReactions(data *WorkflowData) bool {
+	if data == nil || data.ReactionPullRequests == nil {
+		return true
+	}
+	return *data.ReactionPullRequests
+}
+
+func shouldIncludeDiscussionReactions(data *WorkflowData) bool {
+	if data == nil || data.ReactionDiscussions == nil {
+		return true
+	}
+	return *data.ReactionDiscussions
 }
 
 func shouldIncludeIssueStatusComments(data *WorkflowData) bool {

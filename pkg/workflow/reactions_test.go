@@ -174,3 +174,39 @@ func TestIntToReactionString(t *testing.T) {
 		})
 	}
 }
+
+func TestParseReactionConfigMap(t *testing.T) {
+	reaction, issues, pullRequests, discussions, err := parseReactionConfig(map[string]any{
+		"type":          "rocket",
+		"issues":        false,
+		"pull-requests": true,
+		"discussions":   false,
+	})
+	if err != nil {
+		t.Fatalf("parseReactionConfig(map) returned unexpected error: %v", err)
+	}
+	if reaction != "rocket" {
+		t.Fatalf("Expected reaction type 'rocket', got %q", reaction)
+	}
+	if issues == nil || *issues {
+		t.Fatalf("Expected issues target false, got %v", issues)
+	}
+	if pullRequests == nil || !*pullRequests {
+		t.Fatalf("Expected pull-requests target true, got %v", pullRequests)
+	}
+	if discussions == nil || *discussions {
+		t.Fatalf("Expected discussions target false, got %v", discussions)
+	}
+}
+
+func TestParseReactionConfigMapAllTargetsDisabled(t *testing.T) {
+	_, _, _, _, err := parseReactionConfig(map[string]any{
+		"type":          "eyes",
+		"issues":        false,
+		"pull-requests": false,
+		"discussions":   false,
+	})
+	if err == nil {
+		t.Fatal("Expected parseReactionConfig to fail when all reaction targets are disabled")
+	}
+}
