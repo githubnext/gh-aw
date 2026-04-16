@@ -1,7 +1,13 @@
 ---
 description: Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily
-on: 
+on:
   workflow_dispatch:
+    inputs:
+      aw_context:
+        description: Agent caller context (used internally by Agentic Workflows).
+        required: false
+        type: string
+        default: ""
   pull_request:
     types: [labeled]
     names: ["smoke"]
