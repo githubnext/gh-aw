@@ -325,6 +325,36 @@ func TestBuildAuditDataToolUsageMatchesBuildToolUsageInfo(t *testing.T) {
 	require.Equal(t, expected, auditData.ToolUsage, "buildAuditData tool usage should match buildToolUsageInfo output")
 }
 
+func TestMergeMCPToolUsageInfoUsesSummaryWhenMetricsToolCallsEmpty(t *testing.T) {
+	merged := mergeMCPToolUsageInfo(nil, &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "safeoutputs", ToolName: "create_discussion", CallCount: 2, MaxInputSize: 50, MaxOutputSize: 1200},
+			{ServerName: "safeoutputs", ToolName: "push_repo_memory", CallCount: 1, MaxInputSize: 32, MaxOutputSize: 240},
+		},
+	})
+
+	require.Len(t, merged, 2, "MCP summary should be represented as tool usage entries")
+	assert.Equal(t, "safeoutputs.create_discussion", merged[0].Name, "higher call-count MCP tool should sort first")
+	assert.Equal(t, 2, merged[0].CallCount, "call count should come from MCP summary")
+	assert.Equal(t, "safeoutputs.push_repo_memory", merged[1].Name, "second MCP tool should be preserved")
+}
+
+func TestMergeMCPToolUsageInfoFallsBackToToolCalls(t *testing.T) {
+	merged := mergeMCPToolUsageInfo(nil, &MCPToolUsageData{
+		ToolCalls: []MCPToolCall{
+			{ServerName: "safeoutputs", ToolName: "create_discussion", InputSize: 20, OutputSize: 200},
+			{ServerName: "safeoutputs", ToolName: "create_discussion", InputSize: 40, OutputSize: 250},
+			{ServerName: "safeoutputs", ToolName: "push_repo_memory", InputSize: 10, OutputSize: 100},
+		},
+	})
+
+	require.Len(t, merged, 2, "fallback should aggregate MCP tool calls when summary is absent")
+	assert.Equal(t, "safeoutputs.create_discussion", merged[0].Name, "tool call fallback should aggregate by MCP tool name")
+	assert.Equal(t, 2, merged[0].CallCount, "fallback should count repeated MCP tool calls")
+	assert.Equal(t, 40, merged[0].MaxInputSize, "fallback should keep max input size from calls")
+	assert.Equal(t, 250, merged[0].MaxOutputSize, "fallback should keep max output size from calls")
+}
+
 // TestDeriveRunAgenticAnalysisFingerprintConsistency verifies that the fingerprint
 // produced by deriveRunAgenticAnalysis is consistent when Run.Turns is correctly
 // populated from log metrics. This guards against the bug where logs_orchestrator.go

@@ -266,6 +266,9 @@ flowchart LR
 4. All MCP traffic remains within the host boundary: AWF restricts egress, and the gateway routes requests to sandboxed MCP servers.
 5. When supported by an agent, AWF creates a trusted `api-proxy` that routes model traffic on the agent's behalf while keeping that traffic behind AWF's network controls. This proxy should not be treated as a separate caller-authentication boundary for arbitrary code already running inside the agent container.
 
+> [!WARNING]
+> The MCP gateway API key that is mounted into the agent container is not a strong security boundary against a compromised or malicious agent. An agent running arbitrary code may extract the key from process memory, runtime state, or other in-container channels. Treat this key as leaked by design and rely on substrate isolation, network policy, and staged permission separation for security.
+
 ## MCP Server Sandboxing
 
 MCP servers execute within isolated containers, enforcing substrate-level separation between the agent and each server instance. Tool filtering at the configuration level restricts which operations each server may expose, limiting the attack surface available to a compromised agent. This isolation ensures that even if an MCP server is compromised, it cannot access the memory or state of other components.

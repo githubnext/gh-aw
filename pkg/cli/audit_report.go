@@ -321,6 +321,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	}
 
 	toolUsage := buildToolUsageInfo(metrics)
+	toolUsage = mergeMCPToolUsageInfo(toolUsage, mcpToolUsage)
 
 	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
 	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)
