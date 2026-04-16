@@ -508,13 +508,18 @@ tools:
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	groupAddSnippet := `--group-add $(stat -c '\''%g'\'' /var/run/docker.sock)`
+	groupAddPrefix := "--group-add $(stat -c "
+	groupAddSuffix := " /var/run/docker.sock)"
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
-	assert.Contains(t, yamlStr, groupAddSnippet,
-		"Docker command should include docker socket supplementary group mapping")
+	assert.Contains(t, yamlStr, groupAddPrefix,
+		"Docker command should include the --group-add stat prefix for docker socket group mapping")
+	assert.Contains(t, yamlStr, "%g",
+		"Docker command should resolve the Docker socket group ID via stat format token")
+	assert.Contains(t, yamlStr, groupAddSuffix,
+		"Docker command should target /var/run/docker.sock for supplementary group mapping")
 	assert.Contains(t, yamlStr, mountSnippet,
 		"Docker command should mount the Docker socket")
-	assert.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
+	assert.Less(t, strings.Index(yamlStr, groupAddPrefix), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
 }
 
