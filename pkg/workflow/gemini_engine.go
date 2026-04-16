@@ -38,7 +38,7 @@ func (e *GeminiEngine) GetModelEnvVarName() string {
 	return constants.GeminiCLIModelEnvVar
 }
 
-// GetRequiredSecretNames returns the list of secrets required by the Gemini engine
+// GetRequiredSecretNames returns the list of secrets required by the Gemini engine.
 // This includes GEMINI_API_KEY and optionally MCP_GATEWAY_API_KEY, GITHUB_MCP_SERVER_TOKEN,
 // HTTP MCP header secrets, and mcp-scripts secrets
 func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
