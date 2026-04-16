@@ -246,6 +246,10 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 	awfArgs = append(awfArgs, "--proxy-logs-dir", string(constants.AWFProxyLogsDir))
 	awfArgs = append(awfArgs, "--audit-dir", string(constants.AWFAuditDir))
+	if isFeatureEnabled(constants.AwfDiagnosticLogsFeatureFlag, config.WorkflowData) {
+		awfArgs = append(awfArgs, "--diagnostic-logs")
+		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")
+	}
 
 	// Always add --enable-host-access: needed for the API proxy sidecar
 	// (to reach host.docker.internal:<port>) and for MCP gateway communication
