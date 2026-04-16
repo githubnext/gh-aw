@@ -645,6 +645,21 @@ index 0000000..abc1234
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
+    it("should fail with diagnostic error when branch existence check fails for other reasons", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: Authentication failed" });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Failed to verify branch");
+      expect(result.error).toContain("Authentication failed");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
     it("should handle git fetch failure", async () => {
       const patchPath = createPatchFile();
 

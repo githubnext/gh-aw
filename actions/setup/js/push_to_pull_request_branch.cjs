@@ -463,10 +463,18 @@ async function main(config = {}) {
         ignoreReturnCode: true,
       });
 
-      if (lsRemoteResult.exitCode !== 0) {
+      if (lsRemoteResult.exitCode === 2) {
         return {
           success: false,
           error: `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`,
+        };
+      }
+
+      if (lsRemoteResult.exitCode !== 0) {
+        const stderr = (lsRemoteResult.stderr || "").trim();
+        return {
+          success: false,
+          error: `Failed to verify branch ${branchName} exists on origin: ${stderr || `git ls-remote exited with code ${lsRemoteResult.exitCode}`}`,
         };
       }
     }
