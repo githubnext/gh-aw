@@ -172,7 +172,7 @@ function generatePlainTextSummary(logEntries) {
     if (pending.length === 0) {
       pendingByTool.delete(key);
     }
-    return index;
+    return typeof index === "number" ? index : -1;
   };
 
   for (const entry of logEntries) {
