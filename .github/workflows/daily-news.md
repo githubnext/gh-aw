@@ -14,7 +14,9 @@ permissions:
   actions: read
 
 tracker-id: daily-news-weekday
-engine: copilot
+engine:
+  id: copilot
+  bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
 runs-on: aw-gpu-runner-T4
