@@ -562,6 +562,40 @@ function removeXmlComments(s) {
 }
 
 /**
+ * Removes quoted title text from markdown link syntax to prevent steganographic injection.
+ * Link titles are invisible in rendered GitHub markdown (they appear only as hover-tooltips)
+ * but pass through to the AI model in raw text, creating a hidden injection channel
+ * structurally equivalent to HTML comments (which are already stripped by removeXmlComments).
+ *
+ * Handles all three CommonMark title delimiter forms:
+ *   Inline:    [text](url "title") → [text](url)
+ *              [text](url 'title') → [text](url)
+ *              [text](url (title)) → [text](url)
+ *   Reference: [ref]: url "title"  → [ref]: url
+ *              [ref]: url 'title'  → [ref]: url
+ *              [ref]: url (title)  → [ref]: url
+ *
+ * @param {string} s - The string to process
+ * @returns {string} The string with markdown link titles removed
+ */
+function removeMarkdownLinkTitles(s) {
+  // Strip title from inline links: [text](url "title"), [text](url 'title'), [text](url (title))
+  // URL may be bare (non-whitespace, non-')' characters) or angle-bracket-delimited (<url>).
+  // The title attribute MUST be preceded by at least one whitespace character (CommonMark spec).
+  s = s.replace(/(\[[^\]]*\]\()(?:(<[^>]*>)|([^\s)]+))\s+(?:"[^"]*"|'[^']*'|\([^)]*\))(\s*\))/g, (match, open, angleBracketUrl, bareUrl, close) => {
+    const url = angleBracketUrl !== undefined ? angleBracketUrl : bareUrl;
+    return open + url + close;
+  });
+
+  // Strip title from reference-style link definitions: [ref]: url "title" → [ref]: url
+  // These must appear at the start of a line (per CommonMark spec). The gm flag makes
+  // ^ match after each newline so the substitution works correctly on multi-line content.
+  s = s.replace(/^(\[[^\]]+\]:\s+\S+)\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/gm, "$1");
+
+  return s;
+}
+
+/**
  * Converts XML/HTML tags to parentheses format to prevent injection
  * @param {string} s - The string to process
  * @returns {string} The string with XML tags converted to parentheses
@@ -1109,6 +1143,12 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
   // preventing the full <!--...--> pattern from being matched.
   sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
 
+  // Remove markdown link titles — a steganographic injection channel analogous to HTML comments.
+  // Quoted title text ([text](url "TITLE") and [ref]: url "TITLE") is invisible in GitHub's
+  // rendered markdown (shown only as hover-tooltips) but reaches the AI model verbatim.
+  // Must run before mention neutralization for the same ordering reason as removeXmlComments.
+  sanitized = applyToNonCodeRegions(sanitized, removeMarkdownLinkTitles);
+
   // Neutralize ALL @mentions (no filtering in core version)
   sanitized = neutralizeAllMentions(sanitized);
 
@@ -1160,6 +1200,7 @@ module.exports = {
   neutralizeCommands,
   neutralizeGitHubReferences,
   removeXmlComments,
+  removeMarkdownLinkTitles,
   convertXmlTags,
   applyToNonCodeRegions,
   neutralizeBotTriggers,
