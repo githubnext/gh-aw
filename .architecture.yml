@@ -1,0 +1,5 @@
+thresholds:
+  file_lines_blocker: 2000
+  file_lines_warning: 1000
+  function_lines: 200
+  max_exports: 10
