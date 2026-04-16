@@ -24,7 +24,8 @@ type VSCodeMCPServer struct {
 // MCPConfig represents the structure of .mcp.json for Claude Code.
 type MCPConfig struct {
 	MCPServers map[string]VSCodeMCPServer `json:"mcpServers,omitempty"`
-	Servers    map[string]VSCodeMCPServer `json:"servers,omitempty"`
+	// Servers is a legacy key kept for backward-compatible reads of existing .mcp.json files.
+	Servers map[string]VSCodeMCPServer `json:"servers,omitempty"`
 }
 
 // ensureMCPConfig creates .mcp.json with gh-aw MCP server configuration

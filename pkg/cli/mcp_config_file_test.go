@@ -257,6 +257,9 @@ func TestMCPConfigParsing(t *testing.T) {
 					if config.Servers == nil {
 						t.Error("Expected legacy servers map to be initialized")
 					}
+					if config.MCPServers != nil {
+						t.Error("Expected mcpServers map to be nil for legacy-only config")
+					}
 				} else if config.MCPServers == nil {
 					t.Error("Expected mcpServers map to be initialized")
 				}
