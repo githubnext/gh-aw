@@ -49,6 +49,9 @@ const NOTIFY_TIMEOUT_MS = 10000;
 /** Interval (ms) for MCP keepalive pings during long-running tool calls */
 const KEEPALIVE_PING_INTERVAL_MS = 10000;
 
+/** Starting JSON-RPC ID for keepalive ping requests */
+const KEEPALIVE_PING_ID_START = 1000;
+
 // ---------------------------------------------------------------------------
 // Audit logging
 // ---------------------------------------------------------------------------
@@ -309,6 +312,7 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
   const core = global.core;
 
   if (!sessionId) {
+    core.warning(`[${serverName}] MCP keepalive disabled: no sessionId`);
     return () => {};
   }
 
@@ -319,7 +323,7 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
   };
 
   let stopped = false;
-  let pingId = 1000;
+  let pingId = KEEPALIVE_PING_ID_START;
   /** @type {NodeJS.Timeout | null} */
   let nextTimer = null;
 
@@ -660,8 +664,8 @@ async function main() {
   auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
 
   const callStartMs = Date.now();
-  /** @type {() => void} */
-  let stopKeepalive = () => {};
+  /** @type {(() => void) | null} */
+  let stopKeepalive = null;
 
   try {
     // MCP session protocol: initialize → notifications/initialized → tools/call
@@ -693,7 +697,7 @@ async function main() {
     process.stderr.write(`Error: ${message}\n`);
     process.exitCode = 1;
   } finally {
-    stopKeepalive();
+    stopKeepalive?.();
   }
 }
 
