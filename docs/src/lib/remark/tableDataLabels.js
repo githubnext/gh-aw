@@ -29,8 +29,12 @@ function visit(node) {
 				const label = headers[index];
 				if (!label || !cell || typeof cell !== 'object') continue;
 
-				cell.data ??= {};
-				cell.data.hProperties ??= {};
+				if (!cell.data || typeof cell.data !== 'object') {
+					cell.data = {};
+				}
+				if (!cell.data.hProperties || typeof cell.data.hProperties !== 'object') {
+					cell.data.hProperties = {};
+				}
 				if (!cell.data.hProperties['data-label']) {
 					cell.data.hProperties['data-label'] = label;
 				}
