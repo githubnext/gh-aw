@@ -314,10 +314,6 @@ touch %s
 		env["S2STOKENS"] = "true"
 	}
 
-	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
-		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
-	}
-
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
 	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
 	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
@@ -414,6 +410,13 @@ touch %s
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
 		maps.Copy(env, agentConfig.Env)
 		copilotExecLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+	}
+
+	// Inject the dummy COPILOT_API_KEY AFTER all env merges so that legacy/manual
+	// wiring in engine.env or agent.env cannot accidentally overwrite the sentinel
+	// value that triggers AWF's runtime BYOK detection path.
+	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
 	}
 
 	// Add HTTP MCP header secrets to env for passthrough

@@ -185,10 +185,9 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variable
-			if tt.envValue != "" {
-				t.Setenv("GH_AW_FEATURES", tt.envValue)
-			}
+			// Always set environment variable (including empty string) to prevent
+			// flakiness from inherited outer process environment.
+			t.Setenv("GH_AW_FEATURES", tt.envValue)
 
 			// Create WorkflowData with features
 			var workflowData *WorkflowData
