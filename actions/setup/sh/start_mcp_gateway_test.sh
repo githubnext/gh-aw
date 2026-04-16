@@ -290,6 +290,7 @@ test_validation_functions_exist() {
     grep -q "RETRY_DELAY=\"0.25\"" "$SCRIPT_PATH" &&
     grep -q "RETRY_DELAY=\"0.5\"" "$SCRIPT_PATH" &&
     grep -q "RETRY_DELAY=\"1\"" "$SCRIPT_PATH" &&
+    grep -q "attempt 3+ -> 1s" "$SCRIPT_PATH" &&
     grep -q "sleep \"\$RETRY_DELAY\"" "$SCRIPT_PATH"; then
     print_result "Health check exponential backoff configuration exists" "PASS"
   else
