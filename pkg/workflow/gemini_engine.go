@@ -38,13 +38,12 @@ func (e *GeminiEngine) GetModelEnvVarName() string {
 	return constants.GeminiCLIModelEnvVar
 }
 
-// GetRequiredSecretNames returns the list of secrets required by the Gemini engine.
-// This includes GEMINI_API_KEY, the GOOGLE_API_KEY compatibility env key (used by
-// AWF proxy Gemini routing), and optionally MCP_GATEWAY_API_KEY,
-// GITHUB_MCP_SERVER_TOKEN, HTTP MCP header secrets, and mcp-scripts secrets.
+// GetRequiredSecretNames returns the list of secrets required by the Gemini engine
+// This includes GEMINI_API_KEY and optionally MCP_GATEWAY_API_KEY, GITHUB_MCP_SERVER_TOKEN,
+// HTTP MCP header secrets, and mcp-scripts secrets
 func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	geminiLog.Print("Collecting required secrets for Gemini engine")
-	secrets := []string{"GEMINI_API_KEY", "GOOGLE_API_KEY"}
+	secrets := []string{"GEMINI_API_KEY"}
 
 	// Add common MCP secrets (MCP_GATEWAY_API_KEY if MCP servers present, mcp-scripts secrets)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
@@ -219,7 +218,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			PathSetup: "touch " + AgentStepSummaryPath,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"GEMINI_API_KEY", "GOOGLE_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"GEMINI_API_KEY"}),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
@@ -300,14 +299,6 @@ touch %s
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
 		maps.Copy(env, agentConfig.Env)
 		geminiLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
-	}
-
-	// Mirror GEMINI_API_KEY to GOOGLE_API_KEY unless explicitly overridden.
-	// Gemini CLI reads GEMINI_API_KEY, while AWF's Gemini proxy handler reads GOOGLE_API_KEY.
-	if _, hasGoogleAPIKey := env["GOOGLE_API_KEY"]; !hasGoogleAPIKey {
-		if geminiAPIKey, hasGeminiAPIKey := env["GEMINI_API_KEY"]; hasGeminiAPIKey {
-			env["GOOGLE_API_KEY"] = geminiAPIKey
-		}
 	}
 
 	// Generate the execution step
