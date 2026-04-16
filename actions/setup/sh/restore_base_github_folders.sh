@@ -7,7 +7,7 @@
 # which may include attacker-controlled skill/instruction files for fork PRs.
 # This script overwrites agent-specific folders and root instruction files with
 # the trusted snapshot saved by save_base_github_folders.sh during the activation
-# job.  It also removes .mcp.json from the workspace root, which may contain
+# job.  It also removes .github/mcp.json from the workspace, which may contain
 # untrusted MCP server configuration from the PR branch.
 #
 # For each item:
@@ -67,8 +67,8 @@ for FILE in "${ROOT_FILES[@]+"${ROOT_FILES[@]}"}"; do
   fi
 done
 
-# Remove .mcp.json — may contain untrusted MCP server config from the PR branch
-if [ -f "${WORKSPACE}/.mcp.json" ]; then
-  rm -f "${WORKSPACE}/.mcp.json"
-  echo "Removed .mcp.json from workspace"
+# Remove .github/mcp.json — may contain untrusted MCP server config from the PR branch
+if [ -f "${WORKSPACE}/.github/mcp.json" ]; then
+  rm -f "${WORKSPACE}/.github/mcp.json"
+  echo "Removed .github/mcp.json from workspace"
 fi

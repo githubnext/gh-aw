@@ -77,24 +77,24 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		}
 	}
 
-	// Verify .mcp.json was created
+	// Verify .github/mcp.json was created
 	mcpConfigPath := filepath.Join(tempDir, mcpConfigFilePath)
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Errorf("Expected .mcp.json to exist")
+		t.Errorf("Expected .github/mcp.json to exist")
 	} else {
 		// Verify content is valid JSON with gh-aw server
 		content, err := os.ReadFile(mcpConfigPath)
 		if err != nil {
-			t.Fatalf("Failed to read .mcp.json: %v", err)
+			t.Fatalf("Failed to read .github/mcp.json: %v", err)
 		}
 
 		var config MCPConfig
 		if err := json.Unmarshal(content, &config); err != nil {
-			t.Fatalf("Failed to parse .mcp.json: %v", err)
+			t.Fatalf("Failed to parse .github/mcp.json: %v", err)
 		}
 
 		if _, exists := config.MCPServers["github-agentic-workflows"]; !exists {
-			t.Errorf("Expected .mcp.json to contain github-agentic-workflows server")
+			t.Errorf("Expected .github/mcp.json to contain github-agentic-workflows server")
 		}
 
 		server := config.MCPServers["github-agentic-workflows"]
@@ -155,7 +155,7 @@ func TestInitRepository_MCP_Idempotent(t *testing.T) {
 
 	mcpConfigPath := filepath.Join(tempDir, mcpConfigFilePath)
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
-		t.Errorf("Expected .mcp.json to exist after second call")
+		t.Errorf("Expected .github/mcp.json to exist after second call")
 	}
 }
 
@@ -176,7 +176,7 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
 
-	// Create initial .mcp.json with a different server
+	// Create initial .github/mcp.json with a different server
 	initialConfig := MCPConfig{
 		MCPServers: map[string]VSCodeMCPServer{
 			"other-server": {
@@ -187,8 +187,11 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 	}
 	initialData, _ := json.MarshalIndent(initialConfig, "", "  ")
 	mcpConfigPath := filepath.Join(tempDir, mcpConfigFilePath)
+	if err := os.MkdirAll(filepath.Dir(mcpConfigPath), 0755); err != nil {
+		t.Fatalf("Failed to create MCP config directory: %v", err)
+	}
 	if err := os.WriteFile(mcpConfigPath, initialData, 0644); err != nil {
-		t.Fatalf("Failed to write initial .mcp.json: %v", err)
+		t.Fatalf("Failed to write initial .github/mcp.json: %v", err)
 	}
 
 	// Call ensureMCPConfig
@@ -199,12 +202,12 @@ func TestEnsureMCPConfig_RendersInstructions(t *testing.T) {
 	// Verify the config was NOT modified (file should remain unchanged)
 	content, err := os.ReadFile(mcpConfigPath)
 	if err != nil {
-		t.Fatalf("Failed to read .mcp.json: %v", err)
+		t.Fatalf("Failed to read .github/mcp.json: %v", err)
 	}
 
 	var config MCPConfig
 	if err := json.Unmarshal(content, &config); err != nil {
-		t.Fatalf("Failed to parse .mcp.json: %v", err)
+		t.Fatalf("Failed to parse .github/mcp.json: %v", err)
 	}
 
 	// Check that other-server still exists

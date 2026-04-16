@@ -34,8 +34,8 @@ trap cleanup EXIT
 echo "Testing restore_base_github_folders.sh..."
 echo ""
 
-# ── Test 1: Snapshot present → restores folders, root files, removes .mcp.json
-echo "Test 1: Snapshot present → restores folders, root files, removes .mcp.json"
+# ── Test 1: Snapshot present → restores folders, root files, removes .github/mcp.json
+echo "Test 1: Snapshot present → restores folders, root files, removes .github/mcp.json"
 TEST_WORKSPACE=$(mktemp -d)
 
 # Base branch snapshot
@@ -53,7 +53,7 @@ mkdir -p "${TEST_WORKSPACE}/.agents"
 echo "evil agent" >"${TEST_WORKSPACE}/.agents/agent.md"
 echo "evil agents" >"${TEST_WORKSPACE}/AGENTS.md"
 echo "evil claude" >"${TEST_WORKSPACE}/CLAUDE.md"
-echo '{"mcpServers":{}}' >"${TEST_WORKSPACE}/.mcp.json"
+echo '{"mcpServers":{}}' >"${TEST_WORKSPACE}/.github/mcp.json"
 
 GH_AW_AGENT_FOLDERS="${AGENT_FOLDERS}" GH_AW_AGENT_FILES="${AGENT_FILES}" \
   GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
@@ -62,7 +62,7 @@ assert ".github/skills/SKILL.md restored to trusted" "grep -q 'trusted skill' '$
 assert ".agents/agent.md restored to trusted" "grep -q 'trusted agent' '${TEST_WORKSPACE}/.agents/agent.md'"
 assert "AGENTS.md restored to trusted" "grep -q 'trusted agents' '${TEST_WORKSPACE}/AGENTS.md'"
 assert "CLAUDE.md restored to trusted" "grep -q 'trusted claude' '${TEST_WORKSPACE}/CLAUDE.md'"
-assert ".mcp.json removed" "[ ! -f '${TEST_WORKSPACE}/.mcp.json' ]"
+assert ".github/mcp.json removed" "[ ! -f '${TEST_WORKSPACE}/.github/mcp.json' ]"
 rm -rf "${TEST_WORKSPACE}" /tmp/gh-aw/base
 echo ""
 
@@ -109,25 +109,26 @@ assert "AGENTS.md removed (not in base)" "[ ! -f '${TEST_WORKSPACE}/AGENTS.md' ]
 rm -rf "${TEST_WORKSPACE}"
 echo ""
 
-# ── Test 4: Empty env vars → no folder operations, .mcp.json still removed ───
-echo "Test 4: Empty env vars → no folder/file ops, .mcp.json still removed"
+# ── Test 4: Empty env vars → no folder operations, .github/mcp.json still removed ───
+echo "Test 4: Empty env vars → no folder/file ops, .github/mcp.json still removed"
 TEST_WORKSPACE=$(mktemp -d)
 rm -rf /tmp/gh-aw/base
 mkdir -p "${TEST_WORKSPACE}/.claude"
 echo "evil" >"${TEST_WORKSPACE}/.claude/CLAUDE.md"
-echo '{"evil":true}' >"${TEST_WORKSPACE}/.mcp.json"
+mkdir -p "${TEST_WORKSPACE}/.github"
+echo '{"evil":true}' >"${TEST_WORKSPACE}/.github/mcp.json"
 
 GH_AW_AGENT_FOLDERS="" GH_AW_AGENT_FILES="" \
   GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1
 EXIT_CODE=$?
 
 assert "exits 0" "[ ${EXIT_CODE} -eq 0 ]"
-assert ".mcp.json removed even with empty env vars" "[ ! -f '${TEST_WORKSPACE}/.mcp.json' ]"
+assert ".github/mcp.json removed even with empty env vars" "[ ! -f '${TEST_WORKSPACE}/.github/mcp.json' ]"
 rm -rf "${TEST_WORKSPACE}"
 echo ""
 
-# ── Test 5: .mcp.json absent → exits 0 without error ─────────────────────────
-echo "Test 5: No .mcp.json in workspace → exits 0"
+# ── Test 5: .github/mcp.json absent → exits 0 without error ──────────────────
+echo "Test 5: No .github/mcp.json in workspace → exits 0"
 TEST_WORKSPACE=$(mktemp -d)
 rm -rf /tmp/gh-aw/base
 
@@ -135,7 +136,7 @@ EXIT_CODE=0
 GH_AW_AGENT_FOLDERS="" GH_AW_AGENT_FILES="" \
   GITHUB_WORKSPACE="${TEST_WORKSPACE}" bash "${RESTORE_SCRIPT}" >/dev/null 2>&1 || EXIT_CODE=$?
 
-assert "exits 0 when .mcp.json absent" "[ ${EXIT_CODE} -eq 0 ]"
+assert "exits 0 when .github/mcp.json absent" "[ ${EXIT_CODE} -eq 0 ]"
 rm -rf "${TEST_WORKSPACE}"
 echo ""
 

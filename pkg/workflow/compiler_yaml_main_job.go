@@ -326,7 +326,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Restore agent config folders from the base branch snapshot in the activation artifact.
 	// The activation job saved these before the PR checkout ran, so this step overwrites any
 	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
-	// The .mcp.json at the workspace root is also removed since it may come from the PR branch.
+	// The .github/mcp.json file is also removed since it may come from the PR branch.
 	// The folder and file lists match those used in the save step (derived from engine registry).
 	if ShouldGeneratePRCheckoutStep(data) {
 		registry := GetGlobalEngineRegistry()

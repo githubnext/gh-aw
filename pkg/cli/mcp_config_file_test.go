@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -134,6 +135,9 @@ func TestEnsureMCPConfig(t *testing.T) {
 					t.Fatalf("Failed to marshal existing config: %v", err)
 				}
 
+				if err := os.MkdirAll(filepath.Dir(mcpConfigFilePath), 0755); err != nil {
+					t.Fatalf("Failed to create mcp config directory: %v", err)
+				}
 				if err := os.WriteFile(mcpConfigFilePath, data, 0644); err != nil {
 					t.Fatalf("Failed to write existing config: %v", err)
 				}
@@ -154,7 +158,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 
 			// Verify the file was created
 			if _, err := os.Stat(mcpConfigFilePath); os.IsNotExist(err) {
-				t.Error("Expected .mcp.json to exist")
+				t.Error("Expected .github/mcp.json to exist")
 				return
 			}
 
@@ -326,15 +330,15 @@ func TestEnsureMCPConfigDirectoryCreation(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Call function when .mcp.json doesn't exist
+	// Call function when .github/mcp.json doesn't exist
 	err = ensureMCPConfig(false)
 	if err != nil {
 		t.Fatalf("ensureMCPConfig() failed: %v", err)
 	}
 
-	// Verify .mcp.json was created
+	// Verify .github/mcp.json was created
 	if _, err := os.Stat(mcpConfigFilePath); os.IsNotExist(err) {
-		t.Error("Expected .mcp.json to be created")
+		t.Error("Expected .github/mcp.json to be created")
 	}
 }
 
@@ -361,7 +365,7 @@ func TestMCPConfigFilePermissions(t *testing.T) {
 	// Check file permissions
 	info, err := os.Stat(mcpConfigFilePath)
 	if err != nil {
-		t.Fatalf("Failed to stat .mcp.json: %v", err)
+		t.Fatalf("Failed to stat .github/mcp.json: %v", err)
 	}
 
 	// Verify file is readable and writable (at minimum)
