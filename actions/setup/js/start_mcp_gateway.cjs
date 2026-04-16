@@ -31,6 +31,7 @@ const { spawn, execSync } = require("child_process");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const { withRetry } = require("./error_recovery.cjs");
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -373,43 +374,47 @@ async function main() {
   core.info("Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)");
   core.info("");
 
-  const maxRetries = 120;
+  const maxAttempts = 120;
   const initialRetryDelayMs = 250;
-  // delay = initialRetryDelayMs * 2**min(attempt-1, maxRetryExponent)
-  // 250ms -> 500ms -> 1000ms, then capped at 1000ms.
-  const maxRetryExponent = 2;
   let httpCode = 0;
   let healthBody = "";
   let succeeded = false;
   let attemptsMade = 0;
 
   core.info("=== Health Check Progress ===");
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    attemptsMade = attempt;
-    const elapsedSec = Math.floor((nowMs() - healthCheckStart) / 1000);
-    if (attempt % 10 === 1 || attempt === 1) {
-      core.info(`Attempt ${attempt}/${maxRetries} (${elapsedSec}s elapsed)...`);
-    }
+  try {
+    await withRetry(
+      async () => {
+        attemptsMade += 1;
+        const elapsedSec = Math.floor((nowMs() - healthCheckStart) / 1000);
+        if (attemptsMade % 10 === 1 || attemptsMade === 1) {
+          core.info(`Attempt ${attemptsMade}/${maxAttempts} (${elapsedSec}s elapsed)...`);
+        }
 
-    try {
-      const res = await httpGet(healthUrl, 2000);
-      httpCode = res.statusCode;
-      healthBody = res.body;
-      if (httpCode === 200 && healthBody) {
-        core.info(`✓ Health check succeeded on attempt ${attempt} (${elapsedSec}s elapsed)`);
-        succeeded = true;
-        break;
-      }
-    } catch {
-      // Connection refused / timeout – retry
-    }
-
-    if (attempt < maxRetries) {
-      const retryExponent = Math.min(attempt - 1, maxRetryExponent);
-      const retryDelayMs = initialRetryDelayMs * 2 ** retryExponent;
-      await sleep(retryDelayMs);
-    }
+        const res = await httpGet(healthUrl, 2000);
+        httpCode = res.statusCode;
+        healthBody = res.body;
+        if (httpCode === 200 && healthBody) {
+          core.info(`✓ Health check succeeded on attempt ${attemptsMade} (${elapsedSec}s elapsed)`);
+          succeeded = true;
+          return;
+        }
+        throw new Error(`Health endpoint not ready (HTTP ${httpCode || 0})`);
+      },
+      {
+        maxRetries: maxAttempts - 1,
+        initialDelayMs: initialRetryDelayMs,
+        maxDelayMs: 1000,
+        backoffMultiplier: 2,
+        jitterMs: 0,
+        shouldRetry: () => true,
+      },
+      "MCP gateway health check"
+    );
+  } catch {
+    // Retry exhaustion is handled below using existing diagnostics.
   }
+
   core.info("=== End Health Check Progress ===");
   core.info("");
 
