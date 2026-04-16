@@ -15,6 +15,17 @@ import (
 
 var compilerActivationJobLog = logger.New("workflow:compiler_activation_job")
 
+var activationMetadataTriggerFields = map[string]struct{}{
+	"reaction":       {},
+	"status-comment": {},
+	"command":        {},
+	"slash_command":  {},
+	"label_command":  {},
+	"stop-after":     {},
+	"github-token":   {},
+	"github-app":     {},
+}
+
 // buildActivationJob creates the activation job that handles timestamp checking, reactions, and locking.
 // This job depends on the pre-activation job if it exists, and runs before the main agent job.
 func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
@@ -629,6 +640,7 @@ func addActivationInteractionPermissionsMap(
 	// Fallback for unit tests or synthetic WorkflowData instances that do not populate the "on" section.
 	// Real compiled workflows always have a populated trigger section.
 	if onSection == "" {
+		compilerActivationJobLog.Print("Empty on section while computing activation permissions; using broad fallback permissions")
 		if hasReaction || hasStatusComment {
 			permsMap[PermissionIssues] = PermissionWrite
 			permsMap[PermissionPullRequests] = PermissionWrite
@@ -676,6 +688,7 @@ func activationEventSet(onSection string) map[string]bool {
 	events := make(map[string]bool)
 	var onData map[string]any
 	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {
+		compilerActivationJobLog.Printf("Failed to parse on section for activation permission scoping: %v", err)
 		return events
 	}
 
@@ -706,12 +719,8 @@ func activationEventSet(onSection string) map[string]bool {
 }
 
 func isActivationMetadataTriggerField(eventName string) bool {
-	switch eventName {
-	case "reaction", "status-comment", "command", "slash_command", "label_command", "stop-after", "github-token", "github-app":
-		return true
-	default:
-		return false
-	}
+	_, isMetadataField := activationMetadataTriggerFields[eventName]
+	return isMetadataField
 }
 
 // generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
