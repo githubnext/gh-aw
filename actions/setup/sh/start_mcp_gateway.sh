@@ -219,8 +219,6 @@ echo ""
 set +e
 
 MAX_RETRIES=120
-INITIAL_RETRY_DELAY=0.25
-MAX_RETRY_DELAY=1
 RETRY_COUNT=0
 HTTP_CODE=""
 HEALTH_RESPONSE=""
@@ -255,7 +253,15 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   
   # If this is not the last attempt, wait before retrying
   if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-    RETRY_DELAY=$(awk -v base="$INITIAL_RETRY_DELAY" -v exp="$((RETRY_COUNT - 1))" -v max="$MAX_RETRY_DELAY" 'BEGIN { delay = base * (2 ^ exp); if (delay > max) delay = max; printf "%.3f", delay }')
+    # Exponential backoff with 1s cap:
+    # attempt 1 -> 0.25s, attempt 2 -> 0.5s, attempt 3+ -> 1s
+    if [ $RETRY_COUNT -eq 1 ]; then
+      RETRY_DELAY="0.25"
+    elif [ $RETRY_COUNT -eq 2 ]; then
+      RETRY_DELAY="0.5"
+    else
+      RETRY_DELAY="1"
+    fi
     sleep "$RETRY_DELAY"
   fi
 done

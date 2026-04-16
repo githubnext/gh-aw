@@ -283,7 +283,7 @@ test_validation_functions_exist() {
   fi
 
   # Check for health check retry/backoff logic
-  if grep -q "INITIAL_RETRY_DELAY=0.25" "$SCRIPT_PATH" && grep -q "MAX_RETRY_DELAY=1" "$SCRIPT_PATH"; then
+  if grep -q "RETRY_COUNT -eq 1" "$SCRIPT_PATH" && grep -q "RETRY_COUNT -eq 2" "$SCRIPT_PATH" && grep -q "RETRY_DELAY=\"1\"" "$SCRIPT_PATH"; then
     print_result "Health check exponential backoff configuration exists" "PASS"
   else
     print_result "Health check exponential backoff configuration missing" "FAIL"

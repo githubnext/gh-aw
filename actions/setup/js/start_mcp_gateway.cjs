@@ -376,6 +376,7 @@ async function main() {
   const maxRetries = 120;
   const initialRetryDelayMs = 250;
   const maxRetryDelayMs = 1000;
+  const maxRetryExponent = Math.floor(Math.log2(maxRetryDelayMs / initialRetryDelayMs));
   let httpCode = 0;
   let healthBody = "";
   let succeeded = false;
@@ -403,7 +404,8 @@ async function main() {
     }
 
     if (attempt < maxRetries) {
-      const retryDelayMs = Math.min(initialRetryDelayMs * 2 ** (attempt - 1), maxRetryDelayMs);
+      const retryExponent = Math.min(attempt - 1, maxRetryExponent);
+      const retryDelayMs = Math.min(initialRetryDelayMs * 2 ** retryExponent, maxRetryDelayMs);
       await sleep(retryDelayMs);
     }
   }
