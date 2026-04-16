@@ -138,6 +138,10 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected COPILOT_GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "GITHUB_COPILOT_INTEGRATION_ID: agentic-workflows") {
+		t.Errorf("Expected GITHUB_COPILOT_INTEGRATION_ID environment variable in step content:\n%s", stepContent)
+	}
+
 	// Test that GITHUB_HEAD_REF and GITHUB_REF_NAME are present for branch resolution
 	if !strings.Contains(stepContent, "GITHUB_HEAD_REF: ${{ github.head_ref }}") {
 		t.Errorf("Expected GITHUB_HEAD_REF environment variable in step content:\n%s", stepContent)
