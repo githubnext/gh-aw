@@ -196,10 +196,10 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
   // Step 3: tools/list – get the available tool definitions
   try {
     const listResp = await httpPostJSON(serverUrl, { ...authHeaders, ...sessionHeader }, { jsonrpc: "2.0", id: 2, method: "tools/list" }, DEFAULT_HTTP_TIMEOUT_MS);
-    const respBody = /** @type {Record<string, unknown>} */ listResp.body;
-    if (respBody && respBody.result && typeof respBody.result === "object") {
-      const result = /** @type {Record<string, unknown>} */ respBody.result;
-      if (Array.isArray(result.tools)) {
+    const respBody = listResp.body;
+    if (respBody && typeof respBody === "object" && "result" in respBody && respBody.result && typeof respBody.result === "object") {
+      const result = respBody.result;
+      if ("tools" in result && Array.isArray(result.tools)) {
         return /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools;
       }
     }

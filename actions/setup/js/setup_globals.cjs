@@ -25,13 +25,11 @@ const { createRateLimitAwareGithub } = require("./github_rate_limit_logger.cjs")
  * @param {typeof getOctokit} getOctokitFn - The getOctokit function (builtin in actions/github-script@v9)
  */
 function setupGlobals(coreModule, githubModule, contextModule, execModule, ioModule, getOctokitFn) {
-  // @ts-expect-error - Assigning to global properties that are declared as const
   global.core = coreModule;
   // @ts-expect-error - Assigning to global properties that are declared as const
   // Wrap the github object so every github.rest.*.*() call automatically logs
   // x-ratelimit-* headers to github_rate_limits.jsonl for observability.
   global.github = createRateLimitAwareGithub(githubModule);
-  // @ts-expect-error - Assigning to global properties that are declared as const
   global.context = contextModule;
   // @ts-expect-error - Assigning to global properties that are declared as const
   global.exec = execModule;

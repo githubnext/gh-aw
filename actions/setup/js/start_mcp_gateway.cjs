@@ -236,21 +236,21 @@ async function main() {
 
   // Validate gateway section
   core.info("Validating gateway configuration...");
-  const gw = /** @type {Record<string, unknown> | undefined} */ configObj.gateway;
-  if (!gw) {
+  const gw = configObj.gateway;
+  if (!gw || typeof gw !== "object") {
     core.error("ERROR: Configuration is missing required 'gateway' section");
     core.error("Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required");
     process.exit(1);
   }
-  if (gw.port == null) {
+  if (!("port" in gw) || gw.port == null) {
     core.error("ERROR: Gateway configuration is missing required 'port' field");
     process.exit(1);
   }
-  if (gw.domain == null) {
+  if (!("domain" in gw) || gw.domain == null) {
     core.error("ERROR: Gateway configuration is missing required 'domain' field");
     process.exit(1);
   }
-  if (gw.apiKey == null) {
+  if (!("apiKey" in gw) || gw.apiKey == null) {
     core.error("ERROR: Gateway configuration is missing required 'apiKey' field");
     process.exit(1);
   }
@@ -274,7 +274,11 @@ async function main() {
 
   // Split docker command into args, respecting simple quoting
   const args = dockerCommand.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
-  const cmd = /** @type {string} */ args.shift();
+  const cmd = args.shift();
+  if (!cmd) {
+    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND did not contain an executable command");
+    process.exit(1);
+  }
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
   const stderrFd = fs.openSync(stderrLogPath, "w", 0o600);
@@ -286,6 +290,10 @@ async function main() {
   });
 
   // Write configuration to stdin then close
+  if (!child.stdin) {
+    core.error("ERROR: Gateway process stdin is not available");
+    process.exit(1);
+  }
   child.stdin.write(mcpConfig);
   child.stdin.end();
 

@@ -565,13 +565,13 @@ function showToolHelp(serverName, toolName, tools) {
  */
 function formatResponse(responseBody, serverName) {
   const core = global.core;
-  const resp = /** @type {Record<string, unknown>} */ responseBody;
+  const resp = responseBody;
 
   // Check for JSON-RPC error
-  if (resp && resp.error) {
-    const err = /** @type {Record<string, unknown>} */ resp.error;
-    const message = String(err.message || "Unknown error");
-    const code = err.code != null ? String(err.code) : "";
+  if (resp && typeof resp === "object" && "error" in resp && resp.error && typeof resp.error === "object") {
+    const errRecord = resp.error;
+    const message = "message" in errRecord ? String(errRecord.message || "Unknown error") : "Unknown error";
+    const code = "code" in errRecord && errRecord.code != null ? String(errRecord.code) : "";
     const errText = code ? `Error [${code}]: ${message}` : `Error: ${message}`;
     process.stderr.write(errText + "\n");
     core.error(`[${serverName}] Tool call error: ${errText}`);
@@ -581,9 +581,9 @@ function formatResponse(responseBody, serverName) {
   }
 
   // Extract result content
-  if (resp && resp.result) {
-    const result = /** @type {Record<string, unknown>} */ resp.result;
-    if (Array.isArray(result.content)) {
+  if (resp && typeof resp === "object" && "result" in resp && resp.result && typeof resp.result === "object") {
+    const result = resp.result;
+    if ("content" in result && Array.isArray(result.content)) {
       const outputParts = [];
       for (const item of result.content) {
         const entry = /** @type {Record<string, unknown>} */ item;
