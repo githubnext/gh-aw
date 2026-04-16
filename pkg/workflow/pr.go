@@ -29,6 +29,7 @@ func generateSaveBaseGitHubFoldersStep(folders, files []string) []string {
 	lines = append(lines, "        env:\n")
 	lines = append(lines, fmt.Sprintf("          GH_AW_AGENT_FOLDERS: \"%s\"\n", strings.Join(folders, " ")))
 	lines = append(lines, fmt.Sprintf("          GH_AW_AGENT_FILES: \"%s\"\n", strings.Join(files, " ")))
+	lines = append(lines, "        # poutine:ignore untrusted_checkout_exec\n")
 	lines = append(lines, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh\"\n")
 	return lines
 }

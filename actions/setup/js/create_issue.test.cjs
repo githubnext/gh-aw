@@ -668,6 +668,35 @@ describe("create_issue", () => {
     });
   });
 
+  describe("body sanitization", () => {
+    it("should neutralize @mentions in issue body", async () => {
+      const handler = await main({});
+      await handler({
+        title: "Test Issue",
+        body: "This issue was caused by @malicious-user and references @another-user.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("`@malicious-user`");
+      expect(createCall.body).toContain("`@another-user`");
+      expect(createCall.body).not.toMatch(/(?<![`])@malicious-user(?![`])/);
+      expect(createCall.body).not.toMatch(/(?<![`])@another-user(?![`])/);
+    });
+
+    it("should sanitize @mentions in body but not affect footer markers", async () => {
+      const handler = await main({});
+      await handler({
+        title: "Test Issue",
+        body: "Please notify @someone about this.",
+      });
+
+      const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(createCall.body).toContain("`@someone`");
+      // Footer marker should still be present
+      expect(createCall.body).toContain("gh-aw-workflow-id");
+    });
+  });
+
   describe("retry on rate limit errors", () => {
     beforeEach(() => {
       vi.useFakeTimers();

@@ -161,7 +161,7 @@ For maintenance releases with dependency updates or minor improvements that don'
 - ✅ **Git Integration**: Reads current version from git tags
 - ✅ **Automated Git Operations**: Automatically commits, tags, and pushes releases
 - ✅ **Safety First**: Requires explicit specification for major releases
-- ✅ **Flexible Releases**: Supports releases with or without changeset files
+- ✅ **Optional Changeset Releases**: Supports releases with or without changeset files
 - ✅ **Clean Workflow**: Deletes processed changesets after release
 - ✅ **No External Dependencies**: Implemented using only Node.js standard library
 

@@ -112,6 +112,25 @@ describe("log_parser_bootstrap.cjs", () => {
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: ["server1", "server2"], maxTurnsHit: !1 });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: MCP server(s) failed to launch: server1, server2`), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
         }),
+        it("should warn instead of failing MCP failures when safe outputs exist", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          const safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
+
+          fs.writeFileSync(logFile, "content");
+          fs.writeFileSync(safeOutputsFile, `  ${JSON.stringify({ type: "create_issue", title: "Test", body: "Test body" })}\r\n`);
+          process.env.GH_AW_AGENT_OUTPUT = logFile;
+          process.env.GH_AW_SAFE_OUTPUTS = safeOutputsFile;
+
+          const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: ["server1"], maxTurnsHit: !1 });
+
+          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
+            expect(mockCore.warning).toHaveBeenCalledWith("MCP server(s) failed to launch (server1), but agent completed with 1 safe output entry"),
+            expect(mockCore.setFailed).not.toHaveBeenCalled(),
+            fs.unlinkSync(logFile),
+            fs.unlinkSync(safeOutputsFile),
+            fs.rmdirSync(tmpDir));
+        }),
         it("should handle max-turns limit reached", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");

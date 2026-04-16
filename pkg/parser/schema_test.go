@@ -498,6 +498,26 @@ func TestNormalizeForJSONSchema(t *testing.T) {
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_GitHubAppClientID(t *testing.T) {
+	frontmatter := map[string]any{
+		"name": "Client ID validation",
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"opened"},
+			},
+		},
+		"github-app": map[string]any{
+			"client-id":   "${{ vars.APP_ID }}",
+			"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/client-id-schema-test.md")
+	if err != nil {
+		t.Fatalf("expected client-id in github-app to pass schema validation, got: %v", err)
+	}
+}
+
 // TestNormalizeForJSONSchema_NestedMap verifies recursive normalization of maps.
 func TestNormalizeForJSONSchema_NestedMap(t *testing.T) {
 	input := map[string]any{

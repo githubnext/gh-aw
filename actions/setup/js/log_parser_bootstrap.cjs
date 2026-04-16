@@ -45,6 +45,33 @@ async function runLogParser(options) {
     return null;
   }
 
+  /**
+   * Count valid JSONL entries from a safe outputs file.
+   * @param {string} content - Raw safe outputs JSONL content
+   * @returns {number} Number of valid entries
+   */
+  function countSafeOutputEntries(content) {
+    if (!content || content.trim().length === 0) {
+      return 0;
+    }
+
+    let count = 0;
+    const lines = content.trim().split(/\r?\n/);
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) {
+        continue;
+      }
+      try {
+        JSON.parse(trimmedLine);
+        count++;
+      } catch (e) {
+        // Ignore invalid JSONL lines
+      }
+    }
+    return count;
+  }
+
   try {
     const logPath = process.env.GH_AW_AGENT_OUTPUT;
     if (!logPath) {
@@ -120,18 +147,20 @@ async function runLogParser(options) {
       logEntries = result.logEntries || null;
     }
 
-    if (markdown) {
-      // Read safe outputs file if available
-      let safeOutputsContent = "";
-      const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
-      if (safeOutputsPath && fs.existsSync(safeOutputsPath)) {
-        try {
-          safeOutputsContent = fs.readFileSync(safeOutputsPath, "utf8");
-        } catch (error) {
-          core.warning(`Failed to read safe outputs file: ${getErrorMessage(error)}`);
-        }
+    // Read safe outputs file if available
+    let safeOutputsContent = "";
+    let safeOutputEntriesCount = 0;
+    const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+    if (safeOutputsPath && fs.existsSync(safeOutputsPath)) {
+      try {
+        safeOutputsContent = fs.readFileSync(safeOutputsPath, "utf8");
+        safeOutputEntriesCount = countSafeOutputEntries(safeOutputsContent);
+      } catch (error) {
+        core.warning(`Failed to read safe outputs file: ${getErrorMessage(error)}`);
       }
+    }
 
+    if (markdown) {
       // Generate lightweight plain text summary for core.info and Copilot CLI style for step summary
       if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
         // Extract model from init entry if available
@@ -215,7 +244,11 @@ async function runLogParser(options) {
     // Handle MCP server failures if present
     if (mcpFailures && mcpFailures.length > 0) {
       const failedServers = mcpFailures.join(", ");
-      core.setFailed(`${ERR_API}: MCP server(s) failed to launch: ${failedServers}`);
+      if (safeOutputEntriesCount > 0) {
+        core.warning(`MCP server(s) failed to launch (${failedServers}), but agent completed with ${safeOutputEntriesCount} safe output ${safeOutputEntriesCount === 1 ? "entry" : "entries"}`);
+      } else {
+        core.setFailed(`${ERR_API}: MCP server(s) failed to launch: ${failedServers}`);
+      }
     }
 
     // Handle max-turns limit if hit

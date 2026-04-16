@@ -785,7 +785,7 @@ If you find critical issues, create a GitHub issue with:
 - **Simpler for local tasks**: Less configuration for ad-hoc AI tasks
 - **Unix philosophy**: Compose with pipes, chain agents
 - **Interactive mode**: Work with AI conversationally
-- **Flexible**: Any CLI tool, any file, any context
+- **Broad compatibility**: Works with any CLI tool, any file, any context
 - **Learning tool**: Build reusable AI command library
 
 ### Opportunities for Improvement:

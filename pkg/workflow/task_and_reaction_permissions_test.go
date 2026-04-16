@@ -98,14 +98,14 @@ The activation job references text output: "${{ steps.sanitized.outputs.text }}"
 	}
 
 	// Test 5: Verify activation job has required permissions for reactions
-	if !strings.Contains(activationJobSection, "discussions: write") {
-		t.Error("Activation job should have discussions: write permission")
-	}
 	if !strings.Contains(activationJobSection, "issues: write") {
 		t.Error("Activation job should have issues: write permission")
 	}
-	if !strings.Contains(activationJobSection, "pull-requests: write") {
-		t.Error("Activation job should have pull-requests: write permission")
+	if strings.Contains(activationJobSection, "pull-requests: write") {
+		t.Error("Activation job should not have pull-requests: write permission for issues-only trigger")
+	}
+	if strings.Contains(activationJobSection, "discussions: write") {
+		t.Error("Activation job should not have discussions: write permission for issues-only trigger")
 	}
 
 	// Test 6: Verify reaction step is in activation job (moved from pre-activation)
