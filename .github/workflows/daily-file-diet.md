@@ -13,7 +13,9 @@ permissions:
   pull-requests: read
 
 tracker-id: daily-file-diet
-engine: copilot
+engine:
+  id: copilot
+  agent: "developer.instructions"
 
 imports:
   - shared/activation-app.md

@@ -12,6 +12,10 @@ permissions:
 env:
   TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY || github.repository }}
 
+engine:
+  id: copilot
+  agent: contribution-checker
+
 tools:
   mount-as-clis: true
   github:
