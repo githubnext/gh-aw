@@ -65,14 +65,27 @@ func BuildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 // BuildReactionCondition creates a condition tree for the add_reaction job
 func BuildReactionCondition() ConditionNode {
 	expressionBuilderLog.Print("Building reaction condition for multiple event types")
-	// Build a list of event types that should trigger reactions using the new expression nodes
+	return buildReactionLikeCondition(true)
+}
+
+// BuildStatusCommentCondition creates a condition tree for activation status comments.
+// When includeDiscussions is false, discussion and discussion_comment events are excluded.
+func BuildStatusCommentCondition(includeDiscussions bool) ConditionNode {
+	expressionBuilderLog.Printf("Building status comment condition: includeDiscussions=%t", includeDiscussions)
+	return buildReactionLikeCondition(includeDiscussions)
+}
+
+func buildReactionLikeCondition(includeDiscussions bool) ConditionNode {
+	// Build a list of event types that should trigger reactions/status-comments using expression nodes.
 	var terms []ConditionNode
 
 	terms = append(terms, BuildEventTypeEquals("issues"))
 	terms = append(terms, BuildEventTypeEquals("issue_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
-	terms = append(terms, BuildEventTypeEquals("discussion"))
-	terms = append(terms, BuildEventTypeEquals("discussion_comment"))
+	if includeDiscussions {
+		terms = append(terms, BuildEventTypeEquals("discussion"))
+		terms = append(terms, BuildEventTypeEquals("discussion_comment"))
+	}
 
 	// For pull_request events, we need to ensure it's not from a forked repository
 	// since forked repositories have read-only permissions and cannot add reactions

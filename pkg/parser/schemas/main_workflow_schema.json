@@ -1886,9 +1886,27 @@
               "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
             },
             "status-comment": {
-              "type": "boolean",
-              "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link and updates it on completion. When false or not specified, no status comments are posted. Automatically enabled for slash_command and label_command triggers \u2014 manual configuration is only needed for other trigger types.",
-              "examples": [true, false]
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Whether status comments are enabled."
+                    },
+                    "discussions": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for discussion and discussion_comment triggers."
+                    }
+                  }
+                }
+              ],
+              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form supports fine-grained control with `enabled` and `discussions` fields. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
+              "examples": [true, false, { "enabled": true, "discussions": false }]
             },
             "github-token": {
               "type": "string",

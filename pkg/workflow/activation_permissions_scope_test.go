@@ -77,3 +77,37 @@ engine: copilot
 	assert.NotContains(t, activationJobSection, "issues: write", "activation job should not include issues: write for PR review comment reactions without status comments")
 	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write for PR review comment reactions")
 }
+
+func TestActivationPermissionsStatusCommentDiscussionsDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-status-comment-discussions-disabled")
+	testFile := filepath.Join(tmpDir, "status-comment-discussions-disabled.md")
+	testContent := `---
+on:
+  reaction: none
+  status-comment:
+    enabled: true
+    discussions: false
+  discussion:
+    types: [created]
+engine: copilot
+---
+
+# Status comment discussions disabled
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.NotContains(t, activationJobSection, "discussions: write", "activation job should not include discussions: write when status-comment.discussions is false")
+	assert.Contains(t, activationJobSection, "Add comment with workflow run link", "activation job should still include status comment step when enabled")
+	assert.NotContains(t, activationJobSection, "github.event_name == 'discussion'", "status comment condition should not include discussion events when status-comment.discussions is false")
+	assert.NotContains(t, activationJobSection, "github.event_name == 'discussion_comment'", "status comment condition should not include discussion_comment events when status-comment.discussions is false")
+}
