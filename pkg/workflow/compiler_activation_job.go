@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 )
 
 var compilerActivationJobLog = logger.New("workflow:compiler_activation_job")
@@ -636,15 +637,16 @@ func addActivationInteractionPermissionsMap(
 		return
 	}
 
-	hasIssuesEvent := strings.Contains(onSection, "issues:")
-	hasIssueCommentEvent := strings.Contains(onSection, "issue_comment:")
-	hasPullRequestEvent := strings.Contains(onSection, "pull_request:")
-	hasPullRequestReviewCommentEvent := strings.Contains(onSection, "pull_request_review_comment:")
-	hasDiscussionEvent := strings.Contains(onSection, "discussion:")
-	hasDiscussionCommentEvent := strings.Contains(onSection, "discussion_comment:")
+	eventSet := activationEventSet(onSection)
+	hasIssuesEvent := eventSet["issues"]
+	hasIssueCommentEvent := eventSet["issue_comment"]
+	hasPullRequestEvent := eventSet["pull_request"]
+	hasPullRequestReviewCommentEvent := eventSet["pull_request_review_comment"]
+	hasDiscussionEvent := eventSet["discussion"]
+	hasDiscussionCommentEvent := eventSet["discussion_comment"]
 
 	if hasReaction {
-		// Reactions on issues, issue comments, and pull requests use issues endpoints.
+		// Reactions on issues, issue comments, and pull requests all use issues endpoints.
 		if hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
@@ -667,6 +669,48 @@ func addActivationInteractionPermissionsMap(
 		if hasDiscussionEvent || hasDiscussionCommentEvent {
 			permsMap[PermissionDiscussions] = PermissionWrite
 		}
+	}
+}
+
+func activationEventSet(onSection string) map[string]bool {
+	events := make(map[string]bool)
+	var onData map[string]any
+	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {
+		return events
+	}
+
+	onValue, hasOn := onData["on"]
+	if !hasOn {
+		return events
+	}
+
+	switch v := onValue.(type) {
+	case string:
+		events[v] = true
+	case []any:
+		for _, item := range v {
+			if eventName, ok := item.(string); ok {
+				events[eventName] = true
+			}
+		}
+	case map[string]any:
+		for eventName := range v {
+			if isActivationMetadataTriggerField(eventName) {
+				continue
+			}
+			events[eventName] = true
+		}
+	}
+
+	return events
+}
+
+func isActivationMetadataTriggerField(eventName string) bool {
+	switch eventName {
+	case "reaction", "status-comment", "command", "slash_command", "label_command", "stop-after", "github-token", "github-app":
+		return true
+	default:
+		return false
 	}
 }
 
