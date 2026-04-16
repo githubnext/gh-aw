@@ -42,51 +42,46 @@ imports:
   - shared/reporting.md
 steps:
   - name: Build workflow index
-    run: |
-      python3 - <<'PY'
-      import json
-      import os
-      import re
+    uses: actions/github-script@v9
+    with:
+      script: |
+        const fs = require('fs');
+        const path = require('path');
 
-      wf_dir = ".github/workflows"
-      index = []
-      for fn in sorted(os.listdir(wf_dir)):
-          if not fn.endswith(".md") or fn.startswith("."):
-              continue
-          path = os.path.join(wf_dir, fn)
-          with open(path, encoding="utf-8") as f:
-              content = f.read()
-          fm_match = re.search(r'^---\n(.*?)\n---', content, re.DOTALL)
-          frontmatter = fm_match.group(1) if fm_match else ""
-          imports = re.findall(r"^\s*-\s+(shared/\S+)", frontmatter, re.MULTILINE)
-          engine = None
-          engine_block_match = re.search(
-              r"(?ms)^engine:\s*\n((?:^[ \t].*\n?)*)", frontmatter
-          )
-          if engine_block_match:
-              engine_block = engine_block_match.group(1)
-              engine_id_match = re.search(
-                  r"^\s*id:\s*(\S+)", engine_block, re.MULTILINE
-              )
-              if engine_id_match:
-                  engine = engine_id_match.group(1)
-          index.append(
-              {
-                  "file": fn,
-                  "path": path,
-                  "imports": imports,
-                  "engine": engine,
-                  "has_github_tools": "github:" in frontmatter,
-                  "has_safe_outputs": "safe-outputs:" in frontmatter,
-                  "frontmatter_preview": frontmatter[:400],
-              }
-          )
+        const workflowDir = '.github/workflows';
+        const entries = fs.readdirSync(workflowDir, { withFileTypes: true });
+        const index = [];
 
-      os.makedirs("/tmp/gh-aw/agent", exist_ok=True)
-      with open("/tmp/gh-aw/agent/workflow-index.json", "w", encoding="utf-8") as f:
-          json.dump(index, f, indent=2)
-      print(f"Indexed {len(index)} workflows")
-      PY
+        for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+          if (!entry.isFile() || !entry.name.endsWith('.md') || entry.name.startsWith('.')) {
+            continue;
+          }
+
+          const workflowPath = path.join(workflowDir, entry.name);
+          const content = fs.readFileSync(workflowPath, 'utf8');
+          const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+          const frontmatter = frontmatterMatch ? frontmatterMatch[1] : '';
+
+          const imports = Array.from(frontmatter.matchAll(/^\s*-\s+(shared\/\S+)/gm), (m) => m[1]);
+          const engineBlockMatch = frontmatter.match(/^engine:\s*\n((?:^[ \t].*\n?)*)/m);
+          const engineBlock = engineBlockMatch ? engineBlockMatch[1] : '';
+          const engineIDMatch = engineBlock.match(/^\s*id:\s*(\S+)/m);
+          const engine = engineIDMatch ? engineIDMatch[1] : null;
+
+          index.push({
+            file: entry.name,
+            path: workflowPath,
+            imports,
+            engine,
+            has_github_tools: frontmatter.includes('github:'),
+            has_safe_outputs: frontmatter.includes('safe-outputs:'),
+            frontmatter_preview: frontmatter.slice(0, 400)
+          });
+        }
+
+        fs.mkdirSync('/tmp/gh-aw/agent', { recursive: true });
+        fs.writeFileSync('/tmp/gh-aw/agent/workflow-index.json', `${JSON.stringify(index, null, 2)}\n`, 'utf8');
+        core.info(`Indexed ${index.length} workflows`);
 features:
   mcp-cli: true
 ---
