@@ -145,106 +145,104 @@ describe("parse_mcp_scripts_logs.cjs", () => {
   });
 
   describe("generatePlainTextSummary", () => {
-    it("should generate summary with startup events", () => {
+    it("should render Copilot-style MCP tool lines with args and result preview", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.123Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
-        { timestamp: "2025-12-31T15:43:54.456Z", serverName: "mcp-scripts", message: "Server started successfully", raw: false },
+        {
+          timestamp: "2025-12-31T15:44:10.000Z",
+          serverName: "mcpscripts",
+          message: '[2025-12-31T15:44:10.000Z] [mcpscripts]   [gh] Invoking handler with args: {"args":"pr view 26467 --repo github/gh-aw --json number"}',
+          raw: false,
+        },
+        {
+          timestamp: "2025-12-31T15:44:10.100Z",
+          serverName: "mcpscripts",
+          message: '[2025-12-31T15:44:10.100Z] [mcpscripts]   [gh] Serialized result: {"stdout":"gh pr view 26467 --repo github/gh-aw --json number","stderr":""}',
+          raw: false,
+        },
       ];
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("=== MCP Scripts Server Logs ===");
-      expect(summary).toContain("Total entries: 2");
-      expect(summary).toContain("Startup events: 2");
+      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26467 --repo github/gh-aw --json number"');
+      expect(summary).toContain('└ {"stdout":"gh pr view 26467 --repo github/gh-aw --json number","stderr":""}');
     });
 
-    it("should generate summary with tool registration events", () => {
+    it("should render backend tool call format in Copilot-style", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Registering tool: create_issue", raw: false },
-        { timestamp: "2025-12-31T15:43:55.100Z", serverName: "mcp-scripts", message: "Tool registration complete", raw: false },
+        {
+          timestamp: "2025-12-31T15:44:10.000Z",
+          serverName: "mcp-gateway",
+          message: "server:unified callBackendTool: serverID=mcpscripts, toolName=gh, args=map[args:pr view 26450 --repo github/gh-aw --json number]",
+          raw: false,
+        },
       ];
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("Total entries: 2");
-      expect(summary).toContain("Tool registrations: 2");
+      expect(summary).toContain('● gh (MCP: mcp-gateway) · args: "pr view 26450 --repo github/gh-aw --json number"');
     });
 
-    it("should generate summary with tool execution events", () => {
+    it("should include multiple tool calls", () => {
       const logEntries = [
-        { timestamp: "2025-12-31T15:44:10.000Z", serverName: "mcp-scripts", message: "Calling handler for tool: create_issue", raw: false },
-        { timestamp: "2025-12-31T15:44:10.500Z", serverName: "mcp-scripts", message: "Handler returned successfully", raw: false },
+        {
+          timestamp: "2025-12-31T15:44:10.000Z",
+          serverName: "mcpscripts",
+          message: '[2025-12-31T15:44:10.000Z] [mcpscripts]   [gh] Invoking handler with args: {"args":"pr view 26444 --repo github/gh-aw --json number"}',
+          raw: false,
+        },
+        {
+          timestamp: "2025-12-31T15:44:11.000Z",
+          serverName: "mcpscripts",
+          message: '[2025-12-31T15:44:11.000Z] [mcpscripts]   [gh] Invoking handler with args: {"args":"pr view 26380 --repo github/gh-aw --json number"}',
+          raw: false,
+        },
       ];
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("Total entries: 2");
-      expect(summary).toContain("Tool executions: 2");
-      expect(summary).toContain("Tool Executions:");
-      expect(summary).toContain("create_issue");
+      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26444 --repo github/gh-aw --json number"');
+      expect(summary).toContain('● gh (MCP: mcpscripts) · args: "pr view 26380 --repo github/gh-aw --json number"');
     });
 
-    it("should generate summary with error events", () => {
+    it("should include diagnostics for error lines", () => {
       const logEntries = [
+        {
+          timestamp: "2025-12-31T15:44:10.000Z",
+          serverName: "mcpscripts",
+          message: '[2025-12-31T15:44:10.000Z] [mcpscripts]   [gh] Invoking handler with args: {"args":"pr view 25928 --repo github/gh-aw --json number"}',
+          raw: false,
+        },
         { timestamp: "2025-12-31T15:44:20.000Z", serverName: "mcp-scripts", message: "Error: Failed to process request", raw: false },
-        { timestamp: "2025-12-31T15:44:20.100Z", serverName: "mcp-scripts", message: "Request failed with status 500", raw: false },
       ];
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("Total entries: 2");
-      expect(summary).toContain("Errors: 2");
-      expect(summary).toContain("Errors:");
+      expect(summary).toContain("Additional MCP diagnostics:");
       expect(summary).toContain("Failed to process request");
-      expect(summary).toContain("Request failed with status 500");
     });
 
-    it("should generate summary with mixed event types", () => {
+    it("should fall back to raw logs when no tool calls are present", () => {
       const logEntries = [
         { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
-        { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Registering tool: create_issue", raw: false },
-        { timestamp: "2025-12-31T15:44:10.000Z", serverName: "mcp-scripts", message: "Calling handler for tool: create_issue", raw: false },
-        { timestamp: "2025-12-31T15:44:10.500Z", serverName: "mcp-scripts", message: "Handler returned successfully", raw: false },
-        { timestamp: "2025-12-31T15:44:20.000Z", serverName: "mcp-scripts", message: "Some other log message", raw: false },
+        { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Server started successfully", raw: false },
       ];
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("Total entries: 5");
-      expect(summary).toContain("Startup events: 1");
-      expect(summary).toContain("Tool registrations: 1");
-      expect(summary).toContain("Tool executions: 2");
-      expect(summary).toContain("Tool Executions:");
-      expect(summary).toContain("create_issue");
+      expect(summary).toContain("[mcp-scripts] Starting mcp-scripts MCP Server");
+      expect(summary).toContain("[mcp-scripts] Server started successfully");
     });
 
     it("should handle empty log entries", () => {
       const logEntries = [];
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("=== MCP Scripts Server Logs ===");
-      expect(summary).toContain("Total entries: 0");
+      expect(summary).toBe("");
     });
 
-    it("should include full logs in plain text summary", () => {
-      const logEntries = [
-        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "mcp-scripts", message: "Starting mcp-scripts MCP Server", raw: false },
-        { timestamp: "2025-12-31T15:43:55.000Z", serverName: "mcp-scripts", message: "Server started successfully", raw: false },
-        { timestamp: null, serverName: null, message: "Unparsed log line", raw: true },
-      ];
-
-      const summary = generatePlainTextSummary(logEntries);
-
-      expect(summary).toContain("Full Logs (first 5000 lines):");
-      expect(summary).toContain("[mcp-scripts] Starting mcp-scripts MCP Server");
-      expect(summary).toContain("[mcp-scripts] Server started successfully");
-      expect(summary).toContain("Unparsed log line");
-    });
-
-    it("should limit full logs to 5000 lines", () => {
-      // Create 5500 log entries
+    it("should limit fallback raw logs to 200 lines", () => {
       const logEntries = [];
-      for (let i = 0; i < 5500; i++) {
+      for (let i = 0; i < 250; i++) {
         logEntries.push({
           timestamp: "2025-12-31T15:43:54.000Z",
           serverName: "mcp-scripts",
@@ -255,12 +253,11 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       const summary = generatePlainTextSummary(logEntries);
 
-      expect(summary).toContain("Full Logs (first 5000 lines):");
       expect(summary).toContain("Log entry 0");
-      expect(summary).toContain("Log entry 4999");
-      expect(summary).toContain("... (truncated, showing first 5000 lines of 5500 total entries)");
-      expect(summary).not.toContain("Log entry 5000");
-      expect(summary).not.toContain("Log entry 5499");
+      expect(summary).toContain("Log entry 199");
+      expect(summary).toContain("... (truncated, showing first 200 lines of 250 total entries)");
+      expect(summary).not.toContain("Log entry 200");
+      expect(summary).not.toContain("Log entry 249");
     });
   });
 
@@ -400,7 +397,7 @@ describe("parse_mcp_scripts_logs.cjs", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 1 mcp-scripts log file"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Parsing mcp-scripts log: server.log"));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("=== MCP Scripts Server Logs ==="));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Starting mcp-scripts MCP Server"));
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
