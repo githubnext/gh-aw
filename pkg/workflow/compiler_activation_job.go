@@ -118,6 +118,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// inserted right after generate_aw_info for fast user feedback.
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 	hasStatusComment := data.StatusComment != nil && *data.StatusComment
+	statusCommentIncludesIssues := shouldIncludeIssueStatusComments(data)
 	statusCommentIncludesDiscussions := shouldIncludeDiscussionStatusComments(data)
 	hasLabelCommand := len(data.LabelCommand) > 0
 	// shouldRemoveLabel is true when label-command is active AND remove_label is not disabled
@@ -138,7 +139,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Build the combined permissions needed for all activation steps.
 		// For label removal we only add the scopes required by the enabled events.
 		appPerms := NewPermissions()
-		addActivationInteractionPermissions(appPerms, data.On, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
+		addActivationInteractionPermissions(
+			appPerms,
+			data.On,
+			hasReaction,
+			hasStatusComment,
+			statusCommentIncludesIssues,
+			statusCommentIncludesDiscussions,
+		)
 		if shouldRemoveLabel {
 			if slices.Contains(filteredLabelEvents, "issues") || slices.Contains(filteredLabelEvents, "pull_request") {
 				appPerms.Set(PermissionIssues, PermissionWrite)
@@ -300,7 +308,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Add comment with workflow run link if status comments are explicitly enabled
 	if data.StatusComment != nil && *data.StatusComment {
-		statusCommentCondition := BuildStatusCommentCondition(statusCommentIncludesDiscussions)
+		statusCommentCondition := BuildStatusCommentCondition(statusCommentIncludesIssues, statusCommentIncludesDiscussions)
 
 		steps = append(steps, "      - name: Add comment with workflow run link\n")
 		steps = append(steps, "        id: add-comment\n")
@@ -563,7 +571,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap[PermissionActions] = PermissionRead
 	}
 
-	addActivationInteractionPermissionsMap(permsMap, data.On, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
+	addActivationInteractionPermissionsMap(
+		permsMap,
+		data.On,
+		hasReaction,
+		hasStatusComment,
+		statusCommentIncludesIssues,
+		statusCommentIncludesDiscussions,
+	)
 
 	// Add issues:write permission if lock-for-agent is enabled (even without reaction)
 	if data.LockForAgent {
@@ -622,13 +637,21 @@ func addActivationInteractionPermissions(
 	onSection string,
 	hasReaction bool,
 	hasStatusComment bool,
+	statusCommentIncludesIssues bool,
 	statusCommentIncludesDiscussions bool,
 ) {
 	if perms == nil {
 		return
 	}
 	permsMap := make(map[PermissionScope]PermissionLevel)
-	addActivationInteractionPermissionsMap(permsMap, onSection, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
+	addActivationInteractionPermissionsMap(
+		permsMap,
+		onSection,
+		hasReaction,
+		hasStatusComment,
+		statusCommentIncludesIssues,
+		statusCommentIncludesDiscussions,
+	)
 	for scope, level := range permsMap {
 		perms.Set(scope, level)
 	}
@@ -639,6 +662,7 @@ func addActivationInteractionPermissionsMap(
 	onSection string,
 	hasReaction bool,
 	hasStatusComment bool,
+	statusCommentIncludesIssues bool,
 	statusCommentIncludesDiscussions bool,
 ) {
 	if !hasReaction && !hasStatusComment {
@@ -649,14 +673,26 @@ func addActivationInteractionPermissionsMap(
 	// Real compiled workflows always have a populated trigger section.
 	if onSection == "" {
 		compilerActivationJobLog.Print("Empty on section while computing activation permissions; using broad fallback permissions")
-		addBroadActivationInteractionPermissions(permsMap, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
+		addBroadActivationInteractionPermissions(
+			permsMap,
+			hasReaction,
+			hasStatusComment,
+			statusCommentIncludesIssues,
+			statusCommentIncludesDiscussions,
+		)
 		return
 	}
 
 	eventSet, eventSetParsed := activationEventSet(onSection)
 	if !eventSetParsed {
 		compilerActivationJobLog.Print("Unable to parse activation trigger events while computing permissions; using broad fallback permissions")
-		addBroadActivationInteractionPermissions(permsMap, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
+		addBroadActivationInteractionPermissions(
+			permsMap,
+			hasReaction,
+			hasStatusComment,
+			statusCommentIncludesIssues,
+			statusCommentIncludesDiscussions,
+		)
 		return
 	}
 
@@ -684,7 +720,7 @@ func addActivationInteractionPermissionsMap(
 
 	if hasStatusComment {
 		// Status comments for issue and pull request related events use issue comment endpoints.
-		if hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent || hasPullRequestReviewCommentEvent {
+		if statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent || hasPullRequestReviewCommentEvent) {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Status comments for discussions use discussion comment APIs and can be disabled via frontmatter.
@@ -698,17 +734,27 @@ func addBroadActivationInteractionPermissions(
 	permsMap map[PermissionScope]PermissionLevel,
 	hasReaction bool,
 	hasStatusComment bool,
+	statusCommentIncludesIssues bool,
 	statusCommentIncludesDiscussions bool,
 ) {
 	if !hasReaction && !hasStatusComment {
 		return
 	}
 
-	permsMap[PermissionIssues] = PermissionWrite
-	permsMap[PermissionPullRequests] = PermissionWrite
+	if hasReaction || statusCommentIncludesIssues {
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+	}
 	if hasReaction || statusCommentIncludesDiscussions {
 		permsMap[PermissionDiscussions] = PermissionWrite
 	}
+}
+
+func shouldIncludeIssueStatusComments(data *WorkflowData) bool {
+	if data == nil || data.StatusCommentIssues == nil {
+		return true
+	}
+	return *data.StatusCommentIssues
 }
 
 func shouldIncludeDiscussionStatusComments(data *WorkflowData) bool {

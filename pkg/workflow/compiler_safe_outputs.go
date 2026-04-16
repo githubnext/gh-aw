@@ -68,6 +68,15 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					workflowData.StatusComment = &statusCommentBool
 					compilerSafeOutputsLog.Printf("status-comment set to: %v", statusCommentBool)
 				} else if statusCommentMap, ok := statusCommentValue.(map[string]any); ok {
+					statusCommentIssues := true
+					if issuesValue, hasIssues := statusCommentMap["issues"]; hasIssues {
+						issuesBool, ok := issuesValue.(bool)
+						if !ok {
+							return fmt.Errorf("status-comment.issues must be a boolean value, got %T", issuesValue)
+						}
+						statusCommentIssues = issuesBool
+					}
+
 					statusCommentDiscussions := true
 					if discussionsValue, hasDiscussions := statusCommentMap["discussions"]; hasDiscussions {
 						discussionsBool, ok := discussionsValue.(bool)
@@ -79,8 +88,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 					statusCommentEnabled := true
 					workflowData.StatusComment = &statusCommentEnabled
+					workflowData.StatusCommentIssues = &statusCommentIssues
 					workflowData.StatusCommentDiscussions = &statusCommentDiscussions
-					compilerSafeOutputsLog.Printf("status-comment object set: discussions=%v", statusCommentDiscussions)
+					compilerSafeOutputsLog.Printf("status-comment object set: issues=%v discussions=%v", statusCommentIssues, statusCommentDiscussions)
 				} else {
 					return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)
 				}

@@ -65,23 +65,30 @@ func BuildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 // BuildReactionCondition creates a condition tree for the add_reaction job
 func BuildReactionCondition() ConditionNode {
 	expressionBuilderLog.Print("Building reaction condition for multiple event types")
-	return buildReactionLikeCondition(true)
+	return buildReactionLikeCondition(true, true)
 }
 
 // BuildStatusCommentCondition creates a condition tree for activation status comments.
+// When includeIssues is false, issue/PR-related events are excluded.
 // When includeDiscussions is false, discussion and discussion_comment events are excluded.
-func BuildStatusCommentCondition(includeDiscussions bool) ConditionNode {
-	expressionBuilderLog.Printf("Building status comment condition: includeDiscussions=%t", includeDiscussions)
-	return buildReactionLikeCondition(includeDiscussions)
+func BuildStatusCommentCondition(includeIssues bool, includeDiscussions bool) ConditionNode {
+	expressionBuilderLog.Printf(
+		"Building status comment condition: includeIssues=%t includeDiscussions=%t",
+		includeIssues,
+		includeDiscussions,
+	)
+	return buildReactionLikeCondition(includeIssues, includeDiscussions)
 }
 
-func buildReactionLikeCondition(includeDiscussions bool) ConditionNode {
+func buildReactionLikeCondition(includeIssues bool, includeDiscussions bool) ConditionNode {
 	// Build a list of event types that should trigger reactions/status-comments using expression nodes.
 	var terms []ConditionNode
 
-	terms = append(terms, BuildEventTypeEquals("issues"))
-	terms = append(terms, BuildEventTypeEquals("issue_comment"))
-	terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
+	if includeIssues {
+		terms = append(terms, BuildEventTypeEquals("issues"))
+		terms = append(terms, BuildEventTypeEquals("issue_comment"))
+		terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
+	}
 	if includeDiscussions {
 		terms = append(terms, BuildEventTypeEquals("discussion"))
 		terms = append(terms, BuildEventTypeEquals("discussion_comment"))
@@ -89,13 +96,18 @@ func buildReactionLikeCondition(includeDiscussions bool) ConditionNode {
 
 	// For pull_request events, we need to ensure it's not from a forked repository
 	// since forked repositories have read-only permissions and cannot add reactions
-	pullRequestCondition := &AndNode{
-		Left:  BuildEventTypeEquals("pull_request"),
-		Right: BuildNotFromFork(),
+	if includeIssues {
+		pullRequestCondition := &AndNode{
+			Left:  BuildEventTypeEquals("pull_request"),
+			Right: BuildNotFromFork(),
+		}
+		terms = append(terms, pullRequestCondition)
 	}
-	terms = append(terms, pullRequestCondition)
 
 	expressionBuilderLog.Printf("Created disjunction with %d event type terms", len(terms))
+	if len(terms) == 0 {
+		return BuildBooleanLiteral(false)
+	}
 
 	// Use DisjunctionNode to avoid deep nesting
 	return &DisjunctionNode{Terms: terms}

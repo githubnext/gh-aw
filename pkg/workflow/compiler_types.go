@@ -436,6 +436,7 @@ type WorkflowData struct {
 	LabelCommandRemoveLabel     bool                      // whether to automatically remove the triggering label (default: true)
 	AIReaction                  string                    // AI reaction type like "eyes", "heart", etc.
 	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
+	StatusCommentIssues         *bool                     // whether status comments are allowed on issue/issue_comment/pull_request/pull_request_review_comment triggers (default: true)
 	StatusCommentDiscussions    *bool                     // whether status comments are allowed on discussion/discussion_comment triggers (default: true)
 	ActivationGitHubToken       string                    // custom github token from on.github-token for reactions/comments
 	ActivationGitHubApp         *GitHubAppConfig          // github app config from on.github-app for minting activation tokens

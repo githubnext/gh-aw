@@ -116,7 +116,7 @@ engine: copilot
 func TestAddActivationInteractionPermissionsMapFallsBackOnInvalidOnYAML(t *testing.T) {
 	permsMap := map[PermissionScope]PermissionLevel{}
 
-	addActivationInteractionPermissionsMap(permsMap, "on: [", true, true, true)
+	addActivationInteractionPermissionsMap(permsMap, "on: [", true, true, true, true)
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write")
 	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "fallback should include pull-requests:write")
@@ -126,10 +126,59 @@ func TestAddActivationInteractionPermissionsMapFallsBackOnInvalidOnYAML(t *testi
 func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentDiscussionsToggle(t *testing.T) {
 	permsMap := map[PermissionScope]PermissionLevel{}
 
-	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, false)
+	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, true, false)
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write for status comments")
 	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "fallback should include pull-requests:write for status comments")
 	_, hasDiscussions := permsMap[PermissionDiscussions]
 	assert.False(t, hasDiscussions, "fallback should omit discussions:write when status-comment.discussions is false and reactions are disabled")
+}
+
+func TestActivationPermissionsStatusCommentIssuesDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-perms-status-comment-issues-disabled")
+	testFile := filepath.Join(tmpDir, "status-comment-issues-disabled.md")
+	testContent := `---
+on:
+  reaction: none
+  status-comment:
+    issues: false
+  issues:
+    types: [opened]
+  discussion:
+    types: [created]
+engine: copilot
+---
+
+# Status comment issues disabled
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "failed to compile workflow")
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+
+	activationJobSection := extractJobSection(string(lockContent), string(constants.ActivationJobName))
+	assert.Contains(t, activationJobSection, "discussions: write", "activation job should include discussions: write for discussion status comments")
+	assert.NotContains(t, activationJobSection, "issues: write", "activation job should not include issues: write when status-comment.issues is false and reactions are disabled")
+	assert.NotContains(t, activationJobSection, "pull-requests: write", "activation job should not include pull-requests: write when status-comment.issues is false and reactions are disabled")
+	assert.Contains(t, activationJobSection, "github.event_name == 'discussion'", "status comment condition should include discussion events when status-comment.issues is false")
+	assert.NotContains(t, activationJobSection, "github.event_name == 'issues'", "status comment condition should not include issue events when status-comment.issues is false")
+	assert.NotContains(t, activationJobSection, "github.event_name == 'issue_comment'", "status comment condition should not include issue_comment events when status-comment.issues is false")
+}
+
+func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentIssuesToggle(t *testing.T) {
+	permsMap := map[PermissionScope]PermissionLevel{}
+
+	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, false, true)
+
+	_, hasIssues := permsMap[PermissionIssues]
+	_, hasPullRequests := permsMap[PermissionPullRequests]
+	assert.False(t, hasIssues, "fallback should omit issues:write when status-comment.issues is false and reactions are disabled")
+	assert.False(t, hasPullRequests, "fallback should omit pull-requests:write when status-comment.issues is false and reactions are disabled")
+	assert.Equal(t, PermissionWrite, permsMap[PermissionDiscussions], "fallback should include discussions:write when status-comment.discussions is true")
 }
