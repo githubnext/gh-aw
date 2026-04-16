@@ -1,7 +1,7 @@
 // This file contains strict mode validation for secrets in custom steps.
 //
-// It validates that secrets expressions are not used in custom steps (steps,
-// pre-agent-steps, and post-steps injected in the agent job). In strict mode, secrets in step-level
+// It validates that secrets expressions are not used in custom steps (pre-steps,
+// steps, pre-agent-steps, and post-steps injected in the agent job). In strict mode, secrets in step-level
 // env: bindings and with: inputs for uses: action steps are allowed (controlled
 // binding, masked by GitHub Actions), while secrets in other fields (run, etc.)
 // are treated as errors. In non-strict mode a warning is emitted instead.

@@ -661,6 +661,8 @@ pre-agent-steps:
 
 Use pre-agent steps when work must happen right before the engine runs (for example, final context preparation or last-moment validations).
 
+Pre-agent steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
+
 ## Post-Execution Steps (`post-steps:`)
 
 Add custom steps after agentic execution. Run after AI engine completes regardless of success/failure (unless conditional expressions are used).
