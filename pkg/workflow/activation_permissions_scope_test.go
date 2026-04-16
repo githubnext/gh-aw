@@ -85,7 +85,6 @@ func TestActivationPermissionsStatusCommentDiscussionsDisabled(t *testing.T) {
 on:
   reaction: none
   status-comment:
-    enabled: true
     discussions: false
   discussion:
     types: [created]

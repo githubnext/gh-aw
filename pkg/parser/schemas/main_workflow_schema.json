@@ -1894,10 +1894,6 @@
                   "type": "object",
                   "additionalProperties": false,
                   "properties": {
-                    "enabled": {
-                      "type": "boolean",
-                      "description": "Whether status comments are enabled."
-                    },
                     "discussions": {
                       "type": "boolean",
                       "description": "Whether status comments are allowed for discussion and discussion_comment triggers."
@@ -1905,8 +1901,8 @@
                   }
                 }
               ],
-              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form supports fine-grained control with `enabled` and `discussions` fields. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
-              "examples": [true, false, { "enabled": true, "discussions": false }]
+              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `discussions` field to control discussion and discussion_comment triggers. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
+              "examples": [true, false, { "discussions": false }]
             },
             "github-token": {
               "type": "string",
