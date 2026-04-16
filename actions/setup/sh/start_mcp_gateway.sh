@@ -209,7 +209,7 @@ HEALTH_CHECK_START=$(date +%s%3N)
 HEALTH_CHECK_HOST="localhost"
 echo "Health endpoint: http://${HEALTH_CHECK_HOST}:${MCP_GATEWAY_PORT}/health"
 echo "(Note: MCP_GATEWAY_DOMAIN is '${MCP_GATEWAY_DOMAIN}' for container access)"
-echo "Retrying up to 120 times with 1s delay (120s total timeout)"
+echo "Retrying up to 120 times with exponential backoff (250ms to 1s, ~120s total timeout)"
 echo ""
 
 # Check health endpoint using localhost (since we're running on the host)
@@ -219,7 +219,6 @@ echo ""
 set +e
 
 MAX_RETRIES=120
-RETRY_DELAY=1
 RETRY_COUNT=0
 HTTP_CODE=""
 HEALTH_RESPONSE=""
@@ -234,7 +233,6 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   ELAPSED_MS=$(($(date +%s%3N) - HEALTH_CHECK_START))
   ELAPSED_SEC=$((ELAPSED_MS / 1000))
   
-  # Show progress every 10 retries or on first attempt
   if [ $((RETRY_COUNT % 10)) -eq 1 ] || [ $RETRY_COUNT -eq 1 ]; then
     echo "Attempt $RETRY_COUNT/$MAX_RETRIES (${ELAPSED_SEC}s elapsed)..."
   fi
@@ -255,7 +253,16 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   
   # If this is not the last attempt, wait before retrying
   if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-    sleep $RETRY_DELAY
+    # Exponential backoff with 1s cap:
+    # attempt 1 -> 0.25s, attempt 2 -> 0.5s, attempt 3+ -> 1s
+    if [ $RETRY_COUNT -eq 1 ]; then
+      RETRY_DELAY="0.25"
+    elif [ $RETRY_COUNT -eq 2 ]; then
+      RETRY_DELAY="0.5"
+    else
+      RETRY_DELAY="1"
+    fi
+    sleep "$RETRY_DELAY"
   fi
 done
 echo "=== End Health Check Progress ==="

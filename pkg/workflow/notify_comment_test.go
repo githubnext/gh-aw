@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -561,6 +563,65 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 		if !strings.Contains(jobYAML, expectedVar) {
 			t.Errorf("Expected environment variable not found: %s", expectedVar)
 		}
+	}
+}
+
+func TestConclusionJobActionFailureIssueExpiration_DefaultFromRepoConfig(t *testing.T) {
+	gitRoot := t.TempDir()
+
+	compiler := NewCompiler()
+	compiler.gitRoot = gitRoot
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	jobYAML := strings.Join(job.Steps, "")
+	if !strings.Contains(jobYAML, `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "168"`) {
+		t.Error("Expected default action failure issue expiration env var (168 hours) in conclusion job")
+	}
+}
+
+func TestConclusionJobActionFailureIssueExpiration_UsesAWJSONConfig(t *testing.T) {
+	gitRoot := t.TempDir()
+	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0o755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workflowsDir, "aw.json"), []byte(`{"maintenance":{"action_failure_issue_expires":48}}`), 0o600); err != nil {
+		t.Fatalf("Failed to write aw.json: %v", err)
+	}
+
+	compiler := NewCompiler()
+	compiler.gitRoot = gitRoot
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+	if err != nil {
+		t.Fatalf("Failed to build conclusion job: %v", err)
+	}
+	if job == nil {
+		t.Fatal("Expected conclusion job to be created")
+	}
+
+	jobYAML := strings.Join(job.Steps, "")
+	if !strings.Contains(jobYAML, `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "48"`) {
+		t.Error("Expected action failure issue expiration env var from aw.json in conclusion job")
 	}
 }
 

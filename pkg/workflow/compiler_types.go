@@ -91,6 +91,9 @@ type Compiler struct {
 	artifactManager         *ArtifactManager         // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string           // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string                   // Git repository root directory (if set, used for action cache path)
+	repoConfig              *RepoConfig              // Cached repository-level aw.json config
+	repoConfigErr           error                    // Cached repo config load error
+	repoConfigLoaded        bool                     // True once repo config has been loaded (success or failure)
 	contentOverride         string                   // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
