@@ -567,7 +567,10 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 }
 
 func TestConclusionJobActionFailureIssueExpiration_DefaultFromRepoConfig(t *testing.T) {
+	gitRoot := t.TempDir()
+
 	compiler := NewCompiler()
+	compiler.gitRoot = gitRoot
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{

@@ -220,10 +220,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 
 	actionFailureIssueExpiresHours := DefaultActionFailureIssueExpiresHours
-	repoConfig, repoConfigErr := LoadRepoConfig(c.gitRoot)
+	repoConfig, repoConfigErr := c.loadRepoConfig()
 	if repoConfigErr != nil {
 		notifyCommentLog.Printf(
-			"Warning: failed to load repo config for action failure issue expiration (using default %d hours): %v. Check that %s is valid JSON",
+			"Warning: failed to load repo config for action failure issue expiration (using default %d hours): %v. Check that %s exists and matches schema requirements",
 			DefaultActionFailureIssueExpiresHours,
 			repoConfigErr,
 			RepoConfigFileName,
