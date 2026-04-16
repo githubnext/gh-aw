@@ -649,17 +649,17 @@ func addActivationInteractionPermissionsMap(
 	// Real compiled workflows always have a populated trigger section.
 	if onSection == "" {
 		compilerActivationJobLog.Print("Empty on section while computing activation permissions; using broad fallback permissions")
-		if hasReaction || hasStatusComment {
-			permsMap[PermissionIssues] = PermissionWrite
-			permsMap[PermissionPullRequests] = PermissionWrite
-			if hasReaction || statusCommentIncludesDiscussions {
-				permsMap[PermissionDiscussions] = PermissionWrite
-			}
-		}
+		addBroadActivationInteractionPermissions(permsMap, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
 		return
 	}
 
-	eventSet := activationEventSet(onSection)
+	eventSet, eventSetParsed := activationEventSet(onSection)
+	if !eventSetParsed {
+		compilerActivationJobLog.Print("Unable to parse activation trigger events while computing permissions; using broad fallback permissions")
+		addBroadActivationInteractionPermissions(permsMap, hasReaction, hasStatusComment, statusCommentIncludesDiscussions)
+		return
+	}
+
 	hasIssuesEvent := eventSet["issues"]
 	hasIssueCommentEvent := eventSet["issue_comment"]
 	hasPullRequestEvent := eventSet["pull_request"]
@@ -694,6 +694,23 @@ func addActivationInteractionPermissionsMap(
 	}
 }
 
+func addBroadActivationInteractionPermissions(
+	permsMap map[PermissionScope]PermissionLevel,
+	hasReaction bool,
+	hasStatusComment bool,
+	statusCommentIncludesDiscussions bool,
+) {
+	if !hasReaction && !hasStatusComment {
+		return
+	}
+
+	permsMap[PermissionIssues] = PermissionWrite
+	permsMap[PermissionPullRequests] = PermissionWrite
+	if hasReaction || statusCommentIncludesDiscussions {
+		permsMap[PermissionDiscussions] = PermissionWrite
+	}
+}
+
 func shouldIncludeDiscussionStatusComments(data *WorkflowData) bool {
 	if data == nil || data.StatusCommentDiscussions == nil {
 		return true
@@ -701,17 +718,18 @@ func shouldIncludeDiscussionStatusComments(data *WorkflowData) bool {
 	return *data.StatusCommentDiscussions
 }
 
-func activationEventSet(onSection string) map[string]bool {
+func activationEventSet(onSection string) (map[string]bool, bool) {
 	events := make(map[string]bool)
 	var onData map[string]any
 	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {
 		compilerActivationJobLog.Printf("Failed to parse on section for activation permission scoping: %v", err)
-		return events
+		return events, false
 	}
 
 	onValue, hasOn := onData["on"]
 	if !hasOn {
-		return events
+		compilerActivationJobLog.Print("No top-level on key found while parsing activation permission events")
+		return events, false
 	}
 
 	switch v := onValue.(type) {
@@ -730,9 +748,12 @@ func activationEventSet(onSection string) map[string]bool {
 			}
 			events[eventName] = true
 		}
+	default:
+		compilerActivationJobLog.Printf("Unsupported on section type for activation permission scoping: %T", onValue)
+		return events, false
 	}
 
-	return events
+	return events, true
 }
 
 func isActivationMetadataTriggerField(eventName string) bool {

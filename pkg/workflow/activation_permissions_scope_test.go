@@ -113,3 +113,24 @@ engine: copilot
 	assert.NotContains(t, activationJobSection, "github.event_name == 'discussion'", "status comment condition should not include discussion events when status-comment.discussions is false")
 	assert.NotContains(t, activationJobSection, "github.event_name == 'discussion_comment'", "status comment condition should not include discussion_comment events when status-comment.discussions is false")
 }
+
+func TestAddActivationInteractionPermissionsMapFallsBackOnInvalidOnYAML(t *testing.T) {
+	permsMap := map[PermissionScope]PermissionLevel{}
+
+	addActivationInteractionPermissionsMap(permsMap, "on: [", true, true, true)
+
+	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write")
+	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "fallback should include pull-requests:write")
+	assert.Equal(t, PermissionWrite, permsMap[PermissionDiscussions], "fallback should include discussions:write when enabled")
+}
+
+func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentDiscussionsToggle(t *testing.T) {
+	permsMap := map[PermissionScope]PermissionLevel{}
+
+	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, false)
+
+	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write for status comments")
+	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "fallback should include pull-requests:write for status comments")
+	_, hasDiscussions := permsMap[PermissionDiscussions]
+	assert.False(t, hasDiscussions, "fallback should omit discussions:write when status-comment.discussions is false and reactions are disabled")
+}
