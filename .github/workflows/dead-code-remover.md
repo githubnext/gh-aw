@@ -29,7 +29,7 @@ safe-outputs:
     labels: [chore, dead-code]
     reviewers: [copilot]
   noop:
-timeout-minutes: 30
+timeout-minutes: 45
 features:
   copilot-requests: true
 steps:
