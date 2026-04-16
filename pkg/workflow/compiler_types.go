@@ -490,6 +490,7 @@ type WorkflowData struct {
 	EngineConfigSteps           []map[string]any          // steps returned by engine.RenderConfig — prepended before execution steps
 	ServicePortExpressions      string                    // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts           bool                      // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
+	PendingThenJobDependencies  map[string][]string       // pending custom then-job dependencies keyed by builtin target job ID
 }
 
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
