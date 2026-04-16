@@ -920,6 +920,7 @@ describe("sendJobSetupSpan", () => {
     "GITHUB_REF",
     "GITHUB_SHA",
     "GH_AW_INFO_VERSION",
+    "GH_AW_INFO_STAGED",
   ];
   let mkdirSpy, appendSpy;
 
@@ -1435,6 +1436,23 @@ describe("sendJobSetupSpan", () => {
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
     });
 
+    it("sets deployment.environment=staging when aw_info.json is absent and GH_AW_INFO_STAGED=true", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_INFO_STAGED = "true";
+
+      await sendJobSetupSpan();
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.staged", value: { boolValue: true } });
+
+      const resourceAttrs = body.resourceSpans[0].resource.attributes;
+      expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "staging" } });
+    });
+
     it("sets deployment.environment=staging when awInfo.staged=true", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
@@ -1471,6 +1489,9 @@ describe("sendJobSetupSpan", () => {
       await sendJobSetupSpan();
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.attributes).toContainEqual({ key: "gh-aw.staged", value: { boolValue: false } });
+
       const resourceAttrs = body.resourceSpans[0].resource.attributes;
       expect(resourceAttrs).toContainEqual({ key: "deployment.environment", value: { stringValue: "production" } });
     });
