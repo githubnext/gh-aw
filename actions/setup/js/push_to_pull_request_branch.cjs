@@ -455,6 +455,22 @@ async function main(config = {}) {
     // Switch to or create the target branch
     core.info(`Switching to branch: ${branchName}`);
 
+    // Detect missing/deleted branches early and return a clear error.
+    // This avoids an opaque git fetch exit code when the PR branch was deleted.
+    {
+      const lsRemoteResult = await exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", "origin", branchName], {
+        env: { ...process.env, ...gitAuthEnv },
+        ignoreReturnCode: true,
+      });
+
+      if (lsRemoteResult.exitCode !== 0) {
+        return {
+          success: false,
+          error: `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`,
+        };
+      }
+    }
+
     // Fetch the specific target branch from origin
     // Use GIT_CONFIG_* env vars for auth because .git/config credentials are
     // cleaned by clean_git_credentials.sh before the agent runs.

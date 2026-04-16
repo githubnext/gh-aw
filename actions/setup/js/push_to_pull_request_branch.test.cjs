@@ -631,6 +631,20 @@ index 0000000..abc1234
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
     });
 
+    it("should detect deleted branch before fetch", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
     it("should handle git fetch failure", async () => {
       const patchPath = createPatchFile();
 
