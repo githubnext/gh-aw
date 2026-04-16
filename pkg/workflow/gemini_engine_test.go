@@ -34,6 +34,7 @@ func TestGeminiEngine(t *testing.T) {
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
+		assert.Contains(t, secrets, "GOOGLE_API_KEY", "Should include GOOGLE_API_KEY compatibility env key")
 	})
 
 	t.Run("required secrets with MCP servers", func(t *testing.T) {
@@ -48,6 +49,7 @@ func TestGeminiEngine(t *testing.T) {
 		}
 		secrets := engine.GetRequiredSecretNames(workflowData)
 		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
+		assert.Contains(t, secrets, "GOOGLE_API_KEY", "Should include GOOGLE_API_KEY compatibility env key")
 		assert.Contains(t, secrets, "MCP_GATEWAY_API_KEY", "Should require MCP_GATEWAY_API_KEY when MCP servers present")
 		assert.Contains(t, secrets, "GITHUB_MCP_SERVER_TOKEN", "Should require GITHUB_MCP_SERVER_TOKEN for GitHub tool")
 	})
@@ -160,6 +162,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
+		assert.Contains(t, stepContent, "GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GOOGLE_API_KEY compatibility env var")
 	})
 
 	t.Run("with model", func(t *testing.T) {
@@ -279,6 +282,26 @@ func TestGeminiEngineExecution(t *testing.T) {
 		// The user-provided value should override the default token expression
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "engine.env should override the default GEMINI_API_KEY expression")
 		assert.NotContains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Default GEMINI_API_KEY expression should be replaced by engine.env")
+		assert.Contains(t, stepContent, "GOOGLE_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "GOOGLE_API_KEY should mirror overridden GEMINI_API_KEY")
+	})
+
+	t.Run("engine env can override GOOGLE_API_KEY explicitly", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"GEMINI_API_KEY": "${{ secrets.MY_ORG_GEMINI_KEY }}",
+					"GOOGLE_API_KEY": "${{ secrets.MY_PROXY_GOOGLE_KEY }}",
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.MY_ORG_GEMINI_KEY }}", "GEMINI_API_KEY should use configured override")
+		assert.Contains(t, stepContent, "GOOGLE_API_KEY: ${{ secrets.MY_PROXY_GOOGLE_KEY }}", "GOOGLE_API_KEY should use explicit override when provided")
 	})
 
 	t.Run("engine env adds custom non-secret env vars", func(t *testing.T) {
@@ -340,6 +363,7 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
 		assert.Contains(t, stepContent, "--allow-domains", "Should include allow-domains flag")
 		assert.Contains(t, stepContent, "--enable-api-proxy", "Should include --enable-api-proxy flag")
+		assert.Contains(t, stepContent, "--exclude-env GOOGLE_API_KEY", "Should exclude GOOGLE_API_KEY from agent container env")
 		assert.Contains(t, stepContent, "GEMINI_API_BASE_URL: http://host.docker.internal:10003", "Should set GEMINI_API_BASE_URL to LLM gateway URL")
 	})
 
