@@ -53,7 +53,7 @@ Test workflow verifying top-level github-app fallback for safe-outputs.
 		// The safe-outputs job should use the top-level github-app for token minting
 		assert.Contains(t, compiled, "id: safe-outputs-app-token",
 			"Safe outputs job should generate a token minting step")
-		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
+		assert.Contains(t, compiled, "client-id: ${{ vars.APP_ID }}",
 			"Token minting step should use the top-level APP_ID")
 		assert.Contains(t, compiled, "private-key: ${{ secrets.APP_PRIVATE_KEY }}",
 			"Token minting step should use the top-level APP_PRIVATE_KEY")
@@ -94,7 +94,7 @@ Test workflow verifying top-level github-app fallback for activation.
 		// The activation job should use the top-level github-app for token minting
 		assert.Contains(t, compiled, "id: activation-app-token",
 			"Activation job should generate a token minting step using top-level github-app")
-		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
+		assert.Contains(t, compiled, "client-id: ${{ vars.APP_ID }}",
 			"Token minting step should use the top-level APP_ID")
 		// The reaction step should use the minted app token
 		assert.Contains(t, compiled, "github-token: ${{ steps.activation-app-token.outputs.token }}",
@@ -138,7 +138,7 @@ Test workflow verifying top-level github-app fallback for checkout.
 		// The checkout should use the top-level github-app for token minting
 		assert.Contains(t, compiled, "id: checkout-app-token-0",
 			"Checkout should generate a token minting step using top-level github-app")
-		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
+		assert.Contains(t, compiled, "client-id: ${{ vars.APP_ID }}",
 			"Token minting step should use the top-level APP_ID")
 	})
 
@@ -182,7 +182,7 @@ Test workflow verifying top-level github-app fallback for tools.github.
 		// The agent job should use the top-level github-app for GitHub MCP token minting
 		assert.Contains(t, compiled, "id: github-mcp-app-token",
 			"Agent job should generate a GitHub MCP token minting step using top-level github-app")
-		assert.Contains(t, compiled, "app-id: ${{ vars.APP_ID }}",
+		assert.Contains(t, compiled, "client-id: ${{ vars.APP_ID }}",
 			"Token minting step should use the top-level APP_ID")
 	})
 
@@ -225,15 +225,15 @@ Test workflow verifying section-specific github-app takes precedence over top-le
 		compiled := string(compiledBytes)
 
 		// The safe-outputs job should use SAFE_OUTPUTS_APP_ID (section-specific), not APP_ID (top-level)
-		assert.Contains(t, compiled, "app-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}",
+		assert.Contains(t, compiled, "client-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}",
 			"Safe outputs job should use section-specific SAFE_OUTPUTS_APP_ID")
-		assert.Contains(t, compiled, "app-id: ${{ vars.ACTIVATION_APP_ID }}",
+		assert.Contains(t, compiled, "client-id: ${{ vars.ACTIVATION_APP_ID }}",
 			"Activation job should use section-specific ACTIVATION_APP_ID")
 		// The top-level APP_ID should NOT appear anywhere because it's overridden by section-specific
 		// configs in both on.github-app and safe-outputs.github-app. SAFE_OUTPUTS_APP_ID and
 		// ACTIVATION_APP_ID are distinct values from APP_ID, so their presence does not conflict
 		// with this assertion.
-		assert.NotContains(t, compiled, "app-id: ${{ vars.APP_ID }}",
+		assert.NotContains(t, compiled, "client-id: ${{ vars.APP_ID }}",
 			"Top-level APP_ID should NOT be used when section-specific configs are present")
 	})
 
@@ -288,7 +288,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-safe-outputs.md",
 			expectContains: []string{
 				"id: safe-outputs-app-token",
-				"app-id: ${{ vars.APP_ID }}",
+				"client-id: ${{ vars.APP_ID }}",
 				"private-key: ${{ secrets.APP_PRIVATE_KEY }}",
 			},
 		},
@@ -297,7 +297,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-activation.md",
 			expectContains: []string{
 				"id: activation-app-token",
-				"app-id: ${{ vars.APP_ID }}",
+				"client-id: ${{ vars.APP_ID }}",
 				"github-token: ${{ steps.activation-app-token.outputs.token }}",
 			},
 		},
@@ -306,15 +306,15 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-checkout.md",
 			expectContains: []string{
 				"id: checkout-app-token-0",
-				"app-id: ${{ vars.APP_ID }}",
+				"client-id: ${{ vars.APP_ID }}",
 			},
 		},
 		{
 			name:         "section-specific override workflow file",
 			workflowFile: "../cli/workflows/test-top-level-github-app-override.md",
 			expectContains: []string{
-				"app-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}",
-				"app-id: ${{ vars.ACTIVATION_APP_ID }}",
+				"client-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}",
+				"client-id: ${{ vars.ACTIVATION_APP_ID }}",
 			},
 		},
 		{
@@ -322,7 +322,7 @@ func TestTopLevelGitHubAppWorkflowFiles(t *testing.T) {
 			workflowFile: "../cli/workflows/test-top-level-github-app-mcp.md",
 			expectContains: []string{
 				"id: github-mcp-app-token",
-				"app-id: ${{ vars.APP_ID }}",
+				"client-id: ${{ vars.APP_ID }}",
 			},
 		},
 	}

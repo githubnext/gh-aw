@@ -345,7 +345,7 @@ func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
 				"Add a GitHub App configuration to safe-outputs:\n\n"+
 				"safe-outputs:\n"+
 				"  github-app:\n"+
-				"    app-id: ${{ vars.APP_ID }}\n"+
+				"    client-id: ${{ vars.APP_ID }}\n"+
 				"    private-key: ${{ secrets.APP_PRIVATE_KEY }}\n"+
 				"  %s:\n"+
 				"    allow-workflows: true",

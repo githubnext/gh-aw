@@ -400,7 +400,7 @@
           "apm-packages": {
             "packages": ["microsoft/apm-sample-package"],
             "github-app": {
-              "app-id": "${{ vars.APP_ID }}",
+              "client-id": "${{ vars.APP_ID }}",
               "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
             }
           }
@@ -1900,7 +1900,7 @@
               "description": "GitHub App configuration for minting a token used in pre-activation reactions, activation status comments, and skip-if search queries. When configured, a single GitHub App installation access token is minted and shared across all these operations instead of using the default GITHUB_TOKEN. Can be defined in a shared agentic workflow and inherited by importing workflows.",
               "examples": [
                 {
-                  "app-id": "${{ vars.APP_ID }}",
+                  "client-id": "${{ vars.APP_ID }}",
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                 }
               ]
@@ -9865,7 +9865,12 @@
       "properties": {
         "app-id": {
           "type": "string",
-          "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.",
+          "description": "Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID }}').",
+          "examples": ["${{ vars.APP_ID }}"]
+        },
+        "client-id": {
+          "type": "string",
+          "description": "GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.",
           "examples": ["${{ vars.APP_ID }}"]
         },
         "private-key": {
@@ -9889,11 +9894,18 @@
           "description": "Optional extra GitHub App-only permissions to merge into the minted token. Only takes effect for tools.github.github-app; ignored in other github-app contexts."
         }
       },
-      "required": ["app-id", "private-key"],
+      "anyOf": [
+        {
+          "required": ["client-id", "private-key"]
+        },
+        {
+          "required": ["app-id", "private-key"]
+        }
+      ],
       "additionalProperties": false,
       "examples": [
         {
-          "app-id": "${{ vars.APP_ID }}",
+          "client-id": "${{ vars.APP_ID }}",
           "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
         }
       ]

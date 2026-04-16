@@ -117,7 +117,7 @@ func TestActivationGitHubApp(t *testing.T) {
 		// Reaction step should use the app token
 		assert.Contains(t, stepsStr, "github-token: ${{ steps.activation-app-token.outputs.token }}", "Reaction step should use app token")
 		// App-id and private-key should be in the mint step
-		assert.Contains(t, stepsStr, "app-id: ${{ vars.APP_ID }}", "Mint step should contain app-id")
+		assert.Contains(t, stepsStr, "client-id: ${{ vars.APP_ID }}", "Mint step should contain client-id")
 		assert.Contains(t, stepsStr, "private-key: ${{ secrets.APP_PRIVATE_KEY }}", "Mint step should contain private-key")
 	})
 
@@ -349,7 +349,7 @@ Do something useful.
 		lockStr := string(lockContent)
 		// The token mint step should be generated
 		assert.Contains(t, lockStr, "id: activation-app-token", "Token mint step should be generated")
-		assert.Contains(t, lockStr, "app-id: ${{ vars.APP_ID }}", "Token mint step should use app-id")
+		assert.Contains(t, lockStr, "client-id: ${{ vars.APP_ID }}", "Token mint step should use client-id")
 		assert.Contains(t, lockStr, "github-token: ${{ steps.activation-app-token.outputs.token }}", "Reaction step should use app token")
 	})
 }

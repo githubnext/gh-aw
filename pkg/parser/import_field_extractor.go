@@ -511,7 +511,7 @@ func computeImportRelPath(fullPath, importPath string) string {
 }
 
 // validateGitHubAppJSON validates that a JSON-encoded GitHub App configuration has the required
-// fields (app-id and private-key). Returns the input JSON if valid, or "" otherwise.
+// fields ((client-id or app-id) and private-key). Returns the input JSON if valid, or "" otherwise.
 func validateGitHubAppJSON(appJSON string) string {
 	if appJSON == "" || appJSON == "null" {
 		return ""
@@ -520,7 +520,9 @@ func validateGitHubAppJSON(appJSON string) string {
 	if err := json.Unmarshal([]byte(appJSON), &appMap); err != nil {
 		return ""
 	}
-	if _, hasID := appMap["app-id"]; !hasID {
+	_, hasClientID := appMap["client-id"]
+	_, hasAppID := appMap["app-id"]
+	if !hasClientID && !hasAppID {
 		return ""
 	}
 	if _, hasKey := appMap["private-key"]; !hasKey {

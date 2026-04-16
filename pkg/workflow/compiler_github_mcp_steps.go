@@ -98,7 +98,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 	}
 
 	app := data.ParsedTools.GitHub.GitHubApp
-	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: app-id=%s", app.AppID)
+	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: client-id=%s", app.AppID)
 
 	// Get permissions from the agent job - parse from YAML string
 	var permissions *Permissions

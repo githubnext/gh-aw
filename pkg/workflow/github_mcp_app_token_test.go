@@ -100,7 +100,7 @@ Test workflow with GitHub MCP app token minting.
 	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
 	assert.Contains(t, lockContent, "actions/create-github-app-token", "Should use create-github-app-token action")
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "Should use github-mcp-app-token as step ID")
-	assert.Contains(t, lockContent, "app-id: ${{ vars.APP_ID }}", "Should use configured app ID")
+	assert.Contains(t, lockContent, "client-id: ${{ vars.APP_ID }}", "Should use configured app ID")
 	assert.Contains(t, lockContent, "private-key: ${{ secrets.APP_PRIVATE_KEY }}", "Should use configured private key")
 
 	// Verify permissions are passed to the app token minting
@@ -259,7 +259,7 @@ Test org-wide GitHub MCP app token.
 
 	// Verify other fields are still present
 	assert.Contains(t, lockContent, "owner:", "Should include owner field")
-	assert.Contains(t, lockContent, "app-id:", "Should include app-id field")
+	assert.Contains(t, lockContent, "client-id:", "Should include client-id field")
 }
 
 // TestGitHubMCPAppTokenWithLockdownDetectionStep tests that determine-automatic-lockdown
