@@ -94,6 +94,46 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
+  describe("scheduled startup retry policy (exit code 2)", () => {
+    const MAX_RETRIES = 3;
+    const MAX_SCHEDULED_EXIT2_RETRIES = 1;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number}} result
+     * @param {number} attempt
+     * @param {boolean} isScheduledRun
+     * @param {number} scheduledExit2Retries
+     * @returns {boolean}
+     */
+    function shouldRetry(result, attempt, isScheduledRun, scheduledExit2Retries) {
+      if (result.exitCode === 0) return false;
+
+      // Scheduled startup outage: retry once even when no output was produced.
+      if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES) {
+        return true;
+      }
+
+      // Existing partial-execution retry policy
+      return attempt < MAX_RETRIES && result.hasOutput;
+    }
+
+    it("retries once for scheduled startup interruption with exit code 2 and no output", () => {
+      const result = { exitCode: 2, hasOutput: false };
+      expect(shouldRetry(result, 0, true, 0)).toBe(true);
+      expect(shouldRetry(result, 1, true, 1)).toBe(false);
+    });
+
+    it("does not apply startup retry for non-scheduled runs", () => {
+      const result = { exitCode: 2, hasOutput: false };
+      expect(shouldRetry(result, 0, false, 0)).toBe(false);
+    });
+
+    it("continues to use partial-execution retries when output exists", () => {
+      const result = { exitCode: 2, hasOutput: true };
+      expect(shouldRetry(result, 0, true, 0)).toBe(true);
+    });
+  });
+
   describe("MCP policy blocked detection pattern", () => {
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
