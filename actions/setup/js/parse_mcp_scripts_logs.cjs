@@ -156,9 +156,12 @@ function generatePlainTextSummary(logEntries) {
 
   const addPending = (tool, index) => {
     const key = tool.toLowerCase();
-    const pending = pendingByTool.get(key) || [];
-    pending.push(index);
-    pendingByTool.set(key, pending);
+    const pending = pendingByTool.get(key);
+    if (pending) {
+      pending.push(index);
+      return;
+    }
+    pendingByTool.set(key, [index]);
   };
 
   const consumePending = tool => {
@@ -168,8 +171,6 @@ function generatePlainTextSummary(logEntries) {
     const index = pending.shift();
     if (pending.length === 0) {
       pendingByTool.delete(key);
-    } else {
-      pendingByTool.set(key, pending);
     }
     return index;
   };
@@ -239,7 +240,7 @@ function generatePlainTextSummary(logEntries) {
       continue;
     }
 
-    if (/error|failed/i.test(message)) {
+    if (/\b(error|failed)\b/i.test(message)) {
       diagnostics.push(`✗ ${truncate(message, 150)}`);
     }
   }
