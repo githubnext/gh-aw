@@ -236,8 +236,11 @@ function balanceCodeRegions(markdown) {
 
           // True nesting: more closers than openers (e.g., 1 opener, 3 closers)
           // Nested blocks: closers = openers + 1 (e.g., 2 openers [including us], 2 closers)
+          // IMPORTANT: nesting requires at least one intermediate opener with a language tag.
+          // Without intermediate openers, multiple bare closers are sequential code blocks,
+          // not nested content (e.g., ```cpp...``` followed by ```...``` are two separate blocks).
           const closerCount = directClosers.length;
-          const isTrueNesting = closerCount > openerCount + 1;
+          const isTrueNesting = openerCount > 0 && closerCount > openerCount + 1;
 
           if (isTrueNesting) {
             // TRUE nesting - use the LAST closer and escape middle ones
