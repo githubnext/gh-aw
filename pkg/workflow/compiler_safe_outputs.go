@@ -90,6 +90,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					workflowData.StatusComment = &statusCommentEnabled
 					workflowData.StatusCommentIssues = &statusCommentIssues
 					workflowData.StatusCommentDiscussions = &statusCommentDiscussions
+					if !statusCommentIssues && !statusCommentDiscussions {
+						return fmt.Errorf("status-comment object requires at least one target to be enabled (set issues: true or discussions: true, or use status-comment: false)")
+					}
 					compilerSafeOutputsLog.Printf("status-comment object set: issues=%v discussions=%v", statusCommentIssues, statusCommentDiscussions)
 				} else {
 					return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)

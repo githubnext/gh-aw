@@ -743,6 +743,8 @@ func addBroadActivationInteractionPermissions(
 
 	if hasReaction || statusCommentIncludesIssues {
 		permsMap[PermissionIssues] = PermissionWrite
+	}
+	if hasReaction {
 		permsMap[PermissionPullRequests] = PermissionWrite
 	}
 	if hasReaction || statusCommentIncludesDiscussions {

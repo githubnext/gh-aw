@@ -129,7 +129,8 @@ func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentDisc
 	addActivationInteractionPermissionsMap(permsMap, "name: no-on-key", false, true, true, false)
 
 	assert.Equal(t, PermissionWrite, permsMap[PermissionIssues], "fallback should include issues:write for status comments")
-	assert.Equal(t, PermissionWrite, permsMap[PermissionPullRequests], "fallback should include pull-requests:write for status comments")
+	_, hasPullRequests := permsMap[PermissionPullRequests]
+	assert.False(t, hasPullRequests, "fallback should omit pull-requests:write when only status comments are enabled")
 	_, hasDiscussions := permsMap[PermissionDiscussions]
 	assert.False(t, hasDiscussions, "fallback should omit discussions:write when status-comment.discussions is false and reactions are disabled")
 }
@@ -181,4 +182,29 @@ func TestAddActivationInteractionPermissionsMapFallbackRespectsStatusCommentIssu
 	assert.False(t, hasIssues, "fallback should omit issues:write when status-comment.issues is false and reactions are disabled")
 	assert.False(t, hasPullRequests, "fallback should omit pull-requests:write when status-comment.issues is false and reactions are disabled")
 	assert.Equal(t, PermissionWrite, permsMap[PermissionDiscussions], "fallback should include discussions:write when status-comment.discussions is true")
+}
+
+func TestStatusCommentObjectRejectsAllTargetsDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "status-comment-object-all-disabled")
+	testFile := filepath.Join(tmpDir, "status-comment-object-all-disabled.md")
+	testContent := `---
+on:
+  status-comment:
+    issues: false
+    discussions: false
+  issues:
+    types: [opened]
+engine: copilot
+---
+
+# Invalid status comment object
+`
+
+	err := os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.Error(t, err, "compilation should fail when status-comment object disables all targets")
+	assert.Contains(t, err.Error(), "status-comment object requires at least one target to be enabled", "error should explain invalid status-comment object configuration")
 }
