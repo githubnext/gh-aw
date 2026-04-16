@@ -588,7 +588,7 @@ jobs:
             "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
             "tools": [
               {
-                "name": "github-discussion-query",
+                "name": "mcpscripts-github-discussion-query",
                 "description": "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -614,7 +614,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "github-issue-query",
+                "name": "mcpscripts-github-issue-query",
                 "description": "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -644,7 +644,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "github-pr-query",
+                "name": "mcpscripts-github-pr-query",
                 "description": "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {

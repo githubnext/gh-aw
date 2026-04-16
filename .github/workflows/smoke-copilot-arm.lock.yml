@@ -972,7 +972,7 @@ jobs:
             "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
             "tools": [
               {
-                "name": "gh",
+                "name": "mcpscripts-gh",
                 "description": "Execute any gh CLI command. This tool is accessible as 'mcpscripts-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
                 "inputSchema": {
                   "properties": {
@@ -994,7 +994,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "github-discussion-query",
+                "name": "mcpscripts-github-discussion-query",
                 "description": "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -1020,7 +1020,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "github-issue-query",
+                "name": "mcpscripts-github-issue-query",
                 "description": "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {
@@ -1050,7 +1050,7 @@ jobs:
                 "timeout": 60
               },
               {
-                "name": "github-pr-query",
+                "name": "mcpscripts-github-pr-query",
                 "description": "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
                 "inputSchema": {
                   "properties": {

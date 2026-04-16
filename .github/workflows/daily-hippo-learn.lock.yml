@@ -603,7 +603,7 @@ jobs:
             "logDir": "${RUNNER_TEMP}/gh-aw/mcp-scripts/logs",
             "tools": [
               {
-                "name": "hippo",
+                "name": "mcpscripts-hippo",
                 "description": "Execute any hippo-memory CLI command. Accessible as 'mcpscripts-hippo'. Provide arguments after 'hippo'. Examples: args 'learn --git' to extract lessons from git commits, 'sleep' for full consolidation, 'recall \"api errors\" --budget 2000' to retrieve relevant memories.",
                 "inputSchema": {
                   "properties": {
