@@ -27,6 +27,7 @@ safe-outputs:
     close-older-issues: true
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default, issues]

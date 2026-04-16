@@ -34,6 +34,7 @@ safe-outputs:
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions]
   edit:

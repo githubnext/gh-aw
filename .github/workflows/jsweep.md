@@ -18,6 +18,7 @@ imports:
     with:
       languages: ["typescript"]
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -39,6 +40,9 @@ network:
     - go
 timeout-minutes: 20
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # jsweep - JavaScript Unbloater

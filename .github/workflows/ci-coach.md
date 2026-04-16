@@ -12,6 +12,7 @@ permissions:
 tracker-id: ci-coach-daily
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -26,6 +27,7 @@ imports:
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

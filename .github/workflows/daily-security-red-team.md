@@ -11,6 +11,7 @@ tracker-id: security-red-team
 engine: claude
 strict: true
 tools:
+  mount-as-clis: true
   github:
     toolsets: [issues]
   edit:

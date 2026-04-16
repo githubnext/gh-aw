@@ -37,6 +37,7 @@ safe-outputs:
     run-failure: "⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs..."
 
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [default, discussions]
@@ -56,6 +57,7 @@ imports:
   - shared/reporting.md
 
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

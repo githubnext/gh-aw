@@ -14,6 +14,7 @@ permissions:
   issues: read
   pull-requests: read
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   web-fetch:

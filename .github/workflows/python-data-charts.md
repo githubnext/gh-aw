@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  mount-as-clis: true
   agentic-workflows:
   edit:
 imports:
@@ -23,6 +24,9 @@ safe-outputs:
     category: "artifacts"
     max: 1
 timeout-minutes: 15
+
+features:
+  mcp-cli: true
 ---
 
 # Python Data Visualization Generator

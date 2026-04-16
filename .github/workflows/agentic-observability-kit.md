@@ -13,6 +13,7 @@ engine: copilot
 strict: true
 tracker-id: agentic-observability-kit
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets: [default, discussions]

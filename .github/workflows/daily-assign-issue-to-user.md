@@ -10,6 +10,7 @@ permissions:
   contents: read
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     toolsets: [issues, pull_requests, repos]
 safe-outputs:

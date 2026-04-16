@@ -13,10 +13,14 @@ permissions:
   issues: read
   pull-requests: read
 tools:
+  mount-as-clis: true
   github:
 imports:
   - shared/mcp/notion.md
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # Issue Summary to Notion

@@ -9,6 +9,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets: [default, actions, repos]
@@ -31,6 +32,7 @@ safe-outputs:
     max: 10
 timeout-minutes: 30
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

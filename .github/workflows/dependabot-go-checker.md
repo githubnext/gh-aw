@@ -33,6 +33,7 @@ safe-outputs:
     group: true
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, dependabot]
   web-fetch:
@@ -40,6 +41,9 @@ tools:
 
 imports:
   - shared/reporting.md
+
+features:
+  mcp-cli: true
 ---
 # Dependabot Dependency Checker
 

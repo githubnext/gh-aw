@@ -78,6 +78,7 @@ steps:
       name: super-linter-log
       path: /tmp/gh-aw/
 tools:
+  mount-as-clis: true
   cache-memory: true
   edit:
   bash:

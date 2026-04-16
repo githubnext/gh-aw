@@ -22,6 +22,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -42,6 +43,7 @@ imports:
   - shared/reporting-otlp.md
   - shared/trends.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

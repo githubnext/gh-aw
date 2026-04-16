@@ -22,6 +22,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets:
@@ -34,6 +35,9 @@ imports:
     with:
       title-prefix: "[daily-firewall-report] "
   - shared/trending-charts-simple.md
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

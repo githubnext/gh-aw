@@ -24,6 +24,7 @@ network:
     - github
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   cache-memory: true

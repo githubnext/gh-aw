@@ -12,6 +12,7 @@ runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [default, discussions]

@@ -34,6 +34,7 @@ imports:
   - ../agents/adr-writer.agent.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, repos]
   edit:

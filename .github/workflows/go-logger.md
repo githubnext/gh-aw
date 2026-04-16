@@ -36,6 +36,7 @@ steps:
     working-directory: ./actions/setup/js
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -55,6 +56,9 @@ imports:
   - shared/go-make.md
 
 timeout-minutes: 15
+
+features:
+  mcp-cli: true
 ---
 
 # Go Logger Enhancement

@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
   actions: read
 tools:
+  mount-as-clis: true
   agentic-workflows:
   bash: ["*"]
   edit:

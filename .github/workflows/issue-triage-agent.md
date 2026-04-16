@@ -7,6 +7,7 @@ on:
 permissions:
   issues: read
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [issues, labels]

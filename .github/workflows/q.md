@@ -17,6 +17,7 @@ engine: copilot
 imports:
   - shared/mcp/serena-go.md
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     min-integrity: none
@@ -47,6 +48,9 @@ safe-outputs:
     run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."
 timeout-minutes: 15
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # Q - Agentic Workflow Optimizer

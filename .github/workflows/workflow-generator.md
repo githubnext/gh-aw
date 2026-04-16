@@ -16,6 +16,7 @@ engine: copilot
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [default]

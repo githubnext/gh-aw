@@ -16,6 +16,12 @@ permissions:
 safe-outputs:
   create-code-scanning-alert:
     driver: "Semgrep Security Scanner"
+
+tools:
+  mount-as-clis: true
+
+features:
+  mcp-cli: true
 ---
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.

@@ -12,6 +12,7 @@ permissions:
 tracker-id: aw-failure-investigator
 engine: claude
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets: [default, actions]

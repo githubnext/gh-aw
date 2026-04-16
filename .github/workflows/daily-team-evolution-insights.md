@@ -19,6 +19,7 @@ network:
     - "anthropic.com"
     - "api.anthropic.com"
 tools:
+  mount-as-clis: true
   github:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]

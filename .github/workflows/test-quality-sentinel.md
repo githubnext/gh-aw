@@ -11,6 +11,7 @@ engine:
   id: copilot
   max-continuations: 40
 tools:
+  mount-as-clis: true
   github:
     toolsets: [pull_requests]
   bash:

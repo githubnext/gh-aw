@@ -33,6 +33,7 @@ permissions:
 tracker-id: daily-cli-performance
 engine: copilot
 tools:
+  mount-as-clis: true
   repo-memory:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
@@ -57,6 +58,7 @@ imports:
   - shared/reporting-otlp.md
   - shared/go-make.md
 features:
+  mcp-cli: true
   copilot-requests: true
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
 jobs:

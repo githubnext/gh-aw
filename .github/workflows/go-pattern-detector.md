@@ -60,6 +60,12 @@ safe-outputs:
     labels: [code-quality, ast-grep, cookie]
     max: 1
 strict: true
+
+tools:
+  mount-as-clis: true
+
+features:
+  mcp-cli: true
 ---
 
 # Go Code Pattern Detector

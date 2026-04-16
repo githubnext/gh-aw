@@ -138,6 +138,10 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected COPILOT_GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, constants.CopilotCLIIntegrationIDEnvVar+": "+constants.CopilotCLIIntegrationIDValue) {
+		t.Errorf("Expected %s environment variable in step content:\n%s", constants.CopilotCLIIntegrationIDEnvVar, stepContent)
+	}
+
 	// Test that GITHUB_HEAD_REF and GITHUB_REF_NAME are present for branch resolution
 	if !strings.Contains(stepContent, "GITHUB_HEAD_REF: ${{ github.head_ref }}") {
 		t.Errorf("Expected GITHUB_HEAD_REF environment variable in step content:\n%s", stepContent)
@@ -209,6 +213,42 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsAlwaysInjectsIntegrationIDAfterEnvMerges(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				constants.CopilotCLIIntegrationIDEnvVar: "override-from-engine",
+			},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Env: map[string]string{
+					constants.CopilotCLIIntegrationIDEnvVar: "override-from-agent",
+				},
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	expected := constants.CopilotCLIIntegrationIDEnvVar + ": " + constants.CopilotCLIIntegrationIDValue
+	if !strings.Contains(stepContent, expected) {
+		t.Fatalf("Expected integration ID env to be forced to %q, got:\n%s", expected, stepContent)
+	}
+	if strings.Contains(stepContent, constants.CopilotCLIIntegrationIDEnvVar+": override-from-agent") {
+		t.Fatalf("Expected agent override to be ignored for %s, got:\n%s", constants.CopilotCLIIntegrationIDEnvVar, stepContent)
+	}
+	if strings.Contains(stepContent, constants.CopilotCLIIntegrationIDEnvVar+": override-from-engine") {
+		t.Fatalf("Expected engine override to be ignored for %s, got:\n%s", constants.CopilotCLIIntegrationIDEnvVar, stepContent)
 	}
 }
 

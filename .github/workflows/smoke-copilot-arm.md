@@ -28,6 +28,7 @@ network:
     - github
     - playwright
 tools:
+  mount-as-clis: true
   agentic-workflows:
   cache-memory: true
   edit:

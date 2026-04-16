@@ -31,6 +31,7 @@ safe-outputs:
     max: 3
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -49,6 +50,7 @@ tools:
 timeout-minutes: 45
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

@@ -37,6 +37,9 @@ jobs:
             });
 features:
   mcp-cli: true
+
+tools:
+  mount-as-clis: true
 ---
 
 Classic action that generates an ACE editor session link on pull request comment slash command.

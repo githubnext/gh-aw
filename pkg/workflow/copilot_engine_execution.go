@@ -326,12 +326,6 @@ touch %s
 
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
-	// Inject the integration ID only when the feature flag is explicitly enabled.
-	// Default off — the env var may cause Copilot CLI failures.
-	// See https://github.com/github/gh-aw/issues/25516
-	if isFeatureEnabled(constants.CopilotIntegrationIDFeatureFlag, workflowData) {
-		env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
-	}
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	if workflowData.IsDetectionRun {
 		env["GH_AW_PHASE"] = "detection"
@@ -416,6 +410,10 @@ touch %s
 		maps.Copy(env, agentConfig.Env)
 		copilotExecLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
+
+	// Always inject the Copilot integration ID for agentic workflows after all env merges
+	// so user-supplied env does not override this value.
+	env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
 
 	// Inject the dummy COPILOT_API_KEY AFTER all env merges so that legacy/manual
 	// wiring in engine.env or agent.env cannot accidentally overwrite the sentinel

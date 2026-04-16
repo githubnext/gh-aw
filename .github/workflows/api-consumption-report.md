@@ -12,6 +12,7 @@ permissions:
 tracker-id: api-consumption-report-daily
 engine: claude
 tools:
+  mount-as-clis: true
   agentic-workflows:
   timeout: 300
 safe-outputs:
@@ -27,6 +28,9 @@ imports:
   - shared/trending-charts-simple.md
   - shared/jqschema.md
   - shared/reporting.md
+
+features:
+  mcp-cli: true
 ---
 
 # GitHub API Consumption Report Agent

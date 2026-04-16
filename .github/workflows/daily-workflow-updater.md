@@ -31,6 +31,7 @@ safe-outputs:
     protected-files: allowed
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash: true

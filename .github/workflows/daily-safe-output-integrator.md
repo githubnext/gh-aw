@@ -15,6 +15,7 @@ engine: copilot
 strict: true
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash:
@@ -46,6 +47,7 @@ imports:
   - shared/reporting-otlp.md
 
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

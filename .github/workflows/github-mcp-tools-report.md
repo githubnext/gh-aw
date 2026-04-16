@@ -12,6 +12,7 @@ permissions:
   security-events: read
 engine: claude
 tools:
+  mount-as-clis: true
   github:
     mode: "remote"
     toolsets: [all]

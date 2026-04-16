@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
 engine: claude
 tools:
+  mount-as-clis: true
   cache-memory: true
   bash: true
 timeout-minutes: 15

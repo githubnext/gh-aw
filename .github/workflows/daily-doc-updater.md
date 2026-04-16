@@ -31,6 +31,7 @@ safe-outputs:
     auto-merge: true
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -51,6 +52,8 @@ imports:
   - shared/github-guard-policy.md
   - shared/observability-otlp.md
 
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

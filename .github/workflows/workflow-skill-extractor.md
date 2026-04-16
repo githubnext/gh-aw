@@ -17,6 +17,7 @@ engine:
 timeout-minutes: 30
 
 tools:
+  mount-as-clis: true
   bash:
     - "find .github/workflows -name '*.md'"
     - "grep -r '*' .github/workflows"

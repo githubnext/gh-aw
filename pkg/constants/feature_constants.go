@@ -49,16 +49,6 @@ const (
 	//	features:
 	//	  awf-diagnostic-logs: true
 	AwfDiagnosticLogsFeatureFlag FeatureFlag = "awf-diagnostic-logs"
-	// CopilotIntegrationIDFeatureFlag gates injection of the
-	// GITHUB_COPILOT_INTEGRATION_ID environment variable into the agent step.
-	// Default off — the env var may cause Copilot CLI failures.
-	// See https://github.com/github/gh-aw/issues/25516
-	//
-	// Workflow frontmatter usage:
-	//
-	//	features:
-	//	  copilot-integration-id: true
-	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
 	// ByokCopilotFeatureFlag enables Copilot CLI offline BYOK mode.
 	// When enabled with engine: copilot, the compiler:
 	//   - injects a dummy COPILOT_API_KEY into the agent env to trigger AWF BYOK runtime behavior

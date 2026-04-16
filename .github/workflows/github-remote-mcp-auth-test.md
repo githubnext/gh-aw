@@ -11,6 +11,7 @@ engine:
   id: copilot
   model: gpt-5.1-codex-mini
 tools:
+  mount-as-clis: true
   github:
     mode: remote
     toolsets: [repos, issues, discussions]
@@ -22,6 +23,9 @@ imports:
     with:
       title-prefix: "[auth-test] "
       expires: 1d
+
+features:
+  mcp-cli: true
 ---
 # GitHub Remote MCP Authentication Test
 

@@ -14,6 +14,7 @@ runtimes:
   node:
     version: "22"
 tools:
+  mount-as-clis: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
   edit:
