@@ -332,6 +332,7 @@ func TestFeatureFlagConstants(t *testing.T) {
 		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
 		{"DisableXPIAPromptFeatureFlag", DisableXPIAPromptFeatureFlag, "disable-xpia-prompt"},
 		{"DIFCProxyFeatureFlag", DIFCProxyFeatureFlag, "difc-proxy"},
+		{"AwfDiagnosticLogsFeatureFlag", AwfDiagnosticLogsFeatureFlag, "awf-diagnostic-logs"},
 	}
 
 	for _, tt := range tests {

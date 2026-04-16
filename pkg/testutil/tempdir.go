@@ -80,14 +80,19 @@ func CaptureStderr(t *testing.T, fn func()) string {
 
 	origStderr := os.Stderr
 	os.Stderr = w
-	t.Cleanup(func() { os.Stderr = origStderr })
+	defer func() { os.Stderr = origStderr }()
 
 	fn()
 
-	w.Close()
+	if err = w.Close(); err != nil {
+		t.Fatalf("CaptureStderr: failed to close writer pipe: %v", err)
+	}
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(r); err != nil {
 		t.Fatalf("CaptureStderr: failed to read pipe: %v", err)
+	}
+	if err = r.Close(); err != nil {
+		t.Logf("Warning: failed to close stderr capture reader: %v", err)
 	}
 	return buf.String()
 }

@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 describe("handle_agent_failure", () => {
   let buildCodePushFailureContext;
   let buildPushRepoMemoryFailureContext;
+  let getActionFailureIssueExpiresHours;
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -24,7 +25,7 @@ describe("handle_agent_failure", () => {
 
     // Reset module registry so each test gets a fresh require
     vi.resetModules();
-    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext } = require("./handle_agent_failure.cjs"));
+    ({ buildCodePushFailureContext, buildPushRepoMemoryFailureContext, getActionFailureIssueExpiresHours } = require("./handle_agent_failure.cjs"));
   });
 
   afterEach(() => {
@@ -32,6 +33,25 @@ describe("handle_agent_failure", () => {
     delete global.github;
     delete global.context;
     delete process.env.GITHUB_SHA;
+    delete process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
+  });
+
+  describe("getActionFailureIssueExpiresHours", () => {
+    it("returns default when env var is missing", () => {
+      expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+
+    it("returns configured value when env var is a positive integer", () => {
+      process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "48";
+      expect(getActionFailureIssueExpiresHours()).toBe(48);
+    });
+
+    it("returns default for invalid values", () => {
+      process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "0";
+      expect(getActionFailureIssueExpiresHours()).toBe(168);
+      process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "invalid";
+      expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
   });
 
   describe("buildCodePushFailureContext", () => {

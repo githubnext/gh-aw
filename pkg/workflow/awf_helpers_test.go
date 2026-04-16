@@ -426,6 +426,51 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
+// only when features.awf-diagnostic-logs is enabled.
+func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {
+	baseWorkflow := func(features map[string]any) *WorkflowData {
+		return &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			Features: features,
+		}
+	}
+
+	t.Run("does not include --diagnostic-logs when feature flag is absent", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   baseWorkflow(nil),
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--diagnostic-logs", "Should not include --diagnostic-logs when feature flag is absent")
+	})
+
+	t.Run("includes --diagnostic-logs when awf-diagnostic-logs is enabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: baseWorkflow(map[string]any{
+				string(constants.AwfDiagnosticLogsFeatureFlag): true,
+			}),
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--diagnostic-logs", "Should include --diagnostic-logs when feature flag is enabled")
+	})
+}
+
 // TestBuildAWFArgsMemoryLimit tests that BuildAWFArgs passes --memory-limit
 // when sandbox.agent.memory is configured in the workflow frontmatter
 func TestBuildAWFArgsMemoryLimit(t *testing.T) {

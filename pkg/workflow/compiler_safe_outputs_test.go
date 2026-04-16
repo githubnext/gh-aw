@@ -1066,24 +1066,27 @@ func TestApplyDefaultToolsComplexScenarios(t *testing.T) {
 
 // TestParseOnSectionReactionMapFormat tests reaction with map format
 func TestParseOnSectionReactionMapFormat(t *testing.T) {
-	// This test covers the case where reaction might be provided as a map
-	// though the current implementation expects string or int
 	c := &Compiler{}
 	workflowData := &WorkflowData{}
 
-	// Test that invalid type (map) is handled
 	frontmatter := map[string]any{
 		"on": map[string]any{
 			"reaction": map[string]any{
-				"type": "heart",
+				"type":          "heart",
+				"pull-requests": false,
 			},
 		},
 	}
 
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/test.md")
-
-	// The parseReactionValue function should return an error for map type
-	assert.Error(t, err, "Should error on map type reaction")
+	require.NoError(t, err, "reaction map format should be accepted")
+	assert.Equal(t, "heart", workflowData.AIReaction, "reaction type should be parsed from reaction.type")
+	require.NotNil(t, workflowData.ReactionIssues, "reaction issue target flag should be set")
+	assert.True(t, *workflowData.ReactionIssues, "reaction issues target should default to true")
+	require.NotNil(t, workflowData.ReactionPullRequests, "reaction pull request target flag should be set")
+	assert.False(t, *workflowData.ReactionPullRequests, "reaction pull request target should match parsed value")
+	require.NotNil(t, workflowData.ReactionDiscussions, "reaction discussion target flag should be set")
+	assert.True(t, *workflowData.ReactionDiscussions, "reaction discussions target should default to true")
 }
 
 // TestCompilerNeedsGitCommandsAllOutputTypes tests all safe output types for git command requirements

@@ -8,7 +8,8 @@
 //
 //	{
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
-//	    "runs_on": "custom runner" // string or string[] – runner label(s) for all
+//	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
+//	    "action_failure_issue_expires": 72 // expiration (hours) for conclusion failure issues
 //	  }                            // maintenance jobs (default: ubuntu-slim)
 //	}
 //
@@ -33,6 +34,10 @@ var repoConfigLog = logger.New("workflow:repo_config")
 // RepoConfigFileName is the path of the repository-level configuration file
 // relative to the git root.
 const RepoConfigFileName = ".github/workflows/aw.json"
+
+// DefaultActionFailureIssueExpiresHours is the default expiration (in hours)
+// for action failure issues created by the conclusion job.
+const DefaultActionFailureIssueExpiresHours = 24 * 7
 
 // RunsOnValue is a JSON-deserializable type for the runs_on field in aw.json.
 // It accepts either a single runner label string or an array of runner label strings.
@@ -63,6 +68,10 @@ func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
 type MaintenanceConfig struct {
 	// RunsOn is the runner label or labels used for all jobs in agentics-maintenance.yml.
 	RunsOn RunsOnValue `json:"runs_on,omitempty"`
+
+	// ActionFailureIssueExpires configures expiration (in hours) for action
+	// failure issues opened by the conclusion job. Defaults to 168 (7 days).
+	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
 }
 
 // RepoConfig is the parsed representation of aw.json.
@@ -189,4 +198,13 @@ func FormatRunsOn(runsOn RunsOnValue, defaultRunsOn string) string {
 		return defaultRunsOn
 	}
 	return string(encoded)
+}
+
+// ActionFailureIssueExpiresHours returns the configured action failure issue
+// expiration in hours, or the default value when unset.
+func (r *RepoConfig) ActionFailureIssueExpiresHours() int {
+	if r != nil && r.Maintenance != nil && r.Maintenance.ActionFailureIssueExpires > 0 {
+		return r.Maintenance.ActionFailureIssueExpires
+	}
+	return DefaultActionFailureIssueExpiresHours
 }
