@@ -60,27 +60,17 @@ Analyze merged Copilot pull requests from the last 24 hours and generate a basic
 
 ### Phase 1: Find Merged Copilot PRs
 
-**Step 1.1: Calculate Date Range**
+**Step 1.1: Filter Merged PRs from Pre-Fetched Data**
 
-Calculate the timestamp for 24 hours ago:
+Use the pre-fetched PR dataset at `/tmp/gh-aw/pr-data/copilot-prs.json` and filter by `mergedAt` in the last 24 hours:
 ```bash
-# Get timestamp for 24 hours ago (compatible with both GNU and BSD date)
-DATE_24H_AGO=$(date -d '24 hours ago' '+%Y-%m-%d' 2>/dev/null || date -v-24H '+%Y-%m-%d')
-echo "Looking for PRs merged since: $DATE_24H_AGO"
+jq '[.[] | select(.mergedAt != null and (.mergedAt | fromdateiso8601) >= (now - 86400))]' /tmp/gh-aw/pr-data/copilot-prs.json
 ```
 
-**Step 1.2: Search for Merged Copilot PRs**
-
-Use the `mcpscripts-gh` mcp-script tool to search for merged PRs from Copilot:
-```
-mcpscripts-gh with args: "pr list --repo ${{ github.repository }} --search \"head:copilot/ is:merged merged:>=$DATE_24H_AGO\" --state merged --limit 100 --json number,title,mergedAt,additions,deletions,files,url"
-```
-
-This searches for:
-- PRs from branches starting with `copilot/` (Copilot coding agent PRs)
-- PRs that are merged
-- PRs merged in the last 24 hours
-- Returns: PR number, title, merge timestamp, additions, deletions, files changed, URL
+This filter:
+- Uses the already downloaded Copilot PR dataset (no extra `pr list` call needed)
+- Finds PRs merged in the last 24 hours using epoch time comparison
+- Returns merged PR records with number, title, mergedAt, and other base metadata
 
 **Step 1.3: Parse Results**
 
@@ -96,6 +86,9 @@ Save this data for further analysis.
 ### Phase 2: Analyze Each Merged PR
 
 For each merged PR found in Phase 1:
+
+- **Important**: Build the filtered merged PR list first, then iterate only that filtered list.
+- **Do not** call `pr view` for every PR in `/tmp/gh-aw/pr-data/copilot-prs.json`.
 
 **Step 2.1: Get PR Files**
 

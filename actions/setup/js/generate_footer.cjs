@@ -110,7 +110,22 @@ function generateXMLMarker(workflowName, runUrl) {
  * @returns {string} Footer text with workflow run link and XML markers
  */
 function generateExpiredEntityFooter(workflowName, runUrl, workflowId) {
-  let footer = `\n\n> Closed by [${workflowName}](${runUrl})`;
+  let footer = "";
+
+  // Add detection caution alert if detection job found a potential issue
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
+  if (detectionConclusion === "warning") {
+    const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+    const reasonDescriptions = {
+      threat_detected: "Potential security threats were detected in the agent output.",
+      agent_failure: "The threat detection engine failed to produce results.",
+      parse_error: "The threat detection results could not be parsed.",
+    };
+    const reasonText = reasonDescriptions[detectionReason] || "The threat detection analysis could not be completed.";
+    footer += `\n\n> [!CAUTION]\n> **Security scanning requires review** for [${workflowName}](${runUrl})\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText} The workflow output should be reviewed before merging.\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
+  }
+
+  footer += `\n\n> Closed by [${workflowName}](${runUrl})`;
 
   // Add XML markers for searchability
   footer += "\n\n<!-- gh-aw-expired-comments -->";

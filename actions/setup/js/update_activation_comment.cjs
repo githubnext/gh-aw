@@ -7,7 +7,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPullRequestCreatedMessage, getIssueCreatedMessage, getCommitPushedMessage } = require("./messages_run_status.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { generateXMLMarker } = require("./generate_footer.cjs");
-const { getFooterMessage } = require("./messages_footer.cjs");
+const { getFooterMessage, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 
@@ -26,7 +26,9 @@ async function updateActivationComment(github, context, core, itemUrl, itemNumbe
   const runUrl = buildWorkflowRunUrl(context, context.repo);
   const body = itemType === "issue" ? getIssueCreatedMessage({ itemNumber, itemUrl }) : getPullRequestCreatedMessage({ itemNumber, itemUrl });
   const footerMessage = getFooterMessage({ workflowName, runUrl });
-  const linkMessage = `\n\n${body}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
+  const linkMessage = `\n\n${body}\n\n${cautionSection}${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel, {});
 }
 
@@ -45,7 +47,9 @@ async function updateActivationCommentWithCommit(github, context, core, commitSh
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runUrl = buildWorkflowRunUrl(context, context.repo);
   const footerMessage = getFooterMessage({ workflowName, runUrl });
-  const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
+  const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
+  const cautionSection = detectionCaution ? `${detectionCaution}\n\n` : "";
+  const message = `\n\n${getCommitPushedMessage({ commitSha, shortSha, commitUrl })}\n\n${cautionSection}${footerMessage}\n\n${generateXMLMarker(workflowName, runUrl)}`;
   await updateActivationCommentWithMessage(github, context, core, message, "commit", options);
 }
 
