@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -77,6 +78,15 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 						statusCommentIssues = issuesBool
 					}
 
+					statusCommentPullRequests := true
+					if pullRequestsValue, hasPullRequests := statusCommentMap["pull-requests"]; hasPullRequests {
+						pullRequestsBool, ok := pullRequestsValue.(bool)
+						if !ok {
+							return fmt.Errorf("status-comment.pull-requests must be a boolean value, got %T", pullRequestsValue)
+						}
+						statusCommentPullRequests = pullRequestsBool
+					}
+
 					statusCommentDiscussions := true
 					if discussionsValue, hasDiscussions := statusCommentMap["discussions"]; hasDiscussions {
 						discussionsBool, ok := discussionsValue.(bool)
@@ -89,11 +99,17 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					statusCommentEnabled := true
 					workflowData.StatusComment = &statusCommentEnabled
 					workflowData.StatusCommentIssues = &statusCommentIssues
+					workflowData.StatusCommentPullRequests = &statusCommentPullRequests
 					workflowData.StatusCommentDiscussions = &statusCommentDiscussions
-					if !statusCommentIssues && !statusCommentDiscussions {
-						return fmt.Errorf("status-comment object requires at least one target to be enabled (set issues: true or discussions: true, or use status-comment: false)")
+					if !statusCommentIssues && !statusCommentPullRequests && !statusCommentDiscussions {
+						return errors.New("status-comment object requires at least one target to be enabled (set issues: true, pull-requests: true, or discussions: true, or use status-comment: false)")
 					}
-					compilerSafeOutputsLog.Printf("status-comment object set: issues=%v discussions=%v", statusCommentIssues, statusCommentDiscussions)
+					compilerSafeOutputsLog.Printf(
+						"status-comment object set: issues=%v pullRequests=%v discussions=%v",
+						statusCommentIssues,
+						statusCommentPullRequests,
+						statusCommentDiscussions,
+					)
 				} else {
 					return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)
 				}

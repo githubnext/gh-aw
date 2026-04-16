@@ -1896,7 +1896,11 @@
                   "properties": {
                     "issues": {
                       "type": "boolean",
-                      "description": "Whether status comments are allowed for issue-related triggers (issues, issue_comment, pull_request, pull_request_review_comment)."
+                      "description": "Whether status comments are allowed for issue triggers (issues, issue_comment)."
+                    },
+                    "pull-requests": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for pull request triggers (pull_request, pull_request_review_comment)."
                     },
                     "discussions": {
                       "type": "boolean",
@@ -1905,8 +1909,8 @@
                   }
                 }
               ],
-              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `issues` and `discussions` fields to control issue-related and discussion-related triggers independently. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
-              "examples": [true, false, { "issues": false }, { "discussions": false }, { "issues": false, "discussions": true }]
+              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
+              "examples": [true, false, { "issues": false }, { "pull-requests": false }, { "discussions": false }, { "issues": false, "pull-requests": true, "discussions": true }]
             },
             "github-token": {
               "type": "string",

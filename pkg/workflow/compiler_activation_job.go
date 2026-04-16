@@ -119,6 +119,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 	hasStatusComment := data.StatusComment != nil && *data.StatusComment
 	statusCommentIncludesIssues := shouldIncludeIssueStatusComments(data)
+	statusCommentIncludesPullRequests := shouldIncludePullRequestStatusComments(data)
 	statusCommentIncludesDiscussions := shouldIncludeDiscussionStatusComments(data)
 	hasLabelCommand := len(data.LabelCommand) > 0
 	// shouldRemoveLabel is true when label-command is active AND remove_label is not disabled
@@ -145,6 +146,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			hasReaction,
 			hasStatusComment,
 			statusCommentIncludesIssues,
+			statusCommentIncludesPullRequests,
 			statusCommentIncludesDiscussions,
 		)
 		if shouldRemoveLabel {
@@ -308,7 +310,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Add comment with workflow run link if status comments are explicitly enabled
 	if data.StatusComment != nil && *data.StatusComment {
-		statusCommentCondition := BuildStatusCommentCondition(statusCommentIncludesIssues, statusCommentIncludesDiscussions)
+		statusCommentCondition := BuildStatusCommentCondition(
+			statusCommentIncludesIssues,
+			statusCommentIncludesPullRequests,
+			statusCommentIncludesDiscussions,
+		)
 
 		steps = append(steps, "      - name: Add comment with workflow run link\n")
 		steps = append(steps, "        id: add-comment\n")
@@ -577,6 +583,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		hasReaction,
 		hasStatusComment,
 		statusCommentIncludesIssues,
+		statusCommentIncludesPullRequests,
 		statusCommentIncludesDiscussions,
 	)
 
@@ -638,6 +645,7 @@ func addActivationInteractionPermissions(
 	hasReaction bool,
 	hasStatusComment bool,
 	statusCommentIncludesIssues bool,
+	statusCommentIncludesPullRequests bool,
 	statusCommentIncludesDiscussions bool,
 ) {
 	if perms == nil {
@@ -650,6 +658,7 @@ func addActivationInteractionPermissions(
 		hasReaction,
 		hasStatusComment,
 		statusCommentIncludesIssues,
+		statusCommentIncludesPullRequests,
 		statusCommentIncludesDiscussions,
 	)
 	for scope, level := range permsMap {
@@ -663,6 +672,7 @@ func addActivationInteractionPermissionsMap(
 	hasReaction bool,
 	hasStatusComment bool,
 	statusCommentIncludesIssues bool,
+	statusCommentIncludesPullRequests bool,
 	statusCommentIncludesDiscussions bool,
 ) {
 	if !hasReaction && !hasStatusComment {
@@ -678,6 +688,7 @@ func addActivationInteractionPermissionsMap(
 			hasReaction,
 			hasStatusComment,
 			statusCommentIncludesIssues,
+			statusCommentIncludesPullRequests,
 			statusCommentIncludesDiscussions,
 		)
 		return
@@ -691,6 +702,7 @@ func addActivationInteractionPermissionsMap(
 			hasReaction,
 			hasStatusComment,
 			statusCommentIncludesIssues,
+			statusCommentIncludesPullRequests,
 			statusCommentIncludesDiscussions,
 		)
 		return
@@ -720,7 +732,10 @@ func addActivationInteractionPermissionsMap(
 
 	if hasStatusComment {
 		// Status comments for issue and pull request related events use issue comment endpoints.
-		if statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent || hasPullRequestEvent || hasPullRequestReviewCommentEvent) {
+		if statusCommentIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent) {
+			permsMap[PermissionIssues] = PermissionWrite
+		}
+		if statusCommentIncludesPullRequests && (hasPullRequestEvent || hasPullRequestReviewCommentEvent) {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Status comments for discussions use discussion comment APIs and can be disabled via frontmatter.
@@ -735,13 +750,14 @@ func addBroadActivationInteractionPermissions(
 	hasReaction bool,
 	hasStatusComment bool,
 	statusCommentIncludesIssues bool,
+	statusCommentIncludesPullRequests bool,
 	statusCommentIncludesDiscussions bool,
 ) {
 	if !hasReaction && !hasStatusComment {
 		return
 	}
 
-	if hasReaction || statusCommentIncludesIssues {
+	if hasReaction || statusCommentIncludesIssues || statusCommentIncludesPullRequests {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 	if hasReaction {
@@ -757,6 +773,13 @@ func shouldIncludeIssueStatusComments(data *WorkflowData) bool {
 		return true
 	}
 	return *data.StatusCommentIssues
+}
+
+func shouldIncludePullRequestStatusComments(data *WorkflowData) bool {
+	if data == nil || data.StatusCommentPullRequests == nil {
+		return true
+	}
+	return *data.StatusCommentPullRequests
 }
 
 func shouldIncludeDiscussionStatusComments(data *WorkflowData) bool {
