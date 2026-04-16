@@ -222,7 +222,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	actionFailureIssueExpiresHours := DefaultActionFailureIssueExpiresHours
 	repoConfig, repoConfigErr := LoadRepoConfig(c.gitRoot)
 	if repoConfigErr != nil {
-		notifyCommentLog.Printf("Warning: failed to load repo config for action failure issue expiration: %v", repoConfigErr)
+		notifyCommentLog.Printf(
+			"Warning: failed to load repo config for action failure issue expiration (using default %d hours): %v. Check that %s is valid JSON",
+			DefaultActionFailureIssueExpiresHours,
+			repoConfigErr,
+			RepoConfigFileName,
+		)
 	} else {
 		actionFailureIssueExpiresHours = repoConfig.ActionFailureIssueExpiresHours()
 	}
