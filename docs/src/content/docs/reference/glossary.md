@@ -365,7 +365,7 @@ A secure, encrypted variable stored in repository or organization settings holdi
 
 ### GitHub App (`github-app:`)
 
-A GitHub App installation used for authentication and token minting in workflows. The `github-app:` field (which replaces the deprecated `app:` key) accepts `app-id` and `private-key` to mint short-lived installation access tokens with fine-grained, automatically-revoked permissions. Can be configured in `safe-outputs:` to override the default `GITHUB_TOKEN` for all safe output operations, or in `checkout:` for accessing private repositories. See [Authentication Reference](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
+A GitHub App installation used for authentication and token minting in workflows. The `github-app:` field (which replaces the deprecated `app:` key) accepts `client-id` (preferred) or `app-id` (deprecated alias) together with `private-key` to mint short-lived installation access tokens with fine-grained, automatically-revoked permissions. Can be configured in `safe-outputs:` to override the default `GITHUB_TOKEN` for all safe output operations, or in `checkout:` for accessing private repositories. Run `gh aw fix` to automatically migrate `app-id` to `client-id`. See [Authentication Reference](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
 
 ### YAML
 

@@ -27,7 +27,7 @@ Or use GitHub App authentication:
 checkout:
   fetch-depth: 0
   github-app:
-    app-id: ${{ vars.APP_ID }}
+    client-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
@@ -50,7 +50,7 @@ checkout:
 | `ref` | string | Branch, tag, or SHA to checkout. Defaults to the triggering ref. |
 | `path` | string | Path within `GITHUB_WORKSPACE` to place the checkout. Defaults to workspace root. |
 | `github-token` | string | Token for authentication. Use `${{ secrets.MY_TOKEN }}` syntax. |
-| `github-app` | object | GitHub App credentials (`app-id`, `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. `app` is a deprecated alias. |
+| `github-app` | object | GitHub App credentials (`client-id` or `app-id` (deprecated), `private-key`, optional `owner`, `repositories`). Mutually exclusive with `github-token`. `app` is a deprecated alias for the field name. Run `gh aw fix` to auto-migrate `app-id` to `client-id`. |
 | `fetch-depth` | integer | Commits to fetch. `0` = full history, `1` = shallow clone (default). |
 | `fetch` | string \| string[] | Additional Git refs to fetch after checkout. See [Fetching Additional Refs](#fetching-additional-refs). |
 | `sparse-checkout` | string | Newline-separated patterns for sparse checkout (e.g., `.github/\nsrc/`). |
