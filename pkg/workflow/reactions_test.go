@@ -183,19 +183,19 @@ func TestParseReactionConfigMap(t *testing.T) {
 		"discussions":   false,
 	})
 	if err != nil {
-		t.Fatalf("parseReactionConfig(map) returned unexpected error: %v", err)
+		t.Errorf("parseReactionConfig(map) returned unexpected error: %v", err)
 	}
 	if reaction != "rocket" {
-		t.Fatalf("Expected reaction type 'rocket', got %q", reaction)
+		t.Errorf("Expected reaction type 'rocket', got %q", reaction)
 	}
 	if issues == nil || *issues {
-		t.Fatalf("Expected issues target false, got %v", issues)
+		t.Errorf("Expected issues target false, got %v", issues)
 	}
 	if pullRequests == nil || !*pullRequests {
-		t.Fatalf("Expected pull-requests target true, got %v", pullRequests)
+		t.Errorf("Expected pull-requests target true, got %v", pullRequests)
 	}
 	if discussions == nil || *discussions {
-		t.Fatalf("Expected discussions target false, got %v", discussions)
+		t.Errorf("Expected discussions target false, got %v", discussions)
 	}
 }
 

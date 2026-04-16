@@ -745,10 +745,12 @@ func addActivationInteractionPermissionsMap(
 
 	if hasReaction {
 		// Reactions on issues, issue comments, and pull requests all use issues endpoints.
-		if reactionIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent) {
-			permsMap[PermissionIssues] = PermissionWrite
-		}
-		if reactionIncludesPullRequests && hasPullRequestEvent {
+		// Both issue and pull request reactions require issues:write because PR reactions
+		// are created via /issues/{number}/reactions.
+		needsIssuesWriteForIssueEvents := reactionIncludesIssues && (hasIssuesEvent || hasIssueCommentEvent)
+		needsIssuesWriteForPullRequestEvents := reactionIncludesPullRequests && hasPullRequestEvent
+		needsIssuesWriteForReaction := needsIssuesWriteForIssueEvents || needsIssuesWriteForPullRequestEvents
+		if needsIssuesWriteForReaction {
 			permsMap[PermissionIssues] = PermissionWrite
 		}
 		// Reactions on PR review comments use pull request review comment endpoints.
@@ -789,7 +791,9 @@ func addBroadActivationInteractionPermissions(
 		return
 	}
 
-	if (hasReaction && (reactionIncludesIssues || reactionIncludesPullRequests)) || statusCommentIncludesIssues || statusCommentIncludesPullRequests {
+	needsIssuesWriteForReaction := hasReaction && (reactionIncludesIssues || reactionIncludesPullRequests)
+	needsIssuesWriteForStatusComment := statusCommentIncludesIssues || statusCommentIncludesPullRequests
+	if needsIssuesWriteForReaction || needsIssuesWriteForStatusComment {
 		permsMap[PermissionIssues] = PermissionWrite
 	}
 	if hasReaction && reactionIncludesPullRequests {
