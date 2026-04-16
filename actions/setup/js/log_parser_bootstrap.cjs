@@ -56,13 +56,14 @@ async function runLogParser(options) {
     }
 
     let count = 0;
-    const lines = content.trim().split("\n");
+    const lines = content.trim().split(/\r?\n/);
     for (const line of lines) {
-      if (!line.trim()) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) {
         continue;
       }
       try {
-        JSON.parse(line);
+        JSON.parse(trimmedLine);
         count++;
       } catch (e) {
         // Ignore invalid JSONL lines
