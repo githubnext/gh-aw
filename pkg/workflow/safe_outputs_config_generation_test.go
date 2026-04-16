@@ -520,6 +520,34 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 	assert.False(t, hasAllowedRepos, "allowed_repos should not be present when not configured")
 }
 
+func TestGenerateSafeOutputsConfigCreatePullRequestIncludesEngineManifests(t *testing.T) {
+	data := &WorkflowData{
+		EngineConfig: &EngineConfig{ID: "claude"},
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	prConfig, ok := parsed["create_pull_request"].(map[string]any)
+	require.True(t, ok, "Expected create_pull_request key in config")
+
+	protectedFiles := parseStringSliceAny(prConfig["protected_files"], nil)
+	assert.Contains(t, protectedFiles, "CLAUDE.md", "CLAUDE.md should be protected for Claude engine workflows")
+	assert.Contains(t, protectedFiles, "AGENTS.md", "AGENTS.md should be protected for Claude engine workflows")
+
+	protectedPathPrefixes := parseStringSliceAny(prConfig["protected_path_prefixes"], nil)
+	assert.Contains(t, protectedPathPrefixes, ".claude/", ".claude/ should be protected for Claude engine workflows")
+}
+
 // TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue tests that auto_close_issue
 // is correctly serialized into config.json for create_pull_request.
 func TestGenerateSafeOutputsConfigCreatePullRequestAutoCloseIssue(t *testing.T) {

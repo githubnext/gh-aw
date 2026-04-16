@@ -33,6 +33,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	safeOutputsConfigLog.Print("Generating safe outputs configuration for workflow")
 
 	safeOutputsConfig := make(map[string]any)
+	engineManifestFiles, engineManifestPathPrefixes := getEngineAgentFileInfoFromWorkflowData(data)
 
 	// Standard handler configs — sourced from handlerRegistry (same as GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
 	for handlerName, builder := range handlerRegistry {
@@ -40,6 +41,16 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 			// Strip the internal sentinel key used by the handler manager for compile-time
 			// exclusion processing — it must not be forwarded to the runtime config.json.
 			delete(handlerCfg, "_protected_files_exclude")
+			if _, hasProtectedFiles := handlerCfg["protected_files"]; hasProtectedFiles {
+				handlerCfg["protected_files"] = mergeUnique(
+					extractStringSliceFromConfig(handlerCfg, "protected_files"),
+					engineManifestFiles...,
+				)
+				handlerCfg["protected_path_prefixes"] = mergeUnique(
+					extractStringSliceFromConfig(handlerCfg, "protected_path_prefixes"),
+					engineManifestPathPrefixes...,
+				)
+			}
 			safeOutputsConfig[handlerName] = handlerCfg
 		}
 	}
@@ -193,6 +204,29 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
 	return string(configJSON), nil
+}
+
+func getEngineAgentFileInfoFromWorkflowData(data *WorkflowData) (manifestFiles []string, pathPrefixes []string) {
+	if data == nil || data.EngineConfig == nil {
+		return nil, nil
+	}
+
+	engineRegistry := NewEngineRegistry()
+	engine, err := engineRegistry.GetEngine(data.EngineConfig.ID)
+	if err != nil {
+		safeOutputsConfigLog.Printf("Engine lookup failed for %q: %v — skipping agent manifest file injection", data.EngineConfig.ID, err)
+		return nil, nil
+	}
+	if engine == nil {
+		return nil, nil
+	}
+
+	provider, ok := engine.(AgentFileProvider)
+	if !ok {
+		return nil, nil
+	}
+
+	return provider.GetAgentManifestFiles(), provider.GetAgentManifestPathPrefixes()
 }
 
 // generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job.
