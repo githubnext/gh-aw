@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stats"
 )
 
 var auditCrossRunLog = logger.New("cli:audit_cross_run")
@@ -46,25 +47,42 @@ type CrossRunSummary struct {
 
 // MetricsTrendData contains aggregated cost, token, turn, and duration statistics
 // across multiple runs, with spike detection for anomalous runs.
+//
+// Token counts (MinTokens, MaxTokens, AvgTokens) are stored as int to preserve
+// integer semantics consistent with the source data; MedianTokens and StdDevTokens
+// use float64 because statistical measures of integer quantities can be fractional.
+//
+// Duration fields only aggregate runs where timing data was recorded (duration > 0),
+// so the duration statistics may cover fewer runs than the cost/token/turn statistics.
+// All stddev fields use the sample standard deviation (Bessel's correction).
 type MetricsTrendData struct {
-	TotalCost   float64 `json:"total_cost"`
-	AvgCost     float64 `json:"avg_cost"`
-	MinCost     float64 `json:"min_cost"`
-	MaxCost     float64 `json:"max_cost"`
-	TotalTokens int     `json:"total_tokens"`
-	AvgTokens   int     `json:"avg_tokens"`
-	MinTokens   int     `json:"min_tokens"`
-	MaxTokens   int     `json:"max_tokens"`
-	TotalTurns  int     `json:"total_turns"`
-	AvgTurns    float64 `json:"avg_turns"`
-	MaxTurns    int     `json:"max_turns"`
-	// Duration statistics (stored as nanoseconds for JSON portability)
-	AvgDurationNs int64   `json:"avg_duration_ns"`
-	MinDurationNs int64   `json:"min_duration_ns"`
-	MaxDurationNs int64   `json:"max_duration_ns"`
-	CostSpikes    []int64 `json:"cost_spikes,omitempty"`  // Run IDs with cost > 2x avg
-	TokenSpikes   []int64 `json:"token_spikes,omitempty"` // Run IDs with tokens > 2x avg
-	RunsWithCost  int     `json:"runs_with_cost"`         // Runs that reported non-zero cost
+	TotalCost    float64 `json:"total_cost"`
+	AvgCost      float64 `json:"avg_cost"`
+	MedianCost   float64 `json:"median_cost"`
+	StdDevCost   float64 `json:"stddev_cost"`
+	MinCost      float64 `json:"min_cost"`
+	MaxCost      float64 `json:"max_cost"`
+	TotalTokens  int     `json:"total_tokens"`
+	AvgTokens    int     `json:"avg_tokens"`
+	MedianTokens float64 `json:"median_tokens"` // float64: median of integer counts can be fractional
+	StdDevTokens float64 `json:"stddev_tokens"` // float64: stddev is always fractional
+	MinTokens    int     `json:"min_tokens"`
+	MaxTokens    int     `json:"max_tokens"`
+	TotalTurns   int     `json:"total_turns"`
+	AvgTurns     float64 `json:"avg_turns"`
+	MedianTurns  float64 `json:"median_turns"`
+	StdDevTurns  float64 `json:"stddev_turns"`
+	MaxTurns     int     `json:"max_turns"`
+	// Duration statistics (stored as nanoseconds for JSON portability).
+	// Only runs with duration > 0 contribute; runs without timing data are excluded.
+	AvgDurationNs    int64   `json:"avg_duration_ns"`
+	MedianDurationNs int64   `json:"median_duration_ns"`
+	StdDevDurationNs int64   `json:"stddev_duration_ns"`
+	MinDurationNs    int64   `json:"min_duration_ns"`
+	MaxDurationNs    int64   `json:"max_duration_ns"`
+	CostSpikes       []int64 `json:"cost_spikes,omitempty"`  // Run IDs with cost > 2x avg
+	TokenSpikes      []int64 `json:"token_spikes,omitempty"` // Run IDs with tokens > 2x avg
+	RunsWithCost     int     `json:"runs_with_cost"`         // Runs that reported non-zero cost
 }
 
 // MCPServerCrossRunHealth describes the health of a single MCP server across runs.
@@ -378,25 +396,19 @@ type metricsRawRow struct {
 	duration time.Duration
 }
 
-// buildMetricsTrend computes aggregate metrics (min/max/avg/total, spike detection)
-// from a slice of per-run raw metric rows.
+// buildMetricsTrend computes aggregate metrics (min/max/avg/median/stddev/total, spike
+// detection) from a slice of per-run raw metric rows.  Mean and variance are computed
+// using Welford's online algorithm via StatVar for numerical stability.
 func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
 	auditCrossRunLog.Printf("Building metrics trend from %d rows", len(rows))
 	if len(rows) == 0 {
 		return MetricsTrendData{}
 	}
 
-	trend := MetricsTrendData{
-		MinCost:   rows[0].cost,
-		MaxCost:   rows[0].cost,
-		MinTokens: rows[0].tokens,
-		MaxTokens: rows[0].tokens,
-	}
+	var costStats, tokenStats, turnStats, durationStats stats.StatVar
 
-	var totalDuration time.Duration
-	var minDuration, maxDuration time.Duration
-
-	for i, r := range rows {
+	trend := MetricsTrendData{}
+	for _, r := range rows {
 		trend.TotalCost += r.cost
 		trend.TotalTokens += r.tokens
 		trend.TotalTurns += r.turns
@@ -404,45 +416,45 @@ func buildMetricsTrend(rows []metricsRawRow) MetricsTrendData {
 		if r.cost > 0 {
 			trend.RunsWithCost++
 		}
-		if r.cost < trend.MinCost {
-			trend.MinCost = r.cost
-		}
-		if r.cost > trend.MaxCost {
-			trend.MaxCost = r.cost
-		}
-		if r.tokens < trend.MinTokens {
-			trend.MinTokens = r.tokens
-		}
-		if r.tokens > trend.MaxTokens {
-			trend.MaxTokens = r.tokens
-		}
 		if r.turns > trend.MaxTurns {
 			trend.MaxTurns = r.turns
 		}
 
-		// Duration stats: only include runs where duration was measured
-		if i == 0 {
-			minDuration = r.duration
-			maxDuration = r.duration
-		} else {
-			if r.duration > 0 && (r.duration < minDuration || minDuration == 0) {
-				minDuration = r.duration
-			}
-			if r.duration > maxDuration {
-				maxDuration = r.duration
-			}
+		costStats.Add(r.cost)
+		tokenStats.Add(float64(r.tokens))
+		turnStats.Add(float64(r.turns))
+		// Only include runs where duration was measured to avoid pulling the
+		// statistics toward zero for runs without timing data.
+		if r.duration > 0 {
+			durationStats.Add(float64(r.duration))
 		}
-		totalDuration += r.duration
 	}
 
-	n := len(rows)
-	if n > 0 {
-		trend.AvgCost = trend.TotalCost / float64(n)
-		trend.AvgTokens = trend.TotalTokens / n
-		trend.AvgTurns = float64(trend.TotalTurns) / float64(n)
-		trend.AvgDurationNs = int64(totalDuration) / int64(n)
-		trend.MinDurationNs = int64(minDuration)
-		trend.MaxDurationNs = int64(maxDuration)
+	if costStats.Count() > 0 {
+		trend.AvgCost = costStats.Mean()
+		trend.MedianCost = costStats.Median()
+		trend.StdDevCost = costStats.SampleStdDev()
+		trend.MinCost = costStats.Min()
+		trend.MaxCost = costStats.Max()
+	}
+	if tokenStats.Count() > 0 {
+		trend.AvgTokens = int(tokenStats.Mean())
+		trend.MedianTokens = tokenStats.Median()
+		trend.StdDevTokens = tokenStats.SampleStdDev()
+		trend.MinTokens = int(tokenStats.Min())
+		trend.MaxTokens = int(tokenStats.Max())
+	}
+	if turnStats.Count() > 0 {
+		trend.AvgTurns = turnStats.Mean()
+		trend.MedianTurns = turnStats.Median()
+		trend.StdDevTurns = turnStats.SampleStdDev()
+	}
+	if durationStats.Count() > 0 {
+		trend.AvgDurationNs = int64(durationStats.Mean())
+		trend.MedianDurationNs = int64(durationStats.Median())
+		trend.StdDevDurationNs = int64(durationStats.SampleStdDev())
+		trend.MinDurationNs = int64(durationStats.Min())
+		trend.MaxDurationNs = int64(durationStats.Max())
 	}
 
 	// Spike detection: > spikeDetectionMultiplier × average

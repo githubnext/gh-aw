@@ -301,6 +301,21 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		assert.Equal(t, []string{"repo-a", "repo-b"}, configs[0].GitHubApp.Repositories)
 	})
 
+	t.Run("github-app config accepts client-id", func(t *testing.T) {
+		raw := map[string]any{
+			"repository": "owner/target-repo",
+			"github-app": map[string]any{
+				"client-id":   "${{ vars.CLIENT_ID }}",
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+		configs, err := ParseCheckoutConfigs(raw)
+		require.NoError(t, err, "github-app config with client-id should parse without error")
+		require.Len(t, configs, 1)
+		require.NotNil(t, configs[0].GitHubApp, "github-app config should be set")
+		assert.Equal(t, "${{ vars.CLIENT_ID }}", configs[0].GitHubApp.AppID, "client-id should populate AppID")
+	})
+
 	t.Run("github-token and github-app are mutually exclusive", func(t *testing.T) {
 		raw := map[string]any{
 			"github-token": "${{ secrets.MY_TOKEN }}",
@@ -322,7 +337,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-app without app-id should return error")
-		assert.Contains(t, err.Error(), "app-id and private-key")
+		assert.Contains(t, err.Error(), "client-id (or app-id) and private-key")
 	})
 
 	t.Run("github-app config missing private-key returns error", func(t *testing.T) {
@@ -333,7 +348,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-app without private-key should return error")
-		assert.Contains(t, err.Error(), "app-id and private-key")
+		assert.Contains(t, err.Error(), "client-id (or app-id) and private-key")
 	})
 
 	t.Run("github-app must be an object", func(t *testing.T) {
@@ -940,7 +955,7 @@ func TestCrossRepoTargetRepo(t *testing.T) {
 		cm := NewCheckoutManager(nil)
 		cm.SetCrossRepoTargetRepo("${{ needs.activation.outputs.target_repo }}")
 
-		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), "", GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), "", "", getActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.Contains(t, combined, "repository: ${{ needs.activation.outputs.target_repo }}",
@@ -973,7 +988,7 @@ func TestCrossRepoTargetRef(t *testing.T) {
 		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
 		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_ref }}")
 
-		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), cm.GetCrossRepoTargetRef(), GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep(cm.GetCrossRepoTargetRepo(), cm.GetCrossRepoTargetRef(), "", getActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.Contains(t, combined, "repository: ${{ steps.resolve-host-repo.outputs.target_repo }}",
@@ -985,7 +1000,7 @@ func TestCrossRepoTargetRef(t *testing.T) {
 	t.Run("GenerateGitHubFolderCheckoutStep omits ref: when ref is empty", func(t *testing.T) {
 		cm := NewCheckoutManager(nil)
 
-		lines := cm.GenerateGitHubFolderCheckoutStep("org/repo", "", GetActionPin)
+		lines := cm.GenerateGitHubFolderCheckoutStep("org/repo", "", "", getActionPin)
 		combined := strings.Join(lines, "")
 
 		assert.NotContains(t, combined, "ref:", "checkout step should not include ref field when empty")

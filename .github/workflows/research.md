@@ -34,6 +34,8 @@ safe-outputs:
 
 timeout-minutes: 10
 strict: true
+features:
+  mcp-cli: true
 ---
 
 # Basic Research Agent

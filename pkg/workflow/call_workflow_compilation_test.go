@@ -66,7 +66,7 @@ func compileAndReadLock(t *testing.T, gatewayFile, markdown string) string {
 	err := os.WriteFile(gatewayFile, []byte(markdown), 0644)
 	require.NoError(t, err, "Failed to write gateway markdown")
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	err = compiler.CompileWorkflow(gatewayFile)
 	require.NoError(t, err, "Compilation should succeed")
 
@@ -476,7 +476,7 @@ safe-outputs:
 	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
 	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644))
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	err = compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail when worker lacks workflow_call trigger")
 	assert.Contains(t, err.Error(), "workflow_call", "Error should mention workflow_call")
@@ -506,7 +506,7 @@ safe-outputs:
 	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
 	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644))
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	err := compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail for self-reference")
 	assert.Contains(t, err.Error(), "self-reference", "Error should mention self-reference")
@@ -535,7 +535,7 @@ safe-outputs:
 	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
 	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644))
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	err := compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail for missing worker")
 	assert.Contains(t, err.Error(), "not found", "Error should mention not found")
@@ -570,7 +570,7 @@ safe-outputs:
 	gatewayFile := filepath.Join(workflowsDir, "gateway.md")
 	require.NoError(t, os.WriteFile(gatewayFile, []byte(gatewayMD), 0644))
 
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	err := compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail for duplicate workflow name")
 	assert.Contains(t, err.Error(), "duplicate", "Error should mention duplicate")

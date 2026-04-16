@@ -21,6 +21,8 @@ tools:
   web-fetch:
 
 timeout-minutes: 5
+features:
+  mcp-cli: true
 ---
 
 # Firewall Test Agent

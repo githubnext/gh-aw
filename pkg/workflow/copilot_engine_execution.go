@@ -175,26 +175,32 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build the command - model is always passed via COPILOT_MODEL env var (see env block below).
-	// The --add-dir "${GITHUB_WORKSPACE}" and --prompt args are appended raw (not through
-	// shellJoinArgs) because they contain shell variable references that must expand at runtime.
+	// The --add-dir "${GITHUB_WORKSPACE}" arg is appended raw (not through shellJoinArgs)
+	// because it contains a shell variable reference that must expand at runtime.
 	//
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
+	//
+	// Use ${GH_AW_NODE_BIN:-node} instead of plain `node` so the absolute node path
+	// (exported by install_awf_binary.sh as GH_AW_NODE_BIN when the bundle is installed)
+	// is used inside the AWF container. In AWF's chroot mode the host filesystem is
+	// accessible, so the absolute path works even when sudo resets PATH on GPU runners
+	// (e.g. aw-gpu-runner-T4) and the actions/setup-node directory is not in PATH.
 	driverScriptName := e.GetDriverScriptName()
 	var execPrefix string
 	if driverScriptName != "" {
-		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} expands in the shell context.
-		execPrefix = fmt.Sprintf(`node %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
+		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
+		execPrefix = fmt.Sprintf(`${GH_AW_NODE_BIN:-node} %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}
 
 	if sandboxEnabled {
-		// Sandbox mode: add workspace dir and inline prompt (read inside AWF container)
-		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, execPrefix, shellJoinArgs(copilotArgs))
+		// Sandbox mode: add workspace dir and pass prompt file path directly
+		copilotCommand = fmt.Sprintf(`%s %s --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	} else {
-		// Non-sandbox mode: prompt is read from a shell variable set earlier in the script
-		copilotCommand = fmt.Sprintf(`%s %s --prompt "$COPILOT_CLI_INSTRUCTION"`, execPrefix, shellJoinArgs(copilotArgs))
+		// Non-sandbox mode: pass prompt file path directly
+		copilotCommand = fmt.Sprintf(`%s %s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt`, execPrefix, shellJoinArgs(copilotArgs))
 	}
 
 	// Conditionally wrap with sandbox (AWF only)
@@ -226,9 +232,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		//
 		// Version precedence works because actions/setup-* PREPEND to PATH, so
 		// /opt/hostedtoolcache/go/1.25.6/x64/bin comes before /usr/bin in AWF_HOST_PATH.
+		//
+		// MCP CLI bin directory: when mount-as-clis is enabled, the CLI wrapper scripts
+		// live under ${RUNNER_TEMP}/gh-aw/mcp-cli/bin. core.addPath() adds this to
+		// $GITHUB_PATH for subsequent steps, but sudo's secure_path may strip it.
+		// Prepending it to the engine command ensures the agent can find them.
+		engineCommand := copilotCommand
+		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
+			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, copilotCommand)
+		}
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "copilot",
-			EngineCommand:  copilotCommand,
+			EngineCommand:  engineCommand,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false, // Copilot doesn't require TTY
@@ -236,7 +251,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// Create the agent step summary file before AWF starts so it is accessible
 			// inside the sandbox. The agent writes its step summary content here, and the
 			// file is appended to $GITHUB_STEP_SUMMARY after secret redaction.
-			PathSetup: "touch " + AgentStepSummaryPath,
+			//
+			// Resolve the absolute node binary path before `sudo -E awf` runs.
+			// On GPU runners (e.g. aw-gpu-runner-T4) sudo resets PATH via sudoers
+			// secure_path, stripping the actions/setup-node directory.  By capturing
+			// the path here (where PATH is still intact) and exporting it, sudo -E
+			// preserves the variable and AWF's --env-all forwards it into the container,
+			// where ${GH_AW_NODE_BIN:-node} resolves to the correct binary.
+			PathSetup: "touch " + AgentStepSummaryPath + "\n" +
+				"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+				"export GH_AW_NODE_BIN",
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
@@ -247,7 +271,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		command = fmt.Sprintf(`set -o pipefail
 touch %s
 (umask 177 && touch %s)
-COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
@@ -369,12 +392,17 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	// When model is explicitly configured, use its value directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set
 	// a default via GitHub Actions variables without requiring per-workflow frontmatter changes.
+	// In byok-copilot mode, use a non-empty fallback because BYOK providers require an explicit model.
 	if modelConfigured {
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		// No model configured - map org variable to native COPILOT_MODEL env var
-		env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CopilotBYOKDefaultModel)
+		} else {
+			// No model configured - map org variable to native COPILOT_MODEL env var
+			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		}
 	}
 
 	// Add custom environment variables from engine config
@@ -387,6 +415,13 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
 		maps.Copy(env, agentConfig.Env)
 		copilotExecLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+	}
+
+	// Inject the dummy COPILOT_API_KEY AFTER all env merges so that legacy/manual
+	// wiring in engine.env or agent.env cannot accidentally overwrite the sentinel
+	// value that triggers AWF's runtime BYOK detection path.
+	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+		env["COPILOT_API_KEY"] = constants.CopilotBYOKDummyAPIKey
 	}
 
 	// Add HTTP MCP header secrets to env for passthrough
@@ -451,10 +486,11 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 }
 
 // generateCopilotErrorDetectionStep generates a single step that detects known Copilot CLI
-// errors by scanning the agent stdio log. It sets three outputs:
+// errors by scanning the agent stdio log. It sets four outputs:
 //   - inference_access_error: token lacks inference access (policy access denied)
 //   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
 //   - agentic_engine_timeout: process killed by signal (SIGTERM/SIGKILL/SIGINT), typically step timeout
+//   - model_not_supported_error: requested model unavailable for the subscription tier
 func generateCopilotErrorDetectionStep() GitHubActionStep {
 	var step []string
 

@@ -157,6 +157,18 @@ This is a test workflow.
 	}
 }
 
+func TestMCPAddTransportFlagDescriptionUsesDockerCapitalization(t *testing.T) {
+	cmd := NewMCPAddSubcommand()
+	transportFlag := cmd.Flags().Lookup("transport")
+	if transportFlag == nil {
+		t.Fatal("expected --transport flag to exist")
+	}
+
+	if !strings.Contains(transportFlag.Usage, "Docker") {
+		t.Fatalf("expected --transport usage to include Docker, got: %s", transportFlag.Usage)
+	}
+}
+
 func TestAddMCPTool_WorkflowNotFound(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "gh-aw-test-*")

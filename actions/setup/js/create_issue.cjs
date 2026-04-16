@@ -33,6 +33,7 @@ function resetIssuesToAssignCopilot() {
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { generateWorkflowIdMarker, generateWorkflowCallIdMarker, generateCloseKeyMarker, normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
@@ -43,6 +44,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { withRetry } = require("./error_recovery.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -167,13 +169,18 @@ async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, tit
   core.info(`Creating new parent issue for group: ${groupId}`);
   try {
     const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours);
-    const { data: parentIssue } = await githubClient.rest.issues.create({
-      owner,
-      repo,
-      title: template.title,
-      body: template.body,
-      labels: labels,
-    });
+    const { data: parentIssue } = await withRetry(
+      () =>
+        githubClient.rest.issues.create({
+          owner,
+          repo,
+          title: template.title,
+          body: template.body,
+          labels: labels,
+        }),
+      { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },
+      `create_parent_issue for group ${groupId}`
+    );
 
     core.info(`Created new parent issue #${parentIssue.number}: ${parentIssue.html_url}`);
     return parentIssue.number;
@@ -442,6 +449,9 @@ async function main(config = {}) {
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
+    // Sanitize body content to neutralize @mentions, URLs, and other security risks
+    processedBody = sanitizeContent(processedBody);
+
     const bodyLines = processedBody.split("\n");
 
     if (!title) {
@@ -588,14 +598,19 @@ async function main(config = {}) {
     }
 
     try {
-      const { data: issue } = await githubClient.rest.issues.create({
-        owner: repoParts.owner,
-        repo: repoParts.repo,
-        title,
-        body,
-        labels,
-        assignees,
-      });
+      const { data: issue } = await withRetry(
+        () =>
+          githubClient.rest.issues.create({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            title,
+            body,
+            labels,
+            assignees,
+          }),
+        { initialDelayMs: 15000, maxDelayMs: 45000, jitterMs: 10000 },
+        `create_issue in ${qualifiedItemRepo}`
+      );
 
       core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });

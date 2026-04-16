@@ -43,7 +43,7 @@ func TestActionPinsExist(t *testing.T) {
 	}
 }
 
-// TestGetActionPinReturnsValidSHA tests that GetActionPin returns valid SHA references
+// TestGetActionPinReturnsValidSHA tests that getActionPin returns valid SHA references
 func TestGetActionPinReturnsValidSHA(t *testing.T) {
 	// Generate test cases dynamically from action pins JSON
 	actionPins := getActionPins()
@@ -54,13 +54,13 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 	for _, pin := range actionPins {
 		t.Run(pin.Repo, func(t *testing.T) {
-			result := GetActionPin(pin.Repo)
+			result := getActionPin(pin.Repo)
 
 			// Check that the result contains a SHA (40-char hex after @ and before #)
 			// Format is: repo@sha # version
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {
-				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
+				t.Errorf("getActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
 				return
 			}
 
@@ -68,7 +68,7 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 			shaAndComment := parts[1]
 			before, _, ok := strings.Cut(shaAndComment, " # ")
 			if !ok {
-				t.Errorf("GetActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
+				t.Errorf("getActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
 				return
 			}
 
@@ -76,18 +76,18 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 
 			// All action pins should have valid SHAs
 			if !isValidSHA(sha) {
-				t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
+				t.Errorf("getActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
 			}
 		})
 	}
 }
 
-// TestGetActionPinFallback tests that GetActionPin returns empty string for unknown actions
+// TestGetActionPinFallback tests that getActionPin returns empty string for unknown actions
 func TestGetActionPinFallback(t *testing.T) {
-	result := GetActionPin("unknown/action")
+	result := getActionPin("unknown/action")
 	expected := ""
 	if result != expected {
-		t.Errorf("GetActionPin(unknown/action) = %s, want %s (empty string)", result, expected)
+		t.Errorf("getActionPin(unknown/action) = %s, want %s (empty string)", result, expected)
 	}
 }
 
@@ -258,9 +258,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 			}
 
 			// Apply action pinning using typed version
-			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			pinnedStep := applyActionPinToTypedStep(typedStep, data)
 			if pinnedStep == nil {
-				t.Fatal("ApplyActionPinToTypedStep returned nil")
+				t.Fatal("applyActionPinToTypedStep returned nil")
 			}
 
 			// Convert back to map for comparison
@@ -270,25 +270,25 @@ func TestApplyActionPinToStep(t *testing.T) {
 			if uses, hasUses := result["uses"]; hasUses {
 				usesStr, ok := uses.(string)
 				if !ok {
-					t.Errorf("ApplyActionPinToTypedStep returned non-string uses field")
+					t.Errorf("applyActionPinToTypedStep returned non-string uses field")
 					return
 				}
 
 				if usesStr != tt.expectedUses {
-					t.Errorf("ApplyActionPinToTypedStep uses = %q, want %q", usesStr, tt.expectedUses)
+					t.Errorf("applyActionPinToTypedStep uses = %q, want %q", usesStr, tt.expectedUses)
 				}
 
 				// Verify other fields are preserved (check length and keys)
 				if len(result) != len(tt.stepMap) {
-					t.Errorf("ApplyActionPinToTypedStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
+					t.Errorf("applyActionPinToTypedStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
 				}
 				for k := range tt.stepMap {
 					if _, exists := result[k]; !exists {
-						t.Errorf("ApplyActionPinToTypedStep lost field %q", k)
+						t.Errorf("applyActionPinToTypedStep lost field %q", k)
 					}
 				}
 			} else if tt.expectedUses != "" {
-				t.Errorf("ApplyActionPinToTypedStep removed uses field when it should be %q", tt.expectedUses)
+				t.Errorf("applyActionPinToTypedStep removed uses field when it should be %q", tt.expectedUses)
 			}
 		})
 	}
@@ -302,7 +302,11 @@ func TestGetActionPinsSorting(t *testing.T) {
 	// hardcoding a number that breaks when new pins are added or when
 	// the Go test cache contains a stale binary.
 	var jsonData ActionPinsData
-	if err := json.Unmarshal(actionPinsJSON, &jsonData); err != nil {
+	rawJSON, err := os.ReadFile("../actionpins/data/action_pins.json")
+	if err != nil {
+		t.Fatalf("Failed to read action_pins.json: %v", err)
+	}
+	if err := json.Unmarshal(rawJSON, &jsonData); err != nil {
 		t.Fatalf("Failed to parse action_pins.json: %v", err)
 	}
 	expectedCount := len(jsonData.Entries)
@@ -337,7 +341,7 @@ func TestGetActionPinsSorting(t *testing.T) {
 	}
 }
 
-// TestGetActionPinByRepo tests the GetActionPinByRepo function
+// TestGetActionPinByRepo tests the getActionPinByRepo function
 func TestGetActionPinByRepo(t *testing.T) {
 	tests := []struct {
 		repo         string
@@ -369,28 +373,28 @@ func TestGetActionPinByRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.repo, func(t *testing.T) {
-			pin, exists := GetActionPinByRepo(tt.repo)
+			pin, exists := getActionPinByRepo(tt.repo)
 
 			if exists != tt.expectExists {
-				t.Errorf("GetActionPinByRepo(%s) exists = %v, want %v", tt.repo, exists, tt.expectExists)
+				t.Errorf("getActionPinByRepo(%s) exists = %v, want %v", tt.repo, exists, tt.expectExists)
 			}
 
 			if tt.expectExists {
 				if pin.Repo != tt.expectRepo {
-					t.Errorf("GetActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
+					t.Errorf("getActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
 				}
 				if pin.Version != tt.expectVer {
-					t.Errorf("GetActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
+					t.Errorf("getActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
 				}
 				if !isValidSHA(pin.SHA) {
-					t.Errorf("GetActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
+					t.Errorf("getActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
 				}
 			}
 		})
 	}
 }
 
-// TestApplyActionPinToTypedStep tests the ApplyActionPinToTypedStep function with typed steps
+// TestApplyActionPinToTypedStep tests the applyActionPinToTypedStep function with typed steps
 func TestApplyActionPinToTypedStep(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -466,33 +470,33 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 			// Create a test WorkflowData
 			data := &WorkflowData{}
 
-			result := ApplyActionPinToTypedStep(tt.step, data)
+			result := applyActionPinToTypedStep(tt.step, data)
 
 			if tt.step == nil {
 				if result != nil {
-					t.Errorf("ApplyActionPinToTypedStep(nil) = %v, want nil", result)
+					t.Errorf("applyActionPinToTypedStep(nil) = %v, want nil", result)
 				}
 				return
 			}
 
 			if result == nil {
-				t.Fatalf("ApplyActionPinToTypedStep() returned nil")
+				t.Fatalf("applyActionPinToTypedStep() returned nil")
 			}
 
 			// Check uses field
 			if result.Uses != tt.expectedUses {
-				t.Errorf("ApplyActionPinToTypedStep() uses = %q, want %q", result.Uses, tt.expectedUses)
+				t.Errorf("applyActionPinToTypedStep() uses = %q, want %q", result.Uses, tt.expectedUses)
 			}
 
 			// Verify other fields are preserved
 			if result.Name != tt.step.Name {
-				t.Errorf("ApplyActionPinToTypedStep() changed name from %q to %q", tt.step.Name, result.Name)
+				t.Errorf("applyActionPinToTypedStep() changed name from %q to %q", tt.step.Name, result.Name)
 			}
 			if result.ID != tt.step.ID {
-				t.Errorf("ApplyActionPinToTypedStep() changed id from %q to %q", tt.step.ID, result.ID)
+				t.Errorf("applyActionPinToTypedStep() changed id from %q to %q", tt.step.ID, result.ID)
 			}
 			if result.Run != tt.step.Run {
-				t.Errorf("ApplyActionPinToTypedStep() changed run from %q to %q", tt.step.Run, result.Run)
+				t.Errorf("applyActionPinToTypedStep() changed run from %q to %q", tt.step.Run, result.Run)
 			}
 
 			// Verify original step is not modified
@@ -502,7 +506,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				if tt.step.Uses != "" && !isValidSHA(extractActionVersion(tt.step.Uses)) {
 					// Original uses is not a SHA, so it should be different from pinned result
 					if tt.step.Uses == result.Uses {
-						t.Errorf("ApplyActionPinToTypedStep() did not create a copy, original uses still %q", tt.step.Uses)
+						t.Errorf("applyActionPinToTypedStep() did not create a copy, original uses still %q", tt.step.Uses)
 					}
 				}
 			}
@@ -524,26 +528,26 @@ func TestApplyActionPinToTypedStep_Immutability(t *testing.T) {
 	originalUses := originalStep.Uses
 
 	data := &WorkflowData{}
-	result := ApplyActionPinToTypedStep(originalStep, data)
+	result := applyActionPinToTypedStep(originalStep, data)
 
 	// Verify the original step was not modified
 	if originalStep.Uses != originalUses {
-		t.Errorf("ApplyActionPinToTypedStep() modified original step uses: %q -> %q", originalUses, originalStep.Uses)
+		t.Errorf("applyActionPinToTypedStep() modified original step uses: %q -> %q", originalUses, originalStep.Uses)
 	}
 
 	// Verify the result is different
 	if result.Uses == originalUses {
-		t.Errorf("ApplyActionPinToTypedStep() did not pin the action")
+		t.Errorf("applyActionPinToTypedStep() did not pin the action")
 	}
 
 	// Verify modifying result doesn't affect original
 	result.Name = "Modified name"
 	if originalStep.Name == "Modified name" {
-		t.Errorf("ApplyActionPinToTypedStep() did not return an independent copy")
+		t.Errorf("applyActionPinToTypedStep() did not return an independent copy")
 	}
 }
 
-// TestGetActionPinWithData_SemverPreference tests that GetActionPinWithData
+// TestGetActionPinWithData_SemverPreference tests that getActionPinWithData
 // resolves actions using the exact version tag specified, and only falls back
 // to compatible versions when the exact tag doesn't exist in hardcoded pins
 func TestGetActionPinWithData_SemverPreference(t *testing.T) {
@@ -606,25 +610,25 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 				StrictMode: tt.strictMode,
 			}
 
-			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+			result, err := getActionPinWithData(tt.repo, tt.requestedVer, data)
 
 			if err != nil {
-				t.Fatalf("GetActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
+				t.Fatalf("getActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
 			}
 
 			if result == "" {
-				t.Fatalf("GetActionPinWithData(%s, %s) returned empty string", tt.repo, tt.requestedVer)
+				t.Fatalf("getActionPinWithData(%s, %s) returned empty string", tt.repo, tt.requestedVer)
 			}
 
 			// Check that the result contains the expected version in the comment
 			if !strings.Contains(result, "# "+tt.expectedVer) {
-				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected version %s in comment",
+				t.Errorf("getActionPinWithData(%s, %s) = %s, expected version %s in comment",
 					tt.repo, tt.requestedVer, result, tt.expectedVer)
 			}
 
 			// Verify the result format is correct (repo@sha # version)
 			if !strings.Contains(result, "@") || !strings.Contains(result, " # ") {
-				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected format 'repo@sha # version'",
+				t.Errorf("getActionPinWithData(%s, %s) = %s, expected format 'repo@sha # version'",
 					tt.repo, tt.requestedVer, result)
 			}
 		})
@@ -668,7 +672,7 @@ func TestGetActionPinWithData_AlreadySHA(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			result, err := GetActionPinWithData(tt.repo, tt.sha, data)
+			result, err := getActionPinWithData(tt.repo, tt.sha, data)
 
 			w.Close()
 			os.Stderr = oldStderr
@@ -679,19 +683,19 @@ func TestGetActionPinWithData_AlreadySHA(t *testing.T) {
 
 			// Should not error for full SHAs
 			if err != nil {
-				t.Errorf("GetActionPinWithData() unexpected error = %v", err)
+				t.Errorf("getActionPinWithData() unexpected error = %v", err)
 				return
 			}
 
 			// Should return the SHA as-is
 			if result == "" {
-				t.Errorf("GetActionPinWithData() returned empty result")
+				t.Errorf("getActionPinWithData() returned empty result")
 				return
 			}
 
 			// Result should contain the original SHA
 			if !strings.Contains(result, tt.sha) {
-				t.Errorf("GetActionPinWithData() = %s, expected to contain SHA %s", result, tt.sha)
+				t.Errorf("getActionPinWithData() = %s, expected to contain SHA %s", result, tt.sha)
 			}
 
 			// IMPORTANT: Should NOT emit any warnings for actions already pinned to SHAs
@@ -795,10 +799,10 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ApplyActionPinsToTypedSteps(tt.steps, data)
+			got := applyActionPinsToTypedSteps(tt.steps, data)
 
 			if len(got) != len(tt.want) {
-				t.Errorf("ApplyActionPinsToTypedSteps() returned %d steps, want %d", len(got), len(tt.want))
+				t.Errorf("applyActionPinsToTypedSteps() returned %d steps, want %d", len(got), len(tt.want))
 				return
 			}
 
@@ -807,25 +811,25 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 					continue
 				}
 				if got[i] == nil || tt.want[i] == nil {
-					t.Errorf("ApplyActionPinsToTypedSteps() step %d: got nil=%v, want nil=%v",
+					t.Errorf("applyActionPinsToTypedSteps() step %d: got nil=%v, want nil=%v",
 						i, got[i] == nil, tt.want[i] == nil)
 					continue
 				}
 
 				// Check basic fields
 				if got[i].Name != tt.want[i].Name {
-					t.Errorf("ApplyActionPinsToTypedSteps() step %d name = %s, want %s",
+					t.Errorf("applyActionPinsToTypedSteps() step %d name = %s, want %s",
 						i, got[i].Name, tt.want[i].Name)
 				}
 				if got[i].Run != tt.want[i].Run {
-					t.Errorf("ApplyActionPinsToTypedSteps() step %d run = %s, want %s",
+					t.Errorf("applyActionPinsToTypedSteps() step %d run = %s, want %s",
 						i, got[i].Run, tt.want[i].Run)
 				}
 
 				// For uses steps, check that pinning occurred (contains @ symbol and SHA)
 				if tt.want[i].Uses != "" {
 					if !strings.Contains(got[i].Uses, "@") {
-						t.Errorf("ApplyActionPinsToTypedSteps() step %d uses = %s, expected to contain @",
+						t.Errorf("applyActionPinsToTypedSteps() step %d uses = %s, expected to contain @",
 							i, got[i].Uses)
 					}
 					// If the original step had a known action, verify it was pinned
@@ -839,7 +843,7 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 							if ok {
 								sha := before
 								if len(sha) != 40 {
-									t.Errorf("ApplyActionPinsToTypedSteps() step %d uses SHA length = %d, want 40",
+									t.Errorf("applyActionPinsToTypedSteps() step %d uses SHA length = %d, want 40",
 										i, len(sha))
 								}
 							}
@@ -893,14 +897,14 @@ func TestGetActionPinWithData_V7ExactMatch(t *testing.T) {
 		StrictMode: false,
 	}
 
-	result, err := GetActionPinWithData("actions/upload-artifact", "v7", data)
+	result, err := getActionPinWithData("actions/upload-artifact", "v7", data)
 
 	if err != nil {
-		t.Fatalf("GetActionPinWithData returned error: %v", err)
+		t.Fatalf("getActionPinWithData returned error: %v", err)
 	}
 
 	if result == "" {
-		t.Fatalf("GetActionPinWithData returned empty string")
+		t.Fatalf("getActionPinWithData returned empty string")
 	}
 
 	t.Logf("Result: %s", result)
@@ -971,14 +975,14 @@ func TestGetActionPinWithData_ExactVersionResolution(t *testing.T) {
 				ActionCache:    cache,
 			}
 
-			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+			result, err := getActionPinWithData(tt.repo, tt.requestedVer, data)
 
 			if err != nil {
-				t.Fatalf("GetActionPinWithData returned error: %v", err)
+				t.Fatalf("getActionPinWithData returned error: %v", err)
 			}
 
 			if result == "" {
-				t.Fatalf("GetActionPinWithData returned empty string")
+				t.Fatalf("getActionPinWithData returned empty string")
 			}
 
 			t.Logf("Result: %s", result)
@@ -1029,30 +1033,30 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 				StrictMode: false,
 			}
 
-			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+			result, err := getActionPinWithData(tt.repo, tt.requestedVer, data)
 			if err != nil {
-				t.Fatalf("GetActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
+				t.Fatalf("getActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
 			}
 
 			if !strings.Contains(result, tt.expectedComment) {
-				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected comment to contain %s",
+				t.Errorf("getActionPinWithData(%s, %s) = %s, expected comment to contain %s",
 					tt.repo, tt.requestedVer, result, tt.expectedComment)
 			}
 
 			// Also verify it doesn't contain the pin's version
 			if tt.requestedVer == "v8" && strings.Contains(result, "# v8.0.0") {
-				t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v8 in comment, not v8.0.0",
+				t.Errorf("getActionPinWithData(%s, %s) = %s, should use requested version v8 in comment, not v8.0.0",
 					tt.repo, tt.requestedVer, result)
 			}
 			if tt.requestedVer == "v7" && strings.Contains(result, "# v7.0.1") {
-				t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v7 in comment, not v7.0.1",
+				t.Errorf("getActionPinWithData(%s, %s) = %s, should use requested version v7 in comment, not v7.0.1",
 					tt.repo, tt.requestedVer, result)
 			}
 		})
 	}
 }
 
-// TestActionPinWarningDeduplication tests that repeated calls to GetActionPinWithData
+// TestActionPinWarningDeduplication tests that repeated calls to getActionPinWithData
 // for the same action@version only emit the warning once, not multiple times
 func TestActionPinWarningDeduplication(t *testing.T) {
 	tests := []struct {
@@ -1098,9 +1102,9 @@ func TestActionPinWarningDeduplication(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			// Call GetActionPinWithData multiple times
+			// Call getActionPinWithData multiple times
 			for range tt.callCount {
-				_, _ = GetActionPinWithData(tt.repo, tt.version, data)
+				_, _ = getActionPinWithData(tt.repo, tt.version, data)
 			}
 
 			w.Close()
@@ -1142,12 +1146,12 @@ func TestActionPinWarningDeduplicationAcrossDifferentVersions(t *testing.T) {
 	os.Stderr = w
 
 	// Call with v1.0.0 twice
-	_, _ = GetActionPinWithData("unknown/action", "v1.0.0", data)
-	_, _ = GetActionPinWithData("unknown/action", "v1.0.0", data)
+	_, _ = getActionPinWithData("unknown/action", "v1.0.0", data)
+	_, _ = getActionPinWithData("unknown/action", "v1.0.0", data)
 
 	// Call with v2.0.0 twice
-	_, _ = GetActionPinWithData("unknown/action", "v2.0.0", data)
-	_, _ = GetActionPinWithData("unknown/action", "v2.0.0", data)
+	_, _ = getActionPinWithData("unknown/action", "v2.0.0", data)
+	_, _ = getActionPinWithData("unknown/action", "v2.0.0", data)
 
 	w.Close()
 	os.Stderr = oldStderr
@@ -1267,7 +1271,7 @@ func TestFormatActionCacheKey(t *testing.T) {
 	}
 }
 
-// TestMapToStepWithActionPinning tests the integration of MapToStep and ApplyActionPinToTypedStep
+// TestMapToStepWithActionPinning tests the integration of MapToStep and applyActionPinToTypedStep
 // This verifies the migration pattern used in compiler_jobs.go, safe_jobs.go, and custom_engine.go
 func TestMapToStepWithActionPinning(t *testing.T) {
 	tests := []struct {
@@ -1326,9 +1330,9 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 			}
 
 			// Apply action pinning using typed version
-			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			pinnedStep := applyActionPinToTypedStep(typedStep, data)
 			if pinnedStep == nil {
-				t.Fatal("ApplyActionPinToTypedStep returned nil")
+				t.Fatal("applyActionPinToTypedStep returned nil")
 			}
 
 			// Verify the result
@@ -1354,7 +1358,7 @@ func TestMapToStepWithActionPinning(t *testing.T) {
 	}
 }
 
-// TestSliceToStepsWithActionPinning tests the integration of SliceToSteps and ApplyActionPinsToTypedSteps
+// TestSliceToStepsWithActionPinning tests the integration of SliceToSteps and applyActionPinsToTypedSteps
 // This verifies the migration pattern used in compiler_orchestrator_workflow.go
 func TestSliceToStepsWithActionPinning(t *testing.T) {
 	tests := []struct {
@@ -1423,9 +1427,9 @@ func TestSliceToStepsWithActionPinning(t *testing.T) {
 			}
 
 			// Apply action pinning using typed version
-			pinnedSteps := ApplyActionPinsToTypedSteps(typedSteps, data)
+			pinnedSteps := applyActionPinsToTypedSteps(typedSteps, data)
 			if len(pinnedSteps) != len(typedSteps) {
-				t.Errorf("ApplyActionPinsToTypedSteps() returned %d steps, want %d", len(pinnedSteps), len(typedSteps))
+				t.Errorf("applyActionPinsToTypedSteps() returned %d steps, want %d", len(pinnedSteps), len(typedSteps))
 			}
 
 			// Verify steps can be converted back to slice

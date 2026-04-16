@@ -14,10 +14,13 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw init`](#init) | Set up your repository for agentic workflows |
 | [`gh aw add-wizard`](#add-wizard) | Add workflows with interactive guided setup |
 | [`gh aw add`](#add) | Add workflows from other repositories (non-interactive) |
+| [`gh aw new`](#new) | Create a new workflow from scratch |
 | [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML |
 | [`gh aw list`](#list) | Quick listing of all workflows |
 | [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions |
 | [`gh aw status`](#status) | Check current state of all workflows |
+| [`gh aw logs`](#logs) | Download and analyze workflow logs |
+| [`gh aw audit`](#audit) | Debug a failed workflow run |
 
 ## Installation
 
@@ -217,7 +220,7 @@ gh aw secrets bootstrap --engine copilot                 # Check only Copilot se
 gh aw secrets bootstrap --non-interactive                # Display missing secrets without prompting
 ```
 
-**Options:** `--engine` (copilot, claude, codex), `--non-interactive`, `--repo`
+**Options:** `--engine` (copilot, claude, codex, gemini), `--non-interactive`, `--repo`
 
 See [Authentication](/gh-aw/reference/auth/) for details.
 
@@ -254,7 +257,9 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--no-emit`, `--watch`, `--purge`, `--stats`
+**Options:** `--validate`, `--strict`, `--fix`, `--zizmor`, `--dependabot`, `--json`, `--no-emit`, `--watch`, `--purge`, `--stats`, `--approve`
+
+**`--approve` flag:** When compiling a workflow that already has a lock file, the compiler enforces *safe update mode* — any newly added secrets or custom actions not present in the previous manifest require explicit approval. Pass `--approve` to accept these changes and regenerate the manifest baseline. On first compile (no existing lock file), enforcement is skipped automatically and `--approve` is not needed.
 
 **Error Reporting:** Displays detailed error messages with file paths, line numbers, column positions, and contextual code snippets.
 
@@ -315,7 +320,7 @@ gh aw run workflow --push --ref main        # Push to specific branch
 gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
-**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field/-F`, `--repo/-r`
+**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field/-F`, `--repo/-r`, `--approve`
 
 When `--json` is set, a JSON array of triggered workflow results is written to stdout.
 
@@ -561,7 +566,7 @@ gh aw upgrade --audit                      # Run dependency health audit
 gh aw upgrade --audit --json               # Dependency audit in JSON format
 ```
 
-**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`
+**Options:** `--dir/-d`, `--no-fix`, `--no-actions`, `--no-compile`, `--create-pull-request`, `--audit`, `--json/-j`, `--approve`
 
 ### Advanced
 
@@ -598,7 +603,7 @@ gh aw mcp-server --validate-actor     # Enable actor validation
 
 **Options:** `--port` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
 
-**Available Tools:** status, compile, logs, audit, mcp-inspect, add, update, fix
+**Available Tools:** status, compile, logs, audit, checks, mcp-inspect, add, update, fix
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
 

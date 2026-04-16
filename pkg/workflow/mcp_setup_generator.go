@@ -129,7 +129,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Generate safe-outputs configuration once to avoid duplicate computation
 	var safeOutputConfig string
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		safeOutputConfig = generateSafeOutputsConfig(workflowData)
+		var err error
+		safeOutputConfig, err = generateSafeOutputsConfig(workflowData)
+		if err != nil {
+			return fmt.Errorf("failed to generate safe outputs config: %w", err)
+		}
 	}
 
 	// Sort tools to ensure stable code generation
@@ -334,7 +338,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		for line := range strings.SplitSeq(validationConfigJSON, "\n") {
 			yaml.WriteString("            " + line + "\n")
 		}
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", workflowData))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 		yaml.WriteString(generateGitHubScriptWithRequire("generate_safe_outputs_tools.cjs"))
@@ -571,7 +575,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
-	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
 	// Pre-create the playwright output directory on the host so the Docker container
 	// can write screenshots to the mounted volume path without ENOENT errors.
 	// chmod 777 is required because the Playwright Docker container runs as a non-root user
@@ -645,6 +649,22 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Export engine type
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
+
+	// Export the list of CLI-only server names (JSON array) so that conversion scripts
+	// can exclude them from the agent's final MCP config while still letting the gateway
+	// start their Docker containers (needed to populate the CLI manifest).
+	// Note: safeoutputs and mcpscripts are NOT in this list — they remain available as
+	// both MCP tools and CLI commands (dual access).
+	// The variable must be persisted to $GITHUB_ENV (not just exported) because
+	// convert_gateway_config_*.cjs runs in a subsequent step and would otherwise see an
+	// empty variable, causing no servers to be filtered from the agent's MCP config.
+	if cliServers := getMCPCLIExcludeFromAgentConfig(workflowData); len(cliServers) > 0 {
+		cliServersJSON, err := json.Marshal(cliServers)
+		if err == nil {
+			yaml.WriteString("          export GH_AW_MCP_CLI_SERVERS='" + string(cliServersJSON) + "'\n")
+			yaml.WriteString("          echo 'GH_AW_MCP_CLI_SERVERS=" + string(cliServersJSON) + "' >> \"$GITHUB_ENV\"\n")
+		}
+	}
 
 	// For Copilot engine with GitHub remote MCP, export GITHUB_PERSONAL_ACCESS_TOKEN
 	// This is needed because the MCP gateway validates ${VAR} references in headers at config load time

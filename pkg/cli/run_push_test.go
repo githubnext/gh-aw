@@ -41,7 +41,7 @@ on: workflow_dispatch
 	require.NoError(t, err)
 
 	// Test collecting files
-	files, err := collectWorkflowFiles(context.Background(), workflowPath, false)
+	files, err := collectWorkflowFiles(context.Background(), workflowPath, false, false)
 	require.NoError(t, err)
 	assert.Len(t, files, 2, "Should collect workflow .md and .lock.yml files")
 
@@ -89,7 +89,7 @@ on: workflow_dispatch
 	require.NoError(t, err)
 
 	// Test collecting files
-	files, err := collectWorkflowFiles(context.Background(), workflowPath, false)
+	files, err := collectWorkflowFiles(context.Background(), workflowPath, false, false)
 	require.NoError(t, err)
 	assert.Len(t, files, 3, "Should collect workflow, lock, and imported files")
 
@@ -150,7 +150,7 @@ on: workflow_dispatch
 	require.NoError(t, err)
 
 	// Test collecting files
-	files, err := collectWorkflowFiles(context.Background(), workflowPath, false)
+	files, err := collectWorkflowFiles(context.Background(), workflowPath, false, false)
 	require.NoError(t, err)
 	assert.Len(t, files, 4, "Should collect workflow, lock, and all transitive imports")
 
@@ -504,7 +504,7 @@ jobs:
 	time.Sleep(100 * time.Millisecond)
 
 	// Collect workflow files (which should always trigger recompilation)
-	files, err := collectWorkflowFiles(context.Background(), workflowPath, false)
+	files, err := collectWorkflowFiles(context.Background(), workflowPath, false, false)
 	require.NoError(t, err)
 	assert.Len(t, files, 2, "Should collect workflow .md and .lock.yml files")
 

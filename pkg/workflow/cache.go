@@ -18,6 +18,24 @@ var cacheLog = logger.New("workflow:cache")
 // validCacheMemoryScopes defines the allowed values for cache-memory scope
 var validCacheMemoryScopes = []string{"workflow", "repo"}
 
+// isValidFileExtension reports whether s is a valid file extension of the form ^\.[A-Za-z0-9]+$
+// (e.g. ".json", ".md"). This strict pattern prevents YAML injection when extensions are
+// embedded in generated workflow YAML as single-quoted scalars.
+func isValidFileExtension(s string) bool {
+	if len(s) < 2 || s[0] != '.' {
+		return false
+	}
+	for _, c := range s[1:] {
+		isLower := c >= 'a' && c <= 'z'
+		isUpper := c >= 'A' && c <= 'Z'
+		isDigit := c >= '0' && c <= '9'
+		if !isLower && !isUpper && !isDigit {
+			return false
+		}
+	}
+	return true
+}
+
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
 	Caches []CacheMemoryEntry `yaml:"caches,omitempty"` // cache configurations
@@ -164,6 +182,11 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 			entry.AllowedExtensions = make([]string, 0, len(extArray))
 			for _, ext := range extArray {
 				if extStr, ok := ext.(string); ok {
+					// Validate: must be of the form ^\.[A-Za-z0-9]+$ to prevent YAML injection
+					// and ensure the shell sanitization script handles them correctly.
+					if !isValidFileExtension(extStr) {
+						return entry, fmt.Errorf("invalid allowed-extension %q: must start with '.' followed by alphanumeric characters only (e.g. .json)", extStr)
+					}
 					entry.AllowedExtensions = append(entry.AllowedExtensions, extStr)
 				}
 			}
@@ -331,7 +354,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache"))
+		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/cache"))
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -487,9 +510,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		// Use actions/cache/restore@v4 when restore-only or threat detection enabled
 		// Use actions/cache@v4 for normal caches
 		if useRestoreOnly {
-			fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache/restore"))
+			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/cache/restore"))
 		} else {
-			fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache"))
+			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/cache"))
 		}
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
@@ -512,6 +535,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // generateCacheMemoryGitSetupStep emits a pre-agent step that sets up the git-backed integrity
 // repository inside the given cache directory. It must run after the cache is restored so that
 // any previous git history is available for the merge-down step.
+// The step also performs pre-agent security sanitization: it strips execute bits from all
+// working-tree files and, when allowed extensions are configured, removes files with
+// disallowed extensions before the agent can access them.
 func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemoryEntry, cacheDir, integrityLevel string, useBackwardCompatiblePaths bool) {
 	if useBackwardCompatiblePaths {
 		builder.WriteString("      - name: Setup cache-memory git repository\n")
@@ -521,6 +547,14 @@ func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemory
 	builder.WriteString("        env:\n")
 	fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
 	fmt.Fprintf(builder, "          GH_AW_MIN_INTEGRITY: %s\n", integrityLevel)
+	// Pass colon-separated allowed extensions so the setup script can remove disallowed files
+	// before the agent runs (pre-agent sanitization). Skip when the list is empty (allow all).
+	// Single quotes in the value are escaped ('' in YAML single-quoted scalars) as defense-in-depth,
+	// even though isValidFileExtension already rejects values containing single quotes at parse time.
+	if len(cache.AllowedExtensions) > 0 {
+		escaped := strings.ReplaceAll(strings.Join(cache.AllowedExtensions, ":"), "'", "''")
+		fmt.Fprintf(builder, "          GH_AW_ALLOWED_EXTENSIONS: '%s'\n", escaped)
+	}
 	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\"\n")
 }
 
@@ -614,7 +648,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		if !useBackwardCompatiblePaths {
 			stepName = fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 		}
-		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()"))
+		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()", data))
 	}
 }
 
@@ -662,7 +696,7 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		} else {
 			fmt.Fprintf(builder, "      - name: Upload cache-memory data as artifact (%s)\n", cache.ID)
 		}
-		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format, with prefix in workflow_call context
@@ -842,7 +876,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		downloadStepID := strings.ReplaceAll("download_cache_"+cache.ID, "-", "_")
 		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
 		fmt.Fprintf(&downloadStep, "        id: %s\n", downloadStepID)
-		fmt.Fprintf(&downloadStep, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+		fmt.Fprintf(&downloadStep, "        uses: %s\n", getActionPin("actions/download-artifact"))
 		downloadStep.WriteString("        continue-on-error: true\n")
 		downloadStep.WriteString("        with:\n")
 		fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
@@ -884,7 +918,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			// Generate validation step using helper with condition to only run if cache has content
 			stepName := fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 			condition := fmt.Sprintf("steps.%s.outputs.has_content == 'true'", checkStepID)
-			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition))
+			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition, data))
 		}
 
 		// Generate cache key using integrity-aware format (matches generateCacheMemorySteps)
@@ -904,7 +938,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		var saveStep strings.Builder
 		fmt.Fprintf(&saveStep, "      - name: Save cache-memory to cache (%s)\n", cache.ID)
 		fmt.Fprintf(&saveStep, "        if: steps.%s.outputs.has_content == 'true'\n", checkStepID)
-		fmt.Fprintf(&saveStep, "        uses: %s\n", GetActionPin("actions/cache/save"))
+		fmt.Fprintf(&saveStep, "        uses: %s\n", getActionPin("actions/cache/save"))
 		saveStep.WriteString("        with:\n")
 		fmt.Fprintf(&saveStep, "          key: %s\n", cacheKey)
 		fmt.Fprintf(&saveStep, "          path: %s\n", cacheDir)

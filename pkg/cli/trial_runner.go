@@ -108,7 +108,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		trialLog.Printf("Using specified host repository: %s", hostRepoSlug)
 	} else {
 		// Use default trial repo with current username
-		username, err := getCurrentGitHubUsername()
+		username, err := getCurrentGitHubUsername(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get GitHub username for default trial repo: %w", err)
 		}
@@ -246,8 +246,8 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 }
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI
-func getCurrentGitHubUsername() (string, error) {
-	output, err := workflow.RunGH("Fetching GitHub username...", "api", "user", "--jq", ".login")
+func getCurrentGitHubUsername(ctx context.Context) (string, error) {
+	output, err := workflow.RunGHContext(ctx, "Fetching GitHub username...", "api", "user", "--jq", ".login")
 	if err != nil {
 		return "", fmt.Errorf("failed to get GitHub username: %w", err)
 	}

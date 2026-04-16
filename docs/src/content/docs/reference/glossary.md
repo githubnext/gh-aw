@@ -97,11 +97,15 @@ A preview mode where workflows simulate actions without making changes. The AI g
 
 A guardrail feature that controls which GitHub content an agent can access, filtering by author trust and merge status. Content below the configured `min-integrity` threshold is silently removed before the AI engine sees it. The four levels are `merged`, `approved`, `unapproved`, and `none` (most to least restrictive). For public repositories, `min-integrity: approved` is applied automatically — restricting content to owners, members, and collaborators — even without additional authentication. Set `min-integrity: none` to allow all content through for workflows designed to process untrusted input (e.g., triage bots).
 
-Two additional fields extend integrity filtering beyond the level threshold: `blocked-users` unconditionally denies content from listed GitHub usernames regardless of level, and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
+Three additional fields extend integrity filtering beyond the level threshold: `trusted-users` elevates specific GitHub usernames to `approved` integrity regardless of their author association; `blocked-users` unconditionally denies content from listed usernames regardless of level; and `approval-labels` promotes items bearing any listed label to `approved` integrity, enabling human-review workflows. See [Integrity Filtering](/gh-aw/reference/integrity/).
 
 ### DIFC Proxy (`tools.github.integrity-proxy`)
 
 Controls full Data Integrity and Flow Control (DIFC) proxy enforcement. When `tools.github.min-integrity` is configured, the compiler injects proxy steps around the agent job that enforce integrity-level isolation at the network boundary. The proxy is **enabled by default** — set `tools.github.integrity-proxy: false` to disable it and rely solely on MCP gateway-level filtering. Filtered content is recorded as `DIFC_FILTERED` events in `gateway.jsonl` for later inspection. See [Integrity Filtering](/gh-aw/reference/integrity/).
+
+### Integrity Reactions (`features.integrity-reactions`)
+
+A feature flag that enables GitHub reactions (👍, ❤️, 👎, 😕) to promote or demote content past the integrity filter. When `integrity-reactions: true` is set, trusted members can add a reaction to an issue or comment to elevate its integrity to `approved` (endorsement reactions) or demote it to `none` (disapproval reactions) — without modifying labels. Enabling this flag automatically activates `cli-proxy` mode, which is required to identify reaction authors at the network boundary. Available from gh-aw v0.68.2. See [Maintaining Repos](/gh-aw/guides/maintaining-repos/#reactions-as-trust-signals).
 
 ### Status Comment
 
@@ -181,13 +185,29 @@ A safe output capability for removing user assignments from issues or pull reque
 
 A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
+### Close Pull Request (`close-pull-request:`)
+
+A safe output capability for closing pull requests without merging, with an optional comment. Supports filtering via `required-labels` and `required-title-prefix` to prevent unintended closures. Accepts `target` to identify the PR (`"triggering"`, `"*"`, or a specific number), cross-repository configuration via `target-repo`, and a `max` limit on closures. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#close-pull-request-close-pull-request).
+
 ### Update Issue
 
 A safe output capability (`update-issue:`) for modifying existing issues without creating new ones. Each updatable field (`status`, `title`, `body`) must be explicitly enabled. Body updates accept an `operation` field: `append` (default), `prepend`, `replace`, or `replace-island` (updates a specific section delimited by HTML comments). Supports cross-repository issue updates. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#issue-updates-update-issue).
 
+### Update Pull Request (`update-pull-request:`)
+
+A safe output capability for modifying a pull request's `title` or `body`. Each field must be explicitly enabled (`true` or `false`). The `operation` field controls how body changes are applied: `append` (default), `prepend`, or `replace`. Accepts `target` (`"triggering"`, `"*"`, or a specific number) and cross-repository updates via `target-repo`. When `target: "*"` is used, the agent must supply `pull_request_number` in the tool output. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request).
+
 ### Protected Files
 
-A security mechanism on `create-pull-request` and `push-to-pull-request-branch` safe outputs that prevents AI agents from modifying sensitive repository files. By default, protects dependency manifests (e.g., `package.json`, `go.mod`), GitHub Actions workflow files, and lock files. Configured via `protected-files:` with three policies: `blocked` (default — fails with error), `allowed` (no restriction), or `fallback-to-issue` (creates a review issue for human inspection instead of applying changes). See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#protected-files).
+A security mechanism on `create-pull-request` and `push-to-pull-request-branch` safe outputs that prevents AI agents from modifying sensitive repository files. By default, protects dependency manifests (e.g., `package.json`, `go.mod`), GitHub Actions workflow files, and lock files. Configured via `protected-files:` with three policies: `blocked` (default — fails with error), `allowed` (no restriction), or `fallback-to-issue` (creates a review issue for human inspection instead of applying changes). Also accepts an object form `{ policy: string, exclude: [...] }` to remove specific files or path prefixes from the default protected set while keeping protection active for the remaining files. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#protected-files).
+
+### Allow Workflows (`allow-workflows:`)
+
+A field on `create-pull-request` and `push-to-pull-request-branch` safe outputs that adds `workflows: write` to the GitHub App token's permissions. Required when `allowed-files:` targets paths under `.github/workflows/`, because the `workflows` permission is a GitHub App-only permission that cannot be granted via `GITHUB_TOKEN`. Requires a `safe-outputs.github-app` configuration — the compiler rejects `allow-workflows: true` without one. This opt-in design keeps the elevated permission visible and auditable in the workflow source. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#allowing-workflow-file-changes-with-allow-workflows).
+
+### Allowed Events (`allowed-events:`)
+
+A field on `submit-pull-request-review:` safe outputs that restricts which PR review event types the agent may submit. Accepts an array of `APPROVE`, `COMMENT`, and `REQUEST_CHANGES`. When set, the safe-outputs handler rejects any review event not in the list, providing infrastructure-level enforcement regardless of what the agent attempts to output. If omitted, all three event types are allowed. Example: `allowed-events: [COMMENT, REQUEST_CHANGES]` prevents the agent from approving PRs. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#submit-pr-review-submit-pull-request-review).
 
 ### Allowed Files
 
@@ -197,9 +217,17 @@ An exclusive allowlist for `create-pull-request` and `push-to-pull-request-branc
 
 An option on `create-pull-request` safe outputs that omits the random hex salt suffix normally appended to the agent-specified branch name. Useful when the target repository enforces naming conventions such as Jira keys in uppercase (for example, `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for safety, and casing is always preserved regardless of this setting. Defaults to `false`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
 
+### Create Pull Request Review Comment (`create-pull-request-review-comment:`)
+
+A safe output capability for posting inline review comments on specific lines in a pull request diff. Supports single-line and multi-line comments with configurable `side` (`LEFT` or `RIGHT`). When `target: "*"` is set, the agent must supply `pull_request_number` in the tool call. For cross-repository scenarios, the agent may also supply `repo` (in `owner/repo` format) matching `target-repo` or `allowed-repos`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pr-review-comments-create-pull-request-review-comment).
+
 ### Reply to PR Review Comment (`reply-to-pull-request-review-comment:`)
 
-A safe output capability for replying to existing review comments on pull requests. Allows the AI agent to respond to reviewer feedback, answer questions, or acknowledge inline review comments by their numeric comment ID. Supports an optional `footer` field (`always`, `none`, or `if-body`) to control AI attribution. Configured via `reply-to-pull-request-review-comment:` in `safe-outputs`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
+A safe output capability for replying to existing review comments on pull requests. Allows the AI agent to respond to reviewer feedback, answer questions, or acknowledge inline review comments by their numeric comment ID. Supports an optional `footer` field (`always`, `none`, or `if-body`) to control AI attribution. Configured via `reply-to-pull-request-review-comment:` in `safe-outputs`. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#reply-to-pr-review-comment-reply-to-pull-request-review-comment).
+
+### Resolve PR Review Thread (`resolve-pull-request-review-thread:`)
+
+A safe output capability for marking GitHub PR review threads as resolved. Uses the GitHub GraphQL `resolveReviewThread` mutation, requiring the thread's node ID. Allows AI agents to clean up addressed review comments after implementing feedback. Accepts the same `target`, `target-repo`, and `allowed-repos` options as other pull-request safe outputs. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#resolve-pr-review-thread-resolve-pull-request-review-thread).
 
 ### Report Incomplete (`report_incomplete`)
 
@@ -225,7 +253,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports multiple engines, with GitHub Copilot as the default.
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports four engines: **Copilot** (default), **Claude**, **Codex**, and **Gemini**. Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Enterprise API Endpoint (`api-target`)
 
@@ -263,7 +291,7 @@ See [Engines Reference](/gh-aw/reference/engines/).
 
 ### Feature Flags (`features:`)
 
-A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot), and `mcp-gateway` (enables the MCP gateway proxy). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
+A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `byok-copilot` (enables Copilot offline BYOK mode with dummy `COPILOT_API_KEY`, API proxy sidecar, implicit `cli-proxy`, and latest Copilot CLI install), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), and `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
 
 ### Fuzzy Scheduling
 
@@ -337,7 +365,7 @@ A secure, encrypted variable stored in repository or organization settings holdi
 
 ### GitHub App (`github-app:`)
 
-A GitHub App installation used for authentication and token minting in workflows. The `github-app:` field (which replaces the deprecated `app:` key) accepts `app-id` and `private-key` to mint short-lived installation access tokens with fine-grained, automatically-revoked permissions. Can be configured in `safe-outputs:` to override the default `GITHUB_TOKEN` for all safe output operations, or in `checkout:` for accessing private repositories. See [Authentication Reference](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
+A GitHub App installation used for authentication and token minting in workflows. The `github-app:` field (which replaces the deprecated `app:` key) accepts `client-id` (preferred) or `app-id` (deprecated alias) together with `private-key` to mint short-lived installation access tokens with fine-grained, automatically-revoked permissions. Can be configured in `safe-outputs:` to override the default `GITHUB_TOKEN` for all safe output operations, or in `checkout:` for accessing private repositories. Run `gh aw fix` to automatically migrate `app-id` to `client-id`. See [Authentication Reference](/gh-aw/reference/auth/#using-a-github-app-for-authentication).
 
 ### YAML
 
@@ -388,6 +416,21 @@ A multi-dimensional characterization of a single workflow run produced by `gh aw
 ### Cross-Run Audit Report (`gh aw logs --format`)
 
 A feature of `gh aw logs` that aggregates firewall, MCP, and metrics data across multiple workflow runs to produce a security and performance report. Includes an executive summary, domain inventory, and per-run breakdown with anomaly detection. Designed for security reviews, compliance checks, and feeding optimization agents. See [Audit Commands](/gh-aw/reference/audit/#gh-aw-logs---format-fmt).
+
+### Effective Tokens
+
+A weighted token count that normalizes raw API token usage into a single comparable value for cost estimation and monitoring. Computed by applying cache and output multipliers to each token category (input, output, cache read, cache write) and summing the results. Appears in audit reports, `gh aw logs` output, and safe-output message footers (as `{effective_tokens}` and `{effective_tokens_formatted}`). For episode-level aggregation, `total_estimated_cost` uses effective tokens as its basis. See [Effective Tokens Specification](/gh-aw/reference/effective-tokens-specification/).
+
+### Time Between Turns (TBT)
+
+The elapsed time between consecutive LLM API calls in an agentic workflow run. A "turn" is one complete LLM inference request; TBT measures the gap from when the model finishes one response (and tool calls are dispatched) to when the next request is sent (after all tool results are collected). TBT is an important performance and cost metric because LLM inference providers implement prompt caching with a fixed TTL:
+
+- **Anthropic** reduced their cache TTL from 1 hour to **5 minutes**. If the TBT for any turn exceeds 5 minutes, the cached prompt context expires and the full prompt must be re-processed, significantly increasing token costs.
+- **OpenAI** has a similar server-side prompt cache with variable TTL.
+
+`gh aw audit` reports both average and maximum TBT in the Session Analysis section. A cache warning is emitted when the TBT used for cache analysis exceeds the Anthropic 5-minute threshold: the maximum observed TBT for Copilot engine runs, where precise per-turn timestamps are available in the `events.jsonl` session log, or the estimated average TBT for other engines, where TBT is derived from total wall time divided by turn count.
+
+To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, parallelize independent tool invocations, and avoid long-running shell commands in the critical path between turns.
 
 ### Firewall Analysis
 

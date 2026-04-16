@@ -26,8 +26,11 @@ package workflow
 //
 // Proxy lifecycle within the main job:
 //  1. Start proxy — after "Configure gh CLI" step, before custom steps
-//  2. Custom steps run with GH_HOST=localhost:18443, GITHUB_API_URL, GITHUB_GRAPHQL_URL,
-//     and NODE_EXTRA_CA_CERTS set (via $GITHUB_ENV)
+//  2. Custom steps run with step-level env blocks containing GH_HOST, GH_REPO,
+//     GITHUB_API_URL, GITHUB_GRAPHQL_URL, and NODE_EXTRA_CA_CERTS. These are
+//     injected by the compiler as step-level env (not via $GITHUB_ENV), so they
+//     take precedence over job-level env without mutating global state. GHE host
+//     values set by configure_gh_for_ghe.sh are preserved for non-proxied steps.
 //  3. Stop proxy — before MCP gateway starts (generateMCPSetup); always runs
 //     even if earlier steps failed (if: always(), continue-on-error: true)
 //
@@ -58,6 +61,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
 )
 
 var difcProxyLog = logger.New("workflow:difc_proxy")
@@ -157,8 +161,12 @@ func hasPreAgentStepsWithGHToken(data *WorkflowData) bool {
 // compile time: min-integrity and repos. This is because the proxy starts before the
 // parse-guard-vars step that produces those dynamic outputs.
 //
+// When the integrity-reactions feature flag is enabled and the MCPG version supports it,
+// reaction fields (endorsement-reactions, disapproval-reactions, disapproval-integrity,
+// endorser-min-integrity) are also included in the proxy policy.
+//
 // Returns an empty string if no guard policy fields are found.
-func getDIFCProxyPolicyJSON(githubTool any) string {
+func getDIFCProxyPolicyJSON(githubTool any, data *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) string {
 	toolConfig, ok := githubTool.(map[string]any)
 	if !ok {
 		return ""
@@ -187,6 +195,9 @@ func getDIFCProxyPolicyJSON(githubTool any) string {
 	if hasIntegrity {
 		policy["min-integrity"] = integrity
 	}
+
+	// Inject reaction fields when the feature flag is enabled and MCPG supports it.
+	injectIntegrityReactionFields(policy, toolConfig, data, gatewayConfig)
 
 	guardPolicy := map[string]any{
 		"allow-only": policy,
@@ -224,7 +235,9 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
 	// Build the simplified guard policy JSON (static fields only)
-	policyJSON := getDIFCProxyPolicyJSON(githubTool)
+	// (plus reaction fields when integrity-reactions feature flag is enabled)
+	ensureDefaultMCPGatewayConfig(data)
+	policyJSON := getDIFCProxyPolicyJSON(githubTool, data, data.SandboxConfig.MCP)
 	if policyJSON == "" {
 		difcProxyLog.Print("Could not build DIFC proxy policy JSON, skipping proxy start")
 		return ""
@@ -232,7 +245,6 @@ func (c *Compiler) buildStartDIFCProxyStepYAML(data *WorkflowData) string {
 
 	// Resolve the container image from the MCP gateway configuration
 	// (proxy uses the same image as the gateway, just in "proxy" mode)
-	ensureDefaultMCPGatewayConfig(data)
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder
@@ -265,41 +277,111 @@ func (c *Compiler) generateStartDIFCProxyStep(yaml *strings.Builder, data *Workf
 	}
 }
 
-// buildSetGHRepoStepYAML returns the YAML for the "Set GH_REPO for proxied steps" step.
+// proxyEnvVars returns the env vars to inject as step-level env on each custom step
+// when the DIFC proxy is running.
 //
-// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV so that the gh CLI
-// routes through the proxy. However, gh CLI infers the target repository from the git
-// remote, which uses the original host (github.com / GHEC host). When GH_HOST is the
-// proxy address, gh fails to resolve the repository because the host doesn't match.
-//
-// Rather than overwriting GH_HOST (which would bypass the DIFC proxy's integrity
-// filtering), this step sets GH_REPO=$GITHUB_REPOSITORY. The gh CLI respects GH_REPO
-// to determine the target repository without needing to match the git remote host.
-// GH_HOST stays at localhost:18443 so all gh CLI traffic continues routing through
-// the proxy for integrity filtering.
-func buildSetGHRepoStepYAML() string {
-	var sb strings.Builder
-	sb.WriteString("      - name: Set GH_REPO for proxied steps\n")
-	sb.WriteString("        run: |\n")
-	sb.WriteString("          echo \"GH_REPO=${GITHUB_REPOSITORY}\" >> \"$GITHUB_ENV\"\n")
-	return sb.String()
+// These override $GITHUB_ENV values (such as GH_HOST=myorg.ghe.com on GHE runners)
+// without mutating global state. Steps that do not need the proxy (e.g., after
+// stop_difc_proxy.sh) continue to see the original job-level env values.
+func proxyEnvVars() map[string]string {
+	return map[string]string{
+		"GH_HOST":             "localhost:18443",
+		"GH_REPO":             "${{ github.repository }}",
+		"GITHUB_API_URL":      "https://localhost:18443/api/v3",
+		"GITHUB_GRAPHQL_URL":  "https://localhost:18443/api/graphql",
+		"NODE_EXTRA_CA_CERTS": "/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt",
+	}
 }
 
-// generateSetGHRepoAfterDIFCProxyStep injects a step that sets GH_REPO=$GITHUB_REPOSITORY
-// after start_difc_proxy.sh and before user-defined setup steps.
+// injectProxyEnvIntoCustomSteps adds the DIFC proxy routing env vars to each step
+// in the custom steps YAML string as step-level env. Step-level env takes precedence
+// over $GITHUB_ENV values but does not mutate them, so GHE host values set by
+// configure_gh_for_ghe.sh are preserved for steps that do not need the proxy.
 //
-// The proxy sets GH_HOST=localhost:18443 in GITHUB_ENV, which causes gh CLI to fail
-// resolving the repository from the git remote. Setting GH_REPO tells gh which repo
-// to target without changing the proxy routing (GH_HOST stays at the proxy address).
+// The proxy env vars injected are:
+//   - GH_HOST=localhost:18443
+//   - GH_REPO=${{ github.repository }}
+//   - GITHUB_API_URL=https://localhost:18443/api/v3
+//   - GITHUB_GRAPHQL_URL=https://localhost:18443/api/graphql
+//   - NODE_EXTRA_CA_CERTS=/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
 //
-// The step is only emitted when hasDIFCProxyNeeded returns true.
-func (c *Compiler) generateSetGHRepoAfterDIFCProxyStep(yaml *strings.Builder, data *WorkflowData) {
-	if !hasDIFCProxyNeeded(data) {
-		return
+// If a step already has an env: block, the proxy vars are merged into it (existing
+// vars like GH_TOKEN are preserved). If parsing or serialization fails, the original
+// customSteps string is returned unchanged.
+//
+// Version comments on uses lines (e.g. "uses: actions/foo@sha # v4") are preserved
+// and re-applied after re-serialization. Step fields are ordered using
+// constants.PriorityStepFields so name/uses stay ahead of env for stable diffs.
+func injectProxyEnvIntoCustomSteps(customSteps string) string {
+	if customSteps == "" {
+		return customSteps
 	}
 
-	difcProxyLog.Print("Generating Set GH_REPO step after DIFC proxy start")
-	yaml.WriteString(buildSetGHRepoStepYAML())
+	// Extract version comments from uses lines before unmarshaling.
+	// YAML treats "# comment" as a comment and strips it during Unmarshal, so we
+	// must capture them here and re-apply after processing to preserve annotations
+	// like "uses: actions/upload-artifact@sha # v7" in the compiled lock file.
+	// Without this, gh-aw-manifest falls back to recording the SHA as the version.
+	versionComments := make(map[string]string) // key: action@sha, value: " # vX"
+	for line := range strings.SplitSeq(customSteps, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "uses:") && strings.Contains(trimmed, " # ") {
+			parts := strings.SplitN(trimmed, " # ", 2)
+			if len(parts) == 2 {
+				usesValue := strings.TrimSpace(strings.TrimPrefix(parts[0], "uses:"))
+				versionComments[usesValue] = " # " + parts[1]
+			}
+		}
+	}
+
+	var parsed struct {
+		Steps []map[string]any `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(customSteps), &parsed); err != nil || len(parsed.Steps) == 0 {
+		difcProxyLog.Printf("injectProxyEnvIntoCustomSteps: could not parse custom steps, returning as-is: %v", err)
+		return customSteps
+	}
+
+	proxyEnv := proxyEnvVars()
+
+	// Convert each step to an ordered MapSlice with priority fields first so that
+	// name/uses stay ahead of env for stable diffs, then merge proxy env vars.
+	orderedSteps := make([]yaml.MapSlice, len(parsed.Steps))
+	for i, step := range parsed.Steps {
+		envMap, ok := step["env"].(map[string]any)
+		if !ok {
+			envMap = make(map[string]any)
+		}
+		for k, v := range proxyEnv {
+			envMap[k] = v
+		}
+		step["env"] = envMap
+
+		// Re-apply version comment to uses value so the comment survives re-serialization.
+		if usesVal, hasUses := step["uses"]; hasUses {
+			if usesStr, ok := usesVal.(string); ok {
+				if comment, hasComment := versionComments[usesStr]; hasComment {
+					step["uses"] = usesStr + comment
+				}
+			}
+		}
+
+		orderedSteps[i] = OrderMapFields(step, constants.PriorityStepFields)
+	}
+
+	resultBytes, err := yaml.MarshalWithOptions(
+		map[string]any{"steps": orderedSteps},
+		yaml.Indent(2),
+		yaml.UseLiteralStyleIfMultiline(true),
+	)
+	if err != nil {
+		difcProxyLog.Printf("injectProxyEnvIntoCustomSteps: failed to re-serialize, returning as-is: %v", err)
+		return customSteps
+	}
+
+	// The YAML marshaller quotes strings containing "#" (version comments), but
+	// GitHub Actions expects unquoted uses values.
+	return unquoteUsesWithComments(strings.TrimRight(string(resultBytes), "\n"))
 }
 
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container
@@ -326,12 +408,21 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 // isCliProxyNeeded returns true if the CLI proxy should be started on the host.
 //
 // The CLI proxy is needed when:
-//  1. The cli-proxy feature flag is enabled, and
+//  1. The cli-proxy feature flag is enabled (explicitly or implicitly), and
 //  2. The AWF sandbox (firewall) is enabled, and
 //  3. The AWF version supports CLI proxy flags
+//
+// The cli-proxy feature is implicitly enabled when integrity-reactions is enabled,
+// because reaction-based integrity decisions require the proxy to identify reaction authors.
 func isCliProxyNeeded(data *WorkflowData) bool {
-	if !isFeatureEnabled(constants.CliProxyFeatureFlag, data) {
+	cliProxyEnabled := isFeatureEnabled(constants.CliProxyFeatureFlag, data)
+	integrityReactionsEnabled := isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data)
+
+	if !cliProxyEnabled && !integrityReactionsEnabled {
 		return false
+	}
+	if integrityReactionsEnabled && !cliProxyEnabled {
+		difcProxyLog.Print("integrity-reactions enabled: implicitly enabling CLI proxy")
 	}
 	if !isFirewallEnabled(data) {
 		return false
@@ -379,18 +470,18 @@ func (c *Compiler) buildStartCliProxyStepYAML(data *WorkflowData) string {
 	customGitHubToken := getGitHubToken(githubTool)
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 
-	// Build the guard policy JSON (static fields only).
+	// Build the guard policy JSON (static fields only, plus reaction fields when enabled).
 	// The CLI proxy requires a policy to forward requests — without one, all API
 	// calls return HTTP 503 ("proxy enforcement not configured"). Use the default
 	// permissive policy when no guard policy is configured in the frontmatter.
-	policyJSON := getDIFCProxyPolicyJSON(githubTool)
+	ensureDefaultMCPGatewayConfig(data)
+	policyJSON := getDIFCProxyPolicyJSON(githubTool, data, data.SandboxConfig.MCP)
 	if policyJSON == "" {
 		policyJSON = defaultCliProxyPolicyJSON
 		difcProxyLog.Print("No guard policy configured, using default CLI proxy policy")
 	}
 
 	// Resolve the container image from the MCP gateway configuration
-	ensureDefaultMCPGatewayConfig(data)
 	containerImage := resolveProxyContainerImage(data.SandboxConfig.MCP)
 
 	var sb strings.Builder

@@ -497,6 +497,57 @@ func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
 	return r.engines[string(constants.DefaultEngine)]
 }
 
+// GetAllAgentManifestFolders returns the union of all engines' GetAgentManifestPathPrefixes()
+// with trailing slashes stripped, plus ".agents" as the gh-aw platform agent directory.
+// The returned list is sorted and deduplicated, making the engine implementations the
+// single source of truth for which directories the save/restore scripts protect.
+func (r *EngineRegistry) GetAllAgentManifestFolders() []string {
+	seen := map[string]bool{}
+	var result []string
+	for _, engine := range r.engines {
+		provider, ok := engine.(AgentFileProvider)
+		if !ok {
+			continue
+		}
+		for _, prefix := range provider.GetAgentManifestPathPrefixes() {
+			folder := strings.TrimSuffix(prefix, "/")
+			if folder != "" && !seen[folder] {
+				seen[folder] = true
+				result = append(result, folder)
+			}
+		}
+	}
+	// Always include .agents — the gh-aw platform agent directory.
+	// It is not owned by any specific engine but must always be snapshotted.
+	if !seen[".agents"] {
+		result = append(result, ".agents")
+	}
+	sort.Strings(result)
+	return result
+}
+
+// GetAllAgentManifestFiles returns the union of all engines' GetAgentManifestFiles().
+// The returned list is sorted and deduplicated, making the engine implementations the
+// single source of truth for which root-level instruction files the save/restore scripts protect.
+func (r *EngineRegistry) GetAllAgentManifestFiles() []string {
+	seen := map[string]bool{}
+	var result []string
+	for _, engine := range r.engines {
+		provider, ok := engine.(AgentFileProvider)
+		if !ok {
+			continue
+		}
+		for _, file := range provider.GetAgentManifestFiles() {
+			if !seen[file] {
+				seen[file] = true
+				result = append(result, file)
+			}
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
 // GetEngineByPrefix returns an engine that matches the given prefix
 // This is useful for backward compatibility with strings like "codex-experimental"
 func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, error) {

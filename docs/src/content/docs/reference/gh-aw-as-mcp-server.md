@@ -66,13 +66,13 @@ Configure VS Code Copilot Chat to use gh-aw MCP server:
 gh aw init
 ```
 
-This creates `.vscode/mcp.json` and `.github/workflows/copilot-setup-steps.yml`. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
+This creates `.github/mcp.json` and `.github/workflows/copilot-setup-steps.yml`. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
 
-Alternatively, create `.vscode/mcp.json` manually:
+Alternatively, create `.github/mcp.json` manually:
 
 ```json wrap
 {
-  "servers": {
+  "mcpServers": {
     "github-agentic-workflows": {
       "command": "gh",
       "args": ["aw", "mcp-server"]

@@ -31,9 +31,14 @@ var ghAwInternalSecrets = map[string]bool{
 // changes have been introduced compared to those recorded in the existing manifest.
 //
 // manifest is the gh-aw-manifest extracted from the current lock file before
-// recompilation. When nil (no lock file exists yet), it is treated as an empty
-// manifest so that all non-GITHUB_TOKEN secrets and all custom actions are rejected
-// on a first-time safe-update compilation.
+// recompilation.
+//
+//   - nil means a lock file was found but it predates the safe-updates feature
+//     (no gh-aw-manifest section). Enforcement is skipped so legacy lock files
+//     are not flagged on upgrade.
+//   - non-nil (including an empty &GHAWManifest{}) means the caller has a
+//     baseline to compare against. Pass &GHAWManifest{} when no lock file
+//     exists yet (first compilation); all new secrets/actions will be flagged.
 //
 // secretNames contains the raw names produced by CollectSecretReferences (i.e.
 // they may or may not carry the "secrets." prefix; both forms are normalized
@@ -45,11 +50,10 @@ var ghAwInternalSecrets = map[string]bool{
 // Returns a structured, actionable error when violations are found.
 func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string) error {
 	if manifest == nil {
-		// No prior lock file – treat as an empty manifest so safe-update enforcement
-		// blocks any secrets (other than GITHUB_TOKEN) and any custom actions on the
-		// first compilation, matching the principle of least privilege.
-		safeUpdateLog.Print("No existing manifest found; treating as empty manifest for safe update enforcement")
-		manifest = &GHAWManifest{Version: currentGHAWManifestVersion}
+		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
+		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
+		safeUpdateLog.Print("Lock file has no gh-aw-manifest; skipping safe update enforcement (legacy lock file)")
+		return nil
 	}
 
 	secretViolations := collectSecretViolations(manifest, secretNames)
@@ -211,7 +215,7 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 		sb.WriteString(strings.Join(removedActions, "\n  - "))
 	}
 
-	sb.WriteString("\n\nRemediation options:\n  1. Use an interactive agentic flow (e.g. Copilot CLI) to review and approve the changes.\n  2. Remove the --safe-update flag to allow the change.\n  3. Revert the unapproved changes from your workflow if they were added unintentionally.")
+	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
 	return fmt.Errorf("%s", sb.String())
 }
 

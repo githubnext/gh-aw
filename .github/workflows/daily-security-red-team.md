@@ -22,8 +22,9 @@ safe-outputs:
 timeout-minutes: 60
 imports:
   - shared/security-analysis-base.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Daily Security Red Team Agent

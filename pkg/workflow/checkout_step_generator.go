@@ -88,11 +88,14 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 //   - ref: the branch, tag, or SHA to checkout. May be a literal value or a GitHub Actions
 //     expression such as "${{ steps.resolve-host-repo.outputs.target_ref }}".
 //     Pass an empty string to omit the ref field and use the repository's default branch.
+//   - token: the GitHub token to use for authentication. Pass an empty string or
+//     "${{ secrets.GITHUB_TOKEN }}" to use the default token (no token: field emitted).
+//     For cross-org scenarios, pass a PAT or GitHub App token expression.
 //   - getActionPin: resolves an action reference to a pinned SHA form.
 //   - extraPaths: additional paths to include in the sparse-checkout beyond .github and .agents.
 //
 // Returns a slice of YAML lines (each ending with \n).
-func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref string, getActionPin func(string) string, extraPaths ...string) []string {
+func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref, token string, getActionPin func(string) string, extraPaths ...string) []string {
 	checkoutManagerLog.Printf("Generating .github/.agents folder checkout: repository=%q ref=%q", repository, ref)
 	var sb strings.Builder
 
@@ -105,6 +108,9 @@ func (cm *CheckoutManager) GenerateGitHubFolderCheckoutStep(repository, ref stri
 	}
 	if ref != "" {
 		fmt.Fprintf(&sb, "          ref: %s\n", ref)
+	}
+	if token != "" && token != "${{ secrets.GITHUB_TOKEN }}" {
+		fmt.Fprintf(&sb, "          token: %s\n", token)
 	}
 	sb.WriteString("          sparse-checkout: |\n")
 	sb.WriteString("            .github\n")

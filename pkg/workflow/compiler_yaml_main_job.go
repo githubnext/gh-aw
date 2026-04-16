@@ -70,7 +70,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		defaultLines := checkoutMgr.GenerateDefaultCheckoutStep(
 			c.trialMode,
 			c.trialLogicalRepoSlug,
-			GetActionPin,
+			getActionPin,
 		)
 		for _, line := range defaultLines {
 			yaml.WriteString(line)
@@ -90,7 +90,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Emit additional (non-default) user-configured checkouts
-	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(GetActionPin)
+	additionalLines := checkoutMgr.GenerateAdditionalCheckoutSteps(getActionPin)
 	for _, line := range additionalLines {
 		yaml.WriteString(line)
 	}
@@ -115,7 +115,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsGithubMerge {
 		compilerYamlLog.Printf("Adding merge remote .github folder step")
 		yaml.WriteString("      - name: Merge remote .github folder\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		yaml.WriteString("        env:\n")
 
 		// Set repository imports if present
@@ -208,24 +208,24 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// integrity filtering before the agent runs. Must start before custom steps.
 	c.generateStartDIFCProxyStep(yaml, data)
 
-	// Set GH_REPO after the proxy starts so gh CLI can resolve the target repository.
-	// start_difc_proxy.sh writes GH_HOST=localhost:18443 to GITHUB_ENV, which causes gh
-	// CLI to fail resolving the repository from the git remote. Setting GH_REPO tells gh
-	// which repo to target while keeping GH_HOST pointed at the proxy for integrity
-	// filtering. Works on both github.com and GHEC.
-	c.generateSetGHRepoAfterDIFCProxyStep(yaml, data)
-
 	// Add custom steps if present
 	if data.CustomSteps != "" {
+		// When the DIFC proxy is active, inject proxy routing env vars as step-level env
+		// on each custom step. Step-level env takes precedence over $GITHUB_ENV without
+		// mutating it, so GHE host values are preserved for non-proxied steps.
+		customStepsToEmit := data.CustomSteps
+		if hasDIFCProxyNeeded(data) {
+			customStepsToEmit = injectProxyEnvIntoCustomSteps(customStepsToEmit)
+		}
 		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
 			// Custom steps contain checkout and we have runtime steps to insert
 			// Insert runtime steps after the first checkout step
 			compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
-			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps, data.ParsedTools)
+			c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools)
 		} else {
 			// No checkout in custom steps or no runtime steps, just add custom steps as-is
 			compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
-			c.addCustomStepsAsIs(yaml, data.CustomSteps)
+			c.addCustomStepsAsIs(yaml, customStepsToEmit)
 		}
 	}
 
@@ -307,6 +307,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		return fmt.Errorf("failed to generate MCP setup: %w", err)
 	}
 
+	// Mount MCP servers as CLI tools (runs after gateway is started)
+	c.generateMCPCLIMountStep(yaml, data)
+
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
@@ -315,10 +318,23 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	compilerYamlLog.Print("Adding activation artifact download step")
 	activationArtifactName := artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName
 	yaml.WriteString("      - name: Download activation artifact\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
+
+	// Restore agent config folders from the base branch snapshot in the activation artifact.
+	// The activation job saved these before the PR checkout ran, so this step overwrites any
+	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
+	// The .github/mcp.json file is also removed since it may come from the PR branch.
+	// The folder and file lists match those used in the save step (derived from engine registry).
+	if ShouldGeneratePRCheckoutStep(data) {
+		registry := GetGlobalEngineRegistry()
+		generateRestoreBaseGitHubFoldersStep(yaml,
+			registry.GetAllAgentManifestFolders(),
+			registry.GetAllAgentManifestFiles(),
+		)
+	}
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
@@ -352,6 +368,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
 	// connects to via host.docker.internal:18443.
 	c.generateStartCliProxyStep(yaml, data)
+
+	// Add pre-agent-steps (if any) immediately before AI execution.
+	c.generatePreAgentSteps(yaml, data)
 
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
@@ -444,16 +463,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
-	c.generateLogParsing(yaml, engine)
+	c.generateLogParsing(yaml, data, engine)
 
 	// parse mcp-scripts logs for GITHUB_STEP_SUMMARY (if mcp-scripts is enabled)
 	if IsMCPScriptsEnabled(data.MCPScripts, data) {
-		c.generateMCPScriptsLogParsing(yaml)
+		c.generateMCPScriptsLogParsing(yaml, data)
 	}
 
 	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
-	c.generateMCPGatewayLogParsing(yaml)
+	c.generateMCPGatewayLogParsing(yaml, data)
 
 	// Add firewall log parsing and dedicated audit upload for all firewall-enabled engines.
 	// This replaces the previous per-engine blocks (Copilot, Codex, Claude) and extends
@@ -467,7 +486,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Parse token-usage.jsonl and append to step summary (requires AWF v0.25.8+)
 	if isFirewallEnabled(data) {
-		c.generateTokenUsageSummary(yaml)
+		c.generateTokenUsageSummary(yaml, data)
 		// Include the aggregated agent_usage.json in the agent artifact so third-party
 		// tools can consume structured token data without parsing the step summary.
 		artifactPaths = append(artifactPaths, "/tmp/gh-aw/"+constants.TokenUsageFilename)
@@ -737,7 +756,7 @@ func (c *Compiler) generateRepositoryImportCheckouts(yaml *strings.Builder, repo
 
 		// Generate the checkout step
 		fmt.Fprintf(yaml, "      - name: Checkout repository import %s/%s@%s\n", owner, repo, ref)
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+		fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/checkout"))
 		yaml.WriteString("        with:\n")
 		fmt.Fprintf(yaml, "          repository: %s/%s\n", owner, repo)
 		fmt.Fprintf(yaml, "          ref: %s\n", ref)
@@ -799,7 +818,7 @@ func (c *Compiler) generateLegacyAgentImportCheckout(yaml *strings.Builder, agen
 
 	// Generate the checkout step
 	fmt.Fprintf(yaml, "      - name: Checkout agent import %s/%s@%s\n", owner, repo, ref)
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/checkout"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          repository: %s/%s\n", owner, repo)
 	fmt.Fprintf(yaml, "          ref: %s\n", ref)
@@ -827,7 +846,7 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 
 	// Step 1: Setup Go for building the CLI
 	yaml.WriteString("      - name: Setup Go for CLI build\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/setup-go"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("actions/setup-go"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          go-version-file: go.mod\n")
 	yaml.WriteString("          cache: true\n")
@@ -851,12 +870,12 @@ func (c *Compiler) generateDevModeCLIBuildSteps(yaml *strings.Builder) {
 
 	// Step 3: Setup Docker Buildx
 	yaml.WriteString("      - name: Setup Docker Buildx\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("docker/setup-buildx-action"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("docker/setup-buildx-action"))
 
 	// Step 4: Build Docker image
 	// Use the Dockerfile at the repository root which expects BINARY build arg
 	yaml.WriteString("      - name: Build gh-aw Docker image\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("docker/build-push-action"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getActionPin("docker/build-push-action"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          context: .\n")
 	yaml.WriteString("          platforms: linux/amd64\n")

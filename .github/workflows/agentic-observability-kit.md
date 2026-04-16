@@ -34,6 +34,8 @@ imports:
       title-prefix: "[observability] "
       expires: 7d
   - shared/reporting.md
+features:
+  mcp-cli: true
 ---
 # Agentic Observability Kit
 

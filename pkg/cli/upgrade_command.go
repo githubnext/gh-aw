@@ -34,7 +34,7 @@ func NewUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Upgrade repository with latest agent files and apply codemods to all workflows",
-		Long: `Upgrade the repository for the latest version of agentic workflows.
+		Long: `Upgrade the repository to the latest version of agentic workflows.
 
 This command:
   1. Updates the dispatcher agent file to the latest template (like 'init' command)
@@ -50,13 +50,6 @@ Use --audit to check dependency health without performing upgrades. This include
 - Comprehensive dependency health report
 
 The --audit flag skips the normal upgrade process.
-
-The upgrade process ensures:
-- Dispatcher agent is current (.github/agents/agentic-workflows.agent.md)
-- All workflows use the latest syntax and configuration options
-- Deprecated fields are automatically migrated across all workflows
-- GitHub Actions are pinned to the latest versions
-- All workflows are compiled and lock files are up-to-date
 
 This command always upgrades all Markdown files in .github/workflows.
 
@@ -82,6 +75,7 @@ Examples:
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
+			approveUpgrade, _ := cmd.Flags().GetBool("approve")
 
 			// Handle audit mode
 			if auditFlag {
@@ -94,7 +88,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade); err != nil {
+			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade, approveUpgrade); err != nil {
 				return err
 			}
 
@@ -117,6 +111,7 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
+	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
 	addJSONFlag(cmd)
@@ -147,7 +142,7 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool) error {
+func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, approve bool) error {
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
 		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
 
@@ -219,7 +214,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating GitHub Actions versions..."))
 		upgradeLog.Print("Updating GitHub Actions versions")
 
-		if err := UpdateActions(false, verbose, false); err != nil {
+		if err := UpdateActions(ctx, false, verbose, false); err != nil {
 			upgradeLog.Printf("Failed to update actions: %v", err)
 			// Don't fail the upgrade if action updates fail - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions: %v", err)))
@@ -264,6 +259,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 		compiler := createAndConfigureCompiler(CompileConfig{
 			Verbose:     verbose,
 			WorkflowDir: workflowDir,
+			Approve:     approve,
 		})
 
 		// Determine workflow directory

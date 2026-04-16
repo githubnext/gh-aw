@@ -15,6 +15,23 @@ test.describe('Mobile and Responsive Layout', () => {
     { url: '/gh-aw/introduction/overview/', name: 'content page' },
   ];
 
+  test('should include markdown table data-label attributes without JavaScript', async ({ browser }) => {
+    const context = await browser.newContext({
+      javaScriptEnabled: false,
+      viewport: { width: 393, height: 852 },
+    });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/reference/engines/');
+    await page.waitForLoadState('domcontentloaded');
+
+    const firstTableCell = page.locator('.sl-markdown-content table tbody td').first();
+    await expect(firstTableCell).toBeVisible();
+    await expect(firstTableCell).toHaveAttribute('data-label', 'Engine');
+
+    await context.close();
+  });
+
   for (const formFactor of formFactors) {
     test.describe(`${formFactor.name}`, () => {
       test.beforeEach(async ({ page }) => {

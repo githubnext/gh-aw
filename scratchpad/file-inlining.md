@@ -286,18 +286,18 @@ Potential improvements for future versions:
 
 ## Conclusion
 
-The runtime import feature provides a flexible way to include external content in workflow prompts. It uses the `{{#runtime-import}}` macro syntax for consistent and predictable behavior.
+The runtime import feature provides a mechanism to include external content in workflow prompts. It uses the `{{#runtime-import}}` macro syntax for consistent and predictable behavior.
 
 ### Key Benefits
 - ✅ **Clear syntax** with `{{#runtime-import}}`
 - ✅ **Line range support** for targeted content
 - ✅ **URL fetching** with automatic caching
 - ✅ **Security built-in** with macro detection
-- ✅ **Comprehensive testing** with unit tests
+- ✅ **Testing** with unit tests
 
 ### Implementation Quality
 - ✅ All tests passing
-- ✅ Comprehensive documentation
+- ✅ Documentation
 - ✅ Example workflows provided
 - ✅ No breaking changes to existing features
 - ✅ Clean integration with existing codebase

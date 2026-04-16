@@ -3,13 +3,17 @@
 # This script starts the awmg proxy container that routes gh CLI calls
 # through DIFC integrity filtering before the agent runs.
 #
+# This script does NOT modify $GITHUB_ENV. The compiler injects step-level
+# env: blocks (GH_HOST, GITHUB_API_URL, GITHUB_GRAPHQL_URL, NODE_EXTRA_CA_CERTS,
+# GH_REPO) directly on each custom step so that the proxy address is scoped to
+# proxied steps only and does not overwrite GHE host values.
+#
 # Environment:
 #   DIFC_PROXY_POLICY   - JSON guard policy string
 #   DIFC_PROXY_IMAGE    - Container image to use (e.g., ghcr.io/github/gh-aw-mcpg:v0.2.2)
 #   GH_TOKEN            - GitHub token passed to the proxy container
 #   GITHUB_SERVER_URL   - GitHub server URL for upstream routing (e.g. https://github.com or https://TENANT.ghe.com)
 #   GITHUB_REPOSITORY   - Repository name (owner/repo) for git remote
-#   GITHUB_ENV          - Path to GitHub Actions environment file
 
 set -e
 
@@ -66,17 +70,7 @@ for i in $(seq 1 30); do
     fi
     if curl -sf "https://localhost:18443/api/v3/health" -o /dev/null 2>/dev/null; then
       echo "DIFC proxy ready on port 18443"
-      # Route gh CLI calls through the proxy.
-      echo "GH_HOST=localhost:18443" >> "$GITHUB_ENV"
       git remote add proxy "https://localhost:18443/${GITHUB_REPOSITORY}.git" || true
-      # Route actions/github-script Octokit calls through the proxy.
-      # Save the originals so stop_difc_proxy.sh can restore them.
-      echo "GH_AW_ORIGINAL_GITHUB_API_URL=${GITHUB_API_URL:-}" >> "$GITHUB_ENV"
-      echo "GH_AW_ORIGINAL_GITHUB_GRAPHQL_URL=${GITHUB_GRAPHQL_URL:-}" >> "$GITHUB_ENV"
-      echo "GITHUB_API_URL=https://localhost:18443/api/v3" >> "$GITHUB_ENV"
-      echo "GITHUB_GRAPHQL_URL=https://localhost:18443/api/graphql" >> "$GITHUB_ENV"
-      # Trust the proxy TLS certificate from Node.js (used by actions/github-script).
-      echo "NODE_EXTRA_CA_CERTS=$PROXY_LOG_DIR/proxy-tls/ca.crt" >> "$GITHUB_ENV"
       PROXY_READY=true
       break
     fi

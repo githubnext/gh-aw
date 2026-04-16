@@ -234,7 +234,7 @@ tools:
     mode: remote
     toolsets: [repos, issues, pull_requests]
     github-app:
-      app-id: ${{ vars.APP_ID }}
+      client-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       owner: "my-org"                    # Optional: defaults to current repo owner
       repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
@@ -254,7 +254,7 @@ You can also use GitHub App tokens for safe outputs operations:
 ```yaml wrap
 safe-outputs:
   github-app:
-    app-id: ${{ vars.APP_ID }}
+    client-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: "my-org"                    # optional: installation owner
     repositories: ["repo1", "repo2"]   # optional: scope to specific repos

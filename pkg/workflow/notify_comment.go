@@ -239,22 +239,17 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
 	}
 
-	// Pass inference access error output for Copilot engine
-	// This detects when the Copilot CLI fails due to the token lacking inference access
+	// Pass Copilot-engine-specific error detection outputs to the conclusion job.
+	// These are set by the detect-copilot-errors step in the agent job and cover:
+	//   - inference_access_error: token lacks inference access
+	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
+	//   - agentic_engine_timeout: engine process killed by signal (step timeout)
+	//   - model_not_supported_error: requested model unavailable for the subscription tier
 	if _, ok := engine.(*CopilotEngine); ok {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
-	}
-
-	// Pass MCP policy error output for Copilot engine
-	// This detects when MCP servers are blocked by enterprise/organization policy
-	if _, ok := engine.(*CopilotEngine); ok {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MCP_POLICY_ERROR: ${{ needs.%s.outputs.mcp_policy_error }}\n", mainJobName))
-	}
-
-	// Pass agentic engine timeout output for Copilot engine
-	// This detects when the engine process was killed by a signal (step timeout)
-	if _, ok := engine.(*CopilotEngine); ok {
 		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))
+		agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_MODEL_NOT_SUPPORTED_ERROR: ${{ needs.%s.outputs.model_not_supported_error }}\n", mainJobName))
 	}
 
 	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured

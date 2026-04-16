@@ -31,15 +31,16 @@ tools:
       - discussions
 safe-outputs:
   upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
   create-discussion:
     expires: 3d
     category: "announcements"
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---
@@ -116,8 +117,8 @@ Generate exactly **2 high-quality trend charts**:
 
 **Phase 4: Upload Charts**
 
-1. Upload both charts using the `upload asset` tool
-2. Collect the returned URLs for embedding in the discussion
+1. Upload both charts using the `upload_asset` tool
+2. Collect the returned asset URLs for embedding in the discussion
 
 **Phase 5: Embed Charts in Discussion**
 

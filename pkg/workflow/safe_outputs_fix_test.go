@@ -141,7 +141,7 @@ func TestSafeOutputsConfigYAMLTags(t *testing.T) {
 // (Footer, AllowGitHubReferences, GroupReports, MaxBotMentions, Mentions) are correctly
 // merged from imported workflow configs when absent in the top-level config.
 func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tests := []struct {
 		name      string
@@ -243,6 +243,81 @@ func TestMergeSafeOutputsMetaFieldsUnit(t *testing.T) {
 			verify: func(t *testing.T, result *SafeOutputsConfig) {
 				require.NotNil(t, result.Mentions, "Mentions should be present")
 				assert.Equal(t, []string{"main-bot"}, result.Mentions.Allowed, "Main Mentions should take precedence")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := compiler.MergeSafeOutputs(tt.topConfig, []string{tt.imported}, nil)
+			require.NoError(t, err, "MergeSafeOutputs should not error")
+			require.NotNil(t, result, "result should not be nil")
+			tt.verify(t, result)
+		})
+	}
+}
+
+// TestMergeProtectedFilesExcludeAsSet verifies that when both the top-level and imported
+// configs define the same handler, their protected-files exclude lists are merged as a set.
+func TestMergeProtectedFilesExcludeAsSet(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tests := []struct {
+		name      string
+		topConfig *SafeOutputsConfig
+		imported  string
+		verify    func(t *testing.T, result *SafeOutputsConfig)
+	}{
+		{
+			name: "create-pull-request exclude merged from import when top has none",
+			topConfig: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			imported: `{"create-pull-request":{"protected-files":{"exclude":["AGENTS.md"]}}}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				require.NotNil(t, result.CreatePullRequests, "CreatePullRequests should be present")
+				assert.Equal(t, []string{"AGENTS.md"}, result.CreatePullRequests.ProtectedFilesExclude,
+					"Imported exclude should be merged")
+			},
+		},
+		{
+			name: "create-pull-request exclude merged as set when both define it",
+			topConfig: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					ProtectedFilesExclude: []string{"CLAUDE.md"},
+				},
+			},
+			imported: `{"create-pull-request":{"protected-files":{"exclude":["AGENTS.md"]}}}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				require.NotNil(t, result.CreatePullRequests, "CreatePullRequests should be present")
+				assert.ElementsMatch(t, []string{"CLAUDE.md", "AGENTS.md"}, result.CreatePullRequests.ProtectedFilesExclude,
+					"Exclude lists should be merged as a set")
+			},
+		},
+		{
+			name: "push-to-pull-request-branch exclude merged from import when top has none",
+			topConfig: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			},
+			imported: `{"push-to-pull-request-branch":{"protected-files":{"exclude":["AGENTS.md"]}}}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				require.NotNil(t, result.PushToPullRequestBranch, "PushToPullRequestBranch should be present")
+				assert.Equal(t, []string{"AGENTS.md"}, result.PushToPullRequestBranch.ProtectedFilesExclude,
+					"Imported exclude should be merged")
+			},
+		},
+		{
+			name: "deduplication: same item not added twice",
+			topConfig: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					ProtectedFilesExclude: []string{"AGENTS.md"},
+				},
+			},
+			imported: `{"create-pull-request":{"protected-files":{"exclude":["AGENTS.md","CLAUDE.md"]}}}`,
+			verify: func(t *testing.T, result *SafeOutputsConfig) {
+				require.NotNil(t, result.CreatePullRequests, "CreatePullRequests should be present")
+				assert.ElementsMatch(t, []string{"AGENTS.md", "CLAUDE.md"}, result.CreatePullRequests.ProtectedFilesExclude,
+					"Duplicate items should be deduplicated")
 			},
 		},
 	}

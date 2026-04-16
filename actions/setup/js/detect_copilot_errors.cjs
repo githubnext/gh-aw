@@ -13,6 +13,8 @@
  *   - agentic_engine_timeout: The agentic engine process was killed by a
  *     signal (SIGTERM/SIGKILL/SIGINT), typically due to the step
  *     timeout-minutes limit being reached.
+ *   - model_not_supported_error: The requested model is not supported for
+ *     the user's Copilot subscription tier (e.g., Copilot Pro/Education).
  *
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
@@ -42,22 +44,29 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 // making it engine-agnostic.
 const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 
+// Pattern: Requested model is not supported for the user's subscription tier.
+// This occurs when Copilot Pro/Education users attempt to use a model that is
+// not available for their plan.  The full error from the Copilot CLI is:
+//   Execution failed: CAPIError: 400 The requested model is not supported.
+const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+
 /**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }}
  */
 function detectErrors(logContent) {
   return {
     inferenceAccessError: INFERENCE_ACCESS_ERROR_PATTERN.test(logContent),
     mcpPolicyError: MCP_POLICY_BLOCKED_PATTERN.test(logContent),
     agenticEngineTimeout: AGENTIC_ENGINE_TIMEOUT_PATTERN.test(logContent),
+    modelNotSupportedError: MODEL_NOT_SUPPORTED_PATTERN.test(logContent),
   };
 }
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -66,7 +75,12 @@ function writeOutputs(results) {
     return;
   }
 
-  const lines = [`inference_access_error=${results.inferenceAccessError}`, `mcp_policy_error=${results.mcpPolicyError}`, `agentic_engine_timeout=${results.agenticEngineTimeout}`];
+  const lines = [
+    `inference_access_error=${results.inferenceAccessError}`,
+    `mcp_policy_error=${results.mcpPolicyError}`,
+    `agentic_engine_timeout=${results.agenticEngineTimeout}`,
+    `model_not_supported_error=${results.modelNotSupportedError}`,
+  ];
   fs.appendFileSync(outputFile, lines.join("\n") + "\n");
 }
 
@@ -90,10 +104,13 @@ function main() {
   if (results.agenticEngineTimeout) {
     process.stderr.write("[detect-copilot-errors] Detected timeout: engine process was killed by signal (step timeout-minutes likely exceeded)\n");
   }
+  if (results.modelNotSupportedError) {
+    process.stderr.write("[detect-copilot-errors] Detected model-not-supported error: the requested model is unavailable for this subscription tier\n");
+  }
 
   writeOutputs(results);
 }
 
 main();
 
-module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN };
+module.exports = { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN };

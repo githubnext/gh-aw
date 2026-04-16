@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This report provides a comprehensive statistical analysis of Serena MCP (Model Context Protocol) server tool usage in the Sergo workflow execution. The analysis reveals tool adoption patterns, request/response metrics, and identifies optimization opportunities.
+This report provides a statistical analysis of Serena MCP (Model Context Protocol) server tool usage in the Sergo workflow execution. The analysis reveals tool adoption patterns, request/response metrics, and identifies optimization opportunities.
 
 ### Key Findings
 
@@ -92,7 +92,7 @@ The following Serena tools were registered and available but never called during
 
 ## Request vs Response Analysis
 
-### Perfect Response Rate
+### 100% Response Rate
 
 The workflow achieved a **100% response rate**, meaning every tool request received a corresponding response:
 

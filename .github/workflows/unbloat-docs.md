@@ -12,6 +12,9 @@ on:
   
   # Manual trigger for testing
   workflow_dispatch:
+  
+  # Skip if there is already an open draft PR from this workflow to avoid duplicate work
+  skip-if-match: 'is:pr is:open is:draft label:doc-unbloat'
 
 # Minimal permissions - safe-outputs handles write operations
 permissions:
@@ -50,9 +53,17 @@ tools:
   playwright:
     args: ["--viewport-size", "1920x1080"]
   bash:
-    - "find docs/src/content/docs -name '*.md'"
+    - "find docs/src/content/docs *"
+    - "find /tmp/gh-aw/cache-memory *"
     - "wc -l *"
+    - "wc"
     - "grep -n *"
+    - "grep -rL *"
+    - "grep *"
+    - "xargs *"
+    - "date *"
+    - "date"
+    - "awk *"
     - "git"
     - "cat *"
     - "head *"
@@ -74,16 +85,16 @@ safe-outputs:
   create-pull-request:
     expires: 2d
     title-prefix: "[docs] "
-    labels: [documentation, automation]
+    labels: [documentation, automation, doc-unbloat]
     reviewers: [copilot]
     draft: true
     auto-merge: true
     fallback-as-issue: false
   add-comment:
     max: 1
-  upload-artifact:
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    max: 10
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
   messages:
     footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*{effective_tokens_suffix}{history_link}"
     run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."
@@ -121,6 +132,75 @@ steps:
 # Documentation Unbloat Workflow
 
 You are a technical documentation editor focused on **clarity and conciseness**. Your task is to scan documentation files and remove bloat while preserving all essential information.
+
+## 0. Pre-flight Validation
+
+**Run this check FIRST before any other steps.** These fast checks let you exit early and avoid wasting compute on runs where nothing useful can be done.
+
+### 0.1 Verify documentation structure exists
+
+```bash
+find docs/src/content/docs -maxdepth 1 -type d 2>/dev/null | wc -l
+```
+
+If this returns `0` or the command fails (directory does not exist), call `noop` immediately:
+
+```json
+{"noop": {"message": "Pre-flight failed: docs/src/content/docs directory not found — documentation structure is missing or repository is not set up correctly."}}
+```
+
+### 0.2 Count editable candidate files
+
+Count markdown files that are eligible for unbloating (excluding blog, generated files, and protected files):
+
+```bash
+find docs/src/content/docs -path '*/blog*' -prune \
+  -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
+  | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
+  | wc -l
+```
+
+If this returns `0`, call `noop` immediately:
+
+```json
+{"noop": {"message": "Pre-flight failed: no editable markdown files found in docs/src/content/docs (all files may be protected or excluded)."}}
+```
+
+### 0.3 Check cache for recently cleaned files
+
+```bash
+find /tmp/gh-aw/cache-memory/ -maxdepth 1 -ls 2>/dev/null
+cat /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "No previous cleanups found"
+```
+
+Then count candidates that have NOT been cleaned in the past 7 days:
+
+```bash
+# Get total eligible files
+TOTAL=$(find docs/src/content/docs -path '*/blog*' -prune \
+  -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
+  | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
+  | wc -l)
+
+# Count recently cleaned files (last 7 days from cache)
+# Cache lines are in format: "YYYY-MM-DD - Cleaned: <filename>"
+RECENT_CUTOFF=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d' 2>/dev/null || echo "0000-00-00")
+CLEANED=$(awk -v cutoff="$RECENT_CUTOFF" 'NF>0 && $1>=cutoff{count++} END{print count+0}' \
+  /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "0")
+UNCLEANED=$(( TOTAL - CLEANED ))
+
+echo "Total eligible: $TOTAL, Recently cleaned: $CLEANED, Uncleaned candidates: $UNCLEANED"
+```
+
+If there are no uncleaned candidates (i.e., `UNCLEANED` ≤ `0`), call `noop`:
+
+```json
+{"noop": {"message": "Pre-flight check: all eligible documentation files were cleaned recently — nothing to do this run."}}
+```
+
+**Only proceed to the steps below if pre-flight checks pass.**
+
+---
 
 ## Context
 
@@ -312,17 +392,12 @@ ls -lh /tmp/gh-aw/mcp-logs/playwright/
 **If no screenshot files are found:**
 - Report this in the PR description under an "Issues" section
 - Include the error message or reason why screenshots couldn't be captured
-- Do not proceed with upload-artifact if no files exist
+- Do not proceed with upload-asset if no files exist
 
 #### Upload Screenshots
 
-1. Stage each screenshot file to the artifact upload directory:
-   ```bash
-   mkdir -p $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts
-   cp /tmp/gh-aw/mcp-logs/playwright/<screenshot>.png $RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/
-   ```
-2. Call the `upload_artifact` safe-output tool for each file
-3. Record the returned `aw_*` ID for each screenshot to include in the PR description
+1. Call the `upload_asset` safe-output tool for each screenshot using absolute paths (for example `/tmp/gh-aw/mcp-logs/playwright/<screenshot>.png`)
+2. Record the returned asset URL for each screenshot to include in the PR description
 
 #### Report Blocked Domains
 
@@ -346,7 +421,7 @@ After improving ONE file:
 1. Verify your changes preserve all essential information
 2. Update cache memory with the cleaned file
 3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
-4. Stage and upload the screenshots as artifacts (see "Upload Screenshots" section above) and collect the `aw_*` IDs
+4. Upload the screenshots as assets (see "Upload Screenshots" section above) and collect the returned asset URLs
 5. Create a pull request with your improvements
    - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
    - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
@@ -355,7 +430,7 @@ After improving ONE file:
    - What types of bloat you removed
    - Estimated word count or line reduction
    - Summary of changes made
-   - **Screenshots**: List the `aw_*` IDs and a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) where reviewers can download the before/after screenshots
+   - **Screenshots**: List the uploaded asset URLs for the before/after screenshots
    - **Blocked Domains (if any)**: List any CSS/font/resource domains that were blocked during screenshot capture
 
 ## Example Improvements

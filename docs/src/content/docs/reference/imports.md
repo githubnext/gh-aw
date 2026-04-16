@@ -69,6 +69,22 @@ Workflow instructions here...
 
 Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. The compiler skips them with an informative message.
 
+### Common bundles
+
+Use bundled shared components when you regularly import the same pair together:
+
+```aw wrap
+---
+on:
+  schedule: daily
+engine: copilot
+imports:
+  - shared/reporting-otlp.md
+---
+```
+
+`shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/observability-otlp.md` for telemetry-enabled reporting workflows.
+
 ## Import Schema (`import-schema`)
 
 Use `import-schema` to declare a typed parameter contract. Callers pass values via `with`; the compiler validates them and substitutes them into the shared file's frontmatter and body before processing.
@@ -319,6 +335,9 @@ Shared workflow files (without `on:` field) can define:
 - `permissions:` - GitHub Actions permissions (validated, not merged)
 - `runtimes:` - Runtime version overrides (node, python, go, etc.)
 - `secret-masking:` - Secret masking steps
+- `env:` - Workflow-level environment variables
+- `github-app:` - GitHub App credentials for token minting (centralize shared app config)
+- `checkout:` - Checkout configuration for the agent job (centralize side-repo checkout setup)
 
 Agent files (`.github/agents/*.md`) can additionally define:
 
@@ -340,9 +359,12 @@ Imports are processed using breadth-first traversal: direct imports first, then 
 | `safe-outputs:` | Each type defined once; main overrides imports. Duplicate types across imports fail. |
 | `runtimes:` | Main overrides imports; imported values fill in unspecified fields. |
 | `services:` | All services merged; duplicate names fail compilation. |
+| `github-app:` | Main workflow's `github-app` takes precedence; first imported value fills in if main does not define one. |
+| `checkout:` | Imported checkout entries are appended after the main workflow's entries. For duplicate (repository, path) pairs, the main workflow's entry takes precedence: first-seen wins for `ref`, and auth is mutually exclusive — once `github-token` or `github-app` is set by the main workflow, an imported duplicate cannot add the other auth method. `checkout: false` in the main workflow disables all checkout including imported entries. |
 | `steps:` | Imported steps prepended to main; concatenated in import order. |
 | `jobs:` | Not merged — define only in the main workflow. Use `safe-outputs.jobs` for importable jobs. |
 | `safe-outputs.jobs` | Names must be unique; duplicates fail. Order determined by `needs:` dependencies. |
+| `env:` | Main workflow env vars take precedence over imports. Duplicate keys across different imports fail compilation — move to the main workflow to override imported values. |
 
 Example — `tools.bash.allowed` merging:
 
@@ -364,7 +386,7 @@ steps:
     id: get-token
     uses: actions/create-github-app-token@v1
     with:
-      app-id: ${{ vars.APP_ID }}
+      client-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 ```

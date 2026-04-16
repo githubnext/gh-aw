@@ -36,7 +36,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       
-      - name: Super-linter
+      - name: Run super-linter
         uses: super-linter/super-linter@v8.6.0 # x-release-please-version
         id: super-linter
         env:
@@ -66,7 +66,7 @@ jobs:
       
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: super-linter-log
           path: super-linter.log
@@ -82,6 +82,8 @@ tools:
   edit:
   bash:
     - "*"
+features:
+  mcp-cli: true
 ---
 
 # Super Linter Analysis Report

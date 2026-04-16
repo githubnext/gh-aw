@@ -64,6 +64,8 @@ steps:
     run: |
       cd docs
       npm ci
+features:
+  mcp-cli: true
 ---
 
 # Slide Deck Maintenance Agent

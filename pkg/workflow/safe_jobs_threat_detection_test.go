@@ -441,7 +441,7 @@ func TestIsThreatDetectionExplicitlyDisabledInConfigs(t *testing.T) {
 // threat detection is enabled by default — ensuring the detection gate is wired for
 // MCP-driven safe-output writes in native-card-style workflows.
 func TestDefaultThreatDetectionAppliedWhenSafeOutputsFromImportsOnly(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -502,7 +502,7 @@ This workflow uses safe-outputs via MCP tool calls (no explicit safe-outputs: fr
 // TestDefaultThreatDetectionNotAppliedWhenImportedConfigExplicitlyDisables verifies that
 // when an imported config explicitly sets threat-detection: false, the default is NOT applied.
 func TestDefaultThreatDetectionNotAppliedWhenImportedConfigExplicitlyDisables(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -561,7 +561,7 @@ imports:
 // for a native-card-style workflow (safe-outputs from imports only) contains a detection job
 // and that safe_outputs depends on both agent and detection.
 func TestImportedSafeOutputsCompiledWithDetectionJob(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := testutil.TempDir(t, "native-card-*")
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -637,7 +637,7 @@ Test that safe_outputs depends on detection when safe-outputs comes from imports
 // when an imported config disables detection via the object form (threat-detection: { enabled: false }),
 // the default is NOT applied — mirroring parseThreatDetectionConfig's object-form support.
 func TestDefaultThreatDetectionNotAppliedWhenImportedConfigObjectFormDisables(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

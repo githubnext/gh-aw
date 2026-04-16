@@ -79,6 +79,8 @@ steps:
 
 safe-outputs:
   upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 ```
 
 ### Agent Instructions
@@ -143,6 +145,8 @@ network:
 
 safe-outputs:
   upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 
 steps:
   - name: Setup Python environment
@@ -313,6 +317,8 @@ tools:
 
 safe-outputs:
   upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 ```
 
 ### Agent Instructions

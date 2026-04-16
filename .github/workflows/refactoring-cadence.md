@@ -30,6 +30,7 @@ safe-outputs:
     run-failure: "🔧 Code health check failed! [{workflow_name}]({run_url}) {status}. Code health status unknown..."
 timeout-minutes: 20
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 # Refactoring Cadence

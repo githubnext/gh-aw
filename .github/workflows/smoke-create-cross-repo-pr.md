@@ -2,7 +2,6 @@
 name: Smoke Create Cross-Repo PR
 description: Smoke test validating cross-repo pull request creation in githubnext/gh-aw-side-repo
 on:
-  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]

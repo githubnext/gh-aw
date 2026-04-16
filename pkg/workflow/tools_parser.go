@@ -144,6 +144,14 @@ func NewTools(toolsMap map[string]any) *Tools {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
 	}
 
+	if val, exists := toolsMap["mount-as-clis"]; exists {
+		if b, ok := val.(bool); ok {
+			tools.MountAsCLIs = b
+		} else {
+			toolsParserLog.Printf("Warning: mount-as-clis must be a boolean (true/false), ignoring value: %v", val)
+		}
+	}
+
 	// Extract custom MCP tools (anything not in the known list)
 	knownTools := map[string]bool{
 		"github":            true,
@@ -158,6 +166,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
+		"mount-as-clis":     true,
 	}
 
 	customCount := 0
@@ -329,6 +338,34 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 				config.TrustedUsers = parsed
 				configMap["trusted-users"] = toAnySlice(parsed) // normalize raw map for JSON rendering
 			}
+		}
+
+		// Parse reaction-based integrity fields (requires integrity-reactions feature flag + MCPG >= v0.2.18)
+		if endorsementReactions, ok := configMap["endorsement-reactions"].([]any); ok {
+			config.EndorsementReactions = make([]string, 0, len(endorsementReactions))
+			for _, item := range endorsementReactions {
+				if str, ok := item.(string); ok {
+					config.EndorsementReactions = append(config.EndorsementReactions, str)
+				}
+			}
+		} else if endorsementReactions, ok := configMap["endorsement-reactions"].([]string); ok {
+			config.EndorsementReactions = endorsementReactions
+		}
+		if disapprovalReactions, ok := configMap["disapproval-reactions"].([]any); ok {
+			config.DisapprovalReactions = make([]string, 0, len(disapprovalReactions))
+			for _, item := range disapprovalReactions {
+				if str, ok := item.(string); ok {
+					config.DisapprovalReactions = append(config.DisapprovalReactions, str)
+				}
+			}
+		} else if disapprovalReactions, ok := configMap["disapproval-reactions"].([]string); ok {
+			config.DisapprovalReactions = disapprovalReactions
+		}
+		if disapprovalIntegrity, ok := configMap["disapproval-integrity"].(string); ok {
+			config.DisapprovalIntegrity = disapprovalIntegrity
+		}
+		if endorserMinIntegrity, ok := configMap["endorser-min-integrity"].(string); ok {
+			config.EndorserMinIntegrity = endorserMinIntegrity
 		}
 
 		return config

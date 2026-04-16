@@ -32,6 +32,7 @@ safe-outputs:
 timeout-minutes: 15
 imports:
   - ../agents/adr-writer.agent.md
+  - shared/reporting.md
 tools:
   github:
     toolsets: [default, repos]
@@ -46,6 +47,8 @@ tools:
     - "wc:*"
     - "find:*"
     - "echo:*"
+features:
+  mcp-cli: true
 ---
 
 # Design Decision Gate 🏗️

@@ -13,7 +13,9 @@ You will be called with a PR reference in `owner/repo#number` format. Parse the 
 
 ## Step 1: Fetch Contributing Guidelines
 
-Fetch the target repository's contributing guidelines. Look for these files in order and use the **first one found**:
+If the CONTRIBUTING.md content was provided inline at the start of this prompt (inside `<contributing-guidelines>` tags), use that content directly and skip this step. If the inline content is `# No CONTRIBUTING.md found`, treat it as missing guidelines and return a single row with verdict `❓` and quality `no-guidelines`.
+
+Otherwise, fetch the target repository's contributing guidelines. Look for these files in order and use the **first one found**:
 
 1. `CONTRIBUTING.md` (repo root)
 2. `.github/CONTRIBUTING.md`
@@ -30,17 +32,15 @@ For the given PR, retrieve:
 - list of changed file paths (use `get_files`)
 - diff content (use `get_diff`)
 
-## Step 2.5: Deep Research
+## Step 2.5: Targeted Context
 
-Before running the checklist, do a deep dive into both the **target repository** and the **PR branch** to build enough context for high-quality, specific feedback:
+Before running the checklist, gather targeted context:
 
-1. **Understand the codebase** — browse the target repo's directory structure, README, and architecture docs. Identify the project's tech stack, module layout, and conventions (e.g., where tests live, how modules are organized, what frameworks are used).
-2. **Understand the changed area** — for each file touched by the PR, read the surrounding code (not just the diff). Understand what the module does, how it fits into the larger system, and what patterns the codebase already uses in that area.
-3. **Check for related issues** — if the PR body references an issue, read that issue to understand the original requirements and acceptance criteria.
-4. **Check for existing tests** — look at the test directory/files adjacent to the changed code. Understand the testing patterns and frameworks the project uses so your feedback and agentic prompts reference the right tools and conventions.
-5. **Check for duplicated effort** — search for open PRs that touch the same files or address the same issue to flag potential conflicts.
+- Read the PR diff and changed files carefully to understand what's changing.
+- If the PR body references an issue number, read that issue to understand the original requirements.
 
-This research ensures the comment and agentic prompt you generate are **specific to the actual codebase** — referencing real file paths, real test patterns, and real conventions rather than generic advice.
+Do not browse the repo directory, read surrounding code, or search for duplicate PRs.
+This focused approach gives you enough context for a high-quality checklist without expensive exploration.
 
 ## Step 3: Run the Checklist
 

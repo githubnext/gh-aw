@@ -30,6 +30,7 @@ imports:
   - shared/reporting.md
   - shared/safe-output-app.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

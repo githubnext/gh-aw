@@ -46,11 +46,12 @@ Then call the tool:
 { "type": "upload_artifact", "path": "report.json" }
 ```
 
-## Rendering images from artifacts
+## Rendering images
 
-When `skip-archive: true` is configured, individual image files are uploaded without zip
-archiving, making them directly viewable. The handler outputs an artifact URL per upload
-(regardless of `skip-archive`) that can be embedded in markdown:
+For image/chart/screenshot embedding, prefer `upload_asset` in workflows instead of `upload_artifact`.
+Use `upload_artifact` primarily for temporary run-scoped deliverables such as reports, logs, and bundles.
+
+If you do use artifact URLs, they can be embedded in markdown:
 
 ```markdown
 ![Chart](https://github.com/owner/repo/actions/runs/RUN_ID/artifacts/ARTIFACT_ID)

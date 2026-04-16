@@ -491,6 +491,53 @@ describe("sanitizeOTLPPayload", () => {
     const payload = { custom: "data" };
     expect(sanitizeOTLPPayload(payload), "payload without resourceSpans should be returned as-is").toBe(payload);
   });
+
+  it("redacts sensitive keys in span event attributes", () => {
+    const payload = makePayload([]);
+    // Manually add events with sensitive attributes to the span
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    span.events = [
+      {
+        timeUnixNano: "1000000000",
+        name: "exception",
+        attributes: [buildAttr("exception.message", "safe message"), buildAttr("auth_token", "super-secret-token")],
+      },
+    ];
+    const sanitized = sanitizeOTLPPayload(payload);
+    const events = sanitized.resourceSpans[0].scopeSpans[0].spans[0].events;
+    expect(events).toHaveLength(1);
+    const msgAttr = events[0].attributes.find(a => a.key === "exception.message");
+    expect(msgAttr.value.stringValue, "non-sensitive event attribute should be unchanged").toBe("safe message");
+    const tokenAttr = events[0].attributes.find(a => a.key === "auth_token");
+    expect(tokenAttr.value.stringValue, "sensitive event attribute should be redacted").toBe("[REDACTED]");
+  });
+
+  it("truncates long string values in span event attributes", () => {
+    const payload = makePayload([]);
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    const longValue = "y".repeat(2000);
+    span.events = [
+      {
+        timeUnixNano: "1000000000",
+        name: "exception",
+        attributes: [buildAttr("exception.message", longValue)],
+      },
+    ];
+    const sanitized = sanitizeOTLPPayload(payload);
+    const events = sanitized.resourceSpans[0].scopeSpans[0].spans[0].events;
+    const msgAttr = events[0].attributes.find(a => a.key === "exception.message");
+    expect(msgAttr.value.stringValue.length, "long event attribute should be truncated").toBe(1024);
+  });
+
+  it("preserves span events without attributes unchanged", () => {
+    const payload = makePayload([]);
+    const span = payload.resourceSpans[0].scopeSpans[0].spans[0];
+    span.events = [{ timeUnixNano: "1000000000", name: "custom-event" }];
+    const sanitized = sanitizeOTLPPayload(payload);
+    const events = sanitized.resourceSpans[0].scopeSpans[0].spans[0].events;
+    expect(events).toHaveLength(1);
+    expect(events[0].name).toBe("custom-event");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1453,6 +1500,8 @@ describe("sendJobConclusionSpan", () => {
     "GITHUB_SHA",
     "INPUT_JOB_NAME",
     "GH_AW_AGENT_CONCLUSION",
+    "GH_AW_INFO_WORKFLOW_NAME",
+    "GITHUB_WORKFLOW",
   ];
   let mkdirSpy, appendSpy;
 
@@ -1508,6 +1557,57 @@ describe("sendJobConclusionSpan", () => {
     expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
   });
 
+  it("emits a dedicated gh-aw.<job>.agent span when startMs and agent_output mtime are available", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.INPUT_JOB_NAME = "agent";
+    process.env.GITHUB_AW_OTEL_TRACE_ID = "f".repeat(32);
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = "abcdef1234567890";
+
+    const startMs = 1_700_000_000_000;
+    const endMs = 1_700_000_005_000;
+    const statSpy = vi.spyOn(fs, "statSync").mockReturnValue(/** @type {Partial<fs.Stats>} */ { mtimeMs: endMs });
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs });
+
+    statSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(agentSpan.name).toBe("gh-aw.agent.agent");
+    expect(agentSpan.startTimeUnixNano).toBe(toNanoString(startMs));
+    expect(agentSpan.endTimeUnixNano).toBe(toNanoString(endMs));
+
+    const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
+    expect(agentSpan.traceId).toBe(conclusionSpan.traceId);
+    expect(agentSpan.parentSpanId).toBe("abcdef1234567890");
+    expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
+  });
+
+  it("does not emit a dedicated agent span when agent_output mtime is unavailable", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion", { startMs: 1_700_000_000_000 });
+
+    statSpy.mockRestore();
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    expect(span.name).toBe("gh-aw.job.conclusion");
+  });
+
   it("includes gh-aw.run.attempt attribute from GITHUB_RUN_ATTEMPT env var", async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", mockFetch);
@@ -1535,6 +1635,75 @@ describe("sendJobConclusionSpan", () => {
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
     expect(attrs["gh-aw.run.attempt"]).toBe("1");
+  });
+
+  it("reads gh-aw.workflow.name from aw_info.json when present", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_INFO_WORKFLOW_NAME = "env-workflow";
+    process.env.GITHUB_WORKFLOW = "github-workflow";
+
+    const readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(filePath => {
+      if (filePath === "/tmp/gh-aw/aw_info.json") {
+        return JSON.stringify({ workflow_name: "aw-info-workflow" });
+      }
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+    readFileSpy.mockRestore();
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("aw-info-workflow");
+  });
+
+  it("falls back to GH_AW_INFO_WORKFLOW_NAME when aw_info.json is absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GH_AW_INFO_WORKFLOW_NAME = "env-workflow";
+    process.env.GITHUB_WORKFLOW = "github-workflow";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("env-workflow");
+  });
+
+  it("falls back to GITHUB_WORKFLOW when aw_info.json and GH_AW_INFO_WORKFLOW_NAME are absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+    process.env.GITHUB_WORKFLOW = "github-workflow";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("github-workflow");
+  });
+
+  it("sets gh-aw.workflow.name to empty string when all sources are absent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+    await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+    const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.stringValue]));
+    expect(attrs["gh-aw.workflow.name"]).toBe("");
   });
 
   it("includes effective_tokens attribute when GH_AW_EFFECTIVE_TOKENS is set", async () => {
@@ -2040,8 +2209,10 @@ describe("sendJobConclusionSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(2);
       expect(span.events[0].name).toBe("exception");
+      expect(span.events[0].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
       expect(span.events[0].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "Rate limit exceeded" } });
       expect(span.events[1].name).toBe("exception");
+      expect(span.events[1].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
       expect(span.events[1].attributes).toContainEqual({ key: "exception.message", value: { stringValue: "Tool call failed" } });
     });
 
@@ -2121,6 +2292,7 @@ describe("sendJobConclusionSpan", () => {
       expect(span.events).toHaveLength(7);
       for (let i = 0; i < 7; i++) {
         expect(span.events[i].name).toBe("exception");
+        expect(span.events[i].attributes).toContainEqual({ key: "exception.type", value: { stringValue: "gh-aw.AgentError" } });
         expect(span.events[i].attributes).toContainEqual({ key: "exception.message", value: { stringValue: `Error ${i + 1}` } });
       }
     });
@@ -2145,6 +2317,128 @@ describe("sendJobConclusionSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       expect(span.events).toHaveLength(1);
       expect(span.events[0].timeUnixNano).toMatch(/^\d+$/);
+    });
+
+    it("extracts exception.type from colon-prefixed error messages", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "push_to_pull_request_branch:Cannot push to remote" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pull_request_branch");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
+    });
+
+    it("normalizes uppercase exception.type prefix to lowercase", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Push_To_PR:Cannot push to remote" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.push_to_pr");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Cannot push to remote");
+    });
+
+    it("falls back to gh-aw.AgentError when message has no colon prefix", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Something went wrong" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      expect(span.events).toHaveLength(1);
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Something went wrong");
+    });
+
+    it("falls back to gh-aw.AgentError when colon prefix contains invalid characters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: "Error with spaces:details here" }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
+      // Full original message kept when type extraction fails
+      const msgAttr = span.events[0].attributes.find(a => a.key === "exception.message");
+      expect(msgAttr.value.stringValue).toBe("Error with spaces:details here");
+    });
+
+    it("falls back to gh-aw.AgentError when colon prefix exceeds 64 characters", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+
+      const longPrefix = "a".repeat(65);
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ errors: [{ message: `${longPrefix}:some error` }] });
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const typeAttr = span.events[0].attributes.find(a => a.key === "exception.type");
+      expect(typeAttr.value.stringValue).toBe("gh-aw.AgentError");
     });
   });
 
@@ -2273,6 +2567,114 @@ describe("sendJobConclusionSpan", () => {
       const span = body.resourceSpans[0].scopeSpans[0].spans[0];
       const keys = span.attributes.map(a => a.key);
       expect(keys).not.toContain("gh-aw.github.rate_limit.remaining");
+    });
+  });
+
+  describe("token breakdown enrichment in conclusion span", () => {
+    let readFileSpy;
+
+    beforeEach(() => {
+      readFileSpy = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+    });
+
+    afterEach(() => {
+      readFileSpy.mockRestore();
+    });
+
+    it("includes all four token breakdown attributes when agent_usage.json is present", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const usage = { input_tokens: 48200, output_tokens: 1350, cache_read_tokens: 41000, cache_write_tokens: 3100, effective_tokens: 9800 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.tokens.input"]).toBe(48200);
+      expect(attrs["gh-aw.tokens.output"]).toBe(1350);
+      expect(attrs["gh-aw.tokens.cache_read"]).toBe(41000);
+      expect(attrs["gh-aw.tokens.cache_write"]).toBe(3100);
+    });
+
+    it("omits all token breakdown attributes when agent_usage.json is absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      // readFileSpy already throws ENOENT for all paths
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.tokens.input");
+      expect(keys).not.toContain("gh-aw.tokens.output");
+      expect(keys).not.toContain("gh-aw.tokens.cache_read");
+      expect(keys).not.toContain("gh-aw.tokens.cache_write");
+    });
+
+    it("omits a token attribute when its value is zero", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      const usage = { input_tokens: 1000, output_tokens: 0, cache_read_tokens: 500, cache_write_tokens: 0 };
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue]));
+      expect(attrs["gh-aw.tokens.input"]).toBe(1000);
+      expect(attrs["gh-aw.tokens.cache_read"]).toBe(500);
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.tokens.output");
+      expect(keys).not.toContain("gh-aw.tokens.cache_write");
+    });
+
+    it("omits token breakdown attributes when agent_usage.json contains invalid JSON", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+          return "not valid json";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const keys = span.attributes.map(a => a.key);
+      expect(keys).not.toContain("gh-aw.tokens.input");
+      expect(keys).not.toContain("gh-aw.tokens.output");
+      expect(keys).not.toContain("gh-aw.tokens.cache_read");
+      expect(keys).not.toContain("gh-aw.tokens.cache_write");
     });
   });
 

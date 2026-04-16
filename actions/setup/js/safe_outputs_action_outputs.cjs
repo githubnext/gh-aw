@@ -30,6 +30,7 @@
  *   create_pull_request       → created_pr_number, created_pr_url
  *   add_comment               → comment_id, comment_url
  *   push_to_pull_request_branch → push_commit_sha, push_commit_url
+ *   upload_artifact           → upload_artifact_tmp_id, upload_artifact_url
  *
  * @param {ProcessingResult} processingResult - Result from processMessages()
  */
@@ -91,6 +92,22 @@ function emitSafeOutputActionOutputs(processingResult) {
     if (r.commit_url) {
       core.setOutput("push_commit_url", r.commit_url);
       core.info(`Exported push_commit_url: ${r.commit_url}`);
+    }
+  }
+
+  // upload_artifact: upload_artifact_tmp_id, upload_artifact_url
+  // Returns the temporary ID (generated or agent-declared) and the artifact download URL
+  // for the first successfully uploaded artifact.
+  const firstArtifactResult = successfulResults.find(r => r.type === "upload_artifact");
+  if (firstArtifactResult?.result && !Array.isArray(firstArtifactResult.result)) {
+    const r = firstArtifactResult.result;
+    if (r.temporaryId) {
+      core.setOutput("upload_artifact_tmp_id", r.temporaryId);
+      core.info(`Exported upload_artifact_tmp_id: ${r.temporaryId}`);
+    }
+    if (r.artifactUrl) {
+      core.setOutput("upload_artifact_url", r.artifactUrl);
+      core.info(`Exported upload_artifact_url: ${r.artifactUrl}`);
     }
   }
 }

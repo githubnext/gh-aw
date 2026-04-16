@@ -498,7 +498,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 			fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
 		}
 		builder.WriteString("        if: always()\n")
-		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+		fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
 		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
@@ -612,7 +612,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// We use sparse-checkout to avoid downloading files since we'll checkout the memory branch
 	var checkoutStep strings.Builder
 	checkoutStep.WriteString("      - name: Checkout repository\n")
-	fmt.Fprintf(&checkoutStep, "        uses: %s\n", GetActionPin("actions/checkout"))
+	fmt.Fprintf(&checkoutStep, "        uses: %s\n", getActionPin("actions/checkout"))
 	checkoutStep.WriteString("        with:\n")
 	checkoutStep.WriteString("          persist-credentials: false\n")
 	checkoutStep.WriteString("          sparse-checkout: .\n")
@@ -637,7 +637,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		} else {
 			fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
 		}
-		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+		fmt.Fprintf(&step, "        uses: %s\n", getActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
 		fmt.Fprintf(&step, "          name: %srepo-memory-%s\n", repoMemoryPrefix, sanitizedID)
@@ -676,7 +676,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		}
 		fmt.Fprintf(&step, "        id: push_repo_memory_%s\n", memory.ID)
 		step.WriteString("        if: always()\n")
-		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/github-script"))
+		fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		step.WriteString("        env:\n")
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
@@ -736,21 +736,29 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 	}
 
-	// Job condition: only run if the agent job succeeded (do not push repo memory when agent
-	// failed or was skipped). Using always() so the job still runs even when upstream jobs
-	// are skipped (e.g. detection is skipped when agent produces no outputs).
-	agentSucceeded := BuildEquals(
+	// Job condition: only run when the agent actually executed (not skipped) and
+	// the workflow was not cancelled. Using always() so the job still runs even
+	// when upstream jobs are skipped (e.g. detection is skipped when agent produces
+	// no outputs). We check != 'skipped' rather than == 'success' so that
+	// repo-memory is pushed even when the agent fails — partial memory data is
+	// still valuable. Adding !cancelled() prevents the job from running after
+	// workflow cancellation (similar to compiler_safe_outputs_job.go).
+	// Crucially, the != 'skipped' check prevents the job from running on no-op
+	// workflow invocations (e.g. bot comments) where pre_activation is skipped
+	// and the skip cascades through activation → agent → detection.
+	agentNotSkipped := BuildNotEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
-		BuildStringLiteral("success"),
+		BuildStringLiteral("skipped"),
 	)
+	notCancelled := &NotNode{Child: BuildFunctionCall("cancelled")}
 	jobNeeds := []string{string(constants.AgentJobName), string(constants.ActivationJobName)}
 	var jobCondition string
 	if threatDetectionEnabled {
 		// When threat detection is enabled, also require detection passed (succeeded or skipped).
-		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionPassedCondition()), agentSucceeded))
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), buildDetectionPassedCondition()), agentNotSkipped))
 		jobNeeds = append(jobNeeds, string(constants.DetectionJobName))
 	} else {
-		jobCondition = RenderCondition(BuildAnd(BuildFunctionCall("always"), agentSucceeded))
+		jobCondition = RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), notCancelled), agentNotSkipped))
 	}
 
 	// Build outputs map for validation failures from all memory steps

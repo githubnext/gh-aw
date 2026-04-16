@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/require"
 )
 
 // ========================================
@@ -661,7 +662,8 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateSafeOutputsConfig(tt.workflowData)
+			result, err := generateSafeOutputsConfig(tt.workflowData)
+			require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 
 			if tt.expectEmpty {
 				if result != "" {

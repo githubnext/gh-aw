@@ -22,8 +22,7 @@ safe-outputs:
     max: 10
 timeout-minutes: 20
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 ---
 
 # Daily Safe Outputs Conformance Checker

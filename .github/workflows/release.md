@@ -179,7 +179,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build Docker image (validation only)
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.1.0
         with:
           context: .
           platforms: linux/amd64
@@ -190,7 +190,7 @@ jobs:
           cache-from: type=gha
 
       - name: Upload release binaries
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
@@ -309,24 +309,13 @@ jobs:
           echo "✓ No secrets detected in SBOM files"
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: sbom-artifacts
           path: |
             sbom.spdx.json
             sbom.cdx.json
-          retention-days: 7  # Minimize exposure window
-
-      - name: Upload SBOM files to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-        run: |
-          echo "Uploading SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" \
-            sbom.spdx.json \
-            sbom.cdx.json
-          echo "✓ SBOM files uploaded to release"
+          retention-days: 90  # Long retention since SBOMs are not attached to the release
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -352,7 +341,7 @@ jobs:
 
       - name: Build and push Docker image (amd64)
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.1.0
         with:
           context: .
           platforms: linux/amd64

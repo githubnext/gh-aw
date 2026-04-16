@@ -223,7 +223,7 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.UploadAssets != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UploadAssets.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for upload-asset")
-		permissions.Merge(NewPermissionsContentsWrite())
+		permissions.Merge(NewPermissionsContentsRead())
 	}
 
 	// NoOp and MissingTool don't require write permissions beyond what's already included

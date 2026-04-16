@@ -440,6 +440,47 @@ safe-outputs:
 Work on user-specified repository: {{inputs.target_repo}}
 ```
 
+### Checking Out the Target Repository
+
+When your workflow needs to run local tools against the target repository (for example, running tests, linters, or build scripts), check it out to a named path and explicitly navigate the agent into that directory:
+
+```aw wrap
+---
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: "Target repository (owner/repo)"
+        required: true
+
+checkout:
+  - repository: ${{ github.event.inputs.target_repo }}
+    path: repo
+    github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
+    current: true
+
+engine: copilot
+
+permissions:
+  contents: read
+
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_MAIN_REPO_TOKEN }}
+  create-pull-request:
+    target-repo: ${{ inputs.target_repo }}
+    base-branch: main
+---
+
+# Run Tests in Target Repository
+
+Navigate into the folder where the target repository has been checked out into: cd ${{ github.workspace }}/repo
+
+Run the test suite and report any failures.
+```
+
+> [!IMPORTANT]
+> `current: true` tells the agent which repository to treat as its primary target for GitHub operations — it does **not** automatically set the working directory. Without the explicit `cd` instruction in the prompt, the agent starts in `$GITHUB_WORKSPACE` (the side repository checkout) and must infer the correct directory on its own, which can lead to mistakes.
+
 ### Using GitHub Apps
 
 For enhanced security, use GitHub Apps instead of PATs.

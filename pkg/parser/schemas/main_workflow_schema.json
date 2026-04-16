@@ -400,7 +400,7 @@
           "apm-packages": {
             "packages": ["microsoft/apm-sample-package"],
             "github-app": {
-              "app-id": "${{ vars.APP_ID }}",
+              "client-id": "${{ vars.APP_ID }}",
               "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
             }
           }
@@ -1886,9 +1886,31 @@
               "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
             },
             "status-comment": {
-              "type": "boolean",
-              "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link and updates it on completion. When false or not specified, no status comments are posted. Automatically enabled for slash_command and label_command triggers \u2014 manual configuration is only needed for other trigger types.",
-              "examples": [true, false]
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "issues": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for issue triggers (issues, issue_comment)."
+                    },
+                    "pull-requests": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for pull request triggers (pull_request, pull_request_review_comment)."
+                    },
+                    "discussions": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for discussion and discussion_comment triggers."
+                    }
+                  }
+                }
+              ],
+              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
+              "examples": [true, false, { "issues": false }, { "pull-requests": false }, { "discussions": false }, { "issues": false, "pull-requests": true, "discussions": true }]
             },
             "github-token": {
               "type": "string",
@@ -1900,7 +1922,7 @@
               "description": "GitHub App configuration for minting a token used in pre-activation reactions, activation status comments, and skip-if search queries. When configured, a single GitHub App installation access token is minted and shared across all these operations instead of using the default GITHUB_TOKEN. Can be defined in a shared agentic workflow and inherited by importing workflows.",
               "examples": [
                 {
-                  "app-id": "${{ vars.APP_ID }}",
+                  "client-id": "${{ vars.APP_ID }}",
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                 }
               ]
@@ -3352,6 +3374,37 @@
         }
       ]
     },
+    "pre-agent-steps": {
+      "description": "Custom workflow steps to run immediately before AI execution, after all initialization and setup steps in the agent job.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "examples": [
+            [
+              {
+                "name": "Prepare final context",
+                "run": "echo \"ready\""
+              }
+            ]
+          ]
+        }
+      ]
+    },
     "post-steps": {
       "description": "Custom workflow steps to run after AI execution",
       "oneOf": [
@@ -3673,6 +3726,40 @@
                       "description": "Comma- or newline-separated list of label names, or a GitHub Actions expression resolving to such a list (e.g. '${{ vars.APPROVAL_LABELS }}')"
                     }
                   ]
+                },
+                "endorsement-reactions": {
+                  "type": "array",
+                  "description": "Guard policy: GitHub reaction types that promote a content item's integrity to 'approved' when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP gateway mode because reaction authors cannot be identified. Optional; defaults to [\"THUMBS_UP\", \"HEART\"] when the integrity-reactions feature flag is enabled. Requires 'min-integrity' to be set and MCPG >= v0.2.18.",
+                  "items": {
+                    "type": "string",
+                    "description": "GitHub ReactionContent enum value",
+                    "enum": ["THUMBS_UP", "THUMBS_DOWN", "HEART", "HOORAY", "CONFUSED", "ROCKET", "EYES", "LAUGH"]
+                  },
+                  "default": ["THUMBS_UP", "HEART"],
+                  "examples": [["THUMBS_UP", "HEART"]]
+                },
+                "disapproval-reactions": {
+                  "type": "array",
+                  "description": "Guard policy: GitHub reaction types that demote content integrity when added by maintainers. Only enforced in proxy mode (DIFC/CLI proxy); ignored in MCP gateway mode because reaction authors cannot be identified. Optional; defaults to [\"THUMBS_DOWN\", \"CONFUSED\"] when the integrity-reactions feature flag is enabled. Disapproval overrides endorsement (safe default). Requires 'min-integrity' to be set and MCPG >= v0.2.18.",
+                  "items": {
+                    "type": "string",
+                    "description": "GitHub ReactionContent enum value",
+                    "enum": ["THUMBS_UP", "THUMBS_DOWN", "HEART", "HOORAY", "CONFUSED", "ROCKET", "EYES", "LAUGH"]
+                  },
+                  "default": ["THUMBS_DOWN", "CONFUSED"],
+                  "examples": [["THUMBS_DOWN", "CONFUSED"]]
+                },
+                "disapproval-integrity": {
+                  "type": "string",
+                  "description": "Guard policy: integrity level assigned when a disapproval reaction is present. Optional, defaults to 'none'. Requires the 'integrity-reactions' feature flag and MCPG >= v0.2.18.",
+                  "enum": ["none", "unapproved", "approved", "merged"],
+                  "default": "none"
+                },
+                "endorser-min-integrity": {
+                  "type": "string",
+                  "description": "Guard policy: minimum integrity level required for an endorser (reactor) to promote content. Optional, defaults to 'approved'. Requires the 'integrity-reactions' feature flag and MCPG >= v0.2.18.",
+                  "enum": ["unapproved", "approved", "merged"],
+                  "default": "approved"
                 },
                 "github-app": {
                   "$ref": "#/$defs/github_app",
@@ -4009,6 +4096,11 @@
               "pattern": "^\\$\\{\\{.*\\}\\}$"
             }
           ]
+        },
+        "mount-as-clis": {
+          "type": "boolean",
+          "description": "When true, each user-facing MCP server is mounted as a standalone CLI tool on PATH. The agent can then call MCP servers via shell commands (e.g. 'github issue_read --method get ...'). CLI-mounted servers remain in the MCP gateway config so their containers can start, and are removed only from the agent's final config during convert_gateway_config_*.sh processing. Default: false.",
+          "examples": [true]
         },
         "serena": {
           "description": "REMOVED: Built-in support for Serena has been removed. Use the shared/mcp/serena.md workflow instead.",
@@ -5733,10 +5825,34 @@
                   "description": "Token used to push an empty commit after PR creation to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
                 },
                 "protected-files": {
-                  "type": "string",
-                  "enum": ["blocked", "allowed", "fallback-to-issue"],
-                  "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR, so a human can review the manifest changes before merging.",
-                  "default": "blocked"
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["blocked", "allowed", "fallback-to-issue"],
+                      "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR, so a human can review the manifest changes before merging.",
+                      "default": "blocked"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "policy": {
+                          "type": "string",
+                          "enum": ["blocked", "allowed", "fallback-to-issue"],
+                          "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: push the branch but create a review issue instead of a PR.",
+                          "default": "blocked"
+                        },
+                        "exclude": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "description": "List of filenames or path prefixes to remove from the default protected-file set. Items are matched by basename (e.g. \"AGENTS.md\") or path prefix (e.g. \".agents/\"). Use this to allow the agent to modify specific files that are otherwise blocked by default.",
+                          "examples": [["AGENTS.md"], ["AGENTS.md", ".agents/"]]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
+                    }
+                  ],
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -6903,10 +7019,34 @@
                   "description": "List of additional repositories in format 'owner/repo' that push to pull request branch can target. When specified, the agent can use a 'repo' field in the output to specify which repository to push to. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "protected-files": {
-                  "type": "string",
-                  "enum": ["blocked", "allowed", "fallback-to-issue"],
-                  "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing to the PR branch, so a human can review the changes before applying.",
-                  "default": "blocked"
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["blocked", "allowed", "fallback-to-issue"],
+                      "description": "Controls protected-file protection. blocked (default): hard-block any patch that modifies package manifests (e.g. package.json, go.mod), engine instruction files (e.g. AGENTS.md, CLAUDE.md) or .github/ files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing to the PR branch, so a human can review the changes before applying.",
+                      "default": "blocked"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "policy": {
+                          "type": "string",
+                          "enum": ["blocked", "allowed", "fallback-to-issue"],
+                          "description": "Protection policy. blocked (default): hard-block any patch that modifies protected files. allowed: allow all changes. fallback-to-issue: create a review issue instead of pushing.",
+                          "default": "blocked"
+                        },
+                        "exclude": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "description": "List of filenames or path prefixes to remove from the default protected-file set. Items are matched by basename (e.g. \"AGENTS.md\") or path prefix (e.g. \".agents/\"). Use this to allow the agent to modify specific files that are otherwise blocked by default.",
+                          "examples": [["AGENTS.md"], ["AGENTS.md", ".agents/"]]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
+                    }
+                  ],
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue. Object form: { policy, exclude } to customise the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -9778,7 +9918,12 @@
       "properties": {
         "app-id": {
           "type": "string",
-          "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.",
+          "description": "Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID }}').",
+          "examples": ["${{ vars.APP_ID }}"]
+        },
+        "client-id": {
+          "type": "string",
+          "description": "GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.",
           "examples": ["${{ vars.APP_ID }}"]
         },
         "private-key": {
@@ -9802,11 +9947,18 @@
           "description": "Optional extra GitHub App-only permissions to merge into the minted token. Only takes effect for tools.github.github-app; ignored in other github-app contexts."
         }
       },
-      "required": ["app-id", "private-key"],
+      "anyOf": [
+        {
+          "required": ["client-id", "private-key"]
+        },
+        {
+          "required": ["app-id", "private-key"]
+        }
+      ],
       "additionalProperties": false,
       "examples": [
         {
-          "app-id": "${{ vars.APP_ID }}",
+          "client-id": "${{ vars.APP_ID }}",
           "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
         }
       ]

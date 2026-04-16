@@ -27,6 +27,7 @@ network:
 |-----------|----------|---------|
 | `defaults` | Certificates, JSON schema, Ubuntu mirrors | All workflows (required) |
 | `python` | PyPI, conda, pythonhosted.org | Python packages |
+| `python-native` | PyPI, conda, pythonhosted.org + crates.io | Python packages with native extensions (pyo3/maturin) |
 | `node` | npm, yarn, pnpm, Node.js | JavaScript/TypeScript |
 | `go` | proxy.golang.org, sum.golang.org | Go modules |
 | `containers` | Docker Hub, GHCR, Quay, GCR, MCR | Container images |

@@ -193,9 +193,9 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 
 		if actionRepo != "" && version != "" {
 			// Resolve the SHA using action pins
-			pinnedRef, err := GetActionPinWithData(actionRepo, version, data)
+			pinnedRef, err := getActionPinWithData(actionRepo, version, data)
 			if err != nil {
-				// In strict mode, GetActionPinWithData returns an error
+				// In strict mode, getActionPinWithData returns an error
 				actionRefLog.Printf("Failed to pin action %s@%s: %v", actionRepo, version, err)
 				return ""
 			}
@@ -309,7 +309,7 @@ func (c *Compiler) convertToExternalActionsRef(localPath string, data *WorkflowD
 
 	// Try to resolve the SHA using action pins
 	if data != nil {
-		pinnedRef, err := GetActionPinWithData(actionRepo, tag, data)
+		pinnedRef, err := getActionPinWithData(actionRepo, tag, data)
 		if err != nil {
 			// Log and fall through to tag-based reference (action mode is not strict)
 			actionRefLog.Printf("Failed to pin action %s@%s: %v, falling back to tag-based reference", actionRepo, tag, err)

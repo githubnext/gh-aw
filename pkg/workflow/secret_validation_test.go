@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateMultiSecretValidationStep(t *testing.T) {
@@ -279,4 +282,55 @@ func TestValidationStepUsesEngineEnvOverride(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
+	tests := []struct {
+		name   string
+		engine CodingAgentEngine
+	}{
+		{
+			name:   "copilot engine skips validation with environment",
+			engine: NewCopilotEngine(),
+		},
+		{
+			name:   "claude engine skips validation with environment",
+			engine: NewClaudeEngine(),
+		},
+		{
+			name:   "codex engine skips validation with environment",
+			engine: NewCodexEngine(),
+		},
+		{
+			name:   "gemini engine skips validation with environment",
+			engine: NewGeminiEngine(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Environment: "production",
+			}
+
+			steps := tt.engine.GetSecretValidationStep(workflowData)
+			if len(steps) != 0 {
+				t.Fatalf("expected secret validation step to be skipped when environment is configured, got:\n%s", strings.Join(steps, "\n"))
+			}
+		})
+	}
+}
+
+func TestBuildDefaultSecretValidationStepHandlesNilWorkflowData(t *testing.T) {
+	step := BuildDefaultSecretValidationStep(
+		nil,
+		[]string{"COPILOT_GITHUB_TOKEN"},
+		"GitHub Copilot CLI",
+		"https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+	)
+
+	require.NotEmpty(t, step, "expected non-empty validation step for nil workflowData")
+
+	stepContent := strings.Join(step, "\n")
+	assert.Contains(t, stepContent, "Validate COPILOT_GITHUB_TOKEN secret", "expected validation step to include COPILOT_GITHUB_TOKEN check")
 }

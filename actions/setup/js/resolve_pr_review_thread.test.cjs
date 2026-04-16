@@ -148,7 +148,7 @@ describe("resolve_pr_review_thread", () => {
     expect(result.error).toContain("not found");
   });
 
-  it("should reject when not in a pull request context", async () => {
+  it("should succeed when not in a pull request context but explicit thread_id is provided", async () => {
     // Override context to non-PR event (afterEach restores the original payload)
     global.context.payload = {
       repository: { html_url: "https://github.com/test-owner/test-repo" },
@@ -164,8 +164,83 @@ describe("resolve_pr_review_thread", () => {
 
     const result = await freshHandler(message, {});
 
+    // Should succeed: thread_id was explicitly provided and resolved to a PR via the API
+    expect(result.success).toBe(true);
+    expect(result.thread_id).toBe("PRRT_kwDOABCD123456");
+    expect(result.is_resolved).toBe(true);
+  });
+
+  it("should succeed when triggered by a schedule event (no PR context) with explicit thread_id", async () => {
+    // Simulate a schedule-triggered workflow (no pull_request in payload)
+    global.context.payload = {};
+
+    mockGraphqlForThread(77);
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOSchedule77",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.thread_id).toBe("PRRT_kwDOSchedule77");
+    expect(result.is_resolved).toBe(true);
+    // Should have made two GraphQL calls: thread lookup + resolve mutation
+    expect(mockGraphql).toHaveBeenCalledTimes(2);
+    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("resolveReviewThread"), expect.objectContaining({ threadId: "PRRT_kwDOSchedule77" }));
+  });
+
+  it("should fail in legacy mode when schedule-triggered and thread repo cannot be determined", async () => {
+    // Simulate a schedule-triggered workflow (no pull_request in payload)
+    global.context.payload = {};
+
+    // GraphQL returns thread with no repository info
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({ resolveReviewThread: { thread: { id: "PRRT_x", isResolved: true } } });
+      }
+      return Promise.resolve({
+        node: { pullRequest: { number: 10, repository: null } },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDONoRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
     expect(result.success).toBe(false);
-    expect(result.error).toContain("pull request context");
+    expect(result.error).toContain("Unable to determine repository");
+  });
+
+  it("should fail in legacy mode when schedule-triggered and thread belongs to a different repo", async () => {
+    // Simulate a schedule-triggered workflow (no pull_request in payload)
+    global.context.payload = {};
+
+    // Thread belongs to a different repo, not the default context repo
+    mockGraphqlForThread(10, "other-owner/other-repo");
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOOtherRepo",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("other-owner/other-repo");
   });
 
   it("should fail when thread_id is missing", async () => {
@@ -260,9 +335,9 @@ describe("resolve_pr_review_thread", () => {
           },
         });
       }
-      // Lookup succeeds - thread is on triggering PR
+      // Lookup succeeds - thread is on triggering PR in the default repo
       return Promise.resolve({
-        node: { pullRequest: { number: 42 } },
+        node: { pullRequest: { number: 42, repository: { nameWithOwner: "test-owner/test-repo" } } },
       });
     });
 

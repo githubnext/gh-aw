@@ -190,6 +190,16 @@ const (
 	// CopilotCLIIntegrationIDValue is the value of the integration ID for agentic workflows.
 	CopilotCLIIntegrationIDValue = "agentic-workflows"
 
+	// CopilotBYOKDummyAPIKey is the placeholder API key used to trigger AWF's
+	// runtime BYOK detection for Copilot offline mode. The real credential remains
+	// isolated in the AWF API proxy sidecar.
+	CopilotBYOKDummyAPIKey = "dummy-byok-key-for-offline-mode"
+
+	// CopilotBYOKDefaultModel is the explicit fallback model for Copilot BYOK mode.
+	// BYOK providers require a non-empty model, so this value is used when the
+	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
+	CopilotBYOKDefaultModel = "claude-sonnet-4.6"
+
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"

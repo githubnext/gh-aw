@@ -2,7 +2,6 @@
 name: Smoke Multi PR
 description: Test creating multiple pull requests in a single workflow run
 on:
-  schedule: every 24h
   workflow_dispatch:
   pull_request:
     types: [labeled]
@@ -44,6 +43,8 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/observability-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Smoke Test: Multiple Pull Request Creation

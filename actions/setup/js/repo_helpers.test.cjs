@@ -548,3 +548,36 @@ describe("repo_helpers", () => {
     });
   });
 });
+
+describe("resolveExecutionOwnerRepo", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
+    global.context = { repo: { owner: "ctx-owner", repo: "ctx-repo" } };
+  });
+
+  it("should fall back to context.repo when env var is not set", async () => {
+    const { resolveExecutionOwnerRepo } = await import("./repo_helpers.cjs");
+    const result = resolveExecutionOwnerRepo();
+    expect(result).toEqual({ owner: "ctx-owner", repo: "ctx-repo" });
+  });
+
+  it("should use GH_AW_TARGET_REPO_SLUG when set to a valid slug", async () => {
+    process.env.GH_AW_TARGET_REPO_SLUG = "my-org/target-repo";
+    const { resolveExecutionOwnerRepo } = await import("./repo_helpers.cjs");
+    const result = resolveExecutionOwnerRepo();
+    expect(result).toEqual({ owner: "my-org", repo: "target-repo" });
+  });
+
+  it("should throw when slug is malformed (no slash)", async () => {
+    process.env.GH_AW_TARGET_REPO_SLUG = "malformed-slug";
+    const { resolveExecutionOwnerRepo } = await import("./repo_helpers.cjs");
+    expect(() => resolveExecutionOwnerRepo()).toThrow(/Invalid GH_AW_TARGET_REPO_SLUG/);
+  });
+
+  it("should throw when slug has multiple slashes", async () => {
+    process.env.GH_AW_TARGET_REPO_SLUG = "a/b/c";
+    const { resolveExecutionOwnerRepo } = await import("./repo_helpers.cjs");
+    expect(() => resolveExecutionOwnerRepo()).toThrow(/Invalid GH_AW_TARGET_REPO_SLUG/);
+  });
+});

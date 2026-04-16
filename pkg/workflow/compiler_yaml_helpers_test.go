@@ -225,6 +225,20 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 			},
 		},
 		{
+			name: "header with env sources from main and import",
+			data: &WorkflowData{
+				EnvSources: map[string]string{
+					"MAIN_VAR":     "(main workflow)",
+					"IMPORTED_VAR": ".github/shared/target.md",
+				},
+			},
+			expectInStr: []string{
+				"# Frontmatter env variables:",
+				"#   - IMPORTED_VAR: .github/shared/target.md",
+				"#   - MAIN_VAR: (main workflow)",
+			},
+		},
+		{
 			name:        "minimal header",
 			data:        &WorkflowData{},
 			expectInStr: []string{},
@@ -458,7 +472,7 @@ func TestGeneratePlaceholderSubstitutionStep(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			generatePlaceholderSubstitutionStep(&yaml, tt.mappings, "      ")
+			generatePlaceholderSubstitutionStep(&yaml, tt.mappings, "      ", nil)
 			result := yaml.String()
 
 			for _, expected := range tt.expectInStr {

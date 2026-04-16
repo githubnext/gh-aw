@@ -28,6 +28,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 async function main() {
   const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || `${process.env.RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json`;
@@ -46,7 +47,7 @@ async function main() {
 
   // Load all source tools from the actions folder
   if (!fs.existsSync(toolsSourcePath)) {
-    const msg = `Error: Source tools file not found at: ${toolsSourcePath}`;
+    const msg = `${ERR_CONFIG}: Source tools file not found at: ${toolsSourcePath}`;
     console.error(msg);
     throw new Error(msg);
   }
@@ -55,7 +56,7 @@ async function main() {
 
   // Load config to determine which tools are enabled
   if (!fs.existsSync(configPath)) {
-    const msg = `Error: Config file not found at: ${configPath}`;
+    const msg = `${ERR_CONFIG}: Config file not found at: ${configPath}`;
     console.error(msg);
     throw new Error(msg);
   }

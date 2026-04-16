@@ -19,32 +19,53 @@ func TestEnforceSafeUpdate(t *testing.T) {
 		wantErrMsgs []string
 	}{
 		{
-			name:        "nil manifest (no lock file) blocks secrets on first compile",
+			name:        "nil manifest (lock file without manifest section) skips enforcement",
 			manifest:    nil,
 			secretNames: []string{"MY_SECRET"},
 			actionRefs:  []string{},
-			wantErr:     true,
-			wantErrMsgs: []string{"MY_SECRET", "safe update mode"},
+			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) blocks custom actions on first compile",
+			name:        "nil manifest (lock file without manifest section) skips enforcement for actions",
 			manifest:    nil,
 			secretNames: []string{},
 			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
-			wantErr:     true,
-			wantErrMsgs: []string{"my-org/my-action", "safe update mode"},
+			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) allows GITHUB_TOKEN on first compile",
+			name:        "nil manifest (lock file without manifest section) skips with GITHUB_TOKEN",
 			manifest:    nil,
 			secretNames: []string{"GITHUB_TOKEN"},
 			actionRefs:  []string{},
 			wantErr:     false,
 		},
 		{
-			name:        "nil manifest (no lock file) with no secrets or actions passes",
+			name:        "nil manifest (lock file without manifest section) skips with no secrets",
 			manifest:    nil,
 			secretNames: []string{},
+			actionRefs:  []string{},
+			wantErr:     false,
+		},
+		{
+			name:        "empty non-nil manifest (no lock file) enforces — new secret flagged",
+			manifest:    &GHAWManifest{Version: currentGHAWManifestVersion},
+			secretNames: []string{"MY_SECRET"},
+			actionRefs:  []string{},
+			wantErr:     true,
+			wantErrMsgs: []string{"MY_SECRET", "safe update mode"},
+		},
+		{
+			name:        "empty non-nil manifest (no lock file) enforces — custom action flagged",
+			manifest:    &GHAWManifest{Version: currentGHAWManifestVersion},
+			secretNames: []string{},
+			actionRefs:  []string{"my-org/my-action@abc1234 # v1"},
+			wantErr:     true,
+			wantErrMsgs: []string{"my-org/my-action", "safe update mode"},
+		},
+		{
+			name:        "empty non-nil manifest (no lock file) allows GITHUB_TOKEN",
+			manifest:    &GHAWManifest{Version: currentGHAWManifestVersion},
+			secretNames: []string{"GITHUB_TOKEN"},
 			actionRefs:  []string{},
 			wantErr:     false,
 		},
@@ -291,7 +312,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		assert.Contains(t, msg, "safe update mode", "error message")
 		assert.Contains(t, msg, "NEW_SECRET", "violation in message")
 		assert.Contains(t, msg, "ANOTHER_SECRET", "violation in message")
-		assert.Contains(t, msg, "interactive agentic flow", "remediation guidance")
+		assert.Contains(t, msg, "--approve", "remediation guidance")
 	})
 
 	t.Run("added actions only", func(t *testing.T) {
@@ -433,48 +454,53 @@ func TestCollectActionViolations(t *testing.T) {
 }
 
 func TestEffectiveSafeUpdate(t *testing.T) {
-	// effectiveSafeUpdate is equivalent to effectiveStrictMode:
-	// it returns true when the compiler safeUpdate flag is set, OR when strict
-	// mode is active (which defaults to true unless frontmatter sets strict: false).
+	// effectiveSafeUpdate returns true when strict mode is active (default true),
+	// UNLESS the compiler approve flag is set, which skips enforcement entirely.
 	tests := []struct {
 		name           string
-		compilerFlag   bool
+		approveFlag    bool
 		rawFrontmatter map[string]any
 		want           bool
 	}{
 		{
-			name:         "compiler flag off, no frontmatter => true (strict default)",
-			compilerFlag: false,
-			want:         true, // strict mode defaults to true, so safe update is enabled
+			name:        "approve off, no frontmatter => true (strict default)",
+			approveFlag: false,
+			want:        true, // strict mode defaults to true, so safe update is enabled
 		},
 		{
-			name:         "compiler flag on => true",
-			compilerFlag: true,
-			want:         true,
+			name:        "approve on => false (enforcement skipped)",
+			approveFlag: true,
+			want:        false,
 		},
 		{
-			name:           "frontmatter strict: false, compiler flag off => false",
-			compilerFlag:   false,
+			name:           "frontmatter strict: false, approve off => false",
+			approveFlag:    false,
 			rawFrontmatter: map[string]any{"strict": false},
 			want:           false,
 		},
 		{
-			name:           "frontmatter strict: false, compiler flag on => true",
-			compilerFlag:   true,
+			name:           "frontmatter strict: false, approve on => false",
+			approveFlag:    true,
 			rawFrontmatter: map[string]any{"strict": false},
-			want:           true, // CLI flag overrides frontmatter
+			want:           false,
 		},
 		{
-			name:           "frontmatter strict: true, compiler flag off => true",
-			compilerFlag:   false,
+			name:           "frontmatter strict: true, approve off => true",
+			approveFlag:    false,
 			rawFrontmatter: map[string]any{"strict": true},
 			want:           true,
+		},
+		{
+			name:           "frontmatter strict: true, approve on => false (flag overrides)",
+			approveFlag:    true,
+			rawFrontmatter: map[string]any{"strict": true},
+			want:           false, // --approve overrides strict mode
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &Compiler{safeUpdate: tt.compilerFlag}
+			c := &Compiler{approve: tt.approveFlag}
 			data := &WorkflowData{RawFrontmatter: tt.rawFrontmatter}
 			got := c.effectiveSafeUpdate(data)
 			assert.Equal(t, tt.want, got, "effectiveSafeUpdate result")

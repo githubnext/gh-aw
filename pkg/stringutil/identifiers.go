@@ -40,24 +40,29 @@ func NormalizeWorkflowName(name string) string {
 	return name
 }
 
-// NormalizeSafeOutputIdentifier converts dashes to underscores for safe output identifiers.
-// This standardizes identifier format from the user-facing dash-separated format
-// to the internal underscore-separated format used in safe outputs configuration.
+// NormalizeSafeOutputIdentifier converts dashes and periods to underscores for safe output
+// identifiers. This standardizes identifier format to the internal underscore-separated
+// format used in safe outputs configuration and MCP tool names.
 //
-// Both dash-separated and underscore-separated formats are valid inputs.
-// This function simply standardizes to the internal representation.
+// Both dash-separated and underscore-separated formats are valid inputs. Periods are
+// also replaced because MCP tool names must match ^[a-zA-Z0-9_-]+$ and periods are
+// not permitted. Workflow names such as "executor-workflow.agent" (where ".agent" is a
+// filename extension convention) would otherwise produce an invalid tool name.
 //
 // This function performs normalization only - it assumes the input is already
 // a valid identifier and does NOT perform character validation or sanitization.
 //
 // Examples:
 //
-//	NormalizeSafeOutputIdentifier("create-issue")      // returns "create_issue"
-//	NormalizeSafeOutputIdentifier("create_issue")      // returns "create_issue" (unchanged)
-//	NormalizeSafeOutputIdentifier("add-comment")       // returns "add_comment"
-//	NormalizeSafeOutputIdentifier("update-pr")         // returns "update_pr"
+//	NormalizeSafeOutputIdentifier("create-issue")          // returns "create_issue"
+//	NormalizeSafeOutputIdentifier("create_issue")          // returns "create_issue" (unchanged)
+//	NormalizeSafeOutputIdentifier("add-comment")           // returns "add_comment"
+//	NormalizeSafeOutputIdentifier("update-pr")             // returns "update_pr"
+//	NormalizeSafeOutputIdentifier("executor-workflow.agent") // returns "executor_workflow_agent"
 func NormalizeSafeOutputIdentifier(identifier string) string {
-	return strings.ReplaceAll(identifier, "-", "_")
+	result := strings.ReplaceAll(identifier, "-", "_")
+	result = strings.ReplaceAll(result, ".", "_")
+	return result
 }
 
 // MarkdownToLockFile converts a workflow markdown file path to its compiled lock file path.

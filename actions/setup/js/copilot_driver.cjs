@@ -9,17 +9,19 @@
  *
  * Retry policy:
  *   - If the process produced any output (hasOutput) and exits with a non-zero code, the
- *     session is considered partially executed.  The driver retries with --resume so the
+ *     session is considered partially executed.  The driver retries with --continue so the
  *     Copilot CLI can continue from where it left off.
  *   - CAPIError 400 is a well-known transient failure mode and is logged explicitly, but
  *     any partial-execution failure is retried — not just CAPIError 400.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
+ *   - "No authentication information found" errors are non-retryable: the absent token will
+ *     remain absent on every subsequent attempt, so all further retries will also fail.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s).
  *   - Maximum 3 retry attempts after the initial run.
  *
  * Usage: node copilot_driver.cjs <command> [args...]
- * Example: node copilot_driver.cjs copilot --add-dir /tmp/ --prompt "..."
+ * Example: node copilot_driver.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
 "use strict";
@@ -35,6 +37,9 @@ const INITIAL_DELAY_MS = 5000;
 const BACKOFF_MULTIPLIER = 2;
 // Maximum delay cap in milliseconds
 const MAX_DELAY_MS = 60000;
+// If prompt files are larger than this threshold, avoid inlining into argv.
+const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
+const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -42,6 +47,16 @@ const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
 // Pattern to detect MCP servers blocked by enterprise/organization policy.
 // This is a persistent policy configuration error — retrying will not help.
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+
+// Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
+// a model that is unavailable for their subscription tier).
+// This is a persistent configuration error — retrying with --resume will not help.
+const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+
+// Pattern to detect missing authentication credentials.
+// This error means no auth token is available in the environment; retrying will not help
+// because the missing token will still be absent on every subsequent attempt.
+const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -71,6 +86,28 @@ function isTransientCAPIError(output) {
  */
 function isMCPPolicyError(output) {
   return MCP_POLICY_BLOCKED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates the requested model is not supported.
+ * This occurs when a Copilot Pro/Education user attempts to use a model that is not
+ * available for their subscription tier.  Retrying will not help.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isModelNotSupportedError(output) {
+  return MODEL_NOT_SUPPORTED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a "No authentication information found" error.
+ * This means no auth token (COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN) is available
+ * in the environment.  Retrying will not help because the absent token will remain absent.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNoAuthInfoError(output) {
+  return NO_AUTH_INFO_PATTERN.test(output);
 }
 
 /**
@@ -133,7 +170,7 @@ function runProcess(command, args, attempt) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Redact --prompt value from logs to avoid leaking prompt content
-    const safeArgs = args.map((arg, i) => (args[i - 1] === "--prompt" ? "<redacted>" : arg));
+    const safeArgs = args.map((arg, i) => (args[i - 1] === "--prompt" || args[i - 1] === "-p" ? "<redacted>" : arg));
     log(`attempt ${attempt + 1}: spawning: ${command} ${safeArgs.join(" ")}`);
 
     const child = spawn(command, args, {
@@ -202,6 +239,63 @@ function runProcess(command, args, attempt) {
 }
 
 /**
+ * Build a compact fallback prompt that asks the agent to read instructions from disk.
+ * @param {string} promptFile
+ * @returns {string}
+ */
+function buildPromptFileFallbackInstruction(promptFile) {
+  return `Read the full instructions from ${promptFile} and execute them exactly as written.`;
+}
+
+/**
+ * Replace --prompt-file arguments with -p prompt text to support older Copilot CLIs.
+ * For files over 100KB, emit a compact fallback prompt that instructs the agent to
+ * read and execute the full prompt file from disk.
+ * @param {string[]} args
+ * @returns {string[]}
+ */
+function resolvePromptFileArgs(args) {
+  /** @type {string[]} */
+  const resolvedArgs = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg !== "--prompt-file") {
+      resolvedArgs.push(arg);
+      continue;
+    }
+
+    if (i + 1 >= args.length) {
+      log("warning: --prompt-file provided without a path; leaving arguments unchanged");
+      resolvedArgs.push(arg);
+      continue;
+    }
+    const promptFile = args[i + 1];
+
+    try {
+      const stat = fs.statSync(promptFile);
+      log(`resolved --prompt-file: path=${promptFile} size=${stat.size}B`);
+
+      if (stat.size > PROMPT_FILE_INLINE_THRESHOLD_BYTES) {
+        log(`prompt file exceeds ${PROMPT_FILE_INLINE_THRESHOLD_LABEL}; using compact fallback prompt`);
+        resolvedArgs.push("-p", buildPromptFileFallbackInstruction(promptFile));
+      } else {
+        const promptText = fs.readFileSync(promptFile, "utf8");
+        resolvedArgs.push("-p", promptText);
+      }
+      i++; // Skip the prompt-file path argument
+    } catch (error) {
+      const err = /** @type {Error} */ error;
+      log(`warning: failed to resolve --prompt-file ${promptFile}: ${err.message}; leaving arguments unchanged`);
+      resolvedArgs.push(arg, promptFile);
+      i++; // Skip the prompt-file path argument
+    }
+  }
+
+  return resolvedArgs;
+}
+
+/**
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
@@ -215,17 +309,18 @@ async function main() {
   log(`starting: command=${command} maxRetries=${MAX_RETRIES} initialDelayMs=${INITIAL_DELAY_MS}` + ` backoffMultiplier=${BACKOFF_MULTIPLIER} maxDelayMs=${MAX_DELAY_MS}` + ` nodeVersion=${process.version} platform=${process.platform}`);
 
   await checkCommandAccessible(command);
+  const resolvedArgs = resolvePromptFileArgs(args);
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
   const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Add --resume flag on retries so the copilot session resumes from where it left off
-    const currentArgs = attempt > 0 ? [...args, "--resume"] : args;
+    // Add --continue flag on retries so the copilot session continues from where it left off
+    const currentArgs = attempt > 0 ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
     if (attempt > 0) {
-      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --resume`);
+      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --continue`);
       await sleep(delay);
       delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
@@ -241,13 +336,25 @@ async function main() {
     }
 
     // Determine whether to retry.
-    // Retry whenever the session was partially executed (hasOutput), using --resume so that
+    // Retry whenever the session was partially executed (hasOutput), using --continue so that
     // the Copilot CLI can continue from where it left off.  CAPIError 400 is the well-known
-    // transient case, but any partial-execution failure is eligible for a resume retry.
-    // Exception: MCP policy errors are persistent configuration issues — never retry.
+    // transient case, but any partial-execution failure is eligible for a continue retry.
+    // Exceptions: MCP policy errors, model-not-supported errors, and auth errors are persistent
+    // configuration issues — never retry.
     const isCAPIError = isTransientCAPIError(result.output);
     const isMCPPolicy = isMCPPolicyError(result.output);
-    log(`attempt ${attempt + 1} failed:` + ` exitCode=${result.exitCode}` + ` isCAPIError400=${isCAPIError}` + ` isMCPPolicyError=${isMCPPolicy}` + ` hasOutput=${result.hasOutput}` + ` retriesRemaining=${MAX_RETRIES - attempt}`);
+    const isModelNotSupported = isModelNotSupportedError(result.output);
+    const isAuthErr = isNoAuthInfoError(result.output);
+    log(
+      `attempt ${attempt + 1} failed:` +
+        ` exitCode=${result.exitCode}` +
+        ` isCAPIError400=${isCAPIError}` +
+        ` isMCPPolicyError=${isMCPPolicy}` +
+        ` isModelNotSupportedError=${isModelNotSupported}` +
+        ` isAuthError=${isAuthErr}` +
+        ` hasOutput=${result.hasOutput}` +
+        ` retriesRemaining=${MAX_RETRIES - attempt}`
+    );
 
     // MCP policy errors are persistent — retrying will not help.
     if (isMCPPolicy) {
@@ -255,9 +362,23 @@ async function main() {
       break;
     }
 
+    // Model-not-supported errors are persistent — retrying will not help.
+    if (isModelNotSupported) {
+      log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+      break;
+    }
+
+    // Auth errors are persistent for the duration of the job — retrying will not help.
+    // "No authentication information found" means COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
+    // are all absent or invalid.  Retrying with --continue will produce the same auth failure.
+    if (isAuthErr) {
+      log(`attempt ${attempt + 1}: no authentication information found — not retrying (COPILOT_GITHUB_TOKEN, GH_TOKEN, and GITHUB_TOKEN are all absent or invalid)`);
+      break;
+    }
+
     if (attempt < MAX_RETRIES && result.hasOutput) {
       const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
-      log(`attempt ${attempt + 1}: ${reason} — will retry with --resume (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+      log(`attempt ${attempt + 1}: ${reason} — will retry with --continue (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
 
@@ -275,7 +396,17 @@ async function main() {
   process.exit(lastExitCode);
 }
 
-main().catch(err => {
-  log(`unexpected error: ${err.message}`);
-  process.exit(1);
-});
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    PROMPT_FILE_INLINE_THRESHOLD_BYTES,
+    buildPromptFileFallbackInstruction,
+    resolvePromptFileArgs,
+  };
+}
+
+if (require.main === module) {
+  main().catch(err => {
+    log(`unexpected error: ${err.message}`);
+    process.exit(1);
+  });
+}

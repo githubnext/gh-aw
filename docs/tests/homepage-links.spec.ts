@@ -30,4 +30,18 @@ test.describe('Homepage Links', () => {
     await expect(page).toHaveURL(/\/gh-aw\/setup\/quick-start\//);
     await expect(page).toHaveTitle(/Quick Start/);
   });
+
+  test('should provide descriptive title attributes on homepage videos', async ({ page }) => {
+    const videos = page.locator('video.gh-aw-video-element');
+    await expect(videos).toHaveCount(2);
+
+    await expect(videos.nth(0)).toHaveAttribute(
+      'title',
+      'Install and add workflow in CLI demo video'
+    );
+    await expect(videos.nth(1)).toHaveAttribute(
+      'title',
+      'Create workflow on GitHub demo video'
+    );
+  });
 });

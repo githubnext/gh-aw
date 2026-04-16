@@ -36,6 +36,7 @@ type RunOptions struct {
 	Verbose           bool     // Enable verbose output
 	DryRun            bool     // Validate without actually triggering
 	JSON              bool     // Output results in JSON format
+	Approve           bool     // Approve safe update changes during compilation
 }
 
 // WorkflowRunResult contains the result of a single workflow run trigger for JSON output
@@ -277,7 +278,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 
 		// Collect the workflow .md file, .lock.yml file, and transitive imports
 		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
-		files, err := collectWorkflowFiles(ctx, workflowMarkdownPath, opts.Verbose)
+		files, err := collectWorkflowFiles(ctx, workflowMarkdownPath, opts.Verbose, opts.Approve)
 		if err != nil {
 			return fmt.Errorf("failed to collect workflow files: %w", err)
 		}

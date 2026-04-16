@@ -37,11 +37,11 @@ func (c *Compiler) effectiveStrictMode(frontmatter map[string]any) bool {
 // effectiveSafeUpdate returns true when safe update mode should be enforced for
 // the given workflow. Safe update mode is equivalent to strict mode: it is
 // enabled whenever strict mode is active (CLI --strict flag, frontmatter
-// strict: true, or the default). It can also be force-enabled via the CLI
-// --safe-update flag independently of strict mode.
+// strict: true, or the default). It can be disabled via the CLI --approve flag
+// to approve all changes.
 func (c *Compiler) effectiveSafeUpdate(data *WorkflowData) bool {
-	if c.safeUpdate {
-		return true
+	if c.approve {
+		return false
 	}
 	return c.effectiveStrictMode(data.RawFrontmatter)
 }
@@ -191,6 +191,22 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	if data.InlinedImports {
 		yaml.WriteString("#\n")
 		yaml.WriteString("# inlined-imports: true\n")
+	}
+
+	// Add frontmatter-declared env vars with source attribution.
+	// Note: programmatically injected env vars (e.g. OTEL_* from OTLP config) are not listed here.
+	if len(data.EnvSources) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Frontmatter env variables:\n")
+		// Sort keys for deterministic output
+		keys := make([]string, 0, len(data.EnvSources))
+		for k := range data.EnvSources {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(yaml, "#   - %s: %s\n", k, data.EnvSources[k])
+		}
 	}
 
 	// Add list of secrets referenced in the workflow
@@ -600,7 +616,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	// (like changeset.md) need to be substituted after the file is imported
 	// Now includes the known needs.* expressions
 	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
+		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ", data)
 	}
 
 	// Validate that all placeholders have been substituted
@@ -629,7 +645,11 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	writeStepsSection(yaml, data.PostSteps)
 }
 
-// writeStepsSection writes a steps section (pre-steps or post-steps) to the YAML builder,
+func (c *Compiler) generatePreAgentSteps(yaml *strings.Builder, data *WorkflowData) {
+	writeStepsSection(yaml, data.PreAgentSteps)
+}
+
+// writeStepsSection writes a steps section (pre-steps, pre-agent-steps, or post-steps) to the YAML builder,
 // stripping the header line and normalising indentation to match the agent job step format:
 // top-level items get 6-space indent (      - name:) and nested properties get 8-space indent (        run:).
 func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
@@ -637,7 +657,7 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 		return
 	}
 	lines := strings.Split(stepsYAML, "\n")
-	for _, line := range lines[1:] { // skip the "pre-steps:" / "post-steps:" header line
+	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
 		trimmed := strings.TrimRight(line, " ")
 		if strings.TrimSpace(trimmed) == "" {
 			yaml.WriteString("\n")
@@ -788,7 +808,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			fmt.Fprintf(yaml, "          GH_AW_INFO_TOKEN_WEIGHTS: '%s'\n", escapedTokenWeightsJSON)
 		}
 	}
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
@@ -811,7 +831,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")

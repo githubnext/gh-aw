@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -19,21 +18,6 @@ import (
 )
 
 var log = logger.New("workflow:compiler")
-
-// heredocDelimiterRE matches randomized heredoc delimiters of the form GH_AW_<NAME>_<16hexchars>_EOF.
-// Used to normalize delimiters when comparing compiled output to skip unnecessary writes.
-var heredocDelimiterRE = regexp.MustCompile(`GH_AW_([A-Z0-9_]+)_[0-9a-f]{16}_EOF`)
-
-// normalizeHeredocDelimiters replaces randomized heredoc delimiter tokens with a stable
-// placeholder so that two compilations of the same workflow compare as equal even though
-// each run embeds different random tokens.
-func normalizeHeredocDelimiters(content string) string {
-	// Fast path: skip regex if content contains no heredoc delimiters
-	if !strings.Contains(content, "GH_AW_") {
-		return content
-	}
-	return heredocDelimiterRE.ReplaceAllString(content, "GH_AW_${1}_NORM_EOF")
-}
 
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (500KB)
@@ -468,9 +452,11 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	// parsed representation of the compiled YAML.  Parse it once here and share the
 	// result between the two validators to avoid redundant yaml.Unmarshal calls.
 	//
-	// Fast-path: if the YAML contains no unsafe context expressions we can skip the
-	// parse (and template-injection check) entirely for the common case.
-	needsTemplateCheck := unsafeContextRegex.MatchString(yamlContent)
+	// Fast-path: use a lightweight text scan to check whether any unsafe context
+	// expression actually appears inside a run: block.  Most compiled workflows place
+	// unsafe expressions only in env: values (the compiler's normal output pattern),
+	// so the expensive full YAML parse can be skipped in the common case.
+	needsTemplateCheck := hasUnsafeExpressionInRunContent(yamlContent)
 	needsSchemaCheck := !c.skipValidation
 
 	var parsedWorkflow map[string]any
@@ -718,7 +704,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				log.Printf("Failed to parse filesystem gh-aw-manifest: %v. Safe update enforcement will treat as empty manifest.", parseErr)
 			}
 		} else {
-			log.Printf("Lock file %s not found on filesystem either (new workflow or not yet written). Safe update enforcement will treat as empty manifest.", lockFile)
+			// No lock file anywhere — this is a brand-new workflow.  Use an empty
+			// (non-nil) manifest so EnforceSafeUpdate applies enforcement and flags
+			// any newly introduced secrets or actions for review.
+			log.Printf("Lock file %s not found (new workflow). Safe update enforcement will use an empty baseline.", lockFile)
+			oldManifest = &GHAWManifest{Version: currentGHAWManifestVersion}
 		}
 	}
 

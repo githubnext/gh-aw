@@ -41,8 +41,7 @@ steps:
       fi
       gh aw --version
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   copilot-requests: true
 ---

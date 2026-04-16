@@ -37,6 +37,8 @@ tools:
 
 timeout-minutes: 20
 strict: true
+features:
+  mcp-cli: true
 ---
 # Typist - Go Type Consistency Analysis
 

@@ -222,7 +222,7 @@ func TestExtractCallWorkflowPermissions_FileNotFound(t *testing.T) {
 // TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML tests that call-workflow jobs
 // include permissions extracted from the worker's .lock.yml file
 func TestBuildCallWorkflowJobs_SetsPermissionsFromLockYML(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -281,7 +281,7 @@ jobs:
 // TestBuildCallWorkflowJobs_SetsPermissionsFromMD tests that call-workflow jobs
 // include permissions from .md frontmatter for same-batch compilation targets
 func TestBuildCallWorkflowJobs_SetsPermissionsFromMD(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -329,7 +329,7 @@ permissions:
 // TestBuildCallWorkflowJobs_NoPermissionsWhenWorkerHasNone tests that call-workflow
 // jobs omit the permissions block when the worker's jobs have no permissions
 func TestBuildCallWorkflowJobs_NoPermissionsWhenWorkerHasNone(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -373,7 +373,7 @@ jobs:
 // TestCallWorkflowJobYAMLOutput_WithPermissions tests the YAML output of a call-workflow
 // job includes the permissions block derived from the worker's .lock.yml
 func TestCallWorkflowJobYAMLOutput_WithPermissions(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -474,7 +474,7 @@ jobs:
 // TestCallWorkflowPermissions_EndToEnd tests full gateway compilation with permissioned workers —
 // the generated lock file must include job-level permissions blocks on every call-* job.
 func TestCallWorkflowPermissions_EndToEnd(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -599,7 +599,7 @@ Analyse the issue and determine which worker to run.
 // TestCallWorkflowPermissions_EndToEnd_YMLWorker tests that a worker referenced via a .yml
 // file (not .lock.yml) also gets its permissions propagated in the generated call-* job.
 func TestCallWorkflowPermissions_EndToEnd_YMLWorker(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

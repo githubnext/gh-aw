@@ -3,10 +3,12 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 )
 
@@ -23,6 +25,20 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// guard policy is configured and no GitHub App token is in use.
 	// The determine-automatic-lockdown step outputs min_integrity and repos for public repos.
 	explicitGuardPolicies := getGitHubGuardPolicies(githubTool)
+	// Integrity reaction fields are only supported in proxy mode (DIFC/CLI proxy),
+	// not in gateway mode. The MCP gateway cannot identify reaction authors because
+	// the GitHub MCP server protocol does not expose that information. Warn if the
+	// user configured reactions with the gateway path.
+	if isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, workflowData) {
+		if toolConfig, ok := githubTool.(map[string]any); ok {
+			if hasReactionFieldsInToolConfig(toolConfig) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					"integrity-reactions: endorsement/disapproval reactions are ignored in MCP gateway mode because "+
+						"reaction authors cannot be identified from the GitHub MCP server. Reactions are only enforced "+
+						"in proxy mode (DIFC proxy / CLI proxy)."))
+			}
+		}
+	}
 	shouldUseStepOutputForGuardPolicy := len(explicitGuardPolicies) == 0 && !hasGitHubApp(githubTool)
 
 	toolsets := getGitHubToolsets(githubTool)
@@ -232,7 +248,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	}
 
 	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// for Copilot (see convert_gateway_config_copilot.cjs). This keeps the gateway
 	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env section for GitHub MCP server environment variables
@@ -357,7 +373,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 
 	// Add tools field if requested (Copilot needs it, Claude doesn't)
 	// Note: This is added here when IncludeToolsField is true, but in some cases
-	// the converter script also adds it back (see convert_gateway_config_copilot.sh).
+	// the converter script also adds it back (see convert_gateway_config_copilot.cjs).
 	if options.IncludeToolsField && len(options.AllowedTools) > 0 {
 		yaml.WriteString("                \"tools\": [\n")
 		for i, tool := range options.AllowedTools {

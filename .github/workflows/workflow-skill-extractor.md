@@ -41,6 +41,8 @@ safe-outputs:
 
 imports:
   - shared/reporting.md
+features:
+  mcp-cli: true
 ---
 
 # Workflow Skill Extractor

@@ -160,6 +160,7 @@
   ],
   "julia": ["pkg.julialang.org", "*.pkg.julialang.org", "julialang.org", "julialang-s3.julialang.org", "storage.julialang.net"],
   "kotlin": ["download.jetbrains.com", "ge.jetbrains.com", "packages.jetbrains.team", "kotlin.bintray.com", "maven.pkg.jetbrains.space"],
+  "lean": ["elan.lean-lang.org", "lean-lang.org", "leanprover.github.io", "reservoir.lean-lang.org", "static.lean-lang.org"],
   "linux-distros": [
     "deb.debian.org",
     "security.debian.org",
@@ -215,6 +216,20 @@
   "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],
   "powershell": ["powershellgallery.com", "www.powershellgallery.com"],
   "python": [
+    "pypi.python.org",
+    "pypi.org",
+    "pip.pypa.io",
+    "*.pythonhosted.org",
+    "files.pythonhosted.org",
+    "bootstrap.pypa.io",
+    "conda.binstar.org",
+    "conda.anaconda.org",
+    "binstar.org",
+    "anaconda.org",
+    "repo.continuum.io",
+    "repo.anaconda.com"
+  ],
+  "python-native": [
     "pypi.python.org",
     "pypi.org",
     "pip.pypa.io",

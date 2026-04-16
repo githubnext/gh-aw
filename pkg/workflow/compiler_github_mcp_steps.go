@@ -38,10 +38,10 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	// Resolve the latest version of actions/github-script
 	actionRepo := "actions/github-script"
 	actionVersion := string(constants.DefaultGitHubScriptVersion)
-	pinnedAction, err := GetActionPinWithData(actionRepo, actionVersion, data)
+	pinnedAction, err := getActionPinWithData(actionRepo, actionVersion, data)
 	if err != nil {
 		githubConfigLog.Printf("Failed to resolve %s@%s: %v", actionRepo, actionVersion, err)
-		// In strict mode, this error would have been returned by GetActionPinWithData
+		// In strict mode, this error would have been returned by getActionPinWithData
 		// In normal mode, we fall back to using the version tag without pinning
 		pinnedAction = fmt.Sprintf("%s@%s", actionRepo, actionVersion)
 	}
@@ -98,7 +98,7 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingSteps(data *WorkflowData) []s
 	}
 
 	app := data.ParsedTools.GitHub.GitHubApp
-	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: app-id=%s", app.AppID)
+	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: client-id=%s", app.AppID)
 
 	// Get permissions from the agent job - parse from YAML string
 	var permissions *Permissions

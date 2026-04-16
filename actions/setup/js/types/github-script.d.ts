@@ -27,13 +27,13 @@ declare global {
    * GitHub Actions context object provided by github-script action
    * Contains information about the workflow run context
    */
-  const context: Context;
+  var context: any;
 
   /**
    * Actions core utilities provided by github-script action
    * For setting outputs, logging, and other workflow operations
    */
-  const core: typeof __actionsCore;
+  var core: any;
 
   /**
    * Actions exec utilities provided by github-script action

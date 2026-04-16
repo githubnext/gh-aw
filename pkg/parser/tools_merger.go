@@ -132,9 +132,10 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 					if newAllowed, hasNewAllowed := newMap["allowed"]; hasNewAllowed {
 						// Merge allowed arrays
 						merged := mergeAllowedArrays(existingAllowed, newAllowed)
+						// Base map wins for all scalar fields; add new keys from the import only.
 						mergedMap := make(map[string]any)
-						maps.Copy(mergedMap, existingMap)
-						maps.Copy(mergedMap, newMap)
+						maps.Copy(mergedMap, newMap)      // import values first (lower precedence)
+						maps.Copy(mergedMap, existingMap) // base values overwrite (higher precedence)
 						mergedMap["allowed"] = merged
 						result[key] = mergedMap
 						continue
@@ -147,10 +148,9 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 					return nil, err
 				}
 				result[key] = recursiveMerged
-			} else {
-				// Not both same type, overwrite with new value
-				result[key] = newValue
 			}
+			// Type mismatch (or same non-array, non-map type): base value takes precedence.
+			// result[key] already contains existingValue from maps.Copy above — no action needed.
 		} else {
 			// New key, just add it
 			result[key] = newValue

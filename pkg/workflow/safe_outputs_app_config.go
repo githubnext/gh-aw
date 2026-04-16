@@ -16,7 +16,7 @@ var safeOutputsAppLog = logger.New("workflow:safe_outputs_app")
 
 // GitHubAppConfig holds configuration for GitHub App-based token minting
 type GitHubAppConfig struct {
-	AppID        string            `yaml:"app-id,omitempty"`       // GitHub App ID (e.g., "${{ vars.APP_ID }}")
+	AppID        string            `yaml:"client-id,omitempty"`    // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
 	PrivateKey   string            `yaml:"private-key,omitempty"`  // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
 	Owner        string            `yaml:"owner,omitempty"`        // Optional: owner of the GitHub App installation (defaults to current repository owner)
 	Repositories []string          `yaml:"repositories,omitempty"` // Optional: comma or newline-separated list of repositories to grant access to
@@ -32,8 +32,13 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 	safeOutputsAppLog.Print("Parsing GitHub App configuration")
 	appConfig := &GitHubAppConfig{}
 
-	// Parse app-id (required)
-	if appID, exists := appMap["app-id"]; exists {
+	// Parse client-id/app-id (required)
+	// Prefer client-id when both are provided; app-id is accepted for backward compatibility.
+	if clientID, exists := appMap["client-id"]; exists {
+		if clientIDStr, ok := clientID.(string); ok {
+			appConfig.AppID = clientIDStr
+		}
+	} else if appID, exists := appMap["app-id"]; exists {
 		if appIDStr, ok := appID.(string); ok {
 			appConfig.AppID = appIDStr
 		}
@@ -146,9 +151,9 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 
 	steps = append(steps, "      - name: Generate GitHub App token\n")
 	steps = append(steps, "        id: safe-outputs-app-token\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
 	// Add owner - default to current repository owner if not specified
@@ -261,14 +266,11 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	if level, ok := permissions.Get(PermissionStatuses); ok {
 		fields["permission-statuses"] = string(level)
 	}
-	// Note: "permission-discussions" is not a declared input in actions/create-github-app-token's action.yml,
-	// but the action reads ALL INPUT_PERMISSION-* env vars via process.env (see lib/get-permissions-from-inputs.js).
-	// GitHub Actions sets INPUT_PERMISSION-DISCUSSIONS for any `with: permission-discussions:` field, so
-	// the value IS forwarded to the GitHub API despite the "Unexpected input" warning.
-	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those permissions
-	// (returning undefined → inherit-all only when zero permission-* inputs are present). Since the compiler
-	// always emits other permission-* fields, omitting permission-discussions causes the minted token to
-	// lack discussions access even when the GitHub App installation has that permission.
+	// "permission-discussions" is a declared input in actions/create-github-app-token v3+.
+	// Crucially, when ANY permission-* input is specified the action scopes the token to ONLY those
+	// permissions (returning undefined → inherit-all only when zero permission-* inputs are present).
+	// Since the compiler always emits other permission-* fields, omitting permission-discussions causes
+	// the minted token to lack discussions access even when the GitHub App installation has that permission.
 	if level, ok := permissions.Get(PermissionDiscussions); ok {
 		fields["permission-discussions"] = string(level)
 	}
@@ -419,9 +421,9 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 
 	steps = append(steps, "      - name: Generate GitHub App token for activation\n")
 	steps = append(steps, "        id: activation-app-token\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
 	// Add owner - default to current repository owner if not specified

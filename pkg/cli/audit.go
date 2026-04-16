@@ -45,13 +45,6 @@ When a job URL is provided:
 - If no step number, finds and extracts the first failing step's output
 - Saves job logs to the output directory
 
-This command:
-- Downloads artifacts and logs for the specified run ID
-- Detects errors and warnings in the logs
-- Analyzes MCP tool usage statistics
-- Extracts missing tool reports
-- Generates a concise Markdown report
-
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890     # Audit run with ID 1234567890
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
@@ -196,11 +189,46 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		return auditJobRun(runID, jobID, stepNumber, owner, repo, hostname, runOutputDir, verbose, jsonOutput)
 	}
 
+	// Use cached run summary when available to ensure deterministic metrics across repeated calls.
+	// Re-processing the same log files can produce different results (e.g. when GitHub's API
+	// returns aggregated data that differs from the locally-stored firewall logs), so we always
+	// prefer the first fully-processed summary written to disk.  The cache is automatically
+	// invalidated whenever the CLI version changes (see loadRunSummary).
+	if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
+		auditLog.Printf("Using cached run summary for run %d (processed at %s)", runID, summary.ProcessedAt.Format(time.RFC3339))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached run summary for run %d (processed at %s)", runID, summary.ProcessedAt.Format(time.RFC3339))))
+		}
+		processedRun := ProcessedRun{
+			Run:                     summary.Run,
+			AwContext:               summary.AwContext,
+			TaskDomain:              summary.TaskDomain,
+			BehaviorFingerprint:     summary.BehaviorFingerprint,
+			AgenticAssessments:      summary.AgenticAssessments,
+			AccessAnalysis:          summary.AccessAnalysis,
+			FirewallAnalysis:        summary.FirewallAnalysis,
+			PolicyAnalysis:          summary.PolicyAnalysis,
+			RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
+			MissingTools:            summary.MissingTools,
+			MissingData:             summary.MissingData,
+			Noops:                   summary.Noops,
+			MCPFailures:             summary.MCPFailures,
+			TokenUsage:              summary.TokenUsage,
+			GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
+			JobDetails:              summary.JobDetails,
+		}
+		// Override the cached LogsPath with the current runOutputDir so that downstream
+		// file reads (created items, aw_info, etc.) resolve correctly even if the run
+		// directory has been moved or copied since the summary was first written.
+		processedRun.Run.LogsPath = runOutputDir
+		return renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+	}
+
 	// Check if we have locally cached artifacts first
 	hasLocalCache := fileutil.DirExists(runOutputDir) && !fileutil.IsDirEmpty(runOutputDir)
 
 	// Try to get run metadata from GitHub API
-	run, metadataErr := fetchWorkflowRunMetadata(runID, owner, repo, hostname, verbose)
+	run, metadataErr := fetchWorkflowRunMetadata(ctx, runID, owner, repo, hostname, verbose)
 	var useLocalCache bool
 
 	if metadataErr != nil {
@@ -231,7 +259,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 
 		// Download artifacts for the run
 		auditLog.Printf("Downloading artifacts for run %d", runID)
-		err := downloadRunArtifacts(runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter)
+		err := downloadRunArtifacts(ctx, runID, runOutputDir, verbose, owner, repo, hostname, artifactFilter)
 		if err != nil {
 			// Gracefully handle cases where the run legitimately has no artifacts
 			if errors.Is(err, ErrNoArtifacts) {
@@ -423,8 +451,52 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 	processedRun.BehaviorFingerprint = behaviorFingerprint
 	processedRun.AgenticAssessments = agenticAssessments
 
+	// Save run summary for caching future audit runs
+	summary := &RunSummary{
+		CLIVersion:              GetVersion(),
+		RunID:                   run.DatabaseID,
+		ProcessedAt:             time.Now(),
+		Run:                     run,
+		Metrics:                 metrics,
+		AwContext:               processedRun.AwContext,
+		TaskDomain:              processedRun.TaskDomain,
+		BehaviorFingerprint:     processedRun.BehaviorFingerprint,
+		AgenticAssessments:      processedRun.AgenticAssessments,
+		AccessAnalysis:          accessAnalysis,
+		FirewallAnalysis:        firewallAnalysis,
+		PolicyAnalysis:          policyAnalysis,
+		RedactedDomainsAnalysis: redactedDomainsAnalysis,
+		MissingTools:            missingTools,
+		MissingData:             missingData,
+		Noops:                   noops,
+		MCPFailures:             mcpFailures,
+		MCPToolUsage:            mcpToolUsage,
+		TokenUsage:              tokenUsageSummary,
+		GitHubRateLimitUsage:    rateLimitUsage,
+		ArtifactsList:           artifacts,
+		JobDetails:              jobDetails,
+	}
+
+	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary: %v", err)))
+		}
+	}
+
+	return renderAuditReport(ctx, processedRun, metrics, mcpToolUsage, runOutputDir, owner, repo, hostname, verbose, parse, jsonOutput)
+}
+
+// renderAuditReport builds and renders the audit report from a fully-populated processedRun.
+// It is called both when serving from a cached run summary and after a fresh processing pass,
+// ensuring that the two paths produce identical output.
+func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData, runOutputDir string, owner, repo, hostname string, verbose bool, parse bool, jsonOutput bool) error {
+	runID := processedRun.Run.DatabaseID
+
+	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
+	processedRun.Run.SafeItemsCount = len(currentCreatedItems)
+
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
-	comparison := buildAuditComparisonForRun(processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
+	comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, owner, repo, hostname, verbose)
 
 	// Build structured audit data
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
@@ -481,38 +553,6 @@ func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname st
 		}
 	}
 
-	// Save run summary for caching future audit runs
-	summary := &RunSummary{
-		CLIVersion:              GetVersion(),
-		RunID:                   run.DatabaseID,
-		ProcessedAt:             time.Now(),
-		Run:                     run,
-		Metrics:                 metrics,
-		AwContext:               processedRun.AwContext,
-		TaskDomain:              processedRun.TaskDomain,
-		BehaviorFingerprint:     processedRun.BehaviorFingerprint,
-		AgenticAssessments:      processedRun.AgenticAssessments,
-		AccessAnalysis:          accessAnalysis,
-		FirewallAnalysis:        firewallAnalysis,
-		PolicyAnalysis:          policyAnalysis,
-		RedactedDomainsAnalysis: redactedDomainsAnalysis,
-		MissingTools:            missingTools,
-		MissingData:             missingData,
-		Noops:                   noops,
-		MCPFailures:             mcpFailures,
-		MCPToolUsage:            mcpToolUsage,
-		TokenUsage:              tokenUsageSummary,
-		GitHubRateLimitUsage:    rateLimitUsage,
-		ArtifactsList:           artifacts,
-		JobDetails:              jobDetails,
-	}
-
-	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary: %v", err)))
-		}
-	}
-
 	// Display logs location (only for console output)
 	if !jsonOutput {
 		absOutputDir, _ := filepath.Abs(runOutputDir)
@@ -540,13 +580,9 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Fetch job logs using gh CLI
+	// Fetch job logs using gh CLI.
+	// Use GH_HOST env var instead of --hostname (which is only valid for gh api, not gh run view).
 	args := []string{"run", "view"}
-
-	// Add hostname flag if specified (for GitHub Enterprise)
-	if hostname != "" && hostname != "github.com" {
-		args = append(args, "--hostname", hostname)
-	}
 
 	// Add repository flag if specified
 	if owner != "" && repo != "" {
@@ -560,7 +596,9 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
-	output, err := workflow.RunGHCombined("Fetching job logs...", args...)
+	cmd := workflow.ExecGH(args...)
+	workflow.SetGHHostEnv(cmd, hostname)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to fetch job logs: %w\nOutput: %s", err, string(output))
 	}
@@ -714,7 +752,7 @@ func findFirstFailingStep(jobLog string) (int, string) {
 }
 
 // fetchWorkflowRunMetadata fetches metadata for a single workflow run
-func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
+func fetchWorkflowRunMetadata(ctx context.Context, runID int64, owner, repo, hostname string, verbose bool) (WorkflowRun, error) {
 	// Build the API endpoint
 	var endpoint string
 	if owner != "" && repo != "" {
@@ -742,7 +780,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
 	}
 
-	output, err := workflow.RunGHCombined("Fetching run metadata...", args...)
+	output, err := workflow.RunGHCombinedContext(ctx, "Fetching run metadata...", args...)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))
@@ -769,7 +807,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 	// that were cancelled or failed before any jobs started), resolve the actual workflow
 	// display name so that audit output is consistent with 'gh aw logs'.
 	if strings.HasPrefix(run.WorkflowName, ".github/") {
-		if displayName := resolveWorkflowDisplayName(run.WorkflowPath, owner, repo, hostname); displayName != "" {
+		if displayName := resolveWorkflowDisplayName(ctx, run.WorkflowPath, owner, repo, hostname); displayName != "" {
 			auditLog.Printf("Resolved workflow display name: %q -> %q", run.WorkflowName, displayName)
 			run.WorkflowName = displayName
 		}
@@ -783,7 +821,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 // relative to the git repository root so that it works from any working directory inside
 // the repo); if that fails it falls back to a GitHub API call.  An empty string is
 // returned on any error so that callers can gracefully keep the original value.
-func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) string {
+func resolveWorkflowDisplayName(ctx context.Context, workflowPath, owner, repo, hostname string) string {
 	// Try local file first.  workflowPath is a repo-relative path like
 	// ".github/workflows/foo.lock.yml", so we resolve it against the git root to
 	// produce a correct absolute path regardless of the current working directory.
@@ -811,7 +849,7 @@ func resolveWorkflowDisplayName(workflowPath, owner, repo, hostname string) stri
 	}
 	args = append(args, endpoint, "--jq", ".name")
 
-	out, err := workflow.RunGHCombined("Fetching workflow name...", args...)
+	out, err := workflow.RunGHCombinedContext(ctx, "Fetching workflow name...", args...)
 	if err != nil {
 		auditLog.Printf("Failed to fetch workflow display name for %q: %v", workflowPath, err)
 		return ""

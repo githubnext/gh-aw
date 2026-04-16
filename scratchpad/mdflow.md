@@ -246,7 +246,7 @@ gh aw explain workflow.md
 2. Local execution mode for testing
 3. Dry-run with simulated GitHub context
 
-#### 5. **Flexible Context Inclusion**
+#### 5. **Context Inclusion**
 ```markdown
 # Multiple import mechanisms
 @./src/**/*.ts              # All TypeScript files

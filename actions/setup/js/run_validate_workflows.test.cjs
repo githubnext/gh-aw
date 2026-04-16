@@ -230,4 +230,51 @@ describe("run_validate_workflows", () => {
     const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(createCall.body).toContain("... (output truncated)");
   });
+
+  it("should sanitize output containing @mentions in new issue body", async () => {
+    mockExec.exec.mockImplementation(async (_cmd, _args, options) => {
+      if (options?.listeners?.stderr) {
+        options.listeners.stderr(Buffer.from("Error: @malicious-user triggered a warning\n"));
+      }
+      return 1;
+    });
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: { total_count: 0, items: [] },
+    });
+
+    mockGithub.rest.issues.create.mockResolvedValue({
+      data: { number: 45, html_url: "https://github.com/testowner/testrepo/issues/45" },
+    });
+
+    const { main } = await import("./run_validate_workflows.cjs");
+    await main();
+
+    const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
+    // sanitizeContent should neutralize @mentions so they don't ping users
+    expect(createCall.body).not.toMatch(/@malicious-user(?!`)/);
+  });
+
+  it("should sanitize output containing @mentions in comment body", async () => {
+    mockExec.exec.mockImplementation(async (_cmd, _args, options) => {
+      if (options?.listeners?.stderr) {
+        options.listeners.stderr(Buffer.from("Error: @malicious-user triggered a warning\n"));
+      }
+      return 1;
+    });
+
+    mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        total_count: 1,
+        items: [{ number: 10, html_url: "https://github.com/testowner/testrepo/issues/10" }],
+      },
+    });
+
+    const { main } = await import("./run_validate_workflows.cjs");
+    await main();
+
+    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    // sanitizeContent should neutralize @mentions so they don't ping users
+    expect(commentCall.body).not.toMatch(/@malicious-user(?!`)/);
+  });
 });

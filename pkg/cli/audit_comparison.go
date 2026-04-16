@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -457,7 +458,7 @@ func collectMCPFailureServers(failures []MCPFailureReport) []string {
 	return servers
 }
 
-func findPreviousSuccessfulWorkflowRuns(current WorkflowRun, owner, repo, hostname string, verbose bool) ([]WorkflowRun, error) {
+func findPreviousSuccessfulWorkflowRuns(ctx context.Context, current WorkflowRun, owner, repo, hostname string, verbose bool) ([]WorkflowRun, error) {
 	_ = verbose
 	workflowID := filepath.Base(current.WorkflowPath)
 	if workflowID == "." || workflowID == "" {
@@ -480,7 +481,7 @@ func findPreviousSuccessfulWorkflowRuns(current WorkflowRun, owner, repo, hostna
 	}
 	args = append(args, endpoint, "--jq", jq)
 
-	output, err := workflow.RunGHCombined("Fetching previous successful workflow run...", args...)
+	output, err := workflow.RunGHCombinedContext(ctx, "Fetching previous successful workflow run...", args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch previous successful workflow run: %w", err)
 	}
@@ -497,7 +498,7 @@ func findPreviousSuccessfulWorkflowRuns(current WorkflowRun, owner, repo, hostna
 
 	for index := range runs {
 		if strings.HasPrefix(runs[index].WorkflowName, ".github/") {
-			if displayName := resolveWorkflowDisplayName(runs[index].WorkflowPath, owner, repo, hostname); displayName != "" {
+			if displayName := resolveWorkflowDisplayName(ctx, runs[index].WorkflowPath, owner, repo, hostname); displayName != "" {
 				runs[index].WorkflowName = displayName
 			}
 		}
@@ -506,8 +507,8 @@ func findPreviousSuccessfulWorkflowRuns(current WorkflowRun, owner, repo, hostna
 	return runs, nil
 }
 
-func buildAuditComparisonForRun(currentRun ProcessedRun, currentSnapshot auditComparisonSnapshot, outputDir string, owner, repo, hostname string, verbose bool) *AuditComparisonData {
-	baselineRuns, err := findPreviousSuccessfulWorkflowRuns(currentRun.Run, owner, repo, hostname, verbose)
+func buildAuditComparisonForRun(ctx context.Context, currentRun ProcessedRun, currentSnapshot auditComparisonSnapshot, outputDir string, owner, repo, hostname string, verbose bool) *AuditComparisonData {
+	baselineRuns, err := findPreviousSuccessfulWorkflowRuns(ctx, currentRun.Run, owner, repo, hostname, verbose)
 	if err != nil {
 		auditLog.Printf("Skipping audit comparison: failed to find baseline: %v", err)
 		return &AuditComparisonData{BaselineFound: false}
@@ -520,7 +521,7 @@ func buildAuditComparisonForRun(currentRun ProcessedRun, currentSnapshot auditCo
 	for _, baselineRun := range baselineRuns {
 		baselineOutputDir := filepath.Join(outputDir, fmt.Sprintf("baseline-%d", baselineRun.DatabaseID))
 		if _, err := os.Stat(baselineOutputDir); err != nil {
-			if downloadErr := downloadRunArtifacts(baselineRun.DatabaseID, baselineOutputDir, verbose, owner, repo, hostname, nil); downloadErr != nil {
+			if downloadErr := downloadRunArtifacts(ctx, baselineRun.DatabaseID, baselineOutputDir, verbose, owner, repo, hostname, nil); downloadErr != nil {
 				auditLog.Printf("Skipping candidate baseline for run %d: failed to download baseline artifacts: %v", baselineRun.DatabaseID, downloadErr)
 				continue
 			}

@@ -17,11 +17,9 @@ tools:
   bash: true
 timeout-minutes: 20
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily secrets] "
-  - shared/reporting.md
-  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---

@@ -386,26 +386,36 @@ echo "Detected engine type: $ENGINE_TYPE"
 case "$ENGINE_TYPE" in
   copilot)
     echo "Using Copilot converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.sh
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_copilot.cjs"
     ;;
   codex)
     echo "Using Codex converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.sh
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_codex.cjs"
     ;;
   claude)
     echo "Using Claude converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.sh
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_claude.cjs"
     ;;
   gemini)
     echo "Using Gemini converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.sh
+    node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.cjs"
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"
-    # Default fallback - copy to most common location
+    # Default fallback - copy to most common location, filtering out CLI-mounted servers
     mkdir -p /home/runner/.copilot
-    cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+    if [ -n "$GH_AW_MCP_CLI_SERVERS" ]; then
+      if ! jq --argjson cliServers "$GH_AW_MCP_CLI_SERVERS" \
+        '.mcpServers |= with_entries(select(.key | IN($cliServers[]) | not))' \
+        /tmp/gh-aw/mcp-config/gateway-output.json > /home/runner/.copilot/mcp-config.json; then
+        echo "ERROR: Failed to filter CLI-mounted servers from agent MCP config"
+        echo "Falling back to unfiltered config"
+        cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+      fi
+    else
+      cp /tmp/gh-aw/mcp-config/gateway-output.json /home/runner/.copilot/mcp-config.json
+    fi
     cat /home/runner/.copilot/mcp-config.json
     ;;
 esac
@@ -438,6 +448,22 @@ else
 fi
 echo ""
 
+# Save CLI manifest for mount_mcp_as_cli.cjs before gateway config is deleted
+# The manifest contains server names and their local localhost URLs
+echo "Saving MCP CLI manifest..."
+mkdir -p /tmp/gh-aw/mcp-cli
+if [ -f /tmp/gh-aw/mcp-config/gateway-output.json ] && \
+   jq -e '.mcpServers' /tmp/gh-aw/mcp-config/gateway-output.json >/dev/null 2>&1; then
+  jq '{servers: [.mcpServers | to_entries[] | select(.value.url != null) | {name: .key, url: .value.url}]}' \
+    /tmp/gh-aw/mcp-config/gateway-output.json > /tmp/gh-aw/mcp-cli/manifest.json
+  chmod 600 /tmp/gh-aw/mcp-cli/manifest.json
+  SERVER_COUNT=$(jq '.servers | length' /tmp/gh-aw/mcp-cli/manifest.json)
+  echo "CLI manifest saved with ${SERVER_COUNT} server(s)"
+else
+  echo "WARNING: No mcpServers in gateway output, CLI manifest not created"
+fi
+echo ""
+
 # Delete gateway configuration file after conversion and checks are complete
 echo "Cleaning up gateway configuration file..."
 if [ -f /tmp/gh-aw/mcp-config/gateway-output.json ]; then
@@ -462,4 +488,5 @@ echo ""
   echo "gateway-pid=$GATEWAY_PID"
   echo "gateway-port=${MCP_GATEWAY_PORT}"
   echo "gateway-api-key=${MCP_GATEWAY_API_KEY}"
+  echo "gateway-domain=${MCP_GATEWAY_DOMAIN}"
 } >> "$GITHUB_OUTPUT"

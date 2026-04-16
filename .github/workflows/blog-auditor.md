@@ -33,6 +33,8 @@ imports:
       title-prefix: "[audit] "
       expires: 1d
   - shared/reporting.md
+features:
+  mcp-cli: true
 ---
 # Blog Auditor
 

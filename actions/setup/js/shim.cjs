@@ -12,9 +12,7 @@
  * `github-script`) the respective block is a no-op.
  */
 
-// @ts-expect-error - global.core is not declared in TypeScript but is provided by github-script
 if (!global.core) {
-  // @ts-expect-error - Assigning to global properties that are declared as const
   global.core = {
     debug: /** @param {string} message */ message => console.debug(`[debug] ${message}`),
     info: /** @param {string} message */ message => console.info(`[info] ${message}`),
@@ -35,7 +33,6 @@ if (!global.core) {
   };
 }
 
-// @ts-expect-error - global.context is not declared in TypeScript but is provided by github-script
 if (!global.context) {
   // Build a context object from GitHub Actions environment variables,
   // mirroring the shape of @actions/github's Context class.
@@ -59,7 +56,6 @@ if (!global.context) {
   const owner = slashIdx >= 0 ? repository.slice(0, slashIdx) : "";
   const repo = slashIdx >= 0 ? repository.slice(slashIdx + 1) : "";
 
-  // @ts-expect-error - Assigning to global properties that are declared as const
   global.context = {
     eventName: process.env.GITHUB_EVENT_NAME || "",
     sha: process.env.GITHUB_SHA || "",

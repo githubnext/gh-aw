@@ -879,4 +879,54 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("configure-mcp-server-access");
     });
   });
+
+  // buildModelNotSupportedErrorContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildModelNotSupportedErrorContext", () => {
+    let buildModelNotSupportedErrorContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-model-not-supported-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildModelNotSupportedErrorContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when no model-not-supported error", () => {
+      expect(buildModelNotSupportedErrorContext(false)).toBe("");
+    });
+
+    it("returns template content when model-not-supported error and template exists", () => {
+      const templateContent = "\n**🚫 Model Not Supported**: Test message.\n";
+      fs.writeFileSync(path.join(promptsDir, "model_not_supported_error.md"), templateContent);
+      const result = buildModelNotSupportedErrorContext(true);
+      expect(result).toContain("Model Not Supported");
+    });
+
+    it("returns inline fallback message when template is missing", () => {
+      // No template file written
+      const result = buildModelNotSupportedErrorContext(true);
+      expect(result).toContain("Model Not Supported");
+      expect(result).toContain("gpt-5-mini");
+    });
+  });
 });

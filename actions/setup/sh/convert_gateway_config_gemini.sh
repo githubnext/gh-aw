@@ -93,8 +93,9 @@ GEMINI_SETTINGS_FILE="${GEMINI_SETTINGS_DIR}/settings.json"
 
 mkdir -p "$GEMINI_SETTINGS_DIR"
 
-jq --arg urlPrefix "$URL_PREFIX" '
+jq --arg urlPrefix "$URL_PREFIX" --argjson cliServers "${GH_AW_MCP_CLI_SERVERS:-[]}" '
   .mcpServers |= with_entries(
+    select(.key | IN($cliServers[]) | not) |
     .value |= (
       (del(.type)) |
       # Fix the URL to use the correct domain

@@ -89,15 +89,17 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 }
 
 // GetAgentManifestFiles returns Claude-specific instruction files that should be
-// treated as security-sensitive manifests.  Modifying CLAUDE.md can change the
+// treated as security-sensitive manifests.  Modifying these files can change the
 // agent's instructions, guidelines, or permissions on the next run.
+// CLAUDE.md is the primary per-project instruction file; AGENTS.md is the
+// cross-engine convention that Claude Code also reads.
 func (e *ClaudeEngine) GetAgentManifestFiles() []string {
-	return []string{"CLAUDE.md"}
+	return []string{"CLAUDE.md", "AGENTS.md"}
 }
 
 // GetAgentManifestPathPrefixes returns Claude-specific config directory prefixes.
-// The .claude/ directory contains settings, custom commands, and other engine
-// configuration that could affect agent behaviour.
+// The .claude/ directory contains settings, custom commands, hooks, and other
+// engine configuration that could affect agent behaviour.
 func (e *ClaudeEngine) GetAgentManifestPathPrefixes() []string {
 	return []string{".claude/"}
 }
@@ -132,7 +134,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
 		claudeLog.Print("Adding MCP configuration")
-		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Add allowed tools configuration
@@ -235,6 +237,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// We prepend GetNpmBinPathSetup() to the engine command so it runs inside the AWF container.
 		npmPathSetup := GetNpmBinPathSetup()
 		claudeCommandWithPath := fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
+		// Add MCP CLI bin directory to PATH when mount-as-clis is enabled
+		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
+			claudeCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, claudeCommandWithPath)
+		}
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "claude",
@@ -292,7 +298,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
+		env["GH_AW_MCP_CONFIG"] = "${{ runner.temp }}/gh-aw/mcp-config/mcp-servers.json"
 	}
 
 	// In sandbox (AWF) mode, set git identity environment variables so the first git commit

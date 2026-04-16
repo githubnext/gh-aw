@@ -65,7 +65,10 @@ safe-outputs:
     run-success: "🧪 [{workflow_name}]({run_url}) completed test quality analysis."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during test quality analysis."
 timeout-minutes: 15
+imports:
+  - shared/reporting.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

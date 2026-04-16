@@ -14,8 +14,9 @@ tools:
   agentic-workflows:
   timeout: 300
 safe-outputs:
-  upload-artifact:
-    retention-days: 30
+  upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 imports:
   - uses: shared/daily-audit-discussion.md
@@ -51,7 +52,7 @@ Generate 2 charts from past 30 days workflow data:
 2. **Token & Cost**: Daily tokens (bar/area) + cost line + 7-day moving average
 
 Save to: `/tmp/gh-aw/python/charts/{workflow_health,token_cost}_trends.png`
-Upload charts, embed in discussion with 2-3 sentence analysis each. Stage chart files to `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/` and call the `upload_artifact` safe-output tool for each chart. Record the returned `aw_*` IDs and include them in the discussion body along with a link to the [workflow run artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) so readers can download the charts.
+Upload charts and embed them in the discussion with 2-3 sentence analysis each. Call the `upload_asset` safe-output tool for each chart using the absolute chart path. Record the returned asset URLs and include them in the discussion body.
 
 ---
 
@@ -65,6 +66,10 @@ Use the agentic-workflows MCP tool `logs` with parameters:
 - start_date: "-1d" (last 24 hours)
 Output is saved to: /tmp/gh-aw/aw-mcp/logs
 ```
+
+**Engine Classification**: Use `summary.engine_counts` from the `logs` tool output to report engine usage. Each run also has an `agent` field (e.g., `"copilot"`, `"claude"`, `"codex"`). Both are derived from the `engine_id` field in `aw_info.json`, which is the authoritative source for engine type.
+
+**IMPORTANT**: Do NOT infer engine type by scanning `.lock.yml` files. Lock files contain the word `copilot` in allowed-domains lists and workflow source paths regardless of which engine the workflow uses, causing false positives.
 
 **Analyze**: Review logs for:
 - Missing tools (patterns, frequency, legitimacy)

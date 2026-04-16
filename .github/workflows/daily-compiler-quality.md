@@ -11,13 +11,11 @@ permissions:
 tracker-id: daily-compiler-quality
 engine: copilot
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-compiler-quality] "
       expires: 1d
-  - shared/reporting.md
   - shared/go-source-analysis.md
-  - shared/observability-otlp.md
 tools:
   github:
     toolsets:
@@ -33,6 +31,7 @@ tools:
 timeout-minutes: 30
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

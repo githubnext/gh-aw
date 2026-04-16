@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var maskLog = logger.New("agentdrain:mask")
@@ -63,12 +64,9 @@ func FlattenEvent(evt AgentEvent, excludeFields []string) string {
 		excluded[f] = true
 	}
 
-	keys := make([]string, 0, len(evt.Fields))
-	for k := range evt.Fields {
-		if !excluded[k] {
-			keys = append(keys, k)
-		}
-	}
+	keys := sliceutil.FilterMapKeys(evt.Fields, func(k string, _ string) bool {
+		return !excluded[k]
+	})
 	sort.Strings(keys)
 
 	parts := make([]string, 0, len(keys)+1)

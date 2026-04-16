@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
@@ -108,7 +109,7 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 	// actions/checkout gets a bump; owner/my-safe-action is already at latest.
 	orig := getLatestActionReleaseFn
 	defer func() { getLatestActionReleaseFn = orig }()
-	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "actions/checkout":
 			return "v5", "newcheckoutsha1234567890123456789012345", nil
@@ -145,7 +146,7 @@ func TestUpdateActions_SafeOutputsInputsPreserved(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	if err := UpdateActions(false, false, false); err != nil {
+	if err := UpdateActions(context.Background(), false, false, false); err != nil {
 		t.Fatalf("UpdateActions() error = %v", err)
 	}
 
@@ -352,7 +353,7 @@ func TestUpdateActionRefsInContent_NonCoreActionsUnchanged(t *testing.T) {
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, newContent, err := updateActionRefsInContent(input, cache, false, false)
+	changed, newContent, err := updateActionRefsInContent(context.Background(), input, cache, false, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -371,7 +372,7 @@ steps:
   - run: echo world`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(input, cache, true, false)
+	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -385,7 +386,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
 	orig := getLatestActionReleaseFn
 	defer func() { getLatestActionReleaseFn = orig }()
 
-	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "actions/checkout":
 			return "v6", "de0fac2e4500dabe0009e67214ff5f5447ce83dd", nil
@@ -407,7 +408,7 @@ func TestUpdateActionRefsInContent_VersionTagReplacement(t *testing.T) {
   - run: echo hello`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(input, cache, true, false)
+	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -425,7 +426,7 @@ func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
 	defer func() { getLatestActionReleaseFn = orig }()
 
 	newSHA := "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
-	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		return "v6.0.2", newSHA, nil
 	}
 
@@ -434,7 +435,7 @@ func TestUpdateActionRefsInContent_SHAPinnedReplacement(t *testing.T) {
 	want := "        uses: actions/checkout@" + newSHA + "  # v6.0.2"
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(input, cache, true, false)
+	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -452,7 +453,7 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
 	defer func() { getLatestActionReleaseFn = orig }()
 
 	callCount := 0
-	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		callCount++
 		return "v8", "ed597411d8f9245be5a6f5b7f5d52e63b7e62e96", nil
 	}
@@ -463,7 +464,7 @@ func TestUpdateActionRefsInContent_CacheReusedAcrossLines(t *testing.T) {
   - uses: actions/github-script@v7`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, _, err := updateActionRefsInContent(input, cache, true, false)
+	changed, _, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -481,7 +482,7 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
 	orig := getLatestActionReleaseFn
 	defer func() { getLatestActionReleaseFn = orig }()
 
-	getLatestActionReleaseFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		switch repo {
 		case "docker/login-action":
 			return "v4", "newsha11234567890123456789012345678901234", nil
@@ -501,7 +502,7 @@ func TestUpdateActionRefsInContent_AllOrgsUpdatedWhenAllowMajor(t *testing.T) {
   - uses: github/codeql-action@v4`
 
 	cache := make(map[string]latestReleaseResult)
-	changed, got, err := updateActionRefsInContent(input, cache, true, false)
+	changed, got, err := updateActionRefsInContent(context.Background(), input, cache, true, false)
 	if err != nil {
 		t.Fatalf("updateActionRefsInContent() error = %v", err)
 	}
@@ -525,17 +526,17 @@ func TestGetLatestActionRelease_FallsBackToGitWhenNoReleases(t *testing.T) {
 	}()
 
 	// Simulate the GitHub Releases API returning an empty list (no releases published).
-	runGHReleasesAPIFn = func(baseRepo string) ([]byte, error) {
+	runGHReleasesAPIFn = func(_ context.Context, baseRepo string) ([]byte, error) {
 		return []byte(""), nil
 	}
 
 	gitFnCalled := false
-	getLatestActionReleaseViaGitFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseViaGitFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		gitFnCalled = true
 		return "v1.2.3", "abc1234567890123456789012345678901234567", nil
 	}
 
-	version, sha, err := getLatestActionRelease("github/gh-aw-actions/setup", "v1", false, false)
+	version, sha, err := getLatestActionRelease(context.Background(), "github/gh-aw-actions/setup", "v1", false, false)
 	if err != nil {
 		t.Fatalf("expected no error when git fallback succeeds, got: %v", err)
 	}
@@ -562,16 +563,16 @@ func TestGetLatestActionRelease_FallbackReturnsErrorWhenBothFail(t *testing.T) {
 	}()
 
 	// Simulate the GitHub Releases API returning an empty list.
-	runGHReleasesAPIFn = func(baseRepo string) ([]byte, error) {
+	runGHReleasesAPIFn = func(_ context.Context, baseRepo string) ([]byte, error) {
 		return []byte(""), nil
 	}
 
 	// Simulate the git fallback also finding nothing.
-	getLatestActionReleaseViaGitFn = func(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+	getLatestActionReleaseViaGitFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 		return "", "", errors.New("no releases found")
 	}
 
-	_, _, err := getLatestActionRelease("github/gh-aw-actions/setup", "v1", false, false)
+	_, _, err := getLatestActionRelease(context.Background(), "github/gh-aw-actions/setup", "v1", false, false)
 	if err == nil {
 		t.Fatal("expected error when both releases API and git fallback fail, got nil")
 	}
@@ -590,15 +591,15 @@ func TestGetLatestActionRelease_PrereleaseTagsSkipped(t *testing.T) {
 	}()
 
 	// Return a stable release alongside a higher-versioned prerelease.
-	runGHReleasesAPIFn = func(baseRepo string) ([]byte, error) {
+	runGHReleasesAPIFn = func(_ context.Context, baseRepo string) ([]byte, error) {
 		return []byte("v1.0.0\nv1.1.0-beta.1"), nil
 	}
 
-	getActionSHAForTagFn = func(repo, tag string) (string, error) {
+	getActionSHAForTagFn = func(_ context.Context, repo, tag string) (string, error) {
 		return "stablesha1234567890123456789012345678901", nil
 	}
 
-	version, _, err := getLatestActionRelease("actions/checkout", "v1.0.0", true, false)
+	version, _, err := getLatestActionRelease(context.Background(), "actions/checkout", "v1.0.0", true, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -3,6 +3,7 @@ package workflow
 import (
 	"os"
 
+	actionpins "github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -42,6 +43,11 @@ func WithWorkflowIdentifier(identifier string) CompilerOption {
 	return func(c *Compiler) { c.workflowIdentifier = identifier }
 }
 
+// WithVersion sets the compiler version, used to determine action mode and version-specific behavior
+func WithVersion(version string) CompilerOption {
+	return func(c *Compiler) { c.version = version }
+}
+
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
@@ -57,7 +63,7 @@ type Compiler struct {
 	skipValidation          bool                     // If true, skip schema validation
 	noEmit                  bool                     // If true, validate without generating lock files
 	strictMode              bool                     // If true, enforce strict validation requirements
-	safeUpdate              bool                     // If true, enforce safe update mode (reject newly introduced secrets)
+	approve                 bool                     // If true, approve safe update changes (skip safe update enforcement)
 	trialMode               bool                     // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug    string                   // If set in trial mode, the logical repository to checkout
 	refreshStopTime         bool                     // If true, regenerate stop-after times instead of preserving existing ones
@@ -89,6 +95,7 @@ type Compiler struct {
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
+	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -130,19 +137,16 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 	return c
 }
 
-// NewCompilerWithVersion creates a new workflow compiler with the legacy signature.
-// Deprecated: Use NewCompiler with functional options instead.
-// This function is kept for backward compatibility during migration.
-func NewCompilerWithVersion(version string) *Compiler {
-	c := NewCompiler()
-	c.version = version
-	c.actionMode = DetectActionMode(c.version)
-	return c
-}
-
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// SetRequireDocker configures whether Docker must be available for container image validation.
+// When true, validation fails with an error if Docker is not installed or the daemon is not running.
+// When false (default), validation is silently skipped when Docker is unavailable.
+func (c *Compiler) SetRequireDocker(require bool) {
+	c.requireDocker = require
 }
 
 // SetQuiet configures whether to suppress success messages (for interactive mode)
@@ -155,12 +159,11 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
-// SetSafeUpdate configures whether to force-enable safe update mode via the CLI flag.
-// Safe update mode is normally equivalent to strict mode (active when strict mode is active).
-// This flag provides an additional override to enable safe update mode independently of
-// the strict mode setting.
-func (c *Compiler) SetSafeUpdate(safeUpdate bool) {
-	c.safeUpdate = safeUpdate
+// SetApprove configures whether to skip safe update enforcement via the CLI --approve flag.
+// When true, safe update enforcement is disabled regardless of strict mode setting,
+// approving all changes.
+func (c *Compiler) SetApprove(approve bool) {
+	c.approve = approve
 }
 
 // SetFileTracker sets the file tracker for tracking created files
@@ -396,10 +399,12 @@ type WorkflowData struct {
 	Concurrency                 string // workflow-level concurrency configuration
 	RunName                     string
 	Env                         string
+	EnvSources                  map[string]string // env var name → source ("(main workflow)" or import file path) for lock file header
 	If                          string
 	TimeoutMinutes              string
 	CustomSteps                 string
 	PreSteps                    string // steps to run at the very start of the agent job, before checkout
+	PreAgentSteps               string // steps to run immediately before the agent execution step
 	PostSteps                   string // steps to run after AI execution
 	RunsOn                      string
 	RunsOnSlim                  string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
@@ -432,6 +437,9 @@ type WorkflowData struct {
 	LabelCommandRemoveLabel     bool                      // whether to automatically remove the triggering label (default: true)
 	AIReaction                  string                    // AI reaction type like "eyes", "heart", etc.
 	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
+	StatusCommentIssues         *bool                     // whether status comments are allowed on issues/issue_comment triggers (default: true)
+	StatusCommentPullRequests   *bool                     // whether status comments are allowed on pull_request/pull_request_review_comment triggers (default: true)
+	StatusCommentDiscussions    *bool                     // whether status comments are allowed on discussion/discussion_comment triggers (default: true)
 	ActivationGitHubToken       string                    // custom github token from on.github-token for reactions/comments
 	ActivationGitHubApp         *GitHubAppConfig          // github app config from on.github-app for minting activation tokens
 	TopLevelGitHubApp           *GitHubAppConfig          // top-level github-app fallback for all nested github-app token minting operations
@@ -476,6 +484,28 @@ type WorkflowData struct {
 	EngineConfigSteps           []map[string]any          // steps returned by engine.RenderConfig — prepended before execution steps
 	ServicePortExpressions      string                    // comma-separated ${{ job.services['<id>'].ports['<port>'] }} expressions for AWF --allow-host-service-ports
 	RunInstallScripts           bool                      // true when run-install-scripts: true is set (globally or per node runtime); disables --ignore-scripts on generated npm install steps
+}
+
+// PinContext returns an actionpins.PinContext backed by this WorkflowData.
+// It is used to pass the resolver and warnings state to pkg/actionpins functions
+// without introducing an import cycle.
+func (d *WorkflowData) PinContext() *actionpins.PinContext {
+	if d == nil {
+		return nil
+	}
+	if d.ActionPinWarnings == nil {
+		d.ActionPinWarnings = make(map[string]bool)
+	}
+	ctx := &actionpins.PinContext{
+		StrictMode: d.StrictMode,
+		Warnings:   d.ActionPinWarnings,
+	}
+	// Only set Resolver if non-nil to avoid passing a typed nil interface value
+	// (which would be non-nil in actionpins but crash on method call).
+	if d.ActionResolver != nil {
+		ctx.Resolver = d.ActionResolver
+	}
+	return ctx
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types

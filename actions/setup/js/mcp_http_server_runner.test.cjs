@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import http from "http";
 import { runHttpServer } from "./mcp_http_server_runner.cjs";
 
@@ -64,10 +64,23 @@ function request(server, { method, path, body, headers = {} }) {
 }
 
 describe("mcp_http_server_runner.cjs - runHttpServer", () => {
+  /** @type {http.Server | null} */
+  let currentServer = null;
+
+  afterEach(async () => {
+    if (currentServer) {
+      // Close all keep-alive connections before stopping the server to prevent
+      // lingering open sockets from keeping the Node.js event loop alive.
+      currentServer.closeAllConnections();
+      await new Promise(r => currentServer.close(r));
+      currentServer = null;
+    }
+  });
+
   it("sets CORS headers on every response", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
@@ -76,118 +89,112 @@ describe("mcp_http_server_runner.cjs - runHttpServer", () => {
     });
 
     // server.listen(0) picks a random port
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    const res = await request(server, { method: "POST", path: "/", body: '{"jsonrpc":"2.0","id":1,"method":"ping"}' });
+    const res = await request(currentServer, { method: "POST", path: "/", body: '{"jsonrpc":"2.0","id":1,"method":"ping"}' });
     expect(res.headers["access-control-allow-origin"]).toBe("*");
     expect(res.headers["access-control-allow-methods"]).toContain("POST");
-    server.close();
   });
 
   it("responds 200 to OPTIONS preflight without calling transport", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
       logger,
       serverLabel: "Test",
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    const res = await request(server, { method: "OPTIONS", path: "/" });
+    const res = await request(currentServer, { method: "OPTIONS", path: "/" });
     expect(res.statusCode).toBe(200);
     expect(transport.calls).toHaveLength(0);
-    server.close();
   });
 
   it("responds to GET /health with payload from getHealthPayload", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok", server: "test-server", version: "2.0.0", tools: 42 }),
       logger,
       serverLabel: "Test",
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    const res = await request(server, { method: "GET", path: "/health" });
+    const res = await request(currentServer, { method: "GET", path: "/health" });
     expect(res.statusCode).toBe(200);
     const payload = JSON.parse(res.body);
     expect(payload.status).toBe("ok");
     expect(payload.server).toBe("test-server");
     expect(payload.version).toBe("2.0.0");
     expect(payload.tools).toBe(42);
-    server.close();
   });
 
   it("responds 405 for non-POST methods other than GET /health and OPTIONS", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
       logger,
       serverLabel: "Test",
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    const res = await request(server, { method: "PUT", path: "/" });
+    const res = await request(currentServer, { method: "PUT", path: "/" });
     expect(res.statusCode).toBe(405);
     const body = JSON.parse(res.body);
     expect(body.error).toBe("Method not allowed");
-    server.close();
   });
 
   it("responds 400 with JSON-RPC error for invalid JSON body", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
       logger,
       serverLabel: "Test",
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    const res = await request(server, { method: "POST", path: "/", body: "{ not valid json" });
+    const res = await request(currentServer, { method: "POST", path: "/", body: "{ not valid json" });
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
     expect(body.jsonrpc).toBe("2.0");
     expect(body.error.code).toBe(-32700);
     expect(body.error.message).toContain("Parse error");
-    server.close();
   });
 
   it("delegates valid POST requests to transport.handleRequest with parsed body", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
       logger,
       serverLabel: "Test",
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
     const payload = { jsonrpc: "2.0", id: 5, method: "tools/list" };
-    await request(server, { method: "POST", path: "/", body: JSON.stringify(payload) });
+    await request(currentServer, { method: "POST", path: "/", body: JSON.stringify(payload) });
     expect(transport.calls).toHaveLength(1);
     expect(transport.calls[0].body).toEqual(payload);
-    server.close();
   });
 
   it("calls configureServer callback with the http.Server instance before binding", async () => {
     const transport = makeMockTransport();
     const logger = makeMockLogger();
     let capturedServer = null;
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
@@ -198,11 +205,10 @@ describe("mcp_http_server_runner.cjs - runHttpServer", () => {
         s.timeout = 0;
       },
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    expect(capturedServer).toBe(server);
-    expect(server.timeout).toBe(0);
-    server.close();
+    expect(capturedServer).toBe(currentServer);
+    expect(currentServer.timeout).toBe(0);
   });
 
   it("returns 500 when transport.handleRequest throws", async () => {
@@ -212,20 +218,19 @@ describe("mcp_http_server_runner.cjs - runHttpServer", () => {
         throw new Error("boom");
       },
     };
-    const server = await runHttpServer({
+    currentServer = await runHttpServer({
       transport: throwingTransport,
       port: 0,
       getHealthPayload: () => ({ status: "ok" }),
       logger,
       serverLabel: "Test",
     });
-    await new Promise(r => server.once("listening", r));
+    await new Promise(r => currentServer.once("listening", r));
 
-    const res = await request(server, { method: "POST", path: "/", body: '{"jsonrpc":"2.0","id":1,"method":"ping"}' });
+    const res = await request(currentServer, { method: "POST", path: "/", body: '{"jsonrpc":"2.0","id":1,"method":"ping"}' });
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
     expect(body.error.code).toBe(-32603);
-    server.close();
   });
 });
 

@@ -91,3 +91,42 @@ Test workflow`
 		t.Error("Expected conclusion job to receive secret_verification_result from activation job")
 	}
 }
+
+func TestSecretVerificationOutputSkippedWithEnvironment(t *testing.T) {
+	testDir := testutil.TempDir(t, "secret-verify-env-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+environment: production
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+	if !strings.Contains(lockStr, "environment: production") {
+		t.Error("Expected compiled workflow to include environment: production")
+	}
+	if strings.Contains(lockStr, "id: validate-secret") {
+		t.Error("Expected validate-secret step to be skipped when top-level environment is configured")
+	}
+	if strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
+		t.Error("Expected secret_verification_result activation output to be skipped when top-level environment is configured")
+	}
+}

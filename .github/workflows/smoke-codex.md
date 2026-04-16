@@ -1,7 +1,6 @@
 ---
 description: Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily
 on: 
-  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]
@@ -17,9 +16,8 @@ engine: codex
 strict: false
 imports:
   - shared/gh.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
 network:
   allowed:
     - defaults

@@ -208,3 +208,17 @@ func buildCustomSafeOutputJobsJSON(data *WorkflowData) string {
 	}
 	return string(jsonBytes)
 }
+
+// extractStringSliceFromConfig retrieves a []string value from a handler config map.
+// It gracefully handles both []string and []any element types. Returns nil when the
+// key is absent or the value cannot be coerced.
+func extractStringSliceFromConfig(config map[string]any, key string) []string {
+	if config == nil {
+		return nil
+	}
+	raw, exists := config[key]
+	if !exists || raw == nil {
+		return nil
+	}
+	return parseStringSliceAny(raw, nil)
+}

@@ -1,4 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { createRequire } from "module";
+import fs from "fs";
+import os from "os";
+import path from "path";
+
+const require = createRequire(import.meta.url);
+const { resolvePromptFileArgs, buildPromptFileFallbackInstruction, PROMPT_FILE_INLINE_THRESHOLD_BYTES } = require("./copilot_driver.cjs");
 
 describe("copilot_driver.cjs", () => {
   // Test the core logic patterns used by the driver without importing the module
@@ -34,7 +41,7 @@ describe("copilot_driver.cjs", () => {
     });
   });
 
-  describe("retry policy: resume on partial execution", () => {
+  describe("retry policy: continue on partial execution", () => {
     // Inline the same retry-eligibility logic as the driver for unit testing.
     // The driver retries whenever the session produced output (hasOutput), regardless
     // of the specific error type.  CAPIError 400 is just the well-known case.
@@ -111,6 +118,7 @@ describe("copilot_driver.cjs", () => {
   describe("MCP policy error prevents retry", () => {
     // Inline the same retry logic as the driver, including MCP policy check
     const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
     const MAX_RETRIES = 3;
 
     /**
@@ -122,6 +130,8 @@ describe("copilot_driver.cjs", () => {
       if (result.exitCode === 0) return false;
       // MCP policy errors are persistent — never retry
       if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
+      // Model-not-supported errors are persistent — never retry
+      if (MODEL_NOT_SUPPORTED_PATTERN.test(result.output)) return false;
       return attempt < MAX_RETRIES && result.hasOutput;
     }
 
@@ -135,8 +145,120 @@ describe("copilot_driver.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
+    it("does not retry model-not-supported error", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Execution failed: CAPIError: 400 The requested model is not supported." };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry model-not-supported error even on first attempt with output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Some output\nExecution failed: CAPIError: 400 The requested model is not supported.\nMore output" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
     it("still retries non-policy errors with output", () => {
       const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+  });
+
+  describe("model-not-supported detection pattern", () => {
+    const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+
+    it("matches the exact error from the issue report", () => {
+      const errorOutput = "Execution failed: CAPIError: 400 The requested model is not supported.";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches when embedded in larger log output", () => {
+      const log = "Some output\nExecution failed: CAPIError: 400 The requested model is not supported.\nMore output";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(log)).toBe(true);
+    });
+
+    it("does not match other CAPIError 400 errors", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+    });
+
+    it("does not match unrelated errors", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Access denied by policy settings")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("MCP servers were blocked by policy: 'github'")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("no-auth-info detection pattern", () => {
+    const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+
+    it("matches the exact error from the issue report", () => {
+      const errorOutput =
+        "Error: No authentication information found.\n" +
+        "Copilot can be authenticated with GitHub using an OAuth Token or a Fine-Grained Personal Access Token.\n" +
+        "To authenticate, you can use any of the following methods:\n" +
+        "  - Start 'copilot' and run the '/login' command\n" +
+        "  - Set the COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN environment variable\n" +
+        "  - Run 'gh auth login' to authenticate with the GitHub CLI";
+      expect(NO_AUTH_INFO_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches when embedded in larger output after a long run", () => {
+      const output = "Some agent work output\nMore work\nNo authentication information found\nEnd";
+      expect(NO_AUTH_INFO_PATTERN.test(output)).toBe(true);
+    });
+
+    it("does not match unrelated auth errors", () => {
+      expect(NO_AUTH_INFO_PATTERN.test("Access denied by policy settings")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("Error: 401 Unauthorized")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("Authentication failed")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+      expect(NO_AUTH_INFO_PATTERN.test("")).toBe(false);
+    });
+  });
+
+  describe("auth error prevents retry", () => {
+    // Inline the same retry logic as the driver, including auth error check
+    const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
+    const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number, output: string}} result
+     * @param {number} attempt
+     * @returns {boolean}
+     */
+    function shouldRetry(result, attempt) {
+      if (result.exitCode === 0) return false;
+      // MCP policy errors are persistent — never retry
+      if (MCP_POLICY_BLOCKED_PATTERN.test(result.output)) return false;
+      // Auth errors are persistent — never retry
+      if (NO_AUTH_INFO_PATTERN.test(result.output)) return false;
+      return attempt < MAX_RETRIES && result.hasOutput;
+    }
+
+    it("does not retry when auth fails on first attempt (no real work done)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("does not retry when auth fails on a --continue attempt (the reported bug scenario)", () => {
+      // This replicates the issue: attempt 1 ran for 39 min then failed,
+      // attempt 2 (--continue) fails with auth error — should not retry attempts 3 & 4.
+      const resumeResult = { exitCode: 1, hasOutput: true, output: "Error: No authentication information found." };
+      expect(shouldRetry(resumeResult, 1)).toBe(false);
+      expect(shouldRetry(resumeResult, 2)).toBe(false);
+      expect(shouldRetry(resumeResult, 3)).toBe(false);
+    });
+
+    it("does not retry auth error even when output is mixed with other content", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Some output\nError: No authentication information found.\nMore output" };
+      expect(shouldRetry(result, 0)).toBe(false);
+    });
+
+    it("still retries non-auth errors with output (CAPIError 400)", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "CAPIError: 400 Bad Request" };
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+
+    it("still retries generic partial-execution errors with output", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "Failed to get response from the AI model; retried 5 times" };
       expect(shouldRetry(result, 0)).toBe(true);
     });
   });
@@ -166,6 +288,30 @@ describe("copilot_driver.cjs", () => {
         delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
         expect(delay).toBeLessThanOrEqual(MAX_DELAY_MS);
       }
+    });
+  });
+
+  describe("prompt-file support", () => {
+    it("inlines small prompt files as -p", () => {
+      const promptFile = path.join(os.tmpdir(), `copilot-driver-small-${Date.now()}.txt`);
+      fs.writeFileSync(promptFile, "small prompt body", "utf8");
+
+      const resolved = resolvePromptFileArgs(["--add-dir", "/tmp", "--prompt-file", promptFile, "--allow-all-tools"]);
+      expect(resolved).toEqual(["--add-dir", "/tmp", "-p", "small prompt body", "--allow-all-tools"]);
+    });
+
+    it("uses compact fallback prompt when prompt file is larger than 100KB", () => {
+      const promptFile = path.join(os.tmpdir(), `copilot-driver-large-${Date.now()}.txt`);
+      fs.writeFileSync(promptFile, "x".repeat(PROMPT_FILE_INLINE_THRESHOLD_BYTES + 1), "utf8");
+
+      const resolved = resolvePromptFileArgs(["--prompt-file", promptFile, "--allow-all-tools"]);
+      expect(resolved).toEqual(["-p", buildPromptFileFallbackInstruction(promptFile), "--allow-all-tools"]);
+    });
+
+    it("keeps --prompt-file arguments unchanged when file resolution fails", () => {
+      const missingPath = path.join(os.tmpdir(), `copilot-driver-missing-${Date.now()}.txt`);
+      const resolved = resolvePromptFileArgs(["--prompt-file", missingPath, "--allow-all-tools"]);
+      expect(resolved).toEqual(["--prompt-file", missingPath, "--allow-all-tools"]);
     });
   });
 

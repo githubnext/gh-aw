@@ -15,12 +15,11 @@ tracker-id: mcp-concurrency-analysis
 engine: copilot
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/safe-output-app.md
   - uses: shared/mcp/serena.md
     with:
       languages: ["go", "typescript"]
-  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:

@@ -156,7 +156,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
@@ -213,7 +213,7 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 	if config.StepCondition != "" {
 		steps = append(steps, fmt.Sprintf("        if: %s\n", config.StepCondition))
 	}
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")

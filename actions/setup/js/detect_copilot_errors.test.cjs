@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-const { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN } = require("./detect_copilot_errors.cjs");
+const { detectErrors, INFERENCE_ACCESS_ERROR_PATTERN, MCP_POLICY_BLOCKED_PATTERN, AGENTIC_ENGINE_TIMEOUT_PATTERN, MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_copilot_errors.cjs");
 
 describe("detect_copilot_errors.cjs", () => {
   describe("INFERENCE_ACCESS_ERROR_PATTERN", () => {
@@ -86,12 +86,36 @@ describe("detect_copilot_errors.cjs", () => {
     });
   });
 
+  describe("MODEL_NOT_SUPPORTED_PATTERN", () => {
+    it("matches the exact error from the issue report", () => {
+      const errorOutput = "Execution failed: CAPIError: 400 The requested model is not supported.";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("matches when embedded in larger log output", () => {
+      const log = "Some output\nExecution failed: CAPIError: 400 The requested model is not supported.\nMore output";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(log)).toBe(true);
+    });
+
+    it("does not match other CAPIError 400 errors", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("CAPIError: 400 400 Bad Request")).toBe(false);
+    });
+
+    it("does not match unrelated errors", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("Access denied by policy settings")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("MCP servers were blocked by policy: 'github'")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("")).toBe(false);
+    });
+  });
+
   describe("detectErrors", () => {
     it("returns all false for empty log", () => {
       const result = detectErrors("");
       expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
     });
 
     it("detects inference access error only", () => {
@@ -99,6 +123,7 @@ describe("detect_copilot_errors.cjs", () => {
       expect(result.inferenceAccessError).toBe(true);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
     });
 
     it("detects MCP policy error only", () => {
@@ -106,6 +131,7 @@ describe("detect_copilot_errors.cjs", () => {
       expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(true);
       expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
     });
 
     it("detects engine timeout only", () => {
@@ -113,6 +139,15 @@ describe("detect_copilot_errors.cjs", () => {
       expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
+      expect(result.modelNotSupportedError).toBe(false);
+    });
+
+    it("detects model not supported error only", () => {
+      const result = detectErrors("Execution failed: CAPIError: 400 The requested model is not supported.");
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(true);
     });
 
     it("detects both errors in the same log", () => {
@@ -121,6 +156,7 @@ describe("detect_copilot_errors.cjs", () => {
       expect(result.inferenceAccessError).toBe(true);
       expect(result.mcpPolicyError).toBe(true);
       expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
     });
 
     it("detects timeout alongside other errors", () => {
@@ -129,6 +165,7 @@ describe("detect_copilot_errors.cjs", () => {
       expect(result.inferenceAccessError).toBe(true);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(true);
+      expect(result.modelNotSupportedError).toBe(false);
     });
 
     it("returns false for unrelated log content", () => {
@@ -136,6 +173,7 @@ describe("detect_copilot_errors.cjs", () => {
       expect(result.inferenceAccessError).toBe(false);
       expect(result.mcpPolicyError).toBe(false);
       expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
     });
   });
 });

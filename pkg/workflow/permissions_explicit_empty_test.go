@@ -90,7 +90,7 @@ Test content`,
 			}
 
 			// Compile with specified action mode
-			compiler := NewCompilerWithVersion("v1.0.0")
+			compiler := NewCompiler(WithVersion("v1.0.0"))
 			compiler.actionMode = tt.actionMode
 
 			err = compiler.CompileWorkflow(testFile)

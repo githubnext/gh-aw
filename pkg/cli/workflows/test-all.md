@@ -220,7 +220,7 @@ Based on your poem and the event context, use these safe-outputs capabilities:
 4. **For code-related events**: Create a pull request with poetry files (using `create-pull-request`)
 5. **For PR events**: Add review comments with poetic insights (using `create-pull-request-review-comment`)
 6. **Update issues when appropriate** with additional verses (using `update-issue`)
-7. **Upload any generated assets** like formatted poem files (using `upload-assets`)
+7. **Upload any generated assets** like formatted poem files (using `upload_artifact`)
 
 ### 🌟 Example Output Structure
 

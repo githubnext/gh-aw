@@ -47,6 +47,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed the approach validation. Review the report and react with ✅ or ❌."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during approach validation."
 timeout-minutes: 30
+features:
+  mcp-cli: true
 ---
 
 # Approach Validator 🔬

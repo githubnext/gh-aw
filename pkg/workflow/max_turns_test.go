@@ -254,3 +254,82 @@ engine:
 		})
 	}
 }
+
+func TestMaxTurnsFromSharedImport(t *testing.T) {
+	// This test verifies that engine.max-turns is correctly propagated when
+	// the engine config is sourced from a shared import rather than defined inline.
+	// The bug was that max-turns was silently dropped because it was serialized as
+	// JSON (int -> float64) but only int/uint64/string types were handled.
+
+	// Create a temporary directory for the test
+	tmpDir := testutil.TempDir(t, "max-turns-import-test")
+
+	// Create the shared import file with engine config including max-turns
+	sharedContent := `---
+engine:
+  id: claude
+  max-turns: 100
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	sharedFile := filepath.Join(sharedDir, "common.md")
+	if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the main workflow that imports the shared config
+	mainContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+imports:
+  - shared/common.md
+tools:
+  github:
+    allowed: [issue_read]
+---
+
+# Test Max Turns From Shared Import
+
+This workflow imports max-turns from a shared import.
+`
+	mainFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(mainFile, []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mainFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(mainFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify --max-turns 100 is present in the compiled output
+	if !strings.Contains(lockContentStr, "--max-turns 100") {
+		t.Errorf("Expected --max-turns 100 in compiled output when max-turns is set in shared import.\nLock file content:\n%s", lockContentStr)
+	}
+
+	// Verify GH_AW_MAX_TURNS env var is set
+	if !strings.Contains(lockContentStr, "GH_AW_MAX_TURNS: 100") {
+		t.Errorf("Expected GH_AW_MAX_TURNS: 100 in compiled output.\nLock file content:\n%s", lockContentStr)
+	}
+}

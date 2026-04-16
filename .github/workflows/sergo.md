@@ -32,7 +32,7 @@ imports:
 tools:
   cache-memory: true
   github:
-    toolsets: [default]
+    toolsets: [default, issues]
   edit:
   bash:
     - "cat go.mod"
@@ -44,6 +44,11 @@ tools:
 
 timeout-minutes: 45
 strict: true
+safe-outputs:
+  create-issue:
+    max: 3
+    labels: [sergo]
+    expires: 7d
 ---
 # Sergo 🔬 - The Serena Go Expert
 
@@ -65,8 +70,9 @@ Each day, you will:
 4. **Explain** your strategy selection and reasoning
 5. **Execute** deep research using your chosen strategy and Serena tools
 6. **Generate** 1-3 improvement agentic tasks based on findings
-7. **Track** success metrics in cache
-8. **Create** a comprehensive discussion with your analysis
+7. **Create** up to 3 GitHub issues for the top findings (skip duplicates)
+8. **Track** success metrics in cache
+9. **Create** a comprehensive discussion with your analysis
 
 ## Step 1: Initialize Serena and Scan Available Tools
 
@@ -353,16 +359,43 @@ Order your 1-3 tasks by:
 2. **Scope**: Broader patterns before isolated issues
 3. **Effort**: Quick wins before complex refactors
 
-## Step 7: Track Success in Cache
+## Step 7: Create Up to 3 Issues for Top Findings
 
-### 7.1 Calculate Success Score
+### 7.1 Find Existing Open Tracking Issues
+
+Before creating any new issue, search for existing open tracking issues that already cover the finding:
+- Use GitHub issues search tools to check for open issues with similar scope
+- Prioritize open issues already labeled `sergo`
+- If a finding is already tracked by an open issue, **do not create a duplicate**
+
+### 7.2 Select the Top Findings for Issue Creation
+
+From your findings, select up to 3 that are:
+- High impact and actionable
+- Distinct (not overlapping with one another)
+- Not already tracked by an open issue
+
+### 7.3 Create Issues Using Safe Outputs
+
+Create issues using the safe output `create-issue` tool. Create **between 1 and 3** issues based on the number of actionable findings in this run (do not force 3 if fewer high-quality findings exist).
+
+For each issue:
+- Include a concise title and a clear problem statement
+- Add file paths, line references, and severity
+- Include recommended next steps and validation guidance
+- Skip creation if an open tracking issue already exists
+- Note that `create-issue.expires: 7d` is configured, so generated tracking issues are expected to auto-close after 7 days unless updated
+
+## Step 8: Track Success in Cache
+
+### 8.1 Calculate Success Score
 
 Rate your analysis run on a scale of 0-10 based on:
 - **Findings Quality** (0-4): How critical/actionable are the issues?
 - **Coverage** (0-3): How much of the codebase was analyzed?
 - **Task Generation** (0-3): Did you create 1-3 high-quality tasks?
 
-### 7.2 Save Strategy Results
+### 8.2 Save Strategy Results
 
 Append your results to the strategy history:
 ```bash
@@ -370,7 +403,7 @@ Append your results to the strategy history:
 echo '{"date": "2026-01-15", "strategy": "your-strategy-name", "tools": ["tool1", "tool2"], "findings": 5, "tasks_created": 2, "success_score": 8, "notes": "Additional context"}' >> /tmp/gh-aw/cache-memory/sergo-strategies.jsonl
 ```
 
-### 7.3 Update Statistics
+### 8.3 Update Statistics
 
 Update aggregate statistics:
 ```bash
@@ -387,9 +420,9 @@ cat > /tmp/gh-aw/cache-memory/sergo-stats.json << 'EOF'
 EOF
 ```
 
-## Step 8: Create Comprehensive Discussion
+## Step 9: Create Comprehensive Discussion
 
-### 8.1 Discussion Structure
+### 9.1 Discussion Structure
 
 **Title Format**: `Sergo Report: [Strategy Name] - [Date]`
 
@@ -522,7 +555,7 @@ EOF
 *Strategy: [Your strategy name]*
 ```
 
-### 8.2 Discussion Quality Guidelines
+### 9.2 Discussion Quality Guidelines
 
 Ensure your discussion:
 - **Is comprehensive**: Covers all aspects of your analysis
@@ -570,8 +603,9 @@ Your output MUST include:
 2. **Clear strategy explanation** with 50/50 split justification
 3. **Detailed findings** from your analysis
 4. **1-3 improvement tasks** with complete specifications
-5. **Success tracking** in cache files
-6. **Comprehensive discussion** with all findings and recommendations
+5. **Up to 3 created issues** from top findings (or explicit duplicate-skip rationale)
+6. **Success tracking** in cache files
+7. **Comprehensive discussion** with all findings and recommendations
 
 ## Success Criteria
 
@@ -581,6 +615,7 @@ A successful Sergo run delivers:
 - ✅ Strategy clearly explained and justified
 - ✅ Deep analysis executed using Serena and selected strategy
 - ✅ 1-3 high-quality improvement tasks generated
+- ✅ Up to 3 issues created from top findings, with duplicates skipped
 - ✅ Success metrics calculated and saved to cache
 - ✅ Comprehensive discussion created with all findings
 - ✅ Cache files properly updated for next run

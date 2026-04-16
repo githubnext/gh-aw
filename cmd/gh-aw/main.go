@@ -86,11 +86,12 @@ var rootCmd = &cobra.Command{
 
 Common Tasks:
   gh aw init                  # Set up a new repository
+  gh aw add-wizard            # Add workflows with interactive guided setup
   gh aw new my-workflow       # Create your first workflow
   gh aw compile               # Compile all workflows
   gh aw run my-workflow       # Execute a workflow
   gh aw logs my-workflow      # View execution logs
-  gh aw audit <run-id>        # Debug a failed run
+  gh aw audit <run-id-or-url> # Debug a failed run
 
 For detailed help on any command, use:
   gh aw [command] --help`,
@@ -158,24 +159,24 @@ Examples:
 
 		// Template mode with workflow name
 		workflowName := args[0]
-		return cli.NewWorkflow(workflowName, verbose, forceFlag, engineOverride)
+		return cli.CreateWorkflowMarkdownFile(workflowName, verbose, forceFlag, engineOverride)
 	},
 }
 
 var removeCmd = &cobra.Command{
-	Use:   "remove [pattern]",
-	Short: "Remove agentic workflow files matching the given pattern",
-	Long: `Remove agentic workflow files matching the given workflow-id pattern.
+	Use:   "remove [filter]",
+	Short: "Remove agentic workflow files matching the given filter",
+	Long: `Remove agentic workflow files matching the given filter.
 
 The workflow-id is the basename of the Markdown file without the .md extension.
-You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
+You can provide a substring to match multiple workflows, or a specific workflow-id.
 
 By default, this command also removes orphaned include files that are no longer referenced
 by any workflow. Use --keep-orphans to skip this cleanup.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow              # Remove specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows starting with 'test-'
+  ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows containing 'test-' in name
   ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans      # Remove workflows but keep orphaned includes
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow --dir .github/workflows/shared  # Remove from custom directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -285,7 +286,8 @@ Examples:
 		failFast, _ := cmd.Flags().GetBool("fail-fast")
 		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
-		safeUpdate, _ := cmd.Flags().GetBool("safe-update")
+		approve, _ := cmd.Flags().GetBool("approve")
+		validateImages, _ := cmd.Flags().GetBool("validate-images")
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
@@ -341,7 +343,8 @@ Examples:
 			Stats:                  stats,
 			FailFast:               failFast,
 			ScheduleSeed:           scheduleSeed,
-			SafeUpdate:             safeUpdate,
+			Approve:                approve,
+			ValidateImages:         validateImages,
 			PriorManifestFile:      priorManifestFile,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
@@ -359,7 +362,7 @@ var runCmd = &cobra.Command{
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
-When called without workflow arguments, enters interactive mode with:
+When called without workflow arguments, this command enters interactive mode and shows:
 - List of workflows that support workflow_dispatch
 - Display of required and optional inputs
 - Input collection with validation
@@ -396,6 +399,7 @@ Examples:
 		push, _ := cmd.Flags().GetBool("push")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
+		approveRun, _ := cmd.Flags().GetBool("approve")
 
 		if err := validateEngine(engineOverride); err != nil {
 			return err
@@ -434,6 +438,7 @@ Examples:
 			Verbose:        verboseFlag,
 			DryRun:         dryRun,
 			JSON:           jsonOutput,
+			Approve:        approveRun,
 		})
 	},
 }
@@ -689,7 +694,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.Flags().String("schedule-seed", "", "Override the repository slug (owner/repo) used as seed for fuzzy schedule scattering (e.g. 'github/gh-aw'). Bypasses git remote detection entirely. Use this when your git remote is not named 'origin' and you have multiple remotes configured")
-	compileCmd.Flags().Bool("safe-update", false, "Force-enable safe update mode independently of strict mode. Safe update mode is normally equivalent to strict mode: it emits a warning prompt when compilations introduce new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to enable safe update enforcement on a workflow that has strict: false in its frontmatter")
+	compileCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
+	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
 		// Non-fatal: flag is registered even if MarkHidden fails
@@ -729,6 +735,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
+	runCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

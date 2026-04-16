@@ -13,6 +13,11 @@ network:
     - defaults
     - python
 
+safe-outputs:
+  upload-asset:
+    max: 5
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
+
 steps:
   - name: Setup Python environment
     run: |
@@ -24,18 +29,9 @@ steps:
       echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
       /tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
 
-  - name: Upload charts
-    if: always()
-    uses: actions/upload-artifact@v7
-    with:
-      name: trending-charts
-      path: /tmp/gh-aw/python/charts/*.png
-      if-no-files-found: warn
-      retention-days: 30
-
   - name: Upload source files and data
     if: always()
-    uses: actions/upload-artifact@v7
+    uses: actions/upload-artifact@v7.0.1
     with:
       name: trending-source-and-data
       path: |
@@ -79,6 +75,36 @@ plt.xticks(rotation=45)
 plt.tight_layout()
 plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
 ```
+
+## Upload Charts
+
+Chart images are uploaded individually via the `upload_asset` safe-output tool. This returns a persistent asset URL for inline rendering in issues, discussions, and pull requests.
+
+### Step 1: Generate Chart
+
+```python
+plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
+```
+
+### Step 2: Upload as Asset
+
+Call the `upload_asset` tool for each chart image:
+
+```json
+{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/trend.png" }
+```
+
+The tool returns a direct URL to the uploaded image.
+
+### Step 3: Embed in Markdown
+
+Use the returned asset URL to render the chart inline:
+
+```markdown
+![Trend Chart](ASSET_URL_FROM_UPLOAD)
+```
+
+> **Note**: Up to 5 chart images can be uploaded per run.
 
 ## Best Practices
 

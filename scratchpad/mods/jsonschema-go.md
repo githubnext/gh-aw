@@ -106,7 +106,7 @@ tool := &mcp.Tool{
 3. **Validation Engine**
    - Direct validation of Go values against schemas
    - No intermediate JSON marshaling required for validation
-   - Comprehensive error reporting
+   - Error reporting
 
 4. **API Design**
    - Function signatures follow Go idioms
@@ -120,7 +120,7 @@ Based on upstream activity and community discussions:
 - **Better Error Messages:** More descriptive validation errors, especially for `additionalProperties` violations
 - **Performance Improvements:** Optimizations in validation logic
 - **TypeSchemas Key Update:** Changed from `any` to `reflect.Type` for better type safety
-- **Struct Tag Support:** Comprehensive support for `json` and `jsonschema` struct tags
+- **Struct Tag Support:** Support for `json` and `jsonschema` struct tags
 
 ### Anticipated v0.4.0 Features
 
@@ -185,7 +185,7 @@ While not officially released, upstream development suggests:
    - 💡 Could extend pattern to other schema operations
 
 4. **Testing Coverage**
-   - ✅ Comprehensive test coverage for schema generation
+   - ✅ Test coverage for schema generation
    - ✅ Tests for scalar types, nested objects, and array elements
    - 💡 Could add validation tests for schema correctness
 

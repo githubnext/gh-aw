@@ -35,6 +35,7 @@ type CreatePullRequestsConfig struct {
 	AutoCloseIssue                 *string  `yaml:"auto-close-issue,omitempty"`                    // Auto-add "Fixes #N" closing keyword when triggered from an issue (default: true). Set to false to prevent auto-closing the triggering issue on PR merge. Accepts a boolean or a GitHub Actions expression.
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	ManifestFilesPolicy            *string  `yaml:"protected-files,omitempty"`                     // Controls protected-file protection: "blocked" (default) hard-blocks, "allowed" permits all changes, "fallback-to-issue" pushes the branch but creates a review issue.
+	ProtectedFilesExclude          []string `yaml:"-"`                                             // Files/prefixes to exclude from the default protected list (from object-form protected-files.exclude). Not sourced from YAML directly; populated during pre-processing.
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for create. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PreserveBranchName             bool     `yaml:"preserve-branch-name,omitempty"`                // When true, skips the random salt suffix on agent-specified branch names. Invalid characters are still replaced for security; casing is always preserved. Useful when CI enforces branch naming conventions (e.g. Jira keys in uppercase).
@@ -92,7 +93,15 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 	}
 
-	// Pre-process protected-files: pure string enum ("blocked", "allowed", "fallback-to-issue").
+	// Pre-process protected-files: supports string enum OR object form {policy, exclude}.
+	// Object form is preprocessed to extract the policy (stored back as string) and
+	// the exclude list (stored in a local variable and assigned to the config after unmarshaling).
+	var protectedFilesExclude []string
+	if configData != nil {
+		protectedFilesExclude = preprocessProtectedFilesField(configData, createPRLog)
+	}
+
+	// Validate protected-files string enum after object-form preprocessing.
 	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue"}
 	if configData != nil {
 		validateStringEnumField(configData, "protected-files", manifestFilesEnums, createPRLog)
@@ -122,6 +131,9 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	if config.Expires > 0 {
 		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
 	}
+
+	// Apply the exclude list extracted from the object-form protected-files field.
+	config.ProtectedFilesExclude = protectedFilesExclude
 
 	// Set default max if not explicitly configured (default is 1)
 	if config.Max == nil {

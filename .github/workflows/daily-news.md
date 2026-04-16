@@ -28,7 +28,10 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-discussion:
     expires: 3d
     category: "daily-news"
@@ -282,9 +285,8 @@ imports:
       description: "Historical news digest data"
   - shared/mcp/tavily.md
   - shared/jqschema.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
   copilot-requests: true
 ---

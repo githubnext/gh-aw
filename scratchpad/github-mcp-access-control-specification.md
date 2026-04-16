@@ -2664,7 +2664,7 @@ GitHub API rate limits apply to:
 - **Added**: Conformance requirements (Basic and Complete)
 - **Added**: Security model and threat analysis
 - **Added**: Integration patterns with MCP Gateway
-- **Added**: Comprehensive compliance test suite
+- **Added**: Compliance test suite
 - **Added**: Configuration examples and error message reference
 - **Added**: Security considerations and best practices
 

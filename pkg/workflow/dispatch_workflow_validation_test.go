@@ -16,7 +16,7 @@ import (
 // Note: This test directly creates WorkflowData to bypass JSON schema validation
 // which also rejects empty arrays. The runtime validation provides a better error message.
 func TestDispatchWorkflowErrorMessage_EmptyList(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -56,7 +56,7 @@ func TestDispatchWorkflowErrorMessage_EmptyList(t *testing.T) {
 // TestDispatchWorkflowErrorMessage_NotFound tests that workflow not found
 // error message includes troubleshooting steps
 func TestDispatchWorkflowErrorMessage_NotFound(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -119,7 +119,7 @@ This workflow references a non-existent workflow.
 // TestDispatchWorkflowErrorMessage_SelfReference tests that self-reference
 // error message includes explanation and alternatives
 func TestDispatchWorkflowErrorMessage_SelfReference(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -180,7 +180,7 @@ This workflow tries to dispatch to itself.
 // (no .lock.yml) is accepted as a valid same-batch dispatch target when the .md has
 // workflow_dispatch in its 'on:' section.
 func TestDispatchWorkflowBatchAware_MDWithDispatch(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -247,7 +247,7 @@ This workflow dispatches to a same-batch target.
 // TestDispatchWorkflowBatchAware_MDWithoutDispatch tests that a workflow that only has a .md file
 // (no .lock.yml) and does NOT have workflow_dispatch in its 'on:' section fails validation.
 func TestDispatchWorkflowBatchAware_MDWithoutDispatch(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -313,7 +313,7 @@ safe-outputs:
 // TestDispatchWorkflowErrorMessage_MultipleErrors tests that multiple errors
 // with enhanced messages are aggregated correctly
 func TestDispatchWorkflowErrorMessage_MultipleErrors(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	compiler.failFast = false // Enable error aggregation
 
 	tmpDir := t.TempDir()

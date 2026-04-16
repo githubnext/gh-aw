@@ -388,7 +388,8 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"cat << GH_AW_MCP_CONFIG_NORM_EOF | bash \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh\"",
+				"GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)",
+				"cat << GH_AW_MCP_CONFIG_NORM_EOF | \"$GH_AW_NODE\" \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs\"",
 				"\"mcpServers\": {",
 				"\"github\": { \"test\": true },",
 				"\"playwright\": { \"test\": true }",
@@ -424,7 +425,8 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"cat << GH_AW_MCP_CONFIG_NORM_EOF | bash \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh\"",
+				"GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)",
+				"cat << GH_AW_MCP_CONFIG_NORM_EOF | \"$GH_AW_NODE\" \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs\"",
 				"\"github\": { \"filtered\": true }",
 			},
 			unexpectedContent: []string{

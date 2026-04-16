@@ -1,7 +1,6 @@
 ---
 description: Smoke test workflow that validates Gemini engine functionality twice daily
 on:
-  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]
@@ -18,8 +17,7 @@ engine:
 strict: true
 imports:
   - shared/gh.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 network:
   allowed:
     - defaults

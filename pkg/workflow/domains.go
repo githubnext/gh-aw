@@ -276,12 +276,14 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "haskell": Haskell ecosystem
 //   - "java": Java/Maven/Gradle
 //   - "kotlin": Kotlin/JetBrains
+//   - "lean": Lean 4/Lake/Reservoir
 //   - "linux-distros": Linux distribution package repositories
 //   - "node": Node.js/NPM/Yarn
 //   - "perl": Perl/CPAN
 //   - "php": PHP/Composer
 //   - "playwright": Playwright testing framework
 //   - "python": Python/PyPI/Conda
+//   - "python-native": Python/PyPI/Conda + Rust crates (for packages with native extensions built with pyo3/maturin)
 //   - "ruby": Ruby/RubyGems
 //   - "rust": Rust/Cargo/Crates
 //   - "scala": Scala/SBT
@@ -355,6 +357,7 @@ var ecosystemPriority = []string{
 	"java", // before "chrome" — maven.google.com and dl.google.com are Java domains, not chrome domains
 	"chrome",
 	"kotlin",
+	"lean",
 	"linux-distros",
 	"local",
 	"node",
@@ -362,6 +365,7 @@ var ecosystemPriority = []string{
 	"php",
 	"playwright",
 	"python",
+	"python-native", // superset of "python" — adds crates.io for pyo3/maturin native extensions
 	"ruby",
 	"scala",
 	"swift",
@@ -749,6 +753,12 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 	// Resolved from engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
 	if copilotAPITarget := GetCopilotAPITarget(data); copilotAPITarget != "" {
 		base = mergeAPITargetDomains(base, copilotAPITarget)
+	}
+
+	// Add Gemini API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.
+	// Resolved from GEMINI_API_BASE_URL in engine.env or default generativelanguage.googleapis.com.
+	if geminiAPITarget := GetGeminiAPITarget(data, engineID); geminiAPITarget != "" {
+		base = mergeAPITargetDomains(base, geminiAPITarget)
 	}
 
 	return base

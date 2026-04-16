@@ -38,7 +38,10 @@ tools:
     - "pwd*"     # Print working directory
     - "cd*"      # Change directory
 safe-outputs:
-  upload-asset:
+  upload-artifact:
+    max-uploads: 3
+    retention-days: 30
+    skip-archive: true
   create-issue:
     expires: 2d
     labels: [cookie]
@@ -49,8 +52,9 @@ network:
 
 imports:
   - shared/docs-server-lifecycle.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

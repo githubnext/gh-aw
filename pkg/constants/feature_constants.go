@@ -49,4 +49,39 @@ const (
 	//	features:
 	//	  copilot-integration-id: true
 	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
+	// ByokCopilotFeatureFlag enables Copilot CLI offline BYOK mode.
+	// When enabled with engine: copilot, the compiler:
+	//   - injects a dummy COPILOT_API_KEY into the agent env to trigger AWF BYOK runtime behavior
+	//   - implicitly enables the cli-proxy feature
+	//   - installs the latest Copilot CLI version (un-pinned)
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  byok-copilot: true
+	ByokCopilotFeatureFlag FeatureFlag = "byok-copilot"
+	// IntegrityReactionsFeatureFlag enables reaction-based integrity promotion/demotion
+	// in the MCPG allow-only policy. When enabled, the compiler injects
+	// endorsement-reactions and disapproval-reactions fields into the allow-only policy.
+	// Requires MCPG >= v0.2.18.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  integrity-reactions: true
+	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
+	// MCPCLIFeatureFlag gates the MCP CLI mounting feature. When enabled together
+	// with tools.mount-as-clis: true, MCP servers are exposed as standalone CLI
+	// tools on PATH. Without this feature flag, the mount-as-clis setting is
+	// ignored and code generation remains unchanged.
+	//
+	// safeoutputs and mcpscripts CLI mounting is also gated behind this flag —
+	// they are only CLI-mounted when both the feature flag is enabled and the
+	// respective tool is configured.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  mcp-cli: true
+	MCPCLIFeatureFlag FeatureFlag = "mcp-cli"
 )

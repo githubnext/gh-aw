@@ -18,6 +18,7 @@ safe-outputs:
   add-comment:
     target: "*"
 features:
+  mcp-cli: true
   copilot-requests: true
 imports:
   - shared/observability-otlp.md

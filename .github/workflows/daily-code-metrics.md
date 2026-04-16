@@ -20,13 +20,11 @@ tools:
 timeout-minutes: 30
 strict: true
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-code-metrics] "
-  - shared/reporting.md
   - shared/python-dataviz.md
   - shared/trends.md
-  - shared/observability-otlp.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

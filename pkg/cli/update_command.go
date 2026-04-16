@@ -115,7 +115,7 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 
 	var firstErr error
 
-	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile); err != nil {
+	if err := UpdateWorkflows(ctx, workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)
 	}
 
@@ -123,7 +123,7 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 	// By default all actions are updated to the latest major version.
 	// Pass --disable-release-bump to revert to only forcing updates for core (actions/*) actions.
 	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", allowMajor, disableReleaseBump)
-	if err := UpdateActions(allowMajor, verbose, disableReleaseBump); err != nil {
+	if err := UpdateActions(ctx, allowMajor, verbose, disableReleaseBump); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
 	}
@@ -138,7 +138,7 @@ func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor,
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")
-	if err := UpdateActionsInWorkflowFiles(workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile); err != nil {
+	if err := UpdateActionsInWorkflowFiles(ctx, workflowsDir, engineOverride, verbose, disableReleaseBump, noCompile); err != nil {
 		// Non-fatal: warn but don't fail the update
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
 	}

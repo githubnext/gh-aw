@@ -15,7 +15,7 @@ import (
 // TestDispatchWorkflowMultiDirectoryDiscovery tests that dispatch_workflow can find workflows
 // in multiple directories (same directory and .github/workflows)
 func TestDispatchWorkflowMultiDirectoryDiscovery(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	// Create a temporary directory structure
 	tmpDir := t.TempDir()
@@ -177,7 +177,7 @@ This workflow dispatches to test workflow.
 
 // TestDispatchWorkflowNotFound tests error handling when workflow is not found
 func TestDispatchWorkflowNotFound(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -230,7 +230,7 @@ This workflow tries to dispatch to a non-existent workflow.
 // TestDispatchWorkflowWithoutWorkflowDispatchTrigger tests error handling
 // when referenced workflow doesn't support workflow_dispatch
 func TestDispatchWorkflowWithoutWorkflowDispatchTrigger(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -297,7 +297,7 @@ This workflow tries to dispatch to ci workflow.
 // TestDispatchWorkflowFileExtensionResolution tests that the correct file extension
 // (.lock.yml or .yml) is stored in the WorkflowFiles map
 func TestDispatchWorkflowFileExtensionResolution(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -381,7 +381,8 @@ This workflow dispatches to different workflow types.
 		"yml-test should use .yml extension")
 
 	// Generate safe outputs config to verify workflow_files is included
-	configJSON := generateSafeOutputsConfig(workflowData)
+	configJSON, err := generateSafeOutputsConfig(workflowData)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
 	require.NotEmpty(t, configJSON, "Config JSON should not be empty")
 
 	// Parse config to verify workflow_files is present
@@ -404,7 +405,7 @@ This workflow dispatches to different workflow types.
 // TestDispatchWorkflowValidationWithoutAgenticWorkflowsTool tests that dispatch-workflow
 // validation runs even when the agentic-workflows tool is not present
 func TestDispatchWorkflowValidationWithoutAgenticWorkflowsTool(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	tmpDir := t.TempDir()
 	awDir := filepath.Join(tmpDir, ".github", "aw")
@@ -460,7 +461,7 @@ No agentic-workflows tool is present.
 
 // TestDispatchWorkflowMultipleErrors tests that multiple validation errors are aggregated
 func TestDispatchWorkflowMultipleErrors(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	compiler.failFast = false // Enable error aggregation
 
 	tmpDir := t.TempDir()
@@ -538,7 +539,7 @@ This workflow has multiple validation errors.
 
 // TestDispatchWorkflowMultipleErrorsFailFast tests fail-fast mode stops at first error
 func TestDispatchWorkflowMultipleErrorsFailFast(t *testing.T) {
-	compiler := NewCompilerWithVersion("1.0.0")
+	compiler := NewCompiler(WithVersion("1.0.0"))
 	compiler.failFast = true // Enable fail-fast mode
 
 	tmpDir := t.TempDir()

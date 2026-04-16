@@ -97,6 +97,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #17975 _(direct issue)_
 
+### @apenab
+
+- #25626 _(direct issue)_
+
 ### @arezero
 
 - #20515 _(direct issue)_
@@ -105,12 +109,20 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #20511 _(direct issue)_
 - #20510 _(direct issue)_
 
+### @arthurfvives
+
+- #26223 _(direct issue)_
+- #25993 _(direct issue)_
+
 ### @askpt
 
 - #17763 _(direct issue)_
 
 ### @bbonafed
 
+- #26043 _(direct issue)_
+- #25646 _(direct issue)_
+- #24949 _(direct issue)_
 - #25224 _(direct issue)_
 - #24918 _(direct issue)_
 - #24896 _(direct issue)_
@@ -158,6 +170,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #25351 _(direct issue)_
 
+### @camposbrunocampos
+
+- #23726 _(direct issue)_
+
 ### @carlincherry
 
 - #22017 _(direct issue)_
@@ -187,6 +203,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @corygehr
 
+- #26270 _(direct issue)_
+- #26268 _(direct issue)_
 - #25680 _(direct issue)_
 - #24355 _(direct issue)_
 - #23944 _(direct issue)_
@@ -220,6 +238,11 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @dbudym-cs
 
 - #22913 _(direct issue)_
+
+### @devantler
+
+- #25768 _(direct issue)_
+- #25767 _(direct issue)_
 
 ### @deyaaeldeen
 
@@ -401,6 +424,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @JanKrivanek
 
+- #25656 _(direct issue)_
 - #25439 _(direct issue)_
 - #20187 _(direct issue)_
 
@@ -463,6 +487,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @kbreit-insight
 
+- #24930 _(direct issue)_
 - #23940 _(direct issue)_
 - #23725 _(direct issue)_
 - #22430 _(direct issue)_
@@ -476,6 +501,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18488 _(direct issue)_
 
+### @kthompson
+
+- #25550 _(direct issue)_
+
 ### @look
 
 - #23258 _(direct issue)_
@@ -483,6 +512,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @lpcox
 
 - #22281 _(direct issue)_
+
+### @lukeed
+
+- #20552 _(direct issue)_
 
 ### @lupinthe14th
 
@@ -499,6 +532,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @MatthewLabasan-NBCU
 
+- #26289 _(direct issue)_
 - #19500 _(direct issue)_
 
 ### @MattSkala
@@ -549,6 +583,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #20411 _(direct issue)_
 - #20249 _(direct issue)_
 
+### @neta-vega
+
+- #25895 _(direct issue)_
+
 ### @NicoAvanzDev
 
 - #21542 _(direct issue)_
@@ -558,6 +596,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @Nikhil-Anand-DSG
 
 - #18200 _(direct issue)_
+
+### @pgaskin
+
+- #26156 _(direct issue)_
 
 ### @pholleran
 
@@ -734,6 +776,12 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #15583 _(direct issue)_
 - #15576 _(direct issue)_
 
+### @susmahad
+
+- #26276 _(direct issue)_
+- #25866 _(direct issue)_
+- #25710 _(direct issue)_
+
 ### @swimmesberger
 
 - #19421 _(direct issue)_
@@ -742,8 +790,13 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #24037 _(direct issue)_
 
+### @tadelesh
+
+- #26001 _(direct issue)_
+
 ### @theletterf
 
+- #25494 _(direct issue)_
 - #18465 _(direct issue)_
 
 ### @timdittler
@@ -759,6 +812,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @tore-unumed
 
 - #20780 _(direct issue)_
+- #19703 _(direct issue)_
 - #19370 _(direct issue)_
 - #18329 _(direct issue)_
 - #18107 _(direct issue)_
@@ -794,6 +848,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @wtgodbe
 
+- #26057 _(direct issue)_
+- #25130 _(direct issue)_
 - #24921 _(direct issue)_
 
 ### @yaananth
@@ -802,6 +858,16 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @yskopets
 
+- #26345 _(direct issue)_
+- #26280 _(direct issue)_
+- #26279 _(direct issue)_
+- #26120 _(direct issue)_
+- #26101 _(direct issue)_
+- #26085 _(direct issue)_
+- #26080 _(direct issue)_
+- #26067 _(direct issue)_
+- #25959 _(direct issue)_
+- #25833 _(direct issue)_
 - #25363 _(direct issue)_
 - #25362 _(direct issue)_
 - #25125 _(direct issue)_
@@ -819,6 +885,7 @@ should be credited:
 
 - **@Henry-Shan** for Add agentic workflow: Proactive Dependency Auto-Remediation ([#23268](https://github.com/github/gh-aw/issues/23268)) — closed 2026-03-28, NOT_PLANNED
 - **@haritha-px** for Model version generation issue ([#21871](https://github.com/github/gh-aw/issues/21871)) — closed 2026-03-25, NOT_PLANNED
+- **@inigohidalgo** for Support `engine: claude` with `COPILOT_GITHUB_TOKEN` (Copilot-hosted model backend) ([#20961](https://github.com/github/gh-aw/issues/20961)) — closed 2026-03-15, NOT_PLANNED
 - **@porada** for Support `.lock.yaml` files ([#21828](https://github.com/github/gh-aw/issues/21828)) — closed 2026-03-25, NOT_PLANNED
 
 ## Share Feedback
