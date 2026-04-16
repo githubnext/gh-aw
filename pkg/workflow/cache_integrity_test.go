@@ -535,3 +535,119 @@ func TestCacheMemoryGitCommitSteps_RestoreOnlySkipped(t *testing.T) {
 
 	assert.Empty(t, output, "Restore-only caches should not generate a git commit step")
 }
+
+// TestCacheMemoryGitSetupStep_AllowedExtensionsEnvVar verifies that the git setup step
+// emits GH_AW_ALLOWED_EXTENSIONS when allowed extensions are configured, and omits it
+// when the extensions list is empty (all allowed).
+func TestCacheMemoryGitSetupStep_AllowedExtensionsEnvVar(t *testing.T) {
+	tests := []struct {
+		name              string
+		allowedExtensions []string
+		expectEnvVar      bool
+		expectedValue     string
+	}{
+		{
+			name:              "empty extensions (all allowed) - no env var",
+			allowedExtensions: []string{},
+			expectEnvVar:      false,
+		},
+		{
+			name:              "nil extensions (all allowed) - no env var",
+			allowedExtensions: nil,
+			expectEnvVar:      false,
+		},
+		{
+			name:              "specific extensions - env var emitted",
+			allowedExtensions: []string{".json", ".md", ".txt"},
+			expectEnvVar:      true,
+			expectedValue:     "GH_AW_ALLOWED_EXTENSIONS: '.json:.md:.txt'",
+		},
+		{
+			name:              "single extension - env var emitted",
+			allowedExtensions: []string{".json"},
+			expectEnvVar:      true,
+			expectedValue:     "GH_AW_ALLOWED_EXTENSIONS: '.json'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cache := CacheMemoryEntry{
+				ID:                "default",
+				AllowedExtensions: tt.allowedExtensions,
+			}
+			var builder strings.Builder
+			generateCacheMemoryGitSetupStep(&builder, cache, "/tmp/gh-aw/cache-memory", "none", true)
+			output := builder.String()
+
+			if tt.expectEnvVar {
+				assert.Contains(t, output, tt.expectedValue,
+					"Should emit GH_AW_ALLOWED_EXTENSIONS with colon-separated extensions")
+			} else {
+				assert.NotContains(t, output, "GH_AW_ALLOWED_EXTENSIONS",
+					"Should NOT emit GH_AW_ALLOWED_EXTENSIONS when all extensions are allowed")
+			}
+
+			// Always verify the other env vars are present
+			assert.Contains(t, output, "GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory",
+				"Should always set cache dir env var")
+			assert.Contains(t, output, "GH_AW_MIN_INTEGRITY: none",
+				"Should always set integrity level env var")
+		})
+	}
+}
+
+// TestCacheMemorySteps_PreAgentSanitizationEnvVar verifies that generateCacheMemorySteps
+// emits GH_AW_ALLOWED_EXTENSIONS in the git setup step when allowed extensions are configured.
+func TestCacheMemorySteps_PreAgentSanitizationEnvVar(t *testing.T) {
+	toolsMap := map[string]any{
+		"cache-memory": map[string]any{
+			"allowed-extensions": []any{".json", ".md", ".txt"},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Should parse tools config")
+
+	compiler := NewCompiler()
+	cacheMemoryConfig, err := compiler.extractCacheMemoryConfig(toolsConfig)
+	require.NoError(t, err, "Should extract cache-memory config")
+
+	data := &WorkflowData{
+		CacheMemoryConfig: cacheMemoryConfig,
+	}
+
+	var builder strings.Builder
+	generateCacheMemorySteps(&builder, data)
+	output := builder.String()
+
+	assert.Contains(t, output, "GH_AW_ALLOWED_EXTENSIONS: '.json:.md:.txt'",
+		"Should pass allowed extensions to git setup step for pre-agent sanitization")
+}
+
+// TestCacheMemorySteps_NoExtensionsNoSanitizationEnvVar verifies that the default
+// empty extensions list (all allowed) does NOT emit GH_AW_ALLOWED_EXTENSIONS,
+// so the sanitization step does not remove any files.
+func TestCacheMemorySteps_NoExtensionsNoSanitizationEnvVar(t *testing.T) {
+	toolsMap := map[string]any{
+		"cache-memory": true,
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Should parse tools config")
+
+	compiler := NewCompiler()
+	cacheMemoryConfig, err := compiler.extractCacheMemoryConfig(toolsConfig)
+	require.NoError(t, err, "Should extract cache-memory config")
+
+	data := &WorkflowData{
+		CacheMemoryConfig: cacheMemoryConfig,
+	}
+
+	var builder strings.Builder
+	generateCacheMemorySteps(&builder, data)
+	output := builder.String()
+
+	assert.NotContains(t, output, "GH_AW_ALLOWED_EXTENSIONS",
+		"Should NOT pass GH_AW_ALLOWED_EXTENSIONS when all extensions are allowed (empty list)")
+}

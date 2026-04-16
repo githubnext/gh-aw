@@ -406,6 +406,7 @@ jobs:
         env:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: none
+          GH_AW_ALLOWED_EXTENSIONS: '.json'
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
       - name: Checkout PR branch
         id: checkout-pr

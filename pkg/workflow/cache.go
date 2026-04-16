@@ -512,6 +512,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // generateCacheMemoryGitSetupStep emits a pre-agent step that sets up the git-backed integrity
 // repository inside the given cache directory. It must run after the cache is restored so that
 // any previous git history is available for the merge-down step.
+// The step also performs pre-agent security sanitization: it strips execute bits from all
+// working-tree files and, when allowed extensions are configured, removes files with
+// disallowed extensions before the agent can access them.
 func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemoryEntry, cacheDir, integrityLevel string, useBackwardCompatiblePaths bool) {
 	if useBackwardCompatiblePaths {
 		builder.WriteString("      - name: Setup cache-memory git repository\n")
@@ -521,6 +524,11 @@ func generateCacheMemoryGitSetupStep(builder *strings.Builder, cache CacheMemory
 	builder.WriteString("        env:\n")
 	fmt.Fprintf(builder, "          GH_AW_CACHE_DIR: %s\n", cacheDir)
 	fmt.Fprintf(builder, "          GH_AW_MIN_INTEGRITY: %s\n", integrityLevel)
+	// Pass colon-separated allowed extensions so the setup script can remove disallowed files
+	// before the agent runs (pre-agent sanitization). Skip when the list is empty (allow all).
+	if len(cache.AllowedExtensions) > 0 {
+		fmt.Fprintf(builder, "          GH_AW_ALLOWED_EXTENSIONS: '%s'\n", strings.Join(cache.AllowedExtensions, ":"))
+	}
 	builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh\"\n")
 }
 

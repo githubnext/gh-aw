@@ -5,10 +5,18 @@
 # This script is run AFTER the cache is restored and BEFORE the agent executes.
 # It ensures the cache directory contains a git repository with integrity branches
 # and checks out the correct branch for the current run's integrity level.
+# After git setup it applies pre-agent security sanitization: strips execute bits from
+# all working-tree files, and removes files with disallowed extensions when
+# GH_AW_ALLOWED_EXTENSIONS is set.
 #
 # Required environment variables:
-#   GH_AW_CACHE_DIR:       Path to the cache-memory directory (e.g. /tmp/gh-aw/cache-memory)
-#   GH_AW_MIN_INTEGRITY:   Integrity level for this run (merged|approved|unapproved|none)
+#   GH_AW_CACHE_DIR:             Path to the cache-memory directory (e.g. /tmp/gh-aw/cache-memory)
+#   GH_AW_MIN_INTEGRITY:         Integrity level for this run (merged|approved|unapproved|none)
+#
+# Optional environment variables:
+#   GH_AW_ALLOWED_EXTENSIONS:    Colon-separated list of allowed file extensions for pre-agent
+#                                sanitization (e.g. .json:.md:.txt). When set, any restored file
+#                                whose extension is not in this list is removed before the agent runs.
 
 set -euo pipefail
 
@@ -101,3 +109,41 @@ for level in "${LEVELS[@]}"; do
 done
 
 echo "Cache memory git setup complete (integrity: $INTEGRITY)"
+
+# --- Security: pre-agent working-tree sanitization ---
+# 1. Strip execute bits from all working-tree files so that a prior run cannot plant
+#    executable scripts (e.g. helper.sh) that the agent or runner could invoke before
+#    any validation gate fires.
+find . -not -path './.git/*' -type f -exec chmod a-x {} + 2>/dev/null || true
+echo "Pre-agent sanitization: stripped execute permissions from all working-tree files"
+
+# 2. If GH_AW_ALLOWED_EXTENSIONS is set (colon-separated, e.g. .json:.md:.txt), remove
+#    any restored file whose extension is not in the allowed list. This ensures the agent
+#    never encounters unexpected file types planted by a prior compromised run.
+if [ -n "${GH_AW_ALLOWED_EXTENSIONS:-}" ]; then
+  echo "Pre-agent sanitization: enforcing allowed extensions: ${GH_AW_ALLOWED_EXTENSIONS}"
+  removed=0
+  while IFS= read -r file; do
+    filename="$(basename "$file")"
+    # Extract the last dot-prefixed segment as the extension, or empty if no dot
+    case "$filename" in
+      *.*) ext=".${filename##*.}" ;;
+      *)   ext="" ;;
+    esac
+    # Check whether this extension appears in the colon-separated allowed list
+    found=0
+    IFS=: read -ra _ALLOWED_EXTS <<< "$GH_AW_ALLOWED_EXTENSIONS"
+    for _a in "${_ALLOWED_EXTS[@]}"; do
+      if [ "$ext" = "$_a" ]; then
+        found=1
+        break
+      fi
+    done
+    if [ "$found" -eq 0 ]; then
+      echo "Removing disallowed file: $file (extension: '${ext:-none}')"
+      rm -f "$file"
+      removed=$((removed + 1))
+    fi
+  done < <(find . -not -path './.git/*' -type f)
+  echo "Pre-agent sanitization complete: removed ${removed} file(s) with disallowed extensions"
+fi
