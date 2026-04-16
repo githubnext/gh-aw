@@ -508,7 +508,7 @@ tools:
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	dockerCmdPattern := `--group-add \$\(stat -c .*%g.* /var/run/docker\.sock\) -v /var/run/docker\.sock:/var/run/docker\.sock`
+	dockerCmdPattern := `--group-add \$\(stat -c '\\''%g'\\'' /var/run/docker\.sock\) -v /var/run/docker\.sock:/var/run/docker\.sock`
 	assert.Regexp(t, dockerCmdPattern, yamlStr,
 		"Docker command should include docker socket supplementary group mapping before mounting the Docker socket")
 }
