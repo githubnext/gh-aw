@@ -71,7 +71,9 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: write
+      pull-requests: write
     outputs:
       body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
