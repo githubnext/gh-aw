@@ -7,7 +7,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var mcpCLIMountLog = logger.New("workflow:mcp_cli_mount")
 
 // mcp_cli_mount.go generates a workflow step that mounts MCP servers as local CLI tools
 // and produces the prompt section that informs the agent about these tools.
@@ -54,8 +57,10 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	// Without the feature flag, code generation remains unchanged regardless of
 	// the mount-as-clis setting.
 	if !isFeatureEnabled(constants.MCPCLIFeatureFlag, data) {
+		mcpCLIMountLog.Print("mcp-cli feature flag not enabled, skipping CLI mount generation")
 		return nil
 	}
+	mcpCLIMountLog.Print("mcp-cli feature flag enabled, collecting CLI server names")
 
 	var servers []string
 
@@ -109,10 +114,12 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	}
 
 	if len(servers) == 0 {
+		mcpCLIMountLog.Print("No MCP CLI servers configured")
 		return nil
 	}
 
 	sort.Strings(servers)
+	mcpCLIMountLog.Printf("MCP CLI servers selected: %v", servers)
 	return servers
 }
 
@@ -150,6 +157,7 @@ func (c *Compiler) generateMCPCLIMountStep(yaml *strings.Builder, data *Workflow
 	if len(servers) == 0 {
 		return
 	}
+	mcpCLIMountLog.Printf("Generating MCP CLI mount step for %d servers: %v", len(servers), servers)
 
 	yaml.WriteString("      - name: Mount MCP servers as CLIs\n")
 	yaml.WriteString("        id: mount-mcp-clis\n")
