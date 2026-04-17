@@ -101,3 +101,7 @@ semverutil.IsCompatible("v6.0.0", "v5")     // false
 - All debug output uses `logger.New("semverutil:semverutil")` and is only emitted when `DEBUG=semverutil:*`.
 - The package intentionally delegates to `golang.org/x/mod/semver` for canonical semver logic rather than implementing its own parsing.
 - `ParseVersion` uses `semver.Canonical` before splitting into components, ensuring correct handling of short forms like `v1` (canonicalized to `v1.0.0`).
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

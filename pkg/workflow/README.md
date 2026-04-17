@@ -194,6 +194,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `GetCopilotAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Copilot-specific allowed domains |
 | `GetCodexAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Codex-specific allowed domains |
 | `GetClaudeAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Claude-specific allowed domains |
+| `GetGeminiAllowedDomainsWithToolsAndRuntimes` | `func(*NetworkPermissions, ...) string` | Gemini-specific allowed domains |
 | `GetThreatDetectionAllowedDomains` | `func(*NetworkPermissions) string` | Allowed domains for threat detection jobs |
 
 ### Error Types
@@ -240,6 +241,9 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `GetActionPin` | `func(actionRepo string) string` | Returns the pinned SHA for an action |
 | `GetActionPinByRepo` | `func(string) (ActionPin, bool)` | Looks up a pin by repo |
 | `DetectActionMode` | `func(version string) ActionMode` | Detects the action reference mode |
+| `ParseTagRefTSV` | `func(line string) (sha, objType string, err error)` | Parses tab-separated tag ref output into SHA and object type |
+| `ExtractActionsFromLockFile` | `func(lockFilePath string) ([]ActionUsage, error)` | Extracts action usages from a lock file |
+| `CheckActionSHAUpdates` | `func(actions []ActionUsage, resolver *ActionResolver) []ActionUpdateCheck` | Checks whether action SHAs need updates |
 | `ApplyActionPinsToTypedSteps` | `func([]*WorkflowStep, *WorkflowData) []*WorkflowStep` | Applies pins to all steps |
 | `ValidateActionSHAsInLockFile` | `func(string, *ActionCache, bool) error` | Validates action SHAs in a lock file |
 
@@ -305,6 +309,8 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `GetAWFCommandPrefix` | `func(*WorkflowData) string` | Returns the `gh aw` command prefix |
 | `WrapCommandInShell` | `func(string) string` | Wraps a command in a shell `run:` block |
 | `GetCopilotAPITarget` | `func(*WorkflowData) string` | Returns the Copilot API target URL |
+| `GetGeminiAPITarget` | `func(*WorkflowData, string) string` | Returns the Gemini API target hostname |
+| `ComputeAWFExcludeEnvVarNames` | `func(*WorkflowData, []string) []string` | Computes secret-backed env var names to exclude from AWF |
 
 ### Versioning
 
@@ -442,6 +448,10 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `pkg/constants` — engine names, feature flags, job/step IDs
 - `pkg/console` — terminal formatting
 - `pkg/logger` — debug logging
+- `pkg/actionpins` — action pin data and pin lookup helpers
+- `pkg/semverutil` — semantic version helpers
+- `pkg/typeutil` — safe type conversions
+- `pkg/tty` — terminal capability detection
 - `pkg/stringutil`, `pkg/fileutil`, `pkg/gitutil`, `pkg/sliceutil` — utilities
 - `pkg/types` — shared MCP types
 

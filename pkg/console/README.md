@@ -1,4 +1,4 @@
-# Console Package
+# console Package
 
 The `console` package provides utilities for formatting and rendering terminal output in GitHub Agentic Workflows. It covers message formatting, table and section rendering, interactive prompts, progress bars, spinners, struct rendering, and accessibility support.
 
@@ -783,3 +783,7 @@ if console.IsAccessibleMode() {
     // Use simpler, non-animated output
 }
 ```
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

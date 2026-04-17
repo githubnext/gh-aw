@@ -75,3 +75,7 @@ ratio := typeutil.ConvertToFloat(jsonData["ratio"])
 - All debug output uses `logger.New("typeutil:convert")` and is only emitted when `DEBUG=typeutil:*`.
 - `float64 → int` truncation is logged at debug level when the fractional part is lost.
 - `uint64 → int` overflow returns `0` rather than panicking, following the defensive convention used elsewhere in the codebase.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

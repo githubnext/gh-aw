@@ -99,3 +99,7 @@ form := huh.NewForm(...).WithTheme(styles.HuhTheme)
 - The package uses `charm.land/lipgloss/v2` and `charm.land/lipgloss/v2/compat` for adaptive color support.
 - For visual examples and detailed usage guidelines, see `scratchpad/styles-guide.md`.
 - All `*` styles export pre-configured `lipgloss.Style` values (not functions), so they can be used with method chaining: `styles.Error.Copy().Underline(true)`.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*
