@@ -45,7 +45,7 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 // (i.e. the provider chooses the model automatically), or empty string for custom/unknown engines.
 func getDefaultAgentModel(engineID string) string {
 	switch engineID {
-	case "copilot", "claude", "codex", "gemini":
+	case "copilot", "claude", "codex", "gemini", "opencode":
 		return "auto"
 	default:
 		return ""

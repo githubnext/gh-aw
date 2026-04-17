@@ -2963,7 +2963,7 @@
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
             },
             "firewall": {
-              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, and gemini engines.",
+              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, gemini, and opencode engines.",
               "deprecated": true,
               "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
               "oneOf": [
@@ -9584,7 +9584,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini')"
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'opencode')"
             },
             "display-name": {
               "type": "string",

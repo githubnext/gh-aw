@@ -114,7 +114,7 @@ dependencies:
     - acme-org/acme-plugins
 ```
 
-The `dependencies:` approach works with all supported engines (Copilot, Claude, Codex, Gemini), whereas the old `plugins:` field was limited to the Copilot engine only.
+The `dependencies:` approach works with all supported engines (Copilot, Claude, Codex, Gemini, OpenCode), whereas the old `plugins:` field was limited to the Copilot engine only.
 
 See [APM Dependencies](/gh-aw/reference/dependencies/) for full configuration options.
 
