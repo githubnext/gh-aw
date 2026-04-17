@@ -105,6 +105,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Try boolean first: maintenance: false disables the feature.
 	var b bool
 	if err := json.Unmarshal(raw.Maintenance, &b); err == nil {
+		repoConfigLog.Printf("Maintenance field parsed as boolean: disabled=%v", !b)
 		r.MaintenanceDisabled = !b
 		return nil
 	}
@@ -114,6 +115,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(raw.Maintenance, &mc); err != nil {
 		return fmt.Errorf("invalid maintenance configuration: %w", err)
 	}
+	repoConfigLog.Printf("Maintenance field parsed as object: runsOn=%v, issueExpires=%d", mc.RunsOn, mc.ActionFailureIssueExpires)
 	r.Maintenance = &mc
 	return nil
 }
@@ -152,6 +154,7 @@ func LoadRepoConfig(gitRoot string) (*RepoConfig, error) {
 
 // validateRepoConfigJSON validates raw JSON bytes against the repo config schema.
 func validateRepoConfigJSON(data []byte, filePath string) error {
+	repoConfigLog.Printf("Validating repo config JSON schema: %s (%d bytes)", filePath, len(data))
 	schema, err := parser.GetCompiledRepoConfigSchema()
 	if err != nil {
 		return fmt.Errorf("failed to compile repo config schema: %w", err)
@@ -163,9 +166,11 @@ func validateRepoConfigJSON(data []byte, filePath string) error {
 	}
 
 	if err := schema.Validate(doc); err != nil {
+		repoConfigLog.Printf("Repo config schema validation failed: %v", err)
 		return fmt.Errorf("invalid %s: %w", RepoConfigFileName, err)
 	}
 
+	repoConfigLog.Print("Repo config JSON schema validation passed")
 	return nil
 }
 
