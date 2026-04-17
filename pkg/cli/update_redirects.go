@@ -78,7 +78,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 		}
 
 		if noRedirect {
-			return nil, fmt.Errorf("redirect is disabled by --no-redirect for %s: %s declares redirect to %s", workflowName, sourceSpecWithRef(current, latestRef), redirect)
+			return nil, fmt.Errorf("redirect is disabled by --no-redirect for %s: %s declares redirect to %s (remove redirect frontmatter or run update without --no-redirect)", workflowName, sourceSpecWithRef(current, latestRef), redirect)
 		}
 
 		redirectedSource, err := normalizeRedirectToSourceSpec(redirect)
