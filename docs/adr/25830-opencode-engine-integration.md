@@ -1,7 +1,7 @@
 # ADR-25830: Add OpenCode as a Provider-Agnostic BYOK Agentic Engine
 
 **Date**: 2026-04-11
-**Status**: Draft
+**Status**: Superseded by [PR #26819](https://github.com/github/gh-aw/pull/26819) — OpenCode was archived; the engine was replaced by Crush (`engine: id: crush`) on 2026-04-17.
 **Deciders**: pelikhan, Copilot
 
 ---

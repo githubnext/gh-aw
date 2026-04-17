@@ -119,14 +119,13 @@ function balanceCodeRegions(markdown) {
     }
   }
 
-  // Third pass: Match fences, detecting and fixing nested patterns
+  // Third pass: Match fences using greedy matching (CommonMark rules)
   // Strategy:
   // 1. Process fences in order
   // 2. For each opener, find potential closers
   // 3. If first closer has intermediate opener, defer this opener
   // 4. Otherwise, pair with first direct closer (greedy matching)
   // 5. Make a second pass for deferred openers
-  const fenceLengthAdjustments = new Map(); // lineIndex -> new length
   const processed = new Set();
   const deferred = new Set(); // Fences to process in second pass
   const unclosedFences = [];
@@ -217,80 +216,20 @@ function balanceCodeRegions(markdown) {
         processed.delete(i); // Unmark so it can be processed in second pass
         i++;
       } else {
-        // No opener before the first closer, so it's a direct match
-        // Check if there are MORE closers without intermediate openers
-        const directClosers = potentialClosers.filter(c => !c.hasOpenerBetween);
+        // No opener before the first closer — greedy match with it.
+        // Per CommonMark, the first bare fence that can close our opener does close it.
+        // Any subsequent bare fences start new blocks (sequential, not nested).
+        const closerIndex = firstCloser.index;
+        processed.add(closerIndex);
 
-        if (directClosers.length > 1) {
-          // Multiple bare closers without intermediate openers
-          // Count openers between our opener and the last direct closer to determine if this is true nesting
-          const lastDirectCloser = directClosers[directClosers.length - 1];
-          let openerCount = 0;
-          for (let k = i + 1; k < lastDirectCloser.index; k++) {
-            if (processed.has(k)) continue;
-            const intermediateFence = fences[k];
-            if (intermediateFence.language !== "" && intermediateFence.indent.length === openIndentLength) {
-              openerCount++;
-            }
-          }
+        pairedBlocks.push({
+          start: fences[i].lineIndex,
+          end: fences[closerIndex].lineIndex,
+          openIndex: i,
+          closeIndex: closerIndex,
+        });
 
-          // True nesting: more closers than openers (e.g., 1 opener, 3 closers)
-          // Nested blocks: closers = openers + 1 (e.g., 2 openers [including us], 2 closers)
-          const closerCount = directClosers.length;
-          const isTrueNesting = closerCount > openerCount + 1;
-
-          if (isTrueNesting) {
-            // TRUE nesting - use the LAST closer and escape middle ones
-            const closerIndex = lastDirectCloser.index;
-            processed.add(closerIndex);
-
-            pairedBlocks.push({
-              start: fences[i].lineIndex,
-              end: fences[closerIndex].lineIndex,
-              openIndex: i,
-              closeIndex: closerIndex,
-            });
-
-            // Increase fence length so middle closers can no longer close
-            const maxLength = Math.max(...directClosers.map(c => c.length), openFence.length);
-            const newLength = maxLength + 1;
-            fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
-            fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
-
-            // Mark middle closers as processed (they're now treated as content)
-            for (let k = 0; k < directClosers.length - 1; k++) {
-              processed.add(directClosers[k].index);
-            }
-
-            i = closerIndex + 1;
-          } else {
-            // Nested blocks - use the FIRST direct closer (greedy matching)
-            const closerIndex = directClosers[0].index;
-            processed.add(closerIndex);
-
-            pairedBlocks.push({
-              start: fences[i].lineIndex,
-              end: fences[closerIndex].lineIndex,
-              openIndex: i,
-              closeIndex: closerIndex,
-            });
-
-            i = closerIndex + 1;
-          }
-        } else {
-          // Only one direct closer, use it (normal case)
-          const closerIndex = firstCloser.index;
-          processed.add(closerIndex);
-
-          pairedBlocks.push({
-            start: fences[i].lineIndex,
-            end: fences[closerIndex].lineIndex,
-            openIndex: i,
-            closeIndex: closerIndex,
-          });
-
-          i = closerIndex + 1;
-        }
+        i = closerIndex + 1;
       }
     } else {
       // No closer found - check if this fence is inside a paired block
@@ -347,23 +286,9 @@ function balanceCodeRegions(markdown) {
     }
   }
 
-  // Fifth pass: build result with adjusted fence lengths
+  // Fifth pass: build result (copy lines, then close any unclosed fences)
   for (let i = 0; i < lines.length; i++) {
-    if (fenceLengthAdjustments.has(i)) {
-      const newLength = fenceLengthAdjustments.get(i);
-      const fenceMatch = lines[i].match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
-      if (fenceMatch) {
-        const indent = fenceMatch[1];
-        const char = fenceMatch[2][0];
-        const language = fenceMatch[3] || "";
-        const trailing = fenceMatch[4] || "";
-        result.push(`${indent}${char.repeat(newLength)}${language}${trailing}`);
-      } else {
-        result.push(lines[i]);
-      }
-    } else {
-      result.push(lines[i]);
-    }
+    result.push(lines[i]);
   }
 
   // Fifth pass: close any unclosed fences
@@ -428,7 +353,9 @@ function isBalanced(markdown) {
           length: fenceLength,
         };
       } else {
-        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length;
+        // Per CommonMark, a closing fence must be bare (no info string/language)
+        const language = fenceMatch[3] || "";
+        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length && language === "";
 
         if (canClose) {
           inCodeBlock = false;
@@ -478,7 +405,9 @@ function countCodeRegions(markdown) {
           length: fenceLength,
         };
       } else {
-        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length;
+        // Per CommonMark, a closing fence must be bare (no info string/language)
+        const language = fenceMatch[3] || "";
+        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length && language === "";
 
         if (canClose) {
           inCodeBlock = false;

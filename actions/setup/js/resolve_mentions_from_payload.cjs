@@ -9,6 +9,99 @@ const { resolveMentionsLazily, isPayloadUserBot } = require("./resolve_mentions.
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * Push a non-bot user's login to the array if present.
+ * @param {string[]} users - Target array
+ * @param {{ login?: string, type?: string } | null | undefined} user - User object from payload
+ */
+function pushNonBotUser(users, user) {
+  if (user?.login && !isPayloadUserBot(user)) {
+    users.push(user.login);
+  }
+}
+
+/**
+ * Push non-bot assignee logins to the array.
+ * @param {string[]} users - Target array
+ * @param {Array<{ login?: string, type?: string }> | null | undefined} assignees - Assignees from payload
+ */
+function pushNonBotAssignees(users, assignees) {
+  if (Array.isArray(assignees)) {
+    for (const assignee of assignees) {
+      pushNonBotUser(users, assignee);
+    }
+  }
+}
+
+/**
+ * Extract known authors from a GitHub event payload based on event type.
+ * @param {any} context - GitHub Actions context
+ * @returns {string[]} Array of known author logins from the payload
+ */
+function extractKnownAuthorsFromPayload(context) {
+  if (!context || typeof context !== "object") {
+    return [];
+  }
+
+  const users = /** @type {string[]} */ [];
+  const { eventName, payload = {} } = context;
+
+  switch (eventName) {
+    case "issues":
+      pushNonBotUser(users, payload.issue?.user);
+      pushNonBotAssignees(users, payload.issue?.assignees);
+      break;
+
+    case "pull_request":
+    case "pull_request_target":
+      pushNonBotUser(users, payload.pull_request?.user);
+      pushNonBotAssignees(users, payload.pull_request?.assignees);
+      break;
+
+    case "issue_comment":
+      pushNonBotUser(users, payload.comment?.user);
+      pushNonBotUser(users, payload.issue?.user);
+      pushNonBotAssignees(users, payload.issue?.assignees);
+      break;
+
+    case "pull_request_review_comment":
+      pushNonBotUser(users, payload.comment?.user);
+      pushNonBotUser(users, payload.pull_request?.user);
+      pushNonBotAssignees(users, payload.pull_request?.assignees);
+      break;
+
+    case "pull_request_review":
+      pushNonBotUser(users, payload.review?.user);
+      pushNonBotUser(users, payload.pull_request?.user);
+      pushNonBotAssignees(users, payload.pull_request?.assignees);
+      break;
+
+    case "discussion":
+      pushNonBotUser(users, payload.discussion?.user);
+      break;
+
+    case "discussion_comment":
+      pushNonBotUser(users, payload.comment?.user);
+      pushNonBotUser(users, payload.discussion?.user);
+      break;
+
+    case "release":
+      pushNonBotUser(users, payload.release?.author);
+      break;
+
+    case "workflow_dispatch":
+      if (typeof context.actor === "string" && context.actor.length > 0) {
+        users.push(context.actor);
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return users;
+}
+
+/**
  * Resolve allowed mentions from the current GitHub event context
  * @param {any} context - GitHub Actions context
  * @param {any} github - GitHub API client
@@ -23,16 +116,11 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
     return [];
   }
 
-  // Handle mentions configuration
   // If mentions is explicitly set to false, return empty array (all mentions escaped)
   if (mentionsConfig && mentionsConfig.enabled === false) {
     core.info("[MENTIONS] Mentions explicitly disabled - all mentions will be escaped");
     return [];
   }
-
-  // If mentions is explicitly set to true, we still need to resolve from payload
-  // but we'll be more permissive. In strict mode, this should error before reaching here.
-  const allowAllMentions = mentionsConfig && mentionsConfig.enabled === true;
 
   // Get configuration options (with defaults)
   const allowTeamMembers = mentionsConfig?.allowTeamMembers !== false; // default: true
@@ -42,119 +130,9 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
 
   try {
     const { owner, repo } = context.repo;
-    const knownAuthors = [];
+    const knownAuthors = allowContext ? extractKnownAuthorsFromPayload(context) : [];
 
-    // Extract known authors from the event payload (if allow-context is enabled)
-    if (allowContext) {
-      switch (context.eventName) {
-        case "issues":
-          if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-            knownAuthors.push(context.payload.issue.user.login);
-          }
-          if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
-            for (const assignee of context.payload.issue.assignees) {
-              if (assignee?.login && !isPayloadUserBot(assignee)) {
-                knownAuthors.push(assignee.login);
-              }
-            }
-          }
-          break;
-
-        case "pull_request":
-        case "pull_request_target":
-          if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-            knownAuthors.push(context.payload.pull_request.user.login);
-          }
-          if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-            for (const assignee of context.payload.pull_request.assignees) {
-              if (assignee?.login && !isPayloadUserBot(assignee)) {
-                knownAuthors.push(assignee.login);
-              }
-            }
-          }
-          break;
-
-        case "issue_comment":
-          if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-            knownAuthors.push(context.payload.comment.user.login);
-          }
-          if (context.payload.issue?.user?.login && !isPayloadUserBot(context.payload.issue.user)) {
-            knownAuthors.push(context.payload.issue.user.login);
-          }
-          if (context.payload.issue?.assignees && Array.isArray(context.payload.issue.assignees)) {
-            for (const assignee of context.payload.issue.assignees) {
-              if (assignee?.login && !isPayloadUserBot(assignee)) {
-                knownAuthors.push(assignee.login);
-              }
-            }
-          }
-          break;
-
-        case "pull_request_review_comment":
-          if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-            knownAuthors.push(context.payload.comment.user.login);
-          }
-          if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-            knownAuthors.push(context.payload.pull_request.user.login);
-          }
-          if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-            for (const assignee of context.payload.pull_request.assignees) {
-              if (assignee?.login && !isPayloadUserBot(assignee)) {
-                knownAuthors.push(assignee.login);
-              }
-            }
-          }
-          break;
-
-        case "pull_request_review":
-          if (context.payload.review?.user?.login && !isPayloadUserBot(context.payload.review.user)) {
-            knownAuthors.push(context.payload.review.user.login);
-          }
-          if (context.payload.pull_request?.user?.login && !isPayloadUserBot(context.payload.pull_request.user)) {
-            knownAuthors.push(context.payload.pull_request.user.login);
-          }
-          if (context.payload.pull_request?.assignees && Array.isArray(context.payload.pull_request.assignees)) {
-            for (const assignee of context.payload.pull_request.assignees) {
-              if (assignee?.login && !isPayloadUserBot(assignee)) {
-                knownAuthors.push(assignee.login);
-              }
-            }
-          }
-          break;
-
-        case "discussion":
-          if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-            knownAuthors.push(context.payload.discussion.user.login);
-          }
-          break;
-
-        case "discussion_comment":
-          if (context.payload.comment?.user?.login && !isPayloadUserBot(context.payload.comment.user)) {
-            knownAuthors.push(context.payload.comment.user.login);
-          }
-          if (context.payload.discussion?.user?.login && !isPayloadUserBot(context.payload.discussion.user)) {
-            knownAuthors.push(context.payload.discussion.user.login);
-          }
-          break;
-
-        case "release":
-          if (context.payload.release?.author?.login && !isPayloadUserBot(context.payload.release.author)) {
-            knownAuthors.push(context.payload.release.author.login);
-          }
-          break;
-
-        case "workflow_dispatch":
-          // Add the actor who triggered the workflow
-          knownAuthors.push(context.actor);
-          break;
-
-        default:
-          // No known authors for other event types
-          break;
-      }
-    }
-
-    // Add allowed list to known authors (these are always allowed regardless of configuration)
+    // Add allowed list (always included regardless of configuration)
     knownAuthors.push(...allowedList);
 
     // Add extra known authors (e.g. pre-fetched target issue authors for explicit item_number)
@@ -166,12 +144,10 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
     // If allow-team-members is disabled, only use known authors (context + allowed list)
     if (!allowTeamMembers) {
       core.info(`[MENTIONS] Team members disabled - only allowing context (${knownAuthors.length} users)`);
-      // Apply max limit
-      const limitedMentions = knownAuthors.slice(0, maxMentions);
       if (knownAuthors.length > maxMentions) {
         core.warning(`[MENTIONS] Mention limit exceeded: ${knownAuthors.length} mentions, limiting to ${maxMentions}`);
       }
-      return limitedMentions;
+      return knownAuthors.slice(0, maxMentions);
     }
 
     // Build allowed mentions list from known authors and collaborators
@@ -186,7 +162,6 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
       allowedMentions = allowedMentions.slice(0, maxMentions);
     }
 
-    // Log allowed mentions for debugging
     if (allowedMentions.length > 0) {
       core.info(`[OUTPUT COLLECTOR] Allowed mentions: ${allowedMentions.join(", ")}`);
     } else {
@@ -196,11 +171,13 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
     return allowedMentions;
   } catch (error) {
     core.warning(`Failed to resolve mentions for output collector: ${getErrorMessage(error)}`);
-    // Return empty array on error
     return [];
   }
 }
 
 module.exports = {
   resolveAllowedMentionsFromPayload,
+  extractKnownAuthorsFromPayload,
+  pushNonBotUser,
+  pushNonBotAssignees,
 };

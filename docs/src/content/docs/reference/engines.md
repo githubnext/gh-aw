@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, and OpenCode with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, and Crush with their specific configuration options.
 sidebar:
   order: 600
 ---
@@ -17,7 +17,7 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [ANTHROPIC_API_KEY](/gh-aw/reference/auth/#anthropic_api_key) |
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [GEMINI_API_KEY](/gh-aw/reference/auth/#gemini_api_key) |
-| [OpenCode](https://github.com/opencode-ai/opencode) (experimental) | `opencode` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
+| [Crush](https://github.com/@charmland/crush/crush) (experimental) | `crush` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) |
 
 Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
 
@@ -25,7 +25,7 @@ Copilot CLI is the default — `engine:` can be omitted when using Copilot. See 
 
 Not all features are available across all engines. The table below summarizes per-engine support for commonly used workflow options:
 
-| Feature | Copilot | Claude | Codex | Gemini | OpenCode |
+| Feature | Copilot | Claude | Codex | Gemini | Crush |
 |---------|:-------:|:------:|:-----:|:------:|:--------:|
 | `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -66,7 +66,7 @@ By default, workflows install the latest available version of each engine CLI. T
 | Claude Code | `claude` | `"2.1.70"` |
 | Codex | `codex` | `"0.111.0"` |
 | Gemini CLI | `gemini` | `"0.31.0"` |
-| OpenCode | `opencode` | `"1.2.14"` |
+| Crush | `crush` | `"1.2.14"` |
 
 ```yaml wrap
 engine:
@@ -158,7 +158,7 @@ The specified hostname must also be listed in `network.allowed` for the firewall
 
 #### Custom API Endpoints via Environment Variables
 
-Three environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex` and `opencode`), `ANTHROPIC_BASE_URL` (for `claude`), `GITHUB_COPILOT_BASE_URL` (for `copilot`), and `GEMINI_API_BASE_URL` (for `gemini`). When any of these is present, the API proxy automatically routes API calls to the specified host instead of the default endpoint. Firewall enforcement remains active, but this routing layer is not a separate authentication boundary for arbitrary code already running inside the agent container.
+Three environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex` and `crush`), `ANTHROPIC_BASE_URL` (for `claude`), `GITHUB_COPILOT_BASE_URL` (for `copilot`), and `GEMINI_API_BASE_URL` (for `gemini`). When any of these is present, the API proxy automatically routes API calls to the specified host instead of the default endpoint. Firewall enforcement remains active, but this routing layer is not a separate authentication boundary for arbitrary code already running inside the agent container.
 
 This enables workflows to use internal LLM routers, Azure OpenAI deployments, corporate Copilot proxies, or other compatible endpoints without bypassing AWF's security model.
 
@@ -224,11 +224,11 @@ network:
 
 The custom hostname is extracted from the URL and passed to the AWF `--openai-api-target`, `--anthropic-api-target`, `--copilot-api-target`, or `--gemini-api-target` flag automatically at compile time. No additional configuration is required.
 
-For OpenCode workflows routed through a custom OpenAI-compatible endpoint:
+For Crush workflows routed through a custom OpenAI-compatible endpoint:
 
 ```yaml wrap
 engine:
-  id: opencode
+  id: crush
   model: openai/gpt-4o
   env:
     OPENAI_BASE_URL: "https://openai-proxy.internal.example.com/v1"
@@ -240,7 +240,7 @@ network:
     - openai-proxy.internal.example.com
 ```
 
-OpenCode uses the OpenAI-compatible API format by default (via Copilot routing). The `model` field uses a `provider/model` format — the provider prefix determines which API domains are added to the firewall allowlist.
+Crush uses the OpenAI-compatible API format by default (via Copilot routing). The `model` field uses a `provider/model` format — the provider prefix determines which API domains are added to the firewall allowlist.
 
 ### Engine Command-Line Arguments
 
@@ -314,7 +314,7 @@ tools:
 | Claude | 60 s |
 | Codex | 120 s |
 | Gemini | not enforced by gh-aw (engine-managed) |
-| OpenCode | not enforced by gh-aw (engine-managed) |
+| Crush | not enforced by gh-aw (engine-managed) |
 
 See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for full documentation including `tools.startup-timeout`.
 
@@ -370,13 +370,13 @@ tools:
 timeout-minutes: 60
 ```
 
-#### OpenCode
+#### Crush
 
-OpenCode does not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
+Crush does not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
 
 ```yaml wrap
 engine:
-  id: opencode
+  id: crush
 tools:
   timeout: 300
 timeout-minutes: 60
@@ -384,7 +384,7 @@ timeout-minutes: 60
 
 ### Summary Table
 
-| Timeout knob | Copilot | Claude | Codex | Gemini | OpenCode | Notes |
+| Timeout knob | Copilot | Claude | Codex | Gemini | Crush | Notes |
 |---|:---:|:---:|:---:|:---:|:---:|---|
 | `timeout-minutes` | ✅ | ✅ | ✅ | ✅ | ✅ | Job-level wall clock |
 | `tools.timeout` | ✅ | ✅ | ✅ | ✅ | ✅ | Per tool-call limit (seconds) |

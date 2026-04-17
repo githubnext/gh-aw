@@ -35,6 +35,9 @@ const (
 	// MaxPromptChunks is the maximum number of chunks allowed when splitting prompt text
 	// This prevents excessive step generation for extremely large prompt texts
 	MaxPromptChunks = 5 // Maximum number of chunks
+
+	// missingPermissionsDefaultToolsetWarning explains why strict mode was downgraded to warning.
+	missingPermissionsDefaultToolsetWarning = "Some of the GitHub tools will not be available until the missing permissions are granted."
 )
 
 //go:embed schemas/github-workflow.json
@@ -330,14 +333,20 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 				message := FormatValidationMessage(validationResult, c.strictMode)
 
 				if len(validationResult.MissingPermissions) > 0 {
-					if c.strictMode {
+					downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
+					if c.strictMode && !downgradeToWarning {
 						// In strict mode, missing permissions are errors
 						return formatCompilerError(markdownPath, "error", message, nil)
-					} else {
-						// In non-strict mode, missing permissions are warnings
-						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-						c.IncrementWarningCount()
 					}
+
+					if downgradeToWarning {
+						message += "\n\n" + missingPermissionsDefaultToolsetWarning
+					}
+
+					// In non-strict mode, missing permissions are warnings.
+					// In strict mode with default-only toolsets, this is intentionally downgraded to warning.
+					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+					c.IncrementWarningCount()
 				}
 			}
 		}
@@ -422,6 +431,21 @@ Ensure proper audience validation and trust policies are configured.`
 	}
 
 	return nil
+}
+
+// shouldDowngradeDefaultToolsetPermissionError returns true when strict-mode
+// permission errors should be downgraded because the GitHub tool uses only the
+// default toolset, either explicitly ([default]) or implicitly (no toolsets configured).
+func shouldDowngradeDefaultToolsetPermissionError(githubTool *GitHubToolConfig) bool {
+	if githubTool == nil {
+		return false
+	}
+
+	if len(githubTool.Toolset) == 0 {
+		return true
+	}
+
+	return len(githubTool.Toolset) == 1 && githubTool.Toolset[0] == GitHubToolset("default")
 }
 
 // generateAndValidateYAML generates GitHub Actions YAML and validates

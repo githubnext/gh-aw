@@ -61,6 +61,46 @@ tools:
 			warningMessage: "",
 		},
 		{
+			name: "default toolset only in strict mode produces warning",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    toolsets: [default]
+---
+
+# Test Workflow
+`,
+			strict:         true,
+			expectError:    false,
+			expectWarning:  true,
+			warningMessage: "Some of the GitHub tools will not be available until the missing permissions are granted.",
+		},
+		{
+			name: "implied default toolset in strict mode produces warning",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+  issues: read
+tools:
+  github:
+    min-integrity: none
+---
+
+# Test Workflow
+`,
+			strict:         true,
+			expectError:    false,
+			expectWarning:  true,
+			warningMessage: "Some of the GitHub tools will not be available until the missing permissions are granted.",
+		},
+		{
 			name: "sufficient permissions in non-strict mode produces no warning",
 			content: `---
 on: push
