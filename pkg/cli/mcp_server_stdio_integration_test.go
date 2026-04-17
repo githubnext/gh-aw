@@ -83,5 +83,4 @@ engine: copilot
 		t.Fatalf("Expected stdout to remain clean for JSON-RPC, got: %q", stdoutText)
 	}
 
-	_ = stderr.String()
 }

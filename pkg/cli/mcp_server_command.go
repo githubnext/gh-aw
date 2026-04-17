@@ -102,6 +102,8 @@ func checkAndLogGHVersion(diagnosticOutput io.Writer) {
 // runMCPServer starts the MCP server on stdio or HTTP transport
 func runMCPServer(port int, cmdPath string, validateActor bool) error {
 	var diagnosticOutput io.Writer
+	// Only emit startup diagnostics in HTTP mode.
+	// In stdio mode, any non-JSON output risks polluting the JSON-RPC stream.
 	if port > 0 {
 		diagnosticOutput = os.Stderr
 	}
