@@ -83,5 +83,8 @@ engine: copilot
 		t.Fatalf("Expected stdout to remain clean for JSON-RPC, got: %q", stdoutText)
 	}
 
-	_ = strings.TrimSpace(stderr.String())
+	stderrText := strings.TrimSpace(stderr.String())
+	if !errors.Is(ctx.Err(), context.DeadlineExceeded) && stderrText == "" {
+		t.Fatal("Expected MCP server diagnostics or shutdown details on stderr")
+	}
 }
