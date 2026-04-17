@@ -1066,13 +1066,19 @@ jobs:
                     "maxLength": 256
                   },
                   "reviewers": {
-                    "required": true,
                     "type": "array",
                     "itemType": "string",
                     "itemSanitize": true,
                     "itemMaxLength": 39
+                  },
+                  "team_reviewers": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 100
                   }
-                }
+                },
+                "customValidation": "requiresOneOf:reviewers,team_reviewers"
               },
               "close_pull_request": {
                 "defaultMax": 1,
