@@ -70,6 +70,8 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_BASE_REF;
+    delete process.env.GITHUB_REF_NAME;
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
@@ -511,6 +513,35 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.error).not.toContain("not found in workspace");
+    });
+
+    it("should prefer configured base_branch over trigger context base ref", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+          base_branch: "main",
+        },
+      });
+
+      process.env.GITHUB_BASE_REF = "master";
+      process.env.GITHUB_REF_NAME = "feature/test-change";
+
+      const result = await handlers.createPullRequestHandler({
+        branch: "main",
+        title: "Test PR",
+        body: "Test description",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(responseData.branch).toBe("feature/test-change");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "create_pull_request",
+          branch: "feature/test-change",
+        })
+      );
     });
   });
 
