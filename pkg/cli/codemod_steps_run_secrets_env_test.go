@@ -131,6 +131,58 @@ pre-agent-steps:
 		assert.Contains(t, result, "PRE_AGENT_TOKEN: ${{ secrets.PRE_AGENT_TOKEN }}", "pre-agent-steps should receive env binding")
 	})
 
+	t.Run("supports list-item-inline run key", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - run: echo ${{ secrets.INLINE_TOKEN }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"run": "echo ${{ secrets.INLINE_TOKEN }}",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, "run: echo $INLINE_TOKEN", "inline run should be rewritten")
+		assert.Contains(t, result, "INLINE_TOKEN: ${{ secrets.INLINE_TOKEN }}", "inline run should get env binding")
+	})
+
+	t.Run("supports list-item-inline env key with run sibling", func(t *testing.T) {
+		content := `---
+on: push
+steps:
+  - env:
+      PRESENT_TOKEN: ${{ secrets.PRESENT_TOKEN }}
+    run: echo ${{ secrets.NEW_TOKEN }}
+---
+`
+		frontmatter := map[string]any{
+			"on": "push",
+			"steps": []any{
+				map[string]any{
+					"env": map[string]any{
+						"PRESENT_TOKEN": "${{ secrets.PRESENT_TOKEN }}",
+					},
+					"run": "echo ${{ secrets.NEW_TOKEN }}",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, "PRESENT_TOKEN: ${{ secrets.PRESENT_TOKEN }}", "existing env key should remain")
+		assert.Contains(t, result, "NEW_TOKEN: ${{ secrets.NEW_TOKEN }}", "new env key should be added")
+		assert.Contains(t, result, "run: echo $NEW_TOKEN", "run should be rewritten to env var")
+	})
+
 	t.Run("no-op when no inline run secrets are present", func(t *testing.T) {
 		content := `---
 on: push

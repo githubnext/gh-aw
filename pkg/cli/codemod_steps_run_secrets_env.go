@@ -139,6 +139,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 	envStart := -1
 	envEnd := -1
 	envIndent := ""
+	var envKeyIndentLen int
 	existingEnvKeys := make(map[string]bool)
 
 	for i := 0; i < len(stepLines); i++ {
@@ -146,9 +147,11 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 		trimmed := strings.TrimSpace(line)
 		indent := getIndentation(line)
 
-		if strings.HasPrefix(trimmed, "env:") && len(indent) > len(stepIndent) && strings.TrimSpace(strings.TrimPrefix(trimmed, "env:")) == "" {
+		envMatch, envValue, currentEnvKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "env")
+		if envMatch && envValue == "" {
 			envStart = i
 			envIndent = indent
+			envKeyIndentLen = currentEnvKeyIndentLen
 			envEnd = i
 			for j := i + 1; j < len(stepLines); j++ {
 				t := strings.TrimSpace(stepLines[j])
@@ -156,7 +159,7 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 					envEnd = j
 					continue
 				}
-				if len(getIndentation(stepLines[j])) <= len(envIndent) {
+				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= envKeyIndentLen {
 					break
 				}
 				envEnd = j
@@ -167,22 +170,21 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 			}
 		}
 
-		if !strings.HasPrefix(trimmed, "run:") || len(indent) <= len(stepIndent) {
+		runMatch, runValue, runKeyIndentLen := parseStepKeyLine(trimmed, indent, stepIndent, "run")
+		if !runMatch {
 			continue
 		}
 		if firstRunLine == -1 {
 			firstRunLine = i
 		}
 
-		runValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "run:"))
 		if runValue == "|" || runValue == "|-" || runValue == ">" || runValue == ">-" {
-			runIndent := indent
 			for j := i + 1; j < len(stepLines); j++ {
 				t := strings.TrimSpace(stepLines[j])
 				if len(t) == 0 {
 					continue
 				}
-				if len(getIndentation(stepLines[j])) <= len(runIndent) {
+				if effectiveStepLineIndentLen(t, getIndentation(stepLines[j]), stepIndent) <= runKeyIndentLen {
 					break
 				}
 				updatedLine, names := replaceStepSecretRefs(stepLines[j])
@@ -268,10 +270,31 @@ func replaceStepSecretRefs(line string) (string, []string) {
 			ordered = append(ordered, name)
 		}
 	}
-	// "$$$1" means: "$$" -> literal "$", "$1" -> capture group 1 (secret name),
+	// In Go regexp replacement syntax, "$$$1" means:
+	// "$$" -> literal "$" in output, then "$1" -> capture group 1 (secret name),
 	// resulting in "$SECRET_NAME" shell env references.
 	updated := stepsSecretExprRe.ReplaceAllString(line, `$$$1`)
 	return updated, ordered
+}
+
+func parseStepKeyLine(trimmed, indent, stepIndent, key string) (bool, string, int) {
+	if strings.HasPrefix(trimmed, key+":") && len(indent) > len(stepIndent) {
+		value := strings.TrimSpace(strings.TrimPrefix(trimmed, key+":"))
+		return true, value, len(indent)
+	}
+	listKeyPrefix := "- " + key + ":"
+	if strings.HasPrefix(trimmed, listKeyPrefix) && len(indent) == len(stepIndent) {
+		value := strings.TrimSpace(strings.TrimPrefix(trimmed, listKeyPrefix))
+		return true, value, len(stepIndent) + 2
+	}
+	return false, "", 0
+}
+
+func effectiveStepLineIndentLen(trimmed, indent, stepIndent string) int {
+	if strings.HasPrefix(trimmed, "- ") && len(indent) == len(stepIndent) {
+		return len(stepIndent) + 2
+	}
+	return len(indent)
 }
 
 func parseYAMLMapKey(trimmedLine string) string {

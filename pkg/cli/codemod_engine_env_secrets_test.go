@@ -90,4 +90,35 @@ engine:
 		assert.False(t, applied, "codemod should not apply")
 		assert.Equal(t, content, result, "content should be unchanged")
 	})
+
+	t.Run("supports inline engine runtime.id for allowlist", func(t *testing.T) {
+		content := `---
+on: workflow_dispatch
+engine:
+  runtime:
+    id: codex
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    OPENAI_BASE_URL: ${{ secrets.AZURE_OPENAI_ENDPOINT }}openai/v1
+---
+`
+		frontmatter := map[string]any{
+			"on": "workflow_dispatch",
+			"engine": map[string]any{
+				"runtime": map[string]any{
+					"id": "codex",
+				},
+				"env": map[string]any{
+					"OPENAI_API_KEY":  "${{ secrets.OPENAI_API_KEY }}",
+					"OPENAI_BASE_URL": "${{ secrets.AZURE_OPENAI_ENDPOINT }}openai/v1",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", "required engine secret should be preserved when using runtime.id")
+		assert.NotContains(t, result, "OPENAI_BASE_URL: ${{ secrets.AZURE_OPENAI_ENDPOINT }}openai/v1", "unsafe secret-bearing key should still be removed")
+	})
 }
