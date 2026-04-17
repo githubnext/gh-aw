@@ -407,9 +407,9 @@ case "$ENGINE_TYPE" in
     echo "Using Gemini converter..."
     node "${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_gemini.cjs"
     ;;
-  opencode)
-    echo "Using OpenCode converter..."
-    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_opencode.sh
+  crush)
+    echo "Using Crush converter..."
+    bash ${RUNNER_TEMP}/gh-aw/actions/convert_gateway_config_crush.sh
     ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
