@@ -75,7 +75,8 @@ Examples:
 }
 
 // checkAndLogGHVersion checks if gh CLI is available and logs its version.
-// Pass nil for diagnosticOutput in stdio mode to avoid contaminating the JSON-RPC stream.
+// Pass os.Stderr for diagnosticOutput in HTTP mode for visible diagnostics.
+// Pass nil in stdio mode to avoid contaminating the JSON-RPC stream.
 func checkAndLogGHVersion(diagnosticOutput io.Writer) {
 	cmd := workflow.ExecGH("version")
 	output, err := cmd.CombinedOutput()
