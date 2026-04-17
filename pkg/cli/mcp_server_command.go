@@ -75,7 +75,7 @@ Examples:
 }
 
 // checkAndLogGHVersion checks if gh CLI is available and logs its version.
-// If diagnosticOutput is nil, diagnostic messages are suppressed.
+// Pass nil for diagnosticOutput in stdio mode to avoid contaminating the JSON-RPC stream.
 func checkAndLogGHVersion(diagnosticOutput io.Writer) {
 	cmd := workflow.ExecGH("version")
 	output, err := cmd.CombinedOutput()
@@ -102,8 +102,9 @@ func checkAndLogGHVersion(diagnosticOutput io.Writer) {
 // runMCPServer starts the MCP server on stdio or HTTP transport
 func runMCPServer(port int, cmdPath string, validateActor bool) error {
 	var diagnosticOutput io.Writer
-	// Only emit startup diagnostics in HTTP mode.
-	// In stdio mode, any non-JSON output risks polluting the JSON-RPC stream.
+	// port > 0 indicates HTTP mode; port == 0 indicates stdio mode.
+	// Only emit startup diagnostics in HTTP mode, because in stdio mode any non-JSON
+	// output risks polluting the JSON-RPC stream.
 	if port > 0 {
 		diagnosticOutput = os.Stderr
 	}
