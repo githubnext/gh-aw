@@ -43,6 +43,8 @@ func GetAllCodemods() []Codemod {
 		getRolesToOnRolesCodemod(),                    // Move top-level roles to on.roles
 		getBotsToOnBotsCodemod(),                      // Move top-level bots to on.bots
 		getEngineStepsToTopLevelCodemod(),             // Move engine.steps to top-level steps
+		getStepsRunSecretsToEnvCodemod(),              // Move inline secrets in step run fields to step env bindings
+		getEngineEnvSecretsCodemod(),                  // Remove unsafe secret-bearing engine.env entries
 		getAssignToAgentDefaultAgentCodemod(),         // Rename deprecated default-agent to name in assign-to-agent
 		getPlaywrightDomainsToNetworkAllowedCodemod(), // Migrate tools.playwright.allowed_domains to network.allowed
 		getExpiresIntegerToDayStringCodemod(),         // Convert expires integer (days) to string with 'd' suffix
