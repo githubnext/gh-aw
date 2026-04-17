@@ -64,9 +64,11 @@ function loadGatewayContext(options = {}) {
   /** @type {Record<string, unknown>} */
   const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
   const rawServers = config.mcpServers;
-  const servers =
-    /** @type {Record<string, Record<string, unknown>>} */
-    rawServers && typeof rawServers === "object" && !Array.isArray(rawServers) ? rawServers : {};
+  /** @type {Record<string, Record<string, unknown>>} */
+  let servers = {};
+  if (rawServers && typeof rawServers === "object" && !Array.isArray(rawServers)) {
+    servers = /** @type {Record<string, Record<string, unknown>>} */ rawServers;
+  }
 
   return {
     gatewayOutput,
