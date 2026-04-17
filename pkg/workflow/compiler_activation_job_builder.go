@@ -177,7 +177,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 		compilerActivationJobLog.Printf("Skipped validate-secret step (engine does not require secret validation)")
 	}
 
-	if hasWorkflowCallTrigger(data.On) {
+	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
 		compilerActivationJobLog.Print("Adding cross-repo setup guidance step for workflow_call trigger")
 		ctx.steps = append(ctx.steps, "      - name: Print cross-repo setup guidance\n")
 		ctx.steps = append(ctx.steps, "        if: failure() && steps.resolve-host-repo.outputs.target_repo != github.repository\n")
