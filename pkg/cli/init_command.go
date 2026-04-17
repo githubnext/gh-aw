@@ -17,14 +17,11 @@ func NewInitCommand() *cobra.Command {
 		Short: "Initialize the repository for agentic workflows",
 		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher agent file.
 
-Interactive Mode (default):
+Usage:
   gh aw init
-  
-  When invoked without flags, init enters interactive mode and prompts you to:
-  - Select which AI engine to use (Copilot, Claude, Codex, or Gemini)
-  - Automatically configure engine-specific settings (e.g., MCP for Copilot)
-  - Detect and configure secrets from your environment
-  - Set up repository Actions secrets automatically
+
+This command performs non-interactive repository setup and does not prompt for
+engine selection or secret configuration.
 
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
@@ -59,8 +56,8 @@ After running this command, you can:
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` init                                # Interactive mode
-  ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Interactive with verbose output
+  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
+  ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
