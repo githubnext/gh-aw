@@ -106,8 +106,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || 'auto' }}
-          GH_AW_INFO_VERSION: "2.1.98"
-          GH_AW_INFO_AGENT_VERSION: "2.1.98"
+          GH_AW_INFO_VERSION: "2.1.112"
+          GH_AW_INFO_AGENT_VERSION: "2.1.112"
           GH_AW_INFO_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -417,7 +417,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.23
       - name: Install Claude Code CLI
-        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.98
+        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.112
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -1241,7 +1241,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.25.23
       - name: Install Claude Code CLI
-        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.98
+        run: npm install --ignore-scripts -g @anthropic-ai/claude-code@2.1.112
       - name: Execute Claude Code CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         id: detection_agentic_execution

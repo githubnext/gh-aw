@@ -2451,6 +2451,79 @@ jobs:
           echo "- Success count: ${{ steps.add-workflows.outputs.success_count }}"
           echo "- Failure count: ${{ steps.add-workflows.outputs.failure_count }}"
 
+  integration-marketplace-compile:
+    name: Integration Compile gh-aw-marketplace
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-integration-marketplace-compile
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Clone github/gh-aw-marketplace repository
+        run: |
+          echo "Cloning github/gh-aw-marketplace repository..."
+          cd /tmp
+          git clone --depth 1 https://github.com/github/gh-aw-marketplace.git
+          echo "✅ Repository cloned successfully"
+
+      - name: Compile gh-aw-marketplace workflows
+        run: |
+          set -euo pipefail
+
+          MARKETPLACE_DIR="/tmp/gh-aw-marketplace"
+          WORKFLOW_DIR="${MARKETPLACE_DIR}/.github/workflows"
+          LOG_FILE="/tmp/gh-aw-marketplace-compile.log"
+
+          if [ ! -d "$WORKFLOW_DIR" ]; then
+            echo "❌ Expected workflow directory not found: $WORKFLOW_DIR"
+            echo "Available workflow-like directories:"
+            find "$MARKETPLACE_DIR" -maxdepth 3 -type d -name workflows || true
+            exit 1
+          fi
+
+          echo "Compiling workflows from: $WORKFLOW_DIR"
+          ./gh-aw compile --dir "$WORKFLOW_DIR" --strict --no-check-update 2>&1 | tee "$LOG_FILE"
+
+          WARNINGS=$(grep -nEi '(⚠|(^|[[:space:]])(warning:|warnings?:|warn[[:space:]:]))' "$LOG_FILE" || true)
+          if [ -n "$WARNINGS" ]; then
+            echo "❌ Compilation produced warnings; failing the job."
+            echo "$WARNINGS"
+            exit 1
+          fi
+
+          echo "✅ gh-aw-marketplace workflows compiled with no warnings or errors."
+          echo "## gh-aw-marketplace compile" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All workflows compiled with no warnings or errors." >> $GITHUB_STEP_SUMMARY
+
   integration-update:
     name: Integration Update - Preserve Local Imports
     runs-on: ubuntu-latest

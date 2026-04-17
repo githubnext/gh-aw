@@ -233,7 +233,7 @@ constants.AgenticWorkflowsMCPServerID  // "agenticworkflows"
 
 ```go
 // AI engine CLIs
-constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.21")
+constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.31")
 constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
