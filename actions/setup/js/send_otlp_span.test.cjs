@@ -1606,7 +1606,8 @@ describe("sendJobConclusionSpan", () => {
     const conclusionSpan = conclusionBody.resourceSpans[0].scopeSpans[0].spans[0];
     expect(conclusionSpan.name).toBe("gh-aw.agent.conclusion");
     expect(agentSpan.traceId).toBe(conclusionSpan.traceId);
-    expect(agentSpan.parentSpanId).toBe("abcdef1234567890");
+    expect(agentSpan.parentSpanId).toBe(conclusionSpan.spanId);
+    expect(agentSpan.parentSpanId).not.toBe("abcdef1234567890");
     expect(conclusionSpan.parentSpanId).toBe("abcdef1234567890");
   });
 
