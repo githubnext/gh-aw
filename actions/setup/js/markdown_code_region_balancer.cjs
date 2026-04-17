@@ -353,7 +353,9 @@ function isBalanced(markdown) {
           length: fenceLength,
         };
       } else {
-        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length;
+        // Per CommonMark, a closing fence must be bare (no info string/language)
+        const language = fenceMatch[3] || "";
+        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length && language === "";
 
         if (canClose) {
           inCodeBlock = false;
@@ -403,7 +405,9 @@ function countCodeRegions(markdown) {
           length: fenceLength,
         };
       } else {
-        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length;
+        // Per CommonMark, a closing fence must be bare (no info string/language)
+        const language = fenceMatch[3] || "";
+        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length && language === "";
 
         if (canClose) {
           inCodeBlock = false;
