@@ -217,13 +217,17 @@ describe("extractKnownAuthorsFromPayload", () => {
     expect(extractKnownAuthorsFromPayload(context)).toEqual(["pat"]);
   });
 
-  it("skips non-string actor for workflow_dispatch event", () => {
-    const context = {
-      eventName: "workflow_dispatch",
-      actor: 123,
-      payload: {},
-    };
-    expect(extractKnownAuthorsFromPayload(context)).toEqual([]);
+  it("skips invalid actor values for workflow_dispatch event", () => {
+    const invalidActors = [123, null, undefined, ""];
+
+    for (const actor of invalidActors) {
+      const context = {
+        eventName: "workflow_dispatch",
+        actor,
+        payload: {},
+      };
+      expect(extractKnownAuthorsFromPayload(context)).toEqual([]);
+    }
   });
 
   it("returns empty array for unknown event types", () => {
