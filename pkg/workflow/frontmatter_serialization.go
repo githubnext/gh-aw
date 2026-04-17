@@ -71,6 +71,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Source != "" {
 		result["source"] = fc.Source
 	}
+	if fc.Redirect != "" {
+		result["redirect"] = fc.Redirect
+	}
 	if fc.TrackerID != "" {
 		result["tracker-id"] = fc.TrackerID
 	}

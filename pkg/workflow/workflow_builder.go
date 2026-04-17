@@ -37,6 +37,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
 		Description:           c.extractDescription(result.Frontmatter),
 		Source:                c.extractSource(result.Frontmatter),
+		Redirect:              c.extractRedirect(result.Frontmatter),
 		TrackerID:             toolsResult.trackerID,
 		ImportedFiles:         importsResult.ImportedFiles,
 		ImportedMarkdown:      toolsResult.importedMarkdown, // Only imports WITH inputs

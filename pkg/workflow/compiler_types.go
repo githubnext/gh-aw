@@ -389,6 +389,7 @@ type WorkflowData struct {
 	FrontmatterHash             string         // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
 	Description                 string         // optional description rendered as comment in lock file
 	Source                      string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	Redirect                    string         // optional redirect field describing a moved workflow location
 	TrackerID                   string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	ImportedFiles               []string       // list of files imported via imports field (rendered as comment in lock file)
 	ImportedMarkdown            string         // Only imports WITH inputs (for compile-time substitution)

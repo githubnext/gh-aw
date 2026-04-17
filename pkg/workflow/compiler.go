@@ -300,6 +300,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Inform users when this workflow is a redirect stub for updates.
+	if workflowData.Redirect != "" {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info",
+			"workflow redirect configured: updates move to "+workflowData.Redirect))
+	}
+
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {

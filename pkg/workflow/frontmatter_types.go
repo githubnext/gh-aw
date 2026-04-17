@@ -146,6 +146,7 @@ type FrontmatterConfig struct {
 	// ParseFrontmatterConfig to return nil and break features that depend on it (e.g. OTLP).
 	Engine            any               `json:"engine,omitempty"`
 	Source            string            `json:"source,omitempty"`
+	Redirect          string            `json:"redirect,omitempty"`
 	TrackerID         string            `json:"tracker-id,omitempty"`
 	Version           string            `json:"version,omitempty"`
 	TimeoutMinutes    *TemplatableInt32 `json:"timeout-minutes,omitempty"`
