@@ -47,10 +47,11 @@ constants.CopilotEngine  // "copilot"
 constants.ClaudeEngine   // "claude"
 constants.CodexEngine    // "codex"
 constants.GeminiEngine   // "gemini"
+constants.CrushEngine    // "crush"
 constants.DefaultEngine  // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "crush"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
@@ -93,16 +94,19 @@ constants.EnvVarModelAgentClaude     // "GH_AW_MODEL_AGENT_CLAUDE"
 constants.EnvVarModelAgentCodex      // "GH_AW_MODEL_AGENT_CODEX"
 constants.EnvVarModelAgentCustom     // "GH_AW_MODEL_AGENT_CUSTOM"
 constants.EnvVarModelAgentGemini     // "GH_AW_MODEL_AGENT_GEMINI"
+constants.EnvVarModelAgentCrush      // "GH_AW_MODEL_AGENT_CRUSH"
 constants.EnvVarModelDetectionCopilot// "GH_AW_MODEL_DETECTION_COPILOT"
 constants.EnvVarModelDetectionClaude // "GH_AW_MODEL_DETECTION_CLAUDE"
 constants.EnvVarModelDetectionCodex  // "GH_AW_MODEL_DETECTION_CODEX"
 constants.EnvVarModelDetectionGemini // "GH_AW_MODEL_DETECTION_GEMINI"
+constants.EnvVarModelDetectionCrush  // "GH_AW_MODEL_DETECTION_CRUSH"
 
 // Native CLI model env vars (passed directly to the engine CLI)
 constants.CopilotCLIModelEnvVar         // "COPILOT_MODEL"
 constants.CopilotCLIIntegrationIDEnvVar // "GITHUB_COPILOT_INTEGRATION_ID"
 constants.ClaudeCLIModelEnvVar          // "ANTHROPIC_MODEL"
 constants.GeminiCLIModelEnvVar          // "GEMINI_MODEL"
+constants.CrushCLIModelEnvVar           // "CRUSH_MODEL"
 
 // gh-aw runtime env vars
 constants.EnvVarPrompt          // "GH_AW_PROMPT"
@@ -127,7 +131,10 @@ constants.DisableXPIAPromptFeatureFlag      // "disable-xpia-prompt"
 constants.CopilotRequestsFeatureFlag        // "copilot-requests"
 constants.DIFCProxyFeatureFlag              // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
 constants.CliProxyFeatureFlag               // "cli-proxy"
+constants.AwfDiagnosticLogsFeatureFlag      // "awf-diagnostic-logs"
+constants.ByokCopilotFeatureFlag            // "byok-copilot"
 constants.IntegrityReactionsFeatureFlag     // "integrity-reactions"
+constants.MCPCLIFeatureFlag                 // "mcp-cli"
 ```
 
 ## Job and Step Constants
@@ -230,6 +237,7 @@ constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.21")
 constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
+constants.DefaultCrushVersion           // Crush CLI version
 
 // Infrastructure
 constants.DefaultGitHubMCPServerVersion // GitHub MCP server Docker image version
@@ -396,6 +404,7 @@ constants.ClaudeLLMGatewayPort      // 10000
 constants.CodexLLMGatewayPort       // 10001
 constants.CopilotLLMGatewayPort     // 10002
 constants.GeminiLLMGatewayPort      // 10003
+constants.CrushLLMGatewayPort       // 10004
 ```
 
 ## Tool Lists
