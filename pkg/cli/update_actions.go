@@ -116,10 +116,11 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 				cappedSHA, shaErr := getActionSHAForTagFn(ctx, gitutil.ExtractBaseRepo(entry.Repo), cappedVersion)
 				if shaErr != nil {
 					updateLog.Printf("Cannot resolve SHA for %s@%s (CLI version cap): %v; skipping update", entry.Repo, cappedVersion, shaErr)
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: cannot resolve SHA for CLI version %s: %v", entry.Repo, cappedVersion, shaErr)))
-					}
-					skippedActions = append(skippedActions, entry.Repo)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: cannot resolve SHA for CLI version %s: %v", entry.Repo, cappedVersion, shaErr)))
+					failedActions = append(failedActions, actionUpdateFailure{
+						name: entry.Repo,
+						err:  fmt.Sprintf("cannot resolve SHA for CLI version %s: %v", cappedVersion, shaErr),
+					})
 					continue
 				}
 				latestVersion = cappedVersion
