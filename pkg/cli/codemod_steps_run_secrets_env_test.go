@@ -34,6 +34,7 @@ steps:
 		require.NoError(t, err, "codemod should apply cleanly")
 		assert.True(t, applied, "codemod should apply")
 		assert.Contains(t, result, "run: git clone https://x:$RUNTIME_TRIAGE_TOKEN@github.com/org/repo.git", "run should use env var")
+		assert.NotContains(t, result, "${{ secrets.RUNTIME_TRIAGE_TOKEN }}@github.com", "run should no longer include secret interpolation")
 		assert.Contains(t, result, "env:", "step env block should be added")
 		assert.Contains(t, result, "RUNTIME_TRIAGE_TOKEN: ${{ secrets.RUNTIME_TRIAGE_TOKEN }}", "secret should be bound in env")
 	})
@@ -92,6 +93,42 @@ pre-steps:
 		assert.True(t, applied, "codemod should apply")
 		assert.Contains(t, result, "_authToken=$NPM_TOKEN", "secret should be replaced with shell env reference")
 		assert.Contains(t, result, "NPM_TOKEN: ${{ secrets.NPM_TOKEN }}", "env binding should be added")
+	})
+
+	t.Run("supports post-steps and pre-agent-steps sections", func(t *testing.T) {
+		content := `---
+on: pull_request
+post-steps:
+  - name: Notify
+    run: 'curl -H "Authorization: Bearer ${{ secrets.POST_TOKEN }}" https://example.com'
+pre-agent-steps:
+  - name: Setup
+    run: echo "${{ secrets.PRE_AGENT_TOKEN }}"
+---
+`
+		frontmatter := map[string]any{
+			"on": "pull_request",
+			"post-steps": []any{
+				map[string]any{
+					"name": "Notify",
+					"run":  `curl -H "Authorization: Bearer ${{ secrets.POST_TOKEN }}" https://example.com`,
+				},
+			},
+			"pre-agent-steps": []any{
+				map[string]any{
+					"name": "Setup",
+					"run":  `echo "${{ secrets.PRE_AGENT_TOKEN }}"`,
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "codemod should apply cleanly")
+		assert.True(t, applied, "codemod should apply")
+		assert.Contains(t, result, `Authorization: Bearer $POST_TOKEN`, "post-steps run command should use env variable")
+		assert.Contains(t, result, "POST_TOKEN: ${{ secrets.POST_TOKEN }}", "post-steps should receive env binding")
+		assert.Contains(t, result, `echo "$PRE_AGENT_TOKEN"`, "pre-agent-steps run command should use env variable")
+		assert.Contains(t, result, "PRE_AGENT_TOKEN: ${{ secrets.PRE_AGENT_TOKEN }}", "pre-agent-steps should receive env binding")
 	})
 
 	t.Run("no-op when no inline run secrets are present", func(t *testing.T) {

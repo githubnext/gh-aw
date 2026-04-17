@@ -73,6 +73,9 @@ func extractEngineIDForCodemod(frontmatter map[string]any, engineMap map[string]
 
 func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 	allowed := make(map[string]bool)
+	// Keep only required, engine-specific secret names here.
+	// We intentionally exclude system and optional secrets so this codemod only
+	// preserves strict-mode-safe engine credential overrides.
 	for _, req := range getSecretRequirementsForEngine(
 		engineID,
 		false, // includeSystemSecrets

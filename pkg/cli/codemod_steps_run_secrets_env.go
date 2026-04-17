@@ -268,6 +268,8 @@ func replaceStepSecretRefs(line string) (string, []string) {
 			ordered = append(ordered, name)
 		}
 	}
+	// "$$$1" means: "$$" -> literal "$", "$1" -> capture group 1 (secret name),
+	// resulting in "$SECRET_NAME" shell env references.
 	updated := stepsSecretExprRe.ReplaceAllString(line, `$$$1`)
 	return updated, ordered
 }
