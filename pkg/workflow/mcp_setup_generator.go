@@ -696,7 +696,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")
-	containerCmd.WriteString(" --group-add $(stat -c '%g' /var/run/docker.sock)")
+	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
 	containerCmd.WriteString(" -v /var/run/docker.sock:/var/run/docker.sock") // Enable docker-in-docker for MCP gateway
 	// Pass required gateway environment variables
 	containerCmd.WriteString(" -e MCP_GATEWAY_PORT")
@@ -902,8 +902,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Compute the Docker socket group ID so the MCPG container can access /var/run/docker.sock
+	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')\n")
+
 	// Build the export command with proper quoting that allows variable expansion
-	// We need to break out of quotes for ${GITHUB_WORKSPACE} variables
+	// We need to break out of quotes for shell variables like ${GITHUB_WORKSPACE} and ${DOCKER_SOCK_GID}
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd.String())
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")
