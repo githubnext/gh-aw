@@ -107,6 +107,7 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantVersion:         1,
 			wantSecrets:         []string{},
 			wantContainerImages: []string{},
+			wantRedirect:        "",
 		},
 		{
 			name:         "redirect is included when configured",
@@ -139,9 +140,7 @@ func TestNewGHAWManifest(t *testing.T) {
 				}
 				assert.Equal(t, tt.wantContainerImages, images, "container images")
 			}
-			if tt.wantRedirect != "" {
-				assert.Equal(t, tt.wantRedirect, m.Redirect, "manifest redirect")
-			}
+			assert.Equal(t, tt.wantRedirect, m.Redirect, "manifest redirect")
 		})
 	}
 }

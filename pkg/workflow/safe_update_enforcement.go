@@ -269,7 +269,7 @@ func buildSafeUpdateWarningPrompt(violationMsg string) string {
 	sb.WriteString("  1. Review every new secret and action listed above for potential malicious use\n")
 	sb.WriteString("     (e.g. credential exfiltration, supply-chain attacks, unexpected network access).\n")
 	sb.WriteString("  2. Add a security review note to the pull request description that:\n")
-	sb.WriteString("     - Lists any new or removed secrets, actions, and redirects changed by this compilation.\n")
+	sb.WriteString("     - Lists any new or removed secrets, actions, and redirect changes from this compilation.\n")
 	sb.WriteString("     - Confirms you have reviewed each one and explains why it is safe to add.\n")
 	sb.WriteString("     - Flags any item you cannot fully verify so a human reviewer can inspect it.\n")
 	return sb.String()
