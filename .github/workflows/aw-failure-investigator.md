@@ -1,5 +1,5 @@
 ---
-description: Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, and opens a parent report with fix sub-issues
+description: Investigates [aw] failures from the last 6 hours, correlates with open agentic-workflows issues, closes fixed issues, and opens focused fix sub-issues when needed
 on:
   schedule:
     - cron: "every 6h"
@@ -22,10 +22,13 @@ safe-outputs:
     expires: 7d
     title-prefix: "[aw-failures] "
     labels: [agentic-workflows, automation, cookie]
-    max: 8
+    max: 2
     group: true
+  update-issue:
+    target: "*"
+    max: 10
   link-sub-issue:
-    max: 20
+    max: 10
   noop:
 timeout-minutes: 60
 imports:
@@ -49,7 +52,7 @@ Investigate agentic workflow failures from the last 6 hours and produce actionab
 1. Find recent failures from agentic workflows in the last 6 hours.
 2. Correlate findings with currently open `agentic-workflows` issues.
 3. Perform large-scale failure analysis using logs + audit + audit-diff.
-4. Create one parent report issue and linked sub-issues proposing concrete fixes.
+4. Close fixed/stale issues first, then create only the minimum necessary linked fix sub-issues.
 
 ## Required Investigation Steps
 
@@ -91,16 +94,15 @@ Use `agentic-workflows` MCP `audit-diff` to compare:
 
 Identify regressions and deltas (metrics/tooling/firewall/MCP behavior) that support fix recommendations.
 
-### 5) Create parent report issue + sub-issues
+### 5) Close fixed issues first, then add focused sub-issues
 
-Create a **single parent report issue** with a temporary ID (format `aw_` + 3-8 alphanumeric characters) summarizing:
-- observed failure clusters in last 6h
-- links to analyzed run IDs
-- evidence from logs/audit/audit-diff
-- mapping to existing open issues (duplicate / related / new)
-- prioritized fix plan
+First, identify currently open `agentic-workflows` issues that are now fixed, stale, or no longer actionable based on fresh evidence, and close them using `update-issue`.
 
-Then create **sub-issues** (linked to the parent) for concrete fixes. Each sub-issue must include:
+Then, if new uncovered work remains, add **sub-issues** for concrete fixes to the **most recent open parent report issue** instead of creating a new parent by default.
+
+Only create a new parent report issue (temporary ID format `aw_` + 3-8 alphanumeric characters) when **P0 failures have no existing tracking coverage**.
+
+Each new sub-issue must include:
 - clear problem statement
 - affected workflows and run IDs
 - probable root cause
@@ -128,7 +130,9 @@ Include these sections:
 ## Decision Rules
 
 - If there are **no failures** in the last 6h, or no actionable delta vs existing issues, call `noop` with a concise reason.
-- If failures exist but are already fully tracked, update by creating a minimal parent report that links to existing issues and only create new sub-issues for uncovered gaps.
+- If failures exist but are already fully tracked, prefer closing stale/fixed issues and avoid creating new issues.
+- Only create a new parent report issue when P0 failures have no existing tracking coverage.
+- Prefer closing stale/fixed issues over creating new issues when issue volume is high.
 - Always be explicit about confidence and unknowns.
 
 **Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation.
