@@ -662,11 +662,11 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to new command
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
-	newCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	newCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	cli.RegisterEngineFlagCompletion(newCmd)
 
 	// Add AI flag to compile and add commands
-	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	compileCmd.Flags().String("action-mode", "", "Action script inlining mode (inline, dev, release). Auto-detected if not specified")
 	compileCmd.Flags().String("action-tag", "", "Override action SHA or tag for actions/setup (overrides action-mode to release). Accepts full SHA or tag name")
 	compileCmd.Flags().String("actions-repo", "", "Override the external actions repository used in action mode (default: github/gh-aw-actions)")
@@ -727,7 +727,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
-	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	runCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")

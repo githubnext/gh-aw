@@ -82,6 +82,7 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   labels?: string[];
   reviewers?: string | string[];
+  "team-reviewers"?: string | string[];
   assignees?: string | string[];
   draft?: boolean;
   "if-no-changes"?: string;
@@ -161,6 +162,7 @@ interface AddLabelsConfig extends SafeOutputConfig {
  */
 interface AddReviewerConfig extends SafeOutputConfig {
   reviewers?: string[];
+  "team-reviewers"?: string[];
   target?: string;
 }
 
