@@ -277,6 +277,19 @@ func replaceStepSecretRefs(line string) (string, []string) {
 	return updated, ordered
 }
 
+// parseStepKeyLine detects a YAML step key in both standard form ("key: value")
+// and list-item-inline form ("- key: value").
+//
+// Parameters:
+//   - trimmed: current line with surrounding whitespace trimmed
+//   - indent: raw indentation of the current line
+//   - stepIndent: indentation of the step list item line
+//   - key: YAML key name to match (for example "run" or "env")
+//
+// Returns:
+//   - matched: whether the line contains the requested key in either supported form
+//   - value: trimmed value after the key (empty for block-style keys)
+//   - keyIndentLen: effective indentation length for block-boundary checks
 func parseStepKeyLine(trimmed, indent, stepIndent, key string) (bool, string, int) {
 	if strings.HasPrefix(trimmed, key+":") && len(indent) > len(stepIndent) {
 		value := strings.TrimSpace(strings.TrimPrefix(trimmed, key+":"))
@@ -290,6 +303,12 @@ func parseStepKeyLine(trimmed, indent, stepIndent, key string) (bool, string, in
 	return false, "", 0
 }
 
+// effectiveStepLineIndentLen returns the logical indentation length for a line
+// within a step block.
+//
+// For list-item-inline lines like "- run: ...", the "- " marker contributes two
+// characters to the effective YAML nesting level, so this function adds 2 to the
+// physical step indentation when computing boundary comparisons.
 func effectiveStepLineIndentLen(trimmed, indent, stepIndent string) int {
 	if strings.HasPrefix(trimmed, "- ") && len(indent) == len(stepIndent) {
 		return len(stepIndent) + 2
