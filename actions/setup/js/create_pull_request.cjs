@@ -496,28 +496,33 @@ async function main(config = {}) {
     // Optional agent-provided base branch override.
     // This is only allowed when allowed_base_branches is configured.
     if (typeof pullRequestItem.base === "string" && pullRequestItem.base.trim() !== "") {
+      const requestedBaseBranchRaw = pullRequestItem.base.trim();
+      core.info(`Base branch override requested: ${requestedBaseBranchRaw}`);
       if (allowedBaseBranches.size === 0) {
+        core.warning(`Rejecting base branch override '${requestedBaseBranchRaw}': allowed-base-branches is not configured`);
         return {
           success: false,
           error: "Base branch override is not allowed. Configure safe-outputs.create-pull-request.allowed-base-branches to allow per-run base overrides.",
         };
       }
 
-      const requestedBaseBranchRaw = pullRequestItem.base.trim();
       const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
       if (!requestedBaseBranch) {
+        core.warning(`Rejecting base branch override '${requestedBaseBranchRaw}': sanitization resulted in empty branch name`);
         return {
           success: false,
           error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
         };
       }
       if (requestedBaseBranchRaw !== requestedBaseBranch) {
+        core.warning(`Rejecting base branch override '${requestedBaseBranchRaw}': sanitized value '${requestedBaseBranch}' does not match original`);
         return {
           success: false,
           error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
         };
       }
       if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
+        core.warning(`Rejecting base branch override '${requestedBaseBranch}': does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
         return {
           success: false,
           error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,

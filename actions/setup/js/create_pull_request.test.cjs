@@ -1303,6 +1303,7 @@ describe("create_pull_request - base branch override policy", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Base branch override is not allowed");
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("allowed-base-branches is not configured"));
   });
 
   it("should allow base override when it matches allowed-base-branches", async () => {
@@ -1313,6 +1314,8 @@ describe("create_pull_request - base branch override policy", () => {
 
     expect(result.success).toBe(true);
     expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ base: "release/1.0" }));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Base branch override requested: release/1.0"));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Using agent-provided base branch override: release/1.0"));
   });
 
   it("should reject base override when it does not match allowed-base-branches", async () => {
@@ -1323,6 +1326,7 @@ describe("create_pull_request - base branch override policy", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Base branch override 'main' is not allowed");
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("does not match allowed patterns"));
   });
 });
 
