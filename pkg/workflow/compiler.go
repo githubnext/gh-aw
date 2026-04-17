@@ -35,6 +35,9 @@ const (
 	// MaxPromptChunks is the maximum number of chunks allowed when splitting prompt text
 	// This prevents excessive step generation for extremely large prompt texts
 	MaxPromptChunks = 5 // Maximum number of chunks
+
+	// MissingPermissionsDefaultToolsetWarning explains why strict mode was downgraded to warning.
+	MissingPermissionsDefaultToolsetWarning = "Some of the GitHub tools will not be available until the missing permissions are granted."
 )
 
 //go:embed schemas/github-workflow.json
@@ -337,7 +340,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 						return formatCompilerError(markdownPath, "error", message, nil)
 					} else {
 						if downgradeToWarning {
-							message += "\n\nSome of the GitHub tools will not be available until the missing permissions are granted."
+							message += "\n\n" + MissingPermissionsDefaultToolsetWarning
 						}
 						// In non-strict mode, missing permissions are warnings
 						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
@@ -429,6 +432,9 @@ Ensure proper audience validation and trust policies are configured.`
 	return nil
 }
 
+// shouldDowngradeDefaultToolsetPermissionError returns true when strict-mode
+// permission errors should be downgraded because the GitHub tool uses only the
+// default toolset, either explicitly ([default]) or implicitly (no toolsets configured).
 func shouldDowngradeDefaultToolsetPermissionError(githubTool *GitHubToolConfig) bool {
 	if githubTool == nil {
 		return false
