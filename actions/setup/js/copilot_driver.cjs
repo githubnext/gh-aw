@@ -137,7 +137,7 @@ function buildInfrastructureIncompletePayload(details) {
 
 /**
  * Append one safe-output entry line.
- * @param {(path: string, data: string, encoding: string) => void} appendFileSync
+ * @param {((path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void) | ((path: string, data: string, encoding: string) => void)} appendFileSync
  * @param {string} safeOutputsPath
  * @param {string} payload
  */
@@ -151,7 +151,7 @@ function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
  * @param {string} details
  * @param {{
  *   safeOutputsPath?: string,
- *   appendFileSync?: (path: string, data: string, encoding: string) => void,
+ *   appendFileSync?: ((path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void) | ((path: string, data: string, encoding: string) => void),
  *   logger?: (message: string) => void
  * }=} options
  */
