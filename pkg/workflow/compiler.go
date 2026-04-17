@@ -334,18 +334,19 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 
 				if len(validationResult.MissingPermissions) > 0 {
 					downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
-					strictError := c.strictMode && !downgradeToWarning
-					if strictError {
+					if c.strictMode && !downgradeToWarning {
 						// In strict mode, missing permissions are errors
 						return formatCompilerError(markdownPath, "error", message, nil)
-					} else {
-						if downgradeToWarning {
-							message += "\n\n" + MissingPermissionsDefaultToolsetWarning
-						}
-						// In non-strict mode, missing permissions are warnings
-						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-						c.IncrementWarningCount()
 					}
+
+					if downgradeToWarning {
+						message += "\n\n" + MissingPermissionsDefaultToolsetWarning
+					}
+
+					// In non-strict mode, missing permissions are warnings.
+					// In strict mode with default-only toolsets, this is intentionally downgraded to warning.
+					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+					c.IncrementWarningCount()
 				}
 			}
 		}
@@ -440,12 +441,11 @@ func shouldDowngradeDefaultToolsetPermissionError(githubTool *GitHubToolConfig) 
 		return false
 	}
 
-	toolsets := githubTool.Toolset.ToStringSlice()
-	if len(toolsets) == 0 {
+	if len(githubTool.Toolset) == 0 {
 		return true
 	}
 
-	return len(toolsets) == 1 && toolsets[0] == "default"
+	return len(githubTool.Toolset) == 1 && githubTool.Toolset[0] == GitHubToolset("default")
 }
 
 // generateAndValidateYAML generates GitHub Actions YAML and validates
