@@ -6461,13 +6461,20 @@
                   "maxItems": 50
                 },
                 "team-reviewers": {
-                  "type": "array",
-                  "description": "Optional list of allowed team reviewers. If omitted, any team reviewers are allowed.",
-                  "items": {
-                    "type": "string"
-                  },
-                  "minItems": 1,
-                  "maxItems": 50
+                  "description": "Optional allowed team reviewer or list of allowed team reviewers. If omitted, any team reviewers are allowed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 50
+                    }
+                  ]
                 },
                 "max": {
                   "description": "Optional maximum number of reviewers to add (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",

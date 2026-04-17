@@ -76,9 +76,10 @@ async function main(config = {}) {
     core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
     core.info(`Requested team reviewers: ${JSON.stringify(requestedTeamReviewers)}`);
 
-    // Use shared helper to filter, sanitize, dedupe, and limit
+    // Use shared helper to filter, sanitize, dedupe, and limit across both reviewer types
     const uniqueReviewers = processItems(requestedReviewers, allowedReviewers, maxCount);
-    const uniqueTeamReviewers = processItems(requestedTeamReviewers, allowedTeamReviewers, maxCount);
+    const remainingReviewerSlots = Math.max(0, maxCount - uniqueReviewers.length);
+    const uniqueTeamReviewers = processItems(requestedTeamReviewers, allowedTeamReviewers, remainingReviewerSlots);
 
     if (uniqueReviewers.length === 0 && uniqueTeamReviewers.length === 0) {
       core.info("No reviewers to add");

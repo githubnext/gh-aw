@@ -499,6 +499,29 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     });
   });
 
+  it("should enforce maxCount across reviewers and team_reviewers combined", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const tightHandler = await main({ max: 3, allowed: [], allowed_team_reviewers: [] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2", "user3"],
+      team_reviewers: ["platform-team", "security-team"],
+    };
+
+    const result = await tightHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "user2", "user3"]);
+    expect(result.teamReviewersAdded).toEqual([]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2", "user3"],
+    });
+  });
+
   it("should count staged calls toward max processedCount", async () => {
     const originalEnv = process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
