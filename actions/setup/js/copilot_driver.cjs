@@ -62,6 +62,18 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
 /**
+ * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} NodeAppendFileSync
+ */
+
+/**
+ * @typedef {(path: string, data: string, encoding: string) => void} StringAppendLineWriter
+ */
+
+/**
+ * @typedef {NodeAppendFileSync | StringAppendLineWriter} AppendFileSyncLike
+ */
+
+/**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[copilot-driver]" so they are easy to
  * grep out of the combined agent-stdio.log.
@@ -137,7 +149,7 @@ function buildInfrastructureIncompletePayload(details) {
 
 /**
  * Append one safe-output entry line.
- * @param {(path: string, data: string, encoding: string) => void} appendFileSync
+ * @param {AppendFileSyncLike} appendFileSync
  * @param {string} safeOutputsPath
  * @param {string} payload
  */
@@ -151,7 +163,7 @@ function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
  * @param {string} details
  * @param {{
  *   safeOutputsPath?: string,
- *   appendFileSync?: (path: string, data: string, encoding: string) => void,
+ *   appendFileSync?: AppendFileSyncLike,
  *   logger?: (message: string) => void
  * }=} options
  */

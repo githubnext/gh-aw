@@ -154,12 +154,13 @@ jobs:
             .claude
             .codex
             .gemini
+            .opencode
           sparse-checkout-cone-mode: true
           fetch-depth: 1
       - name: Save agent config folders for base branch restoration
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .gemini .github"
-          GH_AW_AGENT_FILES: "AGENTS.md CLAUDE.md GEMINI.md"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .gemini .github .opencode"
+          GH_AW_AGENT_FILES: "AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
         # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
@@ -726,8 +727,8 @@ jobs:
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
-          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .gemini .github"
-          GH_AW_AGENT_FILES: "AGENTS.md CLAUDE.md GEMINI.md"
+          GH_AW_AGENT_FOLDERS: ".agents .claude .codex .gemini .github .opencode"
+          GH_AW_AGENT_FILES: "AGENTS.md CLAUDE.md GEMINI.md opencode.jsonc"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
       - name: Clean git credentials
         continue-on-error: true

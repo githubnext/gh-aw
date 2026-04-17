@@ -166,6 +166,7 @@ These variables override the default AI model used for agent runs and threat det
 | `GH_AW_MODEL_AGENT_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_AGENT_CODEX` | OpenAI Codex |
 | `GH_AW_MODEL_AGENT_GEMINI` | Google Gemini |
+| `GH_AW_MODEL_AGENT_OPENCODE` | OpenCode |
 | `GH_AW_MODEL_AGENT_CUSTOM` | Custom engine |
 
 ### Detection runs
@@ -176,6 +177,7 @@ These variables override the default AI model used for agent runs and threat det
 | `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
 | `GH_AW_MODEL_DETECTION_GEMINI` | Google Gemini |
+| `GH_AW_MODEL_DETECTION_OPENCODE` | OpenCode |
 
 Set a model override as an organization variable:
 

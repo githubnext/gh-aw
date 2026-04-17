@@ -844,9 +844,12 @@ on:
   # (optional)
   manual-approval: "example-value"
 
-  # AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused,
-  # heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to
-  # 'eyes' if not specified.
+  # AI reaction to add/remove on triggering item. Scalar form accepts one of: +1,
+  # -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies
+  # enabled reactions and supports optional `issues`, `pull-requests`, and
+  # `discussions` fields to control trigger groups independently; use `type` to
+  # choose the reaction emoji (defaults to `eyes` when omitted). Use 'none' to
+  # disable reactions.
   # (optional)
   # This field supports multiple formats (oneOf):
 
@@ -856,6 +859,32 @@ on:
   # Option 2: YAML parses +1 and -1 without quotes as integers. These are converted
   # to +1 and -1 strings respectively.
   reaction: 1
+
+  # Option 3: object
+  reaction:
+    # Reaction type. Defaults to 'eyes' when omitted.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: string
+    type: "+1"
+
+    # Option 2: YAML parses +1 and -1 without quotes as integers. These are converted
+    # to +1 and -1 strings respectively.
+    type: 1
+
+    # Whether reactions are allowed for issue triggers (issues, issue_comment).
+    # (optional)
+    issues: true
+
+    # Whether reactions are allowed for pull request triggers (pull_request,
+    # pull_request_review_comment).
+    # (optional)
+    pull-requests: true
+
+    # Whether reactions are allowed for discussion and discussion_comment triggers.
+    # (optional)
+    discussions: true
 
   # Whether to post status comments (started/completed) on the triggering item.
   # Boolean form enables/disables status comments globally. Object form implies
@@ -1464,6 +1493,19 @@ pre-steps:
 pre-steps: []
   # Array items: undefined
 
+# Custom workflow steps to run immediately before AI execution, after all
+# initialization and setup steps in the agent job.
+# (optional)
+# This field supports multiple formats (oneOf):
+
+# Option 1: object
+pre-agent-steps:
+  {}
+
+# Option 2: array
+pre-agent-steps: []
+  # Array items: undefined
+
 # Custom workflow steps to run after AI execution
 # (optional)
 # This field supports multiple formats (oneOf):
@@ -1481,15 +1523,15 @@ post-steps: []
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini') or a
-# named catalog entry
+# Option 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini',
+# 'opencode') or a named catalog entry
 engine: "example-value"
 
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini') or a
-  # named catalog entry
+  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini',
+  # 'opencode') or a named catalog entry
   id: "example-value"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
@@ -1638,7 +1680,8 @@ engine:
 engine:
   # Runtime adapter reference for the inline engine definition
   runtime:
-    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini')
+    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini',
+    # 'opencode')
     id: "example-value"
 
     # Optional version of the runtime adapter (e.g. '0.105.0', 'beta')
@@ -1721,7 +1764,8 @@ engine:
 # Option 4: Engine definition: full declarative metadata for a named engine entry
 # (used in builtin engine shared workflow files such as @builtin:engines/*.md)
 engine:
-  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini')
+  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini',
+  # 'opencode')
   id: "example-value"
 
   # Human-readable display name for the engine
