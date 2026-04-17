@@ -109,13 +109,13 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	return steps
 }
 
-// GetDeclaredOutputFiles returns the output files that Codex may produce
-// Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
+// GetDeclaredOutputFiles returns the output files that Codex may produce.
+// Use /tmp/gh-aw for Codex runtime logs because ${RUNNER_TEMP}/gh-aw is
+// mounted read-only inside the AWF chroot sandbox.
 func (e *CodexEngine) GetDeclaredOutputFiles() []string {
-	// Return the Codex log directory for artifact collection
-	// Using mcp-config folder structure for consistency with other engines
+	// Return the Codex log directory for artifact collection.
 	return []string{
-		"${{ runner.temp }}/gh-aw/mcp-config/logs/",
+		"/tmp/gh-aw/mcp-config/logs/",
 	}
 }
 
@@ -276,9 +276,11 @@ mkdir -p "$CODEX_HOME/logs"
 		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
 		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
-		"GITHUB_AW":                    "true",
-		"GH_AW_MCP_CONFIG":             "${{ runner.temp }}/gh-aw/mcp-config/config.toml",
-		"CODEX_HOME":                   "${{ runner.temp }}/gh-aw/mcp-config",
+		"GITHUB_AW":        "true",
+		"GH_AW_MCP_CONFIG": "${{ runner.temp }}/gh-aw/mcp-config/config.toml",
+		// Keep Codex runtime state in /tmp/gh-aw because ${RUNNER_TEMP}/gh-aw is
+		// mounted read-only inside the AWF chroot sandbox.
+		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars

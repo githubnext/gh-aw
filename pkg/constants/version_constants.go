@@ -47,11 +47,14 @@ const DefaultCodexVersion Version = "0.118.0"
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.37.2"
 
+// DefaultCrushVersion is the default version of the Crush CLI
+const DefaultCrushVersion Version = "0.59.0"
+
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.32.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.22"
+const DefaultFirewallVersion Version = "v0.25.23"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.

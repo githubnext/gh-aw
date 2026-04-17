@@ -416,12 +416,12 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, or `"gemini"`
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or `"opencode"` (experimental)
   - Object format for extended configuration:
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, or gemini)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini, or opencode)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       agent: technical-doc-writer       # Optional: custom agent file (Copilot only, references .github/agents/{agent}.agent.md)
@@ -448,6 +448,7 @@ The YAML frontmatter supports these fields:
 
   - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
+  - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
 
 - **`network:`** - Network access control for AI engines (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)
@@ -2548,7 +2549,7 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 
 - **Invalid field names** - Only fields in the schema are allowed
 - **Wrong field types** - e.g., `timeout-minutes` must be an integer or GitHub Actions expression string
-- **Invalid enum values** - e.g., `engine` must be "copilot", "claude", "codex", or "gemini"
+- **Invalid enum values** - e.g., `engine` must be "copilot", "claude", "codex", "gemini", or "opencode"
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.

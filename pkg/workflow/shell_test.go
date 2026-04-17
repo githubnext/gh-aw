@@ -170,7 +170,7 @@ func TestBuildDockerCommandWithExpandableVars(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "simple command without GITHUB_WORKSPACE",
+			name:     "simple command without variables",
 			input:    "docker run hello",
 			expected: "'docker run hello'",
 		},
@@ -205,7 +205,7 @@ func TestBuildDockerCommandWithExpandableVars(t *testing.T) {
 			expected: "'docker run -v '\"${GITHUB_WORKSPACE}\"':'\"${GITHUB_WORKSPACE}\"':rw image'",
 		},
 		{
-			name:     "command with spaces and no GITHUB_WORKSPACE",
+			name:     "command with spaces and no variables",
 			input:    "docker run hello world",
 			expected: "'docker run hello world'",
 		},
@@ -220,9 +220,19 @@ func TestBuildDockerCommandWithExpandableVars(t *testing.T) {
 			expected: "''\"${GITHUB_WORKSPACE}\"'; rm -rf /'",
 		},
 		{
-			name:     "multiple variables mixed with GITHUB_WORKSPACE",
+			name:     "multiple different variables",
 			input:    "${GITHUB_WORKSPACE}/src ${OTHER_VAR}/dst",
-			expected: "''\"${GITHUB_WORKSPACE}\"'/src ${OTHER_VAR}/dst'",
+			expected: "''\"${GITHUB_WORKSPACE}\"'/src '\"${OTHER_VAR}\"'/dst'",
+		},
+		{
+			name:     "DOCKER_SOCK_GID variable",
+			input:    "docker run --group-add ${DOCKER_SOCK_GID} -v /var/run/docker.sock:/var/run/docker.sock",
+			expected: "'docker run --group-add '\"${DOCKER_SOCK_GID}\"' -v /var/run/docker.sock:/var/run/docker.sock'",
+		},
+		{
+			name:     "mixed DOCKER_SOCK_GID and GITHUB_WORKSPACE",
+			input:    "docker run --group-add ${DOCKER_SOCK_GID} -v ${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
+			expected: "'docker run --group-add '\"${DOCKER_SOCK_GID}\"' -v '\"${GITHUB_WORKSPACE}\"':'\"${GITHUB_WORKSPACE}\"':rw'",
 		},
 	}
 
