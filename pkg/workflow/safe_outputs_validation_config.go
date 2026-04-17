@@ -38,7 +38,7 @@ type TypeValidationConfig struct {
 const (
 	MaxBodyLength           = 65000
 	MaxGitHubUsernameLength = 39
-	MaxGitHubTeamSlugLength = 255
+	MaxGitHubTeamSlugLength = 100
 )
 
 // ValidationConfig contains all safe output type validation rules
