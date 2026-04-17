@@ -44,6 +44,7 @@ type GHAWManifest struct {
 	Secrets    []string                `json:"secrets"`
 	Actions    []GHAWManifestAction    `json:"actions"`
 	Containers []GHAWManifestContainer `json:"containers,omitempty"` // container images used, with digest when available
+	Redirect   string                  `json:"redirect,omitempty"`   // frontmatter redirect target for moved workflows
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
@@ -56,7 +57,7 @@ type GHAWManifest struct {
 //	"actions/checkout@abc1234 # v4"
 //
 // containers is the list of container image entries with full digest info (when available).
-func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHAWManifestContainer) *GHAWManifest {
+func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHAWManifestContainer, redirect string) *GHAWManifest {
 	safeUpdateManifestLog.Printf("Building gh-aw-manifest: raw_secrets=%d, raw_actions=%d, containers=%d", len(secretNames), len(actionRefs), len(containers))
 
 	// Normalize secret names to full "secrets.NAME" form and deduplicate.
@@ -94,6 +95,7 @@ func NewGHAWManifest(secretNames []string, actionRefs []string, containers []GHA
 		Secrets:    secrets,
 		Actions:    actions,
 		Containers: sortedContainers,
+		Redirect:   strings.TrimSpace(redirect),
 	}
 }
 
