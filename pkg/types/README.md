@@ -107,3 +107,7 @@ Per-token-class weights for effective token computation. Each field corresponds 
 - This package has no dependencies on other `gh-aw` packages, making it safe to import from anywhere.
 - All struct fields use both `json` and `yaml` struct tags so they can be round-tripped through both serialization formats.
 - `BaseMCPServerConfig` is designed to be embedded — packages add domain-specific fields and validation on top of the shared base.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

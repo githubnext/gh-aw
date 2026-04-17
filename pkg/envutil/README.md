@@ -44,3 +44,7 @@ concurrency := envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", 5, 1, 20,
 - Warning messages use `console.FormatWarningMessage` so they render consistently in terminals.
 - All warnings go to `os.Stderr` to avoid polluting structured stdout output.
 - The function only handles integers; floating-point or string env vars should be read directly via `os.Getenv`.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

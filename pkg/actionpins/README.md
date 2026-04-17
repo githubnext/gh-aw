@@ -37,6 +37,19 @@ Resolution supports two modes:
 | `ResolveActionPin` | `func(actionRepo, version string, ctx *PinContext) (string, error)` | Resolves a pinned reference with optional dynamic SHA lookup and fallback behavior |
 | `GetCachedActionPin` | `func(repo string, ctx *PinContext) string` | Returns a pinned reference preferring cache/dynamic resolution when available |
 
+## Usage Example
+
+```go
+ctx := &actionpins.PinContext{StrictMode: true}
+
+reference, err := actionpins.ResolveActionPin("actions/checkout", "v5", ctx)
+if err != nil {
+	panic(err)
+}
+
+fmt.Println(reference) // actions/checkout@<sha> # v5
+```
+
 ## Dependencies
 
 **Internal**:

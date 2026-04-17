@@ -77,3 +77,7 @@ unique := sliceutil.Deduplicate(items)
 - `Any` is implemented via `slices.ContainsFunc` from the standard library.
 - `Deduplicate` uses a `map[T]bool` for O(n) time complexity.
 - None of these functions sort their output; callers that require sorted results should call `slices.Sort` on the returned slice.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

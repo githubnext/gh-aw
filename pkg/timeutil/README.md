@@ -60,3 +60,7 @@ timeutil.FormatDurationNs(90_000_000_000) // "1m30s"
 - `FormatDuration` is used by the `logger` package to display time-diff between consecutive log calls (the `+500ms` suffix in debug output).
 - `FormatDurationMs` is used for workflow run duration display, where GitHub Actions reports durations in milliseconds.
 - `FormatDurationNs` is used for job duration display, where GitHub Actions reports billing durations in nanoseconds.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

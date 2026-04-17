@@ -508,12 +508,17 @@ tools:
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	groupAddSnippet := `--group-add $(stat -c '\''%g'\'' /var/run/docker.sock)`
+	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
+	gidComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')`
+	require.Contains(t, yamlStr, gidComputeSnippet,
+		"Shell should compute DOCKER_SOCK_GID before docker command")
 	require.Contains(t, yamlStr, groupAddSnippet,
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
 		"Docker command should mount the Docker socket")
+	require.Less(t, strings.Index(yamlStr, gidComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
+		"DOCKER_SOCK_GID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
 }
