@@ -203,6 +203,11 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 	return added, removed
 }
 
+// collectRedirectViolations compares the redirect recorded in the previous manifest
+// with the redirect currently configured in frontmatter.
+// It returns:
+//   - added: a redirect newly configured in current frontmatter
+//   - removed: a previously-approved redirect that is now absent
 func collectRedirectViolations(manifest *GHAWManifest, currentRedirect string) (added string, removed string) {
 	knownRedirect := strings.TrimSpace(manifest.Redirect)
 	current := strings.TrimSpace(currentRedirect)
@@ -220,7 +225,7 @@ func collectRedirectViolations(manifest *GHAWManifest, currentRedirect string) (
 }
 
 // buildSafeUpdateError creates a clear, structured error message that names the
-// offending secrets and actions and tells the user how to remediate.
+// offending secrets, actions, and redirects and tells the user how to remediate.
 func buildSafeUpdateError(secretViolations, addedActions, removedActions []string, addedRedirect, removedRedirect string) error {
 	var sb strings.Builder
 	sb.WriteString("safe update mode detected unapproved changes\n")

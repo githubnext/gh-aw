@@ -370,6 +370,22 @@ func TestBuildSafeUpdateError(t *testing.T) {
 		assert.Contains(t, msg, "Previously-approved action", "section header in message")
 	})
 
+	t.Run("added redirect only", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, nil, nil, "owner/repo/workflows/new.md@main", "")
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "New redirect configured", "added redirect section header in message")
+		assert.Contains(t, msg, "owner/repo/workflows/new.md@main", "added redirect in message")
+	})
+
+	t.Run("removed redirect only", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, nil, nil, "", "owner/repo/workflows/old.md@main")
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "Previously-approved redirect removed", "removed redirect section header in message")
+		assert.Contains(t, msg, "owner/repo/workflows/old.md@main", "removed redirect in message")
+	})
+
 	t.Run("mixed violations", func(t *testing.T) {
 		err := buildSafeUpdateError(
 			[]string{"MY_SECRET"},
