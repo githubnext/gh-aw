@@ -67,6 +67,7 @@ func TestHealthCommand(t *testing.T) {
 	assert.NotNil(t, cmd, "Health command should be created")
 	assert.Equal(t, "health", cmd.Name(), "Command name should be 'health'")
 	assert.True(t, cmd.HasAvailableFlags(), "Command should have flags")
+	assert.Contains(t, cmd.Long, "Warnings when success rate drops below threshold", "Health help should consistently use warnings terminology")
 
 	// Check that required flags are registered
 	daysFlag := cmd.Flags().Lookup("days")

@@ -5,13 +5,13 @@ import "github.com/spf13/cobra"
 // addEngineFlag adds the --engine/-e flag to a command.
 // This flag allows overriding the AI engine type.
 func addEngineFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 }
 
 // addEngineFilterFlag adds the --engine/-e flag to a command for filtering.
 // This flag allows filtering results by AI engine type.
 func addEngineFilterFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("engine", "e", "", "Filter logs by AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().StringP("engine", "e", "", "Filter logs by AI engine (copilot, claude, codex, gemini, crush)")
 }
 
 // addRepoFlag adds the --repo/-r flag to a command.

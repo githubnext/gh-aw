@@ -21,7 +21,7 @@ Interactive Mode (default):
   gh aw init
   
   When invoked without flags, init enters interactive mode and prompts you to:
-  - Select which AI engine to use (Copilot, Claude, or Codex)
+  - Select which AI engine to use (Copilot, Claude, Codex, or Gemini)
   - Automatically configure engine-specific settings (e.g., MCP for Copilot)
   - Detect and configure secrets from your environment
   - Set up repository Actions secrets automatically
@@ -117,7 +117,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (copilot, claude, codex, gemini, crush)")
 	_ = cmd.Flags().MarkHidden("engine") // Hide the engine flag from help output (internal use only)
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
