@@ -1591,8 +1591,7 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_driver.cjs") {
 			t.Errorf("Expected copilot_driver.cjs in execution step, got:\n%s", stepContent)
 		}
-		nodeResolutionLogic := `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || echo node)"; fi; "$GH_AW_NODE_EXEC"`
-		if !strings.Contains(stepContent, nodeResolutionLogic) {
+		if !strings.Contains(stepContent, nodeRuntimeResolutionPrefix) {
 			t.Errorf("Expected runtime node resolution logic in execution step, got:\n%s", stepContent)
 		}
 
