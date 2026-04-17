@@ -82,8 +82,8 @@ This will take you through an interactive process to:
 
 To create it:
 
-1. Open [Create fine-grained PAT for `COPILOT_GITHUB_TOKEN`](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read).
-2. Set **Resource owner** to your personal account (not an organization). This is required by the GitHub platform: `COPILOT_GITHUB_TOKEN` needs **Copilot Requests** user-level permission, which is only available for user accounts.
+1. Open [Create fine-grained PAT for `COPILOT_GITHUB_TOKEN`](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication).
+2. Set **Resource owner** to your personal account. The **Copilot Requests** permission is user-level and cannot be granted to organization-scoped tokens.
 3. Under **Permissions → Account permissions**, set **Copilot Requests: Read**.
 4. Generate the token, then save it as a repository secret named `COPILOT_GITHUB_TOKEN`.
 
