@@ -74,7 +74,8 @@ Examples:
 	return cmd
 }
 
-// checkAndLogGHVersion checks if gh CLI is available and logs its version
+// checkAndLogGHVersion checks if gh CLI is available and logs its version.
+// If diagnosticOutput is nil, diagnostic messages are suppressed.
 func checkAndLogGHVersion(diagnosticOutput io.Writer) {
 	cmd := workflow.ExecGH("version")
 	output, err := cmd.CombinedOutput()
