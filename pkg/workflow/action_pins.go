@@ -80,7 +80,7 @@ func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) str
 
 // getActionPinByRepo returns the latest ActionPin for a given repository, if any.
 func getActionPinByRepo(repo string) (ActionPin, bool) {
-	return actionpins.GetActionPinByRepo(repo)
+	return actionpins.GetLatestActionPinByRepo(repo)
 }
 
 // getActionPinWithData returns the pinned action reference for a given action@version,
