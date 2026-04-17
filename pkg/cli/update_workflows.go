@@ -17,8 +17,8 @@ import (
 )
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v", workflowsDir, workflowNames, noMerge, noCompile)
+func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v", workflowsDir, workflowNames, noMerge, noCompile, noRedirect)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -50,7 +50,7 @@ func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, fo
 	// Update each workflow
 	for _, wf := range workflows {
 		updateLog.Printf("Updating workflow: %s (source: %s)", wf.Name, wf.SourceSpec)
-		if err := updateWorkflow(ctx, wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile); err != nil {
+		if err := updateWorkflow(ctx, wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile, noRedirect); err != nil {
 			updateLog.Printf("Failed to update workflow %s: %v", wf.Name, err)
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
@@ -368,7 +368,7 @@ func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMaj
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool) error {
+func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool) error {
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
@@ -384,7 +384,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 		return fmt.Errorf("failed to parse source spec: %w", err)
 	}
 
-	resolvedLocation, err := resolveRedirectedUpdateLocation(ctx, wf.Name, initialSourceSpec, allowMajor, verbose)
+	resolvedLocation, err := resolveRedirectedUpdateLocation(ctx, wf.Name, initialSourceSpec, allowMajor, verbose, noRedirect)
 	if err != nil {
 		return err
 	}

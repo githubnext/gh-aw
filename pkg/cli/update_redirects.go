@@ -25,7 +25,7 @@ type resolvedUpdateLocation struct {
 	redirectHistory []string
 }
 
-func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, initialSource *SourceSpec, allowMajor, verbose bool) (*resolvedUpdateLocation, error) {
+func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, initialSource *SourceSpec, allowMajor, verbose bool, noRedirect bool) (*resolvedUpdateLocation, error) {
 	current := &SourceSpec{
 		Repo: initialSource.Repo,
 		Path: initialSource.Path,
@@ -75,6 +75,10 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 				content:         content,
 				redirectHistory: history,
 			}, nil
+		}
+
+		if noRedirect {
+			return nil, fmt.Errorf("redirect is disabled by --no-redirect for %s: %s declares redirect to %s", workflowName, sourceSpecWithRef(current, latestRef), redirect)
 		}
 
 		redirectedSource, err := normalizeRedirectToSourceSpec(redirect)
