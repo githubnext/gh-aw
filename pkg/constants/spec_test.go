@@ -190,11 +190,11 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 // Spec section: "## Formatting Constants"
 func TestSpec_FormattingConstants_Values(t *testing.T) {
 	// From spec: MaxExpressionLineLength // 120 — maximum line length for YAML expressions
-	assert.Equal(t, constants.LineLength(120), constants.MaxExpressionLineLength,
+	assert.Equal(t, constants.MaxExpressionLineLength, constants.LineLength(120),
 		"MaxExpressionLineLength should be 120 as documented")
 
 	// From spec: ExpressionBreakThreshold // 100 — threshold at which long lines get broken
-	assert.Equal(t, constants.LineLength(100), constants.ExpressionBreakThreshold,
+	assert.Equal(t, constants.ExpressionBreakThreshold, constants.LineLength(100),
 		"ExpressionBreakThreshold should be 100 as documented")
 
 	// From spec: CLIExtensionPrefix // "gh aw" — user-facing CLI prefix
