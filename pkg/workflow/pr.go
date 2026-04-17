@@ -29,6 +29,7 @@ func generateSaveBaseGitHubFoldersStep(folders, files []string) []string {
 	lines = append(lines, "        env:\n")
 	lines = append(lines, fmt.Sprintf("          GH_AW_AGENT_FOLDERS: \"%s\"\n", strings.Join(folders, " ")))
 	lines = append(lines, fmt.Sprintf("          GH_AW_AGENT_FILES: \"%s\"\n", strings.Join(files, " ")))
+	lines = append(lines, "        # poutine:ignore untrusted_checkout_exec\n")
 	lines = append(lines, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh\"\n")
 	return lines
 }
@@ -36,7 +37,7 @@ func generateSaveBaseGitHubFoldersStep(folders, files []string) []string {
 // generateRestoreBaseGitHubFoldersStep generates a step (for the agent job) that restores
 // agent config from the activation artifact after checkout_pr_branch.cjs has run.
 // This prevents fork PRs from injecting malicious skill or instruction files.
-// The step also removes .mcp.json and only runs when the PR checkout step succeeded.
+// The step also removes .github/mcp.json and only runs when the PR checkout step succeeded.
 //
 // folders: the agent config directories to restore (must match save step)
 // files:   the root instruction files to restore (must match save step)

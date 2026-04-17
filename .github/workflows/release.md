@@ -461,6 +461,12 @@ steps:
       echo "    CHANGELOG.md (if exists), docs_files.txt)"
       echo "  Community data: /tmp/gh-aw/community-data/ (community_issues.json,"
       echo "    closing_refs_by_issue.json, pull_requests.json)"
+
+tools:
+  mount-as-clis: true
+
+features:
+  mcp-cli: true
 ---
 
 # Release Highlights Generator

@@ -79,7 +79,7 @@ const BUILT_IN_PATTERNS = [
  * These are the canonical paths produced by the gateway setup scripts.
  * The list is defined as a module-level constant so tests can replace entries.
  */
-const MCP_GATEWAY_CONFIG_PATHS = ["/tmp/gh-aw/mcp-config/gateway-output.json", "/tmp/gh-aw/mcp-config/mcp-servers.json"];
+const MCP_GATEWAY_CONFIG_PATHS = [path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json"), path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")];
 
 /**
  * Extracts MCP gateway bearer tokens from known configuration files.

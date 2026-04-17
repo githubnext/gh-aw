@@ -12,6 +12,7 @@ permissions:
   security-events: read
 engine: claude
 tools:
+  mount-as-clis: true
   github:
     mode: "remote"
     toolsets: [all]
@@ -30,6 +31,8 @@ imports:
     with:
       title-prefix: "[mcp-tools-report] "
   - shared/reporting.md
+features:
+  mcp-cli: true
 ---
 # GitHub MCP Remote Server Tools Report Generator
 

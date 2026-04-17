@@ -11,6 +11,7 @@ engine:
   id: copilot
   max-continuations: 40
 tools:
+  mount-as-clis: true
   github:
     toolsets: [pull_requests]
   bash:
@@ -68,6 +69,7 @@ timeout-minutes: 15
 imports:
   - shared/reporting.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

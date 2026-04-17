@@ -477,6 +477,47 @@ Test that TAVILY_API_KEY is passed to gateway container.
 		"Docker command should include -e TAVILY_API_KEY before the container image")
 }
 
+// TestMCPGatewayDockerCommandIncludesDockerSocketGroup verifies the gateway docker command
+// adds the docker socket group as a supplementary group for non-root execution.
+func TestMCPGatewayDockerCommandIncludesDockerSocketGroup(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+---
+
+# Test Docker Socket Group
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	groupAddSnippet := `--group-add $(stat -c '\''%g'\'' /var/run/docker.sock)`
+	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
+	require.Contains(t, yamlStr, groupAddSnippet,
+		"Docker command should include docker socket supplementary group mapping")
+	require.Contains(t, yamlStr, mountSnippet,
+		"Docker command should mount the Docker socket")
+	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
+		"Docker command should add supplementary group before mounting the Docker socket")
+}
+
 // TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
 // with different secrets all get their environment variables passed to the gateway container
 func TestMultipleHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {

@@ -108,7 +108,7 @@ For cross-org private packages, use `github-app:` authentication:
 ```yaml wrap
 dependencies:
   github-app:
-    app-id: ${{ vars.APP_ID }}
+    client-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
   packages:
     - acme-org/acme-plugins

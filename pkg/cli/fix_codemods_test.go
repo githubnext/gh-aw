@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 29
+	expectedCount := 30
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -130,6 +130,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"playwright-allowed-domains-migration",
 		"expires-integer-to-string",
 		"app-to-github-app",
+		"github-app-app-id-to-client-id",
 		"safe-inputs-to-mcp-scripts",
 		"plugins-to-dependencies",
 		"github-repos-to-allowed-repos",

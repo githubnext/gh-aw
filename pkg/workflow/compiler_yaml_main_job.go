@@ -307,6 +307,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		return fmt.Errorf("failed to generate MCP setup: %w", err)
 	}
 
+	// Mount MCP servers as CLI tools (runs after gateway is started)
+	c.generateMCPCLIMountStep(yaml, data)
+
 	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
 	// No longer generated in the main job steps
 
@@ -323,7 +326,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Restore agent config folders from the base branch snapshot in the activation artifact.
 	// The activation job saved these before the PR checkout ran, so this step overwrites any
 	// PR-branch-injected files (e.g. forked skill/instruction files) with trusted base content.
-	// The .mcp.json at the workspace root is also removed since it may come from the PR branch.
+	// The .github/mcp.json file is also removed since it may come from the PR branch.
 	// The folder and file lists match those used in the save step (derived from engine registry).
 	if ShouldGeneratePRCheckoutStep(data) {
 		registry := GetGlobalEngineRegistry()
@@ -365,6 +368,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// the compiler starts a difc-proxy container on the host that AWF's cli-proxy sidecar
 	// connects to via host.docker.internal:18443.
 	c.generateStartCliProxyStep(yaml, data)
+
+	// Add pre-agent-steps (if any) immediately before AI execution.
+	c.generatePreAgentSteps(yaml, data)
 
 	// Add AI execution step using the agentic engine
 	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())

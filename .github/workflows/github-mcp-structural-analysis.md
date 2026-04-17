@@ -15,6 +15,7 @@ permissions:
 engine: claude
 strict: true
 tools:
+  mount-as-clis: true
   github:
     mode: local
     read-only: true
@@ -28,6 +29,9 @@ imports:
       expires: 1d
   - shared/python-dataviz.md
   - shared/reporting.md
+
+features:
+  mcp-cli: true
 ---
 # GitHub MCP Structural Analysis
 

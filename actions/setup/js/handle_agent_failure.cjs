@@ -14,6 +14,21 @@ const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const fs = require("fs");
 const path = require("path");
 
+const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
+
+/**
+ * Parse action failure issue expiration from environment.
+ * @returns {number} Expiration in hours (defaults to 168 when unset/invalid)
+ */
+function getActionFailureIssueExpiresHours() {
+  const raw = process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS || "";
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
+}
+
 /**
  * Attempt to find a pull request for the current branch
  * @returns {Promise<{number: number, html_url: string, head_sha: string, mergeable: boolean | null, mergeable_state: string, updated_at: string} | null>} PR info or null if not found
@@ -82,9 +97,10 @@ async function findPullRequestForCurrentBranch() {
  * @param {number|null} previousParentNumber - Previous parent issue number if creating due to limit
  * @param {string} [ownerOverride] - Repository owner override (from failure-issue-repo config)
  * @param {string} [repoOverride] - Repository name override (from failure-issue-repo config)
+ * @param {number} [expiresHours] - Expiration in hours for created parent issue
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
  */
-async function ensureParentIssue(previousParentNumber = null, ownerOverride, repoOverride) {
+async function ensureParentIssue(previousParentNumber = null, ownerOverride, repoOverride, expiresHours = DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS) {
   const { owner: contextOwner, repo: contextRepo } = context.repo;
   const owner = ownerOverride || contextOwner;
   const repo = repoOverride || contextRepo;
@@ -202,10 +218,10 @@ gh aw audit <run-id>
 
 > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`;
 
-  // Add expiration marker (7 days from now) inside the quoted section using helper
+  // Add expiration marker inside the quoted section using helper
   const footer = generateFooterWithExpiration({
     footerText: parentBodyContent,
-    expiresHours: 24 * 7, // 7 days
+    expiresHours,
   });
   const parentBody = footer;
 
@@ -1174,6 +1190,7 @@ async function main() {
       itemType: "issue",
       workflowId: workflowID,
     });
+    const actionFailureIssueExpiresHours = getActionFailureIssueExpiresHours();
 
     // Check if parent issue creation is enabled (defaults to false)
     const groupReports = process.env.GH_AW_GROUP_REPORTS === "true";
@@ -1182,7 +1199,7 @@ async function main() {
     let parentIssue;
     if (groupReports) {
       try {
-        parentIssue = await ensureParentIssue(null, owner, repo);
+        parentIssue = await ensureParentIssue(null, owner, repo, actionFailureIssueExpiresHours);
       } catch (error) {
         core.warning(`Could not create parent issue, proceeding without parent: ${getErrorMessage(error)}`);
         // Continue without parent issue
@@ -1515,10 +1532,10 @@ async function main() {
         };
         const footer = getFooterAgentFailureIssueMessage(ctx);
 
-        // Add expiration marker (7 days from now) inside the quoted footer section using helper
+        // Add expiration marker inside the quoted footer section using helper
         const footerWithExpires = generateFooterWithExpiration({
           footerText: footer,
-          expiresHours: 24 * 7, // 7 days
+          expiresHours: actionFailureIssueExpiresHours,
           suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}`,
         });
 
@@ -1569,4 +1586,5 @@ module.exports = {
   buildReportIncompleteContext,
   buildMCPPolicyErrorContext,
   buildModelNotSupportedErrorContext,
+  getActionFailureIssueExpiresHours,
 };

@@ -32,6 +32,7 @@ imports:
   - shared/reporting.md
 
 tools:
+  mount-as-clis: true
   cache-memory: true
 
 safe-outputs:
@@ -48,6 +49,8 @@ safe-outputs:
 
 timeout-minutes: 15
 strict: true
+features:
+  mcp-cli: true
 ---
 
 # Resource Summarizer Agent

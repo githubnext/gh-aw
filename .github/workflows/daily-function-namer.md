@@ -15,9 +15,8 @@ tracker-id: daily-function-namer
 engine: claude
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
-  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:
@@ -28,6 +27,7 @@ safe-outputs:
     close-older-issues: true
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default, issues]
@@ -35,6 +35,8 @@ tools:
 
 timeout-minutes: 30
 strict: true
+features:
+  mcp-cli: true
 ---
 
 # Daily Go Function Namer

@@ -12,6 +12,7 @@ permissions:
   issues: read
   security-events: read
 tools:
+  mount-as-clis: true
   github:
     toolsets: [all]
   agentic-workflows:
@@ -30,6 +31,8 @@ timeout-minutes: 15
 imports:
   - shared/security-analysis-base.md
   - shared/pr-code-review-config.md
+features:
+  mcp-cli: true
 ---
 
 # Security Review Agent 🔒

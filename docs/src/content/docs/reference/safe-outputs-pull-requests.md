@@ -364,7 +364,7 @@ Set `allow-workflows: true` on `create-pull-request` or `push-to-pull-request-br
 ```yaml wrap
 safe-outputs:
   github-app:
-    app-id: ${{ vars.APP_ID }}
+    client-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
   create-pull-request:
     allow-workflows: true

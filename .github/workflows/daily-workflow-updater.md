@@ -31,6 +31,7 @@ safe-outputs:
     protected-files: allowed
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash: true
@@ -38,6 +39,7 @@ tools:
 timeout-minutes: 15
 
 features:
+  mcp-cli: true
   copilot-requests: true
 imports:
   - shared/observability-otlp.md

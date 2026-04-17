@@ -400,7 +400,7 @@
           "apm-packages": {
             "packages": ["microsoft/apm-sample-package"],
             "github-app": {
-              "app-id": "${{ vars.APP_ID }}",
+              "client-id": "${{ vars.APP_ID }}",
               "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
             }
           }
@@ -1879,16 +1879,70 @@
                   "type": "integer",
                   "enum": [1, -1],
                   "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"]
+                        },
+                        {
+                          "type": "integer",
+                          "enum": [1, -1],
+                          "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
+                        }
+                      ],
+                      "description": "Reaction type. Defaults to 'eyes' when omitted."
+                    },
+                    "issues": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for issue triggers (issues, issue_comment)."
+                    },
+                    "pull-requests": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for pull request triggers (pull_request, pull_request_review_comment)."
+                    },
+                    "discussions": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for discussion and discussion_comment triggers."
+                    }
+                  }
                 }
               ],
               "default": "eyes",
-              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified.",
-              "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
+              "description": "AI reaction to add/remove on triggering item. Scalar form accepts one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies enabled reactions and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently; use `type` to choose the reaction emoji (defaults to `eyes` when omitted). Use 'none' to disable reactions.",
+              "examples": ["eyes", "rocket", "+1", 1, -1, "none", { "type": "rocket", "pull-requests": false }, { "issues": false, "discussions": true }]
             },
             "status-comment": {
-              "type": "boolean",
-              "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link and updates it on completion. When false or not specified, no status comments are posted. Automatically enabled for slash_command and label_command triggers \u2014 manual configuration is only needed for other trigger types.",
-              "examples": [true, false]
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "issues": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for issue triggers (issues, issue_comment)."
+                    },
+                    "pull-requests": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for pull request triggers (pull_request, pull_request_review_comment)."
+                    },
+                    "discussions": {
+                      "type": "boolean",
+                      "description": "Whether status comments are allowed for discussion and discussion_comment triggers."
+                    }
+                  }
+                }
+              ],
+              "description": "Whether to post status comments (started/completed) on the triggering item. Boolean form enables/disables status comments globally. Object form implies enabled status comments and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently. Automatically enabled for slash_command and label_command triggers when not explicitly configured.",
+              "examples": [true, false, { "issues": false }, { "pull-requests": false }, { "discussions": false }, { "issues": false, "pull-requests": true, "discussions": true }]
             },
             "github-token": {
               "type": "string",
@@ -1900,7 +1954,7 @@
               "description": "GitHub App configuration for minting a token used in pre-activation reactions, activation status comments, and skip-if search queries. When configured, a single GitHub App installation access token is minted and shared across all these operations instead of using the default GITHUB_TOKEN. Can be defined in a shared agentic workflow and inherited by importing workflows.",
               "examples": [
                 {
-                  "app-id": "${{ vars.APP_ID }}",
+                  "client-id": "${{ vars.APP_ID }}",
                   "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                 }
               ]
@@ -3352,6 +3406,37 @@
         }
       ]
     },
+    "pre-agent-steps": {
+      "description": "Custom workflow steps to run immediately before AI execution, after all initialization and setup steps in the agent job.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "examples": [
+            [
+              {
+                "name": "Prepare final context",
+                "run": "echo \"ready\""
+              }
+            ]
+          ]
+        }
+      ]
+    },
     "post-steps": {
       "description": "Custom workflow steps to run after AI execution",
       "oneOf": [
@@ -4043,6 +4128,11 @@
               "pattern": "^\\$\\{\\{.*\\}\\}$"
             }
           ]
+        },
+        "mount-as-clis": {
+          "type": "boolean",
+          "description": "When true, each user-facing MCP server is mounted as a standalone CLI tool on PATH. The agent can then call MCP servers via shell commands (e.g. 'github issue_read --method get ...'). CLI-mounted servers remain in the MCP gateway config so their containers can start, and are removed only from the agent's final config during convert_gateway_config_*.sh processing. Default: false.",
+          "examples": [true]
         },
         "serena": {
           "description": "REMOVED: Built-in support for Serena has been removed. Use the shared/mcp/serena.md workflow instead.",
@@ -9860,7 +9950,12 @@
       "properties": {
         "app-id": {
           "type": "string",
-          "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.",
+          "description": "Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID }}').",
+          "examples": ["${{ vars.APP_ID }}"]
+        },
+        "client-id": {
+          "type": "string",
+          "description": "GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token.",
           "examples": ["${{ vars.APP_ID }}"]
         },
         "private-key": {
@@ -9884,11 +9979,18 @@
           "description": "Optional extra GitHub App-only permissions to merge into the minted token. Only takes effect for tools.github.github-app; ignored in other github-app contexts."
         }
       },
-      "required": ["app-id", "private-key"],
+      "anyOf": [
+        {
+          "required": ["client-id", "private-key"]
+        },
+        {
+          "required": ["app-id", "private-key"]
+        }
+      ],
       "additionalProperties": false,
       "examples": [
         {
-          "app-id": "${{ vars.APP_ID }}",
+          "client-id": "${{ vars.APP_ID }}",
           "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
         }
       ]

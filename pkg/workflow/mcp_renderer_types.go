@@ -43,7 +43,7 @@ type MCPToolRenderers struct {
 
 // JSONMCPConfigOptions defines configuration for JSON-based MCP config rendering
 type JSONMCPConfigOptions struct {
-	// ConfigPath is the file path for the MCP config (e.g., "/tmp/gh-aw/mcp-config/mcp-servers.json")
+	// ConfigPath is the file path for the MCP config (e.g., "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json")
 	ConfigPath string
 	// Renderers contains engine-specific rendering functions for each tool
 	Renderers MCPToolRenderers

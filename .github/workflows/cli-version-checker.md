@@ -15,6 +15,7 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   web-fetch:
   cache-memory: true
   bash:
@@ -27,6 +28,8 @@ safe-outputs:
     labels: [automation, dependencies, cookie]
     close-older-issues: true
 timeout-minutes: 45
+features:
+  mcp-cli: true
 ---
 
 # CLI Version Checker

@@ -18,6 +18,7 @@ network:
     - github
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, actions]
   repo-memory:
@@ -47,6 +48,7 @@ strict: true
 imports:
   - shared/reporting.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

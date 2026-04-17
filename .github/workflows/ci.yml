@@ -2868,6 +2868,12 @@ jobs:
           bash actions/setup/sh/start_difc_proxy.sh
 
       - name: Verify DIFC proxy started
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         run: |
           if [ "${GH_HOST}" != "localhost:18443" ]; then
             echo "❌ DIFC proxy did not start (GH_HOST=${GH_HOST:-not set})"
@@ -2904,6 +2910,11 @@ jobs:
       - name: Test gh CLI through proxy
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         run: |
           echo "Testing gh CLI through DIFC proxy (GH_HOST=${GH_HOST})..."
           repo_name=$(gh api /repos/${{ github.repository }} --jq '.full_name')
@@ -2911,6 +2922,12 @@ jobs:
 
       - name: Test actions/github-script with proxy env
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          GH_HOST: localhost:18443
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           github-token: ${{ github.token }}
           script: |

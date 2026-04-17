@@ -83,3 +83,7 @@ content, err := gitutil.ReadFileFromHEADWithRoot("pkg/workflow/compiler.go", roo
 - All debug output uses `logger.New("gitutil:gitutil")` and is only emitted when `DEBUG=gitutil:*`.
 - Error classification is case-insensitive string matching — no external dependency on GitHub API client types.
 - `ReadFileFromHEADWithRoot` uses `git show HEAD:<relpath>` and resolves paths with `filepath.Rel` to prevent path-traversal attacks.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

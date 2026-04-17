@@ -1,6 +1,7 @@
 ---
 description: Aligns code style with repository conventions, detects security issues, and improves tests
 on: pull_request labeled refine
+strict: true
 permissions:
   contents: read
   pull-requests: read
@@ -9,6 +10,7 @@ engine: copilot
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [pull_requests, repos, issues]
@@ -28,6 +30,9 @@ timeout-minutes: 30
 concurrency:
   group: "refiner-${{ github.event.pull_request.number }}"
   cancel-in-progress: true
+
+features:
+  mcp-cli: true
 ---
 
 # Code Refiner
@@ -38,7 +43,7 @@ You are an automated code refinement system responsible for aligning code style 
 
 - **Repository**: ${{ github.repository }}
 - **Pull Request**: #${{ github.event.pull_request.number }}
-- **PR Title**: ${{ github.event.pull_request.title }}
+- **PR Title**: ${{ steps.sanitized.outputs.title }}
 - **Run ID**: ${{ github.run_id }}
 
 ## Your Mission

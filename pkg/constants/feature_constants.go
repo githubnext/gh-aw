@@ -39,16 +39,27 @@ const (
 	//	features:
 	//	  cli-proxy: true
 	CliProxyFeatureFlag FeatureFlag = "cli-proxy"
-	// CopilotIntegrationIDFeatureFlag gates injection of the
-	// GITHUB_COPILOT_INTEGRATION_ID environment variable into the agent step.
-	// Default off — the env var may cause Copilot CLI failures.
-	// See https://github.com/github/gh-aw/issues/25516
+	// AwfDiagnosticLogsFeatureFlag enables AWF operational Docker diagnostics
+	// collection on failure. When enabled, AWF collects capped container logs,
+	// container exit codes, mount metadata, and sanitized compose config into
+	// the diagnostics subdirectory of the firewall audit artifact.
 	//
 	// Workflow frontmatter usage:
 	//
 	//	features:
-	//	  copilot-integration-id: true
-	CopilotIntegrationIDFeatureFlag FeatureFlag = "copilot-integration-id"
+	//	  awf-diagnostic-logs: true
+	AwfDiagnosticLogsFeatureFlag FeatureFlag = "awf-diagnostic-logs"
+	// ByokCopilotFeatureFlag enables Copilot CLI offline BYOK mode.
+	// When enabled with engine: copilot, the compiler:
+	//   - injects a dummy COPILOT_API_KEY into the agent env to trigger AWF BYOK runtime behavior
+	//   - implicitly enables the cli-proxy feature
+	//   - installs the latest Copilot CLI version (un-pinned)
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  byok-copilot: true
+	ByokCopilotFeatureFlag FeatureFlag = "byok-copilot"
 	// IntegrityReactionsFeatureFlag enables reaction-based integrity promotion/demotion
 	// in the MCPG allow-only policy. When enabled, the compiler injects
 	// endorsement-reactions and disapproval-reactions fields into the allow-only policy.
@@ -59,4 +70,18 @@ const (
 	//	features:
 	//	  integrity-reactions: true
 	IntegrityReactionsFeatureFlag FeatureFlag = "integrity-reactions"
+	// MCPCLIFeatureFlag gates the MCP CLI mounting feature. When enabled together
+	// with tools.mount-as-clis: true, MCP servers are exposed as standalone CLI
+	// tools on PATH. Without this feature flag, the mount-as-clis setting is
+	// ignored and code generation remains unchanged.
+	//
+	// safeoutputs and mcpscripts CLI mounting is also gated behind this flag —
+	// they are only CLI-mounted when both the feature flag is enabled and the
+	// respective tool is configured.
+	//
+	// Workflow frontmatter usage:
+	//
+	//	features:
+	//	  mcp-cli: true
+	MCPCLIFeatureFlag FeatureFlag = "mcp-cli"
 )

@@ -24,6 +24,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - issues
@@ -33,6 +34,8 @@ tools:
     - "cat *"
 steps:
   - name: Fetch unlabeled issues
+    env:
+      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     run: |
       mkdir -p /tmp/gh-aw/agent
       gh api "repos/github/gh-aw/issues?state=open&labels=&per_page=30" \
@@ -50,6 +53,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 15
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

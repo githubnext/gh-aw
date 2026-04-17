@@ -12,10 +12,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine:
+  id: copilot
+  agent: agentic-workflows
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [default]
@@ -28,6 +31,8 @@ safe-outputs:
     target: "triggering"  # Auto-resolves from github.event.issue.number
     allowed: [copilot]    # Only allow copilot agent
 timeout-minutes: 5
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

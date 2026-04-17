@@ -26,6 +26,12 @@ timeout-minutes: 15
 imports:
   - shared/pr-code-review-config.md
   - shared/reporting.md
+
+tools:
+  mount-as-clis: true
+
+features:
+  mcp-cli: true
 ---
 
 # PR Nitpick Reviewer 🔍

@@ -89,6 +89,89 @@ func buildToolUsageInfo(metrics LogMetrics) []ToolUsageInfo {
 	return toolUsage
 }
 
+func mergeMCPToolUsageInfo(toolUsage []ToolUsageInfo, mcpToolUsage *MCPToolUsageData) []ToolUsageInfo {
+	if mcpToolUsage == nil {
+		return toolUsage
+	}
+
+	toolStats := make(map[string]*ToolUsageInfo)
+	for _, info := range toolUsage {
+		cloned := info
+		toolStats[info.Name] = &cloned
+	}
+
+	addOrUpdateToolUsage := func(name string, callCount, maxInputSize, maxOutputSize int, maxDuration string) {
+		normalizedName := strings.TrimSpace(name)
+		if normalizedName == "" {
+			return
+		}
+		displayKey := workflow.PrettifyToolName(normalizedName)
+		if existing, exists := toolStats[displayKey]; exists {
+			existing.CallCount += callCount
+			if maxInputSize > existing.MaxInputSize {
+				existing.MaxInputSize = maxInputSize
+			}
+			if maxOutputSize > existing.MaxOutputSize {
+				existing.MaxOutputSize = maxOutputSize
+			}
+			if maxDuration != "" {
+				maxDurationValue := parseDurationString(maxDuration)
+				if existing.MaxDuration == "" {
+					existing.MaxDuration = maxDuration
+				} else {
+					existingMaxDurationValue := parseDurationString(existing.MaxDuration)
+					if maxDurationValue > existingMaxDurationValue {
+						existing.MaxDuration = maxDuration
+					}
+				}
+			}
+			return
+		}
+
+		toolStats[displayKey] = &ToolUsageInfo{
+			Name:          displayKey,
+			CallCount:     callCount,
+			MaxInputSize:  maxInputSize,
+			MaxOutputSize: maxOutputSize,
+			MaxDuration:   maxDuration,
+		}
+	}
+
+	if len(mcpToolUsage.Summary) > 0 {
+		for _, summary := range mcpToolUsage.Summary {
+			switch {
+			case summary.ServerName != "" && summary.ToolName != "":
+				addOrUpdateToolUsage(summary.ServerName+"."+summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
+			case summary.ToolName != "":
+				addOrUpdateToolUsage(summary.ToolName, summary.CallCount, summary.MaxInputSize, summary.MaxOutputSize, summary.MaxDuration)
+			}
+		}
+	} else {
+		for _, call := range mcpToolUsage.ToolCalls {
+			switch {
+			case call.ServerName != "" && call.ToolName != "":
+				addOrUpdateToolUsage(call.ServerName+"."+call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
+			case call.ToolName != "":
+				addOrUpdateToolUsage(call.ToolName, 1, call.InputSize, call.OutputSize, call.Duration)
+			}
+		}
+	}
+
+	mergedToolUsage := make([]ToolUsageInfo, 0, len(toolStats))
+	for _, info := range toolStats {
+		mergedToolUsage = append(mergedToolUsage, *info)
+	}
+
+	slices.SortFunc(mergedToolUsage, func(a, b ToolUsageInfo) int {
+		if a.CallCount != b.CallCount {
+			return b.CallCount - a.CallCount
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	return mergedToolUsage
+}
+
 func deriveRunAgenticAnalysis(processedRun ProcessedRun, metrics LogMetrics) (*AwContext, []ToolUsageInfo, []CreatedItemReport, *TaskDomainInfo, *BehaviorFingerprint, []AgenticAssessment) {
 	auditAgenticLog.Printf("Deriving agentic analysis for run: id=%d workflow=%s", processedRun.Run.DatabaseID, processedRun.Run.WorkflowName)
 	var awContext *AwContext

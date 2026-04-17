@@ -7,11 +7,15 @@ permissions:
   issues: read
 engine: codex
 tools:
+  mount-as-clis: true
   github:
     mode: remote
     toolsets: [repos, issues]
 timeout-minutes: 5
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # Codex GitHub Remote MCP Test

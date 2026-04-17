@@ -22,6 +22,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -30,20 +31,19 @@ tools:
       - default
       - discussions
 safe-outputs:
-  upload-artifact:
-    max-uploads: 3
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    max: 3
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
   create-discussion:
     expires: 3d
     category: "announcements"
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
@@ -119,8 +119,8 @@ Generate exactly **2 high-quality trend charts**:
 
 **Phase 4: Upload Charts**
 
-1. Upload both charts using the `upload_artifact` tool
-2. Collect the returned URLs for embedding in the discussion
+1. Upload both charts using the `upload_asset` tool
+2. Collect the returned asset URLs for embedding in the discussion
 
 **Phase 5: Embed Charts in Discussion**
 
@@ -130,12 +130,12 @@ Include the charts in your newspaper-style report with this structure:
 ### 📈 THE NUMBERS - Visualized
 
 ### Issues & Pull Requests Activity
-![Issues and PR Trends](URL_FROM_UPLOAD_ARTIFACT_CHART_1)
+![Issues and PR Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
 
 [Brief 2-3 sentence dramatic analysis of the trends shown in this chart, using your newspaper editor voice]
 
 ### Commit Activity & Contributors
-![Commit Activity Trends](URL_FROM_UPLOAD_ARTIFACT_CHART_2)
+![Commit Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
 
 [Brief 2-3 sentence dramatic analysis of the trends shown in this chart, weaving it into your narrative]
 ```

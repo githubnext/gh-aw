@@ -21,6 +21,7 @@ network:
     - mossaka.github.io
 
 tools:
+  mount-as-clis: true
   playwright:
   web-fetch:
   bash:
@@ -29,15 +30,16 @@ tools:
   edit:
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 5
-    retention-days: 30
-    skip-archive: true
+  upload-asset:
+    max: 5
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]
     reviewers: [copilot]
     expires: 7d
+features:
+  mcp-cli: true
 ---
 
 # Weekly Editors Health Check
@@ -85,8 +87,8 @@ For each editor URL that responded with HTTP 200 in Step 1:
 
 For each screenshot file saved in Step 2:
 
-1. Use the `upload_artifact` safe output to upload the PNG file.
-2. Record the returned artifact URL for each uploaded screenshot.
+1. Use the `upload_asset` safe output to upload the PNG file.
+2. Record the returned asset URL for each uploaded screenshot.
 
 ### Step 4: Update the Documentation
 

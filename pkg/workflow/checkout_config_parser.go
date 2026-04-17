@@ -123,7 +123,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		}
 		cfg.GitHubApp = parseAppConfig(appMap)
 		if cfg.GitHubApp.AppID == "" || cfg.GitHubApp.PrivateKey == "" {
-			return nil, errors.New("checkout.github-app requires both app-id and private-key")
+			return nil, errors.New("checkout.github-app requires both client-id (or app-id) and private-key")
 		}
 	}
 

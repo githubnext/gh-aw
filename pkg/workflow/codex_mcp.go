@@ -29,7 +29,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	delimiter := GenerateHeredocDelimiterFromSeed("MCP_CONFIG", workflowData.FrontmatterHash)
-	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << " + delimiter + "\n")
+	yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" << " + delimiter + "\n")
 
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")
@@ -100,7 +100,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Gateway uses JSON format without Copilot-specific fields and multi-line args
 	return renderStandardJSONMCPConfig(yaml, tools, mcpTools, workflowData,
-		"/tmp/gh-aw/mcp-config/mcp-servers.json", false, false,
+		"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json", false, false,
 		func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
 			return e.renderCodexJSONMCPConfigWithContext(yaml, toolName, toolConfig, isLast, workflowData)
 		}, nil)

@@ -17,6 +17,7 @@ engine: claude
 strict: true
 
 tools:
+  mount-as-clis: true
   agentic-workflows:
   cache-memory: true
   bash:
@@ -46,8 +47,9 @@ timeout-minutes: 30
 
 imports:
   - shared/activation-app.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
+features:
+  mcp-cli: true
 ---
 
 # Daily Rendering Scripts Verifier

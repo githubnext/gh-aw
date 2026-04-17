@@ -220,7 +220,7 @@ gh aw secrets bootstrap --engine copilot                 # Check only Copilot se
 gh aw secrets bootstrap --non-interactive                # Display missing secrets without prompting
 ```
 
-**Options:** `--engine` (copilot, claude, codex), `--non-interactive`, `--repo`
+**Options:** `--engine` (copilot, claude, codex, gemini), `--non-interactive`, `--repo`
 
 See [Authentication](/gh-aw/reference/auth/) for details.
 
@@ -603,7 +603,7 @@ gh aw mcp-server --validate-actor     # Enable actor validation
 
 **Options:** `--port` (HTTP server port), `--cmd` (custom subprocess command), `--validate-actor` (enforce actor validation for logs and audit tools)
 
-**Available Tools:** status, compile, logs, audit, mcp-inspect, add, update, fix
+**Available Tools:** status, compile, logs, audit, checks, mcp-inspect, add, update, fix
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
 

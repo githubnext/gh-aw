@@ -248,7 +248,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	}
 
 	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
+	// for Copilot (see convert_gateway_config_copilot.cjs). This keeps the gateway
 	// config compatible with the schema which doesn't have the tools field.
 
 	// Add env section for GitHub MCP server environment variables
@@ -373,7 +373,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 
 	// Add tools field if requested (Copilot needs it, Claude doesn't)
 	// Note: This is added here when IncludeToolsField is true, but in some cases
-	// the converter script also adds it back (see convert_gateway_config_copilot.sh).
+	// the converter script also adds it back (see convert_gateway_config_copilot.cjs).
 	if options.IncludeToolsField && len(options.AllowedTools) > 0 {
 		yaml.WriteString("                \"tools\": [\n")
 		for i, tool := range options.AllowedTools {

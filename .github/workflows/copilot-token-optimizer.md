@@ -12,6 +12,7 @@ permissions:
 tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash:
@@ -33,6 +34,7 @@ imports:
   - uses: shared/mcp/gh-aw.md
   - shared/reporting.md
 features:
+  mcp-cli: true
   copilot-requests: true
 steps:
   - name: Download recent Copilot workflow logs

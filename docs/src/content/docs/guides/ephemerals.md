@@ -129,12 +129,17 @@ You can customize the maintenance workflow runner or disable maintenance entirel
 ```json
 {
   "maintenance": {
-    "runs_on": "ubuntu-latest"
+    "runs_on": "ubuntu-latest",
+    "action_failure_issue_expires": 72
   }
 }
 ```
 
-The `runs_on` field accepts a single string or an array of strings for multi-label runners (e.g., `["self-hosted", "linux"]`). The default runner is `ubuntu-slim`. See [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/#configuring-the-maintenance-workflow-runner) for more details.
+The `runs_on` field accepts a single string or an array of strings for multi-label runners (e.g., `["self-hosted", "linux"]`). The default runner is `ubuntu-slim`.
+
+The `action_failure_issue_expires` field controls expiration (in hours) for failure issues opened by the conclusion job (including grouped parent issues when `group-reports: true`). The default is `168` (7 days).
+
+See [Self-Hosted Runners](/gh-aw/guides/self-hosted-runners/#configuring-the-maintenance-workflow-runner) for more details.
 
 **Disable maintenance entirely:**
 

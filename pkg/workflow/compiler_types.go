@@ -91,6 +91,9 @@ type Compiler struct {
 	artifactManager         *ArtifactManager         // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string           // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string                   // Git repository root directory (if set, used for action cache path)
+	repoConfig              *RepoConfig              // Cached repository-level aw.json config
+	repoConfigErr           error                    // Cached repo config load error
+	repoConfigLoaded        bool                     // True once repo config has been loaded (success or failure)
 	contentOverride         string                   // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
@@ -404,6 +407,7 @@ type WorkflowData struct {
 	TimeoutMinutes              string
 	CustomSteps                 string
 	PreSteps                    string // steps to run at the very start of the agent job, before checkout
+	PreAgentSteps               string // steps to run immediately before the agent execution step
 	PostSteps                   string // steps to run after AI execution
 	RunsOn                      string
 	RunsOnSlim                  string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
@@ -435,7 +439,13 @@ type WorkflowData struct {
 	LabelCommandOtherEvents     map[string]any            // for merging label-command with other events
 	LabelCommandRemoveLabel     bool                      // whether to automatically remove the triggering label (default: true)
 	AIReaction                  string                    // AI reaction type like "eyes", "heart", etc.
+	ReactionIssues              *bool                     // whether reactions are allowed on issues/issue_comment triggers (default: true)
+	ReactionPullRequests        *bool                     // whether reactions are allowed on pull_request/pull_request_review_comment triggers (default: true)
+	ReactionDiscussions         *bool                     // whether reactions are allowed on discussion/discussion_comment triggers (default: true)
 	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
+	StatusCommentIssues         *bool                     // whether status comments are allowed on issues/issue_comment triggers (default: true)
+	StatusCommentPullRequests   *bool                     // whether status comments are allowed on pull_request/pull_request_review_comment triggers (default: true)
+	StatusCommentDiscussions    *bool                     // whether status comments are allowed on discussion/discussion_comment triggers (default: true)
 	ActivationGitHubToken       string                    // custom github token from on.github-token for reactions/comments
 	ActivationGitHubApp         *GitHubAppConfig          // github app config from on.github-app for minting activation tokens
 	TopLevelGitHubApp           *GitHubAppConfig          // top-level github-app fallback for all nested github-app token minting operations

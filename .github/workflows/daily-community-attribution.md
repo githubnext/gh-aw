@@ -21,6 +21,7 @@ network:
     - defaults
 
 tools:
+  mount-as-clis: true
   github:
     mode: "local"
     toolsets: [issues]
@@ -199,6 +200,9 @@ steps:
       echo "Data available in /tmp/gh-aw/community-data/:"
       echo "  pre_attributed.json    — Tier 0+1+2 confirmed attributions"
       echo "  tier3_candidates.json  — issues needing Tier 3 agent lookup"
+
+features:
+  mcp-cli: true
 ---
 
 # Daily Community Attribution Updater

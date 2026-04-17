@@ -35,7 +35,7 @@ This command:
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
-- Creates .mcp.json with gh-aw MCP server configuration
+- Creates .github/mcp.json with gh-aw MCP server configuration
 
 With --no-mcp flag:
 - Skips creating GitHub Copilot Agent MCP server configuration files

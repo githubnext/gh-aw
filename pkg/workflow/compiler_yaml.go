@@ -645,7 +645,11 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	writeStepsSection(yaml, data.PostSteps)
 }
 
-// writeStepsSection writes a steps section (pre-steps or post-steps) to the YAML builder,
+func (c *Compiler) generatePreAgentSteps(yaml *strings.Builder, data *WorkflowData) {
+	writeStepsSection(yaml, data.PreAgentSteps)
+}
+
+// writeStepsSection writes a steps section (pre-steps, pre-agent-steps, or post-steps) to the YAML builder,
 // stripping the header line and normalising indentation to match the agent job step format:
 // top-level items get 6-space indent (      - name:) and nested properties get 8-space indent (        run:).
 func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
@@ -653,7 +657,7 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 		return
 	}
 	lines := strings.Split(stepsYAML, "\n")
-	for _, line := range lines[1:] { // skip the "pre-steps:" / "post-steps:" header line
+	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
 		trimmed := strings.TrimRight(line, " ")
 		if strings.TrimSpace(trimmed) == "" {
 			yaml.WriteString("\n")

@@ -63,11 +63,6 @@ func getActionPins() []ActionPin {
 	return actionpins.GetActionPins()
 }
 
-// getActionPinsByRepo returns the sorted pins for a repo. Package-private.
-func getActionPinsByRepo(repo string) []ActionPin {
-	return actionpins.GetActionPinsByRepo(repo)
-}
-
 // getCachedActionPinFromResolver returns the pinned action reference for repo,
 // preferring dynamic resolution via resolver over the embedded pins.
 // For use within pkg/workflow when only a resolver is available (no WorkflowData).
@@ -91,7 +86,7 @@ func getActionPinByRepo(repo string) (ActionPin, bool) {
 // getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
 func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
-	return actionpins.GetActionPinWithData(actionRepo, version, data.PinContext())
+	return actionpins.ResolveActionPin(actionRepo, version, data.PinContext())
 }
 
 // getCachedActionPin returns the pinned action reference for a given repository,

@@ -13,6 +13,7 @@ engine: copilot
 network:
   allowed: [python]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets: [default]
@@ -48,6 +49,8 @@ imports:
   - shared/reporting.md
   - shared/jqschema.md
   - shared/trending-charts-simple.md
+features:
+  mcp-cli: true
 ---
 
 # Automated Portfolio Analyst

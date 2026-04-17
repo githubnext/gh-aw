@@ -104,6 +104,14 @@ func renderStandardJSONMCPConfig(
 ) error {
 	mcpRenderingLog.Printf("Rendering standard JSON MCP config: config_path=%s tools=%d mcp_tools=%d", configPath, len(tools), len(mcpTools))
 	createRenderer := buildMCPRendererFactory(workflowData, "json", includeCopilotFields, inlineArgs)
+
+	// CLI-mounted servers are NOT excluded from the gateway config.
+	// The gateway must start their Docker containers so that:
+	//   1. The CLI manifest (saved by start_mcp_gateway.cjs) includes them.
+	//   2. mount_mcp_as_cli.cjs can query their tool lists and create wrappers.
+	// Exclusion from the agent's final MCP config happens inside each
+	// convert_gateway_config_*.cjs script via GH_AW_MCP_CLI_SERVERS.
+
 	return RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath:    configPath,
 		GatewayConfig: buildMCPGatewayConfig(workflowData),

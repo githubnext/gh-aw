@@ -12,11 +12,14 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-engine: copilot
+engine:
+  id: copilot
+  agent: adr-writer
 strict: true
 imports:
   - shared/mcp/serena-go.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - default
@@ -34,6 +37,7 @@ safe-outputs:
     run-failure: "📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details."
 timeout-minutes: 10
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

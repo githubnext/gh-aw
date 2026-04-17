@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -425,6 +426,51 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
+// only when features.awf-diagnostic-logs is enabled.
+func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {
+	baseWorkflow := func(features map[string]any) *WorkflowData {
+		return &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+			Features: features,
+		}
+	}
+
+	t.Run("does not include --diagnostic-logs when feature flag is absent", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			WorkflowData:   baseWorkflow(nil),
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--diagnostic-logs", "Should not include --diagnostic-logs when feature flag is absent")
+	})
+
+	t.Run("includes --diagnostic-logs when awf-diagnostic-logs is enabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: baseWorkflow(map[string]any{
+				string(constants.AwfDiagnosticLogsFeatureFlag): true,
+			}),
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--diagnostic-logs", "Should include --diagnostic-logs when feature flag is enabled")
+	})
+}
+
 // TestBuildAWFArgsMemoryLimit tests that BuildAWFArgs passes --memory-limit
 // when sandbox.agent.memory is configured in the workflow frontmatter
 func TestBuildAWFArgsMemoryLimit(t *testing.T) {
@@ -788,6 +834,31 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		assert.Contains(t, argsStr, "/tmp/gh-aw/difc-proxy-tls/ca.crt", "Should use the correct CA cert path")
 		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
+	})
+
+	t.Run("includes cli-proxy flags when byok-copilot is enabled", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
+				},
+				Features: map[string]any{
+					string(constants.ByokCopilotFeatureFlag): true,
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host when byok-copilot is enabled")
+		assert.Contains(t, argsStr, "--difc-proxy-ca-cert", "Should include --difc-proxy-ca-cert when byok-copilot is enabled")
 	})
 
 	t.Run("does not include deprecated flags even with guard policy configured", func(t *testing.T) {

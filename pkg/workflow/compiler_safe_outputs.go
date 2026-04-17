@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -49,7 +50,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
-				reactionStr, err := parseReactionValue(reactionValue)
+				reactionStr, reactionIssues, reactionPullRequests, reactionDiscussions, err := parseReactionConfig(reactionValue)
 				if err != nil {
 					return err
 				}
@@ -59,6 +60,9 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				}
 				// Set AIReaction even if it's "none" - "none" explicitly disables reactions
 				workflowData.AIReaction = reactionStr
+				workflowData.ReactionIssues = reactionIssues
+				workflowData.ReactionPullRequests = reactionPullRequests
+				workflowData.ReactionDiscussions = reactionDiscussions
 			}
 
 			// Extract status-comment from on section
@@ -67,8 +71,50 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				if statusCommentBool, ok := statusCommentValue.(bool); ok {
 					workflowData.StatusComment = &statusCommentBool
 					compilerSafeOutputsLog.Printf("status-comment set to: %v", statusCommentBool)
+				} else if statusCommentMap, ok := statusCommentValue.(map[string]any); ok {
+					statusCommentIssues := true
+					if issuesValue, hasIssues := statusCommentMap["issues"]; hasIssues {
+						issuesBool, ok := issuesValue.(bool)
+						if !ok {
+							return fmt.Errorf("status-comment.issues must be a boolean value, got %T", issuesValue)
+						}
+						statusCommentIssues = issuesBool
+					}
+
+					statusCommentPullRequests := true
+					if pullRequestsValue, hasPullRequests := statusCommentMap["pull-requests"]; hasPullRequests {
+						pullRequestsBool, ok := pullRequestsValue.(bool)
+						if !ok {
+							return fmt.Errorf("status-comment.pull-requests must be a boolean value, got %T", pullRequestsValue)
+						}
+						statusCommentPullRequests = pullRequestsBool
+					}
+
+					statusCommentDiscussions := true
+					if discussionsValue, hasDiscussions := statusCommentMap["discussions"]; hasDiscussions {
+						discussionsBool, ok := discussionsValue.(bool)
+						if !ok {
+							return fmt.Errorf("status-comment.discussions must be a boolean value, got %T", discussionsValue)
+						}
+						statusCommentDiscussions = discussionsBool
+					}
+
+					statusCommentEnabled := true
+					workflowData.StatusComment = &statusCommentEnabled
+					workflowData.StatusCommentIssues = &statusCommentIssues
+					workflowData.StatusCommentPullRequests = &statusCommentPullRequests
+					workflowData.StatusCommentDiscussions = &statusCommentDiscussions
+					if !statusCommentIssues && !statusCommentPullRequests && !statusCommentDiscussions {
+						return errors.New("status-comment object requires at least one target to be enabled (issues, pull-requests, or discussions)")
+					}
+					compilerSafeOutputsLog.Printf(
+						"status-comment object set: issues=%v pullRequests=%v discussions=%v",
+						statusCommentIssues,
+						statusCommentPullRequests,
+						statusCommentDiscussions,
+					)
 				} else {
-					return fmt.Errorf("status-comment must be a boolean value, got %T", statusCommentValue)
+					return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)
 				}
 			}
 

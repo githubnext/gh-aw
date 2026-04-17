@@ -34,6 +34,7 @@ safe-outputs:
   noop:
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -49,8 +50,10 @@ tools:
 timeout-minutes: 45
 
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -129,12 +129,11 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 
 	// Try to inspect the image (will succeed if image exists locally)
 	cmd := exec.Command("docker", "image", "inspect", image)
-	output, err := cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
 
 	if err == nil {
 		// Image exists locally
 		dockerValidationLog.Printf("Docker image found locally: %s", image)
-		_ = output // Suppress unused variable warning
 		return nil
 	}
 

@@ -110,8 +110,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 // validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
 func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
 	// Check if max-turns is specified in the engine config
-	engineSetting, engineConfig := c.ExtractEngineConfig(frontmatter)
-	_ = engineSetting // Suppress unused variable warning
+	_, engineConfig := c.ExtractEngineConfig(frontmatter)
 
 	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""
 

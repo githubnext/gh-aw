@@ -44,6 +44,7 @@ steps:
       fi
 
 tools:
+  mount-as-clis: true
   agentic-workflows:
   bash:
     - "*"
@@ -51,12 +52,13 @@ tools:
 timeout-minutes: 30
 
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[integrity] "
-  - shared/reporting.md
   - shared/python-dataviz.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

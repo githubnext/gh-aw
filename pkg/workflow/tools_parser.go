@@ -144,6 +144,14 @@ func NewTools(toolsMap map[string]any) *Tools {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
 	}
 
+	if val, exists := toolsMap["mount-as-clis"]; exists {
+		if b, ok := val.(bool); ok {
+			tools.MountAsCLIs = b
+		} else {
+			toolsParserLog.Printf("Warning: mount-as-clis must be a boolean (true/false), ignoring value: %v", val)
+		}
+	}
+
 	// Extract custom MCP tools (anything not in the known list)
 	knownTools := map[string]bool{
 		"github":            true,
@@ -158,6 +166,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 		"safety-prompt":     true,
 		"timeout":           true,
 		"startup-timeout":   true,
+		"mount-as-clis":     true,
 	}
 
 	customCount := 0

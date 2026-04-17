@@ -9,6 +9,7 @@ import starlightBlog from 'starlight-blog';
 import mermaid from 'astro-mermaid';
 import { fileURLToPath } from 'node:url';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
+import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
 
 /**
  * Creates blog authors config with GitHub profile pictures
@@ -36,7 +37,7 @@ export default defineConfig({
 	base: '/gh-aw/',
 	trailingSlash: 'always',
 	markdown: {
-		remarkPlugins: [remarkStripEmojis],
+		remarkPlugins: [remarkStripEmojis, remarkTableDataLabels],
 	},
 	vite: {
 		server: {

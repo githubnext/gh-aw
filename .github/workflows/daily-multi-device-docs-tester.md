@@ -23,6 +23,7 @@ runtimes:
   node:
     version: "24"
 tools:
+  mount-as-clis: true
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
     version: "v1.56.1"
@@ -52,8 +53,9 @@ network:
 
 imports:
   - shared/docs-server-lifecycle.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

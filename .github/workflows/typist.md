@@ -22,6 +22,7 @@ imports:
   - shared/mcp/serena-go.md
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -37,6 +38,8 @@ tools:
 
 timeout-minutes: 20
 strict: true
+features:
+  mcp-cli: true
 ---
 # Typist - Go Type Consistency Analysis
 

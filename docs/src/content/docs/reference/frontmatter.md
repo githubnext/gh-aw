@@ -30,7 +30,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 
 - Standard GitHub Actions triggers (push, pull_request, issues, schedule, etc.)
 - `reaction:` - Add emoji reactions to triggering items
-- `status-comment:` - Post a started/completed comment with a workflow run link (automatically enabled for `slash_command` and `label_command` triggers; must be explicitly set to `true` for other trigger types)
+- `status-comment:` - Post a started/completed comment with a workflow run link (automatically enabled for `slash_command` and `label_command` triggers; must be explicitly set to `true` for other trigger types). Accepts a boolean or an object with optional `issues`, `pull-requests`, and `discussions` toggle fields to selectively disable status comments for specific target types.
 - `stop-after:` - Automatically disable triggers after a deadline
 - `manual-approval:` - Require manual approval using environment protection rules
 - `forks:` - Configure fork filtering for pull_request triggers
@@ -419,6 +419,32 @@ Debug workflow using script mode for custom actions.
 
 **Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
+#### Copilot BYOK Mode (`features.byok-copilot`)
+
+Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling three required behaviors: injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path, implicitly enabling `cli-proxy`, and forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+
+```yaml wrap
+engine: copilot
+features:
+  byok-copilot: true
+```
+
+Without this flag, BYOK mode requires manual composition of all three behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+
+> [!NOTE]
+> `byok-copilot` applies only to `engine: copilot` workflows. The implicit `cli-proxy` enablement does not apply to other engines.
+
+#### AWF Failure Diagnostics (`features.awf-diagnostic-logs`)
+
+Enables AWF Docker operational diagnostics collection on failure by adding `--diagnostic-logs` to AWF runtime arguments.
+
+When enabled, AWF includes failure diagnostics under the `diagnostics/` subdirectory in the `firewall-audit-logs` artifact (for example, container logs, exit codes, mount metadata, and sanitized compose configuration).
+
+```yaml wrap
+features:
+  awf-diagnostic-logs: true
+```
+
 #### Reaction-based Trust Signals (`features.integrity-reactions`)
 
 Enables maintainers to promote or demote content past the integrity filter using GitHub reactions (👍, ❤️, 👎, 😕), without adding labels or modifying issue state. Available from gh-aw v0.68.2.
@@ -633,6 +659,20 @@ steps:
 Use custom steps to precompute data, filter triggers, or prepare context for AI agents. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation with AI reasoning.
 
 Custom steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
+
+## Pre-Agent Steps (`pre-agent-steps:`)
+
+Add custom steps immediately before the agent execution step, after all initialization/setup logic in the agent job.
+
+```yaml wrap
+pre-agent-steps:
+  - name: Finalize Context
+    run: ./scripts/prepare-agent-context.sh
+```
+
+Use pre-agent steps when work must happen right before the engine runs (for example, final context preparation or last-moment validations).
+
+Pre-agent steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
 
 ## Post-Execution Steps (`post-steps:`)
 

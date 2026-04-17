@@ -5,6 +5,7 @@ package cli
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -23,10 +24,10 @@ func TestEnsureMCPConfig(t *testing.T) {
 			verbose: false,
 			wantErr: false,
 			validateContent: func(t *testing.T, config *MCPConfig) {
-				if config.Servers == nil {
-					t.Error("Expected servers map to be initialized")
+				if config.MCPServers == nil {
+					t.Error("Expected mcpServers map to be initialized")
 				}
-				server, exists := config.Servers["github-agentic-workflows"]
+				server, exists := config.MCPServers["github-agentic-workflows"]
 				if !exists {
 					t.Error("Expected github-agentic-workflows server to exist")
 				}
@@ -41,7 +42,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 		{
 			name: "renders instructions for existing config without gh-aw server",
 			existingConfig: &MCPConfig{
-				Servers: map[string]VSCodeMCPServer{
+				MCPServers: map[string]VSCodeMCPServer{
 					"other-server": {
 						Command: "node",
 						Args:    []string{"server.js"},
@@ -52,14 +53,14 @@ func TestEnsureMCPConfig(t *testing.T) {
 			wantErr: false,
 			validateContent: func(t *testing.T, config *MCPConfig) {
 				// File should NOT be modified - should remain with only 1 server
-				if len(config.Servers) != 1 {
-					t.Errorf("Expected 1 server (file should not be modified), got %d", len(config.Servers))
+				if len(config.MCPServers) != 1 {
+					t.Errorf("Expected 1 server (file should not be modified), got %d", len(config.MCPServers))
 				}
-				if _, exists := config.Servers["other-server"]; !exists {
+				if _, exists := config.MCPServers["other-server"]; !exists {
 					t.Error("Expected existing other-server to be preserved")
 				}
 				// gh-aw server should NOT be added (instructions rendered instead)
-				if _, exists := config.Servers["github-agentic-workflows"]; exists {
+				if _, exists := config.MCPServers["github-agentic-workflows"]; exists {
 					t.Error("Expected github-agentic-workflows server to NOT be added (instructions should be rendered)")
 				}
 			},
@@ -67,7 +68,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 		{
 			name: "skips update when config is identical",
 			existingConfig: &MCPConfig{
-				Servers: map[string]VSCodeMCPServer{
+				MCPServers: map[string]VSCodeMCPServer{
 					"github-agentic-workflows": {
 						Command: "gh",
 						Args:    []string{"aw", "mcp-server"},
@@ -77,15 +78,15 @@ func TestEnsureMCPConfig(t *testing.T) {
 			verbose: false,
 			wantErr: false,
 			validateContent: func(t *testing.T, config *MCPConfig) {
-				if len(config.Servers) != 1 {
-					t.Errorf("Expected 1 server, got %d", len(config.Servers))
+				if len(config.MCPServers) != 1 {
+					t.Errorf("Expected 1 server, got %d", len(config.MCPServers))
 				}
 			},
 		},
 		{
 			name: "renders instructions for existing config with different settings",
 			existingConfig: &MCPConfig{
-				Servers: map[string]VSCodeMCPServer{
+				MCPServers: map[string]VSCodeMCPServer{
 					"github-agentic-workflows": {
 						Command: "old-command",
 						Args:    []string{"old-arg"},
@@ -96,7 +97,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 			wantErr: false,
 			validateContent: func(t *testing.T, config *MCPConfig) {
 				// File should NOT be modified - old settings should remain
-				server := config.Servers["github-agentic-workflows"]
+				server := config.MCPServers["github-agentic-workflows"]
 				if server.Command != "old-command" {
 					t.Errorf("Expected command to remain 'old-command' (file should not be modified), got %q", server.Command)
 				}
@@ -134,6 +135,9 @@ func TestEnsureMCPConfig(t *testing.T) {
 					t.Fatalf("Failed to marshal existing config: %v", err)
 				}
 
+				if err := os.MkdirAll(filepath.Dir(mcpConfigFilePath), 0755); err != nil {
+					t.Fatalf("Failed to create mcp config directory: %v", err)
+				}
 				if err := os.WriteFile(mcpConfigFilePath, data, 0644); err != nil {
 					t.Fatalf("Failed to write existing config: %v", err)
 				}
@@ -154,7 +158,7 @@ func TestEnsureMCPConfig(t *testing.T) {
 
 			// Verify the file was created
 			if _, err := os.Stat(mcpConfigFilePath); os.IsNotExist(err) {
-				t.Error("Expected .mcp.json to exist")
+				t.Error("Expected .github/mcp.json to exist")
 				return
 			}
 
@@ -189,7 +193,7 @@ func TestMCPConfigParsing(t *testing.T) {
 		{
 			name: "valid config with single server",
 			jsonData: `{
-				"servers": {
+				"mcpServers": {
 					"test-server": {
 						"command": "node",
 						"args": ["server.js"]
@@ -202,7 +206,7 @@ func TestMCPConfigParsing(t *testing.T) {
 		{
 			name: "valid config with CWD",
 			jsonData: `{
-				"servers": {
+				"mcpServers": {
 					"test-server": {
 						"command": "gh",
 						"args": ["aw", "mcp-server"],
@@ -215,14 +219,27 @@ func TestMCPConfigParsing(t *testing.T) {
 		},
 		{
 			name:      "invalid JSON",
-			jsonData:  `{"servers": invalid}`,
+			jsonData:  `{"mcpServers": invalid}`,
 			wantErr:   true,
 			wantValid: false,
 		},
 		{
 			name: "empty config",
 			jsonData: `{
-				"servers": {}
+				"mcpServers": {}
+			}`,
+			wantErr:   false,
+			wantValid: true,
+		},
+		{
+			name: "legacy config key",
+			jsonData: `{
+				"servers": {
+					"test-server": {
+						"command": "node",
+						"args": ["server.js"]
+					}
+				}
 			}`,
 			wantErr:   false,
 			wantValid: true,
@@ -240,8 +257,15 @@ func TestMCPConfigParsing(t *testing.T) {
 			}
 
 			if !tt.wantErr && tt.wantValid {
-				if config.Servers == nil {
-					t.Error("Expected servers map to be initialized")
+				if tt.name == "legacy config key" {
+					if config.Servers == nil {
+						t.Error("Expected legacy servers map to be initialized")
+					}
+					if config.MCPServers != nil {
+						t.Error("Expected mcpServers map to be nil for legacy-only config")
+					}
+				} else if config.MCPServers == nil {
+					t.Error("Expected mcpServers map to be initialized")
 				}
 			}
 		})
@@ -252,7 +276,7 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 	t.Parallel()
 
 	config := MCPConfig{
-		Servers: map[string]VSCodeMCPServer{
+		MCPServers: map[string]VSCodeMCPServer{
 			"github-agentic-workflows": {
 				Command: "gh",
 				Args:    []string{"aw", "mcp-server"},
@@ -273,11 +297,11 @@ func TestMCPConfigJSONMarshaling(t *testing.T) {
 	}
 
 	// Verify structure
-	if len(unmarshaledConfig.Servers) != 1 {
-		t.Errorf("Expected 1 server, got %d", len(unmarshaledConfig.Servers))
+	if len(unmarshaledConfig.MCPServers) != 1 {
+		t.Errorf("Expected 1 server, got %d", len(unmarshaledConfig.MCPServers))
 	}
 
-	server, exists := unmarshaledConfig.Servers["github-agentic-workflows"]
+	server, exists := unmarshaledConfig.MCPServers["github-agentic-workflows"]
 	if !exists {
 		t.Fatal("Expected github-agentic-workflows server to exist")
 	}
@@ -306,15 +330,15 @@ func TestEnsureMCPConfigDirectoryCreation(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Call function when .mcp.json doesn't exist
+	// Call function when .github/mcp.json doesn't exist
 	err = ensureMCPConfig(false)
 	if err != nil {
 		t.Fatalf("ensureMCPConfig() failed: %v", err)
 	}
 
-	// Verify .mcp.json was created
+	// Verify .github/mcp.json was created
 	if _, err := os.Stat(mcpConfigFilePath); os.IsNotExist(err) {
-		t.Error("Expected .mcp.json to be created")
+		t.Error("Expected .github/mcp.json to be created")
 	}
 }
 
@@ -341,7 +365,7 @@ func TestMCPConfigFilePermissions(t *testing.T) {
 	// Check file permissions
 	info, err := os.Stat(mcpConfigFilePath)
 	if err != nil {
-		t.Fatalf("Failed to stat .mcp.json: %v", err)
+		t.Fatalf("Failed to stat .github/mcp.json: %v", err)
 	}
 
 	// Verify file is readable and writable (at minimum)

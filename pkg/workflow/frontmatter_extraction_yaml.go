@@ -857,7 +857,7 @@ func (c *Compiler) extractLabelCommandConfig(frontmatter map[string]any) (labelN
 // isGitHubAppNestedField returns true if the trimmed YAML line represents a known
 // nested field or array item inside an on.github-app object.
 func isGitHubAppNestedField(trimmedLine string) bool {
-	githubAppFields := []string{"app-id:", "private-key:", "owner:", "repositories:"}
+	githubAppFields := []string{"app-id:", "client-id:", "private-key:", "owner:", "repositories:"}
 	for _, field := range githubAppFields {
 		if strings.HasPrefix(trimmedLine, field) {
 			return true

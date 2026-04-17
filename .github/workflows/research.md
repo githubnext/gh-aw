@@ -34,6 +34,11 @@ safe-outputs:
 
 timeout-minutes: 10
 strict: true
+features:
+  mcp-cli: true
+
+tools:
+  mount-as-clis: true
 ---
 
 # Basic Research Agent

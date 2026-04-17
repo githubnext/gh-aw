@@ -43,6 +43,9 @@ tools:
       - pelikhan
   playwright:
   web-fetch:
+  mount-as-clis: true
+features:
+  mcp-cli: true
 runtimes:
   go:
     version: "1.25"
@@ -127,14 +130,30 @@ strict: false
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
+## Tool Access Overview
+
+This workflow uses `mount-as-clis: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
+
+- **`playwright`** — use `playwright <tool> [--param value...]` in bash (e.g. `playwright browser_navigate --url ...`)
+- **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
+- **`agenticworkflows`** — use `agenticworkflows <tool> [--param value...]` in bash
+- **`safeoutputs`** — use `safeoutputs <tool> [--param value...]` in bash (e.g. `safeoutputs add_comment --body "..."`)
+- **`mcpscripts`** — use `mcpscripts <tool> [--param value...]` in bash (e.g. `mcpscripts mcpscripts-gh --args "..."`)
+
+The `github` MCP server is **NOT** CLI-mounted — it remains available as a normal MCP tool.
+
+Run `<server> --help` to list all available tools for a server, or `<server> <tool> --help` for detailed parameter info.
+
+These are **not** MCP protocol tools — they are bash executables. Call them with the `bash` tool only.
+
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
 2. **MCP Scripts GH CLI Testing**: Use the `mcpscripts-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
-3. **Serena MCP Testing**: 
-   - Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
-   - After initialization, use the `find_symbol` tool to search for symbols (find which tool to call) and verify that at least 3 symbols are found in the results
-4. **Playwright Testing**: Use the playwright tools to navigate to <https://github.com> and verify the page title contains "GitHub" (do NOT try to install playwright - use the provided MCP tools)
+3. **Serena CLI Testing**: 
+   - Use bash to run `serena activate_project --path ${{ github.workspace }}` to initialize the workspace and verify it succeeds (do NOT use bash to run go commands - use the serena CLI only)
+   - After initialization, use bash to run `serena find_symbol --name_path <symbol>` to search for symbols and verify that at least 3 symbols are found in the results
+4. **Playwright CLI Testing**: Use bash to run `playwright browser_navigate --url https://github.com` to navigate to <https://github.com>, then `playwright browser_snapshot` to capture the page and verify the title contains "GitHub" (do NOT try to install playwright - use the `playwright` CLI command via bash only)
 5. **Web Fetch Testing**: Use the web-fetch tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch tool directly)
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)

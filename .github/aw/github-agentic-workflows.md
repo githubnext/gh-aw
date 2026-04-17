@@ -177,6 +177,9 @@ The YAML frontmatter supports these fields:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
       ```
 
+  - **`stale-check:`** - Control whether the activation job verifies the frontmatter hash matches the compiled workflow (boolean, default: `true`)
+    - When `false`, disables the hash check step; useful when workflow files are managed outside the default repository context (e.g., cross-repo org rulesets)
+
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `none`
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
@@ -206,6 +209,7 @@ The YAML frontmatter supports these fields:
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)
 - **`name:`** - Workflow name (string)
+- **`pre-steps:`** - Custom workflow steps to run at the very beginning of the agent job, before checkout (object). Use for token minting or setup that must happen before the repository is checked out. Step outputs are available via `${{ steps.<id>.outputs.<name> }}` and can be referenced in `checkout.github-token` to avoid masked-value cross-job boundary issues. Same security restrictions apply as for `steps:`.
 - **`steps:`** - Custom workflow steps before AI execution (object). **Security Notice**: Custom steps run OUTSIDE the firewall sandbox with standard GitHub Actions security but NO network egress controls. Use only for deterministic data preparation, not agentic compute. **Secrets restriction**: Using `${{ secrets.* }}` expressions (other than `secrets.GITHUB_TOKEN`) in custom steps is an error in strict mode and a warning otherwise — move secret-dependent operations to a separate job outside the agent job.
 - **`post-steps:`** - Custom workflow steps after AI execution (object). **Security Notice**: Post-execution steps run OUTSIDE the firewall sandbox. Use only for deterministic cleanup, artifact uploads, or notifications—not agentic compute or untrusted AI execution. Same secrets restriction applies as for `steps:`.
 - **`environment:`** - Environment that the job references for protection rules (string or object)
@@ -346,6 +350,12 @@ The YAML frontmatter supports these fields:
         version: "1.22"
         if: "hashFiles('go.mod') != ''"   # Only install Go when go.mod exists
     ```
+
+- **`run-install-scripts:`** - Allow npm pre/post install scripts to execute during package installation (boolean, default: `false`)
+  - By default, `--ignore-scripts` is added to all generated npm install commands to prevent supply chain attacks via malicious install hooks
+  - When `true`, disables this protection globally for all runtimes that generate `npm install` commands
+  - A supply chain security warning is emitted at compile time; in strict mode this is an error
+  - Per-runtime control is also available via `runtimes.node.run-install-scripts: true` to limit scope to a specific runtime
 
 - **`checkout:`** - Override how the repository is checked out in the agent job (object, array, or `false`)
   - By default, the workflow automatically checks out the repository. Use this field to customize checkout behavior.
@@ -991,7 +1001,7 @@ The YAML frontmatter supports these fields:
     ```
 
     Operation types: `replace`, `append`, `prepend`.
-  - `upload-asset:` - Publish files to orphaned git branch (deprecated, use `upload-artifact` with `skip-archive` instead)
+  - `upload-asset:` - Publish files to orphaned git branch (recommended for images/charts/screenshots)
 
     ```yaml
     safe-outputs:
@@ -1002,8 +1012,8 @@ The YAML frontmatter supports these fields:
         max: 10                         # Optional: max assets (default: 10)
     ```
 
-    Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB). **Prefer `upload-artifact` with `skip-archive: true` instead** — it puts less pressure on the git storage system and automatically destroys the image once the artifact expires.
-  - `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts (recommended for images/charts)
+    Publishes files to an orphaned git branch for persistent storage and URL-addressable embedding. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB). **Use this for images, charts, and screenshots that need embeddable URLs in issues/PRs/discussions.**
+  - `upload-artifact:` - Upload files as run-scoped GitHub Actions artifacts (recommended for temporary run artifacts)
 
     ```yaml
     safe-outputs:
@@ -1024,7 +1034,7 @@ The YAML frontmatter supports these fields:
           skip-archive: true            # Allow agent to upload files without zipping
     ```
 
-    Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. With `skip-archive: true`, individual image files are uploaded without zip archiving, making them directly viewable. Agents call `upload_artifact` with a `name`, `path`, and optional `retention_days`. **This is the recommended approach for uploading images and charts** as it puts less pressure on the git storage system compared to `upload-asset`.
+    Uploads files as run-scoped GitHub Actions artifacts. Artifacts are temporary and tied to the workflow run, automatically cleaned up when they expire. Agents call `upload_artifact` with a `name`, `path`, and optional `retention_days`. **Use this for temporary downloadable artifacts**, while `upload-asset` is preferred for embedding images/charts in GitHub content.
   - `dispatch-workflow:` - Trigger other workflows with inputs
 
     ```yaml

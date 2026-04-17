@@ -62,6 +62,10 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		copilotVersion = workflowData.EngineConfig.Version
 	}
+	if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+		copilotVersion = "latest"
+		copilotInstallLog.Print("byok-copilot enabled: forcing Copilot CLI install version to latest")
+	}
 
 	// Use the installer script for global installation
 	copilotInstallLog.Print("Using new installer script for Copilot installation")

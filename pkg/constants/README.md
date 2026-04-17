@@ -127,7 +127,6 @@ constants.DisableXPIAPromptFeatureFlag      // "disable-xpia-prompt"
 constants.CopilotRequestsFeatureFlag        // "copilot-requests"
 constants.DIFCProxyFeatureFlag              // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
 constants.CliProxyFeatureFlag               // "cli-proxy"
-constants.CopilotIntegrationIDFeatureFlag   // "copilot-integration-id"
 constants.IntegrityReactionsFeatureFlag     // "integrity-reactions"
 ```
 

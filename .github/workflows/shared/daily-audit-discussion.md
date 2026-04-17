@@ -8,6 +8,8 @@
 #       with:
 #         title-prefix: "[my-workflow] "
 #         expires: 3d          # optional, default: 3d
+#
+# Prefer `shared/daily-audit-base.md` when you also need reporting guidance and OTLP observability.
 
 import-schema:
   title-prefix:

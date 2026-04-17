@@ -14,6 +14,7 @@ network:
     - defaults
     - github
 tools:
+  mount-as-clis: true
   bash: ["*"]
   edit:
   github:
@@ -29,6 +30,8 @@ timeout-minutes: 30
 checkout:
   - fetch-depth: 1
     current: true
+features:
+  mcp-cli: true
 ---
 
 # Schema Feature Coverage Checker

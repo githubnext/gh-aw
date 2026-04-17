@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
 engine: claude
 tools:
+  mount-as-clis: true
   cache-memory: true
   bash: true
 timeout-minutes: 15
@@ -19,6 +20,8 @@ imports:
       title-prefix: "[lockfile-stats] "
       expires: 1d
   - shared/reporting.md
+features:
+  mcp-cli: true
 ---
 # Lockfile Statistics Analysis Agent
 

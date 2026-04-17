@@ -185,6 +185,13 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
 		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
 	}
+
+	// 8a. MCP CLI tools instructions (if any MCP servers are mounted as CLIs)
+	if section := buildMCPCLIPromptSection(data); section != nil {
+		unifiedPromptLog.Printf("Adding MCP CLI tools section: servers=%v", getMCPCLIServerNames(data))
+		sections = append(sections, *section)
+	}
+
 	// 9. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")

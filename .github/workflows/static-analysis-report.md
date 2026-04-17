@@ -12,6 +12,7 @@ engine: claude
 network:
   allowed: [defaults, go]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
    toolsets:
@@ -83,6 +84,8 @@ steps:
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/compile-output.txt"
+features:
+  mcp-cli: true
 ---
 
 # Static Analysis Report

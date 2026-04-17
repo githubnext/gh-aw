@@ -182,6 +182,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Steps != nil {
 		result["steps"] = fc.Steps
 	}
+	if fc.PreAgentSteps != nil {
+		result["pre-agent-steps"] = fc.PreAgentSteps
+	}
 	if fc.PostSteps != nil {
 		result["post-steps"] = fc.PostSteps
 	}

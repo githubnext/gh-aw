@@ -48,6 +48,8 @@ describe("generate_footer.cjs", () => {
     delete process.env.GH_AW_TRACKER_ID;
     delete process.env.GH_AW_WORKFLOW_ID;
     delete process.env.GITHUB_RUN_ID;
+    delete process.env.GH_AW_DETECTION_CONCLUSION;
+    delete process.env.GH_AW_DETECTION_REASON;
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_footer.cjs");
@@ -434,6 +436,34 @@ describe("generate_footer.cjs", () => {
       // Should be a standalone marker (not embedded in another marker)
       const markerMatches = result.match(/<!-- gh-aw-workflow-id: daily-cleanup -->/g);
       expect(markerMatches?.length).toBe(1);
+    });
+
+    it("should include caution alert when detection conclusion is warning", () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GH_AW_DETECTION_REASON = "threat_detected";
+
+      const result = generateExpiredEntityFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "test-workflow");
+
+      expect(result).toContain("> [!CAUTION]");
+      expect(result).toContain("Security scanning requires review");
+      expect(result).toContain("Potential security threats were detected");
+      expect(result).toContain("> Closed by [Test Workflow]");
+    });
+
+    it("should not include caution alert when detection conclusion is not warning", () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "success";
+
+      const result = generateExpiredEntityFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "test-workflow");
+
+      expect(result).not.toContain("> [!CAUTION]");
+      expect(result).toContain("> Closed by [Test Workflow]");
+    });
+
+    it("should not include caution alert when detection conclusion is not set", () => {
+      const result = generateExpiredEntityFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "test-workflow");
+
+      expect(result).not.toContain("> [!CAUTION]");
+      expect(result).toContain("> Closed by [Test Workflow]");
     });
   });
 });

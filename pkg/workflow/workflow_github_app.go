@@ -106,7 +106,7 @@ func applyTopLevelGitHubAppFallbacks(data *WorkflowData) {
 		// processOnSectionAndFilters) does not lose the fallback when it rebuilds ParsedTools
 		// from the map.
 		appMap := map[string]any{
-			"app-id":      fallback.AppID,
+			"client-id":   fallback.AppID,
 			"private-key": fallback.PrivateKey,
 		}
 		if fallback.Owner != "" {

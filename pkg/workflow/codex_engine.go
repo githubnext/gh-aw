@@ -115,7 +115,7 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	// Return the Codex log directory for artifact collection
 	// Using mcp-config folder structure for consistency with other engines
 	return []string{
-		"/tmp/gh-aw/mcp-config/logs/",
+		"${{ runner.temp }}/gh-aw/mcp-config/logs/",
 	}
 }
 
@@ -231,6 +231,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// the compiler prepends the agent file content to prompt.txt so no special
 		// shell variable juggling is needed here.
 		codexCommandWithSetup := fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
+		// Add MCP CLI bin directory to PATH when mount-as-clis is enabled
+		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
+			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
+		}
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "codex",
@@ -273,8 +277,8 @@ mkdir -p "$CODEX_HOME/logs"
 		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":                    "true",
-		"GH_AW_MCP_CONFIG":             "/tmp/gh-aw/mcp-config/config.toml",
-		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
+		"GH_AW_MCP_CONFIG":             "${{ runner.temp }}/gh-aw/mcp-config/config.toml",
+		"CODEX_HOME":                   "${{ runner.temp }}/gh-aw/mcp-config",
 		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
 		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars

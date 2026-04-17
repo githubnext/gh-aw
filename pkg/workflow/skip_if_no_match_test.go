@@ -486,9 +486,9 @@ This workflow uses a GitHub App token for org-wide search.
 			t.Error("Expected unified GitHub App token mint step to be present")
 		}
 
-		// Verify app-id and private-key are in the mint step
-		if !strings.Contains(lockContentStr, "app-id: ${{ secrets.WORKFLOW_APP_ID }}") {
-			t.Error("Expected app-id in the GitHub App token mint step")
+		// Verify client-id and private-key are in the mint step
+		if !strings.Contains(lockContentStr, "client-id: ${{ secrets.WORKFLOW_APP_ID }}") {
+			t.Error("Expected client-id in the GitHub App token mint step")
 		}
 		if !strings.Contains(lockContentStr, "private-key: ${{ secrets.WORKFLOW_APP_PRIVATE_KEY }}") {
 			t.Error("Expected private-key in the GitHub App token mint step")

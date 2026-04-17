@@ -540,7 +540,7 @@ func (c *Compiler) buildPreActivationAppTokenMintStep(app *GitHubAppConfig) []st
 	steps = append(steps, fmt.Sprintf("        id: %s\n", tokenStepID))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
 
 	owner := app.Owner

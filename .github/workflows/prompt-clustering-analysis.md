@@ -38,6 +38,7 @@ cache:
       prompt-clustering-cache-
 
 tools:
+  mount-as-clis: true
   agentic-workflows:
   cache-memory: true
   github:
@@ -102,7 +103,8 @@ steps:
       find /tmp/gh-aw/workflow-logs -maxdepth 1 -ls
 
 timeout-minutes: 20
-
+features:
+  mcp-cli: true
 ---
 # Copilot Agent Prompt Clustering Analysis
 

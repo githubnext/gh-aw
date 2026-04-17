@@ -18,6 +18,7 @@ network:
     - defaults
 
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - default
@@ -58,6 +59,9 @@ safe-outputs:
             fi
 imports:
   - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 
 # Daily Choice Type Test

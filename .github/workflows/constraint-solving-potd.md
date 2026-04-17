@@ -6,7 +6,12 @@ on:
 permissions:
   models: read
 
+engine:
+  id: copilot
+  bare: true
+
 tools:
+  mount-as-clis: true
   cache-memory: true
 
 safe-outputs:
@@ -19,6 +24,8 @@ safe-outputs:
     labels: [constraint-solving, problem-of-the-day]
     close-older-discussions: true
     expires: 7d
+features:
+  mcp-cli: true
 ---
 
 # Constraint Solving — Problem of the Day

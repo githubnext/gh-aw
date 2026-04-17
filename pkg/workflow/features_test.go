@@ -91,6 +91,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		name        string
 		envValue    string
 		frontmatter map[string]any
+		engineID    string
 		flag        constants.FeatureFlag
 		expected    bool
 		description string
@@ -99,6 +100,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "frontmatter takes precedence - enabled in frontmatter, disabled in env",
 			envValue:    "",
 			frontmatter: map[string]any{"firewall": true},
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    true,
 			description: "When feature is in frontmatter, it should be enabled regardless of env",
@@ -107,6 +109,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "frontmatter takes precedence - disabled in frontmatter, enabled in env",
 			envValue:    "firewall",
 			frontmatter: map[string]any{"firewall": false},
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    false,
 			description: "When feature is explicitly disabled in frontmatter, env should be ignored",
@@ -115,6 +118,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "fallback to env when not in frontmatter",
 			envValue:    "firewall",
 			frontmatter: map[string]any{"other-feature": true},
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    true,
 			description: "When feature is not in frontmatter, should check env",
@@ -123,6 +127,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "disabled when not in frontmatter or env",
 			envValue:    "",
 			frontmatter: map[string]any{"other-feature": true},
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    false,
 			description: "When feature is in neither frontmatter nor env, should be disabled",
@@ -131,6 +136,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "case insensitive frontmatter check",
 			envValue:    "",
 			frontmatter: map[string]any{"FIREWALL": true},
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    true,
 			description: "Frontmatter feature check should be case insensitive",
@@ -139,6 +145,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "nil frontmatter falls back to env",
 			envValue:    "firewall",
 			frontmatter: nil,
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    true,
 			description: "When frontmatter is nil, should check env",
@@ -147,24 +154,49 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			name:        "empty frontmatter falls back to env",
 			envValue:    "firewall",
 			frontmatter: map[string]any{},
+			engineID:    string(constants.CopilotEngine),
 			flag:        "firewall",
 			expected:    true,
 			description: "When frontmatter is empty, should check env",
+		},
+		{
+			name:     "byok-copilot implicitly enables cli-proxy for copilot engine",
+			envValue: "",
+			frontmatter: map[string]any{
+				"byok-copilot": true,
+			},
+			engineID:    string(constants.CopilotEngine),
+			flag:        constants.CliProxyFeatureFlag,
+			expected:    true,
+			description: "byok-copilot should imply cli-proxy for engine=copilot",
+		},
+		{
+			name:     "byok-copilot does not imply cli-proxy for non-copilot engine",
+			envValue: "",
+			frontmatter: map[string]any{
+				"byok-copilot": true,
+			},
+			engineID:    string(constants.ClaudeEngine),
+			flag:        constants.CliProxyFeatureFlag,
+			expected:    false,
+			description: "byok-copilot implication should only apply to engine=copilot",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variable
-			if tt.envValue != "" {
-				t.Setenv("GH_AW_FEATURES", tt.envValue)
-			}
+			// Always set environment variable (including empty string) to prevent
+			// flakiness from inherited outer process environment.
+			t.Setenv("GH_AW_FEATURES", tt.envValue)
 
 			// Create WorkflowData with features
 			var workflowData *WorkflowData
 			if tt.frontmatter != nil {
 				workflowData = &WorkflowData{
 					Features: tt.frontmatter,
+					EngineConfig: &EngineConfig{
+						ID: tt.engineID,
+					},
 				}
 			}
 

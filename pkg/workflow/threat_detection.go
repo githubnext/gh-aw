@@ -316,7 +316,7 @@ func (c *Compiler) buildClearMCPConfigStep() []string {
 		"      - name: Clear MCP configuration for detection\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
-		"          rm -f /tmp/gh-aw/mcp-config/mcp-servers.json\n",
+		"          rm -f \"${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json\"\n",
 		"          rm -f /home/runner/.copilot/mcp-config.json\n",
 		"          rm -f \"$GITHUB_WORKSPACE/.gemini/settings.json\"\n",
 	}
