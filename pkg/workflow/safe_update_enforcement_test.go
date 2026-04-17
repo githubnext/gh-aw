@@ -317,7 +317,12 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			actionRefs:  []string{},
 			redirect:    "owner/repo/workflows/new.md@main",
 			wantErr:     true,
-			wantErrMsgs: []string{"New redirect configured", "Previously-approved redirect removed", "workflows/new.md", "workflows/old.md"},
+			wantErrMsgs: []string{
+				"New redirect configured",
+				"Previously-approved redirect removed",
+				"owner/repo/workflows/new.md@main",
+				"owner/repo/workflows/old.md@main",
+			},
 		},
 	}
 
