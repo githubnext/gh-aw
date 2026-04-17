@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 6.2
-**Last Updated**: 2026-04-16
+**Version**: 6.3
+**Last Updated**: 2026-04-17
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -121,6 +121,8 @@ The codebase uses a layered package structure with three tiers: entry points, co
 | `pkg/workflow` | Workflow compilation engine and orchestration |
 | `pkg/parser` | Markdown frontmatter and YAML parsing |
 | `pkg/console` | Terminal UI and styled output rendering |
+| `pkg/agentdrain` | Log drain, clustering, and anomaly detection (DRAIN3 algorithm) |
+| `pkg/actionpins` | GitHub Actions pin resolution — maps version refs to pinned SHAs |
 
 **Shared Definitions**:
 
@@ -129,7 +131,7 @@ The codebase uses a layered package structure with three tiers: entry points, co
 | `pkg/constants` | Application-wide constants (versions, flags, URLs, engine names) |
 | `pkg/types` | Shared type definitions across packages |
 
-**Utility Packages**: `pkg/fileutil`, `pkg/gitutil`, `pkg/logger`, `pkg/stringutil`, `pkg/sliceutil`, `pkg/repoutil`, `pkg/tty`, `pkg/envutil`, `pkg/timeutil`, `pkg/mathutil`, `pkg/testutil`, `pkg/styles`
+**Utility Packages**: `pkg/fileutil`, `pkg/gitutil`, `pkg/logger`, `pkg/stringutil`, `pkg/sliceutil`, `pkg/repoutil`, `pkg/tty`, `pkg/envutil`, `pkg/timeutil`, `pkg/typeutil`, `pkg/semverutil`, `pkg/stats`, `pkg/testutil`, `pkg/styles`
 
 All core packages depend on `pkg/constants` and `pkg/types` for shared definitions.
 
@@ -2829,6 +2831,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v6.3 (2026-04-17): Maintenance tone scan — fixed 3 tone issues across 2 spec files: `testing.md` (2 fixes: "maintains high quality standards"→removed, "provides a solid foundation...immediately useful"→"ensures...scale incrementally"), `guard-policies-specification.md` (1 fix: "provides a solid foundation for guard policies"→"covers guard policies"). Updated Package Structure: added `pkg/agentdrain` and `pkg/actionpins` as Core packages (source: `architecture.md` update 2026-04-17); updated Utility Packages to add `pkg/typeutil`, `pkg/semverutil`, `pkg/stats` and remove non-existent `pkg/mathutil`. Coverage: 64 spec files (no new files).
 - v6.2 (2026-04-16): Maintenance tone scan — fixed 7 tone issues across 7 spec files: `labels.md` (1 fix: "Perfect overlap"→"100% overlap"), `file-inlining.md` (1 fix: "flexible way to include"→"mechanism to include"), `changesets.md` (1 fix: "Flexible Releases"→"Optional Changeset Releases"), `go-type-patterns.md` (1 fix: "flexible configuration"→"configuration"), `github-rate-limit-observability.md` (1 fix: "comprehensive view"→"observe all rate limit categories"), `mdflow.md` (1 fix: "Flexible Context Inclusion"→"Context Inclusion"), `mdflow-comparison.md` (1 fix: "Flexible: Any CLI tool"→"Broad compatibility: Works with any CLI tool"). Coverage: 64 spec files newly scanned.
 - v6.1 (2026-04-15): Maintenance tone scan — fixed 22 tone issues across 16 spec files: `adding-new-engines.md` (1 fix: "comprehensive instructions"→"instructions"), `code-organization.md` (1 fix: "Comprehensive tests"→"Tests"), `mods/jsonschema-go.md` (3 fixes: "Comprehensive error reporting"→"Error reporting", "Comprehensive support for struct tags"→"Support for struct tags", "Comprehensive test coverage"→"Test coverage"), `template-syntax-sanitization.md` (1 fix: "Comprehensive tests in..."→"Tests in..."), `oh-my-code.md` (1 fix: "Comprehensive GitHub API access"→"GitHub API access"), `gastown.md` (1 fix: "Comprehensive trigger system"→"Trigger system"), `guard-policies-specification.md` (2 fixes: "Write Comprehensive Tests"→"Write Tests", "Comprehensive validation with clear error messages"→"Validation with clear error messages"), `artifact-naming-compatibility.md` (1 fix: "Comprehensive tests ensure"→"Tests ensure"), `engine-review-summary.md` (1 fix: "comprehensive test coverage"→"test coverage"), `github-mcp-access-control-specification.md` (1 fix: "Comprehensive compliance test suite"→"Compliance test suite"), `layout.md` (1 fix: "comprehensive reference"→"reference"), `html-entity-mention-bypass-fix.md` (2 fixes: "Comprehensive test suite"→"Test suite", "Comprehensive coverage"→"Coverage"), `firewall-log-parsing.md` (2 fixes: "Comprehensive package documentation"→"Package documentation" in lines 17 and 257), `serena-tools-analysis.md` (2 fixes: "comprehensive statistical analysis"→"statistical analysis", "Perfect Response Rate"→"100% Response Rate"), `gosec.md` (1 fix: "Comprehensive unit tests"→"Unit tests"), `serena-tools-quick-reference.md` (1 fix: "✓ Perfect"→"✓"). Also fixed `dev.md` agent instruction description: "Comprehensive developer guide"→"Developer guide". Coverage: 75 spec files (no new files).
 - v6.0 (2026-04-14): Fixed 12 tone issues across 2 spec files: `engine-architecture-review.md` (10 fixes: "comprehensive documentation have been added to further enhance extensibility"→"documentation have been added to extend the architecture", "Comprehensive MCP support"→"MCP support", "No comprehensive guide existed"→"No guide existed", "Created comprehensive `adding-new-engines.md`"→"Created `adding-new-engines.md`", "Assessment: ✅ **Comprehensive**"→"Assessment: ✅", "No comprehensive developer guide"→"No developer guide", "Developers have comprehensive guidance"→"Developers have implementation guidance", "Create comprehensive guide for adding new engines"→"Create guide for adding new engines", "Comprehensive Engine Implementation Guide"→"Engine Implementation Guide", "Comprehensive testing"→"Testing"), `file-inlining.md` (2 fixes: "Comprehensive testing with unit tests"→"Testing with unit tests", "Comprehensive documentation"→"Documentation"). Added integrity-reactions feature documentation to GitHub MCP Guard Policies section (from PR #26154: `features.integrity-reactions: true`, compiler auto-enables `cli-proxy`, default reaction config, v0.68.2+). Coverage: 75 spec files (no new files).
