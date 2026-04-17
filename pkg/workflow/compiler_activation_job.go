@@ -27,7 +27,7 @@ var activationMetadataTriggerFields = map[string]struct{}{
 func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
 	ctx, err := c.newActivationJobBuildContext(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create activation job build context: %w", err)
 	}
 
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
@@ -44,6 +44,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation)
 	c.addActivationArtifactUploadStep(ctx)
+	if len(ctx.steps) == 0 {
+		ctx.steps = append(ctx.steps, "      - run: echo \"Activation success\"\n")
+	}
 
 	if c.actionMode.IsScript() {
 		ctx.steps = append(ctx.steps, c.generateScriptModeCleanupStep())

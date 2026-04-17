@@ -11,32 +11,36 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
+// activationJobBuildContext carries mutable state while composing the activation job.
+// It is created once by newActivationJobBuildContext, then incrementally mutated by
+// helper methods in buildActivationJob, and discarded after the final Job is assembled.
 type activationJobBuildContext struct {
-	data                   *WorkflowData
-	preActivationJob       bool
-	workflowRunRepoSafety  string
-	lockFilename           string
-	steps                  []string
-	outputs                map[string]string
-	engine                 CodingAgentEngine
-	hasReaction            bool
-	reactionIssues         bool
-	reactionPullRequests   bool
-	reactionDiscussions    bool
-	hasStatusComment       bool
-	statusCommentIssues    bool
-	statusCommentPRs       bool
-	statusCommentDiscuss   bool
-	hasLabelCommand        bool
-	shouldRemoveLabel      bool
-	filteredLabelEvents    []string
-	needsAppTokenForAccess bool
+	data                     *WorkflowData
+	preActivationJob         bool
+	workflowRunRepoSafety    string
+	lockFilename             string
+	steps                    []string
+	outputs                  map[string]string
+	engine                   CodingAgentEngine
+	hasReaction              bool
+	reactionIssues           bool
+	reactionPullRequests     bool
+	reactionDiscussions      bool
+	hasStatusComment         bool
+	statusCommentIssues      bool
+	statusCommentPRs         bool
+	statusCommentDiscussions bool
+	hasLabelCommand          bool
+	shouldRemoveLabel        bool
+	filteredLabelEvents      []string
+	needsAppTokenForAccess   bool
 
 	customJobsBeforeActivation []string
 	activationNeeds            []string
 	activationCondition        string
 }
 
+// newActivationJobBuildContext initializes activation-job state with setup, aw_info, and base outputs.
 func (c *Compiler) newActivationJobBuildContext(
 	data *WorkflowData,
 	preActivationJobCreated bool,
@@ -45,26 +49,26 @@ func (c *Compiler) newActivationJobBuildContext(
 ) (*activationJobBuildContext, error) {
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
-		return nil, errors.New("setup action reference is required but could not be resolved")
+		return nil, errors.New("failed to resolve setup action reference; ensure ./actions/setup exists and is accessible")
 	}
 
 	ctx := &activationJobBuildContext{
-		data:                   data,
-		preActivationJob:       preActivationJobCreated,
-		workflowRunRepoSafety:  workflowRunRepoSafety,
-		lockFilename:           lockFilename,
-		outputs:                map[string]string{},
-		hasReaction:            data.AIReaction != "" && data.AIReaction != "none",
-		reactionIssues:         shouldIncludeIssueReactions(data),
-		reactionPullRequests:   shouldIncludePullRequestReactions(data),
-		reactionDiscussions:    shouldIncludeDiscussionReactions(data),
-		hasStatusComment:       data.StatusComment != nil && *data.StatusComment,
-		statusCommentIssues:    shouldIncludeIssueStatusComments(data),
-		statusCommentPRs:       shouldIncludePullRequestStatusComments(data),
-		statusCommentDiscuss:   shouldIncludeDiscussionStatusComments(data),
-		hasLabelCommand:        len(data.LabelCommand) > 0,
-		filteredLabelEvents:    FilterLabelCommandEvents(data.LabelCommandEvents),
-		needsAppTokenForAccess: data.ActivationGitHubApp != nil && !data.StaleCheckDisabled,
+		data:                     data,
+		preActivationJob:         preActivationJobCreated,
+		workflowRunRepoSafety:    workflowRunRepoSafety,
+		lockFilename:             lockFilename,
+		outputs:                  map[string]string{},
+		hasReaction:              data.AIReaction != "" && data.AIReaction != "none",
+		reactionIssues:           shouldIncludeIssueReactions(data),
+		reactionPullRequests:     shouldIncludePullRequestReactions(data),
+		reactionDiscussions:      shouldIncludeDiscussionReactions(data),
+		hasStatusComment:         data.StatusComment != nil && *data.StatusComment,
+		statusCommentIssues:      shouldIncludeIssueStatusComments(data),
+		statusCommentPRs:         shouldIncludePullRequestStatusComments(data),
+		statusCommentDiscussions: shouldIncludeDiscussionStatusComments(data),
+		hasLabelCommand:          len(data.LabelCommand) > 0,
+		filteredLabelEvents:      FilterLabelCommandEvents(data.LabelCommandEvents),
+		needsAppTokenForAccess:   data.ActivationGitHubApp != nil && !data.StaleCheckDisabled,
 	}
 	ctx.shouldRemoveLabel = ctx.hasLabelCommand && data.LabelCommandRemoveLabel
 
@@ -112,6 +116,7 @@ func (c *Compiler) newActivationJobBuildContext(
 	return ctx, nil
 }
 
+// addActivationFeedbackAndValidationSteps appends token minting, reactions, secret validation, and guidance.
 func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
 	if data.ActivationGitHubApp != nil && (ctx.hasReaction || ctx.hasStatusComment || ctx.shouldRemoveLabel || ctx.needsAppTokenForAccess) {
@@ -126,7 +131,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 			ctx.hasStatusComment,
 			ctx.statusCommentIssues,
 			ctx.statusCommentPRs,
-			ctx.statusCommentDiscuss,
+			ctx.statusCommentDiscussions,
 		)
 		if ctx.shouldRemoveLabel {
 			if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
@@ -185,6 +190,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	return nil
 }
 
+// addActivationRepositoryAndOutputSteps appends checkout, validation, sanitization, comment, and lock steps.
 func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuildContext) error {
 	data := ctx.data
 
@@ -245,7 +251,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 		statusCommentCondition := BuildStatusCommentCondition(
 			ctx.statusCommentIssues,
 			ctx.statusCommentPRs,
-			ctx.statusCommentDiscuss,
+			ctx.statusCommentDiscussions,
 		)
 		ctx.steps = append(ctx.steps, "      - name: Add comment with workflow run link\n")
 		ctx.steps = append(ctx.steps, "        id: add-comment\n")
@@ -308,6 +314,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 	return nil
 }
 
+// addActivationCommandAndLabelOutputs appends slash-command and label-command output steps.
 func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildContext) error {
 	data := ctx.data
 
@@ -356,12 +363,11 @@ func (c *Compiler) addActivationCommandAndLabelOutputs(ctx *activationJobBuildCo
 		ctx.outputs["command_name"] = fmt.Sprintf("${{ steps.%s.outputs.command_name }}", constants.GetTriggerLabelStepID)
 	}
 
-	if len(ctx.steps) == 0 {
-		ctx.steps = append(ctx.steps, "      - run: echo \"Activation success\"\n")
-	}
 	return nil
 }
 
+// configureActivationNeedsAndCondition computes and sets activation dependencies and final job condition.
+// This helper mutates the context but only derives values from workflow data and has no error paths.
 func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildContext) {
 	data := ctx.data
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
@@ -406,6 +412,7 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 	}
 }
 
+// addActivationArtifactUploadStep appends the activation artifact upload step for downstream jobs.
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
 	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName
@@ -423,6 +430,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "          retention-days: 1\n")
 }
 
+// buildActivationPermissions builds activation job permissions from workflow features and selected interactions.
 func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) string {
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
@@ -440,7 +448,7 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 		ctx.hasStatusComment,
 		ctx.statusCommentIssues,
 		ctx.statusCommentPRs,
-		ctx.statusCommentDiscuss,
+		ctx.statusCommentDiscussions,
 	)
 	if ctx.data.LockForAgent {
 		permsMap[PermissionIssues] = PermissionWrite
@@ -456,6 +464,7 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) st
 	return NewPermissionsFromMap(permsMap).RenderToYAML()
 }
 
+// buildActivationEnvironment returns manual-approval environment YAML, with ANSI removed.
 func (c *Compiler) buildActivationEnvironment(ctx *activationJobBuildContext) string {
 	if ctx.data.ManualApproval == "" {
 		return ""
