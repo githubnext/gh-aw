@@ -117,7 +117,7 @@ find "$RUN_DIR" -type f | head -30
 ```
 
 From `aw_info.json` identify:
-- **Engine**: `copilot`, `claude`, `codex`, `gemini`, `opencode`, or `custom`
+- **Engine**: `copilot`, `claude`, `codex`, `gemini`, `crush`, or `custom`
 - **Agent output file**: look for `agent-stdio.log` in the run directory or files inside `agent_output/`
 
 Determine `AGENT_OUTPUT_FILE` and `ENGINE` for the next phase.
@@ -210,7 +210,7 @@ Run the parser harness against the real agent output:
 
 ```bash
 # Replace these with the actual values discovered in Phase 2:
-#   ENGINE: one of copilot, claude, codex, gemini, opencode, custom
+#   ENGINE: one of copilot, claude, codex, gemini, crush, custom
 #   AGENT_OUTPUT_FILE: e.g. /tmp/gh-aw/aw-mcp/logs/run-12345678/agent-stdio.log
 
 cd ${{ github.workspace }}/actions/setup/js
