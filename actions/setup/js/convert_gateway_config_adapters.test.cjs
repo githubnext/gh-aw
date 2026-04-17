@@ -1,7 +1,10 @@
 // @ts-check
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
-import { rewriteUrl, filterAndTransformServers } from "./convert_gateway_config_shared.cjs";
+import { rewriteUrl, filterAndTransformServers, writeSecureOutput } from "./convert_gateway_config_shared.cjs";
 import { transformClaudeEntry } from "./convert_gateway_config_claude.cjs";
 import { transformCopilotEntry } from "./convert_gateway_config_copilot.cjs";
 import { transformGeminiEntry } from "./convert_gateway_config_gemini.cjs";
@@ -22,6 +25,21 @@ describe("convert gateway config shared pipeline", () => {
     expect(filtered).toEqual({
       github: { url: "http://old/mcp/github" },
     });
+  });
+
+  it("enforces output file permission mode to 0o600 even when file already exists", () => {
+    const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-config-"));
+    const outputPath = path.join(outputDir, "mcp-servers.json");
+    fs.writeFileSync(outputPath, "old");
+    fs.chmodSync(outputPath, 0o644);
+
+    writeSecureOutput(outputPath, "{}");
+
+    const mode = fs.statSync(outputPath).mode & 0o777;
+    expect(mode).toBe(0o600);
+    expect(fs.readFileSync(outputPath, "utf8")).toBe("{}");
+
+    fs.rmSync(outputDir, { recursive: true, force: true });
   });
 });
 

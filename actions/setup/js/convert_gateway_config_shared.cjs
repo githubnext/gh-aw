@@ -122,6 +122,7 @@ function logServerStats(servers, includedCount) {
 function writeSecureOutput(outputPath, output) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, output, { mode: 0o600 });
+  fs.chmodSync(outputPath, 0o600);
 }
 
 module.exports = {
