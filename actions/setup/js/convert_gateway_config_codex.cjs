@@ -22,32 +22,30 @@ require("./shim.cjs");
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
  */
 
-const fs = require("fs");
 const path = require("path");
+const { loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 
 const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/config.toml");
 
-function main() {
-  const gatewayOutput = process.env.MCP_GATEWAY_OUTPUT;
-  const domain = process.env.MCP_GATEWAY_DOMAIN;
-  const port = process.env.MCP_GATEWAY_PORT;
+/**
+ * @param {string} name
+ * @param {Record<string, unknown>} value
+ * @param {string} urlPrefix
+ * @returns {string}
+ */
+function toCodexTomlSection(name, value, urlPrefix) {
+  const url = `${urlPrefix}/mcp/${name}`;
+  const headers = /** @type {Record<string, string>} */ value.headers || {};
+  const authKey = headers.Authorization || "";
+  let section = `[mcp_servers.${name}]\n`;
+  section += `url = "${url}"\n`;
+  section += `http_headers = { Authorization = "${authKey}" }\n`;
+  section += "\n";
+  return section;
+}
 
-  if (!gatewayOutput) {
-    core.error("ERROR: MCP_GATEWAY_OUTPUT environment variable is required");
-    process.exit(1);
-  }
-  if (!fs.existsSync(gatewayOutput)) {
-    core.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
-    process.exit(1);
-  }
-  if (!domain) {
-    core.error("ERROR: MCP_GATEWAY_DOMAIN environment variable is required");
-    process.exit(1);
-  }
-  if (!port) {
-    core.error("ERROR: MCP_GATEWAY_PORT environment variable is required");
-    process.exit(1);
-  }
+function main() {
+  const { gatewayOutput, domain, port, cliServers, servers } = loadGatewayContext();
 
   core.info("Converting gateway configuration to Codex TOML format...");
   core.info(`Input: ${gatewayOutput}`);
@@ -63,45 +61,22 @@ function main() {
   }
 
   const urlPrefix = `http://${resolvedDomain}:${port}`;
-
-  /** @type {Set<string>} */
-  const cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
-  if (cliServers.size > 0) {
-    core.info(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
-  }
-
-  /** @type {Record<string, unknown>} */
-  const config = JSON.parse(fs.readFileSync(gatewayOutput, "utf8"));
-  const rawServers = config.mcpServers;
-  const servers =
-    /** @type {Record<string, Record<string, unknown>>} */
-    rawServers && typeof rawServers === "object" && !Array.isArray(rawServers) ? rawServers : {};
+  logCLIFilters(cliServers);
+  const filteredServers = filterAndTransformServers(servers, cliServers, (_name, entry) => entry);
 
   // Build the TOML output
   let toml = '[history]\npersistence = "none"\n\n';
 
-  for (const [name, value] of Object.entries(servers)) {
-    if (cliServers.has(name)) continue;
-    const url = `${urlPrefix}/mcp/${name}`;
-    const headers = /** @type {Record<string, string>} */ value.headers || {};
-    const authKey = headers.Authorization || "";
-    toml += `[mcp_servers.${name}]\n`;
-    toml += `url = "${url}"\n`;
-    toml += `http_headers = { Authorization = "${authKey}" }\n`;
-    toml += "\n";
+  for (const [name, value] of Object.entries(filteredServers)) {
+    toml += toCodexTomlSection(name, value, urlPrefix);
   }
 
-  const includedCount = Object.keys(servers).length - [...Object.keys(servers)].filter(k => cliServers.has(k)).length;
-  const filteredCount = Object.keys(servers).length - includedCount;
-  core.info(`Servers: ${includedCount} included, ${filteredCount} filtered (CLI-mounted)`);
-
-  // Ensure output directory exists
-  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+  logServerStats(servers, Object.keys(filteredServers).length);
 
   // Write with owner-only permissions (0o600) to protect the gateway bearer token.
   // An attacker who reads config.toml could issue raw JSON-RPC calls directly
   // to the gateway.
-  fs.writeFileSync(OUTPUT_PATH, toml, { mode: 0o600 });
+  writeSecureOutput(OUTPUT_PATH, toml);
 
   core.info(`Codex configuration written to ${OUTPUT_PATH}`);
   core.info("");
@@ -109,6 +84,8 @@ function main() {
   core.info(toml);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
 
-module.exports = {};
+module.exports = { toCodexTomlSection, main };
