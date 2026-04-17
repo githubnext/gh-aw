@@ -36,8 +36,8 @@ const (
 	// This prevents excessive step generation for extremely large prompt texts
 	MaxPromptChunks = 5 // Maximum number of chunks
 
-	// MissingPermissionsDefaultToolsetWarning explains why strict mode was downgraded to warning.
-	MissingPermissionsDefaultToolsetWarning = "Some of the GitHub tools will not be available until the missing permissions are granted."
+	// missingPermissionsDefaultToolsetWarning explains why strict mode was downgraded to warning.
+	missingPermissionsDefaultToolsetWarning = "Some of the GitHub tools will not be available until the missing permissions are granted."
 )
 
 //go:embed schemas/github-workflow.json
@@ -340,7 +340,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 					}
 
 					if downgradeToWarning {
-						message += "\n\n" + MissingPermissionsDefaultToolsetWarning
+						message += "\n\n" + missingPermissionsDefaultToolsetWarning
 					}
 
 					// In non-strict mode, missing permissions are warnings.
