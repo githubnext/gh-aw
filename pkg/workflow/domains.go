@@ -110,18 +110,20 @@ var GeminiDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
-// OpenCodeBaseDefaultDomains are the default domains required for OpenCode CLI operation.
-// OpenCode is BYOK (any provider), so provider-specific domains are added dynamically
-// based on the model prefix via GetOpenCodeDefaultDomains().
-var OpenCodeBaseDefaultDomains = []string{
+// CrushBaseDefaultDomains are the default domains required for Crush CLI operation.
+// Crush is BYOK (any provider), so provider-specific domains are added dynamically
+// based on the model prefix via GetCrushDefaultDomains().
+var CrushBaseDefaultDomains = []string{
 	"host.docker.internal", // MCP gateway / API proxy access
-	"opencode.ai",          // OpenCode telemetry/config (required for startup)
-	"registry.npmjs.org",   // npm package downloads
+	"charm.land",           // Crush telemetry/docs endpoints
+	"github.com",           // Crush provider updates (Catwalk) and metadata
+	"raw.githubusercontent.com",
+	"registry.npmjs.org", // npm package downloads
 }
 
-// openCodeProviderDomains maps provider prefixes to their API domains.
-// Used by extractProviderFromModel() and GetOpenCodeDefaultDomains().
-var openCodeProviderDomains = map[string]string{
+// crushProviderDomains maps provider prefixes to their API domains.
+// Used by extractCrushProviderFromModel() and GetCrushDefaultDomains().
+var crushProviderDomains = map[string]string{
 	"copilot":   "api.githubcopilot.com",
 	"anthropic": "api.anthropic.com",
 	"openai":    "api.openai.com",
@@ -132,22 +134,24 @@ var openCodeProviderDomains = map[string]string{
 	"xai":       "api.x.ai",
 }
 
-// OpenCodeDefaultDomains are the static default domains for backward compatibility.
-// The dynamic path (GetOpenCodeDefaultDomains) resolves provider-specific domains
-// based on the model prefix and uses OpenCodeBaseDefaultDomains as the base.
-var OpenCodeDefaultDomains = []string{
+// CrushDefaultDomains are the static default domains for backward compatibility.
+// The dynamic path (GetCrushDefaultDomains) resolves provider-specific domains
+// based on the model prefix and uses CrushBaseDefaultDomains as the base.
+var CrushDefaultDomains = []string{
 	"api.githubcopilot.com",             // Default provider (Copilot routing)
 	"api.openai.com",                    // Direct OpenAI provider access
 	"generativelanguage.googleapis.com", // Google/Gemini provider
 	"host.docker.internal",              // MCP gateway / API proxy access
-	"opencode.ai",                       // OpenCode telemetry/config (required for startup)
-	"registry.npmjs.org",                // npm package downloads
+	"charm.land",                        // Crush telemetry/docs endpoints
+	"github.com",                        // Crush provider updates (Catwalk) and metadata
+	"raw.githubusercontent.com",
+	"registry.npmjs.org", // npm package downloads
 }
 
-// extractProviderFromModel extracts the provider name from an OpenCode model string.
-// OpenCode uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
+// extractCrushProviderFromModel extracts the provider name from a Crush model string.
+// Crush uses "provider/model" format (e.g., "anthropic/claude-sonnet-4-20250514").
 // Returns the provider prefix, or "copilot" as default if no slash is found.
-func extractProviderFromModel(model string) string {
+func extractCrushProviderFromModel(model string) string {
 	if model == "" {
 		return "copilot"
 	}
@@ -158,25 +162,25 @@ func extractProviderFromModel(model string) string {
 	return strings.ToLower(parts[0])
 }
 
-// GetOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
-// It starts with OpenCodeBaseDefaultDomains and adds the provider-specific API domain.
-func GetOpenCodeDefaultDomains(model string) []string {
-	provider := extractProviderFromModel(model)
-	domains := make([]string, 0, len(OpenCodeBaseDefaultDomains)+1)
-	domains = append(domains, OpenCodeBaseDefaultDomains...)
+// GetCrushDefaultDomains returns the default domains for Crush based on the model provider.
+// It starts with CrushBaseDefaultDomains and adds the provider-specific API domain.
+func GetCrushDefaultDomains(model string) []string {
+	provider := extractCrushProviderFromModel(model)
+	domains := make([]string, 0, len(CrushBaseDefaultDomains)+1)
+	domains = append(domains, CrushBaseDefaultDomains...)
 
-	if domain, ok := openCodeProviderDomains[provider]; ok {
+	if domain, ok := crushProviderDomains[provider]; ok {
 		domains = append(domains, domain)
 	}
 
 	return domains
 }
 
-// GetOpenCodeAllowedDomainsWithToolsAndRuntimes merges OpenCode default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
+// GetCrushAllowedDomainsWithToolsAndRuntimes merges Crush default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
 // Pass the selected model (e.g. "anthropic/claude-sonnet-4-20250514") so provider-specific
 // API domains are included. Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
-func GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
-	return GetAllowedDomainsForEngineWithModel(constants.OpenCodeEngine, model, network, tools, runtimes)
+func GetCrushAllowedDomainsWithToolsAndRuntimes(model string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return GetAllowedDomainsForEngineWithModel(constants.CrushEngine, model, network, tools, runtimes)
 }
 
 // PlaywrightDomains are the domains required for Playwright browser downloads
@@ -618,7 +622,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 }
 
 // engineDefaultDomains maps each engine to its static default required domains.
-// Engines with model-specific defaults (for example, OpenCode) are resolved in
+// Engines with model-specific defaults (for example, Crush) are resolved in
 // getDefaultDomainsForEngine instead of being stored directly in this map.
 var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.CopilotEngine: CopilotDefaultDomains,
@@ -628,12 +632,12 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 }
 
 // getDefaultDomainsForEngine returns the engine's default required domains.
-// OpenCode domains are model/provider-specific, so they must be resolved via
-// GetOpenCodeDefaultDomains(model) rather than the static engineDefaultDomains map.
+// Crush domains are model/provider-specific, so they must be resolved via
+// GetCrushDefaultDomains(model) rather than the static engineDefaultDomains map.
 // Falls back to an empty default domain list for unknown engines.
 func getDefaultDomainsForEngine(engine constants.EngineName, model string) []string {
-	if engine == constants.OpenCodeEngine {
-		return GetOpenCodeDefaultDomains(model)
+	if engine == constants.CrushEngine {
+		return GetCrushDefaultDomains(model)
 	}
 
 	return engineDefaultDomains[engine]
@@ -641,7 +645,7 @@ func getDefaultDomainsForEngine(engine constants.EngineName, model string) []str
 
 // GetAllowedDomainsForEngineWithModel merges the engine's default domains with
 // NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
-// For engines with model/provider-specific defaults (such as OpenCode), pass the
+// For engines with model/provider-specific defaults (such as Crush), pass the
 // selected model so the correct default domains are included.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's
 // --allow-domains flag.
@@ -653,7 +657,7 @@ func GetAllowedDomainsForEngineWithModel(engine constants.EngineName, model stri
 // HTTP MCP server domains, and runtime ecosystem domains.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 // Falls back to an empty default domain list for unknown engines.
-// For model/provider-specific engines such as OpenCode, prefer
+// For model/provider-specific engines such as Crush, prefer
 // GetAllowedDomainsForEngineWithModel so provider domains are included.
 func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	return GetAllowedDomainsForEngineWithModel(engine, "", network, tools, runtimes)
@@ -837,12 +841,12 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 		base = GetClaudeAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
 	case "gemini":
 		base = GetGeminiAllowedDomainsWithToolsAndRuntimes(data.NetworkPermissions, data.Tools, data.Runtimes)
-	case "opencode":
+	case "crush":
 		model := ""
 		if data.EngineConfig != nil {
 			model = data.EngineConfig.Model
 		}
-		base = GetOpenCodeAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
+		base = GetCrushAllowedDomainsWithToolsAndRuntimes(model, data.NetworkPermissions, data.Tools, data.Runtimes)
 	default:
 		// For other engines, use network permissions only
 		domains := GetAllowedDomains(data.NetworkPermissions)
