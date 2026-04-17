@@ -1315,7 +1315,7 @@ describe("create_pull_request - base branch override policy", () => {
     expect(result.success).toBe(true);
     expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ base: "release/1.0" }));
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Base branch override requested: "release/1.0"'));
-    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Base branch override accepted: release/1.0"));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Base branch override accepted: "release/1.0"'));
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Using agent-provided base branch override: release/1.0"));
   });
 

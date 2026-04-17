@@ -522,15 +522,16 @@ async function main(config = {}) {
           error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
         };
       }
+      const requestedBaseBranchSafeForLog = JSON.stringify(requestedBaseBranch);
       if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
-        core.warning(`Rejecting base branch override '${requestedBaseBranch}': does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
+        core.warning(`Rejecting base branch override ${requestedBaseBranchSafeForLog}: does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
         return {
           success: false,
           error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
         };
       }
 
-      core.info(`Base branch override accepted: ${requestedBaseBranch}`);
+      core.info(`Base branch override accepted: ${requestedBaseBranchSafeForLog}`);
       baseBranch = requestedBaseBranch;
       core.info(`Using agent-provided base branch override: ${baseBranch}`);
     }
