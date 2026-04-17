@@ -52,8 +52,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
-          GH_AW_INFO_VERSION: "1.0.21"
-          GH_AW_INFO_AGENT_VERSION: "1.0.21"
+          GH_AW_INFO_VERSION: "1.0.31"
+          GH_AW_INFO_AGENT_VERSION: "1.0.31"
           GH_AW_INFO_WORKFLOW_NAME: "basic-copilot-test"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -305,7 +305,7 @@ jobs:
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Install GitHub Copilot CLI
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.21
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.31
         env:
           GH_HOST: github.com
       - name: Install AWF binary
@@ -321,7 +321,7 @@ jobs:
             const determineAutomaticLockdown = require('${{ runner.temp }}/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.23 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.23 ghcr.io/github/gh-aw-firewall/squid:0.25.23 ghcr.io/github/gh-aw-mcpg:v0.2.22 ghcr.io/github/github-mcp-server:v0.32.0
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.25.23 ghcr.io/github/gh-aw-firewall/api-proxy:0.25.23 ghcr.io/github/gh-aw-firewall/squid:0.25.23 ghcr.io/github/gh-aw-mcpg:v0.2.22 ghcr.io/github/github-mcp-server:v1.0.0
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -354,7 +354,7 @@ jobs:
             "mcpServers": {
               "github": {
                 "type": "stdio",
-                "container": "ghcr.io/github/github-mcp-server:v0.32.0",
+                "container": "ghcr.io/github/github-mcp-server:v1.0.0",
                 "env": {
                   "GITHUB_HOST": "\${GITHUB_SERVER_URL}",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
