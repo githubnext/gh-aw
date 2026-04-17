@@ -34,6 +34,7 @@ func GetAllCodemods() []Codemod {
 		getScheduleAtToAroundCodemod(),
 		getDeleteSchemaFileCodemod(),
 		getGrepToolRemovalCodemod(),
+		getToolsUnknownToMCPServersCodemod(),
 		getMCPNetworkMigrationCodemod(),
 		getDiscussionFlagRemovalCodemod(),
 		getMCPModeToTypeCodemod(),

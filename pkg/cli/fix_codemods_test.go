@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 30
+	expectedCount := 31
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -80,6 +80,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"delete-schema-file",
 		"grep-tool-removal",
 		"mcp-network-to-top-level-migration",
+		"tools-unknown-to-mcp-servers",
 		"safe-inputs-to-mcp-scripts",
 	}
 
@@ -117,6 +118,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"schedule-at-to-around-migration",
 		"delete-schema-file",
 		"grep-tool-removal",
+		"tools-unknown-to-mcp-servers",
 		"mcp-network-to-top-level-migration",
 		"add-comment-discussion-removal",
 		"mcp-mode-to-type-migration",
