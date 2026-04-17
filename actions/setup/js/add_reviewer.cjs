@@ -9,7 +9,7 @@
  */
 
 /**
- * @typedef {{ reviewers?: Array<string|null|undefined|false>, pull_request_number?: number|string }} AddReviewerMessage
+ * @typedef {{ reviewers?: Array<string|null|undefined|false>, team_reviewers?: Array<string|null|undefined|false>, pull_request_number?: number|string }} AddReviewerMessage
  */
 
 /** @type {string} Safe output type handled by this module */
@@ -30,6 +30,7 @@ const { COPILOT_REVIEWER_BOT } = require("./constants.cjs");
  */
 async function main(config = {}) {
   const allowedReviewers = config.allowed ?? [];
+  const allowedTeamReviewers = config.allowed_team_reviewers ?? [];
   const maxCount = config.max ?? 10;
   const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
@@ -37,6 +38,9 @@ async function main(config = {}) {
   core.info(`Add reviewer configuration: max=${maxCount}`);
   if (allowedReviewers.length > 0) {
     core.info(`Allowed reviewers: ${allowedReviewers.join(", ")}`);
+  }
+  if (allowedTeamReviewers.length > 0) {
+    core.info(`Allowed team reviewers: ${allowedTeamReviewers.join(", ")}`);
   }
 
   let processedCount = 0;
@@ -68,22 +72,27 @@ async function main(config = {}) {
     }
 
     const requestedReviewers = message.reviewers ?? [];
+    const requestedTeamReviewers = message.team_reviewers ?? [];
     core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
+    core.info(`Requested team reviewers: ${JSON.stringify(requestedTeamReviewers)}`);
 
-    // Use shared helper to filter, sanitize, dedupe, and limit
+    // Use shared helper to filter, sanitize, dedupe, and limit across both reviewer types
     const uniqueReviewers = processItems(requestedReviewers, allowedReviewers, maxCount);
+    const remainingReviewerSlots = Math.max(0, maxCount - uniqueReviewers.length);
+    const uniqueTeamReviewers = processItems(requestedTeamReviewers, allowedTeamReviewers, remainingReviewerSlots);
 
-    if (uniqueReviewers.length === 0) {
+    if (uniqueReviewers.length === 0 && uniqueTeamReviewers.length === 0) {
       core.info("No reviewers to add");
       return {
         success: true,
         prNumber,
         reviewersAdded: [],
+        teamReviewersAdded: [],
         message: "No valid reviewers found",
       };
     }
 
-    core.info(`Adding ${uniqueReviewers.length} reviewers to PR #${prNumber}: ${JSON.stringify(uniqueReviewers)}`);
+    core.info(`Adding reviewers to PR #${prNumber}: reviewers=${JSON.stringify(uniqueReviewers)}, team_reviewers=${JSON.stringify(uniqueTeamReviewers)}`);
 
     // If in staged mode, preview without executing
     if (isStaged) {
@@ -94,6 +103,7 @@ async function main(config = {}) {
         previewInfo: {
           number: prNumber,
           reviewers: uniqueReviewers,
+          team_reviewers: uniqueTeamReviewers,
         },
       };
     }
@@ -104,14 +114,19 @@ async function main(config = {}) {
       const otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
 
       // Add non-copilot reviewers first
-      if (otherReviewers.length > 0) {
-        await githubClient.rest.pulls.requestReviewers({
+      if (otherReviewers.length > 0 || uniqueTeamReviewers.length > 0) {
+        /** @type {{ owner: string, repo: string, pull_number: number, reviewers: string[], team_reviewers?: string[] }} */
+        const reviewerRequest = {
           owner: context.repo.owner,
           repo: context.repo.repo,
           pull_number: prNumber,
           reviewers: otherReviewers,
-        });
-        core.info(`Successfully added ${otherReviewers.length} reviewer(s) to PR #${prNumber}`);
+        };
+        if (uniqueTeamReviewers.length > 0) {
+          reviewerRequest.team_reviewers = uniqueTeamReviewers;
+        }
+        await githubClient.rest.pulls.requestReviewers(reviewerRequest);
+        core.info(`Successfully added reviewers to PR #${prNumber}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(uniqueTeamReviewers)}`);
       }
 
       // Add copilot reviewer separately if requested
@@ -134,6 +149,7 @@ async function main(config = {}) {
         success: true,
         prNumber,
         reviewersAdded: uniqueReviewers,
+        teamReviewersAdded: uniqueTeamReviewers,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);

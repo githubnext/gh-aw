@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 30
+	expectedCount := 32
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -81,6 +81,8 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"grep-tool-removal",
 		"mcp-network-to-top-level-migration",
 		"safe-inputs-to-mcp-scripts",
+		"steps-run-secrets-to-env",
+		"engine-env-secrets-to-engine-config",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -126,6 +128,8 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"roles-to-on-roles",
 		"bots-to-on-bots",
 		"engine-steps-to-top-level",
+		"steps-run-secrets-to-env",
+		"engine-env-secrets-to-engine-config",
 		"assign-to-agent-default-agent-to-name",
 		"playwright-allowed-domains-migration",
 		"expires-integer-to-string",

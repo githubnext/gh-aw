@@ -999,6 +999,24 @@ describe("create_pull_request - configured reviewers", () => {
     );
   });
 
+  it("should request configured team reviewers after creating the PR", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ team_reviewers: ["platform-team"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        pull_number: 42,
+        reviewers: [],
+        team_reviewers: ["platform-team"],
+      })
+    );
+  });
+
   it("should handle copilot reviewer separately from regular reviewers", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ reviewers: ["user1", "copilot"], allow_empty: true });
@@ -1010,6 +1028,18 @@ describe("create_pull_request - configured reviewers", () => {
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledTimes(2);
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(expect.objectContaining({ reviewers: ["user1"] }));
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(expect.objectContaining({ reviewers: ["copilot-pull-request-reviewer[bot]"] }));
+  });
+
+  it("should keep configured team reviewers with non-copilot reviewers when copilot is configured", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ reviewers: ["user1", "copilot"], team_reviewers: ["platform-team"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledTimes(2);
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(1, expect.objectContaining({ reviewers: ["user1"], team_reviewers: ["platform-team"] }));
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(2, expect.objectContaining({ reviewers: ["copilot-pull-request-reviewer[bot]"] }));
   });
 
   it("should not call requestReviewers when no reviewers are configured", async () => {

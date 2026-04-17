@@ -900,7 +900,8 @@ func TestHandlerConfigReviewers(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreatePullRequests: &CreatePullRequestsConfig{
-				Reviewers: []string{"user1", "user2", "copilot"},
+				Reviewers:     []string{"user1", "user2", "copilot"},
+				TeamReviewers: []string{"team-a", "team-b"},
 			},
 		},
 	}
@@ -933,6 +934,58 @@ func TestHandlerConfigReviewers(t *testing.T) {
 				assert.Equal(t, "user1", reviewerSlice[0])
 				assert.Equal(t, "user2", reviewerSlice[1])
 				assert.Equal(t, "copilot", reviewerSlice[2])
+
+				teamReviewers, ok := prConfig["team_reviewers"]
+				require.True(t, ok, "Should have team_reviewers field")
+
+				teamReviewerSlice, ok := teamReviewers.([]any)
+				require.True(t, ok, "team_reviewers should be an array")
+				assert.Len(t, teamReviewerSlice, 2, "Should have 2 team reviewers")
+				assert.Equal(t, "team-a", teamReviewerSlice[0])
+				assert.Equal(t, "team-b", teamReviewerSlice[1])
+			}
+		}
+	}
+}
+
+func TestHandlerConfigAddReviewerTeamReviewers(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AddReviewer: &AddReviewerConfig{
+				Reviewers:     []string{"user1"},
+				TeamReviewers: []string{"team-a"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				reviewerConfig, ok := config["add_reviewer"]
+				require.True(t, ok, "Should have add_reviewer handler")
+
+				teamReviewers, ok := reviewerConfig["allowed_team_reviewers"]
+				require.True(t, ok, "Should have allowed_team_reviewers field")
+
+				teamReviewerSlice, ok := teamReviewers.([]any)
+				require.True(t, ok, "allowed_team_reviewers should be an array")
+				assert.Len(t, teamReviewerSlice, 1, "Should have 1 allowed team reviewer")
+				assert.Equal(t, "team-a", teamReviewerSlice[0])
 			}
 		}
 	}

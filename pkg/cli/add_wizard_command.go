@@ -20,7 +20,7 @@ func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
 		Long: `Interactively add one or more agentic workflows with guided setup.
 
 This command walks you through:
-  - Selecting an AI engine (Copilot, Claude, or Codex)
+  - Selecting an AI engine (Copilot, Claude, Codex, Gemini, or Crush)
   - Configuring API keys and secrets
   - Creating a pull request with the workflow
   - Optionally running the workflow immediately

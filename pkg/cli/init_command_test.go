@@ -114,8 +114,8 @@ func TestInitCommandHelp(t *testing.T) {
 		t.Error("Expected help text to mention Copilot")
 	}
 
-	if !strings.Contains(helpText, "Interactive Mode") {
-		t.Error("Expected help text to mention Interactive Mode")
+	if !strings.Contains(helpText, "non-interactive repository setup") {
+		t.Error("Expected help text to mention non-interactive setup")
 	}
 }
 

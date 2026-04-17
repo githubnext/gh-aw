@@ -145,6 +145,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddStringSlice("allowed", c.Reviewers).
+			AddStringSlice("allowed_team_reviewers", c.TeamReviewers).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -368,6 +369,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
 			AddStringSlice("reviewers", c.Reviewers).
+			AddStringSlice("team_reviewers", c.TeamReviewers).
 			AddStringSlice("assignees", c.Assignees).
 			AddTemplatableBool("draft", c.Draft).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).

@@ -540,6 +540,13 @@ func TestParseAllowedReposFromConfig(t *testing.T) {
 			expected: []string{"owner/repo1", "owner/repo2", "other-owner/repo3"},
 		},
 		{
+			name: "allowed-repos as []string",
+			input: map[string]any{
+				"allowed-repos": []string{"owner/repo1", "owner/repo2"},
+			},
+			expected: []string{"owner/repo1", "owner/repo2"},
+		},
+		{
 			name:     "no allowed-repos key",
 			input:    map[string]any{},
 			expected: nil,
