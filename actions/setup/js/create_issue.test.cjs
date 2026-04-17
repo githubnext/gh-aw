@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
 const require = createRequire(import.meta.url);
 const { main, getIssuesToAssignCopilot, resetIssuesToAssignCopilot } = require("./create_issue.cjs");
@@ -300,6 +303,42 @@ describe("create_issue", () => {
       expect(result3.success).toBe(false);
       expect(result3.error).toContain("Max count of 2 reached");
     });
+
+    it("should enforce max count under concurrent calls", async () => {
+      const handler = await main({ max: 1 });
+
+      let releaseCreate;
+      const createGate = new Promise(resolve => {
+        releaseCreate = resolve;
+      });
+      mockGithub.rest.issues.create.mockImplementation(async () => {
+        await createGate;
+        return {
+          data: {
+            number: 123,
+            html_url: "https://github.com/owner/repo/issues/123",
+            title: "Test Issue",
+          },
+        };
+      });
+
+      const pendingCalls = Array.from({ length: 5 }, () =>
+        handler({
+          title: "Concurrent Test Issue",
+          body: "Body",
+        })
+      );
+
+      releaseCreate();
+      const results = await Promise.all(pendingCalls);
+
+      const successes = results.filter(result => result.success);
+      const failures = results.filter(result => !result.success);
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(4);
+      expect(failures.every(result => result.error.includes("Max count of 1 reached"))).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("title prefix", () => {
@@ -477,6 +516,89 @@ describe("create_issue", () => {
 
       const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
       expect(createCall.body).toContain("Related to #456");
+    });
+
+    it("should deduplicate parent issue creation for concurrent grouped calls", async () => {
+      const originalRunnerTemp = process.env.RUNNER_TEMP;
+      const runnerTemp = mkdtempSync(join(tmpdir(), "gh-aw-create-issue-"));
+      const promptsDir = join(runnerTemp, "gh-aw", "prompts");
+      mkdirSync(promptsDir, { recursive: true });
+      writeFileSync(join(promptsDir, "issue_group_parent.md"), "Parent issue for {{group_id}}");
+      process.env.RUNNER_TEMP = runnerTemp;
+
+      try {
+        const handler = await main({ group: true });
+        mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+          data: {
+            total_count: 0,
+            items: [],
+          },
+        });
+
+        let parentIssueNumber = 900;
+        let childIssueNumber = 100;
+        let parentCreateCallCount = 0;
+        let releaseParentCreate;
+        const parentCreateGate = new Promise(resolve => {
+          releaseParentCreate = resolve;
+        });
+
+        mockGithub.rest.issues.create.mockImplementation(async request => {
+          if (request.title.includes("Issue Group")) {
+            parentCreateCallCount++;
+            await parentCreateGate;
+            return {
+              data: {
+                number: parentIssueNumber++,
+                html_url: `https://github.com/${request.owner}/${request.repo}/issues/${parentIssueNumber - 1}`,
+                title: request.title,
+              },
+            };
+          }
+
+          return {
+            data: {
+              number: childIssueNumber++,
+              html_url: `https://github.com/${request.owner}/${request.repo}/issues/${childIssueNumber - 1}`,
+              title: request.title,
+            },
+          };
+        });
+
+        mockGithub.graphql.mockResolvedValue({
+          repository: {
+            issue: {
+              id: "ISSUE_NODE_ID",
+              subIssues: {
+                totalCount: 0,
+              },
+            },
+          },
+          addSubIssue: {
+            subIssue: {
+              id: "SUB_ISSUE_ID",
+              number: 1,
+            },
+          },
+        });
+
+        const callA = handler({ title: "Grouped issue A", body: "Body A" });
+        const callB = handler({ title: "Grouped issue B", body: "Body B" });
+
+        releaseParentCreate();
+        const [resultA, resultB] = await Promise.all([callA, callB]);
+
+        expect(resultA.success).toBe(true);
+        expect(resultB.success).toBe(true);
+        expect(parentCreateCallCount).toBe(1);
+      } finally {
+        if (originalRunnerTemp === undefined) {
+          delete process.env.RUNNER_TEMP;
+        } else {
+          process.env.RUNNER_TEMP = originalRunnerTemp;
+        }
+        rmSync(runnerTemp, { recursive: true, force: true });
+      }
     });
   });
 

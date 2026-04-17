@@ -308,6 +308,8 @@ async function main(config = {}) {
 
   // Cache for parent issue per group ID
   const parentIssueCache = new Map();
+  // Track in-flight parent issue lookups/creations by group ID to dedupe concurrent requests
+  const parentIssuePending = new Map();
 
   // Extract triggering context for footer generation
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
@@ -322,15 +324,6 @@ async function main(config = {}) {
    * @returns {Promise<Object>} Result with success/error status and issue details
    */
   return async function handleCreateIssue(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping create_issue: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
-
     // Merge external resolved temp IDs with our local map
     if (resolvedTemporaryIds) {
       for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
@@ -568,8 +561,16 @@ async function main(config = {}) {
       }
     }
 
-    // Increment processed count only when we are about to create an issue
+    // Atomically enforce max count for issue creation paths.
+    // Keep the check and increment adjacent with no await between them.
     // (group-by-day comment paths return above without consuming a slot)
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping create_issue: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
     processedCount++;
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
@@ -679,25 +680,37 @@ async function main(config = {}) {
         let groupParentNumber = parentIssueCache.get(groupId);
 
         if (!groupParentNumber) {
-          // Not in cache, find or create parent
-          // Parent issue expires 1 day (24 hours) after sub-issues
-          const parentExpiresHours = expiresHours > 0 ? expiresHours + 24 : 0;
-          groupParentNumber = await findOrCreateParentIssue({
-            githubClient: githubClient,
-            groupId,
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            titlePrefix,
-            labels,
-            workflowName,
-            workflowSourceURL,
-            expiresHours: parentExpiresHours,
-          });
+          let pendingParentLookup = parentIssuePending.get(groupId);
+          if (!pendingParentLookup) {
+            // Parent issue expires 1 day (24 hours) after sub-issues
+            const parentExpiresHours = expiresHours > 0 ? expiresHours + 24 : 0;
+            pendingParentLookup = findOrCreateParentIssue({
+              githubClient: githubClient,
+              groupId,
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              titlePrefix,
+              labels,
+              workflowName,
+              workflowSourceURL,
+              expiresHours: parentExpiresHours,
+            }).then(parentNumber => {
+              if (parentNumber) {
+                // Cache the parent issue number for this group
+                parentIssueCache.set(groupId, parentNumber);
+              }
+              return parentNumber;
+            });
 
-          if (groupParentNumber) {
-            // Cache the parent issue number for this group
-            parentIssueCache.set(groupId, groupParentNumber);
+            parentIssuePending.set(
+              groupId,
+              pendingParentLookup.finally(() => {
+                parentIssuePending.delete(groupId);
+              })
+            );
           }
+
+          groupParentNumber = await parentIssuePending.get(groupId);
         }
 
         if (groupParentNumber) {
