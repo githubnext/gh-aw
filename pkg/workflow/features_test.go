@@ -86,6 +86,14 @@ func TestIsFeatureEnabledNoEnv(t *testing.T) {
 	}
 }
 
+func TestIsFeatureEnabledByokCopilotDefaultOn(t *testing.T) {
+	t.Setenv("GH_AW_FEATURES", "")
+	result := isFeatureEnabled(constants.ByokCopilotFeatureFlag, nil)
+	if result != true {
+		t.Errorf("isFeatureEnabled(%q, nil) with no env = %v, want true", constants.ByokCopilotFeatureFlag, result)
+	}
+}
+
 func TestIsFeatureEnabledWithData(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -180,6 +188,46 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 			flag:        constants.CliProxyFeatureFlag,
 			expected:    false,
 			description: "byok-copilot implication should only apply to engine=copilot",
+		},
+		{
+			name:        "byok-copilot defaults to enabled for copilot workflows",
+			envValue:    "",
+			frontmatter: map[string]any{},
+			engineID:    string(constants.CopilotEngine),
+			flag:        constants.ByokCopilotFeatureFlag,
+			expected:    true,
+			description: "byok-copilot should default to enabled",
+		},
+		{
+			name:     "byok-copilot can be disabled with explicit false (case-insensitive key)",
+			envValue: "",
+			frontmatter: map[string]any{
+				"BYOK-copilot": false,
+			},
+			engineID:    string(constants.CopilotEngine),
+			flag:        constants.ByokCopilotFeatureFlag,
+			expected:    false,
+			description: "explicit frontmatter false should disable default byok-copilot behavior",
+		},
+		{
+			name:        "byok default implies cli-proxy for copilot engine",
+			envValue:    "",
+			frontmatter: map[string]any{},
+			engineID:    string(constants.CopilotEngine),
+			flag:        constants.CliProxyFeatureFlag,
+			expected:    true,
+			description: "default byok-copilot should imply cli-proxy for engine=copilot",
+		},
+		{
+			name:     "explicit byok false disables cli-proxy implication",
+			envValue: "",
+			frontmatter: map[string]any{
+				"BYOK-copilot": false,
+			},
+			engineID:    string(constants.CopilotEngine),
+			flag:        constants.CliProxyFeatureFlag,
+			expected:    false,
+			description: "explicit byok-copilot false should disable implicit cli-proxy",
 		},
 	}
 

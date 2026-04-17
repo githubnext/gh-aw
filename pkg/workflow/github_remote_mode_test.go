@@ -108,6 +108,8 @@ permissions:
   issues: read
 engine: copilot
 strict: false
+features:
+  byok-copilot: false
 tools:
   github:
     mode: remote
@@ -126,6 +128,8 @@ permissions:
   issues: read
 engine: copilot
 strict: false
+features:
+  byok-copilot: false
 tools:
   github:
     mode: remote
@@ -387,6 +391,8 @@ permissions:
   issues: read
 engine: copilot
 strict: false
+features:
+  byok-copilot: false
 tools:
   github:
     mode: remote

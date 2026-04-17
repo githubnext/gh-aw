@@ -109,7 +109,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 }
 
 func TestCopilotInstallerCustomVersion(t *testing.T) {
-	// Test that custom version from engine config is used
+	// Test that custom version from engine config is used when byok-copilot is disabled.
 	engine := NewCopilotEngine()
 
 	customVersion := "1.0.0"
@@ -117,6 +117,9 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
 			Version: customVersion,
+		},
+		Features: map[string]any{
+			string(constants.ByokCopilotFeatureFlag): false,
 		},
 	}
 
@@ -205,6 +208,7 @@ func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {
 
 func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
 	// Test that expression version from engine config uses env var injection
+	// when byok-copilot is disabled.
 	engine := NewCopilotEngine()
 
 	expressionVersion := "${{ inputs.engine-version }}"
@@ -212,6 +216,9 @@ func TestCopilotInstallerExpressionVersion_ViaEngineConfig(t *testing.T) {
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
 			Version: expressionVersion,
+		},
+		Features: map[string]any{
+			string(constants.ByokCopilotFeatureFlag): false,
 		},
 	}
 

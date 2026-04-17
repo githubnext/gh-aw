@@ -423,15 +423,15 @@ Debug workflow using script mode for custom actions.
 
 #### Copilot BYOK Mode (`features.byok-copilot`)
 
-Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling three required behaviors: injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path, implicitly enabling `cli-proxy`, and forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+`byok-copilot` is **enabled by default** for Copilot workflows. It enables Copilot offline Bring Your Own Key (BYOK) mode by bundling three behaviors: injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path, implicitly enabling `cli-proxy`, and forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
 
 ```yaml wrap
 engine: copilot
 features:
-  byok-copilot: true
+  byok-copilot: false
 ```
 
-Without this flag, BYOK mode requires manual composition of all three behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+Set `features.byok-copilot: false` to opt out.
 
 > [!IMPORTANT]
 > `byok-copilot` is a gh-aw convenience extension point, not an enforcement boundary. gh-aw does not enforce Copilot BYOK usage.

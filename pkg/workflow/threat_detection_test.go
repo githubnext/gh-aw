@@ -1021,10 +1021,9 @@ func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
 	}
 }
 
-// TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
-// Copilot CLI's native default model for the detection step when no model is specified.
-// Detection now matches main agent behavior: both use ${{ vars.* || ” }} so the
-// Copilot CLI picks its native default (currently claude-sonnet-4.6).
+// TestCopilotDetectionDefaultModel verifies copilot model resolution in detection steps.
+// With default-on byok-copilot, workflows without an explicit model use a non-empty
+// fallback: ${{ vars.* || '<default-byok-model>' }}.
 func TestCopilotDetectionDefaultModel(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -1043,9 +1042,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			// Detection uses env var fallback (same pattern as main agent), allowing
-			// the Copilot CLI to pick its native default (currently claude-sonnet-4.6)
-			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "copilot engine with custom model uses specified model",
@@ -1091,7 +1088,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '' }}",
+			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 		},
 		{
 			name: "claude engine does not add model parameter",

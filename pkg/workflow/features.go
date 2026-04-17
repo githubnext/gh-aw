@@ -67,6 +67,12 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 	// Fall back to checking the environment variable
 	features := os.Getenv("GH_AW_FEATURES")
 	if features == "" {
+		// byok-copilot is enabled by default and can be explicitly disabled
+		// via features.byok-copilot: false in frontmatter.
+		if flag == constants.ByokCopilotFeatureFlag {
+			featuresLog.Printf("Feature not found, GH_AW_FEATURES empty: %s=true (default)", flagLower)
+			return true
+		}
 		featuresLog.Printf("Feature not found, GH_AW_FEATURES empty: %s=false", flagLower)
 		return false
 	}
@@ -81,6 +87,11 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 			featuresLog.Printf("Feature found in GH_AW_FEATURES: %s=true", flagLower)
 			return true
 		}
+	}
+
+	if flag == constants.ByokCopilotFeatureFlag {
+		featuresLog.Printf("Feature not found in GH_AW_FEATURES: %s=true (default)", flagLower)
+		return true
 	}
 
 	featuresLog.Printf("Feature not found: %s=false", flagLower)
