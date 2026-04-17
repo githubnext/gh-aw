@@ -72,6 +72,7 @@ Examples:
 }
 
 // checkAndLogGHVersion checks if gh CLI is available and logs its version.
+// Diagnostics are emitted through the debug logger only.
 func checkAndLogGHVersion() {
 	cmd := workflow.ExecGH("version")
 	output, err := cmd.CombinedOutput()

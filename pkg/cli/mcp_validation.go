@@ -50,6 +50,7 @@ func GetBinaryPath() (string, error) {
 // logAndValidateBinaryPath determines the binary path, logs it, and validates it exists.
 // Returns the detected binary path and an error if the path cannot be determined or if the file doesn't exist.
 // This is a helper used by both runMCPServer and validateMCPServerConfiguration.
+// Diagnostics are emitted through the debug logger only.
 func logAndValidateBinaryPath() (string, error) {
 	binaryPath, err := GetBinaryPath()
 	if err != nil {
@@ -219,6 +220,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 
 // validateMCPServerConfiguration validates that the CLI is properly configured
 // by running the status command as a test.
+// Diagnostics are emitted through the debug logger only.
 func validateMCPServerConfiguration(cmdPath string) error {
 	mcpValidationLog.Printf("Validating MCP server configuration: cmdPath=%s", cmdPath)
 
