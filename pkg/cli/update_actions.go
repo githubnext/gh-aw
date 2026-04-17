@@ -109,7 +109,7 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 			latestVer := parseVersion(latestVersion)
 			if cliVer != nil && latestVer != nil && latestVer.IsNewer(cliVer) {
 				cappedVersion := semverutil.EnsureVPrefix(cliVersion)
-				updateLog.Printf("Capping %s update from %s to CLI version %s (latest %s exceeds running CLI)", entry.Repo, latestVersion, cappedVersion, latestVersion)
+				updateLog.Printf("Capping %s update to CLI version %s (latest available %s exceeds running CLI)", entry.Repo, cappedVersion, latestVersion)
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s: capping update target to CLI version %s (latest %s is newer than running CLI)", entry.Repo, cappedVersion, latestVersion)))
 				}
