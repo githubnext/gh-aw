@@ -1644,6 +1644,7 @@ describe("sendJobConclusionSpan", () => {
     statSpy.mockRestore();
     expect(mockFetch).toHaveBeenCalledOnce();
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.resourceSpans[0].scopeSpans[0].spans).toHaveLength(1);
     const span = body.resourceSpans[0].scopeSpans[0].spans[0];
     expect(span.name).toBe("gh-aw.safe-outputs.conclusion");
   });
