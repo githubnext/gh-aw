@@ -55,6 +55,8 @@ gh extension install github/gh-aw
 
 ### Step 2 - Add the sample workflow and trigger a run
 
+The `gh aw add-wizard` argument uses the format `<owner>/<repository>/<workflow-id>`. In this guide, `githubnext/agentics/daily-repo-status` points to the public workflow catalog in the [`githubnext/agentics` repository](https://github.com/githubnext/agentics/tree/main/workflows), and selects `workflows/daily-repo-status.md`.
+
 From your repository root run:
 
 ```text wrap
@@ -65,9 +67,29 @@ This will take you through an interactive process to:
 
 1. **Check prerequisites** - Verify repository permissions.
 2. **Select an AI Engine** - Choose between Copilot, Claude, or Codex.
-3. **Set up the required secret** - [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) (a separate GitHub token with Copilot access — distinct from the default `GITHUB_TOKEN`), [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key). See [Authentication](/gh-aw/reference/auth/) for setup instructions.
+3. **Set up the required secret** - [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token), [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key). See [Authentication](/gh-aw/reference/auth/) and [Token Reference](/gh-aw/reference/tokens/) for details.
 4. **Add the workflow** - Adds the workflow and lock file to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
+
+#### If you choose Copilot, create `COPILOT_GITHUB_TOKEN` first
+
+`GITHUB_TOKEN` and `COPILOT_GITHUB_TOKEN` are different tokens with different jobs:
+
+- `GITHUB_TOKEN` is created automatically by GitHub Actions for repository operations.
+- `COPILOT_GITHUB_TOKEN` is a separate fine-grained PAT used by Copilot CLI inference.
+
+`GITHUB_TOKEN` does not include Copilot permissions, so Copilot engine runs need `COPILOT_GITHUB_TOKEN`.
+
+To create it:
+
+1. Open [Create fine-grained PAT for `COPILOT_GITHUB_TOKEN`](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read).
+2. Set **Resource owner** to your personal account.
+3. Under **Permissions → Account permissions**, set **Copilot Requests: Read**.
+4. Generate the token, then save it as a repository secret named `COPILOT_GITHUB_TOKEN`.
+
+   ```text wrap
+   gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
+   ```
 
 > [!TIP]
 > **Having trouble?** Check your [repository secrets](/gh-aw/reference/auth/), see the [FAQ](/gh-aw/reference/faq/) and [Common Issues](/gh-aw/troubleshooting/common-issues/).

@@ -246,6 +246,14 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
+					label: 'New here? Start with these 3 pages',
+					items: [
+						{ label: '1. Quick Start', link: '/setup/quick-start/' },
+						{ label: '2. How Agentic Workflows Work', link: '/introduction/how-they-work/' },
+						{ label: '3. FAQ', link: '/reference/faq/' },
+					],
+				},
+				{
 					label: 'Introduction',
 					autogenerate: { directory: 'introduction' },
 				},
