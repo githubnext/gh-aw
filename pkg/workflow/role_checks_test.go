@@ -182,7 +182,8 @@ Test that on.roles supports a single string permission value.`
 
 	compiledStr := string(compiledContent)
 	assert.Contains(t, compiledStr, "id: check_membership", "Compiled workflow should include membership checks for role-gated triggers")
-	assert.Contains(t, compiledStr, "write", "Compiled workflow should require the single role provided as a string")
+	assert.Contains(t, compiledStr, `GH_AW_REQUIRED_ROLES: "write"`, "Compiled workflow should require the single role provided as a string")
+	assert.NotContains(t, compiledStr, `GH_AW_REQUIRED_ROLES: "admin,maintainer,write"`, "Compiled workflow should not fall back to default role list when a single role string is provided")
 }
 
 func TestInferEventsFromTriggers(t *testing.T) {
