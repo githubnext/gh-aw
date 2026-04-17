@@ -174,6 +174,20 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 	}
 }
 
+func TestCodexEngineExecutionUsesWritableCodexHome(t *testing.T) {
+	engine := NewCodexEngine()
+
+	steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow"}, "/tmp/gh-aw/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected at least one execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "CODEX_HOME: /tmp/gh-aw/mcp-config") {
+		t.Errorf("Expected CODEX_HOME to use writable /tmp path, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	engine := NewCodexEngine()
 
