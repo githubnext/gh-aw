@@ -32,6 +32,7 @@ safe-outputs:
     title-prefix: "[ai] "         # prefix for titles
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
+    team-reviewers: [platform-reviewers] # team slugs to request as reviewers
     assignees: [user1]            # assignees for fallback issues (including protected-files and PR creation failure fallbacks)
     draft: true                   # create as draft — enforced as policy (default: true)
     max: 3                        # max PRs per run (default: 1)
@@ -228,12 +229,13 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 ## Add Reviewer (`add-reviewer:`)
 
-Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames.
+Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames and `team-reviewers` to restrict to specific team slugs.
 
 ```yaml wrap
 safe-outputs:
   add-reviewer:
-    reviewers: [user1, copilot]  # restrict to specific reviewers
+    reviewers: [user1, copilot]  # restrict to specific user/bot reviewers
+    team-reviewers: [platform-reviewers] # restrict to specific team reviewers
     max: 3                       # max reviewers (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository

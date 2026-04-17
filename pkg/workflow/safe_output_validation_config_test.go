@@ -195,6 +195,7 @@ func TestValidationConfigConsistency(t *testing.T) {
 		"requiresOneOf:title,body":               true,
 		"requiresOneOf:title,body,labels":        true,
 		"requiresOneOf:issue_number,pull_number": true,
+		"requiresOneOf:reviewers,team_reviewers": true,
 		"startLineLessOrEqualLine":               true,
 		"parentAndSubDifferent":                  true,
 	}
