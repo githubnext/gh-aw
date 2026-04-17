@@ -2492,7 +2492,7 @@ jobs:
         run: |
           echo "Cloning github/gh-aw-marketplace repository..."
           cd /tmp
-          git clone --depth 1 --filter=blob:none https://github.com/github/gh-aw-marketplace.git
+          git clone --depth 1 https://github.com/github/gh-aw-marketplace.git
           echo "✅ Repository cloned successfully"
 
       - name: Compile gh-aw-marketplace workflows
@@ -2513,7 +2513,7 @@ jobs:
           echo "Compiling workflows from: $WORKFLOW_DIR"
           ./gh-aw compile --dir "$WORKFLOW_DIR" --strict --no-check-update 2>&1 | tee "$LOG_FILE"
 
-          WARNINGS=$(grep -nE '^[[:space:]]*(⚠|Warning:|WARN[[:space:]:])' "$LOG_FILE" || true)
+          WARNINGS=$(grep -nEi '(⚠|(^|[[:space:]])(warning:|warnings?:|warn[[:space:]:]))' "$LOG_FILE" || true)
           if [ -n "$WARNINGS" ]; then
             echo "❌ Compilation produced warnings; failing the job."
             echo "$WARNINGS"
