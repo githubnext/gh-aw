@@ -331,7 +331,8 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 
 				if len(validationResult.MissingPermissions) > 0 {
 					downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
-					if c.strictMode && !downgradeToWarning {
+					strictError := c.strictMode && !downgradeToWarning
+					if strictError {
 						// In strict mode, missing permissions are errors
 						return formatCompilerError(markdownPath, "error", message, nil)
 					} else {
@@ -438,7 +439,7 @@ func shouldDowngradeDefaultToolsetPermissionError(githubTool *GitHubToolConfig) 
 		return true
 	}
 
-	return len(toolsets) == 1 && strings.TrimSpace(toolsets[0]) == "default"
+	return len(toolsets) == 1 && toolsets[0] == "default"
 }
 
 // generateAndValidateYAML generates GitHub Actions YAML and validates
