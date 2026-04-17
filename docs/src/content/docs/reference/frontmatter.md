@@ -237,6 +237,8 @@ on:
   roles: all                         # Allow any user (⚠️ use with caution)
 ```
 
+You can also use a single role string, for example `roles: write`.
+
 Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
 
 > [!TIP]

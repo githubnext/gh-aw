@@ -148,6 +148,43 @@ Test that role membership check uses GITHUB_TOKEN with bots.`
 	}
 }
 
+func TestRoleMembershipSupportsSingleRoleString(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "role-membership-single-role-string-test")
+
+	compiler := NewCompiler()
+
+	frontmatter := `---
+on:
+  pull_request:
+    types: [opened]
+  roles: write
+---
+
+# Test Workflow
+Test that on.roles supports a single string permission value.`
+
+	workflowPath := filepath.Join(tmpDir, "role-membership-single-role-string.md")
+	err := os.WriteFile(workflowPath, []byte(frontmatter), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Expected workflow with on.roles as a single string to compile successfully: %v", err)
+	}
+
+	outputPath := filepath.Join(tmpDir, "role-membership-single-role-string.lock.yml")
+	compiledContent, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	compiledStr := string(compiledContent)
+	assert.Contains(t, compiledStr, "id: check_membership", "Compiled workflow should include membership checks for role-gated triggers")
+	assert.Contains(t, compiledStr, "write", "Compiled workflow should require the single role provided as a string")
+}
+
 func TestInferEventsFromTriggers(t *testing.T) {
 	c := &Compiler{}
 
