@@ -9,47 +9,47 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var opencodeLog = logger.New("workflow:opencode_engine")
+var crushLog = logger.New("workflow:crush_engine")
 
-// OpenCodeEngine represents the OpenCode CLI agentic engine.
-// OpenCode is a provider-agnostic, open-source AI coding agent that supports
+// CrushEngine represents the Crush CLI agentic engine.
+// Crush is a provider-agnostic, open-source AI coding agent that supports
 // 75+ models via BYOK (Bring Your Own Key).
-type OpenCodeEngine struct {
+type CrushEngine struct {
 	BaseEngine
 }
 
-func NewOpenCodeEngine() *OpenCodeEngine {
-	return &OpenCodeEngine{
+func NewCrushEngine() *CrushEngine {
+	return &CrushEngine{
 		BaseEngine: BaseEngine{
-			id:                     "opencode",
-			displayName:            "OpenCode",
-			description:            "OpenCode CLI with headless mode and multi-provider LLM support",
-			experimental:           true,                             // Start as experimental until smoke tests pass consistently
-			supportsToolsAllowlist: false,                            // OpenCode manages its own tool permissions via opencode.jsonc
-			supportsMaxTurns:       false,                            // No --max-turns flag in opencode run
-			supportsWebSearch:      false,                            // Has built-in websearch but not exposed via gh-aw neutral tools yet
-			llmGatewayPort:         constants.OpenCodeLLMGatewayPort, // Port 10004
+			id:                     "crush",
+			displayName:            "Crush",
+			description:            "Crush CLI with headless mode and multi-provider LLM support",
+			experimental:           true,                          // Start as experimental until smoke tests pass consistently
+			supportsToolsAllowlist: false,                         // Crush manages its own tool permissions via .crush.json
+			supportsMaxTurns:       false,                         // No --max-turns flag in crush run
+			supportsWebSearch:      false,                         // Has built-in websearch but not exposed via gh-aw neutral tools yet
+			llmGatewayPort:         constants.CrushLLMGatewayPort, // Port 10004
 		},
 	}
 }
 
-// SupportsLLMGateway returns the LLM gateway port for OpenCode engine
-func (e *OpenCodeEngine) SupportsLLMGateway() int {
-	return constants.OpenCodeLLMGatewayPort
+// SupportsLLMGateway returns the LLM gateway port for Crush engine
+func (e *CrushEngine) SupportsLLMGateway() int {
+	return constants.CrushLLMGatewayPort
 }
 
-// GetModelEnvVarName returns the native environment variable name that the OpenCode CLI uses
-// for model selection. Setting OPENCODE_MODEL is equivalent to passing --model to the CLI.
-func (e *OpenCodeEngine) GetModelEnvVarName() string {
-	return constants.OpenCodeCLIModelEnvVar
+// GetModelEnvVarName returns the native environment variable name that the Crush CLI uses
+// for model selection. Setting CRUSH_MODEL is equivalent to passing --model to the CLI.
+func (e *CrushEngine) GetModelEnvVarName() string {
+	return constants.CrushCLIModelEnvVar
 }
 
-// GetRequiredSecretNames returns the list of secrets required by the OpenCode engine.
-// By default, OpenCode routes through the Copilot API using COPILOT_GITHUB_TOKEN
+// GetRequiredSecretNames returns the list of secrets required by the Crush engine.
+// By default, Crush routes through the Copilot API using COPILOT_GITHUB_TOKEN
 // (or ${{ github.token }} when copilot-requests feature is enabled).
 // Additional provider API keys can be added via engine.env overrides.
-func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	opencodeLog.Print("Collecting required secrets for OpenCode engine")
+func (e *CrushEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	crushLog.Print("Collecting required secrets for Crush engine")
 	var secrets []string
 
 	// Default: Copilot routing via COPILOT_GITHUB_TOKEN.
@@ -72,7 +72,7 @@ func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []st
 
 	// Add GitHub token for GitHub MCP server if present
 	if hasGitHubTool(workflowData.ParsedTools) {
-		opencodeLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
+		crushLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
 		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
 	}
 
@@ -82,99 +82,98 @@ func (e *OpenCodeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []st
 		secrets = append(secrets, varName)
 	}
 	if len(headerSecrets) > 0 {
-		opencodeLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
+		crushLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
 	}
 
 	return secrets
 }
 
-// GetInstallationSteps returns the GitHub Actions steps needed to install OpenCode CLI
-func (e *OpenCodeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	opencodeLog.Printf("Generating installation steps for OpenCode engine: workflow=%s", workflowData.Name)
+// GetInstallationSteps returns the GitHub Actions steps needed to install Crush CLI
+func (e *CrushEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	crushLog.Printf("Generating installation steps for Crush engine: workflow=%s", workflowData.Name)
 
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		opencodeLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		crushLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
 		return []GitHubActionStep{}
 	}
 
 	npmSteps := BuildStandardNpmEngineInstallSteps(
-		"opencode-ai",
-		string(constants.DefaultOpenCodeVersion),
-		"Install OpenCode CLI",
-		"opencode",
+		"@charmland/crush",
+		string(constants.DefaultCrushVersion),
+		"Install Crush CLI",
+		"crush",
 		workflowData,
 	)
 	return BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 }
 
-// GetSecretValidationStep returns the secret validation step for the OpenCode engine.
+// GetSecretValidationStep returns the secret validation step for the Crush engine.
 // Returns an empty step if copilot-requests feature is enabled (uses GitHub Actions token).
-func (e *OpenCodeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+func (e *CrushEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	if isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData) {
-		opencodeLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
+		crushLog.Print("Skipping secret validation step: copilot-requests feature enabled, using GitHub Actions token")
 		return GitHubActionStep{}
 	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
 		[]string{"COPILOT_GITHUB_TOKEN"},
-		"OpenCode CLI",
-		"https://github.github.com/gh-aw/reference/engines/#opencode",
+		"Crush CLI",
+		"https://github.github.com/gh-aw/reference/engines/#crush",
 	)
 }
 
-// GetAgentManifestFiles returns OpenCode-specific instruction files that should be
+// GetAgentManifestFiles returns Crush-specific instruction files that should be
 // treated as security-sensitive manifests. Modifying these files can change the
 // agent's instructions, permissions, or configuration on the next run.
-// opencode.jsonc is the primary OpenCode config file; AGENTS.md is the cross-engine
-// convention that OpenCode also reads.
-func (e *OpenCodeEngine) GetAgentManifestFiles() []string {
-	return []string{"opencode.jsonc", "AGENTS.md"}
+// .crush.json is the primary Crush config file; AGENTS.md is the cross-engine
+// convention that Crush also reads.
+func (e *CrushEngine) GetAgentManifestFiles() []string {
+	return []string{".crush.json", "AGENTS.md"}
 }
 
-// GetAgentManifestPathPrefixes returns OpenCode-specific config directory prefixes
+// GetAgentManifestPathPrefixes returns Crush-specific config directory prefixes
 // that must be protected from fork PR injection.
-// The .opencode/ directory contains agent configuration, instructions, and other
+// The .crush/ directory contains agent configuration, instructions, and other
 // settings that could alter agent behaviour.
-func (e *OpenCodeEngine) GetAgentManifestPathPrefixes() []string {
-	return []string{".opencode/"}
+func (e *CrushEngine) GetAgentManifestPathPrefixes() []string {
+	return []string{".crush/"}
 }
 
-// GetDeclaredOutputFiles returns the output files that OpenCode may produce.
-func (e *OpenCodeEngine) GetDeclaredOutputFiles() []string {
+// GetDeclaredOutputFiles returns the output files that Crush may produce.
+func (e *CrushEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
 
-// GetExecutionSteps returns the GitHub Actions steps for executing OpenCode
-func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	opencodeLog.Printf("Generating execution steps for OpenCode engine: workflow=%s, firewall=%v",
+// GetExecutionSteps returns the GitHub Actions steps for executing Crush
+func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	crushLog.Printf("Generating execution steps for Crush engine: workflow=%s, firewall=%v",
 		workflowData.Name, isFirewallEnabled(workflowData))
 
 	var steps []GitHubActionStep
 
-	// Step 1: Write opencode.jsonc config (permissions)
-	configStep := e.generateOpenCodeConfigStep(workflowData)
+	// Step 1: Write .crush.json config (permissions)
+	configStep := e.generateCrushConfigStep(workflowData)
 	steps = append(steps, configStep)
 
 	// Step 2: Build CLI arguments
-	var opencodeArgs []string
+	var crushArgs []string
 
 	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
 
 	// Enable verbose logging for debugging in CI
-	opencodeArgs = append(opencodeArgs, "--print-logs")
-	opencodeArgs = append(opencodeArgs, "--log-level", "DEBUG")
+	crushArgs = append(crushArgs, "--verbose")
 
-	// Prompt from file (positional argument to `opencode run`).
+	// Prompt from file (positional argument to `crush run`).
 	// Keep this outside shellJoinArgs so command substitution expands at runtime.
 	promptArg := "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
 
 	// Build command name
-	commandName := "opencode"
+	commandName := "crush"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		commandName = workflowData.EngineConfig.Command
 	}
-	opencodeCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(opencodeArgs), promptArg)
+	crushCommand := fmt.Sprintf("%s run %s %s", commandName, shellJoinArgs(crushArgs), promptArg)
 
 	// AWF wrapping
 	firewallEnabled := isFirewallEnabled(workflowData)
@@ -185,7 +184,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		if modelConfigured {
 			model = workflowData.EngineConfig.Model
 		}
-		allowedDomains := GetOpenCodeAllowedDomainsWithToolsAndRuntimes(
+		allowedDomains := GetCrushAllowedDomainsWithToolsAndRuntimes(
 			model,
 			workflowData.NetworkPermissions,
 			workflowData.Tools,
@@ -193,18 +192,18 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 		)
 
 		npmPathSetup := GetNpmBinPathSetup()
-		opencodeCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, opencodeCommand)
+		crushCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, crushCommand)
 
 		command = BuildAWFCommand(AWFCommandConfig{
-			EngineName:     "opencode",
-			EngineCommand:  opencodeCommandWithPath,
+			EngineName:     "crush",
+			EngineCommand:  crushCommandWithPath,
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
 			AllowedDomains: allowedDomains,
 		})
 	} else {
-		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", opencodeCommand, logFile)
+		command = fmt.Sprintf("set -o pipefail\n%s 2>&1 | tee -a %s", crushCommand, logFile)
 	}
 
 	// Environment variables — default to Copilot routing (OpenAI-compatible API).
@@ -215,7 +214,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	useCopilotRequests := isFeatureEnabled(constants.CopilotRequestsFeatureFlag, workflowData)
 	if useCopilotRequests {
 		openaiAPIKey = "${{ github.token }}"
-		opencodeLog.Print("Using GitHub Actions token as OPENAI_API_KEY (copilot-requests feature enabled)")
+		crushLog.Print("Using GitHub Actions token as OPENAI_API_KEY (copilot-requests feature enabled)")
 	} else {
 		openaiAPIKey = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 	}
@@ -229,13 +228,13 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 
 	// MCP config path
 	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/opencode.jsonc"
+		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.crush.json"
 	}
 
 	// LLM gateway base URL override (default Copilot routing via OpenAI-compatible endpoint)
 	if firewallEnabled {
 		env["OPENAI_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d",
-			constants.OpenCodeLLMGatewayPort)
+			constants.CrushLLMGatewayPort)
 	}
 
 	// Safe outputs env
@@ -243,9 +242,9 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 
 	// Model env var (only when explicitly configured)
 	if modelConfigured {
-		opencodeLog.Printf("Setting %s env var for model: %s",
-			constants.OpenCodeCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.OpenCodeCLIModelEnvVar] = workflowData.EngineConfig.Model
+		crushLog.Printf("Setting %s env var for model: %s",
+			constants.CrushCLIModelEnvVar, workflowData.EngineConfig.Model)
+		env[constants.CrushCLIModelEnvVar] = workflowData.EngineConfig.Model
 	}
 
 	// Custom env from engine config (allows provider override)
@@ -261,7 +260,7 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 
 	// Build execution step
 	stepLines := []string{
-		"      - name: Execute OpenCode CLI",
+		"      - name: Execute Crush CLI",
 		"        id: agentic_execution",
 	}
 	allowedSecrets := e.GetRequiredSecretNames(workflowData)
@@ -272,16 +271,16 @@ func (e *OpenCodeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile s
 	return steps
 }
 
-// generateOpenCodeConfigStep writes opencode.jsonc with all permissions set to allow
+// generateCrushConfigStep writes .crush.json with all permissions set to allow
 // to prevent CI hanging on permission prompts.
-func (e *OpenCodeEngine) generateOpenCodeConfigStep(_ *WorkflowData) GitHubActionStep {
+func (e *CrushEngine) generateCrushConfigStep(_ *WorkflowData) GitHubActionStep {
 	// Build the config JSON with all permissions set to allow
 	configJSON := `{"agent":{"build":{"permissions":{"bash":"allow","edit":"allow","read":"allow","glob":"allow","grep":"allow","write":"allow","webfetch":"allow","websearch":"allow"}}}}`
 
 	// Shell command to write or merge the config with restrictive permissions
 	command := fmt.Sprintf(`umask 077
 mkdir -p "$GITHUB_WORKSPACE"
-CONFIG="$GITHUB_WORKSPACE/opencode.jsonc"
+CONFIG="$GITHUB_WORKSPACE/.crush.json"
 BASE_CONFIG='%s'
 if [ -f "$CONFIG" ]; then
   MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$CONFIG")" '$existing * $base')
@@ -291,7 +290,7 @@ else
 fi
 chmod 600 "$CONFIG"`, configJSON)
 
-	stepLines := []string{"      - name: Write OpenCode configuration"}
+	stepLines := []string{"      - name: Write Crush configuration"}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
 	return GitHubActionStep(stepLines)
 }

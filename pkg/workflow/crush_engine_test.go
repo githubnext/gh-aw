@@ -11,25 +11,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOpenCodeEngine(t *testing.T) {
-	engine := NewOpenCodeEngine()
+func TestCrushEngine(t *testing.T) {
+	engine := NewCrushEngine()
 
 	t.Run("engine identity", func(t *testing.T) {
-		assert.Equal(t, "opencode", engine.GetID(), "Engine ID should be 'opencode'")
-		assert.Equal(t, "OpenCode", engine.GetDisplayName(), "Display name should be 'OpenCode'")
+		assert.Equal(t, "crush", engine.GetID(), "Engine ID should be 'crush'")
+		assert.Equal(t, "Crush", engine.GetDisplayName(), "Display name should be 'Crush'")
 		assert.NotEmpty(t, engine.GetDescription(), "Description should not be empty")
-		assert.True(t, engine.IsExperimental(), "OpenCode engine should be experimental")
+		assert.True(t, engine.IsExperimental(), "Crush engine should be experimental")
 	})
 
 	t.Run("capabilities", func(t *testing.T) {
 		assert.False(t, engine.SupportsToolsAllowlist(), "Should not support tools allowlist")
 		assert.False(t, engine.SupportsMaxTurns(), "Should not support max turns")
 		assert.False(t, engine.SupportsWebSearch(), "Should not support built-in web search")
-		assert.Equal(t, constants.OpenCodeLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on port 10004")
+		assert.Equal(t, constants.CrushLLMGatewayPort, engine.SupportsLLMGateway(), "Should support LLM gateway on port 10004")
 	})
 
 	t.Run("model env var name", func(t *testing.T) {
-		assert.Equal(t, "OPENCODE_MODEL", engine.GetModelEnvVarName(), "Should return OPENCODE_MODEL")
+		assert.Equal(t, "CRUSH_MODEL", engine.GetModelEnvVarName(), "Should return CRUSH_MODEL")
 	})
 
 	t.Run("required secrets basic", func(t *testing.T) {
@@ -94,13 +94,13 @@ func TestOpenCodeEngine(t *testing.T) {
 
 	t.Run("agent manifest files", func(t *testing.T) {
 		files := engine.GetAgentManifestFiles()
-		assert.Contains(t, files, "opencode.jsonc", "Should include opencode.jsonc config file")
+		assert.Contains(t, files, ".crush.json", "Should include .crush.json config file")
 		assert.Contains(t, files, "AGENTS.md", "Should include cross-engine AGENTS.md")
 	})
 
 	t.Run("agent manifest path prefixes", func(t *testing.T) {
 		prefixes := engine.GetAgentManifestPathPrefixes()
-		assert.Contains(t, prefixes, ".opencode/", "Should include .opencode/ config directory")
+		assert.Contains(t, prefixes, ".crush/", "Should include .crush/ config directory")
 	})
 
 	t.Run("secret validation step without copilot-requests", func(t *testing.T) {
@@ -124,8 +124,8 @@ func TestOpenCodeEngine(t *testing.T) {
 	})
 }
 
-func TestOpenCodeEngineInstallation(t *testing.T) {
-	engine := NewOpenCodeEngine()
+func TestCrushEngineInstallation(t *testing.T) {
+	engine := NewCrushEngine()
 
 	t.Run("standard installation", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -135,7 +135,7 @@ func TestOpenCodeEngineInstallation(t *testing.T) {
 		steps := engine.GetInstallationSteps(workflowData)
 		require.NotEmpty(t, steps, "Should generate installation steps")
 
-		// Should have at least: Node.js setup + Install OpenCode
+		// Should have at least: Node.js setup + Install Crush
 		assert.GreaterOrEqual(t, len(steps), 2, "Should have at least 2 installation steps")
 	})
 
@@ -143,7 +143,7 @@ func TestOpenCodeEngineInstallation(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				Command: "/custom/opencode",
+				Command: "/custom/crush",
 			},
 		}
 
@@ -178,8 +178,8 @@ func TestOpenCodeEngineInstallation(t *testing.T) {
 	})
 }
 
-func TestOpenCodeEngineExecution(t *testing.T) {
-	engine := NewOpenCodeEngine()
+func TestCrushEngineExecution(t *testing.T) {
+	engine := NewCrushEngine()
 
 	t.Run("basic execution", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -189,12 +189,12 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate config step and execution step")
 
-		// steps[0] = Write OpenCode config, steps[1] = Execute OpenCode CLI
+		// steps[0] = Write Crush config, steps[1] = Execute Crush CLI
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "name: Execute OpenCode CLI", "Should have correct step name")
+		assert.Contains(t, stepContent, "name: Execute Crush CLI", "Should have correct step name")
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
-		assert.Contains(t, stepContent, "opencode run", "Should invoke opencode run command")
+		assert.Contains(t, stepContent, "crush run", "Should invoke crush run command")
 		assert.Contains(t, stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "OPENAI_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Should set OPENAI_API_KEY from COPILOT_GITHUB_TOKEN")
@@ -229,8 +229,8 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		// Model is passed via the native OPENCODE_MODEL env var
-		assert.Contains(t, stepContent, "OPENCODE_MODEL: anthropic/claude-sonnet-4-20250514", "Should set OPENCODE_MODEL env var")
+		// Model is passed via the native CRUSH_MODEL env var
+		assert.Contains(t, stepContent, "CRUSH_MODEL: anthropic/claude-sonnet-4-20250514", "Should set CRUSH_MODEL env var")
 	})
 
 	t.Run("without model no model env var", func(t *testing.T) {
@@ -243,7 +243,7 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.NotContains(t, stepContent, "OPENCODE_MODEL", "Should not include OPENCODE_MODEL when model is unconfigured")
+		assert.NotContains(t, stepContent, "CRUSH_MODEL", "Should not include CRUSH_MODEL when model is unconfigured")
 	})
 
 	t.Run("with MCP servers", func(t *testing.T) {
@@ -262,14 +262,14 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "GH_AW_MCP_CONFIG: ${{ github.workspace }}/opencode.jsonc", "Should set MCP config env var")
+		assert.Contains(t, stepContent, "GH_AW_MCP_CONFIG: ${{ github.workspace }}/.crush.json", "Should set MCP config env var")
 	})
 
 	t.Run("with custom command", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				Command: "/custom/opencode",
+				Command: "/custom/crush",
 			},
 		}
 
@@ -278,7 +278,7 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, stepContent, "/custom/opencode", "Should use custom command")
+		assert.Contains(t, stepContent, "/custom/crush", "Should use custom command")
 	})
 
 	t.Run("engine env overrides default token expression", func(t *testing.T) {
@@ -330,15 +330,15 @@ func TestOpenCodeEngineExecution(t *testing.T) {
 		configContent := strings.Join(steps[0], "\n")
 		execContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, configContent, "Write OpenCode configuration", "First step should be Write OpenCode configuration")
-		assert.Contains(t, configContent, "opencode.jsonc", "Config step should reference opencode.jsonc")
+		assert.Contains(t, configContent, "Write Crush configuration", "First step should be Write Crush configuration")
+		assert.Contains(t, configContent, ".crush.json", "Config step should reference .crush.json")
 		assert.Contains(t, configContent, "permissions", "Config step should set permissions")
-		assert.Contains(t, execContent, "Execute OpenCode CLI", "Second step should be Execute OpenCode CLI")
+		assert.Contains(t, execContent, "Execute Crush CLI", "Second step should be Execute Crush CLI")
 	})
 }
 
-func TestOpenCodeEngineFirewallIntegration(t *testing.T) {
-	engine := NewOpenCodeEngine()
+func TestCrushEngineFirewallIntegration(t *testing.T) {
+	engine := NewCrushEngine()
 
 	t.Run("firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
@@ -387,20 +387,20 @@ func TestOpenCodeEngineFirewallIntegration(t *testing.T) {
 
 func TestExtractProviderFromModel(t *testing.T) {
 	t.Run("standard provider/model format", func(t *testing.T) {
-		assert.Equal(t, "anthropic", extractProviderFromModel("anthropic/claude-sonnet-4-20250514"))
-		assert.Equal(t, "openai", extractProviderFromModel("openai/gpt-4.1"))
-		assert.Equal(t, "google", extractProviderFromModel("google/gemini-2.5-pro"))
+		assert.Equal(t, "anthropic", extractCrushProviderFromModel("anthropic/claude-sonnet-4-20250514"))
+		assert.Equal(t, "openai", extractCrushProviderFromModel("openai/gpt-4.1"))
+		assert.Equal(t, "google", extractCrushProviderFromModel("google/gemini-2.5-pro"))
 	})
 
 	t.Run("empty model defaults to copilot", func(t *testing.T) {
-		assert.Equal(t, "copilot", extractProviderFromModel(""))
+		assert.Equal(t, "copilot", extractCrushProviderFromModel(""))
 	})
 
 	t.Run("no slash defaults to copilot", func(t *testing.T) {
-		assert.Equal(t, "copilot", extractProviderFromModel("claude-sonnet-4-20250514"))
+		assert.Equal(t, "copilot", extractCrushProviderFromModel("claude-sonnet-4-20250514"))
 	})
 
 	t.Run("case insensitive provider", func(t *testing.T) {
-		assert.Equal(t, "openai", extractProviderFromModel("OpenAI/gpt-4.1"))
+		assert.Equal(t, "openai", extractCrushProviderFromModel("OpenAI/gpt-4.1"))
 	})
 }

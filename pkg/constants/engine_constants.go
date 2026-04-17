@@ -20,8 +20,8 @@ const (
 	CodexEngine EngineName = "codex"
 	// GeminiEngine is the Google Gemini engine identifier
 	GeminiEngine EngineName = "gemini"
-	// OpenCodeEngine is the OpenCode engine identifier
-	OpenCodeEngine EngineName = "opencode"
+	// CrushEngine is the Crush engine identifier
+	CrushEngine EngineName = "crush"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
@@ -32,7 +32,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(OpenCodeEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(CrushEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -86,13 +86,13 @@ var EngineOptions = []EngineOption{
 		WhenNeeded:  "Gemini engine workflows",
 	},
 	{
-		Value:              string(OpenCodeEngine),
-		Label:              "OpenCode",
-		Description:        "OpenCode multi-provider AI coding agent (BYOK)",
+		Value:              string(CrushEngine),
+		Label:              "Crush",
+		Description:        "Crush multi-provider AI coding agent (BYOK)",
 		SecretName:         "COPILOT_GITHUB_TOKEN",
 		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "GOOGLE_API_KEY"},
-		KeyURL:             "https://opencode.ai/docs/get-started/",
-		WhenNeeded:         "OpenCode engine workflows (default: Copilot routing)",
+		KeyURL:             "https://github.com/charmbracelet/crush#installation",
+		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
 	},
 }
 
@@ -188,10 +188,10 @@ const (
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
 	// EnvVarModelDetectionGemini configures the default Gemini model for detection
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
-	// EnvVarModelAgentOpenCode configures the default OpenCode model for agent execution
-	EnvVarModelAgentOpenCode = "GH_AW_MODEL_AGENT_OPENCODE"
-	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
-	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
+	// EnvVarModelAgentCrush configures the default Crush model for agent execution
+	EnvVarModelAgentCrush = "GH_AW_MODEL_AGENT_CRUSH"
+	// EnvVarModelDetectionCrush configures the default Crush model for detection
+	EnvVarModelDetectionCrush = "GH_AW_MODEL_DETECTION_CRUSH"
 
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
@@ -223,9 +223,9 @@ const (
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	GeminiCLIModelEnvVar = "GEMINI_MODEL"
 
-	// OpenCodeCLIModelEnvVar is the native environment variable name for OpenCode model selection.
-	// OpenCode uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
-	OpenCodeCLIModelEnvVar = "OPENCODE_MODEL"
+	// CrushCLIModelEnvVar is the native environment variable name for Crush model selection.
+	// Crush uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
+	CrushCLIModelEnvVar = "CRUSH_MODEL"
 
 	// Common environment variable names used across all engines
 

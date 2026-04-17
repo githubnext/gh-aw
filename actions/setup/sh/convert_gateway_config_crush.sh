@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Convert MCP Gateway Configuration to OpenCode Format
+# Convert MCP Gateway Configuration to Crush Format
 # This script converts the gateway's standard HTTP-based MCP configuration
-# to the JSON format expected by OpenCode (opencode.jsonc)
+# to the JSON format expected by Crush (.crush.json)
 #
-# OpenCode reads MCP server configuration from opencode.jsonc:
-# - Project: ./opencode.jsonc (used here)
-# - Global: ~/.config/opencode/opencode.json
+# Crush reads MCP server configuration from .crush.json:
+# - Project: ./.crush.json (used here)
+# - Global: ~/.config/crush/crush.json
 #
-# See: https://opencode.ai/docs/mcp-servers/
+# See: https://github.com/charmbracelet/crush#mcps
 
 set -euo pipefail
 
@@ -48,11 +48,11 @@ if [ -z "$GITHUB_WORKSPACE" ]; then
   exit 1
 fi
 
-echo "Converting gateway configuration to OpenCode format..."
+echo "Converting gateway configuration to Crush format..."
 echo "Input: $MCP_GATEWAY_OUTPUT"
 echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 
-# Convert gateway output to OpenCode opencode.jsonc format
+# Convert gateway output to Crush .crush.json format
 # Gateway format:
 # {
 #   "mcpServers": {
@@ -66,12 +66,12 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #   }
 # }
 #
-# OpenCode format:
+# Crush format:
 # {
 #   "mcp": {
 #     "server-name": {
-#       "type": "remote",
-#       "enabled": true,
+#       "type": "http",
+#       "disabled": false,
 #       "url": "http://domain:port/mcp/server-name",
 #       "headers": {
 #         "Authorization": "apiKey"
@@ -82,40 +82,40 @@ echo "Target domain: $MCP_GATEWAY_DOMAIN:$MCP_GATEWAY_PORT"
 #
 # The main differences:
 # 1. Top-level key is "mcp" not "mcpServers"
-# 2. Server type is "remote" not "http"
-# 3. Has "enabled": true field
+# 2. Server type remains "http"
+# 3. Uses "disabled": false
 # 4. Remove "tools" field (Copilot-specific)
 # 5. URLs must use the correct domain (host.docker.internal) for container access
 
 # Build the correct URL prefix using the configured domain and port
 URL_PREFIX="http://${MCP_GATEWAY_DOMAIN}:${MCP_GATEWAY_PORT}"
 
-OPENCODE_CONFIG_FILE="${GITHUB_WORKSPACE}/opencode.jsonc"
+CRUSH_CONFIG_FILE="${GITHUB_WORKSPACE}/.crush.json"
 
 # Build the MCP section from gateway output
 MCP_SECTION=$(jq --arg urlPrefix "$URL_PREFIX" '
   .mcpServers | with_entries(
     .value |= {
-      "type": "remote",
-      "enabled": true,
+      "type": "http",
+      "disabled": false,
       "url": (.url | sub("^http://[^/]+/mcp/"; $urlPrefix + "/mcp/")),
       "headers": .headers
     }
   )
 ' "$MCP_GATEWAY_OUTPUT")
 
-# Merge into existing opencode.jsonc or create new one
-if [ -f "$OPENCODE_CONFIG_FILE" ]; then
-  echo "Merging MCP config into existing opencode.jsonc..."
-  jq --argjson mcpSection "$MCP_SECTION" '.mcp = (.mcp // {}) * $mcpSection' "$OPENCODE_CONFIG_FILE" > "${OPENCODE_CONFIG_FILE}.tmp"
-  mv "${OPENCODE_CONFIG_FILE}.tmp" "$OPENCODE_CONFIG_FILE"
+# Merge into existing .crush.json or create new one
+if [ -f "$CRUSH_CONFIG_FILE" ]; then
+  echo "Merging MCP config into existing .crush.json..."
+  jq --argjson mcpSection "$MCP_SECTION" '.mcp = (.mcp // {}) * $mcpSection' "$CRUSH_CONFIG_FILE" > "${CRUSH_CONFIG_FILE}.tmp"
+  mv "${CRUSH_CONFIG_FILE}.tmp" "$CRUSH_CONFIG_FILE"
 else
-  echo "Creating new opencode.jsonc..."
-  jq -n --argjson mcpSection "$MCP_SECTION" '{"mcp": $mcpSection}' > "$OPENCODE_CONFIG_FILE"
+  echo "Creating new .crush.json..."
+  jq -n --argjson mcpSection "$MCP_SECTION" '{"mcp": $mcpSection}' > "$CRUSH_CONFIG_FILE"
 fi
 
-echo "OpenCode configuration written to $OPENCODE_CONFIG_FILE"
-chmod 600 "$OPENCODE_CONFIG_FILE"
+echo "Crush configuration written to $CRUSH_CONFIG_FILE"
+chmod 600 "$CRUSH_CONFIG_FILE"
 echo ""
 echo "Converted configuration:"
-cat "$OPENCODE_CONFIG_FILE"
+cat "$CRUSH_CONFIG_FILE"

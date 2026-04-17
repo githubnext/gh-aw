@@ -2963,7 +2963,7 @@
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
             },
             "firewall": {
-              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, gemini, and opencode engines.",
+              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, gemini, and crush engines.",
               "deprecated": true,
               "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
               "oneOf": [
@@ -9293,7 +9293,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode') or a named catalog entry"
+          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry"
         },
         {
           "type": "object",
@@ -9301,7 +9301,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
@@ -9462,8 +9462,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "opencode"]
+                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'crush')",
+                  "examples": ["codex", "claude", "copilot", "gemini", "crush"]
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -9584,7 +9584,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'opencode')"
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'crush')"
             },
             "display-name": {
               "type": "string",
