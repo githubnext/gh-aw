@@ -217,3 +217,19 @@ func TestValidationConfigConsistency(t *testing.T) {
 		}
 	}
 }
+
+func TestCreatePullRequestBaseValidationMaxLength(t *testing.T) {
+	config, ok := ValidationConfig["create_pull_request"]
+	if !ok {
+		t.Fatal("create_pull_request not found in ValidationConfig")
+	}
+
+	baseField, ok := config.Fields["base"]
+	if !ok {
+		t.Fatal("base field not found in create_pull_request validation config")
+	}
+
+	if baseField.MaxLength != 128 {
+		t.Errorf("base field MaxLength = %d, want 128", baseField.MaxLength)
+	}
+}
