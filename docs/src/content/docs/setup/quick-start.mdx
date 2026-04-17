@@ -56,7 +56,8 @@ gh extension install github/gh-aw
 ### Step 2 - Add the sample workflow and trigger a run
 
 The workflow reference argument to `gh aw add-wizard` uses the format `<owner>/<repository>/<workflow-id>`.
-In this guide, `githubnext/agentics/daily-repo-status` points to the public workflow catalog in the [`githubnext/agentics` repository](https://github.com/githubnext/agentics/tree/main/workflows). The `daily-repo-status` workflow ID maps to `workflows/daily-repo-status.md`.
+`<workflow-id>` is the workflow filename without `.md`.
+In this guide, `githubnext/agentics/daily-repo-status` points to the public workflow catalog in the [`githubnext/agentics` repository](https://github.com/githubnext/agentics/tree/main/workflows), where `daily-repo-status` maps to `workflows/daily-repo-status.md`.
 
 From your repository root run:
 
