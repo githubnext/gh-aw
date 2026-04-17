@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock dependencies before importing the module
 vi.mock("./resolve_mentions.cjs", () => ({
@@ -79,6 +79,10 @@ describe("pushNonBotAssignees", () => {
 });
 
 describe("extractKnownAuthorsFromPayload", () => {
+  it("returns empty array when context is undefined", () => {
+    expect(extractKnownAuthorsFromPayload(undefined)).toEqual([]);
+  });
+
   it("extracts issue author and assignees for issues event", () => {
     const context = {
       eventName: "issues",
@@ -211,6 +215,15 @@ describe("extractKnownAuthorsFromPayload", () => {
       payload: {},
     };
     expect(extractKnownAuthorsFromPayload(context)).toEqual(["pat"]);
+  });
+
+  it("skips non-string actor for workflow_dispatch event", () => {
+    const context = {
+      eventName: "workflow_dispatch",
+      actor: 123,
+      payload: {},
+    };
+    expect(extractKnownAuthorsFromPayload(context)).toEqual([]);
   });
 
   it("returns empty array for unknown event types", () => {

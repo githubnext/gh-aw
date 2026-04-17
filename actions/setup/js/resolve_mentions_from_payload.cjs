@@ -38,8 +38,12 @@ function pushNonBotAssignees(users, assignees) {
  * @returns {string[]} Array of known author logins from the payload
  */
 function extractKnownAuthorsFromPayload(context) {
+  if (!context || typeof context !== "object") {
+    return [];
+  }
+
   const users = /** @type {string[]} */ [];
-  const { eventName, payload } = context;
+  const { eventName, payload = {} } = context;
 
   switch (eventName) {
     case "issues":
@@ -85,7 +89,9 @@ function extractKnownAuthorsFromPayload(context) {
       break;
 
     case "workflow_dispatch":
-      users.push(context.actor);
+      if (typeof context.actor === "string" && context.actor.length > 0) {
+        users.push(context.actor);
+      }
       break;
 
     default:
