@@ -265,3 +265,30 @@ func createDisableCommandStub() *cobra.Command {
 	cmd.Flags().StringP("repo", "r", "", "Target repository")
 	return cmd
 }
+
+func TestEngineFlagUsageText(t *testing.T) {
+	t.Parallel()
+
+	overrideCmd := &cobra.Command{Use: "override-test"}
+	addEngineFlag(overrideCmd)
+
+	engineFlag := overrideCmd.Flags().Lookup("engine")
+	if engineFlag == nil {
+		t.Fatal("Expected --engine override flag to exist")
+	}
+
+	if engineFlag.Usage != "Override AI engine (copilot, claude, codex, gemini, crush)" {
+		t.Errorf("Unexpected --engine override usage text: %s", engineFlag.Usage)
+	}
+
+	filterCmd := &cobra.Command{Use: "filter-test"}
+	addEngineFilterFlag(filterCmd)
+	filterFlag := filterCmd.Flags().Lookup("engine")
+	if filterFlag == nil {
+		t.Fatal("Expected --engine filter flag to exist")
+	}
+
+	if filterFlag.Usage != "Filter logs by AI engine (copilot, claude, codex, gemini, crush)" {
+		t.Errorf("Unexpected --engine filter usage text: %s", filterFlag.Usage)
+	}
+}

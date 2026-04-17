@@ -238,6 +238,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
+  const configTeamReviewers = config.team_reviewers ? (Array.isArray(config.team_reviewers) ? config.team_reviewers : config.team_reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
   const rawAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
   const hasCopilotInAssignees = rawAssignees.some(a => a.toLowerCase() === "copilot");
   const configAssignees = sanitizeFallbackAssignees(rawAssignees);
@@ -355,6 +356,9 @@ async function main(config = {}) {
   }
   if (configReviewers.length > 0) {
     core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
+  }
+  if (configTeamReviewers.length > 0) {
+    core.info(`Configured team reviewers: ${configTeamReviewers.join(", ")}`);
   }
   if (configAssignees && configAssignees.length > 0) {
     core.info(`Configured assignees (for fallback issues): ${configAssignees.join(", ")}`);
@@ -1448,20 +1452,25 @@ ${patchPreview}`;
       }
 
       // Add configured reviewers if specified
-      if (configReviewers.length > 0) {
+      if (configReviewers.length > 0 || configTeamReviewers.length > 0) {
         const hasCopilot = configReviewers.includes("copilot");
         const otherReviewers = configReviewers.filter(r => r !== "copilot");
 
-        if (otherReviewers.length > 0) {
-          core.info(`Requesting ${otherReviewers.length} reviewer(s) for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
+        if (otherReviewers.length > 0 || configTeamReviewers.length > 0) {
+          core.info(`Requesting reviewers for pull request #${pullRequest.number}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(configTeamReviewers)}`);
           try {
-            await githubClient.rest.pulls.requestReviewers({
+            /** @type {{ owner: string, repo: string, pull_number: number, reviewers: string[], team_reviewers?: string[] }} */
+            const reviewerRequest = {
               owner: repoParts.owner,
               repo: repoParts.repo,
               pull_number: pullRequest.number,
               reviewers: otherReviewers,
-            });
-            core.info(`Requested reviewers for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
+            };
+            if (configTeamReviewers.length > 0) {
+              reviewerRequest.team_reviewers = configTeamReviewers;
+            }
+            await githubClient.rest.pulls.requestReviewers(reviewerRequest);
+            core.info(`Requested reviewers for pull request #${pullRequest.number}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(configTeamReviewers)}`);
           } catch (reviewerError) {
             core.warning(`Failed to request reviewers for PR #${pullRequest.number}: ${reviewerError instanceof Error ? reviewerError.message : String(reviewerError)}`);
           }

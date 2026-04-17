@@ -5765,6 +5765,22 @@
                   ],
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
                 },
+                "team-reviewers": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single team slug to assign as a reviewer to the pull request."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of team slugs to assign as reviewers to the pull request.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional team reviewer(s) to assign to the pull request. Accepts either a single string or an array of team slugs."
+                },
                 "assignees": {
                   "oneOf": [
                     {
@@ -6443,6 +6459,22 @@
                   },
                   "minItems": 1,
                   "maxItems": 50
+                },
+                "team-reviewers": {
+                  "description": "Optional allowed team reviewer or list of allowed team reviewers. If omitted, any team reviewers are allowed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 50
+                    }
+                  ]
                 },
                 "max": {
                   "description": "Optional maximum number of reviewers to add (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",

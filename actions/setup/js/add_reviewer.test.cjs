@@ -84,6 +84,25 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     });
   });
 
+  it("should add team reviewers to PR", async () => {
+    const message = {
+      type: "add_reviewer",
+      team_reviewers: ["platform-team", "security-team"],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.teamReviewersAdded).toEqual(["platform-team", "security-team"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: [],
+      team_reviewers: ["platform-team", "security-team"],
+    });
+  });
+
   it("should add copilot reviewer separately", async () => {
     const message = {
       type: "add_reviewer",
@@ -110,6 +129,33 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     });
   });
 
+  it("should keep team reviewers with non-copilot reviewers when copilot is requested", async () => {
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "copilot"],
+      team_reviewers: ["platform-team"],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "copilot"]);
+    expect(result.teamReviewersAdded).toEqual(["platform-team"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(1, {
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1"],
+      team_reviewers: ["platform-team"],
+    });
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(2, {
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["copilot-pull-request-reviewer[bot]"],
+    });
+  });
+
   it("should filter by allowed reviewers", async () => {
     const message = {
       type: "add_reviewer",
@@ -125,6 +171,28 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       repo: "testrepo",
       pull_number: 123,
       reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should filter by allowed team reviewers", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const restrictedHandler = await main({ max: 10, allowed_team_reviewers: ["platform-team"] });
+
+    const message = {
+      type: "add_reviewer",
+      team_reviewers: ["platform-team", "security-team"],
+    };
+
+    const result = await restrictedHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.teamReviewersAdded).toEqual(["platform-team"]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: [],
+      team_reviewers: ["platform-team"],
     });
   });
 
@@ -428,6 +496,29 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
       repo: "testrepo",
       pull_number: 123,
       reviewers: ["user1", "user2"],
+    });
+  });
+
+  it("should enforce maxCount across reviewers and team_reviewers combined", async () => {
+    const { main } = require("./add_reviewer.cjs");
+    const tightHandler = await main({ max: 3, allowed: [], allowed_team_reviewers: [] });
+
+    const message = {
+      type: "add_reviewer",
+      reviewers: ["user1", "user2", "user3"],
+      team_reviewers: ["platform-team", "security-team"],
+    };
+
+    const result = await tightHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.reviewersAdded).toEqual(["user1", "user2", "user3"]);
+    expect(result.teamReviewersAdded).toEqual([]);
+    expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 123,
+      reviewers: ["user1", "user2", "user3"],
     });
   });
 
