@@ -55,7 +55,8 @@ gh extension install github/gh-aw
 
 ### Step 2 - Add the sample workflow and trigger a run
 
-The workflow reference argument to `gh aw add-wizard` uses the format `<owner>/<repository>/<workflow-id>`. In this guide, `githubnext/agentics/daily-repo-status` points to the public workflow catalog in the [`githubnext/agentics` repository](https://github.com/githubnext/agentics/tree/main/workflows), and the `daily-repo-status` workflow ID maps to `workflows/daily-repo-status.md`.
+The workflow reference argument to `gh aw add-wizard` uses the format `<owner>/<repository>/<workflow-id>`.
+In this guide, `githubnext/agentics/daily-repo-status` points to the public workflow catalog in the [`githubnext/agentics` repository](https://github.com/githubnext/agentics/tree/main/workflows). The `daily-repo-status` workflow ID maps to `workflows/daily-repo-status.md`.
 
 From your repository root run:
 
@@ -81,7 +82,8 @@ This will take you through an interactive process to:
 To create it:
 
 1. Open [Create fine-grained PAT for `COPILOT_GITHUB_TOKEN`](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read).
-2. Set **Resource owner** to your personal account (not an organization). This is a GitHub platform requirement: `COPILOT_GITHUB_TOKEN` needs **Copilot Requests** user-level permission, which is only available for user accounts.
+2. Set **Resource owner** to your personal account (not an organization).
+   This is required by the GitHub platform: `COPILOT_GITHUB_TOKEN` needs **Copilot Requests** user-level permission, which is only available for user accounts.
 3. Under **Permissions → Account permissions**, set **Copilot Requests: Read**.
 4. Generate the token, then save it as a repository secret named `COPILOT_GITHUB_TOKEN`.
 
