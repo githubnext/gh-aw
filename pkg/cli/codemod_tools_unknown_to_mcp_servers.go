@@ -146,7 +146,7 @@ func findTopLevelToolsEntries(lines []string) (int, int, []toolsBlockEntry, bool
 		}
 
 		indent := getIndentation(lines[i])
-		if len(indent) != entryIndentLen || strings.HasPrefix(trimmed, "-") || !strings.Contains(trimmed, ":") {
+		if !isValidToolsEntryLine(indent, trimmed, entryIndentLen) {
 			i++
 			continue
 		}
@@ -163,7 +163,7 @@ func findTopLevelToolsEntries(lines []string) (int, int, []toolsBlockEntry, bool
 			}
 
 			nextIndent := getIndentation(lines[i])
-			if len(nextIndent) == entryIndentLen && strings.Contains(nextTrimmed, ":") && !strings.HasPrefix(nextTrimmed, "-") {
+			if isValidToolsEntryLine(nextIndent, nextTrimmed, entryIndentLen) {
 				break
 			}
 
@@ -184,6 +184,10 @@ func findTopLevelToolsEntries(lines []string) (int, int, []toolsBlockEntry, bool
 	}
 
 	return toolsIndex, toolsEnd, entries, true
+}
+
+func isValidToolsEntryLine(indent, trimmed string, entryIndentLen int) bool {
+	return len(indent) == entryIndentLen && strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-")
 }
 
 func buildMCPServerEntryLines(entry toolsBlockEntry, toolValue any) []string {
