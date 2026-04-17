@@ -154,7 +154,7 @@ function buildCommentBody(eventName, runUrl) {
   const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
   const reactionEnabled = parseBoolTemplatable(process.env.GH_AW_REACTION_ENABLED, false);
   const boldSlashCommandInComment = parseBoolTemplatable(process.env.GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT, true);
-  const matchedCommand = (process.env.GH_AW_MATCHED_COMMAND || process.env.GH_AW_COMMAND || "").trim().replace(/^\/+/, "");
+  const matchedCommand = (process.env.GH_AW_MATCHED_COMMAND || "").trim().replace(/^\/+/, "");
 
   // Sanitize before adding markers (defense in depth for custom message templates)
   let body = sanitizeContent(getRunStartedMessage({ workflowName, runUrl, eventType: eventTypeDescription }));
