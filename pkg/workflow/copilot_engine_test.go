@@ -1591,6 +1591,12 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_driver.cjs") {
 			t.Errorf("Expected copilot_driver.cjs in execution step, got:\n%s", stepContent)
 		}
+		if !strings.Contains(stepContent, `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"`) {
+			t.Errorf("Expected GH_AW_NODE_EXEC runtime node resolution in execution step, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, `command -v node 2>/dev/null || echo node`) {
+			t.Errorf("Expected node fallback lookup in execution step, got:\n%s", stepContent)
+		}
 
 		// Driver should appear before the copilot args
 		driverIdx := strings.Index(stepContent, "copilot_driver.cjs")
