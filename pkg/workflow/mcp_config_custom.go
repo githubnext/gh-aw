@@ -565,11 +565,11 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 }
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
-func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
+func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryMCPServerConfig, error) {
 	mcpCustomLog.Printf("Extracting MCP config for tool: %s", toolName)
 
 	config := MapToolConfig(toolConfig)
-	result := &parser.MCPServerConfig{
+	result := &parser.RegistryMCPServerConfig{
 		BaseMCPServerConfig: types.BaseMCPServerConfig{
 			Env:     make(map[string]string),
 			Headers: make(map[string]string),

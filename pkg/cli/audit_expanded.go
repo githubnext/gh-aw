@@ -15,8 +15,8 @@ import (
 
 var auditExpandedLog = logger.New("cli:audit_expanded")
 
-// EngineConfig represents the engine configuration extracted from aw_info.json
-type EngineConfig struct {
+// AuditEngineConfig represents the engine configuration extracted from aw_info.json
+type AuditEngineConfig struct {
 	EngineID        string   `json:"engine_id" console:"header:Engine ID"`
 	EngineName      string   `json:"engine_name,omitempty" console:"header:Engine Name,omitempty"`
 	Model           string   `json:"model,omitempty" console:"header:Model,omitempty"`
@@ -110,8 +110,8 @@ func findAwInfoPath(logsPath string) string {
 	return ""
 }
 
-// extractEngineConfig parses aw_info.json and returns an EngineConfig
-func extractEngineConfig(logsPath string) *EngineConfig {
+// extractEngineConfig parses aw_info.json and returns an AuditEngineConfig
+func extractEngineConfig(logsPath string) *AuditEngineConfig {
 	if logsPath == "" {
 		return nil
 	}
@@ -127,7 +127,7 @@ func extractEngineConfig(logsPath string) *EngineConfig {
 		return nil
 	}
 
-	config := &EngineConfig{
+	config := &AuditEngineConfig{
 		EngineID:        awInfo.EngineID,
 		EngineName:      awInfo.EngineName,
 		Model:           awInfo.Model,

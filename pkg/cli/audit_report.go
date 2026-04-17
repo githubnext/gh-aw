@@ -30,7 +30,7 @@ type AuditData struct {
 	Recommendations         []Recommendation         `json:"recommendations,omitempty"`
 	ObservabilityInsights   []ObservabilityInsight   `json:"observability_insights,omitempty"`
 	PerformanceMetrics      *PerformanceMetrics      `json:"performance_metrics,omitempty"`
-	EngineConfig            *EngineConfig            `json:"engine_config,omitempty"`
+	EngineConfig            *AuditEngineConfig       `json:"engine_config,omitempty"`
 	PromptAnalysis          *PromptAnalysis          `json:"prompt_analysis,omitempty"`
 	SessionAnalysis         *SessionAnalysis         `json:"session_analysis,omitempty"`
 	SafeOutputSummary       *SafeOutputSummary       `json:"safe_output_summary,omitempty"`

@@ -16,19 +16,19 @@ import (
 func TestValidateServerSecrets(t *testing.T) {
 	tests := []struct {
 		name        string
-		config      parser.MCPServerConfig
+		config      parser.RegistryMCPServerConfig
 		envVars     map[string]string
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name:        "no environment variables",
-			config:      parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "simple-tool"},
+			config:      parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "simple-tool"},
 			expectError: false,
 		},
 		{
 			name: "valid environment variable",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Env: map[string]string{
 					"TEST_VAR": "test_value",
 				}}, Name: "env-tool",
@@ -40,7 +40,7 @@ func TestValidateServerSecrets(t *testing.T) {
 		},
 		{
 			name: "missing environment variable",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Env: map[string]string{
 					"MISSING_VAR": "test_value",
 				}}, Name: "missing-env-tool",
@@ -50,7 +50,7 @@ func TestValidateServerSecrets(t *testing.T) {
 		},
 		{
 			name: "secrets reference (handled gracefully)",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Env: map[string]string{
 					"API_KEY": "${secrets.API_KEY}",
 				}}, Name: "secrets-tool",
@@ -59,7 +59,7 @@ func TestValidateServerSecrets(t *testing.T) {
 		},
 		{
 			name: "github remote mode requires GH_AW_GITHUB_TOKEN",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				URL: "https://api.githubcopilot.com/mcp/",
 				Env: map[string]string{}}, Name: "github",
 			},
@@ -70,7 +70,7 @@ func TestValidateServerSecrets(t *testing.T) {
 		},
 		{
 			name: "github remote mode with custom token",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				URL: "https://api.githubcopilot.com/mcp/",
 				Env: map[string]string{
 					"GITHUB_TOKEN": "${{ secrets.CUSTOM_PAT }}",
@@ -80,7 +80,7 @@ func TestValidateServerSecrets(t *testing.T) {
 		},
 		{
 			name: "github local mode does not require GH_AW_GITHUB_TOKEN",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 				Env: map[string]string{}}, Name: "github",
 			},
 			expectError: false,
@@ -125,7 +125,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 		{
 			name: "server with blocked tools",
 			serverInfo: &parser.MCPServerInfo{
-				Config: parser.MCPServerConfig{
+				Config: parser.RegistryMCPServerConfig{
 					Name:    "test-server",
 					Allowed: []string{"tool1", "tool2"},
 				},
@@ -150,7 +150,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 		{
 			name: "server with no allowed list (all tools allowed)",
 			serverInfo: &parser.MCPServerInfo{
-				Config: parser.MCPServerConfig{
+				Config: parser.RegistryMCPServerConfig{
 					Name:    "open-server",
 					Allowed: []string{}, // Empty means all allowed
 				},
@@ -171,7 +171,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 		{
 			name: "server with all tools explicitly allowed",
 			serverInfo: &parser.MCPServerInfo{
-				Config: parser.MCPServerConfig{
+				Config: parser.RegistryMCPServerConfig{
 					Name:    "explicit-server",
 					Allowed: []string{"tool1", "tool2"},
 				},
@@ -256,7 +256,7 @@ func TestMCPInspectFiltersSafeOutputs(t *testing.T) {
 			}
 
 			// Test the filtering logic that inspect command uses
-			var filteredConfigs []parser.MCPServerConfig
+			var filteredConfigs []parser.RegistryMCPServerConfig
 			for _, config := range configs {
 				if config.Name != constants.SafeOutputsMCPServerID.String() {
 					filteredConfigs = append(filteredConfigs, config)
@@ -278,40 +278,40 @@ func TestMCPInspectFiltersSafeOutputs(t *testing.T) {
 func TestFilterOutSafeOutputs(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []parser.MCPServerConfig
-		expected []parser.MCPServerConfig
+		input    []parser.RegistryMCPServerConfig
+		expected []parser.RegistryMCPServerConfig
 	}{
 		{
 			name:     "empty input",
-			input:    []parser.MCPServerConfig{},
-			expected: []parser.MCPServerConfig{},
+			input:    []parser.RegistryMCPServerConfig{},
+			expected: []parser.RegistryMCPServerConfig{},
 		},
 		{
 			name: "only safe-outputs",
-			input: []parser.MCPServerConfig{
+			input: []parser.RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: constants.SafeOutputsMCPServerID.String()},
 			},
-			expected: []parser.MCPServerConfig{},
+			expected: []parser.RegistryMCPServerConfig{},
 		},
 		{
 			name: "mixed servers",
-			input: []parser.MCPServerConfig{
+			input: []parser.RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: constants.SafeOutputsMCPServerID.String()},
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "playwright"},
 			},
-			expected: []parser.MCPServerConfig{
+			expected: []parser.RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "playwright"},
 			},
 		},
 		{
 			name: "no safe-outputs",
-			input: []parser.MCPServerConfig{
+			input: []parser.RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "custom-server"},
 			},
-			expected: []parser.MCPServerConfig{
+			expected: []parser.RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "custom-server"},
 			},
