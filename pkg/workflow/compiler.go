@@ -330,10 +330,14 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 				message := FormatValidationMessage(validationResult, c.strictMode)
 
 				if len(validationResult.MissingPermissions) > 0 {
-					if c.strictMode {
+					downgradeToWarning := c.strictMode && shouldDowngradeDefaultToolsetPermissionError(workflowData.ParsedTools.GitHub)
+					if c.strictMode && !downgradeToWarning {
 						// In strict mode, missing permissions are errors
 						return formatCompilerError(markdownPath, "error", message, nil)
 					} else {
+						if downgradeToWarning {
+							message += "\n\nSome of the GitHub tools will not be available until the missing permissions are granted."
+						}
 						// In non-strict mode, missing permissions are warnings
 						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
 						c.IncrementWarningCount()
@@ -422,6 +426,19 @@ Ensure proper audience validation and trust policies are configured.`
 	}
 
 	return nil
+}
+
+func shouldDowngradeDefaultToolsetPermissionError(githubTool *GitHubToolConfig) bool {
+	if githubTool == nil {
+		return false
+	}
+
+	toolsets := githubTool.Toolset.ToStringSlice()
+	if len(toolsets) == 0 {
+		return true
+	}
+
+	return len(toolsets) == 1 && strings.TrimSpace(toolsets[0]) == "default"
 }
 
 // generateAndValidateYAML generates GitHub Actions YAML and validates
