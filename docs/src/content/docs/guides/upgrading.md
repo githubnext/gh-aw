@@ -77,6 +77,14 @@ The upgrade automatically applies codemods to fix deprecated fields in all workf
 | **delete-schema-file** | Deletes deprecated schema file | Removes `.github/aw/schemas/agentic-workflow.json` |
 | **delete-old-agents** | Deletes old `.agent.md` files moved to `.github/aw/` | Removes outdated agent files |
 
+### 3.2.1 Manual Migrations (No Codemod)
+
+Some breaking changes require manual edits because no automatic codemod was shipped:
+
+| Change | What to do |
+|--------|------------|
+| `engine: id: opencode` removed (April 2026) | Change to `engine: id: crush`. The OpenCode engine was archived; Crush is its successor. Also update any `GH_AW_MODEL_AGENT_OPENCODE` org/repo variables to `GH_AW_MODEL_AGENT_CRUSH`. |
+
 ### 3.3 Compiles All Workflows
 
 The upgrade automatically compiles all workflows to generate or update `.lock.yml` files, ensuring they're ready to run in GitHub Actions.
