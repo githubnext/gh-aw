@@ -57,7 +57,7 @@ gh extension install github/gh-aw
 
 The workflow reference argument to `gh aw add-wizard` uses the format `<owner>/<repository>/<workflow-id>`.
 `<workflow-id>` is the workflow filename without `.md`.
-In this guide, `githubnext/agentics/daily-repo-status` points to the public workflow catalog in the [`githubnext/agentics` repository](https://github.com/githubnext/agentics/tree/main/workflows), where `daily-repo-status` maps to `workflows/daily-repo-status.md`.
+In this guide, `githubnext/agentics/daily-repo-status` points to the public [`githubnext/agentics` workflow catalog](https://github.com/githubnext/agentics/tree/main/workflows), where `daily-repo-status` maps to `workflows/daily-repo-status.md`.
 
 From your repository root run:
 
@@ -78,13 +78,12 @@ This will take you through an interactive process to:
 `GITHUB_TOKEN` and `COPILOT_GITHUB_TOKEN` are different tokens with different jobs:
 
 - `GITHUB_TOKEN` is created automatically by GitHub Actions for repository operations.
-- `COPILOT_GITHUB_TOKEN` is a separate fine-grained PAT used by the Copilot CLI for inference, because `GITHUB_TOKEN` does not include Copilot-specific permissions.
+- `COPILOT_GITHUB_TOKEN` is a separate fine-grained PAT used by the Copilot CLI for inference, because `GITHUB_TOKEN` is scoped to repository operations and does not include Copilot-specific permissions.
 
 To create it:
 
 1. Open [Create fine-grained PAT for `COPILOT_GITHUB_TOKEN`](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&description=GitHub+Agentic+Workflows+-+Copilot+engine+authentication&user_copilot_requests=read).
-2. Set **Resource owner** to your personal account (not an organization).
-   This is required by the GitHub platform: `COPILOT_GITHUB_TOKEN` needs **Copilot Requests** user-level permission, which is only available for user accounts.
+2. Set **Resource owner** to your personal account (not an organization). This is required by the GitHub platform: `COPILOT_GITHUB_TOKEN` needs **Copilot Requests** user-level permission, which is only available for user accounts.
 3. Under **Permissions → Account permissions**, set **Copilot Requests: Read**.
 4. Generate the token, then save it as a repository secret named `COPILOT_GITHUB_TOKEN`.
 
