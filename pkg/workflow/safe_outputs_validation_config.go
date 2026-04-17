@@ -76,6 +76,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"title":  {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
 			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"branch": {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"base":   {Type: "string", Sanitize: true, MaxLength: 256},
 			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"draft":  {Type: "boolean"},
 			"repo":   {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"

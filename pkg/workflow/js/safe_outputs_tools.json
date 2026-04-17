@@ -316,6 +316,10 @@
                     "type": "string",
                     "description": "Source branch name containing the changes. If omitted, uses the current working branch."
                 },
+                "base": {
+                    "type": "string",
+                    "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns."
+                },
                 "labels": {
                     "type": "array",
                     "items": {

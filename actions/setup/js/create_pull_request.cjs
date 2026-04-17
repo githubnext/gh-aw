@@ -31,6 +31,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -87,6 +88,50 @@ function isLabelTransientError(error) {
 const LABEL_MAX_RETRIES = 3;
 /** @type {number} Initial delay in ms before the first label retry (3 seconds) */
 const LABEL_INITIAL_DELAY_MS = 3000;
+
+/**
+ * Parse allowed base branch patterns from config value (array or comma-separated string)
+ * @param {string[]|string|undefined} allowedBaseBranchesValue
+ * @returns {Set<string>}
+ */
+function parseAllowedBaseBranches(allowedBaseBranchesValue) {
+  const set = new Set();
+  if (Array.isArray(allowedBaseBranchesValue)) {
+    allowedBaseBranchesValue
+      .map(branch => String(branch).trim())
+      .filter(Boolean)
+      .forEach(branch => set.add(branch));
+  } else if (typeof allowedBaseBranchesValue === "string") {
+    allowedBaseBranchesValue
+      .split(",")
+      .map(branch => branch.trim())
+      .filter(Boolean)
+      .forEach(branch => set.add(branch));
+  }
+  return set;
+}
+
+/**
+ * Check if a base branch matches an allowed pattern.
+ * Supports exact matches and "*" glob patterns (e.g. "release/*").
+ * @param {string} baseBranch
+ * @param {Set<string>} allowedBaseBranches
+ * @returns {boolean}
+ */
+function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
+  if (allowedBaseBranches.has(baseBranch)) {
+    return true;
+  }
+  for (const pattern of allowedBaseBranches) {
+    if (pattern === "*") {
+      return true;
+    }
+    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(baseBranch)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Merges the required fallback label with any workflow-configured labels,
@@ -250,6 +295,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if copilot assignment is enabled for fallback issues
@@ -350,6 +396,9 @@ async function main(config = {}) {
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
+  if (allowedBaseBranches.size > 0) {
+    core.info(`Allowed base branches: ${Array.from(allowedBaseBranches).join(", ")}`);
+  }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
   }
@@ -443,6 +492,41 @@ async function main(config = {}) {
     // is not available in GitHub Actions expressions and requires an API call
     // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
     let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+
+    // Optional agent-provided base branch override.
+    // This is only allowed when allowed_base_branches is configured.
+    if (typeof pullRequestItem.base === "string" && pullRequestItem.base.trim() !== "") {
+      if (allowedBaseBranches.size === 0) {
+        return {
+          success: false,
+          error: "Base branch override is not allowed. Configure safe-outputs.create-pull-request.allowed-base-branches to allow per-run base overrides.",
+        };
+      }
+
+      const requestedBaseBranchRaw = pullRequestItem.base.trim();
+      const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
+      if (!requestedBaseBranch) {
+        return {
+          success: false,
+          error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
+        };
+      }
+      if (requestedBaseBranchRaw !== requestedBaseBranch) {
+        return {
+          success: false,
+          error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
+        };
+      }
+      if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
+        return {
+          success: false,
+          error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
+        };
+      }
+
+      baseBranch = requestedBaseBranch;
+      core.info(`Using agent-provided base branch override: ${baseBranch}`);
+    }
 
     // Multi-repo support: Switch checkout to target repo if different from current
     // This enables creating PRs in multiple repos from a single workflow run

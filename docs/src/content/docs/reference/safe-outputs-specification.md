@@ -2148,6 +2148,7 @@ safe-outputs:
       "title": {"type": "string"},
       "body": {"type": "string"},
       "branch": {"type": "string", "description": "Source branch (defaults to current)"},
+      "base": {"type": "string", "description": "Target base branch override (allowed only when configured by allowed-base-branches)"},
       "labels": {"type": "array", "items": {"type": "string"}},
       "draft": {"type": "boolean", "description": "Create as draft (default: true)"}
     },
@@ -2168,6 +2169,7 @@ safe-outputs:
 
 - `max`: Operation limit (default: 1)
 - `base-branch`: Target branch
+- `allowed-base-branches`: Allowed base-branch override patterns for per-run `base` tool input
 - `draft`: Draft status
 - `commit-changes`: Auto-commit workspace
 - `reviewers`: Auto-request reviewers

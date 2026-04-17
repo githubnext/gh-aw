@@ -376,6 +376,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfPositive("expires", c.Expires).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddStringSlice("allowed_base_branches", c.AllowedBaseBranches).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
