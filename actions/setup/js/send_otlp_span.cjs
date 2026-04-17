@@ -834,7 +834,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
   const conclusionSpanId = generateSpanId();
-  if (typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
+  if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
     const agentPayload = buildOTLPPayload({
       traceId,
