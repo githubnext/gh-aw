@@ -324,6 +324,17 @@ func TestEnforceSafeUpdate(t *testing.T) {
 				"owner/repo/workflows/old.md@main",
 			},
 		},
+		{
+			name: "redirect whitespace differences are normalized",
+			manifest: &GHAWManifest{
+				Version:  1,
+				Redirect: "owner/repo/workflows/new.md@main",
+			},
+			secretNames: []string{},
+			actionRefs:  []string{},
+			redirect:    "  owner/repo/workflows/new.md@main  ",
+			wantErr:     false,
+		},
 	}
 
 	for _, tt := range tests {

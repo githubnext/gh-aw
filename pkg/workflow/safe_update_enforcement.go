@@ -221,6 +221,8 @@ func collectRedirectViolations(manifest *GHAWManifest, currentRedirect string) (
 	if knownRedirect != "" && current == "" {
 		return "", knownRedirect
 	}
+	// At this point both values are non-empty and differ after TrimSpace normalization,
+	// so treat the change as one removed redirect plus one added redirect.
 	return current, knownRedirect
 }
 
