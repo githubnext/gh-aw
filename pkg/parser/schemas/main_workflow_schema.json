@@ -1840,8 +1840,8 @@
               "oneOf": [
                 {
                   "type": "string",
-                  "enum": ["all"],
-                  "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+                  "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
+                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (\u26a0\ufe0f disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
