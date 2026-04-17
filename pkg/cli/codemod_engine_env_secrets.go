@@ -73,7 +73,11 @@ func extractEngineIDForCodemod(frontmatter map[string]any, engineMap map[string]
 
 func allowedEngineEnvSecretKeys(engineID string) map[string]bool {
 	allowed := make(map[string]bool)
-	for _, req := range getSecretRequirementsForEngine(engineID, false, false) {
+	for _, req := range getSecretRequirementsForEngine(
+		engineID,
+		false, // includeSystemSecrets
+		false, // includeOptional
+	) {
 		allowed[req.Name] = true
 	}
 	return allowed
