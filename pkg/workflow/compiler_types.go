@@ -442,6 +442,7 @@ type WorkflowData struct {
 	ReactionIssues              *bool                     // whether reactions are allowed on issues/issue_comment triggers (default: true)
 	ReactionPullRequests        *bool                     // whether reactions are allowed on pull_request/pull_request_review_comment triggers (default: true)
 	ReactionDiscussions         *bool                     // whether reactions are allowed on discussion/discussion_comment triggers (default: true)
+	ReactionBoldSlashCommand    *bool                     // whether to include a bold slash-command marker in activation comments when reactions are enabled (default: true)
 	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
 	StatusCommentIssues         *bool                     // whether status comments are allowed on issues/issue_comment triggers (default: true)
 	StatusCommentPullRequests   *bool                     // whether status comments are allowed on pull_request/pull_request_review_comment triggers (default: true)

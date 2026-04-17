@@ -49,6 +49,9 @@ describe("add_workflow_run_comment", () => {
     delete process.env.GITHUB_WORKFLOW;
     delete process.env.GH_AW_TRACKER_ID;
     delete process.env.GH_AW_LOCK_FOR_AGENT;
+    delete process.env.GH_AW_REACTION_ENABLED;
+    delete process.env.GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT;
+    delete process.env.GH_AW_MATCHED_COMMAND;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
 
@@ -537,6 +540,31 @@ describe("add_workflow_run_comment", () => {
       const body = buildCommentBody("some_unknown_event", "https://example.com/run/1");
       expect(body).toBeTruthy();
       expect(body).toContain("<!-- gh-aw-comment-type: reaction -->");
+    });
+
+    it("should include bold slash command text when reaction is enabled and matched command is provided", async () => {
+      process.env.GH_AW_REACTION_ENABLED = "true";
+      process.env.GH_AW_MATCHED_COMMAND = "review";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issue_comment", "https://example.com/run/1");
+      expect(body).toContain("Triggered by **/review**.");
+    });
+
+    it("should not include slash command text when reaction is disabled", async () => {
+      process.env.GH_AW_REACTION_ENABLED = "false";
+      process.env.GH_AW_MATCHED_COMMAND = "review";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issue_comment", "https://example.com/run/1");
+      expect(body).not.toContain("Triggered by **/review**.");
+    });
+
+    it("should not include slash command text when bold-slash-command behavior is disabled", async () => {
+      process.env.GH_AW_REACTION_ENABLED = "true";
+      process.env.GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT = "false";
+      process.env.GH_AW_MATCHED_COMMAND = "review";
+      const { buildCommentBody } = await import("./add_workflow_run_comment.cjs?" + Date.now());
+      const body = buildCommentBody("issue_comment", "https://example.com/run/1");
+      expect(body).not.toContain("Triggered by **/review**.");
     });
   });
 

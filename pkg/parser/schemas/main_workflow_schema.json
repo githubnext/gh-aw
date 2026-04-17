@@ -1909,6 +1909,10 @@
                     "discussions": {
                       "type": "boolean",
                       "description": "Whether reactions are allowed for discussion and discussion_comment triggers."
+                    },
+                    "bold-slash-command": {
+                      "type": "boolean",
+                      "description": "Whether activation status comments should include a bolded slash command marker (for slash_command workflows) when reactions are enabled. Defaults to true."
                     }
                   }
                 }

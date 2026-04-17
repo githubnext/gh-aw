@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -334,6 +335,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Add environment variables
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+		if hasReaction {
+			steps = append(steps, "          GH_AW_REACTION_ENABLED: \"true\"\n")
+			steps = append(steps, fmt.Sprintf("          GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT: %q\n", strconv.FormatBool(shouldBoldSlashCommandInActivationComment(data))))
+			if len(data.Command) > 0 {
+				if preActivationJobCreated {
+					steps = append(steps, fmt.Sprintf("          GH_AW_MATCHED_COMMAND: ${{ needs.%s.outputs.%s }}\n", string(constants.PreActivationJobName), constants.MatchedCommandOutput))
+				} else {
+					steps = append(steps, fmt.Sprintf("          GH_AW_MATCHED_COMMAND: ${{ steps.%s.outputs.%s }}\n", constants.CheckCommandPositionStepID, constants.MatchedCommandOutput))
+				}
+			}
+		}
 
 		// Add tracker-id if present
 		if data.TrackerID != "" {
@@ -842,6 +854,13 @@ func shouldIncludeDiscussionStatusComments(data *WorkflowData) bool {
 		return true
 	}
 	return *data.StatusCommentDiscussions
+}
+
+func shouldBoldSlashCommandInActivationComment(data *WorkflowData) bool {
+	if data == nil || data.ReactionBoldSlashCommand == nil {
+		return true
+	}
+	return *data.ReactionBoldSlashCommand
 }
 
 func activationEventSet(onSection string) (map[string]bool, bool) {

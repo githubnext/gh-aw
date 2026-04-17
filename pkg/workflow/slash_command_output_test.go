@@ -50,6 +50,7 @@ Test workflow content
 	// Read the compiled workflow
 	lockContent, err := os.ReadFile(lockFilePath)
 	require.NoError(t, err)
+	lockContentStr := string(lockContent)
 
 	// Parse the YAML
 	var workflow map[string]any
@@ -89,4 +90,45 @@ Test workflow content
 	// Verify it does NOT reference steps.check_command_position
 	assert.NotContains(t, slashCommand, "steps.check_command_position",
 		"Expected slash_command to NOT reference steps.check_command_position directly")
+
+	// Activation comment step should receive matched slash command and bold marker config.
+	assert.Contains(t, lockContentStr, "GH_AW_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}",
+		"Expected activation comment env to include matched slash command from pre_activation")
+	assert.Contains(t, lockContentStr, "GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT: \"true\"",
+		"Expected activation comment env to default bold slash command behavior to true")
+}
+
+func TestSlashCommandActivationCommentBoldSlashCommandCanBeDisabled(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Test Slash Command Bold Toggle
+on:
+  slash_command:
+    name: test
+  reaction:
+    type: eyes
+    bold-slash-command: false
+  status-comment: true
+engine: copilot
+---
+
+Test workflow content
+`
+
+	workflowPath := filepath.Join(tempDir, "test-workflow-bold-toggle.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err)
+	lockContentStr := string(lockContent)
+
+	assert.Contains(t, lockContentStr, "GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT: \"false\"",
+		"Expected activation comment env to disable bold slash command behavior when configured")
 }

@@ -86,14 +86,14 @@ func parseReactionValue(value any) (string, error) {
 // parseReactionConfig parses reaction configuration from frontmatter.
 // Supported formats:
 // - scalar (string/int): reaction type only
-// - object: {type, issues, pull-requests, discussions}
-func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
+// - object: {type, issues, pull-requests, discussions, bold-slash-command}
+func parseReactionConfig(value any) (string, *bool, *bool, *bool, *bool, error) {
 	if reactionMap, ok := value.(map[string]any); ok {
 		reactionType := "eyes"
 		if typeValue, hasType := reactionMap["type"]; hasType {
 			parsedType, err := parseReactionValue(typeValue)
 			if err != nil {
-				return "", nil, nil, nil, err
+				return "", nil, nil, nil, nil, err
 			}
 			reactionType = parsedType
 		}
@@ -102,7 +102,7 @@ func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
 		if issuesValue, hasIssues := reactionMap["issues"]; hasIssues {
 			issuesBool, ok := issuesValue.(bool)
 			if !ok {
-				return "", nil, nil, nil, fmt.Errorf("reaction.issues must be a boolean value, got %T", issuesValue)
+				return "", nil, nil, nil, nil, fmt.Errorf("reaction.issues must be a boolean value, got %T", issuesValue)
 			}
 			reactionIssues = issuesBool
 		}
@@ -111,7 +111,7 @@ func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
 		if pullRequestsValue, hasPullRequests := reactionMap["pull-requests"]; hasPullRequests {
 			pullRequestsBool, ok := pullRequestsValue.(bool)
 			if !ok {
-				return "", nil, nil, nil, fmt.Errorf("reaction.pull-requests must be a boolean value, got %T", pullRequestsValue)
+				return "", nil, nil, nil, nil, fmt.Errorf("reaction.pull-requests must be a boolean value, got %T", pullRequestsValue)
 			}
 			reactionPullRequests = pullRequestsBool
 		}
@@ -120,23 +120,32 @@ func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
 		if discussionsValue, hasDiscussions := reactionMap["discussions"]; hasDiscussions {
 			discussionsBool, ok := discussionsValue.(bool)
 			if !ok {
-				return "", nil, nil, nil, fmt.Errorf("reaction.discussions must be a boolean value, got %T", discussionsValue)
+				return "", nil, nil, nil, nil, fmt.Errorf("reaction.discussions must be a boolean value, got %T", discussionsValue)
 			}
 			reactionDiscussions = discussionsBool
 		}
 
-		if !reactionIssues && !reactionPullRequests && !reactionDiscussions {
-			return "", nil, nil, nil, errors.New("reaction object requires at least one target to be enabled (issues, pull-requests, or discussions)")
+		boldSlashCommand := true
+		if boldSlashCommandValue, hasBoldSlashCommand := reactionMap["bold-slash-command"]; hasBoldSlashCommand {
+			boldSlashCommandBool, ok := boldSlashCommandValue.(bool)
+			if !ok {
+				return "", nil, nil, nil, nil, fmt.Errorf("reaction.bold-slash-command must be a boolean value, got %T", boldSlashCommandValue)
+			}
+			boldSlashCommand = boldSlashCommandBool
 		}
 
-		return reactionType, &reactionIssues, &reactionPullRequests, &reactionDiscussions, nil
+		if !reactionIssues && !reactionPullRequests && !reactionDiscussions {
+			return "", nil, nil, nil, nil, errors.New("reaction object requires at least one target to be enabled (issues, pull-requests, or discussions)")
+		}
+
+		return reactionType, &reactionIssues, &reactionPullRequests, &reactionDiscussions, &boldSlashCommand, nil
 	}
 
 	reactionType, err := parseReactionValue(value)
 	if err != nil {
-		return "", nil, nil, nil, err
+		return "", nil, nil, nil, nil, err
 	}
-	return reactionType, nil, nil, nil, nil
+	return reactionType, nil, nil, nil, nil, nil
 }
 
 // intToReactionString converts an integer to a reaction string.

@@ -50,7 +50,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
-				reactionStr, reactionIssues, reactionPullRequests, reactionDiscussions, err := parseReactionConfig(reactionValue)
+				reactionStr, reactionIssues, reactionPullRequests, reactionDiscussions, reactionBoldSlashCommand, err := parseReactionConfig(reactionValue)
 				if err != nil {
 					return err
 				}
@@ -63,6 +63,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.ReactionIssues = reactionIssues
 				workflowData.ReactionPullRequests = reactionPullRequests
 				workflowData.ReactionDiscussions = reactionDiscussions
+				workflowData.ReactionBoldSlashCommand = reactionBoldSlashCommand
 			}
 
 			// Extract status-comment from on section

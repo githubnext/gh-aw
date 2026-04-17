@@ -176,7 +176,7 @@ func TestIntToReactionString(t *testing.T) {
 }
 
 func TestParseReactionConfigMap(t *testing.T) {
-	reaction, issues, pullRequests, discussions, err := parseReactionConfig(map[string]any{
+	reaction, issues, pullRequests, discussions, boldSlashCommand, err := parseReactionConfig(map[string]any{
 		"type":          "rocket",
 		"issues":        false,
 		"pull-requests": true,
@@ -197,10 +197,13 @@ func TestParseReactionConfigMap(t *testing.T) {
 	if discussions == nil || *discussions {
 		t.Errorf("Expected discussions target false, got %v", discussions)
 	}
+	if boldSlashCommand == nil || !*boldSlashCommand {
+		t.Errorf("Expected bold-slash-command default true, got %v", boldSlashCommand)
+	}
 }
 
 func TestParseReactionConfigMapAllTargetsDisabled(t *testing.T) {
-	_, _, _, _, err := parseReactionConfig(map[string]any{
+	_, _, _, _, _, err := parseReactionConfig(map[string]any{
 		"type":          "eyes",
 		"issues":        false,
 		"pull-requests": false,
@@ -208,5 +211,28 @@ func TestParseReactionConfigMapAllTargetsDisabled(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Expected parseReactionConfig to fail when all reaction targets are disabled")
+	}
+}
+
+func TestParseReactionConfigMapBoldSlashCommandFalse(t *testing.T) {
+	_, _, _, _, boldSlashCommand, err := parseReactionConfig(map[string]any{
+		"type":               "eyes",
+		"bold-slash-command": false,
+	})
+	if err != nil {
+		t.Errorf("parseReactionConfig(map) returned unexpected error: %v", err)
+	}
+	if boldSlashCommand == nil || *boldSlashCommand {
+		t.Errorf("Expected bold-slash-command false, got %v", boldSlashCommand)
+	}
+}
+
+func TestParseReactionConfigMapBoldSlashCommandInvalidType(t *testing.T) {
+	_, _, _, _, _, err := parseReactionConfig(map[string]any{
+		"type":               "eyes",
+		"bold-slash-command": "false",
+	})
+	if err == nil {
+		t.Fatal("Expected parseReactionConfig to fail when bold-slash-command is not a boolean")
 	}
 }

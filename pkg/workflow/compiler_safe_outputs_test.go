@@ -1087,6 +1087,28 @@ func TestParseOnSectionReactionMapFormat(t *testing.T) {
 	assert.False(t, *workflowData.ReactionPullRequests, "reaction pull request target should match parsed value")
 	require.NotNil(t, workflowData.ReactionDiscussions, "reaction discussion target flag should be set")
 	assert.True(t, *workflowData.ReactionDiscussions, "reaction discussions target should default to true")
+	require.NotNil(t, workflowData.ReactionBoldSlashCommand, "reaction bold slash command flag should be set")
+	assert.True(t, *workflowData.ReactionBoldSlashCommand, "reaction bold slash command should default to true")
+}
+
+func TestParseOnSectionReactionMapFormatBoldSlashCommandDisabled(t *testing.T) {
+	c := &Compiler{}
+	workflowData := &WorkflowData{}
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"reaction": map[string]any{
+				"type":               "heart",
+				"bold-slash-command": false,
+			},
+		},
+	}
+
+	err := c.parseOnSection(frontmatter, workflowData, "/path/to/test.md")
+	require.NoError(t, err, "reaction map format with bold-slash-command should be accepted")
+	assert.Equal(t, "heart", workflowData.AIReaction, "reaction type should be parsed from reaction.type")
+	require.NotNil(t, workflowData.ReactionBoldSlashCommand, "reaction bold slash command flag should be set")
+	assert.False(t, *workflowData.ReactionBoldSlashCommand, "reaction bold slash command should match parsed value")
 }
 
 // TestCompilerNeedsGitCommandsAllOutputTypes tests all safe output types for git command requirements

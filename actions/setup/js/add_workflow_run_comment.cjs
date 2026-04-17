@@ -152,9 +152,16 @@ async function main() {
 function buildCommentBody(eventName, runUrl) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
+  const reactionEnabled = parseBoolTemplatable(process.env.GH_AW_REACTION_ENABLED, false);
+  const boldSlashCommandInComment = parseBoolTemplatable(process.env.GH_AW_BOLD_SLASH_COMMAND_IN_COMMENT, true);
+  const matchedCommand = (process.env.GH_AW_MATCHED_COMMAND || process.env.GH_AW_COMMAND || "").trim().replace(/^\/+/, "");
 
   // Sanitize before adding markers (defense in depth for custom message templates)
   let body = sanitizeContent(getRunStartedMessage({ workflowName, runUrl, eventType: eventTypeDescription }));
+
+  if (reactionEnabled && boldSlashCommandInComment && matchedCommand) {
+    body += `\n\nTriggered by **/${matchedCommand}**.`;
+  }
 
   // Add lock notice if lock-for-agent is enabled for issues or issue_comment
   if (process.env.GH_AW_LOCK_FOR_AGENT === "true" && (eventName === "issues" || eventName === "issue_comment")) {
