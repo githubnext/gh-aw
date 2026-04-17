@@ -23,6 +23,7 @@ network:
   allowed:
     - defaults
     - github
+    - proxy.golang.org
 
 tools:
   github:
