@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,11 +51,13 @@ func GetBinaryPath() (string, error) {
 // logAndValidateBinaryPath determines the binary path, logs it, and validates it exists.
 // Returns the detected binary path and an error if the path cannot be determined or if the file doesn't exist.
 // This is a helper used by both runMCPServer and validateMCPServerConfiguration.
-func logAndValidateBinaryPath() (string, error) {
+func logAndValidateBinaryPath(diagnosticOutput io.Writer) (string, error) {
 	binaryPath, err := GetBinaryPath()
 	if err != nil {
 		mcpValidationLog.Printf("Warning: failed to get binary path: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: failed to get binary path: %v", err)))
+		if diagnosticOutput != nil {
+			fmt.Fprintln(diagnosticOutput, console.FormatWarningMessage(fmt.Sprintf("Warning: failed to get binary path: %v", err)))
+		}
 		return "", err
 	}
 
@@ -62,17 +65,23 @@ func logAndValidateBinaryPath() (string, error) {
 	if _, err := os.Stat(binaryPath); err != nil {
 		if os.IsNotExist(err) {
 			mcpValidationLog.Printf("ERROR: binary file does not exist at path: %s", binaryPath)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: binary file does not exist at path: "+binaryPath))
+			if diagnosticOutput != nil {
+				fmt.Fprintln(diagnosticOutput, console.FormatErrorMessage("ERROR: binary file does not exist at path: "+binaryPath))
+			}
 			return "", fmt.Errorf("binary file does not exist at path: %s", binaryPath)
 		}
 		mcpValidationLog.Printf("Warning: failed to stat binary file at %s: %v", binaryPath, err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: failed to stat binary file at %s: %v", binaryPath, err)))
+		if diagnosticOutput != nil {
+			fmt.Fprintln(diagnosticOutput, console.FormatWarningMessage(fmt.Sprintf("Warning: failed to stat binary file at %s: %v", binaryPath, err)))
+		}
 		return "", err
 	}
 
 	// Log the binary path for debugging
 	mcpValidationLog.Printf("gh-aw binary path: %s", binaryPath)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("gh-aw binary path: "+binaryPath))
+	if diagnosticOutput != nil {
+		fmt.Fprintln(diagnosticOutput, console.FormatInfoMessage("gh-aw binary path: "+binaryPath))
+	}
 	return binaryPath, nil
 }
 
@@ -223,7 +232,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 
 // validateMCPServerConfiguration validates that the CLI is properly configured
 // by running the status command as a test
-func validateMCPServerConfiguration(cmdPath string) error {
+func validateMCPServerConfiguration(cmdPath string, diagnosticOutput io.Writer) error {
 	mcpValidationLog.Printf("Validating MCP server configuration: cmdPath=%s", cmdPath)
 
 	// Determine, log, and validate the binary path only if --cmd flag is not provided
@@ -231,7 +240,7 @@ func validateMCPServerConfiguration(cmdPath string) error {
 	if cmdPath == "" {
 		// Attempt to detect the binary path and assign it to cmdPath
 		// This ensures the validation uses the actual binary path instead of falling back to "gh aw"
-		detectedPath, err := logAndValidateBinaryPath()
+		detectedPath, err := logAndValidateBinaryPath(diagnosticOutput)
 		if err == nil && detectedPath != "" {
 			cmdPath = detectedPath
 		}
@@ -258,7 +267,9 @@ func validateMCPServerConfiguration(cmdPath string) error {
 		if ctx.Err() == context.DeadlineExceeded {
 			mcpValidationLog.Print("Status command timed out")
 			errMsg := "status command timed out - this may indicate a configuration issue"
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+			if diagnosticOutput != nil {
+				fmt.Fprintln(diagnosticOutput, console.FormatErrorMessage(errMsg))
+			}
 			return errors.New("status command timed out - this may indicate a configuration issue")
 		}
 
@@ -267,17 +278,23 @@ func validateMCPServerConfiguration(cmdPath string) error {
 		// If the command failed, provide helpful error message
 		if cmdPath != "" {
 			errMsg := fmt.Sprintf("failed to run status command with custom command '%s': %v\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+			if diagnosticOutput != nil {
+				fmt.Fprintln(diagnosticOutput, console.FormatErrorMessage(errMsg))
+			}
 			return fmt.Errorf("failed to run status command with custom command '%s': %w\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
 		}
 		errMsg := fmt.Sprintf("failed to run status command: %v\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install github/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		if diagnosticOutput != nil {
+			fmt.Fprintln(diagnosticOutput, console.FormatErrorMessage(errMsg))
+		}
 		return fmt.Errorf("failed to run status command: %w\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install github/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
 	}
 
 	// Status command succeeded - configuration is valid
 	mcpValidationLog.Print("MCP server configuration validated successfully")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✅ Configuration validated successfully"))
+	if diagnosticOutput != nil {
+		fmt.Fprintln(diagnosticOutput, console.FormatSuccessMessage("✅ Configuration validated successfully"))
+	}
 	return nil
 }
 
