@@ -237,8 +237,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     const { repoParts } = repoResult;
 
-    // Get base branch for the resolved target repository
-    // Prefer explicit safe-output config value when provided.
+    // Get base branch for the resolved target repository.
+    // Prefer explicit safe-output config value when provided, otherwise fall back
+    // to dynamic resolution from trigger context/default branch.
     const baseBranch = prConfig.base_branch || (await getBaseBranch(repoParts));
 
     // Determine the working directory for git operations

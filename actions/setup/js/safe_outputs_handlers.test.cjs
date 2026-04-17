@@ -70,8 +70,6 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_SERVER_URL;
     delete process.env.GITHUB_REPOSITORY;
-    delete process.env.GITHUB_BASE_REF;
-    delete process.env.GITHUB_REF_NAME;
     delete process.env.GH_AW_ASSETS_BRANCH;
     delete process.env.GH_AW_ASSETS_MAX_SIZE_KB;
     delete process.env.GH_AW_ASSETS_ALLOWED_EXTS;
@@ -525,23 +523,28 @@ describe("safe_outputs_handlers", () => {
 
       process.env.GITHUB_BASE_REF = "master";
       process.env.GITHUB_REF_NAME = "feature/test-change";
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "main",
+          title: "Test PR",
+          body: "Test description",
+        });
 
-      const result = await handlers.createPullRequestHandler({
-        branch: "main",
-        title: "Test PR",
-        body: "Test description",
-      });
-
-      expect(result.isError).toBeUndefined();
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("success");
-      expect(responseData.branch).toBe("feature/test-change");
-      expect(mockAppendSafeOutput).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "create_pull_request",
-          branch: "feature/test-change",
-        })
-      );
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(responseData.branch).toBe("feature/test-change");
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Branch equals base branch (main)"));
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "create_pull_request",
+            branch: "feature/test-change",
+          })
+        );
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+        delete process.env.GITHUB_REF_NAME;
+      }
     });
   });
 
