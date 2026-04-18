@@ -61,6 +61,23 @@ Tracks workflow origin in format `owner/repo/path@ref`. Automatically populated 
 source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 ```
 
+### Redirect (`redirect:`)
+
+Specifies a new canonical location when a workflow has been moved or renamed. When `gh aw update` encounters a workflow with a `redirect` field, it follows the redirect chain to the resolved location, rewrites the local `source` field to point to the new location, and emits a warning for each redirect hop. Redirect loops are detected and reported as errors.
+
+```yaml wrap
+redirect: "githubnext/agentics/workflows/new-workflow-name.md@main"
+```
+
+Use `gh aw update --no-redirect` to refuse updates when the source workflow has a `redirect` field — the update fails rather than following the redirect. This is useful for auditing or when you want to explicitly control when redirects are followed.
+
+`gh aw compile` emits an informational message when a workflow has a `redirect` field configured, so the redirect is visible during local development.
+
+The `redirect` field uses the same `owner/repo/path@ref` format as `source:`. Redirect chains are followed transitively (up to a depth limit).
+
+> [!NOTE]
+> The `redirect` field is set by workflow *authors* to signal that a workflow has moved. It is not typically set by end-users. If you see a redirect when running `gh aw update`, it means the upstream workflow has been relocated.
+
 ### Private Workflows (`private:`)
 
 Mark a workflow as private to prevent it from being installed into other repositories via `gh aw add`.

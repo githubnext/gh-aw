@@ -84,7 +84,7 @@ The GitHub MCP Server Access Control extensions are designed to achieve:
 
 1. **Least Privilege Access**: Agents receive only the minimum GitHub access required for their task
 2. **Explicit Repository Scoping**: No implicit or default repository access without configuration
-3. **Flexible Pattern Matching**: Wildcard patterns support both narrow and broad repository scoping
+3. **Wildcard Pattern Matching**: Wildcard patterns support both narrow and broad repository scoping
 4. **Role-Based Restrictions**: Operations restricted based on user's permission level in repositories
 5. **Private Data Protection**: Configurable controls to prevent private repository access
 6. **Integrity-Level Enforcement**: Content items evaluated against a trust hierarchy; items below the minimum integrity threshold are blocked

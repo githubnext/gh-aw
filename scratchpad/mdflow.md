@@ -479,7 +479,7 @@ imports:
 - No URL imports
 - No command execution
 
-**Impact**: Less flexible context gathering.
+**Impact**: More limited context gathering options.
 
 #### 5. **No Interactive Mode**
 - All workflows run fully automated
