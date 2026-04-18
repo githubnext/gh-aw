@@ -494,12 +494,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		threatDetectionEnabled := IsDetectionJobEnabled(data.SafeOutputs)
 		useRestoreOnly := cache.RestoreOnly || threatDetectionEnabled
 
-		var actionName string
-		if useRestoreOnly {
-			actionName = "Restore cache-memory file share data"
-		} else {
-			actionName = "Cache cache-memory file share data"
-		}
+		actionName := "Restore cache-memory file share data"
 
 		if useBackwardCompatiblePaths {
 			fmt.Fprintf(builder, "      - name: %s\n", actionName)

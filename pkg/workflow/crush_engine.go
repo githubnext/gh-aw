@@ -290,7 +290,7 @@ else
 fi
 chmod 600 "$CONFIG"`, configJSON)
 
-	stepLines := []string{"      - name: Write Crush configuration"}
+	stepLines := []string{"      - name: Write Crush Config"}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
 	return GitHubActionStep(stepLines)
 }

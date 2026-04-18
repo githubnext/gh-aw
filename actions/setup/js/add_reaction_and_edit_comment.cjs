@@ -8,6 +8,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /**
  * Event type descriptions for comment messages
@@ -38,7 +39,8 @@ const DISCUSSION_REACTION_MAP = {
 async function main() {
   const reaction = process.env.GH_AW_REACTION || "eyes";
   const command = process.env.GH_AW_COMMAND; // Only present for command workflows
-  const runUrl = buildWorkflowRunUrl(context, context.repo);
+  const invocationContext = resolveInvocationContext(context);
+  const runUrl = buildWorkflowRunUrl(context, invocationContext.workflowRepo);
 
   core.info(`Reaction type: ${reaction}`);
   core.info(`Command name: ${command || "none"}`);
@@ -54,14 +56,15 @@ async function main() {
 
   let reactionEndpoint;
   let commentUpdateEndpoint;
-  const eventName = context.eventName;
-  const owner = context.repo.owner;
-  const repo = context.repo.repo;
+  const eventName = invocationContext.eventName;
+  const owner = invocationContext.eventRepo.owner;
+  const repo = invocationContext.eventRepo.repo;
+  const payload = invocationContext.eventPayload;
 
   try {
     switch (eventName) {
       case "issues": {
-        const issueNumber = context.payload?.issue?.number;
+        const issueNumber = payload?.issue?.number;
         if (!issueNumber) {
           core.setFailed(`${ERR_NOT_FOUND}: Issue number not found in event payload`);
           return;
@@ -72,8 +75,8 @@ async function main() {
       }
 
       case "issue_comment": {
-        const commentId = context.payload?.comment?.id;
-        const issueNumberForComment = context.payload?.issue?.number;
+        const commentId = payload?.comment?.id;
+        const issueNumberForComment = payload?.issue?.number;
         if (!commentId) {
           core.setFailed(`${ERR_VALIDATION}: Comment ID not found in event payload`);
           return;
@@ -89,7 +92,7 @@ async function main() {
       }
 
       case "pull_request": {
-        const prNumber = context.payload?.pull_request?.number;
+        const prNumber = payload?.pull_request?.number;
         if (!prNumber) {
           core.setFailed(`${ERR_NOT_FOUND}: Pull request number not found in event payload`);
           return;
@@ -101,8 +104,8 @@ async function main() {
       }
 
       case "pull_request_review_comment": {
-        const reviewCommentId = context.payload?.comment?.id;
-        const prNumberForReviewComment = context.payload?.pull_request?.number;
+        const reviewCommentId = payload?.comment?.id;
+        const prNumberForReviewComment = payload?.pull_request?.number;
         if (!reviewCommentId) {
           core.setFailed(`${ERR_VALIDATION}: Review comment ID not found in event payload`);
           return;
@@ -118,7 +121,7 @@ async function main() {
       }
 
       case "discussion": {
-        const discussionNumber = context.payload?.discussion?.number;
+        const discussionNumber = payload?.discussion?.number;
         if (!discussionNumber) {
           core.setFailed(`${ERR_NOT_FOUND}: Discussion number not found in event payload`);
           return;
@@ -131,13 +134,13 @@ async function main() {
       }
 
       case "discussion_comment": {
-        const discussionCommentNumber = context.payload?.discussion?.number;
-        const discussionCommentId = context.payload?.comment?.id;
+        const discussionCommentNumber = payload?.discussion?.number;
+        const discussionCommentId = payload?.comment?.id;
         if (!discussionCommentNumber || !discussionCommentId) {
           core.setFailed(`${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
           return;
         }
-        const commentNodeId = context.payload?.comment?.node_id;
+        const commentNodeId = payload?.comment?.node_id;
         if (!commentNodeId) {
           core.setFailed(`${ERR_NOT_FOUND}: Discussion comment node ID not found in event payload`);
           return;
@@ -163,7 +166,7 @@ async function main() {
 
     if (commentUpdateEndpoint) {
       core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-      await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
+      await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName, invocationContext);
     }
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -270,15 +273,16 @@ async function getDiscussionId(owner, repo, discussionNumber) {
  * Helper function to set comment outputs
  * @param {string} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
+ * @param {{ owner: string, repo: string }} [eventRepo=context.repo] - Repository where the comment was created
  */
-function setCommentOutputs(commentId, commentUrl) {
+function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
   core.info(`Successfully created comment with workflow link`);
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment URL: ${commentUrl}`);
-  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+  core.info(`Comment Repo: ${eventRepo.owner}/${eventRepo.repo}`);
   core.setOutput("comment-id", commentId);
   core.setOutput("comment-url", commentUrl);
-  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
+  core.setOutput("comment-repo", `${eventRepo.owner}/${eventRepo.repo}`);
 }
 
 /**
@@ -286,8 +290,17 @@ function setCommentOutputs(commentId, commentUrl) {
  * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
  * @param {string} runUrl - The URL of the workflow run
  * @param {string} eventName - The event type (to determine the comment text)
+ * @param {{
+ *   source?: "native" | "workflow_dispatch" | "repository_dispatch",
+ *   eventName?: string,
+ *   eventPayload?: any,
+ *   workflowRepo?: { owner: string, repo: string },
+ *   eventRepo?: { owner: string, repo: string }
+ * } | null} [invocationContext=null] - Resolved invocation event context. When omitted, falls back to global context payload/repo.
  */
-async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
+async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocationContext = null) {
+  const eventPayload = invocationContext?.eventPayload || context.payload;
+  const eventRepo = invocationContext?.eventRepo || context.repo;
   try {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
@@ -316,7 +329,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const { id: discussionId } = await getDiscussionId(context.repo.owner, context.repo.repo, discussionNumber);
+      const { id: discussionId } = await getDiscussionId(eventRepo.owner, eventRepo.repo, discussionNumber);
 
       const result = await github.graphql(
         `
@@ -332,17 +345,17 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       );
 
       const comment = result.addDiscussionComment.comment;
-      setCommentOutputs(comment.id, comment.url);
+      setCommentOutputs(comment.id, comment.url, eventRepo);
       return;
     } else if (eventName === "discussion_comment") {
       // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const { id: discussionId } = await getDiscussionId(context.repo.owner, context.repo.repo, discussionNumber);
+      const { id: discussionId } = await getDiscussionId(eventRepo.owner, eventRepo.repo, discussionNumber);
 
       // Get the comment node ID to use as the parent for threading.
       // GitHub Discussions only supports two nesting levels, so if the triggering comment is
       // itself a reply, we resolve the top-level parent's node ID.
-      const commentNodeId = await resolveTopLevelDiscussionCommentId(github, context.payload?.comment?.node_id);
+      const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
 
       const result = await github.graphql(
         `
@@ -358,7 +371,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       );
 
       const comment = result.addDiscussionComment.comment;
-      setCommentOutputs(comment.id, comment.url);
+      setCommentOutputs(comment.id, comment.url, eventRepo);
       return;
     }
 
@@ -370,7 +383,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       },
     });
 
-    setCommentOutputs(createResponse.data.id.toString(), createResponse.data.html_url);
+    setCommentOutputs(createResponse.data.id.toString(), createResponse.data.html_url, eventRepo);
   } catch (error) {
     // Don't fail the entire job if comment creation fails - just log it
     const errorMessage = getErrorMessage(error);
