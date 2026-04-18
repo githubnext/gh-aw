@@ -9,8 +9,6 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
-    outputs:
-      has_changes: ${{ steps.detect.outputs.has_changes }}
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -20,7 +18,13 @@ jobs:
       id: detect
       shell: bash
       run: "if [ \"${{ github.event_name }}\" != \"schedule\" ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Non-scheduled run: integration tests enabled\" >> \"$GITHUB_STEP_SUMMARY\"\n  exit 0\nfi\n\nCHANGES_IN_LAST_HOUR=$(git log --since='1 hour ago' --pretty=format:'%H' | wc -l | tr -d ' ')\nif [ \"$CHANGES_IN_LAST_HOUR\" -gt 0 ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Detected $CHANGES_IN_LAST_HOUR commit(s) in the last hour\" >> \"$GITHUB_STEP_SUMMARY\"\nelse\n  echo \"has_changes=false\" >> \"$GITHUB_OUTPUT\"\n  echo \"ℹ️ No commits in the last hour; skipping integration jobs\" >> \"$GITHUB_STEP_SUMMARY\"\nfi"
+    outputs:
+      has_changes: ${{ steps.detect.outputs.has_changes }}
   integration:
+    name: "Integration: ${{ matrix.test-group.name }}"
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -111,7 +115,6 @@ jobs:
     concurrency:
       group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
       cancel-in-progress: true
-    name: "Integration: ${{ matrix.test-group.name }}"
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
@@ -253,10 +256,10 @@ jobs:
         path: test-result-integration-*.json
         retention-days: 14
 
+  update:
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
-  update:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -323,16 +326,13 @@ jobs:
         ./gh-aw update --verbose
         echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
-    if: ${{ needs.changes.outputs.has_changes == 'true' }}
-    needs:
-    - changes
   js-integration-live-api:
     if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
     needs:
     - changes
     - validate-yaml
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     concurrency:
@@ -381,6 +381,9 @@ jobs:
         fi
 
   audit:
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -476,10 +479,10 @@ jobs:
           audit_output.txt
         retention-days: 14
 
+  health-smoke-copilot:
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
-  health-smoke-copilot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -536,11 +539,11 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  integration-add:
+    name: Integration Add Workflows
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
-  integration-add:
-    name: Integration Add Workflows
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -736,12 +739,9 @@ jobs:
         echo "- Success count: ${{ steps.add-workflows.outputs.success_count }}"
         echo "- Failure count: ${{ steps.add-workflows.outputs.failure_count }}"
 
-    if: ${{ needs.changes.outputs.has_changes == 'true' }}
-    needs:
-    - changes
   integration-marketplace-compile:
     name: Integration Compile gh-aw-marketplace
-    if: ${{ needs.changes.outputs.has_changes == 'true' && (${{ false }}) }}
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (false) }}
     needs:
     - changes
     - build
@@ -804,6 +804,9 @@ jobs:
 
   integration-update:
     name: Integration Update - Preserve Local Imports
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -966,11 +969,11 @@ jobs:
 
         echo "✅ **SUCCESS**: All local relative import paths were preserved by gh aw update" >> $GITHUB_STEP_SUMMARY
 
+  integration-unauthenticated-add:
+    name: Integration Unauthenticated Add (Public Repo)
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
-  integration-unauthenticated-add:
-    name: Integration Unauthenticated Add (Public Repo)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1028,11 +1031,11 @@ jobs:
         path: test-result-integration-unauthenticated.json
         retention-days: 14
 
+  integration-add-dispatch-workflow:
+    name: Integration Add with dispatch-workflow Dependencies
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
     needs:
     - changes
-  integration-add-dispatch-workflow:
-    name: Integration Add with dispatch-workflow Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1086,12 +1089,11 @@ jobs:
         path: test-result-integration-add-dispatch-workflow.json
         retention-days: 14
 
-    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+  integration-release-availability:
+    name: Integration Release Availability
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
     needs:
     - changes
-  integration-release-availability:
-    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
-    name: Integration Release Availability
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1190,16 +1192,14 @@ jobs:
 
         echo "" >> $GITHUB_STEP_SUMMARY
 
-    needs:
-    - changes
   sh-difc-proxy:
-    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
     name: DIFC Proxy sh Integration Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
     needs:
     - changes
     - validate-yaml
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read
@@ -1323,13 +1323,13 @@ jobs:
         echo "4. \`stop_difc_proxy.sh\` stops the proxy container" >> $GITHUB_STEP_SUMMARY
 
   sh-gh-host-pr-checkout-repro:
+    name: GH_HOST Proxy PR Checkout Repro (Issue
     if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
-    name: GH_HOST Proxy PR Checkout Repro (Issue #23461)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
     needs:
     - changes
     - validate-yaml
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     concurrency:
