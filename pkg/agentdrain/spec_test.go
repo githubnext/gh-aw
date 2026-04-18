@@ -18,7 +18,7 @@ func TestSpec_PublicAPI_DefaultConfig(t *testing.T) {
 	cfg := agentdrain.DefaultConfig()
 
 	assert.Equal(t, 4, cfg.Depth, "Depth default should be 4")
-	assert.Equal(t, 0.4, cfg.SimThreshold, "SimThreshold default should be 0.4")
+	assert.InEpsilon(t, 0.4, cfg.SimThreshold, 1e-9, "SimThreshold default should be 0.4")
 	assert.Equal(t, 100, cfg.MaxChildren, "MaxChildren default should be 100")
 	assert.Equal(t, "<*>", cfg.ParamToken, "ParamToken default should be <*>")
 	assert.Equal(t, 2, cfg.RareClusterThreshold, "RareClusterThreshold default should be 2")
@@ -51,7 +51,7 @@ func TestSpec_PublicAPI_Miner_TrainEvent(t *testing.T) {
 	result, err := miner.TrainEvent(evt)
 	require.NoError(t, err, "TrainEvent should not error on valid event")
 	assert.NotNil(t, result, "TrainEvent should return a MatchResult")
-	assert.Greater(t, result.ClusterID, 0, "ClusterID should be positive after training")
+	assert.Positive(t, result.ClusterID, "ClusterID should be positive after training")
 }
 
 // TestSpec_PublicAPI_Miner_AnalyzeEvent validates that AnalyzeEvent produces a match result and anomaly report.
@@ -308,7 +308,7 @@ func TestSpec_Types_MaskRule(t *testing.T) {
 // Spec: "SimThreshold of 0.4 means at least 40% of tokens must match exactly"
 func TestSpec_DesignDecision_SimThreshold(t *testing.T) {
 	cfg := agentdrain.DefaultConfig()
-	assert.Equal(t, 0.4, cfg.SimThreshold, "40%% token match threshold as documented")
+	assert.InEpsilon(t, 0.4, cfg.SimThreshold, 1e-9, "40%% token match threshold as documented")
 }
 
 // TestSpec_DesignDecision_CoordinatorRouting validates that events from different stages
