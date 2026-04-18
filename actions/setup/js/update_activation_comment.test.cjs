@@ -156,6 +156,29 @@ describe("update_activation_comment.cjs", () => {
       );
       expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with pull request link on #10");
     }),
+    it("should use workflowRepo for run attribution in footer when context includes workflowRepo", async () => {
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+      mockDependencies.context = {
+        ...mockDependencies.context,
+        runId: 12345,
+        repo: { owner: "targetowner", repo: "targetrepo" },
+        workflowRepo: { owner: "sideowner", repo: "siderepo" },
+        payload: { pull_request: { number: 10 } },
+      };
+      mockDependencies.github.request.mockResolvedValue({
+        data: { id: 123, html_url: "https://github.com/targetowner/targetrepo/issues/10#issuecomment-123" },
+      });
+
+      const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+      await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/targetowner/targetrepo/pull/42", 42);
+
+      expect(mockDependencies.github.request).toHaveBeenCalledWith(
+        "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+        expect.objectContaining({
+          body: expect.stringContaining("https://github.com/sideowner/siderepo/actions/runs/12345"),
+        })
+      );
+    }),
     it("should skip update when GH_AW_COMMENT_ID is not set and no target issue number", async () => {
       mockDependencies.process.env.GH_AW_COMMENT_ID = "";
       const { updateActivationCommentWithMessage } = createFunctionFromScript(mockDependencies);
