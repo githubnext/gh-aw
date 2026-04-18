@@ -61,6 +61,10 @@ Pre-fetched data is available from shared imports:
 - `/tmp/gh-aw/session-data/logs/` (conversation logs and/or fallback logs)
 - `/tmp/gh-aw/pr-data/copilot-prs.json` (optional cross-analysis source)
 
+These paths are populated by imported setup components:
+- `shared/copilot-session-data-fetch.md` writes the session files under `/tmp/gh-aw/session-data/`
+- `shared/copilot-pr-data-fetch.md` writes PR data under `/tmp/gh-aw/pr-data/`
+
 ## Hard Requirements
 
 1. Process **all available sessions** in the last 14 days (deterministic; no sampling unless data is too large to load in one pass).
@@ -96,7 +100,10 @@ Use UTC for all time filtering.
    - extracted fallback logs under session directories
 2. For each session, attempt to locate and parse `events.jsonl` content:
    - if explicit `events.jsonl` file exists, parse line-by-line JSON
-   - if embedded in logs, extract JSONL safely and parse line-by-line
+   - if embedded in logs, extract JSONL safely by:
+     - preserving one-event-per-line boundaries
+     - skipping malformed lines without aborting full-session analysis
+     - recording malformed-line counts as data-quality signals
 3. Build a normalized per-session summary with:
    - session id / run id
    - timestamps and total duration
