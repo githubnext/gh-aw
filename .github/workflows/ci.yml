@@ -330,7 +330,6 @@ jobs:
     if: ${{ needs.changes.outputs.has_changes == 'true' && (github.ref == 'refs/heads/main') }}
     needs:
     - changes
-    - validate-yaml
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -744,7 +743,6 @@ jobs:
     if: ${{ needs.changes.outputs.has_changes == 'true' && (false) }}
     needs:
     - changes
-    - build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
