@@ -121,8 +121,4 @@ After the issues are created, verify they are properly linked by adding a commen
 
 **Success Criteria**: All 3 issues created, all temporary ID references resolved, parent-child relationships established.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

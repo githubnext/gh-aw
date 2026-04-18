@@ -59,6 +59,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'close_agentic_workflows_issues'
           - 'clean_cache_memories'
           - 'validate'
       run_url:
@@ -69,7 +70,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, clean_cache_memories, validate)'
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, close_agentic_workflows_issues, clean_cache_memories, validate)'
         required: false
         type: string
         default: ''
@@ -193,8 +194,9 @@ jobs:
             await main();
 `)
 
-	// Add unified run_operation job for all dispatch operations except those with dedicated jobs (safe_outputs, create_labels, clean_cache_memories, validate)
-	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "clean_cache_memories", "validate")
+	// Add unified run_operation job for all dispatch operations except those with dedicated jobs
+	// (safe_outputs, create_labels, close_agentic_workflows_issues, clean_cache_memories, validate)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
 	yaml.WriteString(`
   run_operation:
     if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
@@ -344,6 +346,52 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/create_labels.cjs');
+            await main();
+`)
+
+	// Add close_agentic_workflows_issues job for workflow_dispatch with operation == 'close_agentic_workflows_issues'
+	yaml.WriteString(`
+  close_agentic_workflows_issues:
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("close_agentic_workflows_issues")) + ` }}
+    runs-on: ` + runsOnValue + `
+    permissions:
+      issues: write
+    steps:
+`)
+
+	// Add checkout step only in dev/script mode (for local action paths)
+	if actionMode == ActionModeDev || actionMode == ActionModeScript {
+		yaml.WriteString("      - name: Checkout actions folder\n")
+		yaml.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          sparse-checkout: |\n")
+		yaml.WriteString("            actions\n")
+		yaml.WriteString("          persist-credentials: false\n\n")
+	}
+
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Close no-repro agentic-workflows issues
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/close_agentic_workflows_issues.cjs');
             await main();
 `)
 

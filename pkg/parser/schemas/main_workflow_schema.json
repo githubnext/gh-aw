@@ -5765,6 +5765,22 @@
                   ],
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
                 },
+                "team-reviewers": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single team slug to assign as a reviewer to the pull request."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of team slugs to assign as reviewers to the pull request.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional team reviewer(s) to assign to the pull request. Accepts either a single string or an array of team slugs."
+                },
                 "assignees": {
                   "oneOf": [
                     {
@@ -5837,6 +5853,13 @@
                 "base-branch": {
                   "type": "string",
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
+                },
+                "allowed-base-branches": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns."
                 },
                 "footer": {
                   "type": "boolean",
@@ -6443,6 +6466,22 @@
                   },
                   "minItems": 1,
                   "maxItems": 50
+                },
+                "team-reviewers": {
+                  "description": "Optional allowed team reviewer or list of allowed team reviewers. If omitted, any team reviewers are allowed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 50
+                    }
+                  ]
                 },
                 "max": {
                   "description": "Optional maximum number of reviewers to add (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",

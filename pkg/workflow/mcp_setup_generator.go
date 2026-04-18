@@ -54,7 +54,7 @@
 //   - Start safe-outputs HTTP server on port 3001
 //   - Write mcp-scripts config to ${RUNNER_TEMP}/gh-aw/mcp-scripts/
 //   - Start mcp-scripts HTTP server on port 3000
-//   - Start MCP Gateway on port 80
+//   - Start MCP Gateway (default port 8080)
 //   - Render MCP config based on engine (copilot/claude/codex/custom)
 package workflow
 
@@ -696,6 +696,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
+	// Use runner UID/GID so gateway-created /tmp logs remain readable by downstream
+	// redaction/upload steps; keep a supplementary docker.sock group for daemon access.
+	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
 	containerCmd.WriteString(" -v /var/run/docker.sock:/var/run/docker.sock") // Enable docker-in-docker for MCP gateway
 	// Pass required gateway environment variables
@@ -902,11 +906,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
-	// Compute the Docker socket group ID so the MCPG container can access /var/run/docker.sock
+	// Compute the runner user/group IDs and Docker socket group ID before constructing
+	// the docker command so these values are expanded to literals in the exported command.
+	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
+	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')\n")
 
 	// Build the export command with proper quoting that allows variable expansion
-	// We need to break out of quotes for shell variables like ${GITHUB_WORKSPACE} and ${DOCKER_SOCK_GID}
+	// We need to break out of quotes for shell variables like
+	// ${GITHUB_WORKSPACE}, ${MCP_GATEWAY_UID}, ${MCP_GATEWAY_GID}, and ${DOCKER_SOCK_GID}
 	cmdWithExpandableVars := buildDockerCommandWithExpandableVars(containerCmd.String())
 	yaml.WriteString("          export MCP_GATEWAY_DOCKER_COMMAND=" + cmdWithExpandableVars + "\n")
 	yaml.WriteString("          \n")

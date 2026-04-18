@@ -239,7 +239,13 @@ gh aw fix --list-codemods              # List available codemods
 
 **Options:** `--write`, `--list-codemods`
 
-Notable codemods include `expires-integer-to-string`, which converts bare integer `expires` values (e.g., `expires: 7`) to the preferred day-string format (e.g., `expires: 7d`) in all `safe-outputs` blocks. Run `gh aw fix --list-codemods` to see all available codemods.
+Available codemods include:
+
+- `expires-integer-to-string` — converts bare integer `expires` values (e.g., `expires: 7`) to the preferred day-string format (e.g., `expires: 7d`) in all `safe-outputs` blocks.
+- `steps-run-secrets-to-env` — rewrites inline `${{ secrets.NAME }}` interpolations in step `run:` commands to `$NAME` and adds step-level `env` bindings. Required for strict-mode compliance.
+- `engine-env-secrets-to-engine-config` — removes secret-bearing entries from `engine.env` that are unsafe under strict mode, preserving required engine credential keys.
+
+Run `gh aw fix --list-codemods` to see all available codemods.
 
 #### `compile`
 
@@ -552,7 +558,9 @@ gh aw update --disable-release-bump       # Update workflows; only force-update 
 gh aw update --create-pull-request        # Update and open a pull request
 ```
 
-**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`
+**Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`, `--no-redirect`
+
+The `--no-redirect` flag causes `update` to fail when the source workflow has a [`redirect`](/gh-aw/reference/frontmatter/#redirect) field, rather than following the redirect to its new location. Use this when you want explicit control over redirect handling.
 
 #### `upgrade`
 

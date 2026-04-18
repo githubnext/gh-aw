@@ -38,7 +38,7 @@ tools:
 			expectedInLock: []string{
 				"# Cache memory file share configuration from frontmatter processed below",
 				"- name: Create cache-memory directory",
-				"- name: Cache cache-memory file share data",
+				"- name: Restore cache-memory file share data",
 				"uses: actions/cache@",
 				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
@@ -77,12 +77,12 @@ tools:
 				"# Cache memory file share configuration from frontmatter processed below",
 				"- name: Create cache-memory directory (default)",
 				"mkdir -p /tmp/gh-aw/cache-memory",
-				"- name: Cache cache-memory file share data (default)",
+				"- name: Restore cache-memory file share data (default)",
 				"key: memory-none-nopolicy-memory-default-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
 				"- name: Create cache-memory directory (session)",
 				"mkdir -p /tmp/gh-aw/cache-memory-session",
-				"- name: Cache cache-memory file share data (session)",
+				"- name: Restore cache-memory file share data (session)",
 				"key: memory-none-nopolicy-memory-session-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory-session",
 				"cache_memory_prompt_multi.md", // Template file reference for multiple caches

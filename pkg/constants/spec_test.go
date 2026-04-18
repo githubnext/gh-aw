@@ -210,8 +210,8 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 		actual   int
 		expected int
 	}{
-		// From spec: DefaultMCPGatewayPort // 80
-		{name: "DefaultMCPGatewayPort", actual: constants.DefaultMCPGatewayPort, expected: 80},
+		// From spec: DefaultMCPGatewayPort // 8080
+		{name: "DefaultMCPGatewayPort", actual: constants.DefaultMCPGatewayPort, expected: 8080},
 		// From spec: DefaultMCPServerPort // 3000
 		{name: "DefaultMCPServerPort", actual: constants.DefaultMCPServerPort, expected: 3000},
 		// From spec: DefaultMCPInspectorPort // 3001

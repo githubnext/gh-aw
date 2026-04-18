@@ -75,7 +75,7 @@ const ExpressionBreakThreshold LineLength = 100
 
 const (
 	// DefaultMCPGatewayPort is the default port for the MCP gateway HTTP service
-	DefaultMCPGatewayPort = 80
+	DefaultMCPGatewayPort = 8080
 
 	// DefaultMCPServerPort is the default port for MCP servers (mcp-scripts server)
 	DefaultMCPServerPort = 3000

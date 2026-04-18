@@ -2,11 +2,9 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -73,24 +71,20 @@ Examples:
 	return cmd
 }
 
-// checkAndLogGHVersion checks if gh CLI is available and logs its version
+// checkAndLogGHVersion checks if gh CLI is available and logs its version.
+// Diagnostics are emitted through the debug logger only.
 func checkAndLogGHVersion() {
 	cmd := workflow.ExecGH("version")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
 		mcpLog.Print("WARNING: gh CLI not found in PATH")
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("gh CLI not found in PATH - some MCP server operations may fail"))
 		return
 	}
 
 	// Parse and log the version
 	versionOutput := strings.TrimSpace(string(output))
 	mcpLog.Printf("gh CLI version: %s", versionOutput)
-
-	// Extract just the first line for cleaner logging to stderr
-	firstLine := strings.Split(versionOutput, "\n")[0]
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("gh CLI: "+firstLine))
 }
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
@@ -100,19 +94,12 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 
 	if validateActor {
 		mcpLog.Printf("Actor validation enabled (--validate-actor flag)")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Actor validation enabled"))
 	}
 
 	if actor != "" {
 		mcpLog.Printf("Using actor: %s", actor)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Actor: "+actor))
 	} else {
 		mcpLog.Print("No actor specified (GITHUB_ACTOR environment variable)")
-		if validateActor {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No actor specified - logs and audit tools will not be mounted (actor validation enabled)"))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No actor specified - all tools will be mounted (actor validation disabled)"))
-		}
 	}
 
 	if port > 0 {
@@ -136,10 +123,8 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 	// Log current working directory
 	if cwd, err := os.Getwd(); err == nil {
 		mcpLog.Printf("Current working directory: %s", cwd)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Current working directory: "+cwd))
 	} else {
 		mcpLog.Printf("WARNING: Failed to get current working directory: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get current working directory: %v", err)))
 	}
 
 	// Check and log gh CLI version
@@ -150,7 +135,6 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 	// This allows the server to start in test environments or non-repository directories
 	if err := validateMCPServerConfiguration(cmdPath); err != nil {
 		mcpLog.Printf("Configuration validation warning: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Configuration validation warning: %v", err)))
 	}
 
 	// Pre-cache lock-file manifests at startup, before any agent can modify the working tree.
@@ -165,7 +149,6 @@ func runMCPServer(port int, cmdPath string, validateActor bool) error {
 		} else {
 			manifestCacheFile = cacheFile
 			mcpLog.Printf("Manifest cache written to %s (%d entries)", cacheFile, len(manifestCache))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Pre-cached %d workflow manifest(s) for safe update enforcement", len(manifestCache))))
 			// Clean up the temp file when the server exits
 			defer func() {
 				if removeErr := os.Remove(cacheFile); removeErr != nil && !os.IsNotExist(removeErr) {

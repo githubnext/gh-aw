@@ -31,7 +31,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `JSONPathInfo` | struct | JSON path with human-readable description |
 | `NestedSection` | struct | Locates nested YAML sections for error reporting |
 | `PathSegment` | struct | A single segment in a resolved JSON path |
-| `MCPServerConfig` | struct | Parsed MCP server configuration (type, command, URL, env, etc.) |
+| `RegistryMCPServerConfig` | struct | Parsed MCP server configuration (type, command, URL, env, etc.) |
 | `MCPServerInfo` | struct | Metadata about an MCP server entry |
 | `ScheduleParser` | struct | Converts natural-language schedules to cron expressions |
 | `DeprecatedField` | struct | A deprecated frontmatter field with migration guidance |
@@ -88,8 +88,8 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ExtractMCPConfigurations` | `func(frontmatter map[string]any, serverFilter string) ([]MCPServerConfig, error)` | Extracts all MCP server configurations from frontmatter |
-| `ParseMCPConfig` | `func(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error)` | Parses a single MCP server entry |
+| `ExtractMCPConfigurations` | `func(frontmatter map[string]any, serverFilter string) ([]RegistryMCPServerConfig, error)` | Extracts all MCP server configurations from frontmatter |
+| `ParseMCPConfig` | `func(toolName string, mcpSection any, toolConfig map[string]any) (RegistryMCPServerConfig, error)` | Parses a single MCP server entry |
 | `IsMCPType` | `func(typeStr string) bool` | Validates an MCP transport type string |
 
 #### Schedule Parsing

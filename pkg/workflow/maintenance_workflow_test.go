@@ -282,9 +282,10 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
-	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate'`
+	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate'`
 	applySafeOutputsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels'`
+	closeAgenticWorkflowIssuesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues'`
 	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'clean_cache_memories'`
 
 	const jobSectionSearchRange = 300
@@ -366,6 +367,17 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		}
 	}
 
+	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'
+	closeAgenticWorkflowIssuesIdx := strings.Index(yaml, "\n  close_agentic_workflows_issues:")
+	if closeAgenticWorkflowIssuesIdx == -1 {
+		t.Errorf("Job close_agentic_workflows_issues not found in generated workflow")
+	} else {
+		closeAgenticWorkflowIssuesSection := yaml[closeAgenticWorkflowIssuesIdx : closeAgenticWorkflowIssuesIdx+runOpSectionSearchRange]
+		if !strings.Contains(closeAgenticWorkflowIssuesSection, closeAgenticWorkflowIssuesCondition) {
+			t.Errorf("Job close_agentic_workflows_issues should have the activation condition %q in:\n%s", closeAgenticWorkflowIssuesCondition, closeAgenticWorkflowIssuesSection)
+		}
+	}
+
 	// Verify create_labels is an option in the operation choices
 	if !strings.Contains(yaml, "- 'create_labels'") {
 		t.Error("workflow_dispatch operation choices should include 'create_labels'")
@@ -384,6 +396,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify validate is an option in the operation choices
 	if !strings.Contains(yaml, "- 'validate'") {
 		t.Error("workflow_dispatch operation choices should include 'validate'")
+	}
+
+	// Verify close_agentic_workflows_issues is an option in the operation choices
+	if !strings.Contains(yaml, "- 'close_agentic_workflows_issues'") {
+		t.Error("workflow_dispatch operation choices should include 'close_agentic_workflows_issues'")
 	}
 
 	// Verify run_url input exists in workflow_dispatch

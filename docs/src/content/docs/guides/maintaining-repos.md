@@ -156,9 +156,11 @@ Choose based on what the workflow does:
 
 ### Fine-Grained Trust Controls
 
-Beyond the global level, three per-item overrides let you handle edge cases without changing the baseline.
+Beyond the global level, three per-item overrides handle edge cases without changing the baseline:
 
-**`trusted-users`** — Elevate specific accounts (contractors, bots) to `approved` regardless of their GitHub author association:
+- **`trusted-users`** — Elevate specific accounts (contractors, bots) to `approved` regardless of their GitHub author association.
+- **`approval-labels`** — Let repo-assist (or a human reviewer) label content to pass it through a stricter downstream filter.
+- **`blocked-users`** — Unconditionally block known-bad accounts regardless of `min-integrity`.
 
 ```aw wrap
 tools:
@@ -167,25 +169,9 @@ tools:
     trusted-users:
       - "contractor-alice"
       - "partner-org-bot"
-```
-
-**`approval-labels`** — Let repo-assist (or a human reviewer) label content to pass it through a stricter downstream filter:
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
     approval-labels:
       - "agent-approved"
       - "needs-investigation"
-```
-
-**`blocked-users`** — Unconditionally block known-bad accounts regardless of `min-integrity`:
-
-```aw wrap
-tools:
-  github:
-    min-integrity: approved
     blocked-users:
       - "known-spam-bot"
 ```
@@ -322,61 +308,14 @@ gh aw audit diff BASELINE_ID CURRENT_ID
 
 ### Common Failure Patterns
 
-**Missing tool calls**
-
-The agent attempted a tool that wasn't configured or used the wrong name. Check the `missing_tools` section of the audit output.
-
-Fixes:
-- Add the required tool to the `tools:` section in frontmatter.
-- Verify safe-output names don't have an incorrect prefix (`safeoutputs-` is wrong; use the tool name directly).
-- Check MCP server connectivity.
-
-**Authentication failures**
-
-Token permissions are too narrow or an API key is missing.
-
-Fixes:
-- Review the `permissions:` block in the workflow frontmatter.
-- Ensure required secrets (`COPILOT_GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, etc.) are set.
-- Check [Authentication Reference](/gh-aw/reference/auth/) for token requirements.
-
-**Integrity filtering blocking expected content**
-
-The `DIFC_FILTERED` events in the audit's firewall section show exactly which items were removed and why.
-
-Fixes:
-- Verify the author's GitHub association matches your `min-integrity` setting.
-- Add the author to `trusted-users` if they should be promoted.
-- Add `approval-labels` to allow label-based promotion.
-- Use `gh aw logs --filtered-integrity` to find all runs with filtering events.
-
-**Safe-output validation failures**
-
-The agent attempted a GitHub action (label, comment, PR, etc.) that wasn't declared in the `safe-outputs:` block. Safe-outputs is the primary output safety mechanism — only declared actions are permitted.
-
-Fixes:
-- Review `safe-outputs:` configuration in frontmatter.
-- Check `safe_outputs.jsonl` in the audit artifacts for the exact call that failed.
-- See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for format requirements.
-
-**Token budget exhaustion**
-
-The run hit the token limit before completing its task.
-
-Fixes:
-- Raise `min-integrity` to reduce the agent's context.
-- Add `cache-memory:` to reuse context across runs.
-- Simplify the prompt or break the workflow into smaller focused tasks.
-- Set a tighter `rate-limit` to prevent concurrent runs from competing for the same token budget.
-
-**Network blocks**
-
-A domain the agent needs is blocked by the firewall.
-
-Fixes:
-- Review the firewall section of the audit output.
-- Add the required ecosystem or domain to `network.allowed`.
-- See [Network Configuration Guide](/gh-aw/guides/network-configuration/) for ecosystem identifiers.
+| Failure | Symptom / Cause | Fixes |
+|---------|-----------------|-------|
+| **Missing tool calls** | Tool not configured or wrong name. Check `missing_tools` in audit. | Add to `tools:` in frontmatter; fix any `safeoutputs-` prefix; check MCP connectivity. |
+| **Authentication failures** | Token permissions too narrow or API key missing. | Review `permissions:` block; ensure secrets are set; see [Auth Reference](/gh-aw/reference/auth/). |
+| **Integrity filtering blocking content** | Author's association below `min-integrity`. `DIFC_FILTERED` events in audit show details. | Adjust `min-integrity`; add author to `trusted-users`; use `approval-labels`; check `gh aw logs --filtered-integrity`. |
+| **Safe-output validation failures** | Agent attempted undeclared GitHub action. Safe-outputs blocks anything not listed. | Review `safe-outputs:`; check `safe_outputs.jsonl` in audit artifacts; see [Safe Outputs Reference](/gh-aw/reference/safe-outputs/). |
+| **Token budget exhaustion** | Run hit token limit before completing. | Raise `min-integrity` to reduce context; add `cache-memory:`; simplify prompt; tighten `rate-limit`. |
+| **Network blocks** | Required domain blocked by firewall. | Check firewall section of audit; add domain to `network.allowed`; see [Network Configuration Guide](/gh-aw/guides/network-configuration/). |
 
 ### Iterative Debug Workflow
 
@@ -390,59 +329,7 @@ Fixes:
 
 ### Public Open-Source Repository
 
-A public repository receives issues from anonymous users, contributors, and maintainers. Repo-assist triages all issues; a code fix agent only acts on issues that repo-assist has labeled as ready.
-
-**Repo-assist** (`repo-assist.md`):
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened]
-engine: copilot
-tools:
-  github:
-    toolsets: [issues, labels]
-    min-integrity: unapproved
-safe-outputs:
-  label-issue:
-  comment-issue:
-permissions:
-  issues: write
-  contents: read
----
-
-Classify the issue and apply one label from the existing label set.
-If the issue is a quality bug report with a clear reproduction, also add the label `agent-ready`.
-```
-
-**Code fix agent** (`auto-fix.md`):
-
-```aw wrap
----
-on:
-  issues:
-    types: [labeled]
-engine: copilot
-tools:
-  github:
-    toolsets: [issues, pull_requests]
-    min-integrity: approved
-    approval-labels:
-      - "agent-ready"
-safe-outputs:
-  create-pull-request:
-permissions:
-  issues: write
-  pull-requests: write
-  contents: write
----
-
-The issue labeled `agent-ready` needs a fix. Reproduce the bug,
-implement a minimal fix, and open a pull request.
-```
-
-Repo-assist applies `agent-ready` when an issue meets quality criteria. The code fix agent uses `approval-labels` so even external issues promoted by repo-assist (or a maintainer) can be processed — while issues that haven't been approved are never seen by the code fix agent.
+A public repository uses the two-agent pattern shown above: repo-assist with `min-integrity: unapproved` classifies incoming issues and applies an `agent-ready` label to quality bug reports, and a downstream code fix agent with `min-integrity: approved` and `approval-labels: ["agent-ready"]` opens a pull request only after repo-assist has promoted the issue. Issues from untrusted users can still trigger the pipeline through label promotion, while the code fix agent never sees unapproved content directly.
 
 ### Inner-Source Repository
 

@@ -84,6 +84,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18703 _(direct issue)_
 
+### @AlexDeMichieli
+
+- #26645 _(direct issue)_
+
 ### @alexsiilvaa
 
 - #20781 _(direct issue)_
@@ -120,8 +124,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bbonafed
 
+- #26045 _(direct issue)_
 - #26043 _(direct issue)_
-- #25646 _(direct issue)_
 - #24949 _(direct issue)_
 - #25224 _(direct issue)_
 - #24918 _(direct issue)_
@@ -155,10 +159,13 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bmerkle
 
+- #26621 _(direct issue)_
 - #20646 _(direct issue)_
 
 ### @bryanchen-d
 
+- #26696 _(direct issue)_
+- #26487 _(direct issue)_
 - #25719 _(direct issue)_
 - #23265 _(direct issue)_
 
@@ -169,6 +176,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 ### @bryanknox
 
 - #25351 _(direct issue)_
+
+### @Calidus
+
+- #26923 _(direct issue)_
 
 ### @camposbrunocampos
 
@@ -203,6 +214,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @corygehr
 
+- #26539 _(direct issue)_
 - #26270 _(direct issue)_
 - #26268 _(direct issue)_
 - #25680 _(direct issue)_
@@ -246,6 +258,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @deyaaeldeen
 
+- #26486 _(direct issue)_
 - #25573 _(direct issue)_
 - #25359 _(direct issue)_
 - #23198 _(direct issue)_
@@ -324,6 +337,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #23257 _(direct issue)_
 - #20457 _(direct issue)_
 - #18412 _(direct issue)_
+
+### @edburns
+
+- #26920 _(direct issue)_
 
 ### @elika56
 
@@ -404,6 +421,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @IEvangelist
 
+- #26908 _(direct issue)_
 - #25467 _(direct issue)_
 
 ### @Infinnerty
@@ -421,6 +439,11 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 - #23484 _(direct issue)_
 - #23483 _(direct issue)_
 - #23482 _(direct issue)_
+
+### @jamesadevine
+
+- #26407 _(direct issue)_
+- #26406 _(direct issue)_
 
 ### @JanKrivanek
 
@@ -449,6 +472,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @jeffhandley
 
+- #26799 _(direct issue)_
+- #26788 _(direct issue)_
 - #24384 _(direct issue)_
 
 ### @jeremiah-snee-openx
@@ -519,6 +544,8 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @lupinthe14th
 
+- #26542 _(direct issue)_
+- #26441 _(direct issue)_
 - #18712 _(direct issue)_
 
 ### @mark-hingston
@@ -585,6 +612,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @neta-vega
 
+- #26447 _(direct issue)_
 - #25895 _(direct issue)_
 
 ### @NicoAvanzDev
@@ -658,6 +686,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @rspurgeon
 
+- #26475 _(direct issue)_
 - #19451 _(direct issue)_
 - #18373 _(direct issue)_
 - #15595 _(direct issue)_
@@ -707,6 +736,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @seangibeault
 
+- #26910 _(direct issue)_
 - #24905 _(direct issue)_
 
 ### @srgibbs99
@@ -858,6 +888,11 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @yskopets
 
+- #26922 _(direct issue)_
+- #26569 _(direct issue)_
+- #26468 _(direct issue)_
+- #26358 _(direct issue)_
+- #26346 _(direct issue)_
 - #26345 _(direct issue)_
 - #26280 _(direct issue)_
 - #26279 _(direct issue)_
@@ -887,6 +922,15 @@ should be credited:
 - **@haritha-px** for Model version generation issue ([#21871](https://github.com/github/gh-aw/issues/21871)) — closed 2026-03-25, NOT_PLANNED
 - **@inigohidalgo** for Support `engine: claude` with `COPILOT_GITHUB_TOKEN` (Copilot-hosted model backend) ([#20961](https://github.com/github/gh-aw/issues/20961)) — closed 2026-03-15, NOT_PLANNED
 - **@porada** for Support `.lock.yaml` files ([#21828](https://github.com/github/gh-aw/issues/21828)) — closed 2026-03-25, NOT_PLANNED
+- **@grahame-white** for CI Coach workflow uses invalid 'copilot-requests' permission ([#20717](https://github.com/github/gh-aw/issues/20717)) — closed 2026-04-10, NOT_PLANNED
+- **@justinhuangai** for Problem using GitHub Apps to auth writes to discussions ([#19380](https://github.com/github/gh-aw/issues/19380)) — closed 2026-04-15, DUPLICATE
+- **@strawgate** for Report errors for git patch types which are not valid ([#18801](https://github.com/github/gh-aw/issues/18801)) — closed 2026-04-15, NOT_PLANNED
+- **@dsyme** for Allow push-to-pull-request-branch to optionally update the pull request title ([#18148](https://github.com/github/gh-aw/issues/18148)) — closed 2026-04-15, NOT_PLANNED
+- **@tinytelly** for Network issues with push-to-pull-request-branch ([#20005](https://github.com/github/gh-aw/issues/20005)) — closed 2026-03-15, NOT_PLANNED
+- **@johnwilliams-12** for Bug: Activation checkout resolves wrong repo/ref in caller-hosted event-driven relays ([#20696](https://github.com/github/gh-aw/issues/20696)) — closed 2026-03-12, DUPLICATE
+- **@dulalbert** for Azure MCP tool calls fail with 'invalid character' via MCP gateway ([#18636](https://github.com/github/gh-aw/issues/18636)) — closed 2026-02-27, NOT_PLANNED
+- **@strawgate** for bug(safe-inputs): script: return value is silently dropped ([#18534](https://github.com/github/gh-aw/issues/18534)) — closed 2026-03-01, NOT_PLANNED
+- **@jeremiah-snee-openx** for Enhance Daily Documentation Updater ([#18204](https://github.com/github/gh-aw/issues/18204)) — closed 2026-02-25, NOT_PLANNED
 
 ## Share Feedback
 

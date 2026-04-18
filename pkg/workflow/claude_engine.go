@@ -112,6 +112,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
+	toolsWithMountedCLIs := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 
 	// Add print flag for non-interactive mode
 	claudeArgs = append(claudeArgs, "--print")
@@ -144,7 +145,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// - MCP tool prefixes: mcp__github__issue_read
 	// - Path-specific tools: Read(/tmp/gh-aw/cache-memory/*)
 	// The --tools flag only supports basic tool names (e.g., "Bash,Edit,Read") without patterns.
-	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs, workflowData.CacheMemoryConfig)
+	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
@@ -397,7 +398,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add allowed tools comment before the run section
-	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs, workflowData.CacheMemoryConfig), "        ")
+	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig), "        ")
 	if allowedToolsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")

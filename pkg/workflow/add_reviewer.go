@@ -10,7 +10,8 @@ var addReviewerLog = logger.New("workflow:add_reviewer")
 type AddReviewerConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Reviewers              []string `yaml:"reviewers,omitempty"` // Optional list of allowed reviewers. If omitted, any reviewers are allowed.
+	Reviewers              []string `yaml:"reviewers,omitempty"`      // Optional list of allowed reviewers. If omitted, any reviewers are allowed.
+	TeamReviewers          []string `yaml:"team-reviewers,omitempty"` // Optional list of allowed team reviewers. If omitted, any team reviewers are allowed.
 }
 
 // parseAddReviewerConfig handles add-reviewer configuration
@@ -24,6 +25,20 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 
 	// Get config data for pre-processing before YAML unmarshaling
 	configData, _ := outputMap["add-reviewer"].(map[string]any)
+
+	// Pre-process reviewers fields to convert single string to array BEFORE unmarshaling
+	if configData != nil {
+		if reviewers, exists := configData["reviewers"]; exists {
+			if reviewerStr, ok := reviewers.(string); ok {
+				configData["reviewers"] = []string{reviewerStr}
+			}
+		}
+		if teamReviewers, exists := configData["team-reviewers"]; exists {
+			if teamReviewerStr, ok := teamReviewers.(string); ok {
+				configData["team-reviewers"] = []string{teamReviewerStr}
+			}
+		}
+	}
 
 	// Pre-process templatable int fields
 	if err := preprocessIntFieldAsString(configData, "max", addReviewerLog); err != nil {

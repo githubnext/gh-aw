@@ -275,10 +275,12 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 	engine := NewCopilotEngine()
 
 	tests := []struct {
-		name        string
-		tools       map[string]any
-		safeOutputs *SafeOutputsConfig
-		expected    []string
+		name         string
+		tools        map[string]any
+		safeOutputs  *SafeOutputsConfig
+		mcpScripts   *MCPScriptsConfig
+		workflowData *WorkflowData
+		expected     []string
 	}{
 		{
 			name:     "empty tools",
@@ -529,11 +531,114 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			expected: []string{"--allow-tool", "shell(git:*)"},
 		},
+		{
+			name: "mount-as-clis with restricted bash allows safeoutputs cli",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					NoOp: &NoOpConfig{},
+				},
+				ParsedTools: &Tools{
+					MountAsCLIs: true,
+				},
+				Features: map[string]any{
+					string(constants.MCPCLIFeatureFlag): true,
+				},
+			},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(echo)", "--allow-tool", "shell(safeoutputs:*)"},
+		},
+		{
+			name: "mount-as-clis with restricted bash allows mcpscripts cli",
+			tools: map[string]any{
+				"bash": []any{"python3 *"},
+			},
+			mcpScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
+					"query": {Name: "query", Description: "test", Script: "return {};"},
+				},
+			},
+			workflowData: &WorkflowData{
+				MCPScripts: &MCPScriptsConfig{
+					Tools: map[string]*MCPScriptToolConfig{
+						"query": {Name: "query", Description: "test", Script: "return {};"},
+					},
+				},
+				ParsedTools: &Tools{
+					MountAsCLIs: true,
+				},
+				Features: map[string]any{
+					string(constants.MCPCLIFeatureFlag): true,
+				},
+			},
+			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3 *)"},
+		},
+		{
+			name: "mount-as-clis with restricted bash allows all mounted mcp clis",
+			tools: map[string]any{
+				"bash":       []any{"echo"},
+				"playwright": true,
+				"mymcp": map[string]any{
+					"command": "npx",
+					"args":    []any{"-y", "@acme/mcp-server"},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			mcpScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
+					"query": {Name: "query", Description: "test", Script: "return {};"},
+				},
+			},
+			workflowData: &WorkflowData{
+				ParsedTools: &Tools{
+					MountAsCLIs: true,
+				},
+				Features: map[string]any{
+					string(constants.MCPCLIFeatureFlag): true,
+				},
+			},
+			expected: []string{
+				"--allow-tool", "mcpscripts",
+				"--allow-tool", "mymcp",
+				"--allow-tool", "safeoutputs",
+				"--allow-tool", "shell(echo)",
+				"--allow-tool", "shell(mcpscripts:*)",
+				"--allow-tool", "shell(mymcp:*)",
+				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(safeoutputs:*)",
+			},
+		},
+		{
+			name: "mount-as-clis with nil workflow data still allows mounted mcp clis",
+			tools: map[string]any{
+				"bash":           []any{"echo"},
+				"mount-as-clis":  true,
+				"playwright":     true,
+				"custom-mcp-cli": map[string]any{"command": "npx", "args": []any{"-y", "@acme/custom-mcp"}},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			expected: []string{
+				"--allow-tool", "custom-mcp-cli",
+				"--allow-tool", "safeoutputs",
+				"--allow-tool", "shell(custom-mcp-cli:*)",
+				"--allow-tool", "shell(echo)",
+				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(safeoutputs:*)",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, nil, nil)
+			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, tt.mcpScripts, tt.workflowData)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d arguments, got %d: %v", len(tt.expected), len(result), result)

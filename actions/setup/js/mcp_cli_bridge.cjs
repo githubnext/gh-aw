@@ -436,9 +436,10 @@ function parseBridgeArgs(argv) {
  * Boolean flags (--key without a value) are set to true.
  *
  * @param {string[]} args - User arguments after the tool name
+ * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
  * @returns {{args: Record<string, unknown>, json: boolean}}
  */
-function parseToolArgs(args) {
+function parseToolArgs(args, schemaProperties = {}) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
@@ -453,12 +454,12 @@ function parseToolArgs(args) {
         if (key === "json") {
           jsonOutput = true;
         } else {
-          result[key] = raw.slice(eqIdx + 1);
+          result[key] = coerceToolArgValue(key, raw.slice(eqIdx + 1), schemaProperties[key], result[key]);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        result[raw] = args[i + 1];
+        result[raw] = coerceToolArgValue(raw, args[i + 1], schemaProperties[raw], result[raw]);
         i++;
       } else {
         result[raw] = true;
@@ -468,6 +469,87 @@ function parseToolArgs(args) {
   }
 
   return { args: result, json: jsonOutput };
+}
+
+/**
+ * Parse and coerce a CLI argument value based on the MCP tool schema property type.
+ *
+ * @param {string} key - Argument key name
+ * @param {string} rawValue - Raw CLI value
+ * @param {{type?: string|string[]}|undefined} schemaProperty - JSON schema property
+ * @param {unknown} existingValue - Existing value (for repeated flags)
+ * @returns {unknown}
+ */
+function coerceToolArgValue(key, rawValue, schemaProperty, existingValue) {
+  /** @type {string[]} */
+  const types = [];
+  if (schemaProperty && typeof schemaProperty === "object" && "type" in schemaProperty && schemaProperty.type != null) {
+    if (Array.isArray(schemaProperty.type)) {
+      for (const t of schemaProperty.type) {
+        if (typeof t === "string") {
+          types.push(t);
+        }
+      }
+    } else if (typeof schemaProperty.type === "string") {
+      types.push(schemaProperty.type);
+    }
+  }
+
+  if (types.includes("array")) {
+    /** @type {unknown[]} */
+    let values;
+    const trimmed = rawValue.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          values = parsed;
+        } else {
+          values = [rawValue];
+        }
+      } catch {
+        values = [rawValue];
+      }
+    } else if (rawValue.includes(",")) {
+      values = rawValue
+        .split(",")
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+    } else {
+      values = [rawValue];
+    }
+
+    if (Array.isArray(existingValue)) {
+      return [...existingValue, ...values];
+    }
+    return values;
+  }
+
+  if (types.includes("integer") && /^-?\d+$/.test(rawValue)) {
+    const parsed = Number.parseInt(rawValue, 10);
+    if (Number.isSafeInteger(parsed)) {
+      return parsed;
+    }
+  }
+
+  if (types.includes("number")) {
+    const parsed = Number(rawValue);
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  if (types.includes("boolean")) {
+    const normalized = rawValue.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") {
+      return true;
+    }
+    if (normalized === "false" || normalized === "0") {
+      return false;
+    }
+  }
+
+  return rawValue;
 }
 
 // ---------------------------------------------------------------------------
@@ -583,6 +665,7 @@ function formatResponse(responseBody, serverName) {
   // Extract result content
   if (resp && typeof resp === "object" && "result" in resp && resp.result && typeof resp.result === "object") {
     const result = resp.result;
+    const isErrorResult = "isError" in result && result.isError === true;
     if ("content" in result && Array.isArray(result.content)) {
       const outputParts = [];
       for (const item of result.content) {
@@ -596,13 +679,27 @@ function formatResponse(responseBody, serverName) {
         }
       }
       const output = outputParts.join("\n");
-      process.stdout.write(output + "\n");
-      core.info(`[${serverName}] Tool output: ${output.length} chars`);
+      if (isErrorResult) {
+        process.stderr.write(output + "\n");
+        core.error(`[${serverName}] Tool returned isError=true: ${output.length} chars`);
+        auditLog(serverName, { event: "tool_error", error: output });
+        process.exitCode = 1;
+      } else {
+        process.stdout.write(output + "\n");
+        core.info(`[${serverName}] Tool output: ${output.length} chars`);
+      }
       return;
     }
     // Fallback: print raw result
     const resultStr = typeof result === "string" ? result : JSON.stringify(result);
-    process.stdout.write(resultStr + "\n");
+    if (isErrorResult) {
+      process.stderr.write(resultStr + "\n");
+      core.error(`[${serverName}] Tool returned isError=true`);
+      auditLog(serverName, { event: "tool_error", error: resultStr });
+      process.exitCode = 1;
+    } else {
+      process.stdout.write(resultStr + "\n");
+    }
     return;
   }
 
@@ -658,7 +755,9 @@ async function main() {
   }
 
   // Route: <command> [--param value ...] → call tool via MCP
-  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs);
+  const matchedTool = tools.find(tool => tool && typeof tool === "object" && tool.name === toolName);
+  const schemaProperties = matchedTool && matchedTool.inputSchema && matchedTool.inputSchema.properties ? matchedTool.inputSchema.properties : {};
+  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties);
 
   core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
   auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
@@ -701,9 +800,18 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  const core = global.core;
-  const message = err instanceof Error ? err.stack || err.message : String(err);
-  core.error(`mcp_cli_bridge fatal: ${message}`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch(err => {
+    const core = global.core;
+    const message = err instanceof Error ? err.stack || err.message : String(err);
+    core.error(`mcp_cli_bridge fatal: ${message}`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  parseToolArgs,
+  coerceToolArgValue,
+  formatResponse,
+  main,
+};

@@ -19,7 +19,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 		name         string
 		frontmatter  map[string]any
 		serverFilter string
-		expected     []MCPServerConfig
+		expected     []RegistryMCPServerConfig
 		expectError  bool
 	}{
 		{
@@ -31,7 +31,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -56,7 +56,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -79,7 +79,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					"github": true,
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -100,7 +100,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					"github": map[string]any{},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -120,7 +120,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 		{
 			name:        "Empty frontmatter",
 			frontmatter: map[string]any{},
-			expected:    []MCPServerConfig{},
+			expected:    []RegistryMCPServerConfig{},
 		},
 		{
 			name: "No tools section",
@@ -128,7 +128,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				"name": "test-workflow",
 				"on":   "push",
 			},
-			expected: []MCPServerConfig{},
+			expected: []RegistryMCPServerConfig{},
 		},
 		{
 			name: "GitHub tool default configuration",
@@ -137,7 +137,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					"github": map[string]any{},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -161,7 +161,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -184,7 +184,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -207,7 +207,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -228,7 +228,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					"playwright": map[string]any{},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -249,7 +249,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -270,7 +270,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -291,7 +291,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -312,7 +312,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 				},
 			},
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -339,7 +339,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			serverFilter: "github",
-			expected: []MCPServerConfig{
+			expected: []RegistryMCPServerConfig{
 				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
@@ -367,7 +367,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			serverFilter: "nomatch",
-			expected:     []MCPServerConfig{},
+			expected:     []RegistryMCPServerConfig{},
 		},
 	}
 
@@ -445,7 +445,7 @@ func TestParseMCPConfig(t *testing.T) {
 		toolName    string
 		mcpSection  any
 		toolConfig  map[string]any
-		expected    MCPServerConfig
+		expected    RegistryMCPServerConfig
 		expectError bool
 	}{
 		{
@@ -457,7 +457,7 @@ func TestParseMCPConfig(t *testing.T) {
 				"args":    []any{"--verbose", "--config=/etc/config.yml"},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "/usr/bin/server",
 				Args:    []string{"--verbose", "--config=/etc/config.yml"},
 				Env:     map[string]string{},
@@ -478,7 +478,7 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Container: "myregistry/server:latest",
 				Command:   "docker",
 				Args:      []string{"run", "--rm", "-i", "-e", "DEBUG", "-e", "API_URL", "myregistry/server:latest"},
@@ -503,7 +503,7 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				URL: "https://mcp.example.com/api",
 				Headers: map[string]string{
 					"Authorization": "Bearer token123",
@@ -527,7 +527,7 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				URL: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 				Headers: map[string]string{
 					"DD_API_KEY":         "test-api-key",
@@ -549,7 +549,7 @@ func TestParseMCPConfig(t *testing.T) {
 			toolConfig: map[string]any{
 				"allowed": []any{"tool1", "tool2", "tool3"},
 			},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "server",
 				Env:     map[string]string{},
 				Headers: map[string]string{}}, Name: "server-with-allowed",
@@ -569,7 +569,7 @@ func TestParseMCPConfig(t *testing.T) {
 				}
 			}`,
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "python",
 				Args:    []string{"-m", "mcp_server"},
 				Env: map[string]string{
@@ -592,7 +592,7 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "server",
 				Env: map[string]string{
 					"LOG_LEVEL": "debug",
@@ -609,7 +609,7 @@ func TestParseMCPConfig(t *testing.T) {
 			toolName:   "inferred-stdio",
 			mcpSection: map[string]any{"command": "server"},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "server",
 				Args:    nil,
 				Env:     map[string]string{},
@@ -632,7 +632,7 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "docker",
 				Args:    []string{"run", "myserver"},
 
@@ -653,7 +653,7 @@ func TestParseMCPConfig(t *testing.T) {
 				"args":    []any{"--local-mode"},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio", // normalized to stdio
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio", // normalized to stdio
 				Command: "local-mcp-server",
 				Args:    []string{"--local-mode"},
 				Env:     map[string]string{},
@@ -671,7 +671,7 @@ func TestParseMCPConfig(t *testing.T) {
 				"registry": "https://registry.example.com/servers/mcp-server",
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 
 				Command: "registry-server",
 				Env:     map[string]string{},
@@ -691,7 +691,7 @@ func TestParseMCPConfig(t *testing.T) {
 				"registry": "https://registry.example.com/servers/http-mcp",
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			expected: RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 
 				URL:     "https://api.example.com/mcp",
 				Headers: map[string]string{},
@@ -861,7 +861,7 @@ func TestParseMCPConfig(t *testing.T) {
 // TestMCPConfigTypes tests the struct types for proper JSON serialization
 func TestMCPConfigTypes(t *testing.T) {
 	// Test that our structs can be properly marshaled/unmarshaled
-	config := MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+	config := RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 		Command: "test-command",
 		Args:    []string{"arg1", "arg2"},
 
@@ -880,7 +880,7 @@ func TestMCPConfigTypes(t *testing.T) {
 	}
 
 	// Unmarshal from JSON
-	var decoded MCPServerConfig
+	var decoded RegistryMCPServerConfig
 	if err := json.Unmarshal(jsonData, &decoded); err != nil {
 		t.Errorf("Failed to unmarshal config: %v", err)
 	}

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -121,6 +122,98 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	sort.Strings(servers)
 	mcpCLIMountLog.Printf("MCP CLI servers selected: %v", servers)
 	return servers
+}
+
+func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) *WorkflowData {
+	if workflowData == nil {
+		workflowData = &WorkflowData{}
+	}
+
+	copied := *workflowData
+	if copied.Tools == nil {
+		copied.Tools = tools
+	}
+	if copied.SafeOutputs == nil {
+		copied.SafeOutputs = safeOutputs
+	}
+	if copied.MCPScripts == nil {
+		copied.MCPScripts = mcpScripts
+	}
+	if copied.ParsedTools == nil && copied.Tools != nil {
+		copied.ParsedTools = NewTools(copied.Tools)
+	}
+	// Some call paths may not provide WorkflowData.Features (e.g. direct unit calls).
+	// When mount-as-clis is explicitly enabled in tools config, synthesize the feature
+	// flag so mounted MCP CLI server names can still be derived consistently.
+	if copied.Features == nil && copied.ParsedTools != nil && copied.ParsedTools.MountAsCLIs {
+		copied.Features = map[string]any{
+			string(constants.MCPCLIFeatureFlag): true,
+		}
+	}
+
+	return &copied
+}
+
+func getMountedCLIServerNamesIfBashRestricted(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
+	if tools == nil {
+		return nil
+	}
+	bashConfig, hasBash := tools["bash"]
+	if !hasBash {
+		return nil
+	}
+	bashCommands, ok := bashConfig.([]any)
+	if !ok || len(bashCommands) == 0 {
+		return nil
+	}
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+			return nil
+		}
+	}
+	return getMCPCLIServerNames(buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts))
+}
+
+func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map[string]any {
+	if workflowData == nil {
+		return nil
+	}
+	if workflowData.Tools == nil {
+		return workflowData.Tools
+	}
+
+	servers := getMountedCLIServerNamesIfBashRestricted(workflowData, workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts)
+	if len(servers) == 0 {
+		return workflowData.Tools
+	}
+
+	bashCommands, ok := workflowData.Tools["bash"].([]any)
+	if !ok || len(bashCommands) == 0 {
+		return workflowData.Tools
+	}
+
+	copiedTools := make(map[string]any, len(workflowData.Tools))
+	// A shallow copy is sufficient because we only replace the top-level "bash"
+	// value with a newly allocated slice and do not mutate nested map/slice values.
+	maps.Copy(copiedTools, workflowData.Tools)
+
+	augmentedBash := append([]any(nil), bashCommands...)
+	for _, server := range servers {
+		command := server + ":*"
+		exists := false
+		for _, allowed := range augmentedBash {
+			if allowedStr, ok := allowed.(string); ok && allowedStr == command {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			augmentedBash = append(augmentedBash, command)
+		}
+	}
+
+	copiedTools["bash"] = augmentedBash
+	return copiedTools
 }
 
 // getMCPCLIExcludeFromAgentConfig returns the sorted list of MCP server names that

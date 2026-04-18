@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var updateRedirectsLog = logger.New("cli:update_redirects")
 
 const maxRedirectDepth = 20
 
@@ -26,6 +29,7 @@ type resolvedUpdateLocation struct {
 }
 
 func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, initialSource *SourceSpec, allowMajor, verbose bool, noRedirect bool) (*resolvedUpdateLocation, error) {
+	updateRedirectsLog.Printf("Resolving update location: workflow=%s, source=%s/%s@%s", workflowName, initialSource.Repo, initialSource.Path, initialSource.Ref)
 	current := &SourceSpec{
 		Repo: initialSource.Repo,
 		Path: initialSource.Path,
@@ -42,6 +46,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 
 		locationKey := sourceSpecWithRef(current, currentRef)
 		if _, exists := visited[locationKey]; exists {
+			updateRedirectsLog.Printf("Redirect loop detected: workflow=%s, location=%s", workflowName, locationKey)
 			return nil, fmt.Errorf("redirect loop detected while updating %s at %s", workflowName, locationKey)
 		}
 		visited[locationKey] = struct{}{}
@@ -67,6 +72,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 		}
 
 		if redirect == "" {
+			updateRedirectsLog.Printf("Resolved update location: workflow=%s, repo=%s, latestRef=%s, redirects=%d", workflowName, current.Repo, latestRef, len(history))
 			return &resolvedUpdateLocation{
 				sourceSpec:      current,
 				currentRef:      currentRef,
@@ -78,6 +84,7 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 		}
 
 		if noRedirect {
+			updateRedirectsLog.Printf("Redirect blocked by --no-redirect: workflow=%s, redirect=%s", workflowName, redirect)
 			return nil, fmt.Errorf("redirect is disabled by --no-redirect for %s: %s declares redirect to %s (remove redirect frontmatter or run update without --no-redirect)", workflowName, sourceSpecWithRef(current, latestRef), redirect)
 		}
 
@@ -91,12 +98,14 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 			nextRef = "main"
 		}
 
+		updateRedirectsLog.Printf("Following redirect: workflow=%s, from=%s, to=%s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
 		redirectMessage := fmt.Sprintf("Workflow %s redirect: %s → %s", workflowName, sourceSpecWithRef(current, latestRef), sourceSpecWithRef(redirectedSource, nextRef))
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(redirectMessage))
 		history = append(history, redirectMessage)
 		current = redirectedSource
 	}
 
+	updateRedirectsLog.Printf("Redirect chain exceeded max depth: workflow=%s, depth=%d", workflowName, maxRedirectDepth)
 	return nil, fmt.Errorf("redirect chain exceeded maximum depth (%d) while updating %s", maxRedirectDepth, workflowName)
 }
 
@@ -120,6 +129,7 @@ func extractRedirectFromContent(content string) (string, error) {
 }
 
 func normalizeRedirectToSourceSpec(redirect string) (*SourceSpec, error) {
+	updateRedirectsLog.Printf("Normalizing redirect to source spec: %q", redirect)
 	redirect = strings.TrimSpace(redirect)
 	if redirect == "" {
 		return nil, errors.New("redirect cannot be empty")

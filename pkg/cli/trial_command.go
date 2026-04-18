@@ -90,7 +90,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			}
 
 			opts := TrialOptions{
-				Repos: RepoConfig{
+				Repos: TrialRepoContext{
 					LogicalRepo: logicalRepoSpec,
 					CloneRepo:   cloneRepoSpec,
 					HostRepo:    hostRepoSpec,

@@ -512,6 +512,40 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.error).not.toContain("not found in workspace");
     });
+
+    it("should prefer configured base_branch over trigger context base ref", async () => {
+      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_pull_request: {
+          allow_empty: true,
+          base_branch: "main",
+        },
+      });
+
+      process.env.GITHUB_BASE_REF = "master";
+      process.env.GITHUB_REF_NAME = "feature/test-change";
+      try {
+        const result = await handlers.createPullRequestHandler({
+          branch: "main",
+          title: "Test PR",
+          body: "Test description",
+        });
+
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(responseData.branch).toBe("feature/test-change");
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Branch equals base branch (main)"));
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "create_pull_request",
+            branch: "feature/test-change",
+          })
+        );
+      } finally {
+        delete process.env.GITHUB_BASE_REF;
+        delete process.env.GITHUB_REF_NAME;
+      }
+    });
   });
 
   describe("pushToPullRequestBranchHandler", () => {

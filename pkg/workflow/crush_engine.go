@@ -193,6 +193,9 @@ func (e *CrushEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 		npmPathSetup := GetNpmBinPathSetup()
 		crushCommandWithPath := fmt.Sprintf("%s && %s", npmPathSetup, crushCommand)
+		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
+			crushCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, crushCommandWithPath)
+		}
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "crush",
@@ -290,7 +293,7 @@ else
 fi
 chmod 600 "$CONFIG"`, configJSON)
 
-	stepLines := []string{"      - name: Write Crush configuration"}
+	stepLines := []string{"      - name: Write Crush Config"}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
 	return GitHubActionStep(stepLines)
 }

@@ -42,6 +42,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	var args []string
+	hasRestrictedBashAllowlist := false
 
 	// Check if bash has wildcard - if so, use --allow-all-tools instead
 	if bashConfig, hasBash := tools["bash"]; hasBash {
@@ -62,6 +63,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle bash/shell tools (when no wildcard)
 	if bashConfig, hasBash := tools["bash"]; hasBash {
 		if bashCommands, ok := bashConfig.([]any); ok {
+			hasRestrictedBashAllowlist = true
 			// Add specific shell commands
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
@@ -80,6 +82,15 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		} else {
 			// Bash with no specific commands or null value - allow all shell
 			args = append(args, "--allow-tool", "shell")
+		}
+	}
+
+	// When MCP tools are mounted as CLI commands and bash uses a restricted allowlist,
+	// ensure mounted MCP CLI commands are executable via shell(<server>:*).
+	// This avoids Copilot CLI permission blocks for mounted commands such as safeoutputs.
+	if hasRestrictedBashAllowlist {
+		for _, serverName := range getMountedCLIServerNamesIfBashRestricted(workflowData, tools, safeOutputs, mcpScripts) {
+			args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", serverName))
 		}
 	}
 

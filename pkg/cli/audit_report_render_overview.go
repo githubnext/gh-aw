@@ -122,7 +122,7 @@ func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 }
 
 // renderEngineConfig renders engine configuration details
-func renderEngineConfig(config *EngineConfig) {
+func renderEngineConfig(config *AuditEngineConfig) {
 	if config == nil {
 		return
 	}

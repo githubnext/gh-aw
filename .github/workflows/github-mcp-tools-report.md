@@ -526,8 +526,4 @@ Begin your tool discovery now. Follow these steps:
 14. **Generate report**: Create the final markdown report including change tracking, source links, and inconsistency detection
 15. **Publish**: Create a GitHub discussion with the complete tools report
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

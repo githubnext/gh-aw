@@ -21,7 +21,7 @@ func TestNewProjectNewCommand(t *testing.T) {
 	cmd := NewProjectNewCommand()
 	require.NotNil(t, cmd, "Command should be created")
 	assert.Equal(t, "new <title>", cmd.Use, "Command usage should be 'new <title>'")
-	assert.Contains(t, cmd.Short, "Create a new GitHub Project V2", "Short description should be about creating projects")
+	assert.Contains(t, cmd.Short, "Create a new GitHub Project V2 board", "Short description should mention board creation")
 
 	// Check flags
 	ownerFlag := cmd.Flags().Lookup("owner")

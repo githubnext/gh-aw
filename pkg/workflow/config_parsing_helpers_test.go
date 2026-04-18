@@ -122,6 +122,13 @@ func TestParseLabelsFromConfig(t *testing.T) {
 			expected: []string{"bug", "enhancement", "documentation"},
 		},
 		{
+			name: "labels as []string",
+			input: map[string]any{
+				"labels": []string{"bug", "enhancement"},
+			},
+			expected: []string{"bug", "enhancement"},
+		},
+		{
 			name: "labels as non-array type",
 			input: map[string]any{
 				"labels": "not-an-array",

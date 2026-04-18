@@ -187,6 +187,33 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
   });
 
+  describe("repository_dispatch reactions", () => {
+    it("should use workflow repo for run URL and event repo for reaction/comment APIs", async () => {
+      process.env.GH_AW_REACTION = "eyes";
+      global.context = {
+        eventName: "repository_dispatch",
+        runId: 12345,
+        repo: { owner: "sideowner", repo: "siderepo" },
+        payload: {
+          action: "issue_comment",
+          client_payload: {
+            issue: { number: 123 },
+            comment: { id: 456 },
+            repository: { owner: { login: "targetowner" }, name: "targetrepo" },
+          },
+        },
+      };
+      mockGithub.request.mockResolvedValueOnce({ data: { id: 111 } }).mockResolvedValueOnce({ data: { id: 789, html_url: "https://github.com/targetowner/targetrepo/issues/123#issuecomment-789" } });
+
+      const { main } = await loadModule();
+      await main();
+
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/targetowner/targetrepo/issues/comments/456/reactions", expect.objectContaining({ content: "eyes" }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/targetowner/targetrepo/issues/123/comments", expect.objectContaining({ body: expect.stringContaining("https://github.com/sideowner/siderepo/actions/runs/12345") }));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "targetowner/targetrepo");
+    });
+  });
+
   describe("Pull request review comment reactions", () => {
     it("should create new comment for pull_request_review_comment event (not edit)", async () => {
       process.env.GH_AW_REACTION = "rocket";

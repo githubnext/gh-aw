@@ -61,7 +61,7 @@ func checkSecretExists(secretName string) (bool, error) {
 }
 
 // extractSecretsFromConfig extracts all required secrets from an MCP server config
-func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
+func extractSecretsFromConfig(config parser.RegistryMCPServerConfig) []SecretInfo {
 	secretsLog.Printf("Extracting secrets from MCP config: command=%s", config.Command)
 	var secrets []SecretInfo
 	seen := make(map[string]bool)

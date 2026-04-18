@@ -98,7 +98,7 @@ func startMCPScriptsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 }
 
 // startMCPScriptsServer starts the mcp-scripts HTTP server and returns the MCP config
-func startMCPScriptsServer(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) (*parser.MCPServerConfig, *exec.Cmd, string, error) {
+func startMCPScriptsServer(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose bool) (*parser.RegistryMCPServerConfig, *exec.Cmd, string, error) {
 	mcpInspectLog.Printf("Starting mcp-scripts server with %d tools", len(mcpScriptsConfig.Tools))
 
 	// Check if node is available
@@ -182,7 +182,7 @@ func startMCPScriptsServer(mcpScriptsConfig *workflow.MCPScriptsConfig, verbose 
 	}
 
 	// Create MCP server config for the mcp-scripts server
-	config := &parser.MCPServerConfig{
+	config := &parser.RegistryMCPServerConfig{
 		BaseMCPServerConfig: types.BaseMCPServerConfig{
 			Type: "http",
 			URL:  fmt.Sprintf("http://localhost:%d", port),

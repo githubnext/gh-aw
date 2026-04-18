@@ -32,6 +32,7 @@ safe-outputs:
     title-prefix: "[ai] "         # prefix for titles
     labels: [automation]          # labels to attach
     reviewers: [user1, copilot]   # reviewers (use 'copilot' for bot)
+    team-reviewers: [platform-reviewers] # team slugs to request as reviewers
     assignees: [user1]            # assignees for fallback issues (including protected-files and PR creation failure fallbacks)
     draft: true                   # create as draft — enforced as policy (default: true)
     max: 3                        # max PRs per run (default: 1)
@@ -40,6 +41,9 @@ safe-outputs:
     target-repo: "owner/repo"     # cross-repository
     allowed-repos: ["org/repo1", "org/repo2"]  # additional allowed repositories
     base-branch: "vnext"          # target branch for PR (default: github.base_ref || github.ref_name)
+    allowed-base-branches:        # allow agent to override base branch at runtime (glob patterns)
+      - main
+      - release/*
     fallback-as-issue: false      # disable issue fallback (default: true)
     auto-close-issue: false       # don't auto-add "Fixes #N" to PR description (default: true)
     preserve-branch-name: true    # omit random salt suffix from branch name (default: false)
@@ -52,6 +56,17 @@ safe-outputs:
 ```
 
 The `base-branch` field specifies which branch the pull request should target. This is particularly useful for cross-repository PRs where you need to target non-default branches (e.g., `vnext`, `release/v1.0`, `staging`). When not specified, defaults to `github.base_ref` (the PR's target branch) with a fallback to `github.ref_name` (the workflow's branch) for push events.
+
+The `allowed-base-branches` field enables per-run base branch overrides by the agent at runtime. When configured, the agent may supply a `base` field in the `create_pull_request` tool call to target a branch other than the compiled `base-branch`. The override is accepted only when it matches one of the configured glob patterns (e.g., `main`, `release/*`). Without `allowed-base-branches`, only the compiled `base-branch` is used regardless of what the agent requests. This is useful when agent-computed data (such as a version string or user request) determines the target branch at runtime:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    base-branch: main
+    allowed-base-branches:
+      - main
+      - release/*
+```
 
 **Example use case:** A workflow in `org/engineering` that creates PRs in `org/docs` targeting the `vnext` branch for feature documentation:
 
@@ -228,12 +243,13 @@ Like `create-pull-request`, pushes with GitHub Agentic Workflows do not trigger 
 
 ## Add Reviewer (`add-reviewer:`)
 
-Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames.
+Adds reviewers to pull requests. Specify `reviewers` to restrict to specific GitHub usernames and `team-reviewers` to restrict to specific team slugs.
 
 ```yaml wrap
 safe-outputs:
   add-reviewer:
-    reviewers: [user1, copilot]  # restrict to specific reviewers
+    reviewers: [user1, copilot]  # restrict to specific user/bot reviewers
+    team-reviewers: [platform-reviewers] # restrict to specific team reviewers
     max: 3                       # max reviewers (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository

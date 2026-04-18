@@ -14,7 +14,7 @@ func TestGetMCPConfig(t *testing.T) {
 	tests := []struct {
 		name       string
 		toolConfig map[string]any
-		expected   *parser.MCPServerConfig
+		expected   *parser.RegistryMCPServerConfig
 		wantErr    bool
 	}{
 		{
@@ -24,7 +24,7 @@ func TestGetMCPConfig(t *testing.T) {
 				"command": "python",
 				"args":    []any{"-m", "test"},
 			},
-			expected: &parser.MCPServerConfig{
+			expected: &parser.RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "stdio",
 					Command: "python",
@@ -42,7 +42,7 @@ func TestGetMCPConfig(t *testing.T) {
 				"command": "python",
 				"args":    []any{"-m", "test"},
 			},
-			expected: &parser.MCPServerConfig{
+			expected: &parser.RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "stdio",
 					Command: "python",
@@ -59,7 +59,7 @@ func TestGetMCPConfig(t *testing.T) {
 			toolConfig: map[string]any{
 				"url": "https://example.com",
 			},
-			expected: &parser.MCPServerConfig{
+			expected: &parser.RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "http",
 					URL:     "https://example.com",

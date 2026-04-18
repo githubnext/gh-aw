@@ -48,8 +48,8 @@ func WithVersion(version string) CompilerOption {
 	return func(c *Compiler) { c.version = version }
 }
 
-// FileTracker interface for tracking files created during compilation
-type FileTracker interface {
+// FileCreationTracker interface for tracking files created during compilation
+type FileCreationTracker interface {
 	TrackCreated(filePath string)
 }
 
@@ -77,7 +77,7 @@ type Compiler struct {
 	jobManager              *JobManager              // Manages jobs and dependencies
 	engineRegistry          *EngineRegistry          // Registry of available agentic engines
 	engineCatalog           *EngineCatalog           // Catalog of engine definitions backed by the registry
-	fileTracker             FileTracker              // Optional file tracker for tracking created files
+	fileTracker             FileCreationTracker      // Optional file tracker for tracking created files
 	warningCount            int                      // Number of warnings encountered during compilation
 	stepOrderTracker        *StepOrderTracker        // Tracks step ordering for validation
 	actionCache             *ActionCache             // Shared cache for action pin resolutions across all workflows
@@ -170,7 +170,7 @@ func (c *Compiler) SetApprove(approve bool) {
 }
 
 // SetFileTracker sets the file tracker for tracking created files
-func (c *Compiler) SetFileTracker(tracker FileTracker) {
+func (c *Compiler) SetFileTracker(tracker FileCreationTracker) {
 	c.fileTracker = tracker
 }
 

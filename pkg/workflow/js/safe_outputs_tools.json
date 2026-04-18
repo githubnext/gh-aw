@@ -316,6 +316,10 @@
                     "type": "string",
                     "description": "Source branch name containing the changes. If omitted, uses the current working branch."
                 },
+                "base": {
+                    "type": "string",
+                    "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns."
+                },
                 "labels": {
                     "type": "array",
                     "items": {
@@ -632,8 +636,17 @@
         "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot.",
         "inputSchema": {
             "type": "object",
-            "required": [
-                "reviewers"
+            "anyOf": [
+                {
+                    "required": [
+                        "reviewers"
+                    ]
+                },
+                {
+                    "required": [
+                        "team_reviewers"
+                    ]
+                }
             ],
             "properties": {
                 "reviewers": {
@@ -642,6 +655,13 @@
                         "type": "string"
                     },
                     "description": "GitHub usernames to add as reviewers (e.g., ['octocat', 'copilot']). Users must have access to the repository."
+                },
+                "team_reviewers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "GitHub team slugs to add as team reviewers (e.g., ['platform-team', 'security-reviewers']). Teams must have access to the repository."
                 },
                 "pull_request_number": {
                     "type": [
