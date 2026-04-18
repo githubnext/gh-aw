@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"9d573c42c0dce031812d4230568c37936d697524111ac57164a434c1f268a589","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"bdf5f4e7845e03c80e6a7e60dfa4a92e24fe658f076ec14f08591b162fb03c48","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.24"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.24"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.24"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.24"},{"image":"ghcr.io/github/github-mcp-server:v1.0.0"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -207,20 +207,20 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_67d8c45bc1505692_EOF'
+          cat << 'GH_AW_PROMPT_989172d65db78661_EOF'
           <system>
-          GH_AW_PROMPT_67d8c45bc1505692_EOF
+          GH_AW_PROMPT_989172d65db78661_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_67d8c45bc1505692_EOF'
+          cat << 'GH_AW_PROMPT_989172d65db78661_EOF'
           <safe-output-tools>
           Tools: add_comment, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_67d8c45bc1505692_EOF
+          GH_AW_PROMPT_989172d65db78661_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_67d8c45bc1505692_EOF'
+          cat << 'GH_AW_PROMPT_989172d65db78661_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -249,12 +249,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_67d8c45bc1505692_EOF
+          GH_AW_PROMPT_989172d65db78661_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_67d8c45bc1505692_EOF'
+          cat << 'GH_AW_PROMPT_989172d65db78661_EOF'
           </system>
           {{#runtime-import .github/workflows/smoke-ci.md}}
-          GH_AW_PROMPT_67d8c45bc1505692_EOF
+          GH_AW_PROMPT_989172d65db78661_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -431,9 +431,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_0d1fb22b4a4faa21_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_18f4e48010397fa3_EOF'
           {"add_comment":{"hide_older_comments":true,"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_0d1fb22b4a4faa21_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_18f4e48010397fa3_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -621,7 +621,7 @@ jobs:
           
           mkdir -p /home/runner/.copilot
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_b086d25c61e73a5e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_901ef9fb4d4c0f3c_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -662,7 +662,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_b086d25c61e73a5e_EOF
+          GH_AW_MCP_CONFIG_901ef9fb4d4c0f3c_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -702,7 +702,7 @@ jobs:
           cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'
           #!/usr/bin/env bash
           set -eo pipefail
-          bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})"; else echo "smoke-ci: push event - no PR context, skipping add_comment"; fi' "$@"
+          bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})"; else safeoutputs noop --message "smoke-ci: push event - no PR context, no action needed"; fi' "$@"
 
           GH_AW_ENGINE_COMMAND_EOF
           chmod 700 /tmp/gh-aw/engine-command.sh
