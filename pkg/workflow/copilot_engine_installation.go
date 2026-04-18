@@ -46,13 +46,20 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 // 2. Sandbox installation (AWF, if needed)
 // 3. Copilot CLI installation
 //
-// If a custom command is specified in the engine configuration, this function returns
-// an empty list of steps, skipping the standard installation process.
+// If a custom command is specified in the engine configuration, this function skips
+// standard Copilot CLI installation. When firewall is enabled, it still returns AWF
+// runtime installation steps required for harness execution.
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	copilotInstallLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
 
-	// Skip installation if custom command is specified
+	// Skip standard Copilot CLI installation if custom command is specified.
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
+		// Keep firewall runtime installation when firewall is enabled, since the
+		// custom engine command still runs inside the AWF harness.
+		if isFirewallEnabled(workflowData) {
+			copilotInstallLog.Printf("Skipping Copilot CLI installation: custom command specified (%s); keeping AWF runtime installation because firewall is enabled", workflowData.EngineConfig.Command)
+			return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{}, workflowData)
+		}
 		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
 		return []GitHubActionStep{}
 	}

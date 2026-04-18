@@ -1568,6 +1568,24 @@ func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
 	if len(steps) != 0 {
 		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
 	}
+
+	// Test with custom command + firewall - should still install AWF runtime
+	workflowData = &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps = engine.GetInstallationSteps(workflowData)
+
+	if len(steps) == 0 {
+		t.Fatal("Expected installation steps when firewall is enabled with custom command")
+	}
+
+	installContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(installContent, "Install AWF binary") {
+		t.Errorf("Expected AWF installation step when firewall is enabled with custom command, got:\n%s", installContent)
+	}
 }
 
 // TestGenerateCopilotSessionFileCopyStep verifies the generated step copies session state files.
@@ -1714,6 +1732,34 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 	t.Run("CopilotEngine implements DriverProvider interface", func(t *testing.T) {
 		var _ DriverProvider = engine
 	})
+
+	t.Run("Execution serializes engine.command into shell script", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:      "copilot",
+				Command: `bash -lc 'echo custom command'`,
+			},
+			Tools: make(map[string]any),
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "copilot_driver.cjs /tmp/gh-aw/engine-command.sh") {
+			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
+			t.Errorf("Expected step to serialize engine.command into script via heredoc, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "GH_AW_ENGINE_COMMAND_EOF") {
+			t.Errorf("Expected step to include heredoc delimiter for script serialization, got:\n%s", stepContent)
+		}
+	})
 }
 
 func TestCopilotEngineNoAskUser(t *testing.T) {
@@ -1807,6 +1853,29 @@ func TestCopilotEngineNoAskUser(t *testing.T) {
 				t.Errorf("%s: expected --no-ask-user NOT in step, got:\n%s", tt.description, stepContent)
 			}
 		})
+	}
+}
+
+func TestBuildEngineCommandScriptSetup(t *testing.T) {
+	setup := buildEngineCommandScriptSetup("/usr/local/bin/custom-copilot")
+
+	if !strings.Contains(setup, "umask 0177") {
+		t.Fatalf("Expected restrictive umask in script setup, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "chmod 700 /tmp/gh-aw/engine-command.sh") {
+		t.Fatalf("Expected owner-only execute permissions, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
+		t.Fatalf("Expected heredoc-based script materialization, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, "set -eo pipefail") {
+		t.Fatalf("Expected script strict mode without -u, got:\n%s", setup)
+	}
+	if strings.Contains(setup, "set -euo pipefail") {
+		t.Fatalf("Expected script strict mode to drop -u, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, `/usr/local/bin/custom-copilot "$@"`) {
+		t.Fatalf("Expected custom command to forward driver args, got:\n%s", setup)
 	}
 }
 

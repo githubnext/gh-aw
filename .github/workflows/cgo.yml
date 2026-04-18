@@ -1,0 +1,1684 @@
+name: CGO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+    - '**.go'
+    - 'cmd/**'
+    - 'pkg/**'
+    - 'scripts/**'
+    - 'go.mod'
+    - 'go.sum'
+    - 'Makefile'
+    - 'actions/setup/sh/**'
+    - '.github/workflows/ci.yml'
+    - '.github/workflows/cgo.yml'
+    - '.github/workflows/**/*.md'
+    - '.github/aw/releases.json'
+    - '.github/aw/releases.schema.json'
+    - 'install-gh-aw.sh'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-test
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Display Go environment
+      run: |
+        echo "Go environment:"
+        go env | grep -E "GOPROXY|GOSUMDB|GOMODCACHE|GOPRIVATE"
+        echo ""
+        echo "Module cache location: $(go env GOMODCACHE)"
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          # Use -x for verbose output to see what's being downloaded
+          if go mod download -x; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            EXIT_CODE=$?
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts (exit code: $EXIT_CODE)"
+              echo "This indicates that proxy.golang.org is unreachable or returning errors"
+              echo ""
+              echo "Diagnostic information:"
+              echo "- GOPROXY: $(go env GOPROXY)"
+              echo "- GOSUMDB: $(go env GOSUMDB)"
+              echo "- Network connectivity: checking proxy.golang.org..."
+              if curl -s -I --connect-timeout 5 https://proxy.golang.org/golang.org/@v/list >/dev/null 2>&1; then
+                echo "  ✓ proxy.golang.org is reachable"
+              else
+                echo "  ✗ proxy.golang.org is NOT reachable"
+              fi
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Pre-flight check - Validate test dependencies
+      run: |
+        echo "Validating that test dependencies are available..."
+        echo "This ensures go test can compile test packages without network access."
+        echo ""
+
+        # List all test dependencies to ensure they're in the cache
+        # This will fail fast if any dependencies are missing
+        echo "Checking test dependencies for all packages..."
+        if go list -test -deps ./... >/dev/null 2>&1; then
+          echo "✅ All test dependencies are available"
+        else
+          echo "❌ Failed to resolve test dependencies"
+          echo ""
+          echo "Attempting to show which dependencies are missing:"
+          go list -test -deps ./... 2>&1 || true
+          exit 1
+        fi
+
+        echo ""
+        echo "Module cache statistics:"
+        echo "- Cache directory: $(go env GOMODCACHE)"
+        if [ -d "$(go env GOMODCACHE)" ]; then
+          echo "- Cache size: $(du -sh $(go env GOMODCACHE) 2>/dev/null | cut -f1 || echo 'unknown')"
+          echo "- Number of cached modules: $(find $(go env GOMODCACHE) -name "go.mod" 2>/dev/null | wc -l || echo 'unknown')"
+        fi
+
+    - name: Run unit tests with coverage
+      id: run-unit-tests
+      run: |
+        set -o pipefail
+        # Run tests with JSON output for artifacts, but also show failures
+        go test -v -parallel=8 -timeout=3m -run='^Test' -tags '!integration' -coverprofile=coverage.out -json ./... | tee test-result-unit.json
+
+        # Check if tests failed by looking at JSON output
+        if grep -q '"Action":"fail"' test-result-unit.json; then
+          echo "❌ Tests failed - see output above"
+          exit 1
+        fi
+
+        # Generate coverage HTML report
+        go tool cover -html=coverage.out -o coverage.html
+
+    - name: Report test failures
+      if: failure() && steps.run-unit-tests.outcome == 'failure'
+      run: |
+        echo "## 🔍 Unit Test Failure Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Analyzing unit test results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Run the failure report script
+        if ./scripts/report-test-failures.sh test-result-unit.json | tee /tmp/failure-report.txt; then
+          echo "No failures detected in JSON output (unexpected - tests failed but no failure records found)" >> $GITHUB_STEP_SUMMARY
+        else
+          # Script found failures - add to summary
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/failure-report.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
+
+      # Coverage reports for recent builds only - 7 days is sufficient for debugging recent changes
+    - name: Upload coverage report
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: coverage-report
+        path: coverage.html
+        retention-days: 7
+
+    - name: Upload unit test results
+      if: always()    # Upload even if tests fail so canary-go can track coverage
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: test-result-cgo-unit
+        path: test-result-unit.json
+        retention-days: 14
+
+  canary-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+    - test
+    if: always()  # Run even if some tests fail to report coverage
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: List unit tests in codebase
+      run: |
+        set -euo pipefail
+        echo "Extracting unit test function names from source files..."
+        go test -list='^Test' -tags '!integration' ./... 2>/dev/null | grep '^Test[A-Z]' | grep -v '^TestMain$' | sort -u > all-tests.txt
+        echo "Found $(wc -l < all-tests.txt) unit tests in codebase"
+
+    - name: Download unit test result artifacts
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
+      with:
+        path: test-results
+        pattern: test-result-cgo-unit
+        merge-multiple: false
+
+    - name: List downloaded artifacts
+      run: |
+        set -euo pipefail
+        echo "Downloaded unit test result artifacts:"
+        find test-results -type f -name "*.json" | sort
+        echo ""
+        echo "Total JSON files: $(find test-results -type f -name \"*.json\" | wc -l)"
+
+    - name: Extract executed tests from artifacts
+      run: |
+        set -euo pipefail
+        echo "Extracting test names from JSON artifacts..."
+        ./scripts/extract-executed-tests.sh test-results > executed-tests.txt
+        echo "Found $(wc -l < executed-tests.txt) executed tests"
+
+    - name: Compare test coverage
+      run: |
+        ./scripts/compare-test-coverage.sh all-tests.txt executed-tests.txt
+
+    - name: Upload test coverage report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: test-coverage-analysis-cgo
+        path: |
+          all-tests.txt
+          executed-tests.txt
+        retention-days: 14
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-build
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Set up Node.js
+      id: setup-node
+      uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f   # v6
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: actions/setup/js/package-lock.json
+    - name: Report Node cache status
+      run: |
+        if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+    - name: npm ci
+      run: npm ci
+      working-directory: ./actions/setup/js
+    - name: Build code
+      run: make build
+
+    - name: Upload Linux binary
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: gh-aw
+        retention-days: 14
+
+    - name: Report binary download instructions
+      run: |
+        RUN_ID="${{ github.run_id }}"
+        REPO="${{ github.repository }}"
+        SHA="${{ github.sha }}"
+        echo "## 📦 gh-aw Binary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The \`gh-aw\` Linux (amd64) binary has been uploaded as an artifact." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Download with GitHub CLI" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "gh run download ${RUN_ID} --repo ${REPO} --name gh-aw-linux-amd64" >> $GITHUB_STEP_SUMMARY
+        echo "chmod +x gh-aw" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Download with curl" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "# Requires a GitHub token with actions:read scope" >> $GITHUB_STEP_SUMMARY
+        echo "ARTIFACT_ID=\$(curl -fsSL -H \"Authorization: Bearer \$GH_TOKEN\" \\" >> $GITHUB_STEP_SUMMARY
+        echo "  \"https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/artifacts\" \\" >> $GITHUB_STEP_SUMMARY
+        echo "  | jq -r '.artifacts[] | select(.name==\"gh-aw-linux-amd64\") | .id')" >> $GITHUB_STEP_SUMMARY
+        echo "curl -fsSL -H \"Authorization: Bearer \$GH_TOKEN\" \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -L \"https://api.github.com/repos/${REPO}/actions/artifacts/\$ARTIFACT_ID/zip\" \\" >> $GITHUB_STEP_SUMMARY
+        echo "  -o gh-aw-linux-amd64.zip" >> $GITHUB_STEP_SUMMARY
+        echo "unzip gh-aw-linux-amd64.zip && chmod +x gh-aw" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Recompile workflows with this build" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "./gh-aw compile --action-mode release --action-tag ${SHA}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Rebuild lock files
+      run: make recompile
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+  build-wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-build-wasm
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          # Use -x for verbose output to see what's being downloaded
+          if go mod download -x; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            EXIT_CODE=$?
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts (exit code: $EXIT_CODE)"
+              echo "This indicates that proxy.golang.org is unreachable or returning errors"
+              echo ""
+              echo "Diagnostic information:"
+              echo "- GOPROXY: $(go env GOPROXY)"
+              echo "- GOSUMDB: $(go env GOSUMDB)"
+              echo "- Network connectivity: checking proxy.golang.org..."
+              if curl -s -I --connect-timeout 5 https://proxy.golang.org/golang.org/@v/list >/dev/null 2>&1; then
+                echo "  ✓ proxy.golang.org is reachable"
+              else
+                echo "  ✗ proxy.golang.org is NOT reachable"
+              fi
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build WebAssembly binary
+      run: make build-wasm
+
+    - name: Report binary size
+      run: |
+        echo "## WebAssembly Build" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if ls gh-aw.wasm 1>/dev/null 2>&1; then
+          SIZE=$(stat --format="%s" gh-aw.wasm)
+          SIZE_MB=$(awk "BEGIN {printf \"%.2f\", $SIZE/1048576}")
+          echo "✅ Build succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "- **Binary:** gh-aw.wasm" >> $GITHUB_STEP_SUMMARY
+          echo "- **Size:** ${SIZE_MB} MB (${SIZE} bytes)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ No .wasm binary found" >> $GITHUB_STEP_SUMMARY
+          ls -la *.wasm 2>/dev/null || echo "No wasm files in working directory" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+    - name: Run wasm golden tests (Go string API)
+      run: make test-wasm-golden
+
+    - name: Set up Node.js
+      uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e   # v4
+      with:
+        node-version: '20'
+
+    - name: Run wasm binary golden tests (Node.js)
+      run: node scripts/test-wasm-golden.mjs
+
+  validate-yaml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Check for ANSI escape sequences in YAML files
+      run: |
+        echo "🔍 Scanning YAML workflow files for ANSI escape sequences..."
+
+        # Find all YAML files in .github/workflows directory
+        YAML_FILES=$(find .github/workflows -type f \( -name "*.yml" -o -name "*.yaml" \) | sort)
+
+        # Track if any ANSI codes are found
+        FOUND_ANSI=0
+
+        # Check each file for ANSI escape sequences
+        for file in $YAML_FILES; do
+          # Use grep to find ANSI escape sequences (ESC [ ... letter)
+          # The pattern matches: \x1b followed by [ followed by optional digits/semicolons followed by a letter
+          if grep -P '\x1b\[[0-9;]*[a-zA-Z]' "$file" > /dev/null 2>&1; then
+            echo "❌ ERROR: Found ANSI escape sequences in: $file"
+            echo ""
+            echo "Lines with ANSI codes:"
+            grep -n -P '\x1b\[[0-9;]*[a-zA-Z]' "$file" || true
+            echo ""
+            FOUND_ANSI=1
+          fi
+        done
+
+        if [ $FOUND_ANSI -eq 1 ]; then
+          echo ""
+          echo "💡 ANSI escape sequences detected in YAML files!"
+          echo ""
+          echo "These are terminal color codes that break YAML parsing."
+          echo "Common causes:"
+          echo "  - Copy-pasting from colored terminal output"
+          echo "  - Text editors preserving ANSI codes"
+          echo "  - Scripts generating colored output"
+          echo ""
+          echo "To fix:"
+          echo "  1. Remove the ANSI codes from the affected files"
+          echo "  2. Run 'make recompile' to regenerate workflow files"
+          echo "  3. Use '--no-color' flags when capturing command output"
+          echo ""
+          exit 1
+        fi
+
+        echo "✅ No ANSI escape sequences found in YAML files"
+
+    - name: Check for release-compiled lock files
+      run: |
+        echo "🔍 Checking .lock.yml files for release build compilation..."
+
+        # Find all .lock.yml files in the repository
+        LOCK_FILES=$(find . -type f -name "*.lock.yml" | sort)
+
+        if [ -z "$LOCK_FILES" ]; then
+          echo "⚠️  WARNING: No .lock.yml files found"
+          exit 0
+        fi
+
+        # Track if any release-compiled files are found
+        FOUND_RELEASE=0
+
+        # Check each file for version numbers in the header
+        # Release builds include version like: "# This file was automatically generated by gh-aw (v1.0.0). DO NOT EDIT."
+        # Dev builds do not: "# This file was automatically generated by gh-aw. DO NOT EDIT."
+        for file in $LOCK_FILES; do
+          # Look for the pattern: "by gh-aw (v" or "by gh-aw (0" or similar version patterns
+          # This matches versions like (v1.0.0), (0.1.0), etc.
+          if grep -E '# This file was automatically generated by gh-aw \([v0-9]' "$file" > /dev/null 2>&1; then
+            echo "❌ ERROR: Found release-compiled lock file: $file"
+            echo ""
+            echo "Header line:"
+            grep -E '# This file was automatically generated by gh-aw \([v0-9]' "$file" || true
+            echo ""
+            FOUND_RELEASE=1
+          fi
+        done
+
+        if [ $FOUND_RELEASE -eq 1 ]; then
+          echo ""
+          echo "💡 Lock files should NOT be compiled with a release build!"
+          echo ""
+          echo "Lock files in the repository must be compiled with development builds."
+          echo "Release builds include version numbers in the header, which should only"
+          echo "appear in released binaries, not in source-controlled workflow files."
+          echo ""
+          echo "To fix:"
+          echo "  1. Build the CLI with 'make build' (dev build, no release flag)"
+          echo "  2. Run 'make recompile' to regenerate all lock files"
+          echo "  3. Commit the updated lock files"
+          echo ""
+          echo "The release build flag is only set during the release process via:"
+          echo "  scripts/build-release.sh (sets -X main.isRelease=true)"
+          echo ""
+          exit 1
+        fi
+
+        echo "✅ All lock files compiled with development build (no version in header)"
+
+    - name: Check agent file URLs use main branch
+      run: |
+        echo "🔍 Checking .github/agents/agentic-workflows.agent.md for correct branch URLs..."
+
+        AGENT_FILE=".github/agents/agentic-workflows.agent.md"
+
+        if [ ! -f "$AGENT_FILE" ]; then
+          echo "⚠️  WARNING: $AGENT_FILE not found, skipping check"
+          exit 0
+        fi
+
+        # Check for URLs that don't use 'main' branch
+        # Pattern matches: https://github.com/github/gh-aw/blob/{anything-except-main}/
+        # Uses negative lookahead to exclude 'main'
+        INVALID_URLS=$(grep -n 'https://github.com/github/gh-aw/blob/' "$AGENT_FILE" | grep -v '/blob/main/' || true)
+
+        if [ -n "$INVALID_URLS" ]; then
+          echo "❌ ERROR: Found URLs not using 'main' branch in $AGENT_FILE"
+          echo ""
+          echo "Lines with invalid URLs:"
+          echo "$INVALID_URLS"
+          echo ""
+          echo "💡 All GitHub URLs in agent files must reference the 'main' branch!"
+          echo ""
+          echo "URLs should use the pattern:"
+          echo "  https://github.com/github/gh-aw/blob/main/.github/aw/..."
+          echo ""
+          echo "To fix:"
+          echo "  1. Edit $AGENT_FILE"
+          echo "  2. Replace all 'blob/{commit-hash}/' or 'blob/{tag}/' with 'blob/main/'"
+          echo "  3. Commit the updated file"
+          echo ""
+          exit 1
+        fi
+
+        echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
+
+    - name: Validate releases.json structure and version formats
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
+      with:
+        script: |
+          const fs = require('fs');
+          const CONFIG_FILE = '.github/aw/releases.json';
+          const SCHEMA_FILE = '.github/aw/releases.schema.json';
+
+          core.info(`🔍 Validating ${CONFIG_FILE} against ${SCHEMA_FILE}...`);
+
+          if (!fs.existsSync(CONFIG_FILE)) {
+            core.setFailed(`ERROR: ${CONFIG_FILE} not found`);
+            return;
+          }
+          if (!fs.existsSync(SCHEMA_FILE)) {
+            core.setFailed(`ERROR: ${SCHEMA_FILE} not found`);
+            return;
+          }
+
+          let config;
+          try {
+            config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+          } catch (err) {
+            core.setFailed(`ERROR: ${CONFIG_FILE} is not valid JSON: ${err.message}`);
+            return;
+          }
+          core.info(`✅ ${CONFIG_FILE} is valid JSON`);
+
+          const errors = [];
+
+          // Check additionalProperties (only allow known keys)
+          const allowedKeys = new Set(['$schema', 'blockedVersions', 'minimumVersion', 'minRecommendedVersion']);
+          for (const key of Object.keys(config)) {
+            if (!allowedKeys.has(key)) {
+              errors.push(`Unknown property: '${key}'`);
+            }
+          }
+
+          // Validate blockedVersions
+          if ('blockedVersions' in config) {
+            const bv = config.blockedVersions;
+            if (!Array.isArray(bv)) {
+              errors.push("'blockedVersions' must be an array");
+            } else {
+              const versionPattern = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+              const seen = new Set();
+              bv.forEach((v, i) => {
+                if (typeof v !== 'string') {
+                  errors.push(`'blockedVersions[${i}]' must be a string`);
+                } else if (!versionPattern.test(v)) {
+                  errors.push(`'blockedVersions[${i}]' ('${v}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3')`);
+                } else if (seen.has(v)) {
+                  errors.push(`'blockedVersions' contains duplicate entry: '${v}'`);
+                } else {
+                  seen.add(v);
+                }
+              });
+            }
+          }
+
+          // Validate minimumVersion
+          if ('minimumVersion' in config) {
+            const mv = config.minimumVersion;
+            if (typeof mv !== 'string') {
+              errors.push("'minimumVersion' must be a string");
+            } else if (mv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mv)) {
+              errors.push(`'minimumVersion' ('${mv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
+            }
+          }
+
+          // Validate minRecommendedVersion
+          if ('minRecommendedVersion' in config) {
+            const mrv = config.minRecommendedVersion;
+            if (typeof mrv !== 'string') {
+              errors.push("'minRecommendedVersion' must be a string");
+            } else if (mrv !== '' && !/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(mrv)) {
+              errors.push(`'minRecommendedVersion' ('${mrv}') does not match expected version pattern (vMAJOR.MINOR.PATCH, e.g. 'v1.2.3' or empty string)`);
+            }
+          }
+
+          if (errors.length > 0) {
+            core.setFailed(`❌ ${CONFIG_FILE} schema validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+            return;
+          }
+
+          core.info(`✅ ${CONFIG_FILE} is valid and conforms to ${SCHEMA_FILE}`);
+
+  bench:
+    # Only run benchmarks on main branch for performance tracking
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-bench
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Run benchmarks
+      run: make bench
+
+    - name: Display benchmark summary
+      run: |
+        echo "## 📊 Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        # Show compiler benchmarks from the results
+        grep "BenchmarkCompile" bench_results.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "No benchmark results found" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📁 Full results saved to artifact: benchmark-results" >> $GITHUB_STEP_SUMMARY
+
+      # Benchmark results for performance trend analysis - 14 days allows comparison across multiple runs
+    - name: Save benchmark results
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: benchmark-results
+        path: bench_results.txt
+        if-no-files-found: ignore
+        retention-days: 14
+
+  check-validator-sizes:
+    name: Check validator file sizes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Non-blocking: report violations but don't fail the build until existing files are cleaned up
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Check validator file sizes
+      id: check
+      run: |
+        set +e
+        OUTPUT=$(NO_COLOR=1 bash scripts/check-validator-sizes.sh 2>&1)
+        EXIT_CODE=$?
+        echo "$OUTPUT"
+        echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+        echo "## Validator File Size Check" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "Checking \`*_validation.go\` files against the 768-line hard limit (AGENTS.md)." >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+        echo "$OUTPUT" >> "$GITHUB_STEP_SUMMARY"
+        echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$EXIT_CODE" -ne 0 ]; then
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "⚠️ This check is currently non-blocking. Fix violations to keep the codebase healthy." >> "$GITHUB_STEP_SUMMARY"
+        fi
+        exit "$EXIT_CODE"
+
+  lint-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-lint-go
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+      with:
+        fetch-depth: 0    # Fetch all history for incremental linting
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+      # Go formatting check (fast, no deps needed)
+    - name: Check Go formatting
+      run: |
+        unformatted=$(go fmt ./...)
+        if [ -n "$unformatted" ]; then
+          echo "❌ Code is not formatted. Run 'make fmt' to fix." >> $GITHUB_STEP_SUMMARY
+          echo "Unformatted files:" >> $GITHUB_STEP_SUMMARY
+          echo "$unformatted" >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "To fix this locally, run:"
+          echo "  make fmt"
+          echo ""
+          echo "Or format individual files with:"
+          echo "  go fmt ./path/to/file.go"
+          exit 1
+        fi
+        echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
+
+      # Install golangci-lint binary (avoiding GPL dependencies)
+      # Downloads pre-built binary from GitHub releases instead of using go install
+    - name: Install golangci-lint
+      run: |
+        GOLANGCI_LINT_VERSION="v2.8.0"
+        GOOS=$(go env GOOS)
+        GOARCH=$(go env GOARCH)
+        GOPATH=$(go env GOPATH)
+        BINARY_NAME="golangci-lint"
+
+        echo "Installing golangci-lint $GOLANGCI_LINT_VERSION for $GOOS/$GOARCH..."
+        DOWNLOAD_URL="https://github.com/golangci/golangci-lint/releases/download/$GOLANGCI_LINT_VERSION/golangci-lint-${GOLANGCI_LINT_VERSION#v}-$GOOS-$GOARCH.tar.gz"
+        ARCHIVE="/tmp/golangci-lint.tar.gz"
+
+        # Save archive to disk first so we can verify it before extracting.
+        # --fail causes curl to exit non-zero on HTTP errors (4xx/5xx),
+        # --retry 3 retries transient network failures automatically.
+        curl --fail --retry 3 -sSL "$DOWNLOAD_URL" -o "$ARCHIVE"
+        tar -xz -C /tmp -f "$ARCHIVE"
+        mkdir -p "$GOPATH/bin"
+        mv /tmp/golangci-lint-*/$BINARY_NAME "$GOPATH/bin/$BINARY_NAME"
+        chmod +x "$GOPATH/bin/$BINARY_NAME"
+
+        echo "✓ golangci-lint $GOLANGCI_LINT_VERSION installed"
+        "$GOPATH/bin/$BINARY_NAME" version
+
+      # Run golangci-lint via Makefile for consistency
+      # Uses incremental linting on PRs for faster CI (50-75% speedup)
+      # Performance optimizations in .golangci.yml:
+      # - timeout: 5m prevents hanging
+      # - modules-download-mode: readonly uses cached modules only
+    - name: Run golangci-lint
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # Incremental linting on PRs - only check changed files
+          # This provides 50-75% faster linting on typical PRs
+          BASE_REF="origin/${{ github.base_ref }}"
+          if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+            echo "Using incremental lint against $BASE_REF"
+            make golint-incremental BASE_REF="$BASE_REF"
+          else
+            echo "⚠️ Base ref $BASE_REF not found, falling back to full lint"
+            make golint
+          fi
+        else
+          # Full scan on main branch to ensure comprehensive coverage
+          make golint
+        fi
+
+      # Error message linting (requires Go only)
+    - name: Lint error messages
+      run: make lint-errors
+
+  actions-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-actions-build
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build actions
+      run: make actions-build
+
+    - name: Validate actions
+      run: make actions-validate
+
+  fuzz:
+    # Only run fuzz tests on main branch (10s is insufficient for PRs)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-fuzz-${{ matrix.group }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - group: Parser
+          tests: >-
+            FuzzParseFrontmatter:./pkg/parser/
+            FuzzScheduleParser:./pkg/parser/
+            FuzzRuntimeImportExpressionValidation:./pkg/parser/
+            FuzzRuntimeImportProcessExpressions:./pkg/parser/
+        - group: Workflow-Core
+          tests: >-
+            FuzzExpressionParser:./pkg/workflow/
+            FuzzMentionsFiltering:./pkg/workflow/
+            FuzzSanitizeOutput:./pkg/workflow/
+            FuzzSanitizeIncomingText:./pkg/workflow/
+            FuzzSanitizeLabelContent:./pkg/workflow/
+            FuzzWrapExpressionsInTemplateConditionals:./pkg/workflow/
+        - group: Workflow-Parsing
+          tests: >-
+            FuzzYAMLParsing:./pkg/workflow/
+            FuzzTemplateRendering:./pkg/workflow/
+            FuzzInputValidation:./pkg/workflow/
+            FuzzNetworkPermissions:./pkg/workflow/
+            FuzzSafeJobConfig:./pkg/workflow/
+            FuzzParseLabelTriggerShorthand:./pkg/workflow/
+        - group: Workflow-Triggers
+          tests: >-
+            FuzzExpandLabelTriggerShorthand:./pkg/workflow/
+            FuzzValidateNoTemplateInjection:./pkg/workflow/
+            FuzzRemoveHeredocContent:./pkg/workflow/
+            FuzzMarkdownCodeRegionBalancer:./pkg/workflow/
+            FuzzParseTriggerShorthand:./pkg/workflow/
+            FuzzTriggerIRToYAMLMap:./pkg/workflow/
+            FuzzParseInputDefinition:./pkg/workflow/
+            FuzzParseInputDefinitions:./pkg/workflow/
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      env:
+        GOPROXY: "https://proxy.golang.org,direct"
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This indicates that proxy.golang.org is unreachable or returning errors"
+              echo "- Network connectivity: checking proxy.golang.org..."
+              if curl -s -I --connect-timeout 5 https://proxy.golang.org/golang.org/@v/list >/dev/null 2>&1; then
+                echo "  ✓ proxy.golang.org is reachable"
+              else
+                echo "  ✗ proxy.golang.org is NOT reachable"
+              fi
+              echo "Please check network connectivity or re-run the workflow once the proxy recovers"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Run fuzz tests (${{ matrix.group }})
+      run: |
+        set -o pipefail
+        # Create directory for fuzz results
+        mkdir -p fuzz-results
+
+        # Helper function to run fuzz test and handle context deadline
+        # Go fuzz tests can exit with status 1 and "context deadline exceeded" when
+        # they reach the -fuzztime limit. We treat this as expected success to allow
+        # all fuzz targets to run instead of stopping at the first timeout.
+        run_fuzz_test() {
+          local fuzz_name=$1
+          local package=$2
+          local output_file="fuzz-results/${fuzz_name}.txt"
+          
+          echo "Running ${fuzz_name}..."
+          if go test -run='^$' -fuzz="^${fuzz_name}$" -fuzztime=10s "${package}" 2>&1 | tee "${output_file}"; then
+            echo "✅ ${fuzz_name} completed successfully"
+            return 0
+          else
+            # Check if the failure was due to context deadline (expected)
+            if grep -q "context deadline exceeded" "${output_file}"; then
+              echo "✅ ${fuzz_name} completed (context deadline reached as expected)"
+              return 0
+            else
+              echo "❌ ${fuzz_name} failed with unexpected error"
+              return 1
+            fi
+          fi
+        }
+
+        # Run fuzz tests for this matrix group
+        for entry in ${{ matrix.tests }}; do
+          fuzz_name="${entry%%:*}"
+          package="${entry##*:}"
+          run_fuzz_test "${fuzz_name}" "${package}"
+        done
+
+        # Copy fuzz corpus data (testdata/fuzz directories)
+        echo "Copying fuzz corpus data..."
+        find ./pkg -path "*/testdata/fuzz" -type d | while read -r dir; do
+          pkg_name=$(echo "$dir" | sed 's|^\./pkg/||' | sed 's|/testdata/fuzz$||')
+          echo "Copying corpus from $dir to fuzz-results/corpus/$pkg_name/"
+          mkdir -p "fuzz-results/corpus/$pkg_name"
+          cp -r "$dir"/* "fuzz-results/corpus/$pkg_name/" 2>/dev/null || echo "No corpus data in $dir"
+        done
+
+    - name: Upload fuzz test results
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: fuzz-results-${{ matrix.group }}
+        path: fuzz-results/
+        retention-days: 14
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-security
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Run security regression tests
+      run: make test-security
+
+  security-scan:
+    # Only run security scans on main branch to reduce PR overhead
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10  # Prevent jobs from hanging indefinitely
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool:
+        - name: zizmor
+          flag: --zizmor
+        - name: actionlint
+          flag: --actionlint
+        - name: poutine
+          flag: --poutine
+    concurrency:
+      group: ci-${{ github.ref }}-security-scan-${{ matrix.tool.name }}
+      cancel-in-progress: true
+    name: "Security Scan: ${{ matrix.tool.name }}"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Build gh-aw
+      run: make build
+
+    - name: Run ${{ matrix.tool.name }} security scan on poem workflow
+      run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
+
+  mcp-server-compile-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-mcp-server-compile-test
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Create test workflow with error
+      run: |
+        mkdir -p .github/workflows
+        cat > .github/workflows/test-invalid.md << 'EOF'
+        ---
+        on: push
+        engine: copilot
+        invalid_field: this will cause an error
+        ---
+        # Test Invalid Workflow
+
+        This workflow has an invalid field that will cause a compilation error.
+        EOF
+
+    - name: Test MCP server compile tool
+      run: |
+        # Create a test script using the MCP Go SDK
+        cat > test_mcp_compile.go << 'GOEOF'
+        package main
+
+        import (
+            "context"
+            "encoding/json"
+            "fmt"
+            "os"
+            "os/exec"
+            "time"
+
+            "github.com/modelcontextprotocol/go-sdk/mcp"
+        )
+
+        func main() {
+            // Create MCP client
+            client := mcp.NewClient(&mcp.Implementation{
+                Name:    "ci-test-client",
+                Version: "1.0.0",
+            }, nil)
+
+            // Start the MCP server as a subprocess with absolute path
+            binaryPath := "./gh-aw"
+            serverCmd := exec.Command(binaryPath, "mcp-server", "--cmd", binaryPath)
+            transport := &mcp.CommandTransport{Command: serverCmd}
+
+            ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+            defer cancel()
+
+            // Connect to the server
+            session, err := client.Connect(ctx, transport, nil)
+            if err != nil {
+                fmt.Fprintf(os.Stderr, "Failed to connect to MCP server: %v\n", err)
+                os.Exit(1)
+            }
+            defer session.Close()
+
+            fmt.Println("✅ Successfully connected to MCP server")
+
+            // Call the compile tool with the invalid workflow
+            params := &mcp.CallToolParams{
+                Name: "compile",
+                Arguments: map[string]any{
+                    "workflows": []string{"test-invalid.md"},
+                },
+            }
+
+            result, err := session.CallTool(ctx, params)
+            if err != nil {
+                fmt.Fprintf(os.Stderr, "MCP tool call returned error (this is expected): %v\n", err)
+                // Check if the error contains expected error information
+                fmt.Println("✅ Compile tool correctly returned an error")
+                os.Exit(0)
+            }
+
+            // Get the result content
+            if len(result.Content) == 0 {
+                fmt.Fprintln(os.Stderr, "❌ Expected non-empty result from compile tool")
+                os.Exit(1)
+            }
+
+            textContent, ok := result.Content[0].(*mcp.TextContent)
+            if !ok {
+                fmt.Fprintln(os.Stderr, "❌ Expected text content from compile tool")
+                os.Exit(1)
+            }
+
+            fmt.Printf("Compile tool output:\n%s\n", textContent.Text)
+
+            // Parse the JSON output to check for errors
+            var compileResults []map[string]any
+            if err := json.Unmarshal([]byte(textContent.Text), &compileResults); err != nil {
+                fmt.Fprintf(os.Stderr, "Failed to parse JSON output: %v\n", err)
+                os.Exit(1)
+            }
+
+            // Check if the workflow is marked as invalid
+            if len(compileResults) == 0 {
+                fmt.Fprintln(os.Stderr, "❌ Expected at least one workflow result")
+                os.Exit(1)
+            }
+
+            result0 := compileResults[0]
+            valid, ok := result0["valid"].(bool)
+            if !ok {
+                fmt.Fprintln(os.Stderr, "❌ Expected 'valid' field in result")
+                os.Exit(1)
+            }
+
+            if valid {
+                fmt.Fprintln(os.Stderr, "❌ Expected workflow to be invalid")
+                os.Exit(1)
+            }
+
+            // Check that errors field exists and has at least one error
+            errors, ok := result0["errors"].([]any)
+            if !ok || len(errors) == 0 {
+                fmt.Fprintln(os.Stderr, "❌ Expected errors array with at least one error")
+                os.Exit(1)
+            }
+
+            fmt.Println("✅ Compile tool correctly reported validation errors:")
+            errorsJSON, _ := json.MarshalIndent(errors, "  ", "  ")
+            fmt.Printf("  %s\n", string(errorsJSON))
+
+            os.Exit(0)
+        }
+        GOEOF
+
+        # Run the test
+        go run test_mcp_compile.go
+
+    - name: Report test results
+      if: always()
+      run: |
+        echo "## MCP Server Compile Tool Test" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+        echo "1. The gh-aw MCP server can be started successfully" >> $GITHUB_STEP_SUMMARY
+        echo "2. The compile tool can be invoked through the MCP server" >> $GITHUB_STEP_SUMMARY
+        echo "3. The compile tool correctly detects and reports validation errors" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Test completed successfully" >> $GITHUB_STEP_SUMMARY
+
+  cross-platform-build:
+    name: Build & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - macos-latest
+        - windows-latest
+    concurrency:
+      group: ci-${{ github.ref }}-cross-platform-${{ matrix.os }}
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      shell: bash
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build gh-aw binary
+      run: make build
+
+    - name: Create test workflow
+      shell: bash
+      run: |
+        mkdir -p .github/workflows
+        cat > .github/workflows/test-cross-platform.md << 'EOF'
+        ---
+        on: push
+        engine: copilot
+        ---
+        # Test Workflow for Cross-Platform CI
+
+        This is a simple test workflow to verify the compile command works correctly.
+
+        ## Task
+        Echo hello world.
+        EOF
+
+    - name: Test compile command
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        echo "Testing compile command on ${{ matrix.os }}..."
+
+        # Determine binary name based on OS
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          BINARY="./gh-aw.exe"
+        else
+          BINARY="./gh-aw"
+        fi
+
+        # Verify binary exists
+        if [ ! -f "$BINARY" ]; then
+          echo "❌ Binary not found: $BINARY"
+          ls -la
+          exit 1
+        fi
+
+        # Run compile command
+        "$BINARY" compile test-cross-platform --verbose
+
+        # Check if lock file was generated
+        if [ -f ".github/workflows/test-cross-platform.lock.yml" ]; then
+          echo "✅ Compile succeeded - lock file generated"
+        else
+          echo "❌ Compile failed - no lock file generated"
+          exit 1
+        fi
+
+        echo "## Cross-Platform Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Successfully compiled workflow on ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Binary:** $BINARY" >> $GITHUB_STEP_SUMMARY
+        echo "**Go version:** $(go version)" >> $GITHUB_STEP_SUMMARY
+
+    - name: Clean up test files
+      if: always()
+      shell: bash
+      run: |
+        rm -f .github/workflows/test-cross-platform.md
+        rm -f .github/workflows/test-cross-platform.lock.yml
+
+  alpine-container-test:
+    name: Alpine Container Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-alpine-container
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          if go mod download; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
+              echo "This may indicate that proxy.golang.org is unreachable"
+              echo "Please check network connectivity or consider vendoring dependencies"
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build Linux binary for Alpine
+      run: make build-linux
+
+    - name: Build Alpine Docker image
+      run: |
+        echo "Building Alpine Docker image..."
+        docker build -t gh-aw-alpine:test \
+          --build-arg BINARY=gh-aw-linux-amd64 \
+          -f Dockerfile .
+        echo "✅ Alpine Docker image built successfully"
+
+    - name: Test Docker image basic commands
+      run: |
+        echo "Testing Docker image basic commands..."
+        docker run --rm gh-aw-alpine:test --version
+        docker run --rm gh-aw-alpine:test --help
+        echo "✅ Basic commands work"
+
+    - name: Create test workflow in container
+      run: |
+        echo "Creating test workflow file..."
+        mkdir -p test-workspace/.github/workflows
+        cat > test-workspace/.github/workflows/test-alpine.md << 'EOF'
+        ---
+        on: push
+        engine: copilot
+        ---
+        # Test Workflow for Alpine Container
+
+        This is a simple test workflow to verify the compile command works correctly in Alpine container.
+
+        ## Task
+        Echo hello from Alpine container.
+        EOF
+        echo "✅ Test workflow created"
+
+    - name: Run compile through Alpine container
+      run: |
+        echo "Running compile command through Alpine container..."
+        docker run --rm \
+          -v "$(pwd)/test-workspace:/workspace" \
+          -w /workspace \
+          gh-aw-alpine:test compile test-alpine --verbose
+
+        echo "✅ Compile command executed"
+
+    - name: Verify lock file generation
+      run: |
+        echo "Verifying lock file was generated..."
+        if [ -f "test-workspace/.github/workflows/test-alpine.lock.yml" ]; then
+          echo "✅ Lock file generated successfully"
+          echo ""
+          echo "Lock file contents:"
+          head -20 test-workspace/.github/workflows/test-alpine.lock.yml
+        else
+          echo "❌ Lock file not found"
+          ls -la test-workspace/.github/workflows/
+          exit 1
+        fi
+
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "## Alpine Container Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+        echo "1. The Alpine Docker image can be built successfully" >> $GITHUB_STEP_SUMMARY
+        echo "2. The gh-aw binary works correctly in Alpine Linux" >> $GITHUB_STEP_SUMMARY
+        echo "3. The compile command can process workflows in the container" >> $GITHUB_STEP_SUMMARY
+        echo "4. Lock files are generated correctly" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f "test-workspace/.github/workflows/test-alpine.lock.yml" ]; then
+          echo "✅ All tests passed successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Lock file generation failed" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Clean up test files
+      if: always()
+      run: |
+        rm -rf test-workspace
+
+  safe-outputs-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Run Safe Outputs Conformance Checker
+      id: conformance
+      continue-on-error: true
+      run: |
+        echo "## Safe Outputs Conformance Check" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Run the conformance checker and capture output
+        if ./scripts/check-safe-outputs-conformance.sh > conformance-output.txt 2>&1; then
+          echo "✅ All conformance checks passed" >> $GITHUB_STEP_SUMMARY
+          EXIT_CODE=0
+        else
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "⚠️ Critical conformance issues found (treated as warning)" >> $GITHUB_STEP_SUMMARY
+          elif [ $EXIT_CODE -eq 1 ]; then
+            echo "⚠️ High priority conformance issues found (treated as warning)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Conformance check completed with warnings" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Conformance Check Output" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        cat conformance-output.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+        # Also output to console for visibility
+        echo "=== Conformance Check Results ==="
+        cat conformance-output.txt
+
+        # Always succeed (treat as warning only)
+        exit 0
+
+    - name: Upload conformance report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: safe-outputs-conformance-report
+        path: conformance-output.txt
+        retention-days: 7

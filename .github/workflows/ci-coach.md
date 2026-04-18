@@ -72,7 +72,7 @@ Follow the optimization strategies defined in the `ci-optimization-strategies` s
 - Verify catch-all matrix groups exist for packages with specific patterns
 - Identify coverage gaps and propose fixes if needed
 - **Use canary job outputs** to detect missing tests:
-  - Review `test-coverage-analysis` artifact from the `canary_go` job
+  - Review `test-coverage-analysis-cgo` artifact from the `canary-go` job
   - The canary job compares `all-tests.txt` (all tests in codebase) vs `executed-tests.txt` (tests that actually ran)
   - If canary job fails, investigate which tests are missing from the CI matrix
   - Ensure all tests defined in `*_test.go` files are covered by at least one test job pattern

@@ -1,0 +1,86 @@
+name: CJS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'actions/setup/js/**'
+      - 'actions/setup/md/**'
+      - 'scripts/**/*.js'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/cjs.yml'
+  workflow_dispatch:
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-js
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/js/package-lock.json
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Install npm dependencies
+        run: cd actions/setup/js && npm ci
+      - name: Setup prompt templates for tests
+        run: |
+          mkdir -p ${{ runner.temp }}/gh-aw/prompts
+          cp actions/setup/md/*.md ${{ runner.temp }}/gh-aw/prompts/
+      - name: Run tests
+        run: cd actions/setup/js && npm test
+
+  lint-js:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-lint-js
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/js/package-lock.json
+
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Install npm dependencies
+        run: cd actions/setup/js && npm ci
+
+      - name: Lint JavaScript files
+        run: make lint-cjs
+
+      - name: Check JSON formatting
+        run: make fmt-check-json
