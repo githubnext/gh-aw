@@ -30,6 +30,8 @@
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GEMINI_API_KEY
