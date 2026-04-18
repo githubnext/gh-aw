@@ -477,9 +477,9 @@ Test that TAVILY_API_KEY is passed to gateway container.
 		"Docker command should include -e TAVILY_API_KEY before the container image")
 }
 
-// TestMCPGatewayDockerCommandIncludesDockerSocketGroup verifies the gateway docker command
-// adds the docker socket group as a supplementary group for non-root execution.
-func TestMCPGatewayDockerCommandIncludesDockerSocketGroup(t *testing.T) {
+// TestMCPGatewayDockerCommandUsesRunnerIdentityAndSocketGroup verifies the gateway docker command
+// computes and uses runner UID/GID and docker socket group values in the generated command.
+func TestMCPGatewayDockerCommandUsesRunnerIdentityAndSocketGroup(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
 engine: copilot
@@ -508,16 +508,31 @@ tools:
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
+	userSnippet := `--user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"'`
 	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
-	gidComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')`
-	require.Contains(t, yamlStr, gidComputeSnippet,
+	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
+	runnerGIDComputeSnippet := `MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')`
+	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')`
+	require.Contains(t, yamlStr, uidComputeSnippet,
+		"Shell should compute MCP_GATEWAY_UID before docker command")
+	require.Contains(t, yamlStr, runnerGIDComputeSnippet,
+		"Shell should compute MCP_GATEWAY_GID before docker command")
+	require.Contains(t, yamlStr, userSnippet,
+		"Docker command should include runner UID/GID user mapping")
+	require.Contains(t, yamlStr, socketGIDComputeSnippet,
 		"Shell should compute DOCKER_SOCK_GID before docker command")
 	require.Contains(t, yamlStr, groupAddSnippet,
 		"Docker command should include docker socket supplementary group mapping")
 	require.Contains(t, yamlStr, mountSnippet,
 		"Docker command should mount the Docker socket")
-	require.Less(t, strings.Index(yamlStr, gidComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
+	require.Less(t, strings.Index(yamlStr, uidComputeSnippet), strings.Index(yamlStr, userSnippet),
+		"MCP_GATEWAY_UID should be computed before it is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, runnerGIDComputeSnippet), strings.Index(yamlStr, userSnippet),
+		"MCP_GATEWAY_GID should be computed before it is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, userSnippet), strings.Index(yamlStr, groupAddSnippet),
+		"Docker command should include user mapping before supplementary group mapping")
+	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
 		"DOCKER_SOCK_GID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
 		"Docker command should add supplementary group before mounting the Docker socket")
