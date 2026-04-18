@@ -48,7 +48,7 @@ func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 	require.NoError(t, err, "compile tool call should succeed")
 
 	output := extractTextResult(t, result)
-	assert.Equal(t, expectedStdout, output, "compile tool should return subprocess stdout only")
+	assert.JSONEq(t, expectedStdout, output, "compile tool should return subprocess stdout only")
 	assert.NotContains(t, output, stderrNoise, "compile tool output should not contain stderr noise")
 }
 
@@ -69,15 +69,19 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 			},
 			expectedOut: "add-stdout",
 			stderrNoise: "add-stderr",
-			registerTool: func(server *mcp.Server) { registerAddTool(server, mockExecWithStdoutAndStderr("add-stdout", "add-stderr")) },
+			registerTool: func(server *mcp.Server) {
+				registerAddTool(server, mockExecWithStdoutAndStderr("add-stdout", "add-stderr"))
+			},
 		},
 		{
-			name:         "update",
-			toolName:     "update",
-			args:         map[string]any{},
-			expectedOut:  "update-stdout",
-			stderrNoise:  "update-stderr",
-			registerTool: func(server *mcp.Server) { registerUpdateTool(server, mockExecWithStdoutAndStderr("update-stdout", "update-stderr")) },
+			name:        "update",
+			toolName:    "update",
+			args:        map[string]any{},
+			expectedOut: "update-stdout",
+			stderrNoise: "update-stderr",
+			registerTool: func(server *mcp.Server) {
+				registerUpdateTool(server, mockExecWithStdoutAndStderr("update-stdout", "update-stderr"))
+			},
 		},
 		{
 			name:     "fix",
@@ -87,15 +91,19 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 			},
 			expectedOut: "fix-stdout",
 			stderrNoise: "fix-stderr",
-			registerTool: func(server *mcp.Server) { registerFixTool(server, mockExecWithStdoutAndStderr("fix-stdout", "fix-stderr")) },
+			registerTool: func(server *mcp.Server) {
+				registerFixTool(server, mockExecWithStdoutAndStderr("fix-stdout", "fix-stderr"))
+			},
 		},
 		{
-			name:         "mcp-inspect",
-			toolName:     "mcp-inspect",
-			args:         map[string]any{},
-			expectedOut:  "inspect-stdout",
-			stderrNoise:  "inspect-stderr",
-			registerTool: func(server *mcp.Server) { registerMCPInspectTool(server, mockExecWithStdoutAndStderr("inspect-stdout", "inspect-stderr")) },
+			name:        "mcp-inspect",
+			toolName:    "mcp-inspect",
+			args:        map[string]any{},
+			expectedOut: "inspect-stdout",
+			stderrNoise: "inspect-stderr",
+			registerTool: func(server *mcp.Server) {
+				registerMCPInspectTool(server, mockExecWithStdoutAndStderr("inspect-stdout", "inspect-stderr"))
+			},
 		},
 	}
 
