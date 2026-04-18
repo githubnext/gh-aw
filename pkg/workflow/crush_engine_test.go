@@ -363,6 +363,37 @@ func TestCrushEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "OPENAI_BASE_URL: http://host.docker.internal:10004", "Should set OPENAI_BASE_URL to LLM gateway URL")
 	})
 
+	t.Run("firewall enabled adds mounted MCP CLI path setup", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Features: map[string]any{
+				"mcp-cli": true,
+			},
+			ParsedTools: &ToolsConfig{
+				MountAsCLIs: true,
+			},
+			Tools: map[string]any{
+				"bash": []any{"echo"},
+				"my-mcp-cli": map[string]any{
+					"command": "node",
+					"args":    []any{"index.js"},
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"defaults"},
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate config step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "export PATH=\"${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH\"", "Should add mounted MCP CLI bin directory to PATH in AWF mode")
+	})
+
 	t.Run("firewall disabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",

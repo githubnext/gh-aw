@@ -125,6 +125,9 @@ func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) Gi
 	if tools == nil {
 		tools = make(map[string]any)
 	}
+	workflowDataWithEffectiveTools := *workflowData
+	workflowDataWithEffectiveTools.Tools = tools
+	tools = withMountedCLIShellCommandsInRestrictedBash(&workflowDataWithEffectiveTools)
 
 	// Compute tools.core from neutral tool configuration
 	toolsCore := computeGeminiToolsCore(tools)

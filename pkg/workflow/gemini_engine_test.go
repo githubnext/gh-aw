@@ -548,6 +548,31 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 
 		assert.NotContains(t, content, "web_fetch", "Should not include web_fetch in tools.core when web-fetch is not specified")
 	})
+
+	t.Run("step includes mounted mcp cli commands in restricted bash allowlist", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			Tools: map[string]any{
+				"bash":          []any{"echo"},
+				"mount-as-clis": true,
+				"playwright":    true,
+				"mymcp": map[string]any{
+					"command": "npx",
+					"args":    []any{"-y", "@acme/mcp-server"},
+				},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+		}
+		step := engine.generateGeminiSettingsStep(workflowData)
+		content := strings.Join(step, "\n")
+
+		assert.Contains(t, content, "run_shell_command(echo)", "Should include original restricted bash command")
+		assert.Contains(t, content, "run_shell_command(mymcp:*)", "Should include mounted custom MCP CLI command")
+		assert.Contains(t, content, "run_shell_command(playwright:*)", "Should include mounted playwright CLI command")
+		assert.Contains(t, content, "run_shell_command(safeoutputs:*)", "Should include mounted safeoutputs CLI command")
+	})
 }
 
 func TestGeminiEngineWithExpressionVersion(t *testing.T) {

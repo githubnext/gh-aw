@@ -240,7 +240,7 @@ This pattern suggests:
 
 | Tool | Type | Calls | Advantages |
 |------|------|-------|------------|
-| `Bash` (grep/ripgrep) | Builtin | 17 | Fast, flexible, familiar |
+| `Bash` (grep/ripgrep) | Builtin | 17 | Fast; broad pattern support; familiar syntax |
 | `search_for_pattern` | Serena | 3 | Language-aware, structured results |
 
 **Insight:** Agent prefers Bash for search despite Serena offering language-aware alternatives

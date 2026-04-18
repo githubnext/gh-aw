@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClaudeEngine(t *testing.T) {
@@ -164,6 +166,35 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GH_AW_SAFE_OUTPUTS in env section when hasOutput=true in step content:\n%s", stepContent)
 	}
+}
+
+func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash":          []any{"echo"},
+			"mount-as-clis": true,
+			"playwright":    true,
+			"mymcp": map[string]any{
+				"command": "npx",
+				"args":    []any{"-y", "@acme/mcp-server"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	require.Len(t, steps, 1, "Expected one execution step")
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	assert.Contains(t, stepContent, "Bash(echo)", "Expected original restricted bash command")
+	assert.Contains(t, stepContent, "Bash(mymcp:*)", "Expected mounted custom MCP CLI allowlist command")
+	assert.Contains(t, stepContent, "Bash(playwright:*)", "Expected mounted playwright CLI allowlist command")
+	assert.Contains(t, stepContent, "Bash(safeoutputs:*)", "Expected mounted safeoutputs CLI allowlist command")
 }
 
 func TestClaudeEngineConfiguration(t *testing.T) {

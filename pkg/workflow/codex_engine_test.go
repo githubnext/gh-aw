@@ -297,6 +297,42 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	}
 }
 
+func TestCodexEngineExecutionAddsMountedMCPCLIPathSetup(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Features: map[string]any{
+			"mcp-cli": true,
+		},
+		ParsedTools: &ToolsConfig{
+			MountAsCLIs: true,
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+			"my-mcp-cli": map[string]any{
+				"command": "node",
+				"args":    []any{"index.js"},
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{"defaults"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	if len(steps) == 0 {
+		t.Fatal("Expected execution step")
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "export PATH=\"${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH\"") {
+		t.Errorf("Expected mounted MCP CLI bin directory in AWF command, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 	engine := NewCodexEngine()
 
