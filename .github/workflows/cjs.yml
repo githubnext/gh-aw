@@ -52,7 +52,6 @@ jobs:
     permissions:
       contents: read
     strategy:
-      fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
     concurrency:
@@ -82,6 +81,7 @@ jobs:
           mkdir -p ${{ runner.temp }}/gh-aw/prompts
           cp actions/setup/md/*.md ${{ runner.temp }}/gh-aw/prompts/
       - name: Run tests
+        # Keep no-file-parallelism so Vitest sharding has deterministic test scheduling per shard.
         run: cd actions/setup/js && npm run test:js -- --no-file-parallelism --shard=${{ matrix.shard }}/4
 
   lint-js:
