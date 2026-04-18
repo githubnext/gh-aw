@@ -394,6 +394,19 @@ Issues created: [list of issue links for Critical/High findings, or "none"]
 
 Use the title `[static-analysis] Report - [DATE]` for the issue.
 
+### Safe-Output Reliability Fallback (Required)
+
+If safe-output tool calls fail because MCP tools are unavailable (for example, gateway connection failures), you **must** still produce at least one safe output by writing a fallback `noop` entry directly to the safe-outputs JSONL file with Bash:
+
+```bash
+printf '{"type":"noop","message":"Static analysis completed but safe-output MCP tools were unavailable; no issue could be created."}\n' >> "${GH_AW_SAFE_OUTPUTS:-/tmp/gh-aw/safeoutputs/outputs.jsonl}"
+```
+
+Rules:
+- Use this fallback only when `create_issue`/other safe-output tool calls are unavailable due infrastructure issues.
+- Do not exit with zero safe outputs. Always ensure at least one valid safe output record exists.
+- Keep the noop message concise and explicit about why action could not be taken.
+
 ### Phase 6: Analyze Runner-Guard Findings
 
 Runner-guard has performed source-to-sink vulnerability scanning as part of the compile step. The results are included in the compilation output at `/tmp/gh-aw/compile-output.txt`.
