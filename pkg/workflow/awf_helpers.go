@@ -269,7 +269,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
 		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
 	} else {
-		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
+		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
 	}
 
 	// Pin AWF Docker image version to match the installed binary version
@@ -747,7 +747,8 @@ func awfSupportsCliProxy(firewallConfig *FirewallConfig) bool {
 //
 // Special cases:
 //   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
-//     and compare against AWFAllowHostPortsMinVersion.
+//     and compare against AWFAllowHostPortsMinVersion (currently this returns true because
+//     DefaultFirewallVersion is at or above the minimum supported version).
 //   - "latest": always returns true (latest is always a new release).
 //   - Any semver string ≥ AWFAllowHostPortsMinVersion: returns true.
 //   - Any semver string < AWFAllowHostPortsMinVersion: returns false.
