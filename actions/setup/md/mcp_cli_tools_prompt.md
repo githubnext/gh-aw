@@ -5,9 +5,10 @@ The following servers are available as CLI commands on `PATH`:
 
 __GH_AW_MCP_CLI_SERVERS_LIST__
 
-> **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** listed above instead of the equivalent MCP tools. The CLI wrappers are the preferred interface — do **not** call their MCP tools directly even though they may appear in your tool list.
->
-> For all other servers listed here, they are **only** available as CLI commands and are **not** available as MCP tools.
+> **IMPORTANT**:
+> - For **safe outputs** (`safeoutputs`), prefer the MCP safe-output tools directly (for example, call `noop` as an MCP tool) instead of invoking `safeoutputs ...` from bash.
+> - If you must use a mounted MCP CLI command in bash, the command must be allowed by the workflow's bash allowlist (or bash wildcard).
+> - For all other servers listed here, they are available as CLI commands.
 
 ### How to Use
 
@@ -31,7 +32,7 @@ playwright browser_navigate --url https://example.com
 playwright browser_snapshot                        # capture page accessibility tree
 ```
 
-**Example** — using the `safeoutputs` CLI (safe outputs):
+**Example** — using the `safeoutputs` CLI (safe outputs, only when shell allowlist permits it):
 ```bash
 safeoutputs --help                                 # list all safe-output tools
 safeoutputs add_comment --body "Analysis complete"
