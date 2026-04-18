@@ -10,7 +10,6 @@ on:
       - 'actions/setup/md/**'
       - 'scripts/**/*.js'
       - '.github/workflows/ci.yml'
-      - '.github/workflows/cgo.yml'
       - '.github/workflows/cjs.yml'
   workflow_dispatch:
 

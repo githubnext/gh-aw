@@ -16,7 +16,6 @@ on:
     - 'actions/setup/sh/**'
     - '.github/workflows/ci.yml'
     - '.github/workflows/cgo.yml'
-    - '.github/workflows/cjs.yml'
     - '.github/workflows/**/*.md'
     - '.github/aw/releases.json'
     - '.github/aw/releases.schema.json'
