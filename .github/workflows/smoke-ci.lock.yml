@@ -699,7 +699,11 @@ jobs:
           set -o pipefail
           mkdir -p /tmp/gh-aw
           umask 0177
-          printf IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWVvIHBpcGVmYWlsCmJhc2ggLWxjICdpZiBbICIke0dJVEhVQl9FVkVOVF9OQU1FfSIgPSAicHVsbF9yZXF1ZXN0IiBdOyB0aGVuIHNhZmVvdXRwdXRzIGFkZF9jb21tZW50IC0tYm9keSAi4pyFIHNtb2tlLWNpOiBzYWZlb3V0cHV0cyBDTEkgY29tbWVudCBvbmx5IHJ1biAoJHtHSVRIVUJfUlVOX0lEfSkiOyBlbHNlIGVjaG8gInNtb2tlLWNpOiBwdXNoIGV2ZW50IC0gbm8gUFIgY29udGV4dCwgc2tpcHBpbmcgYWRkX2NvbW1lbnQiOyBmaScgIiRAIgo= | base64 --decode > /tmp/gh-aw/engine-command.sh
+          cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'
+          #!/usr/bin/env bash
+          set -eo pipefail
+          bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})"; else echo "smoke-ci: push event - no PR context, skipping add_comment"; fi' "$@"
+          GH_AW_ENGINE_COMMAND_EOF
           chmod 700 /tmp/gh-aw/engine-command.sh
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)

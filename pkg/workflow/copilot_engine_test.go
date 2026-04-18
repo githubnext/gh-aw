@@ -3,10 +3,8 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -1755,11 +1753,11 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_driver.cjs /tmp/gh-aw/engine-command.sh") {
 			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, "base64 --decode > /tmp/gh-aw/engine-command.sh") {
-			t.Errorf("Expected step to serialize engine.command into script via base64 decode, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
+			t.Errorf("Expected step to serialize engine.command into script via heredoc, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, "printf ") {
-			t.Errorf("Expected script serialization to emit encoded script content, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, "GH_AW_ENGINE_COMMAND_EOF") {
+			t.Errorf("Expected step to include heredoc delimiter for script serialization, got:\n%s", stepContent)
 		}
 	})
 }
@@ -1867,29 +1865,17 @@ func TestBuildEngineCommandScriptSetup(t *testing.T) {
 	if !strings.Contains(setup, "chmod 700 /tmp/gh-aw/engine-command.sh") {
 		t.Fatalf("Expected owner-only execute permissions, got:\n%s", setup)
 	}
-
-	re := regexp.MustCompile(`(?m)^printf ('[^']+'|"[^"]+"|[^[:space:]]+) \| base64 --decode`)
-	matches := re.FindStringSubmatch(setup)
-	if len(matches) < 2 {
-		t.Fatalf("Expected base64-encoded script payload in setup, got:\n%s", setup)
+	if !strings.Contains(setup, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
+		t.Fatalf("Expected heredoc-based script materialization, got:\n%s", setup)
 	}
-
-	encoded := strings.Trim(matches[1], `'"`)
-
-	decoded, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		t.Fatalf("Failed to decode serialized script payload: %v", err)
+	if !strings.Contains(setup, "set -eo pipefail") {
+		t.Fatalf("Expected script strict mode without -u, got:\n%s", setup)
 	}
-
-	script := string(decoded)
-	if !strings.Contains(script, "set -eo pipefail") {
-		t.Fatalf("Expected script strict mode without -u, got:\n%s", script)
+	if strings.Contains(setup, "set -euo pipefail") {
+		t.Fatalf("Expected script strict mode to drop -u, got:\n%s", setup)
 	}
-	if strings.Contains(script, "set -euo pipefail") {
-		t.Fatalf("Expected script strict mode to drop -u, got:\n%s", script)
-	}
-	if !strings.Contains(script, `/usr/local/bin/custom-copilot "$@"`) {
-		t.Fatalf("Expected custom command to forward driver args, got:\n%s", script)
+	if !strings.Contains(setup, `/usr/local/bin/custom-copilot "$@"`) {
+		t.Fatalf("Expected custom command to forward driver args, got:\n%s", setup)
 	}
 }
 

@@ -22,7 +22,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"fmt"
 	"maps"
 	"strconv"
@@ -561,12 +560,16 @@ func buildEngineCommandScriptSetup(command string) string {
 	// engine.command intentionally accepts shell-form commands from trusted workflow
 	// configuration authored in-repo; preserve shell semantics and forward driver args.
 	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset -eo pipefail\n%s \"$@\"\n", command)
-	scriptContentBase64 := base64.StdEncoding.EncodeToString([]byte(scriptContent))
+	heredocDelimiter := "GH_AW_ENGINE_COMMAND_EOF"
+	for strings.Contains(scriptContent, heredocDelimiter) {
+		heredocDelimiter += "_X"
+	}
 
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
 umask 0177
-printf %s | base64 --decode > %s
-chmod 700 %s`, shellEscapeArg(scriptContentBase64), customEngineCommandScriptPath, customEngineCommandScriptPath)
+cat > %s <<'%s'
+%s%s
+chmod 700 %s`, customEngineCommandScriptPath, heredocDelimiter, scriptContent, heredocDelimiter, customEngineCommandScriptPath)
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot
