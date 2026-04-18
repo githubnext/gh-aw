@@ -696,6 +696,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")
+	// Use runner UID/GID so gateway-created /tmp logs remain readable by downstream
+	// redaction/upload steps; keep a supplementary docker.sock group for daemon access.
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
 	containerCmd.WriteString(" --group-add ${DOCKER_SOCK_GID}")
 	containerCmd.WriteString(" -v /var/run/docker.sock:/var/run/docker.sock") // Enable docker-in-docker for MCP gateway
