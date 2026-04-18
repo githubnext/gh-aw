@@ -30,6 +30,8 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

@@ -34,6 +34,8 @@
 #     - shared/reporting.md
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

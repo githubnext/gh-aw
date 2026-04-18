@@ -123,7 +123,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 			t.Fatal("Expected at least two execution steps (settings + execution)")
 		}
 
-		// steps[0] = Write Gemini Settings, steps[1] = Execute Gemini CLI
+		// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
 		stepContent := strings.Join(steps[1], "\n")
 
 		if !strings.Contains(stepContent, "--enable-api-proxy") {

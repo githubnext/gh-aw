@@ -33,6 +33,8 @@
 #     - shared/mcp/microsoft-docs.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

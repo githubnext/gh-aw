@@ -24,6 +24,10 @@
 #
 # Test workflow to verify create_pull_request error handling
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - ANTHROPIC_API_KEY
 #   - GH_AW_CI_TRIGGER_TOKEN

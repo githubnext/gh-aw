@@ -44,6 +44,8 @@
 #     - shared/mcp/slack.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - AZURE_CLIENT_ID

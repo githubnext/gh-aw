@@ -31,6 +31,8 @@
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

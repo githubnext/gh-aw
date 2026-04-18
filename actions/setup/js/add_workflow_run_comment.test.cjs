@@ -170,6 +170,34 @@ describe("add_workflow_run_comment", () => {
     });
   });
 
+  describe("main() - repository_dispatch event", () => {
+    it("should use workflow repo for run URL and client payload repo for comments", async () => {
+      global.context = {
+        eventName: "repository_dispatch",
+        runId: 12345,
+        repo: { owner: "sideowner", repo: "siderepo" },
+        payload: {
+          action: "issue_comment",
+          client_payload: {
+            issue: { number: 789 },
+            repository: { owner: { login: "targetowner" }, name: "targetrepo" },
+          },
+        },
+      };
+
+      await runScript();
+
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        expect.stringContaining("POST /repos/targetowner/targetrepo/issues/789/comments"),
+        expect.objectContaining({
+          body: expect.stringContaining("https://github.com/sideowner/siderepo/actions/runs/12345"),
+        })
+      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "targetowner/targetrepo");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
   describe("main() - pull_request event", () => {
     it("should create comment on a pull request", async () => {
       global.context = {

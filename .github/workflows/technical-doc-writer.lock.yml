@@ -28,6 +28,8 @@
 #   Imports:
 #     - ../agents/technical-doc-writer.agent.md
 #     - ../skills/documentation/SKILL.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

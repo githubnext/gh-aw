@@ -32,6 +32,8 @@
 #     - shared/repo-memory-standard.md
 #     - shared/reporting.md
 #     - shared/copilot-pr-analysis-base.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

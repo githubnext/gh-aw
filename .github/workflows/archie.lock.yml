@@ -28,6 +28,8 @@
 #   Imports:
 #     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

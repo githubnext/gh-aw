@@ -24,6 +24,10 @@
 #
 # Reviews and cleans up instruction files to ensure clarity, consistency, and adherence to best practices
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - ANTHROPIC_API_KEY
 #   - GH_AW_CI_TRIGGER_TOKEN

@@ -32,6 +32,8 @@
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #     - shared/trends.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

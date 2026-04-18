@@ -62,7 +62,7 @@ Test workflow with cache-memory and threat detection enabled.`,
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache in agent job
-				"- name: Cache cache-memory file share data\n      uses: actions/cache@",
+				"- name: Restore cache-memory file share data\n      uses: actions/cache@",
 			},
 		},
 		{
@@ -83,8 +83,8 @@ tools:
 
 Test workflow with cache-memory but no threat detection.`,
 			expectedInLock: []string{
-				// Without threat detection, should use regular actions/cache
-				"- name: Cache cache-memory file share data",
+				// Without threat detection, should still restore from cache before execution
+				"- name: Restore cache-memory file share data",
 				"uses: actions/cache@",
 				"key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 			},
@@ -143,7 +143,7 @@ Test workflow with multiple cache-memory and threat detection enabled.`,
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache
-				"- name: Cache cache-memory file share data (default)",
+				"- name: Restore cache-memory file share data (default)\n        uses: actions/cache@",
 			},
 		},
 		{

@@ -28,6 +28,8 @@
 #   Imports:
 #     - shared/daily-audit-discussion.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

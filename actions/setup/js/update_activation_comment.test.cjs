@@ -104,6 +104,57 @@ const createTestableFunction = scriptContent => {
         },
       };
     }
+    if (module === "./invocation_context_helpers.cjs") {
+      return {
+        resolveInvocationContext: ctx => {
+          if (ctx?.eventName === "repository_dispatch" && ctx?.payload?.client_payload) {
+            const payload = ctx.payload.client_payload;
+            const eventRepo = payload?.repository?.owner?.login && payload?.repository?.name ? { owner: payload.repository.owner.login, repo: payload.repository.name } : ctx.eventRepo || ctx.repo;
+            return {
+              source: "repository_dispatch",
+              eventName: ctx.payload.action || ctx.eventName,
+              eventPayload: payload,
+              workflowRepo: ctx.workflowRepo || ctx.repo,
+              eventRepo,
+            };
+          }
+
+          if (ctx?.eventName === "workflow_dispatch" && ctx?.payload?.inputs) {
+            const inputs = ctx.payload.inputs;
+            let parsedPayload = ctx.payload;
+            if (typeof inputs.event_payload === "string" && inputs.event_payload) {
+              try {
+                parsedPayload = JSON.parse(inputs.event_payload);
+              } catch (_error) {
+                parsedPayload = ctx.payload;
+              }
+            }
+            const eventRepo =
+              typeof inputs.event_repo === "string" && inputs.event_repo.includes("/")
+                ? (() => {
+                    const [owner, repo] = inputs.event_repo.split("/");
+                    return { owner, repo };
+                  })()
+                : ctx.eventRepo || ctx.repo;
+            return {
+              source: "workflow_dispatch",
+              eventName: inputs.event_name || ctx.eventName,
+              eventPayload: parsedPayload,
+              workflowRepo: ctx.workflowRepo || ctx.repo,
+              eventRepo,
+            };
+          }
+
+          return {
+            source: "native",
+            eventName: ctx?.eventName || "",
+            eventPayload: ctx?.payload || {},
+            workflowRepo: ctx?.workflowRepo || ctx?.repo,
+            eventRepo: ctx?.eventRepo || ctx?.repo,
+          };
+        },
+      };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(
@@ -144,6 +195,29 @@ describe("update_activation_comment.cjs", () => {
         })
       );
       expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully created comment with pull request link on #10");
+    }),
+    it("should use workflowRepo for run attribution in footer when context includes workflowRepo", async () => {
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "";
+      mockDependencies.context = {
+        ...mockDependencies.context,
+        runId: 12345,
+        repo: { owner: "targetowner", repo: "targetrepo" },
+        workflowRepo: { owner: "sideowner", repo: "siderepo" },
+        payload: { pull_request: { number: 10 } },
+      };
+      mockDependencies.github.request.mockResolvedValue({
+        data: { id: 123, html_url: "https://github.com/targetowner/targetrepo/issues/10#issuecomment-123" },
+      });
+
+      const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+      await updateActivationComment(mockDependencies.github, mockDependencies.context, mockDependencies.core, "https://github.com/targetowner/targetrepo/pull/42", 42);
+
+      expect(mockDependencies.github.request).toHaveBeenCalledWith(
+        "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+        expect.objectContaining({
+          body: expect.stringContaining("https://github.com/sideowner/siderepo/actions/runs/12345"),
+        })
+      );
     }),
     it("should skip update when GH_AW_COMMENT_ID is not set and no target issue number", async () => {
       mockDependencies.process.env.GH_AW_COMMENT_ID = "";

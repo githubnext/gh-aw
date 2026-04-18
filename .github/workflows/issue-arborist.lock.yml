@@ -29,6 +29,8 @@
 #     - shared/github-guard-policy.md
 #     - shared/jqschema.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

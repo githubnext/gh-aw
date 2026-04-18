@@ -65,7 +65,7 @@ tools:
 ---`,
 			expectedInLock: []string{
 				"# Cache memory file share configuration from frontmatter processed below",
-				"- name: Cache cache-memory file share data (default)",
+				"- name: Restore cache-memory file share data (default)",
 				"uses: actions/cache@", // SHA varies
 				"key: memory-none-nopolicy-memory-default-${{ github.run_id }}",
 				"- name: Restore cache-memory file share data (readonly)",
@@ -103,7 +103,7 @@ tools:
       restore-only: true
 ---`,
 			expectedInLock: []string{
-				"- name: Cache cache-memory file share data (writeable)",
+				"- name: Restore cache-memory file share data (writeable)",
 				"uses: actions/cache@", // SHA varies
 				"- name: Restore cache-memory file share data (readonly1)",
 				"uses: actions/cache/restore@", // SHA varies

@@ -32,6 +32,8 @@
 #     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

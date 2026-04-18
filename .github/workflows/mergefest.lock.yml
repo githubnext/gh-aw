@@ -24,6 +24,10 @@
 #
 # Automatically merges the main branch into pull request branches when invoked with /mergefest command
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_CI_TRIGGER_TOKEN

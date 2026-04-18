@@ -28,6 +28,8 @@
 #     - shared/jqschema.md
 #     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

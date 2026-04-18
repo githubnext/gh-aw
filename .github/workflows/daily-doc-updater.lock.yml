@@ -28,6 +28,8 @@
 #   Imports:
 #     - shared/github-guard-policy.md
 #     - shared/observability-otlp.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY
