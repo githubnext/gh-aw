@@ -58,6 +58,7 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			"description": "A complete workflow",
 			"engine":      "copilot",
 			"source":      "owner/repo/path@main",
+			"redirect":    "owner/repo/new-path@main",
 			"tracker-id":  "test-tracker-123",
 			"tools": map[string]any{
 				"bash": map[string]any{
@@ -96,6 +97,9 @@ func TestParseFrontmatterConfig(t *testing.T) {
 
 		if config.Source != "owner/repo/path@main" {
 			t.Errorf("Source = %q, want %q", config.Source, "owner/repo/path@main")
+		}
+		if config.Redirect != "owner/repo/new-path@main" {
+			t.Errorf("Redirect = %q, want %q", config.Redirect, "owner/repo/new-path@main")
 		}
 
 		if config.TrackerID != "test-tracker-123" {

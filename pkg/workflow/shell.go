@@ -60,33 +60,75 @@ func containsGitHubActionsExpression(s string) bool {
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command
-// that allows ${GITHUB_WORKSPACE} and $GITHUB_WORKSPACE to be expanded at runtime
+// that allows ${VAR_NAME} variables to be expanded at runtime.
 func buildDockerCommandWithExpandableVars(cmd string) string {
 	shellLog.Printf("Building docker command with expandable vars (length: %d)", len(cmd))
-	// Replace ${GITHUB_WORKSPACE} with a placeholder that we'll handle specially
+	// Find all ${VAR_NAME} patterns that need expansion outside of single quotes.
 	// We want: 'docker run ... -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ...'
-	// This closes the single quote, adds the variable in double quotes, then reopens single quote
+	// This closes the single quote, adds the variable in double quotes, then reopens single quote.
 
-	// Split on ${GITHUB_WORKSPACE} to handle it specially
-	if strings.Contains(cmd, "${GITHUB_WORKSPACE}") {
-		parts := strings.Split(cmd, "${GITHUB_WORKSPACE}")
-		var result strings.Builder
-		result.WriteString("'")
-		for i, part := range parts {
-			if i > 0 {
-				// Add the variable expansion outside of single quotes
-				result.WriteString("'\"${GITHUB_WORKSPACE}\"'")
-			}
-			// Escape single quotes in the part
-			escapedPart := strings.ReplaceAll(part, "'", "'\\''")
-			result.WriteString(escapedPart)
-		}
-		result.WriteString("'")
-		shellLog.Print("Docker command built with expandable GITHUB_WORKSPACE variables")
-		return result.String()
+	// Collect all unique variable references
+	expandableVars := findExpandableVars(cmd)
+
+	if len(expandableVars) == 0 {
+		shellLog.Print("No expandable variables found, using normal escaping")
+		return shellEscapeArg(cmd)
 	}
 
-	// No GITHUB_WORKSPACE variable, use normal quoting
-	shellLog.Print("No GITHUB_WORKSPACE variable found, using normal escaping")
-	return shellEscapeArg(cmd)
+	shellLog.Printf("Docker command built with expandable variables: %v", expandableVars)
+
+	// Process the command: wrap in single quotes, break out for each variable
+	var result strings.Builder
+	result.WriteString("'")
+	remaining := cmd
+	for len(remaining) > 0 {
+		// Find the next variable reference
+		nextIdx := -1
+		nextVar := ""
+		for _, v := range expandableVars {
+			idx := strings.Index(remaining, v)
+			if idx >= 0 && (nextIdx < 0 || idx < nextIdx) {
+				nextIdx = idx
+				nextVar = v
+			}
+		}
+		if nextIdx < 0 {
+			// No more variables, write the rest
+			escapedPart := strings.ReplaceAll(remaining, "'", "'\\''")
+			result.WriteString(escapedPart)
+			break
+		}
+		// Write text before the variable
+		before := remaining[:nextIdx]
+		escapedBefore := strings.ReplaceAll(before, "'", "'\\''")
+		result.WriteString(escapedBefore)
+		// Break out of single quotes, add variable in double quotes, reopen single quotes
+		result.WriteString("'\"" + nextVar + "\"'")
+		remaining = remaining[nextIdx+len(nextVar):]
+	}
+	result.WriteString("'")
+	return result.String()
+}
+
+// findExpandableVars returns all unique ${VAR_NAME} patterns in the string.
+func findExpandableVars(s string) []string {
+	var vars []string
+	seen := make(map[string]bool)
+	for {
+		start := strings.Index(s, "${")
+		if start < 0 {
+			break
+		}
+		end := strings.Index(s[start:], "}")
+		if end < 0 {
+			break
+		}
+		varRef := s[start : start+end+1]
+		if !seen[varRef] {
+			seen[varRef] = true
+			vars = append(vars, varRef)
+		}
+		s = s[start+end+1:]
+	}
+	return vars
 }

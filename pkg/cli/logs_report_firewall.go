@@ -2,7 +2,11 @@ package cli
 
 import (
 	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var firewallReportLog = logger.New("cli:logs_report_firewall")
 
 // AccessLogSummary contains aggregated access log analysis
 type AccessLogSummary struct {
@@ -37,6 +41,7 @@ type domainAggregation struct {
 // aggregateDomainStats aggregates domain statistics across runs
 // This is a shared helper for both access log and firewall log summaries
 func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*ProcessedRun) (allowedDomains, blockedDomains []string, totalRequests, allowedCount, blockedCount int, exists bool)) *domainAggregation {
+	firewallReportLog.Printf("Aggregating domain stats across %d runs", len(processedRuns))
 	agg := &domainAggregation{
 		allAllowedDomains: make(map[string]bool),
 		allBlockedDomains: make(map[string]bool),
@@ -60,6 +65,8 @@ func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*Proces
 		}
 	}
 
+	firewallReportLog.Printf("Domain aggregation complete: %d allowed, %d blocked, %d total requests",
+		len(agg.allAllowedDomains), len(agg.allBlockedDomains), agg.totalRequests)
 	return agg
 }
 

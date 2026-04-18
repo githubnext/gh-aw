@@ -25,6 +25,7 @@ imports:
   - shared/safe-output-upload-artifact.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, pull_requests, issues]
   bash:

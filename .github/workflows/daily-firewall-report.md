@@ -22,6 +22,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets:
@@ -30,12 +31,13 @@ tools:
     - "*"
   edit:
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-firewall-report] "
-  - shared/reporting.md
   - shared/trending-charts-simple.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -509,8 +511,4 @@ Ensure the discussion body:
 
 A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

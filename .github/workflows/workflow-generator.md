@@ -12,10 +12,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine:
+  id: copilot
+  agent: agentic-workflows
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [default]
@@ -109,8 +112,4 @@ This issue has been assigned to an AI agent for workflow design. The agent will:
 
 The workflow designer agent will have clear instructions in the issue body about what it needs to do.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

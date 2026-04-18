@@ -1,4 +1,4 @@
-# Logger Package
+# logger Package
 
 A simple, debug-style logging framework for Go that follows the pattern matching syntax of the [debug npm package](https://www.npmjs.com/package/debug).
 
@@ -212,3 +212,7 @@ slogLogger.Warn("something unusual happened", "count", 42)
 - Colors assigned using FNV-1a hash for consistent namespace-to-color mapping
 - Color palette chosen for readability on both light and dark terminals
 - Uses ANSI 256-color codes for better compatibility
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

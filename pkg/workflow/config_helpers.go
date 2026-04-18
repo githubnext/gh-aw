@@ -55,19 +55,10 @@ func ParseStringArrayFromConfig(m map[string]any, key string, log *logger.Logger
 		if log != nil {
 			log.Printf("Parsing %s from config", key)
 		}
-		if arrayValue, ok := value.([]any); ok {
-			var strings []string
-			for _, item := range arrayValue {
-				if strVal, ok := item.(string); ok {
-					strings = append(strings, strVal)
-				}
-			}
+		if strings := parseStringSliceAny(value, log); strings != nil {
 			// Return the slice even if empty (to distinguish from not provided)
-			if strings == nil {
-				if log != nil {
-					log.Printf("No valid %s strings found, returning empty array", key)
-				}
-				return []string{}
+			if len(strings) == 0 && log != nil {
+				log.Printf("No valid %s strings found, returning empty array", key)
 			}
 			if log != nil {
 				log.Printf("Parsed %d %s from config", len(strings), key)

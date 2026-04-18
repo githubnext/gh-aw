@@ -33,6 +33,7 @@ permissions:
 tracker-id: daily-cli-performance
 engine: copilot
 tools:
+  mount-as-clis: true
   repo-memory:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
@@ -54,10 +55,10 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/go-make.md
-  - shared/observability-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 if: needs.pre_activation.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
 jobs:
@@ -687,8 +688,4 @@ Each entry contains:
 
 Begin your daily performance analysis now!
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

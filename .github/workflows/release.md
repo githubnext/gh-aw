@@ -461,6 +461,12 @@ steps:
       echo "    CHANGELOG.md (if exists), docs_files.txt)"
       echo "  Community data: /tmp/gh-aw/community-data/ (community_issues.json,"
       echo "    closing_refs_by_issue.json, pull_requests.json)"
+
+tools:
+  mount-as-clis: true
+
+features:
+  mcp-cli: true
 ---
 
 # Release Highlights Generator
@@ -641,8 +647,4 @@ safeoutputs/update_release(
 
 Verify paths exist in `docs_files.txt` before linking.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

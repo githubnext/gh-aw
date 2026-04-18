@@ -20,6 +20,8 @@ const (
 	CodexEngine EngineName = "codex"
 	// GeminiEngine is the Google Gemini engine identifier
 	GeminiEngine EngineName = "gemini"
+	// CrushEngine is the Crush engine identifier
+	CrushEngine EngineName = "crush"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
 	// Currently defaults to CopilotEngine.
@@ -30,7 +32,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(CrushEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -82,6 +84,15 @@ var EngineOptions = []EngineOption{
 		SecretName:  "GEMINI_API_KEY",
 		KeyURL:      "https://aistudio.google.com/app/apikey",
 		WhenNeeded:  "Gemini engine workflows",
+	},
+	{
+		Value:              string(CrushEngine),
+		Label:              "Crush",
+		Description:        "Crush multi-provider AI coding agent (BYOK)",
+		SecretName:         "COPILOT_GITHUB_TOKEN",
+		AlternativeSecrets: []string{"ANTHROPIC_API_KEY", "GOOGLE_API_KEY"},
+		KeyURL:             "https://github.com/charmbracelet/crush#installation",
+		WhenNeeded:         "Crush engine workflows (default: Copilot routing)",
 	},
 }
 
@@ -177,6 +188,10 @@ const (
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
 	// EnvVarModelDetectionGemini configures the default Gemini model for detection
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
+	// EnvVarModelAgentCrush configures the default Crush model for agent execution
+	EnvVarModelAgentCrush = "GH_AW_MODEL_AGENT_CRUSH"
+	// EnvVarModelDetectionCrush configures the default Crush model for detection
+	EnvVarModelDetectionCrush = "GH_AW_MODEL_DETECTION_CRUSH"
 
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
@@ -195,6 +210,11 @@ const (
 	// isolated in the AWF API proxy sidecar.
 	CopilotBYOKDummyAPIKey = "dummy-byok-key-for-offline-mode"
 
+	// CopilotBYOKDefaultModel is the explicit fallback model for Copilot BYOK mode.
+	// BYOK providers require a non-empty model, so this value is used when the
+	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
+	CopilotBYOKDefaultModel = "claude-sonnet-4.6"
+
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"
@@ -202,6 +222,10 @@ const (
 	// GeminiCLIModelEnvVar is the native environment variable name supported by the Gemini CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	GeminiCLIModelEnvVar = "GEMINI_MODEL"
+
+	// CrushCLIModelEnvVar is the native environment variable name for Crush model selection.
+	// Crush uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
+	CrushCLIModelEnvVar = "CRUSH_MODEL"
 
 	// Common environment variable names used across all engines
 

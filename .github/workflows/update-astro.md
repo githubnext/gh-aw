@@ -23,6 +23,7 @@ network:
     - node
 
 tools:
+  mount-as-clis: true
   bash:
     - "*"
   edit:

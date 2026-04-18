@@ -44,7 +44,9 @@ End`;
     });
 
     describe("nested code regions with same indentation", () => {
-      it("should escape nested backtick fence inside code block", () => {
+      it("should use greedy matching for bare fences without intermediate language openers", () => {
+        // Without intermediate language-tagged openers, bare fences form sequential
+        // code blocks (greedy matching per CommonMark), not nested content.
         const input = `\`\`\`javascript
 function test() {
 \`\`\`
@@ -52,17 +54,14 @@ nested
 \`\`\`
 }
 \`\`\``;
-        const expected = `\`\`\`\`javascript
-function test() {
-\`\`\`
-nested
-\`\`\`
-}
-\`\`\`\``;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+        // Already balanced: two sequential code blocks
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
+        expect(balancer.isBalanced(balancer.balanceCodeRegions(input))).toBe(true);
       });
 
-      it("should escape nested tilde fence inside code block", () => {
+      it("should use greedy matching for bare tilde fences without intermediate language openers", () => {
+        // Without intermediate language-tagged openers, bare fences form sequential
+        // code blocks (greedy matching per CommonMark), not nested content.
         const input = `~~~markdown
 Example:
 ~~~
@@ -70,38 +69,56 @@ nested
 ~~~
 End
 ~~~`;
-        const expected = `~~~~markdown
-Example:
-~~~
-nested
-~~~
-End
-~~~~`;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+        // Already balanced: two sequential code blocks
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
+        expect(balancer.isBalanced(balancer.balanceCodeRegions(input))).toBe(true);
       });
 
-      it("should handle multiple nested fences", () => {
+      it("should use greedy matching for multiple bare fences without intermediate language openers", () => {
+        // Multiple bare fences without intermediate language-tagged openers
+        // are sequential code blocks, not nested content.
+        // With 5 fences (odd), greedy matching pairs 0-1, 2-3, and fence 4 is unclosed.
+        // The balancer adds a closing fence for the unclosed block.
         const input = `\`\`\`javascript
 function test() {
 \`\`\`
 first nested
 \`\`\`
-\`\`\`
 second nested
 \`\`\`
 }
 \`\`\``;
-        const expected = `\`\`\`\`javascript
+        const expected = `\`\`\`javascript
 function test() {
 \`\`\`
 first nested
 \`\`\`
-\`\`\`
 second nested
 \`\`\`
 }
-\`\`\`\``;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+\`\`\`
+\`\`\``;
+        // Greedy matching: 2 paired blocks + 1 unclosed (auto-closed)
+        const result = balancer.balanceCodeRegions(input);
+        expect(result).toBe(expected);
+        expect(balancer.isBalanced(result)).toBe(true);
+      });
+
+      it("should not make things worse when intermediate language-tagged openers exist", () => {
+        // This pattern is inherently ambiguous under CommonMark greedy matching:
+        // ```markdown pairs with the first bare ```, leaving the final ``` unclosed.
+        // The balancer cannot resolve this, but must not make it worse.
+        const input = `\`\`\`markdown
+Here's an example:
+\`\`\`python
+print("hello")
+\`\`\`
+End
+\`\`\``;
+        const result = balancer.balanceCodeRegions(input);
+        const inputCounts = balancer.countCodeRegions(input);
+        const resultCounts = balancer.countCodeRegions(result);
+        expect(resultCounts.unbalanced).toBeLessThanOrEqual(inputCounts.unbalanced);
       });
     });
 
@@ -147,19 +164,15 @@ content
     });
 
     describe("fence lengths", () => {
-      // TODO: Edge case - separate sequential blocks with different fence lengths incorrectly identified as nested
-      it.skip("should require closing fence to be at least as long as opening", () => {
+      it("should treat shorter bare fence inside longer fence block as content", () => {
+        // A 5-backtick opener cannot be closed by a 3-backtick fence (CommonMark rule),
+        // so the 3-backtick fences are content inside the block, not separate blocks.
         const input = `\`\`\`\`\`
 content
 \`\`\`
 should be escaped
 \`\`\`\`\``;
-        const expected = `\`\`\`\`\`\`
-content
-\`\`\`
-should be escaped
-\`\`\`\`\`\``;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
       it("should allow longer closing fence", () => {
@@ -171,8 +184,7 @@ end`;
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
-      // TODO: Edge case - multiple separate blocks with vastly different fence lengths incorrectly identified as nested
-      it.skip("should handle various fence lengths", () => {
+      it("should handle various fence lengths as separate blocks", () => {
         const input = `\`\`\`
 three
 \`\`\`
@@ -187,21 +199,16 @@ seven
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
-      // TODO: Edge case - 6-char opener with 3-char inner fences incorrectly calculated
-      it.skip("should escape shorter fence inside longer fence block", () => {
+      it("should treat shorter fences inside longer fence block as content", () => {
+        // A 6-backtick opener cannot be closed by 3-backtick fences,
+        // so they're content, not closers.
         const input = `\`\`\`\`\`\`
 content
 \`\`\`
 nested short fence
 \`\`\`
 \`\`\`\`\`\``;
-        const expected = `\`\`\`\`\`\`\`
-content
-\`\`\`
-nested short fence
-\`\`\`
-\`\`\`\`\`\`\``;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
     });
 
@@ -317,10 +324,9 @@ content
     });
 
     describe("complex real-world scenarios", () => {
-      // TODO: This test is currently skipped due to a known issue with the algorithm
-      // The algorithm treats fences inside code blocks as real fences, causing incorrect escaping
-      // See: https://github.com/github/gh-aw/issues/XXXXX
-      it.skip("should handle AI-generated code with nested markdown", () => {
+      it("should handle AI-generated code with nested markdown", () => {
+        // The markdown and javascript fences are sequential blocks with greedy matching.
+        // markdown opens, first bare ``` closes it, javascript opens, second bare ``` closes it.
         const input = `# Example
 
 Here's how to use code blocks:
@@ -335,7 +341,6 @@ function hello() {
 \`\`\`
 
 Text after`;
-        // No changes expected - the javascript block is separate from the markdown block
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
@@ -356,8 +361,7 @@ print("hello")
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
-      // TODO: Edge case - separate blocks being incorrectly treated as nested
-      it.skip("should handle mixed fence types in document", () => {
+      it("should handle mixed fence types in document", () => {
         const input = `\`\`\`javascript
 const x = 1;
 \`\`\`
@@ -372,10 +376,9 @@ generic code
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
-      // TODO: This test is currently skipped due to a known issue with the algorithm
-      // The algorithm treats fences inside code blocks as real fences, causing incorrect escaping
-      // See: https://github.com/github/gh-aw/issues/XXXXX
-      it.skip("should handle deeply nested example", () => {
+      it("should handle deeply nested example", () => {
+        // Greedy matching: markdown opens, first bare ``` closes it,
+        // javascript opens, second bare ``` closes it. Two sequential blocks.
         const input = `\`\`\`markdown
 # Tutorial
 
@@ -385,7 +388,6 @@ code here
 
 More text
 \`\`\``;
-        // No changes expected - the javascript block is separate from the markdown block
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
@@ -816,6 +818,75 @@ content
       expect(typeof result).toBe("string");
     });
 
+    it("should not corrupt sequential code blocks with different languages", () => {
+      // Regression test: two separate code blocks where the first has a language tag
+      // and the second is bare. The balancer should NOT merge them into one block
+      // by increasing fence lengths.
+      const input = `## C++ Source
+
+\`\`\`cpp
+template<typename T, size_t N>
+const T interpolateN(const T &value, const T(&y)[N])
+{
+    return y[0];
+}
+\`\`\`
+
+Used for motor thrust curves.
+
+## Verification Status
+
+\`\`\`
+LEAN_AVAILABLE=true
+LAKE_BUILD=passed
+\`\`\`
+
+All 19 build jobs passed.`;
+
+      const result = balancer.balanceCodeRegions(input);
+      // The output should be identical to the input - two separate balanced blocks
+      expect(result).toBe(input);
+      expect(balancer.isBalanced(result)).toBe(true);
+    });
+
+    it("should not corrupt three sequential code blocks", () => {
+      // Three separate code blocks, none nested
+      const input = `\`\`\`python
+print("hello")
+\`\`\`
+
+Some text.
+
+\`\`\`javascript
+console.log("world")
+\`\`\`
+
+More text.
+
+\`\`\`
+plain code
+\`\`\``;
+
+      const result = balancer.balanceCodeRegions(input);
+      expect(result).toBe(input);
+      expect(balancer.isBalanced(result)).toBe(true);
+    });
+
+    it("should not corrupt two code blocks where first has language and second is bare", () => {
+      // This is the exact pattern that caused the bug: ```lang ... ``` followed by ``` ... ```
+      const input = `\`\`\`cpp
+code1
+\`\`\`
+
+\`\`\`
+code2
+\`\`\``;
+
+      const result = balancer.balanceCodeRegions(input);
+      expect(result).toBe(input);
+      expect(balancer.isBalanced(result)).toBe(true);
+    });
+
     it("should handle random fence variations", () => {
       // Generate random fence lengths and types
       const fenceChars = ["`", "~"];
@@ -830,6 +901,239 @@ content
         const result = balancer.balanceCodeRegions(input);
         expect(balancer.isBalanced(result)).toBe(true);
       }
+    });
+
+    describe("real-world regression tests", () => {
+      it("should not corrupt PR body with cpp code block followed by bare verification block", () => {
+        // Exact pattern from the bug report: a ```cpp block followed by a ``` block
+        // The balancer was wrapping both in ````...```` and treating the middle
+        // closing/opening fences as content.
+        const input = `## C++ Source
+
+\`\`\`cpp
+// src/lib/mathlib/math/Functions.hpp (~line 180)
+template<typename T, size_t N>
+const T interpolateN(const T &value, const T(&y)[N])
+{
+    size_t index = constrain((int)(value * (N - 1)), 0, (int)(N - 2));
+    return interpolate(value,
+                       (T)index / (T)(N - 1),
+                       (T)(index + 1) / (T)(N - 1),
+                       y[index], y[index + 1]);
+}
+\`\`\`
+
+Used for motor thrust curves (N=5 or N=9), RC stick sensitivity curves, and control surface deflection mappings.
+
+## Verification Status
+
+> Proofs verified: lake build passed with Lean 4.29.0. 0 sorry remain.
+
+\`\`\`
+LEAN_AVAILABLE=true
+Lean (version 4.29.0, x86_64-unknown-linux-gnu)
+LAKE_BUILD=passed
+\`\`\`
+
+All 19 build jobs passed (including all 17 prior Lean files).`;
+
+        const result = balancer.balanceCodeRegions(input);
+        expect(result).toBe(input);
+        expect(balancer.isBalanced(result)).toBe(true);
+      });
+
+      it("should not corrupt markdown with multiple language-tagged blocks and one bare block", () => {
+        // Pattern: several language-tagged blocks + one bare block at the end
+        const input = `## Code
+
+\`\`\`python
+def hello():
+    print("Hello")
+\`\`\`
+
+## Tests
+
+\`\`\`python
+def test_hello():
+    assert True
+\`\`\`
+
+## Output
+
+\`\`\`
+Hello
+\`\`\``;
+
+        const result = balancer.balanceCodeRegions(input);
+        expect(result).toBe(input);
+        expect(balancer.isBalanced(result)).toBe(true);
+      });
+
+      it("should not corrupt a document with 4+ sequential code blocks", () => {
+        // Common in documentation: many sequential blocks
+        const input = `\`\`\`bash
+npm install
+\`\`\`
+
+\`\`\`javascript
+const x = 1;
+\`\`\`
+
+\`\`\`json
+{"key": "value"}
+\`\`\`
+
+\`\`\`
+plain text output
+\`\`\`
+
+\`\`\`yaml
+key: value
+\`\`\``;
+
+        const result = balancer.balanceCodeRegions(input);
+        expect(result).toBe(input);
+        expect(balancer.isBalanced(result)).toBe(true);
+      });
+
+      it("should handle GitHub-style blockquote containing a code block", () => {
+        // Code blocks inside blockquotes are common in GitHub comments
+        const input = `Some text before.
+
+> Here is a quote with code:
+> \`\`\`
+> echo "hello"
+> \`\`\`
+
+Text after.`;
+
+        const result = balancer.balanceCodeRegions(input);
+        // The > prefix means these fences have different indentation patterns
+        // and won't match top-level fences
+        expect(result).toBe(input);
+      });
+
+      it("should handle PR body with footer containing fenced install command", () => {
+        // Common pattern in gh-aw: PR bodies end with a fenced install command
+        const input = `## Summary
+
+Some PR summary text.
+
+\`\`\`python
+code here
+\`\`\`
+
+> Generated by workflow.
+>
+> To install, run
+> \`\`\`
+> gh aw add owner/repo/workflow.md@sha
+> \`\`\``;
+
+        const result = balancer.balanceCodeRegions(input);
+        expect(result).toBe(input);
+        expect(balancer.isBalanced(result)).toBe(true);
+      });
+    });
+
+    describe("ambiguous nesting with intermediate language openers", () => {
+      it("should not make things worse for markdown block with language-tagged inner block", () => {
+        // Inherently ambiguous: greedy matching pairs ```markdown with the first
+        // bare ```, so ```python and the final ``` become separate (unbalanced) blocks.
+        // The balancer cannot resolve this but must not degrade the output.
+        const input = `\`\`\`markdown
+Here's an example:
+\`\`\`python
+print("hello")
+\`\`\`
+End of example
+\`\`\``;
+        const result = balancer.balanceCodeRegions(input);
+        const inputCounts = balancer.countCodeRegions(input);
+        const resultCounts = balancer.countCodeRegions(result);
+        expect(resultCounts.unbalanced).toBeLessThanOrEqual(inputCounts.unbalanced);
+      });
+
+      it("should not make things worse for markdown block with multiple inner blocks", () => {
+        // Multiple language-tagged inner blocks inside a markdown fence.
+        // Greedy matching pairs the outer opener with the first bare closer,
+        // leaving subsequent blocks ambiguous.
+        const input = `\`\`\`markdown
+## Usage
+
+\`\`\`javascript
+const x = 1;
+\`\`\`
+
+\`\`\`python
+y = 2
+\`\`\`
+
+End
+\`\`\``;
+        const result = balancer.balanceCodeRegions(input);
+        const inputCounts = balancer.countCodeRegions(input);
+        const resultCounts = balancer.countCodeRegions(result);
+        expect(resultCounts.unbalanced).toBeLessThanOrEqual(inputCounts.unbalanced);
+      });
+    });
+
+    describe("idempotency", () => {
+      it("should be idempotent - running twice gives same result", () => {
+        const inputs = [
+          "```javascript\ncode\n```",
+          "```\nblock1\n```\n\n```\nblock2\n```",
+          "```cpp\ncode\n```\n\n```\noutput\n```",
+          "```markdown\n```python\ncode\n```\nend\n```",
+          "```javascript\nunclosed",
+          "```\nfirst\n```\nsecond\n```\nthird\n```",
+        ];
+
+        for (const input of inputs) {
+          const first = balancer.balanceCodeRegions(input);
+          const second = balancer.balanceCodeRegions(first);
+          expect(second).toBe(first);
+        }
+      });
+    });
+
+    describe("output correctness invariants", () => {
+      it("should always produce balanced output or no worse than input", () => {
+        const inputs = [
+          "```\ncode\n```",
+          "```js\ncode",
+          "```\na\n```\nb\n```\nc\n```",
+          "```\na\n```\n```\nb\n```\n```\nc\n```",
+          "````\na\n```\nb\n```\nc\n````",
+          "```markdown\n```js\ncode\n```\n```",
+          "~~~\na\n~~~\n```\nb\n```",
+          "```\n```\n```",
+        ];
+
+        for (const input of inputs) {
+          const result = balancer.balanceCodeRegions(input);
+          const inputCounts = balancer.countCodeRegions(input);
+          const resultCounts = balancer.countCodeRegions(result);
+          expect(resultCounts.unbalanced).toBeLessThanOrEqual(inputCounts.unbalanced);
+        }
+      });
+
+      it("should never change already-balanced content (beyond line-ending normalization)", () => {
+        const balanced = [
+          "```js\ncode\n```",
+          "~~~md\ntext\n~~~",
+          "```\na\n```\n\n```\nb\n```",
+          "```cpp\ncode\n```\n\n```\noutput\n```",
+          "````\ncode with ``` inside\n````",
+          "```js\na\n```\n~~~py\nb\n~~~\n```\nc\n```",
+          "  ```\n  indented\n  ```",
+          "```js {highlight}\ncode\n```",
+        ];
+
+        for (const input of balanced) {
+          expect(balancer.balanceCodeRegions(input)).toBe(input);
+        }
+      });
     });
   });
 });

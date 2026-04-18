@@ -48,7 +48,7 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string) error {
+func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
@@ -58,8 +58,9 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 
 	secretViolations := collectSecretViolations(manifest, secretNames)
 	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
+	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
 
-	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 {
+	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
 			len(secretNames), len(actionRefs))
 		return nil
@@ -77,8 +78,14 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 		safeUpdateLog.Printf("Safe update violation: %d action(s) removed: %s",
 			len(removedActions), strings.Join(removedActions, ", "))
 	}
+	if addedRedirect != "" {
+		safeUpdateLog.Printf("Safe update violation: redirect added: %s", addedRedirect)
+	}
+	if removedRedirect != "" {
+		safeUpdateLog.Printf("Safe update violation: redirect removed: %s", removedRedirect)
+	}
 
-	return buildSafeUpdateError(secretViolations, addedActions, removedActions)
+	return buildSafeUpdateError(secretViolations, addedActions, removedActions, addedRedirect, removedRedirect)
 }
 
 // collectSecretViolations returns the normalized secret names that are new (not in the
@@ -196,9 +203,32 @@ func collectActionViolations(manifest *GHAWManifest, actionRefs []string) (added
 	return added, removed
 }
 
+// collectRedirectViolations compares the redirect recorded in the previous manifest
+// with the redirect currently configured in frontmatter.
+// It returns:
+//   - added: a redirect newly configured in current frontmatter
+//   - removed: a previously-approved redirect that is now absent
+func collectRedirectViolations(manifest *GHAWManifest, currentRedirect string) (added string, removed string) {
+	knownRedirect := strings.TrimSpace(manifest.Redirect)
+	current := strings.TrimSpace(currentRedirect)
+
+	if knownRedirect == current {
+		return "", ""
+	}
+	if knownRedirect == "" && current != "" {
+		return current, ""
+	}
+	if knownRedirect != "" && current == "" {
+		return "", knownRedirect
+	}
+	// At this point both values are non-empty and differ after TrimSpace normalization,
+	// so treat the change as one removed redirect plus one added redirect.
+	return current, knownRedirect
+}
+
 // buildSafeUpdateError creates a clear, structured error message that names the
-// offending secrets and actions and tells the user how to remediate.
-func buildSafeUpdateError(secretViolations, addedActions, removedActions []string) error {
+// offending secrets, actions, and redirects and tells the user how to remediate.
+func buildSafeUpdateError(secretViolations, addedActions, removedActions []string, addedRedirect, removedRedirect string) error {
 	var sb strings.Builder
 	sb.WriteString("safe update mode detected unapproved changes\n")
 
@@ -213,6 +243,14 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 	if len(removedActions) > 0 {
 		sb.WriteString("\nPreviously-approved action(s) removed:\n  - ")
 		sb.WriteString(strings.Join(removedActions, "\n  - "))
+	}
+	if addedRedirect != "" {
+		sb.WriteString("\nNew redirect configured:\n  - ")
+		sb.WriteString(addedRedirect)
+	}
+	if removedRedirect != "" {
+		sb.WriteString("\nPreviously-approved redirect removed:\n  - ")
+		sb.WriteString(removedRedirect)
 	}
 
 	sb.WriteString("\n\nRemediation options:\n  1. Use the --approve flag to allow the changes.\n  2. Revert the unapproved changes.\n  3. Use an interactive coding agent to review and approve the changes.")
@@ -233,7 +271,7 @@ func buildSafeUpdateWarningPrompt(violationMsg string) string {
 	sb.WriteString("  1. Review every new secret and action listed above for potential malicious use\n")
 	sb.WriteString("     (e.g. credential exfiltration, supply-chain attacks, unexpected network access).\n")
 	sb.WriteString("  2. Add a security review note to the pull request description that:\n")
-	sb.WriteString("     - Lists the new secrets and actions introduced by this compilation.\n")
+	sb.WriteString("     - Lists any new or removed secrets, actions, and redirect changes from this compilation.\n")
 	sb.WriteString("     - Confirms you have reviewed each one and explains why it is safe to add.\n")
 	sb.WriteString("     - Flags any item you cannot fully verify so a human reviewer can inspect it.\n")
 	return sb.String()

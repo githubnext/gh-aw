@@ -15,6 +15,7 @@ engine: copilot
 strict: true
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash:
@@ -43,10 +44,10 @@ safe-outputs:
 timeout-minutes: 20
 
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

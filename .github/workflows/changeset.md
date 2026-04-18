@@ -35,12 +35,16 @@ network:
     - node
     - go
 tools:
+  mount-as-clis: true
   bash:
     - "*"
   edit:
 imports:
   - shared/changeset-format.md
   - shared/jqschema.md
+
+features:
+  mcp-cli: true
 ---
 
 # Changeset Generator

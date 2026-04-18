@@ -63,6 +63,13 @@ jobs:
           else
             echo "needs-linting=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Fix super-linter log permissions
+        if: always()
+        run: |
+          if [ -f "super-linter.log" ]; then
+            chmod 644 super-linter.log
+          fi
       
       - name: Upload super-linter log
         if: always()
@@ -78,6 +85,7 @@ steps:
       name: super-linter-log
       path: /tmp/gh-aw/
 tools:
+  mount-as-clis: true
   cache-memory: true
   edit:
   bash:
@@ -202,8 +210,4 @@ docker run --rm \
 
 Treat linter output as potentially sensitive. Do not expose credentials, API keys, or other secrets that might appear in file paths or error messages.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

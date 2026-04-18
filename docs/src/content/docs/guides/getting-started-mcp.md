@@ -134,7 +134,7 @@ mcp-servers:
     allowed: ["*"]
 ```
 
-The `registry` field provides metadata for tooling while the `container` or `command` fields specify how to run the server.
+The `registry` field provides metadata for tooling while the `container` or `command` fields specify how to run the server. Registry usage is informational and not enforced by gh-aw.
 
 ### Using a Custom Registry
 

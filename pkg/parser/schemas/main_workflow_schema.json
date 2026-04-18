@@ -25,6 +25,11 @@
       "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",
       "examples": ["githubnext/agentics/workflows/ci-doctor.md", "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"]
     },
+    "redirect": {
+      "type": "string",
+      "description": "Optional workflow location redirect for updates. Format: workflow spec or GitHub URL (e.g., owner/repo/path@ref or https://github.com/owner/repo/blob/main/path.md). When present, update follows this location and rewrites source.",
+      "examples": ["githubnext/agentics/workflows/ci-doctor-v2.md@main", "https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor-v2.md"]
+    },
     "tracker-id": {
       "type": "string",
       "minLength": 8,
@@ -1840,8 +1845,8 @@
               "oneOf": [
                 {
                   "type": "string",
-                  "enum": ["all"],
-                  "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+                  "enum": ["admin", "maintainer", "maintain", "write", "triage", "read", "all"],
+                  "description": "Single repository permission level that can trigger the workflow. Use 'all' to allow any authenticated user (\u26a0\ufe0f disables permission checking entirely - use with caution)"
                 },
                 {
                   "type": "array",
@@ -1879,11 +1884,43 @@
                   "type": "integer",
                   "enum": [1, -1],
                   "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"]
+                        },
+                        {
+                          "type": "integer",
+                          "enum": [1, -1],
+                          "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
+                        }
+                      ],
+                      "description": "Reaction type. Defaults to 'eyes' when omitted."
+                    },
+                    "issues": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for issue triggers (issues, issue_comment)."
+                    },
+                    "pull-requests": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for pull request triggers (pull_request, pull_request_review_comment)."
+                    },
+                    "discussions": {
+                      "type": "boolean",
+                      "description": "Whether reactions are allowed for discussion and discussion_comment triggers."
+                    }
+                  }
                 }
               ],
               "default": "eyes",
-              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified.",
-              "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
+              "description": "AI reaction to add/remove on triggering item. Scalar form accepts one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none. Object form implies enabled reactions and supports optional `issues`, `pull-requests`, and `discussions` fields to control trigger groups independently; use `type` to choose the reaction emoji (defaults to `eyes` when omitted). Use 'none' to disable reactions.",
+              "examples": ["eyes", "rocket", "+1", 1, -1, "none", { "type": "rocket", "pull-requests": false }, { "issues": false, "discussions": true }]
             },
             "status-comment": {
               "oneOf": [
@@ -2931,7 +2968,7 @@
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
             },
             "firewall": {
-              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, and gemini engines.",
+              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Supported for copilot, claude, codex, gemini, and crush engines.",
               "deprecated": true,
               "x-deprecation-message": "The firewall is now always enabled. Use 'sandbox.agent' to configure the sandbox type.",
               "oneOf": [
@@ -3368,6 +3405,37 @@
                 "with": {
                   "scope": "target-org/target-repo"
                 }
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    "pre-agent-steps": {
+      "description": "Custom workflow steps to run immediately before AI execution, after all initialization and setup steps in the agent job.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "examples": [
+            [
+              {
+                "name": "Prepare final context",
+                "run": "echo \"ready\""
               }
             ]
           ]
@@ -5697,6 +5765,22 @@
                   ],
                   "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
                 },
+                "team-reviewers": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single team slug to assign as a reviewer to the pull request."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of team slugs to assign as reviewers to the pull request.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional team reviewer(s) to assign to the pull request. Accepts either a single string or an array of team slugs."
+                },
                 "assignees": {
                   "oneOf": [
                     {
@@ -5769,6 +5853,13 @@
                 "base-branch": {
                   "type": "string",
                   "description": "Base branch for the pull request. Defaults to the workflow's branch (github.ref_name) if not specified. Useful for cross-repository PRs targeting non-default branches (e.g., 'vnext', 'release/v1.0')."
+                },
+                "allowed-base-branches": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of allowed base branch patterns (glob syntax, e.g. 'main', 'release/*'). When configured, the agent may provide a `base` field in create_pull_request output to override base-branch for a single run, but only if it matches one of these patterns."
                 },
                 "footer": {
                   "type": "boolean",
@@ -6375,6 +6466,22 @@
                   },
                   "minItems": 1,
                   "maxItems": 50
+                },
+                "team-reviewers": {
+                  "description": "Optional allowed team reviewer or list of allowed team reviewers. If omitted, any team reviewers are allowed.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 50
+                    }
+                  ]
                 },
                 "max": {
                   "description": "Optional maximum number of reviewers to add (default: 3) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
@@ -9230,7 +9337,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini') or a named catalog entry"
+          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry"
         },
         {
           "type": "object",
@@ -9238,7 +9345,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
@@ -9399,8 +9506,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini')",
-                  "examples": ["codex", "claude", "copilot", "gemini"]
+                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'crush')",
+                  "examples": ["codex", "claude", "copilot", "gemini", "crush"]
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -9521,7 +9628,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini')"
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'crush')"
             },
             "display-name": {
               "type": "string",

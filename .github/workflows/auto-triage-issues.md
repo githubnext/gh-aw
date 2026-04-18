@@ -24,6 +24,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - issues
@@ -52,6 +53,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 15
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
@@ -288,8 +290,4 @@ When running on schedule, create a discussion report following these formatting 
 - Label accuracy: ≥90% (minimal maintainer corrections needed)
 - False positive rate: <10%
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

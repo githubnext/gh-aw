@@ -36,6 +36,7 @@ steps:
     working-directory: ./actions/setup/js
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -55,6 +56,9 @@ imports:
   - shared/go-make.md
 
 timeout-minutes: 15
+
+features:
+  mcp-cli: true
 ---
 
 # Go Logger Enhancement
@@ -330,8 +334,4 @@ Before creating the PR, verify:
 
 Good luck enhancing the codebase with better logging!
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

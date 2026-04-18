@@ -16,6 +16,7 @@ mcp-servers:
     headers:
       Authorization: "Bearer ${{ secrets.SENTRY_API_KEY }}"
 tools:
+  mount-as-clis: true
   bash: true
   github:
     toolsets: [default, issues]
@@ -29,8 +30,7 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
 ---

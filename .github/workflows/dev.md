@@ -20,7 +20,11 @@ safe-outputs:
     expires: 7d
     title-prefix: "[Daily Report] "
 features:
+  mcp-cli: true
   copilot-requests: true
+
+tools:
+  mount-as-clis: true
 ---
 
 # Daily Status Report
@@ -43,8 +47,4 @@ Generate a daily status report for the gh-aw project, focusing on documentation 
 
 Keep the report informative but concise.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

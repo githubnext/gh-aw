@@ -14,6 +14,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/pr-code-review-config.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
 safe-outputs:
@@ -25,6 +26,9 @@ safe-outputs:
     run-success: "😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄"
     run-failure: "😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse..."
 timeout-minutes: 10
+
+features:
+  mcp-cli: true
 ---
 
 # Grumpy Code Reviewer 🔥
@@ -161,8 +165,4 @@ The safe output system will automatically create these as pull request review co
 
 Now get to work. This code isn't going to review itself. 🔥
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

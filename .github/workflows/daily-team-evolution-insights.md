@@ -19,17 +19,16 @@ network:
     - "anthropic.com"
     - "api.anthropic.com"
 tools:
+  mount-as-clis: true
   github:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]
 timeout-minutes: 90
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-team-evolution] "
       expires: 1d
-  - shared/reporting.md
-  - shared/observability-otlp.md
 features:
   mcp-cli: true
 ---
@@ -298,8 +297,4 @@ Always create a GitHub Discussion with your findings using this structure:
 
 Begin your analysis now. Gather the data, identify the patterns, and create an insightful discussion about the team's evolution.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

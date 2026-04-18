@@ -60,3 +60,7 @@ assert.Contains(t, yaml, "runs-on: ubuntu-latest")
 - `GetTestRunDir` uses `sync.Once` so the directory is created exactly once per process even when multiple test packages run concurrently.
 - `TempDir` delegates to `os.MkdirTemp` to generate unique subdirectory names.
 - Test artifacts placed in the test run directory are outside any git repository, which prevents `git` commands executed by tests from picking them up as untracked files.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

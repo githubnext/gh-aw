@@ -11,17 +11,19 @@ engine: codex
 strict: true
 tracker-id: daily-observability-report
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions, actions]
   agentic-workflows: true
 timeout-minutes: 45
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[observability] "
       expires: 1d
-  - shared/reporting.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
@@ -388,8 +390,4 @@ A successful run will:
 
 Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

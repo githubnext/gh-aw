@@ -25,6 +25,7 @@ network:
     - defaults
     - github
 tools:
+  mount-as-clis: true
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1
@@ -47,6 +48,9 @@ safe-outputs:
     allowed-reasons: [spam]
   threat-detection: false
 checkout: false
+
+features:
+  mcp-cli: true
 ---
 
 # AI Moderator
@@ -200,8 +204,4 @@ If no spam was detected, you may still update the log to remove stale entries, b
 - Provide clear reasoning for each detection in your analysis
 - Only take action if you have high confidence in the detection
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

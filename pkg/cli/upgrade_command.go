@@ -42,6 +42,10 @@ This command:
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
   4. Compiles all workflows to generate lock files (like 'compile' command)
 
+Flag behavior:
+- --no-fix skips codemods, action version updates, and workflow compilation
+- --no-actions and --no-compile are only applied when --no-fix is not set
+
 DEPENDENCY HEALTH AUDIT:
 Use --audit to check dependency health without performing upgrades. This includes:
 - Outdated Go dependencies with available updates
@@ -105,8 +109,8 @@ Examples:
 
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-fix", false, "Skip codemods, action version updates, and workflow compilation (only update agent files)")
-	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
-	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
+	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions (ignored when --no-fix is set)")
+	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files; ignored when --no-fix is set)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output

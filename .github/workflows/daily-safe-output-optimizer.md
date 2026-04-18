@@ -27,10 +27,12 @@ imports:
   - shared/aw-logs-24h-fetch.md
   - shared/activation-app.md
   - shared/jqschema.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
+
+tools:
+  mount-as-clis: true
 ---
 
 # Safe Output Tool Optimizer
@@ -415,8 +417,4 @@ A successful run:
 
 Begin your analysis now. Download logs, identify safe output tool errors, classify root causes, and create an issue if tool description improvements are needed.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

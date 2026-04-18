@@ -15,8 +15,11 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var mcpPropertyValidationLog = logger.New("workflow:mcp_property_validation")
 
 // validateStringProperty validates that a property is a string and returns appropriate error message
 func validateStringProperty(toolName, propertyName string, value any, exists bool) error {
@@ -31,6 +34,8 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 
 // validateMCPRequirements validates the specific requirements for MCP configuration
 func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
+	mcpPropertyValidationLog.Printf("Validating MCP requirements for tool: %s", toolName)
+
 	// Validate 'type' property - allow inference from other fields
 	mcpType, hasType := mcpConfig["type"]
 	var typeStr string
@@ -41,12 +46,14 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 			return fmt.Errorf("tool '%s' mcp configuration 'type' must be a string, got %T. Valid types per MCP Gateway Specification: stdio, http. Note: 'local' is accepted for backward compatibility and treated as 'stdio'.\n\nExample:\ntools:\n  %s:\n    type: \"stdio\"\n    command: \"node server.js\"\n\nSee: %s", toolName, mcpType, toolName, constants.DocsToolsURL)
 		}
 		typeStr = mcpType.(string)
+		mcpPropertyValidationLog.Printf("Tool %s: explicit MCP type=%s", toolName, typeStr)
 	} else {
 		// Infer type from presence of fields
 		typeStr = inferMCPType(mcpConfig)
 		if typeStr == "" {
 			return fmt.Errorf("tool '%s' unable to determine MCP type: missing type, url, command, or container.\n\nExample:\ntools:\n  %s:\n    command: \"node server.js\"\n    args: [\"--port\", \"3000\"]\n\nSee: %s", toolName, toolName, constants.DocsToolsURL)
 		}
+		mcpPropertyValidationLog.Printf("Tool %s: inferred MCP type=%s", toolName, typeStr)
 	}
 
 	// Normalize "local" to "stdio" for validation

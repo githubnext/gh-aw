@@ -455,6 +455,30 @@ async function main(config = {}) {
     // Switch to or create the target branch
     core.info(`Switching to branch: ${branchName}`);
 
+    // Detect missing/deleted branches early and return a clear error.
+    // This avoids an opaque git fetch exit code when the PR branch was deleted.
+    {
+      const lsRemoteResult = await exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", "origin", branchName], {
+        env: { ...process.env, ...gitAuthEnv },
+        ignoreReturnCode: true,
+      });
+
+      if (lsRemoteResult.exitCode === 2) {
+        return {
+          success: false,
+          error: `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`,
+        };
+      }
+
+      if (lsRemoteResult.exitCode !== 0) {
+        const stderr = (lsRemoteResult.stderr || "").trim();
+        return {
+          success: false,
+          error: `Failed to verify branch ${branchName} exists on origin: ${stderr || `git ls-remote exited with code ${lsRemoteResult.exitCode}`}`,
+        };
+      }
+    }
+
     // Fetch the specific target branch from origin
     // Use GIT_CONFIG_* env vars for auth because .git/config credentials are
     // cleaned by clean_git_credentials.sh before the agent runs.
@@ -684,9 +708,27 @@ async function main(config = {}) {
         core.error(`Failed to push changes: ${pushErrorMessage}`);
         const nonFastForwardPatterns = ["non-fast-forward", "rejected", "fetch first", "Updates were rejected"];
         const isNonFastForward = nonFastForwardPatterns.some(pattern => pushErrorMessage.includes(pattern));
-        const userMessage = isNonFastForward
+        let userMessage = isNonFastForward
           ? "Failed to push changes: remote PR branch changed while the workflow was running (non-fast-forward). Re-run the workflow on the latest PR branch state."
           : `Failed to push changes: ${pushErrorMessage}`;
+
+        // Diagnose common race where branch was deleted after preflight checks.
+        try {
+          const lsRemoteAfterPushResult = await exec.getExecOutput("git", ["ls-remote", "--exit-code", "--heads", "origin", branchName], {
+            env: { ...process.env, ...gitAuthEnv },
+            ignoreReturnCode: true,
+          });
+
+          if (lsRemoteAfterPushResult.exitCode === 2) {
+            userMessage = "Failed to push changes: remote PR branch appears to have been deleted while the workflow was running.";
+          } else if (lsRemoteAfterPushResult.exitCode !== 0) {
+            const remoteCheckError = (lsRemoteAfterPushResult.stderr || "").trim();
+            core.warning(`Push failed and branch existence re-check also failed for ${branchName}: ${remoteCheckError || `git ls-remote exited with code ${lsRemoteAfterPushResult.exitCode}`}`);
+          }
+        } catch (diagnosisError) {
+          core.warning(`Push failed and branch existence re-check errored for ${branchName}: ${getErrorMessage(diagnosisError)}`);
+        }
+
         return { success: false, error_type: "push_failed", error: userMessage };
       }
 

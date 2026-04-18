@@ -11,6 +11,7 @@ permissions:
 tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
+  mount-as-clis: true
   bash:
     - "find .github/workflows -name '*.md' -type f ! -name 'daily-*.md' ! -name '*-test.md'"
     - "gh aw compile *"
@@ -41,9 +42,9 @@ steps:
       fi
       gh aw --version
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
@@ -437,8 +438,4 @@ A successful analysis run:
 
 Begin your analysis now. Focus on evaluating error messages from a developer experience perspective - imagine you're a developer encountering this error for the first time and ask: "Would this help me fix the problem quickly?"
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

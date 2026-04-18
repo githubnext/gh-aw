@@ -17,8 +17,8 @@ import (
 )
 
 // UpdateWorkflows updates workflows from their source repositories
-func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool) error {
-	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v", workflowsDir, workflowNames, noMerge, noCompile)
+func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool) error {
+	updateLog.Printf("Scanning for workflows with source field: dir=%s, filter=%v, noMerge=%v, noCompile=%v, noRedirect=%v", workflowsDir, workflowNames, noMerge, noCompile, noRedirect)
 
 	// Use provided workflows directory or default
 	if workflowsDir == "" {
@@ -50,7 +50,7 @@ func UpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, fo
 	// Update each workflow
 	for _, wf := range workflows {
 		updateLog.Printf("Updating workflow: %s (source: %s)", wf.Name, wf.SourceSpec)
-		if err := updateWorkflow(ctx, wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile); err != nil {
+		if err := updateWorkflow(ctx, wf, allowMajor, force, verbose, engineOverride, noStopAfter, stopAfter, noMerge, noCompile, noRedirect); err != nil {
 			updateLog.Printf("Failed to update workflow %s: %v", wf.Name, err)
 			failedUpdates = append(failedUpdates, updateFailure{
 				Name:  wf.Name,
@@ -368,7 +368,7 @@ func resolveLatestRelease(ctx context.Context, repo, currentRef string, allowMaj
 }
 
 // updateWorkflow updates a single workflow from its source
-func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool) error {
+func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string, noStopAfter bool, stopAfter string, noMerge bool, noCompile bool, noRedirect bool) error {
 	updateLog.Printf("Updating workflow: name=%s, source=%s, force=%v, noMerge=%v", wf.Name, wf.SourceSpec, force, noMerge)
 
 	if verbose {
@@ -378,31 +378,22 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 	}
 
 	// Parse source spec
-	sourceSpec, err := parseSourceSpec(wf.SourceSpec)
+	initialSourceSpec, err := parseSourceSpec(wf.SourceSpec)
 	if err != nil {
 		updateLog.Printf("Failed to parse source spec: %v", err)
 		return fmt.Errorf("failed to parse source spec: %w", err)
 	}
 
-	// If no ref specified, use default branch
-	currentRef := sourceSpec.Ref
-	if currentRef == "" {
-		currentRef = "main"
-	}
-
-	// Resolve latest ref
-	latestRef, err := resolveLatestRef(ctx, sourceSpec.Repo, currentRef, allowMajor, verbose)
+	resolvedLocation, err := resolveRedirectedUpdateLocation(ctx, wf.Name, initialSourceSpec, allowMajor, verbose, noRedirect)
 	if err != nil {
-		return fmt.Errorf("failed to resolve latest ref: %w", err)
+		return err
 	}
 
-	// For branch refs, resolveLatestRef returns the branch-head SHA so that
-	// we can detect upstream changes (currentRef != latestRef). However the
-	// source field must keep the branch *name* to avoid SHA-pinning.
-	sourceFieldRef := latestRef
-	if isBranchRef(currentRef) {
-		sourceFieldRef = currentRef
-	}
+	sourceSpec := resolvedLocation.sourceSpec
+	currentRef := resolvedLocation.currentRef
+	latestRef := resolvedLocation.latestRef
+	sourceFieldRef := resolvedLocation.sourceFieldRef
+	newContent := resolvedLocation.content
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Current ref: "+currentRef))
@@ -410,11 +401,11 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 	}
 
 	// Check if update is needed
-	if !force && currentRef == latestRef {
+	if !force && currentRef == latestRef && len(resolvedLocation.redirectHistory) == 0 {
 		updateLog.Printf("Workflow already at latest ref: %s, checking for local modifications", currentRef)
 
 		// Download the source content to check if local file has been modified
-		sourceContent, err := downloadWorkflowContent(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		sourceContent, err := downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
 		if err != nil {
 			// If we can't download for comparison, just show the up-to-date message
 			if verbose {
@@ -443,25 +434,22 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 		return nil
 	}
 
-	// Download the latest version
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading latest version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, latestRef)))
-	}
-
-	newContent, err := downloadWorkflowContent(ctx, sourceSpec.Repo, sourceSpec.Path, latestRef, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to download workflow: %w", err)
+	if len(resolvedLocation.redirectHistory) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow %s source location changed; updating source to %s/%s@%s", wf.Name, sourceSpec.Repo, sourceSpec.Path, sourceFieldRef)))
 	}
 
 	// Determine merge mode. Merge is the default behaviour — it detects
 	// local modifications and performs a 3-way merge to preserve them.
 	// When --no-merge is used, local changes are overridden with upstream.
 	merge := !noMerge
+	if len(resolvedLocation.redirectHistory) > 0 {
+		merge = false
+	}
 
 	// When merge mode is on, detect local modifications to confirm we
 	// actually need to merge (if no local mods, override is fine either way).
 	if merge {
-		baseContent, dlErr := downloadWorkflowContent(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		baseContent, dlErr := downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
 		if dlErr == nil {
 			localContent, readErr := os.ReadFile(wf.Path)
 			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, filepath.Dir(wf.Path), verbose) {
@@ -489,7 +477,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading base version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, currentRef)))
 		}
 
-		baseContent, err := downloadWorkflowContent(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+		baseContent, err := downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
 		if err != nil {
 			return fmt.Errorf("failed to download base workflow: %w", err)
 		}
@@ -502,7 +490,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 
 		// Perform 3-way merge using git merge-file
 		updateLog.Printf("Performing 3-way merge for workflow: %s", wf.Name)
-		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceFieldRef, wf.Path, verbose)
+		mergedContent, conflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, sourceSpecWithRef(sourceSpec, sourceFieldRef), wf.Path, verbose)
 		if err != nil {
 			updateLog.Printf("Merge failed for workflow %s: %v", wf.Name, err)
 			return fmt.Errorf("failed to merge workflow content: %w", err)
@@ -521,7 +509,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, allowMajor, for
 		}
 
 		// Update the source field in the new content with the new ref
-		newWithUpdatedSource, err := UpdateFieldInFrontmatter(string(newContent), "source", fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, sourceFieldRef))
+		newWithUpdatedSource, err := UpdateFieldInFrontmatter(string(newContent), "source", sourceSpecWithRef(sourceSpec, sourceFieldRef))
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update source in new content: %v", err)))

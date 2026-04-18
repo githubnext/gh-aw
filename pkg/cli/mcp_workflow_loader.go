@@ -19,9 +19,9 @@ var mcpWorkflowLoaderLog = logger.New("cli:mcp_workflow_loader")
 //
 // Returns:
 //   - *parser.FrontmatterResult: parsed workflow data containing frontmatter and content
-//   - []parser.MCPServerConfig: list of MCP server configurations
+//   - []parser.RegistryMCPServerConfig: list of MCP server configurations
 //   - error: any error that occurred during loading or parsing
-func loadWorkflowMCPConfigs(workflowPath string, serverFilter string) (*parser.FrontmatterResult, []parser.MCPServerConfig, error) {
+func loadWorkflowMCPConfigs(workflowPath string, serverFilter string) (*parser.FrontmatterResult, []parser.RegistryMCPServerConfig, error) {
 	mcpWorkflowLoaderLog.Printf("Loading MCP configs: path=%s, server_filter=%q", workflowPath, serverFilter)
 
 	// Read the workflow file

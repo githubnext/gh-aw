@@ -9,6 +9,7 @@ permissions:
   pull-requests: read
   actions: read
 tools:
+  mount-as-clis: true
   agentic-workflows:
   bash: ["*"]
   edit:
@@ -22,8 +23,7 @@ safe-outputs:
 timeout-minutes: 60
 strict: true
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
 ---

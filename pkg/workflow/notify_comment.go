@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -217,6 +218,20 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
+
+	actionFailureIssueExpiresHours := DefaultActionFailureIssueExpiresHours
+	repoConfig, repoConfigErr := c.loadRepoConfig()
+	if repoConfigErr != nil {
+		notifyCommentLog.Printf(
+			"Warning: failed to load repo config for action failure issue expiration (using default %d hours): %v. Check that %s exists and matches schema requirements",
+			DefaultActionFailureIssueExpiresHours,
+			repoConfigErr,
+			RepoConfigFileName,
+		)
+	} else {
+		actionFailureIssueExpiresHours = repoConfig.ActionFailureIssueExpiresHours()
+	}
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: %q\n", strconv.Itoa(actionFailureIssueExpiresHours)))
 
 	// Pass the engine ID so the failure handler can surface which AI engine terminated
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {

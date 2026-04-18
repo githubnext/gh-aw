@@ -12,7 +12,12 @@ permissions:
 env:
   TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY || github.repository }}
 
+engine:
+  id: copilot
+  agent: contribution-checker
+
 tools:
+  mount-as-clis: true
   github:
     toolsets: [pull_requests, repos, issues]
     allowed-repos: all
@@ -88,6 +93,9 @@ steps:
         echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
         echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
       fi
+
+features:
+  mcp-cli: true
 ---
 
 ## Target Repository
@@ -244,8 +252,4 @@ If any subagent call failed (❓), also apply `outdated`.
 - Close the previous report issue when creating a new one (`close-older-issues: true`).
 - Be constructive in assessments — these reports help maintainers prioritize, not gatekeep.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

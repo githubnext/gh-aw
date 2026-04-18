@@ -253,7 +253,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports four engines: **Copilot** (default), **Claude**, **Codex**, and **Gemini**. Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports five engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, and **Crush** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Enterprise API Endpoint (`api-target`)
 
@@ -291,7 +291,7 @@ See [Engines Reference](/gh-aw/reference/engines/).
 
 ### Feature Flags (`features:`)
 
-A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `byok-copilot` (enables Copilot offline BYOK mode with dummy `COPILOT_API_KEY`, API proxy sidecar, implicit `cli-proxy`, and latest Copilot CLI install), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), and `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
+A frontmatter section that enables experimental or optional compiler and runtime behaviors as key-value pairs. Feature flags provide controlled access to new capabilities before they become defaults or are fully stabilized. Common flags include `action-mode` (controls how custom action references are compiled), `copilot-requests` (enables GitHub Actions token authentication for Copilot; currently in **private preview** — will not work unless your account has been onboarded), `byok-copilot` (enables Copilot offline BYOK mode with dummy `COPILOT_API_KEY`, API proxy sidecar, implicit `cli-proxy`, and latest Copilot CLI install), `mcp-gateway` (enables the MCP gateway proxy), `integrity-reactions` (enables reaction-based integrity promotion and demotion), `cli-proxy` (enables CLI proxy mode for integrity enforcement at the network boundary), and `awf-diagnostic-logs` (enables AWF Docker operational diagnostics collection on failure). See [Frontmatter Reference](/gh-aw/reference/frontmatter/#feature-flags-features).
 
 ### Fuzzy Scheduling
 

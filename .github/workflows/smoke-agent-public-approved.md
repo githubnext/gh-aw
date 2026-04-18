@@ -17,6 +17,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/observability-otlp.md
 tools:
+  mount-as-clis: true
   github:
     mode: local
     allowed-repos: "public"

@@ -28,6 +28,7 @@ permissions:
 engine:
   id: copilot
   model: gpt-5
+  bare: true
 
 # Import shared reporting guidelines
 imports:
@@ -38,6 +39,7 @@ network: {}
 
 # Tools configuration
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -145,6 +147,9 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # Poem Bot - A Creative Agentic Workflow
@@ -190,8 +195,4 @@ Use the safe-outputs capabilities to:
 
 Examine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

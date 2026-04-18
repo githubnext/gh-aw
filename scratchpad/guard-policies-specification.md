@@ -357,7 +357,7 @@ tools:
 
 ## Conclusion
 
-This implementation provides a solid foundation for guard policies in the MCP gateway. The design is:
+This implementation covers guard policies in the MCP gateway. The design is:
 
 - **Type-safe**: Strongly-typed structs with validation
 - **Extensible**: New servers and policy types can be added without structural changes

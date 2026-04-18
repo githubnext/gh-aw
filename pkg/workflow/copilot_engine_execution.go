@@ -326,12 +326,6 @@ touch %s
 
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
-	// Inject the integration ID only when the feature flag is explicitly enabled.
-	// Default off — the env var may cause Copilot CLI failures.
-	// See https://github.com/github/gh-aw/issues/25516
-	if isFeatureEnabled(constants.CopilotIntegrationIDFeatureFlag, workflowData) {
-		env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
-	}
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection
 	if workflowData.IsDetectionRun {
 		env["GH_AW_PHASE"] = "detection"
@@ -392,12 +386,17 @@ touch %s
 	// When model is explicitly configured, use its value directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set
 	// a default via GitHub Actions variables without requiring per-workflow frontmatter changes.
+	// In byok-copilot mode, use a non-empty fallback because BYOK providers require an explicit model.
 	if modelConfigured {
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
 	} else {
-		// No model configured - map org variable to native COPILOT_MODEL env var
-		env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		if isFeatureEnabled(constants.ByokCopilotFeatureFlag, workflowData) {
+			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '%s' }}", modelEnvVar, constants.CopilotBYOKDefaultModel)
+		} else {
+			// No model configured - map org variable to native COPILOT_MODEL env var
+			env[constants.CopilotCLIModelEnvVar] = fmt.Sprintf("${{ vars.%s || '' }}", modelEnvVar)
+		}
 	}
 
 	// Add custom environment variables from engine config
@@ -411,6 +410,10 @@ touch %s
 		maps.Copy(env, agentConfig.Env)
 		copilotExecLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
 	}
+
+	// Always inject the Copilot integration ID for agentic workflows after all env merges
+	// so user-supplied env does not override this value.
+	env[constants.CopilotCLIIntegrationIDEnvVar] = constants.CopilotCLIIntegrationIDValue
 
 	// Inject the dummy COPILOT_API_KEY AFTER all env merges so that legacy/manual
 	// wiring in engine.env or agent.env cannot accidentally overwrite the sentinel

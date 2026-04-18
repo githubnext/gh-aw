@@ -37,6 +37,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
 		Description:           c.extractDescription(result.Frontmatter),
 		Source:                c.extractSource(result.Frontmatter),
+		Redirect:              c.extractRedirect(result.Frontmatter),
 		TrackerID:             toolsResult.trackerID,
 		ImportedFiles:         importsResult.ImportedFiles,
 		ImportedMarkdown:      toolsResult.importedMarkdown, // Only imports WITH inputs
@@ -405,6 +406,60 @@ func (c *Compiler) processAndMergePreSteps(frontmatter map[string]any, workflowD
 		stepsYAML, err := yaml.Marshal(stepsWrapper)
 		if err == nil {
 			workflowData.PreSteps = unquoteUsesWithComments(string(stepsYAML))
+		}
+	}
+}
+
+// processAndMergePreAgentSteps handles processing and merging of pre-agent-steps with action pinning.
+// Imported pre-agent-steps are prepended so main workflow pre-agent-steps run last.
+func (c *Compiler) processAndMergePreAgentSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+	workflowBuilderLog.Print("Processing and merging pre-agent-steps")
+
+	mainPreAgentStepsYAML := c.extractTopLevelYAMLSection(frontmatter, "pre-agent-steps")
+
+	var importedPreAgentSteps []any
+	if importsResult.MergedPreAgentSteps != "" {
+		if err := yaml.Unmarshal([]byte(importsResult.MergedPreAgentSteps), &importedPreAgentSteps); err != nil {
+			workflowBuilderLog.Printf("Failed to unmarshal imported pre-agent-steps: %v", err)
+		} else {
+			typedImported, err := SliceToSteps(importedPreAgentSteps)
+			if err != nil {
+				workflowBuilderLog.Printf("Failed to convert imported pre-agent-steps to typed steps: %v", err)
+			} else {
+				typedImported = applyActionPinsToTypedSteps(typedImported, workflowData)
+				importedPreAgentSteps = StepsToSlice(typedImported)
+			}
+		}
+	}
+
+	var mainPreAgentSteps []any
+	if mainPreAgentStepsYAML != "" {
+		var mainWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(mainPreAgentStepsYAML), &mainWrapper); err == nil {
+			if mainVal, ok := mainWrapper["pre-agent-steps"]; ok {
+				if steps, ok := mainVal.([]any); ok {
+					mainPreAgentSteps = steps
+					typedMain, err := SliceToSteps(mainPreAgentSteps)
+					if err != nil {
+						workflowBuilderLog.Printf("Failed to convert main pre-agent-steps to typed steps: %v", err)
+					} else {
+						typedMain = applyActionPinsToTypedSteps(typedMain, workflowData)
+						mainPreAgentSteps = StepsToSlice(typedMain)
+					}
+				}
+			}
+		}
+	}
+
+	var allPreAgentSteps []any
+	if len(importedPreAgentSteps) > 0 || len(mainPreAgentSteps) > 0 {
+		allPreAgentSteps = append(allPreAgentSteps, importedPreAgentSteps...)
+		allPreAgentSteps = append(allPreAgentSteps, mainPreAgentSteps...)
+
+		stepsWrapper := map[string]any{"pre-agent-steps": allPreAgentSteps}
+		stepsYAML, err := yaml.Marshal(stepsWrapper)
+		if err == nil {
+			workflowData.PreAgentSteps = unquoteUsesWithComments(string(stepsYAML))
 		}
 	}
 }

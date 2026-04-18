@@ -38,6 +38,7 @@ type TypeValidationConfig struct {
 const (
 	MaxBodyLength           = 65000
 	MaxGitHubUsernameLength = 39
+	MaxGitHubTeamSlugLength = 100
 )
 
 // ValidationConfig contains all safe output type validation rules
@@ -76,6 +77,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"title":  {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
 			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"branch": {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"base":   {Type: "string", Sanitize: true, MaxLength: 128},
 			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"draft":  {Type: "boolean"},
 			"repo":   {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
@@ -90,9 +92,11 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"add_reviewer": {
-		DefaultMax: 3,
+		DefaultMax:       3,
+		CustomValidation: "requiresOneOf:reviewers,team_reviewers",
 		Fields: map[string]FieldValidation{
-			"reviewers":           {Required: true, Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
+			"reviewers":           {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
+			"team_reviewers":      {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubTeamSlugLength},
 			"pull_request_number": {IssueOrPRNumber: true},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},

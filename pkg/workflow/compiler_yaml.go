@@ -118,7 +118,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
 	// The manifest records all secrets, external actions, and container images detected at
 	// compile time so that subsequent compilations can perform safe update enforcement.
-	manifest := NewGHAWManifest(secrets, actions, data.DockerImagePins)
+	manifest := NewGHAWManifest(secrets, actions, data.DockerImagePins, data.Redirect)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {
@@ -645,7 +645,11 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	writeStepsSection(yaml, data.PostSteps)
 }
 
-// writeStepsSection writes a steps section (pre-steps or post-steps) to the YAML builder,
+func (c *Compiler) generatePreAgentSteps(yaml *strings.Builder, data *WorkflowData) {
+	writeStepsSection(yaml, data.PreAgentSteps)
+}
+
+// writeStepsSection writes a steps section (pre-steps, pre-agent-steps, or post-steps) to the YAML builder,
 // stripping the header line and normalising indentation to match the agent job step format:
 // top-level items get 6-space indent (      - name:) and nested properties get 8-space indent (        run:).
 func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
@@ -653,7 +657,7 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 		return
 	}
 	lines := strings.Split(stepsYAML, "\n")
-	for _, line := range lines[1:] { // skip the "pre-steps:" / "post-steps:" header line
+	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
 		trimmed := strings.TrimRight(line, " ")
 		if strings.TrimSpace(trimmed) == "" {
 			yaml.WriteString("\n")

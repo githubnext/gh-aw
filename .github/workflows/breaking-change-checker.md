@@ -10,6 +10,7 @@ permissions:
 engine: copilot
 tracker-id: breaking-change-checker
 tools:
+  mount-as-clis: true
   github:
     toolsets: [repos]
   bash:

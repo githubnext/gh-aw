@@ -174,6 +174,21 @@ func TestUpdateCommand_NoMergeFlag(t *testing.T) {
 	assert.Contains(t, outputStr, "no workflows found", "Should report no workflows found")
 }
 
+// TestUpdateCommand_NoRedirectFlag verifies that --no-redirect flag is recognized.
+func TestUpdateCommand_NoRedirectFlag(t *testing.T) {
+	setup := setupUpdateIntegrationTest(t)
+	defer setup.cleanup()
+
+	cmd := exec.Command(setup.binaryPath, "update", "--no-redirect", "--verbose")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	assert.NoError(t, err, "Should succeed (no source workflows = info message, not error), output: %s", outputStr)
+	assert.NotContains(t, outputStr, "unknown flag", "The --no-redirect flag should be recognized")
+	assert.Contains(t, outputStr, "no workflows found", "Should report no workflows found")
+}
+
 // TestUpdateCommand_RemovedFlags verifies that old flags are no longer accepted.
 func TestUpdateCommand_RemovedFlags(t *testing.T) {
 	setup := setupUpdateIntegrationTest(t)
@@ -208,6 +223,7 @@ func TestUpdateCommand_HelpText(t *testing.T) {
 
 	// Should mention merge behavior
 	assert.Contains(t, outputStr, "no-merge", "Help should document --no-merge flag")
+	assert.Contains(t, outputStr, "no-redirect", "Help should document --no-redirect flag")
 	assert.Contains(t, outputStr, "3-way merge", "Help should explain merge behavior")
 
 	// Should reference upgrade for other features

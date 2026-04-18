@@ -11,6 +11,7 @@ permissions:
 engine: copilot
 strict: true
 tools:
+  mount-as-clis: true
   github:
     toolsets: [pull_requests, repos]
   bash:
@@ -29,6 +30,7 @@ safe-outputs:
     run-failure: "❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed."
 timeout-minutes: 20
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
@@ -261,8 +263,4 @@ PRs closed:
 
 Execute the cleanup policy systematically and maintain consistency in how you calculate inactivity and apply actions.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

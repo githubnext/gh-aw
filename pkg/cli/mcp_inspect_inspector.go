@@ -26,7 +26,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 		return fmt.Errorf("npx not found. Please install Node.js and npm to use the MCP inspector: %w", err)
 	}
 
-	var mcpConfigs []parser.MCPServerConfig
+	var mcpConfigs []parser.RegistryMCPServerConfig
 	var serverProcesses []*exec.Cmd
 	var wg sync.WaitGroup
 
@@ -78,7 +78,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			fmt.Fprintln(os.Stderr)
 
 			// Start stdio MCP servers in the background
-			stdioServers := []parser.MCPServerConfig{}
+			stdioServers := []parser.RegistryMCPServerConfig{}
 			for _, config := range mcpConfigs {
 				if config.Type == "stdio" {
 					stdioServers = append(stdioServers, config)

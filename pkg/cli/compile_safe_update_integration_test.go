@@ -78,6 +78,21 @@ engine: copilot
 Test workflow that uses only GITHUB_TOKEN.
 `
 
+const safeUpdateWorkflowWithRedirect = `---
+name: Safe Update Redirect Test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+redirect: owner/repo/workflows/new-location.md@main
+---
+
+# Safe Update Redirect Test
+
+Test workflow that declares frontmatter redirect.
+`
+
 // manifestWithAPISecret is a minimal lock file content containing a gh-aw-manifest
 // that pre-approves MY_API_SECRET.  Writing this to the lock file path
 // before compilation simulates a workflow that was previously compiled and approved.
@@ -152,6 +167,34 @@ func TestSafeUpdateFirstCompileCreatesBaselineForActions(t *testing.T) {
 	_, statErr := os.Stat(lockFilePath)
 	assert.NoError(t, statErr, "lock file should be written after first compile")
 	t.Logf("First compile correctly emitted warnings for new action.\nOutput:\n%s", outputStr)
+}
+
+// TestSafeUpdateFirstCompileCreatesBaselineForRedirect verifies that adding a
+// frontmatter redirect is surfaced by safe update enforcement so it is reviewed.
+func TestSafeUpdateFirstCompileCreatesBaselineForRedirect(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	workflowPath := filepath.Join(setup.workflowsDir, "safe-update-redirect.md")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(safeUpdateWorkflowWithRedirect), 0o644),
+		"should write workflow file")
+
+	cmd := exec.Command(setup.binaryPath, "compile", workflowPath)
+	cmd.Env = append(os.Environ(), "GH_AW_ACTION_MODE=release")
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
+	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
+		"first compile should emit safe update warnings for redirect changes")
+	assert.Contains(t, outputStr, "New redirect configured",
+		"warning should include redirect additions for security review")
+
+	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-redirect.lock.yml")
+	lockContent, readErr := os.ReadFile(lockFilePath)
+	require.NoError(t, readErr, "should read lock file after first compile")
+	assert.Contains(t, string(lockContent), `"redirect":"owner/repo/workflows/new-location.md@main"`,
+		"manifest should include redirect for future safe-update comparisons")
 }
 
 // TestSafeUpdateAllowsKnownSecretWithPriorManifest verifies that safe update

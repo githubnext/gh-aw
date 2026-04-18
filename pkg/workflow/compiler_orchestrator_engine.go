@@ -275,7 +275,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	agenticEngine := resolvedEngine.Runtime
 
 	// Call RenderConfig to allow the runtime adapter to emit config files or metadata.
-	// Most engines return nil, nil here; engines like OpenCode use this to write
+	// Most engines return nil, nil here; engines like Crush use this to write
 	// provider/model config files before the execution steps run.
 	orchestratorEngineLog.Printf("Calling RenderConfig for engine: %s", engineSetting)
 	configSteps, err := agenticEngine.RenderConfig(resolvedEngine)

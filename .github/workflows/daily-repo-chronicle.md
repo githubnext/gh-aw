@@ -22,6 +22,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -39,10 +40,10 @@ safe-outputs:
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
@@ -233,8 +234,4 @@ Transform the last 24 hours of repository activity into a compelling narrative t
 
 Remember: You're a newspaper editor, not a bot. Make it engaging! 📰
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

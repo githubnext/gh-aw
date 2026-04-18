@@ -12,11 +12,14 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-engine: copilot
+engine:
+  id: copilot
+  agent: adr-writer
 strict: true
 imports:
   - shared/mcp/serena-go.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - default
@@ -34,6 +37,7 @@ safe-outputs:
     run-failure: "📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details."
 timeout-minutes: 10
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
@@ -230,8 +234,4 @@ A successful Archie run:
 
 Examine the current context, analyze any linked references, generate your Mermaid diagrams using Serena, validate them, and post your visualization comment!
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

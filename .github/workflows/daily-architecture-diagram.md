@@ -12,6 +12,7 @@ permissions:
 engine: copilot
 
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -31,12 +32,12 @@ safe-outputs:
   noop:
 
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 
 timeout-minutes: 20
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

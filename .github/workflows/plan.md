@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions]
     allowed-repos: all
@@ -26,6 +27,9 @@ safe-outputs:
   close-discussion:
     required-category: "Ideas"
 timeout-minutes: 10
+
+features:
+  mcp-cli: true
 ---
 
 # Planning Assistant
@@ -136,8 +140,4 @@ Review instructions in `.github/instructions/*.instructions.md` if you need guid
 3. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
 {{/if}}
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

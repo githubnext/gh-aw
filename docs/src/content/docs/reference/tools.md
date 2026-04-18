@@ -175,7 +175,7 @@ mcp-servers:
 
 ### Registry Field
 
-The `registry` field specifies the source URI of an MCP server in a registry. It is informational — useful for documenting server origin and enabling registry-aware tooling — and does not affect execution. Works with both stdio and HTTP servers:
+The `registry` field specifies the source URI of an MCP server in a registry. It is informational — useful for documenting server origin and enabling registry-aware tooling — and does not affect execution. gh-aw does not enforce registry usage. Works with both stdio and HTTP servers:
 
 ```yaml wrap
 mcp-servers:

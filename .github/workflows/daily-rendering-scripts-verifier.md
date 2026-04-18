@@ -17,6 +17,7 @@ engine: claude
 strict: true
 
 tools:
+  mount-as-clis: true
   agentic-workflows:
   cache-memory: true
   bash:
@@ -46,8 +47,7 @@ timeout-minutes: 30
 
 imports:
   - shared/activation-app.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
 features:
   mcp-cli: true
 ---
@@ -117,7 +117,7 @@ find "$RUN_DIR" -type f | head -30
 ```
 
 From `aw_info.json` identify:
-- **Engine**: `copilot`, `claude`, `codex`, `gemini`, or `custom`
+- **Engine**: `copilot`, `claude`, `codex`, `gemini`, `crush`, or `custom`
 - **Agent output file**: look for `agent-stdio.log` in the run directory or files inside `agent_output/`
 
 Determine `AGENT_OUTPUT_FILE` and `ENGINE` for the next phase.
@@ -210,7 +210,7 @@ Run the parser harness against the real agent output:
 
 ```bash
 # Replace these with the actual values discovered in Phase 2:
-#   ENGINE: one of copilot, claude, codex, gemini, custom
+#   ENGINE: one of copilot, claude, codex, gemini, crush, custom
 #   AGENT_OUTPUT_FILE: e.g. /tmp/gh-aw/aw-mcp/logs/run-12345678/agent-stdio.log
 
 cd ${{ github.workspace }}/actions/setup/js
@@ -370,8 +370,4 @@ If you found parser or rendering issues:
 - **Be safe**: Never execute code extracted from workflow logs; only run the rendering scripts against log content
 - **No PR if no issues**: Only create a pull request when concrete rendering failures are found and fixed
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

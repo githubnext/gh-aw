@@ -19,19 +19,24 @@ import (
 
 // extractMCPToolUsageData creates detailed MCP tool usage data from gateway metrics
 func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, error) {
+	gatewayLogsLog.Printf("Extracting MCP tool usage data from: %s", logDir)
+
 	// Parse gateway logs (falls back to rpc-messages.jsonl automatically)
 	gatewayMetrics, err := parseGatewayLogs(logDir, verbose)
 	if err != nil {
 		// Return nil if no log file exists (not an error for workflows without MCP)
 		if strings.Contains(err.Error(), "not found") {
+			gatewayLogsLog.Print("No gateway log file found, skipping MCP tool usage extraction")
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to parse gateway logs: %w", err)
 	}
 
 	if gatewayMetrics == nil || len(gatewayMetrics.Servers) == 0 {
+		gatewayLogsLog.Print("No gateway metrics or servers found")
 		return nil, nil
 	}
+	gatewayLogsLog.Printf("Found gateway metrics: %d servers", len(gatewayMetrics.Servers))
 
 	mcpData := &MCPToolUsageData{
 		Summary:        []MCPToolSummary{},
@@ -66,20 +71,25 @@ func extractMCPToolUsageData(logDir string, verbose bool) (*MCPToolUsageData, er
 	}
 
 	if usingRPCMessages {
+		gatewayLogsLog.Printf("Reading tool calls from rpc-messages.jsonl: %s", gatewayLogPath)
 		// Build tool call records from rpc-messages.jsonl
 		toolCalls, err := buildToolCallsFromRPCMessages(gatewayLogPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read rpc-messages.jsonl: %w", err)
 		}
 		mcpData.ToolCalls = toolCalls
+		gatewayLogsLog.Printf("Loaded %d tool calls from rpc-messages.jsonl", len(toolCalls))
 	} else {
+		gatewayLogsLog.Printf("Reading tool calls from gateway.jsonl: %s", gatewayLogPath)
 		if err := extractToolCallsFromGatewayLog(gatewayLogPath, mcpData); err != nil {
 			return nil, err
 		}
+		gatewayLogsLog.Printf("Loaded %d tool calls from gateway.jsonl", len(mcpData.ToolCalls))
 	}
 
 	// Build summary statistics from aggregated metrics
 	buildMCPSummaryStats(gatewayMetrics, mcpData)
+	gatewayLogsLog.Printf("Built MCP summary: %d tool summaries, %d server stats", len(mcpData.Summary), len(mcpData.Servers))
 
 	return mcpData, nil
 }

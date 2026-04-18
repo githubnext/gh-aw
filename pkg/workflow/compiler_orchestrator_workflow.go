@@ -185,6 +185,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process and merge pre-steps
 	c.processAndMergePreSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
 
+	// Process and merge pre-agent-steps
+	c.processAndMergePreAgentSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
+
 	// Process and merge post-steps
 	c.processAndMergePostSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
 

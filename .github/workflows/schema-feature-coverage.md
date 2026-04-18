@@ -14,6 +14,7 @@ network:
     - defaults
     - github
 tools:
+  mount-as-clis: true
   bash: ["*"]
   edit:
   github:

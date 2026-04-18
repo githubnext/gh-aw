@@ -297,6 +297,72 @@ func TestCheckoutDoesNotUseEventNameExpression(t *testing.T) {
 		"checkout must not use github.action_repository")
 }
 
+// TestActivationCrossRepoGuidanceStepRequiresResolveHostRepo verifies that the
+// cross-repo setup guidance step is only emitted when resolve-host-repo exists.
+func TestActivationCrossRepoGuidanceStepRequiresResolveHostRepo(t *testing.T) {
+	tests := []struct {
+		name                string
+		inlinedImports      bool
+		expectGuidanceStep  bool
+		expectResolveHostID bool
+	}{
+		{
+			name:                "workflow_call without inlined imports includes guidance and resolve step",
+			inlinedImports:      false,
+			expectGuidanceStep:  true,
+			expectResolveHostID: true,
+		},
+		{
+			name:                "workflow_call with inlined imports excludes guidance and resolve step",
+			inlinedImports:      true,
+			expectGuidanceStep:  false,
+			expectResolveHostID: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(WithVersion("dev"))
+			compiler.SetActionMode(ActionModeDev)
+
+			workflowData := &WorkflowData{
+				Name:            "Test Workflow",
+				Command:         []string{"echo", "test"},
+				MarkdownContent: "# Test\n\nContent",
+				On: `"on":
+  workflow_call:`,
+				InlinedImports: tt.inlinedImports,
+			}
+
+			job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+			require.NoError(t, err, "buildActivationJob should succeed")
+			require.NotNil(t, job, "activation job should be created")
+
+			stepsStr := strings.Join(job.Steps, "\n")
+
+			if tt.expectGuidanceStep {
+				assert.Contains(t, stepsStr, "Print cross-repo setup guidance",
+					"guidance step should be emitted when resolve-host-repo is available")
+				assert.Contains(t, stepsStr, "steps.resolve-host-repo.outputs.target_repo != github.repository",
+					"guidance step should reference resolve-host-repo output when emitted")
+			} else {
+				assert.NotContains(t, stepsStr, "Print cross-repo setup guidance",
+					"guidance step must not be emitted when resolve-host-repo is not generated")
+				assert.NotContains(t, stepsStr, "steps.resolve-host-repo.outputs.target_repo != github.repository",
+					"activation steps must not reference resolve-host-repo outputs when step is absent")
+			}
+
+			if tt.expectResolveHostID {
+				assert.Contains(t, stepsStr, "id: resolve-host-repo",
+					"resolve-host-repo step should be present")
+			} else {
+				assert.NotContains(t, stepsStr, "id: resolve-host-repo",
+					"resolve-host-repo step should be absent for inlined imports")
+			}
+		})
+	}
+}
+
 // TestActivationJobTargetRepoOutput verifies that the activation job exposes target_repo as an
 // output when a workflow_call trigger is present (without inlined imports), so that agent and
 // safe_outputs jobs can reference needs.activation.outputs.target_repo.

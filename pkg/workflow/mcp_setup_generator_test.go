@@ -477,10 +477,9 @@ Test that TAVILY_API_KEY is passed to gateway container.
 		"Docker command should include -e TAVILY_API_KEY before the container image")
 }
 
-// TestMCPGatewayRunsAsRunnerUser ensures the generated gateway container command
-// includes an explicit --user flag so gateway-written log files are readable by
-// downstream redaction and artifact upload steps.
-func TestMCPGatewayRunsAsRunnerUser(t *testing.T) {
+// TestMCPGatewayDockerCommandIncludesDockerSocketGroup verifies the gateway docker command
+// adds the docker socket group as a supplementary group for non-root execution.
+func TestMCPGatewayDockerCommandIncludesDockerSocketGroup(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
 engine: copilot
@@ -490,10 +489,11 @@ tools:
     toolsets: [repos]
 ---
 
-# Test MCP Gateway user
+# Test Docker Socket Group
 `
 
 	compiler := NewCompiler()
+
 	tmpDir := t.TempDir()
 	inputFile := filepath.Join(tmpDir, "test.md")
 
@@ -508,8 +508,19 @@ tools:
 	require.NoError(t, err, "Failed to read output file")
 	yamlStr := string(content)
 
-	assert.Contains(t, yamlStr, "--user $(id -u):$(id -g)",
-		"Docker command should run MCP gateway as the current runner user")
+	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
+	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
+	gidComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')`
+	require.Contains(t, yamlStr, gidComputeSnippet,
+		"Shell should compute DOCKER_SOCK_GID before docker command")
+	require.Contains(t, yamlStr, groupAddSnippet,
+		"Docker command should include docker socket supplementary group mapping")
+	require.Contains(t, yamlStr, mountSnippet,
+		"Docker command should mount the Docker socket")
+	require.Less(t, strings.Index(yamlStr, gidComputeSnippet), strings.Index(yamlStr, groupAddSnippet),
+		"DOCKER_SOCK_GID should be computed before it is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, groupAddSnippet), strings.Index(yamlStr, mountSnippet),
+		"Docker command should add supplementary group before mounting the Docker socket")
 }
 
 // TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers

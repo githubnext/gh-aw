@@ -35,6 +35,7 @@ safe-outputs:
     draft: false
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   repo-memory:
     wiki: true
@@ -80,6 +81,8 @@ steps:
       echo "Doc file changes: $(wc -l < /tmp/gh-aw/agent/doc-changes.txt)"
       echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
 
+features:
+  mcp-cli: true
 ---
 
 # Glossary Maintainer
@@ -364,8 +367,4 @@ To keep this workflow efficient, adhere to these hard limits:
 
 Good luck! Your work helps users understand GitHub Agentic Workflows terminology.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

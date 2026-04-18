@@ -13,6 +13,7 @@ imports:
   - shared/security-analysis-base.md
   - shared/activation-app.md
 tools:
+  mount-as-clis: true
   github:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests]
@@ -33,6 +34,9 @@ safe-outputs:
     labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
     reviewers: [copilot]
 timeout-minutes: 20
+
+features:
+  mcp-cli: true
 ---
 
 # Code Scanning Alert Fixer Agent
@@ -221,8 +225,4 @@ If any step fails:
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality and correctness over speed.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

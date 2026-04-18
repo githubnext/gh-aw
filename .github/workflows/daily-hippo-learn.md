@@ -13,7 +13,9 @@ permissions:
   discussions: read
 
 tracker-id: daily-hippo-learn
-engine: copilot
+engine:
+  id: copilot
+  bare: true
 
 timeout-minutes: 30
 
@@ -30,6 +32,7 @@ sandbox:
   agent: awf
 
 tools:
+  mount-as-clis: true
   bash:
     - "*"
   github:
@@ -48,6 +51,7 @@ imports:
   - shared/reporting.md
 
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

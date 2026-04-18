@@ -12,6 +12,7 @@ engine: copilot
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [pull_requests, repos, issues, labels]
@@ -35,6 +36,9 @@ safe-outputs:
     run-success: "✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the issue for detailed report."
     run-failure: "❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged."
 timeout-minutes: 30
+
+features:
+  mcp-cli: true
 ---
 
 # PR Triage Agent
@@ -445,8 +449,4 @@ Your effectiveness is measured by:
 
 Execute all phases systematically and maintain consistency in scoring and recommendations across all PRs.
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

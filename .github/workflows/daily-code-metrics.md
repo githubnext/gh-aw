@@ -10,6 +10,7 @@ permissions:
 tracker-id: daily-code-metrics
 engine: claude
 tools:
+  mount-as-clis: true
   repo-memory:
     branch-prefix: daily
     description: "Historical code quality and health metrics"
@@ -20,13 +21,14 @@ tools:
 timeout-minutes: 30
 strict: true
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-code-metrics] "
-  - shared/reporting.md
   - shared/python-dataviz.md
   - shared/trends.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
@@ -444,8 +446,4 @@ This ensures the quality score reflects actionable source code volatility, not n
 - Embed charts in discussion report with analysis
 - Store metrics to repo memory, create discussion report with visualizations
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#import shared/noop-reminder.md}}

@@ -569,8 +569,8 @@ Custom secret: my-secret-123456789012`;
       );
 
       const script = redactScript
-        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
-        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
       let tokens;
       eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
       expect(tokens).toContain("my-gateway-token-abc123");
@@ -594,8 +594,8 @@ Custom secret: my-secret-123456789012`;
       );
 
       const script = redactScript
-        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${path.join(configDir, "gateway-output.json").replace(/\\/g, "\\\\")}"`)
-        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${mcpServers.replace(/\\/g, "\\\\")}"`);
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${path.join(configDir, "gateway-output.json").replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${mcpServers.replace(/\\/g, "\\\\")}"`);
       let tokens;
       eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
       expect(tokens).toContain("safe-output-token-xyz789");
@@ -619,8 +619,8 @@ Custom secret: my-secret-123456789012`;
       );
 
       const script = redactScript
-        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
-        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
       let tokens;
       eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
       expect(tokens).toContain("Bearer tok-abc123def456");
@@ -643,8 +643,8 @@ Custom secret: my-secret-123456789012`;
       );
 
       const script = redactScript
-        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
-        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
       let tokens;
       eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
       expect(tokens.filter(t => t === sharedToken)).toHaveLength(1);
@@ -652,7 +652,9 @@ Custom secret: my-secret-123456789012`;
 
     it("should return empty array when config files do not exist", () => {
       const nonExistent = path.join(tempDir, "nonexistent.json");
-      const script = redactScript.replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${nonExistent.replace(/\\/g, "\\\\")}"`).replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${nonExistent.replace(/\\/g, "\\\\")}"`);
+      const script = redactScript
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${nonExistent.replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${nonExistent.replace(/\\/g, "\\\\")}"`);
       let tokens;
       eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
       expect(tokens).toEqual([]);
@@ -665,8 +667,8 @@ Custom secret: my-secret-123456789012`;
       fs.writeFileSync(gatewayOutput, "not valid json {{{");
 
       const script = redactScript
-        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
-        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
       let tokens;
       expect(() => {
         eval(`(function() { ${script}; tokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS); })()`);
@@ -694,8 +696,8 @@ Custom secret: my-secret-123456789012`;
 
       let modifiedScript = redactScript
         .replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`)
-        .replace('"/tmp/gh-aw/mcp-config/gateway-output.json"', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
-        .replace('"/tmp/gh-aw/mcp-config/mcp-servers.json"', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json")', `"${gatewayOutput.replace(/\\/g, "\\\\")}"`)
+        .replace('path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")', `"${path.join(configDir, "mcp-servers.json").replace(/\\/g, "\\\\")}"`);
 
       await eval(`(async () => { ${modifiedScript}; await main(); })()`);
 
