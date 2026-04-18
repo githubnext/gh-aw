@@ -89,9 +89,13 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// ensure mounted MCP CLI commands are executable via shell(<server>:*).
 	// This avoids Copilot CLI permission blocks for mounted commands such as safeoutputs.
 	if hasRestrictedBashAllowlist {
-		cliWorkflowData := workflowData
-		if cliWorkflowData != nil {
-			copied := *cliWorkflowData
+		cliWorkflowData := &WorkflowData{
+			Tools:       tools,
+			SafeOutputs: safeOutputs,
+			MCPScripts:  mcpScripts,
+		}
+		if workflowData != nil {
+			copied := *workflowData
 			if copied.Tools == nil {
 				copied.Tools = tools
 			}
@@ -102,6 +106,14 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 				copied.MCPScripts = mcpScripts
 			}
 			cliWorkflowData = &copied
+		}
+		if cliWorkflowData.ParsedTools == nil && cliWorkflowData.Tools != nil {
+			cliWorkflowData.ParsedTools = NewTools(cliWorkflowData.Tools)
+		}
+		if cliWorkflowData.Features == nil && cliWorkflowData.ParsedTools != nil && cliWorkflowData.ParsedTools.MountAsCLIs {
+			cliWorkflowData.Features = map[string]any{
+				string(constants.MCPCLIFeatureFlag): true,
+			}
 		}
 
 		for _, serverName := range getMCPCLIServerNames(cliWorkflowData) {
