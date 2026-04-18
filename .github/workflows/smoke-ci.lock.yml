@@ -698,11 +698,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p /tmp/gh-aw
-          cat <<'GH_AW_ENGINE_COMMAND_EOF' > /tmp/gh-aw/engine-command.sh
-          #!/usr/bin/env bash
-          set -euo pipefail
-          bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})"; else echo "smoke-ci: push event - no PR context, skipping add_comment"; fi'
-          GH_AW_ENGINE_COMMAND_EOF
+          printf IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWV1byBwaXBlZmFpbApiYXNoIC1sYyAnaWYgWyAiJHtHSVRIVUJfRVZFTlRfTkFNRX0iID0gInB1bGxfcmVxdWVzdCIgXTsgdGhlbiBzYWZlb3V0cHV0cyBhZGRfY29tbWVudCAtLWJvZHkgIuKchSBzbW9rZS1jaTogc2FmZW91dHB1dHMgQ0xJIGNvbW1lbnQgb25seSBydW4gKCR7R0lUSFVCX1JVTl9JRH0pIjsgZWxzZSBlY2hvICJzbW9rZS1jaTogcHVzaCBldmVudCAtIG5vIFBSIGNvbnRleHQsIHNraXBwaW5nIGFkZF9jb21tZW50IjsgZmknCg== | base64 --decode > /tmp/gh-aw/engine-command.sh
           chmod +x /tmp/gh-aw/engine-command.sh
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)

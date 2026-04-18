@@ -22,6 +22,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"fmt"
 	"maps"
 	"strconv"
@@ -556,18 +557,12 @@ func extractAddDirPaths(args []string) []string {
 }
 
 func buildEngineCommandScriptSetup(command string) string {
-	delimiter := "GH_AW_ENGINE_COMMAND_EOF"
-	if strings.Contains(command, delimiter) {
-		delimiter = "GH_AW_ENGINE_COMMAND_PAYLOAD_EOF"
-	}
+	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset -euo pipefail\n%s\n", command)
+	scriptContentBase64 := base64.StdEncoding.EncodeToString([]byte(scriptContent))
 
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
-cat <<'%s' > %s
-#!/usr/bin/env bash
-set -euo pipefail
-%s
-%s
-chmod +x %s`, delimiter, customEngineCommandScriptPath, command, delimiter, customEngineCommandScriptPath)
+printf %s | base64 --decode > %s
+chmod +x %s`, shellEscapeArg(scriptContentBase64), customEngineCommandScriptPath, customEngineCommandScriptPath)
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot

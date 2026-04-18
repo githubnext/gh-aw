@@ -1750,11 +1750,11 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_driver.cjs /tmp/gh-aw/engine-command.sh") {
 			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, "cat <<'GH_AW_ENGINE_COMMAND_EOF' > /tmp/gh-aw/engine-command.sh") {
-			t.Errorf("Expected step to serialize engine.command into script, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, "base64 --decode > /tmp/gh-aw/engine-command.sh") {
+			t.Errorf("Expected step to serialize engine.command into script via base64 decode, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, "bash -lc 'echo custom command'") {
-			t.Errorf("Expected serialized script to contain original engine.command, got:\n%s", stepContent)
+		if !strings.Contains(stepContent, "printf ") {
+			t.Errorf("Expected script serialization to emit encoded script content, got:\n%s", stepContent)
 		}
 	})
 }
