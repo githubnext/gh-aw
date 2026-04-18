@@ -2143,7 +2143,7 @@ The following frontmatter fields in imported files are merged into the importing
 
 - `tools:` - Merged with the importing workflow's tools
 - `safe-outputs:` - Merged with safe-output configuration
-- `env:` - Environment variables merged (last import wins per key; main workflow takes precedence)
+- `env:` - Environment variables merged; conflicts between two imports defining the same key are compilation errors (remove the duplicate or move it to the main workflow to override)
 - `checkout:` - Checkout configurations appended (main workflow's checkouts take precedence)
 - `github-app:` - Top-level GitHub App credentials (first-wins across imports)
 - `on.github-app:` - Activation GitHub App credentials (first-wins across imports)
