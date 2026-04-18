@@ -317,8 +317,9 @@ const mockCore = {
       }),
       describe("main function", () => {
         (beforeEach(() => {
+          const testDir = "/tmp/gh-aw";
           const testFile = "/tmp/gh-aw/test-output.txt";
-          (fs.existsSync(testFile) && fs.unlinkSync(testFile), (global.fs = fs));
+          (fs.existsSync(testDir) || fs.mkdirSync(testDir, { recursive: !0 }), fs.existsSync(testFile) && fs.unlinkSync(testFile), (global.fs = fs));
         }),
           afterEach(() => {
             delete global.fs;
