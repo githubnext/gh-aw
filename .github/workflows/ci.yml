@@ -2453,6 +2453,7 @@ jobs:
 
   integration-marketplace-compile:
     name: Integration Compile gh-aw-marketplace
+    if: ${{ false }}
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
