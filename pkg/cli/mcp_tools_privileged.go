@@ -359,6 +359,7 @@ Returns JSON with the following structure:
 				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to audit workflow run: "+mainMsg, nil)
 			}
 			return &mcp.CallToolResult{
+				IsError: true,
 				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 			}, nil, nil
 		}

@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os/exec"
 	"testing"
 
@@ -250,4 +251,37 @@ func TestAuditToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAuditToolErrorEnvelopeSetsIsErrorTrue verifies that audit command failures
+// returned as JSON envelopes are marked with IsError=true in the MCP response.
+func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", "echo '✗ failed to fetch run metadata' 1>&2; exit 1")
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditTool should succeed")
+
+	session := connectInMemory(t, server)
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "audit",
+		Arguments: map[string]any{"run_id_or_url": "9999999999"},
+	})
+	require.NoError(t, err, "audit tool should return result envelope without protocol error")
+	require.NotNil(t, result, "result should not be nil")
+	assert.True(t, result.IsError, "audit error envelope should set IsError=true")
+	require.NotEmpty(t, result.Content, "result should contain text content")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "expected text content in audit error response")
+
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal([]byte(textContent.Text), &envelope), "error response should be valid JSON")
+	assert.Equal(t, "9999999999", envelope["run_id_or_url"], "error envelope should include original run ID")
+	errorMessage, ok := envelope["error"].(string)
+	require.True(t, ok, "error envelope should include string error field")
+	assert.Contains(t, errorMessage, "failed to audit workflow run", "error envelope should include contextual prefix")
 }
