@@ -34,6 +34,8 @@
 #     - shared/reporting.md
 #     - shared/reporting-otlp.md
 #     - shared/trends.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

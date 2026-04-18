@@ -24,6 +24,10 @@
 #
 # Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_CI_TRIGGER_TOKEN

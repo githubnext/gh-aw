@@ -24,6 +24,10 @@
 #
 # Scheduled workflow that recursively closes parent issues when all sub-issues are 100% complete
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

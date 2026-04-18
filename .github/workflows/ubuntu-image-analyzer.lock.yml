@@ -27,6 +27,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/activation-app.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

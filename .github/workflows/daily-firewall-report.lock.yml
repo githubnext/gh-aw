@@ -31,6 +31,8 @@
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
 #     - shared/trending-charts-simple.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

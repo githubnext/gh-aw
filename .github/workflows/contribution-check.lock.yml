@@ -23,6 +23,10 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Frontmatter env variables:
 #   - TARGET_REPOSITORY: (main workflow)
 #

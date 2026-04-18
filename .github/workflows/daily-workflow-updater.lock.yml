@@ -27,6 +27,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/observability-otlp.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN

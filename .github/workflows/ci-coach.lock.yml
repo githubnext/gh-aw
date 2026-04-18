@@ -30,6 +30,8 @@
 #     - shared/jqschema.md
 #     - shared/ci-data-analysis.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN

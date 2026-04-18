@@ -493,6 +493,7 @@ tools:
 `
 
 	compiler := NewCompiler()
+
 	tmpDir := t.TempDir()
 	inputFile := filepath.Join(tmpDir, "test.md")
 

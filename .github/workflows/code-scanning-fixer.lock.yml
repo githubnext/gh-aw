@@ -28,6 +28,8 @@
 #   Imports:
 #     - shared/activation-app.md
 #     - shared/security-analysis-base.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_CI_TRIGGER_TOKEN

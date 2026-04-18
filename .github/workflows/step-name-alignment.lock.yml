@@ -24,6 +24,10 @@
 #
 # Scans step names in .lock.yml files and aligns them with step intent and project glossary
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - ANTHROPIC_API_KEY
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

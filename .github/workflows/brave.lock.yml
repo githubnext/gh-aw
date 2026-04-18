@@ -27,6 +27,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/brave.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - BRAVE_API_KEY

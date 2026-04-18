@@ -24,6 +24,10 @@
 #
 # Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
