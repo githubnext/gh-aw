@@ -163,7 +163,7 @@ steps:
       done < <(find . -name "*.txt")
 ```
 
-**Why it's secure**: Proper quoting prevents word splitting and globbing. Using `find` with process substitution is more robust than `ls`.
+**Why it's secure**: Proper quoting prevents word splitting and globbing. Using `find` with process substitution avoids word splitting and globbing issues that affect `ls`.
 
 ### SC2016: Expressions Don't Expand in Single Quotes
 
