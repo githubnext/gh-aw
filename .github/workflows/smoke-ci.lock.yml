@@ -698,8 +698,9 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p /tmp/gh-aw
-          printf IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWV1byBwaXBlZmFpbApiYXNoIC1sYyAnaWYgWyAiJHtHSVRIVUJfRVZFTlRfTkFNRX0iID0gInB1bGxfcmVxdWVzdCIgXTsgdGhlbiBzYWZlb3V0cHV0cyBhZGRfY29tbWVudCAtLWJvZHkgIuKchSBzbW9rZS1jaTogc2FmZW91dHB1dHMgQ0xJIGNvbW1lbnQgb25seSBydW4gKCR7R0lUSFVCX1JVTl9JRH0pIjsgZWxzZSBlY2hvICJzbW9rZS1jaTogcHVzaCBldmVudCAtIG5vIFBSIGNvbnRleHQsIHNraXBwaW5nIGFkZF9jb21tZW50IjsgZmknCg== | base64 --decode > /tmp/gh-aw/engine-command.sh
-          chmod +x /tmp/gh-aw/engine-command.sh
+          umask 0177
+          printf IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWVvIHBpcGVmYWlsCmJhc2ggLWxjICdpZiBbICIke0dJVEhVQl9FVkVOVF9OQU1FfSIgPSAicHVsbF9yZXF1ZXN0IiBdOyB0aGVuIHNhZmVvdXRwdXRzIGFkZF9jb21tZW50IC0tYm9keSAi4pyFIHNtb2tlLWNpOiBzYWZlb3V0cHV0cyBDTEkgY29tbWVudCBvbmx5IHJ1biAoJHtHSVRIVUJfUlVOX0lEfSkiOyBlbHNlIGVjaG8gInNtb2tlLWNpOiBwdXNoIGV2ZW50IC0gbm8gUFIgY29udGV4dCwgc2tpcHBpbmcgYWRkX2NvbW1lbnQiOyBmaScgIiRAIgo= | base64 --decode > /tmp/gh-aw/engine-command.sh
+          chmod 700 /tmp/gh-aw/engine-command.sh
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
