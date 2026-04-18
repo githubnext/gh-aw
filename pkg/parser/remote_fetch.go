@@ -201,8 +201,8 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	return fullPath, nil
 }
 
-// isWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref])
-func isWorkflowSpec(path string) bool {
+// IsWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref]).
+func IsWorkflowSpec(path string) bool {
 	// Remove section reference if present
 	cleanPath := path
 	if before, _, ok := strings.Cut(path, "#"); ok {
@@ -236,6 +236,10 @@ func isWorkflowSpec(path string) bool {
 	}
 
 	return true
+}
+
+func isWorkflowSpec(path string) bool {
+	return IsWorkflowSpec(path)
 }
 
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec

@@ -167,18 +167,7 @@ func reconstructWorkflowFileFromMap(frontmatter map[string]any, markdown string)
 	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
 	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
 
-	// Reconstruct the file
-	var lines []string
-	lines = append(lines, "---")
-	if frontmatterStr != "" {
-		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
-	}
-	lines = append(lines, "---")
-	if markdown != "" {
-		lines = append(lines, markdown)
-	}
-
-	return strings.Join(lines, "\n"), nil
+	return parser.ReconstructWorkflowFile(frontmatterStr, markdown)
 }
 
 // processIncludesWithWorkflowSpec processes @include directives in content and replaces local file references
@@ -428,12 +417,10 @@ func isLocalFileForUpdate(localWorkflowDir, importPath string) bool {
 	return statErr == nil
 }
 
-// A workflowspec is identified by having an @ version indicator (e.g., owner/repo/path@sha)
-// Simple paths like "shared/mcp/file.md" are NOT workflowspecs and should be processed
+// isWorkflowSpecFormat reports whether path is a workflowspec-style reference.
+// It delegates to parser.IsWorkflowSpec to keep CLI and parser behavior consistent.
 func isWorkflowSpecFormat(path string) bool {
-	// The only reliable indicator of a workflowspec is the @ version separator
-	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
-	return strings.Contains(path, "@")
+	return parser.IsWorkflowSpec(path)
 }
 
 // splitImportPath splits "file.md#Section" into ("file.md", "Section").

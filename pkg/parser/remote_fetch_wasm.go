@@ -120,7 +120,8 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	return "", fmt.Errorf("file not found: %s", fullPath)
 }
 
-func isWorkflowSpec(path string) bool {
+// IsWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref]).
+func IsWorkflowSpec(path string) bool {
 	cleanPath := path
 	if idx := strings.Index(path, "#"); idx != -1 {
 		cleanPath = path[:idx]
@@ -142,4 +143,8 @@ func isWorkflowSpec(path string) bool {
 		return false
 	}
 	return true
+}
+
+func isWorkflowSpec(path string) bool {
+	return IsWorkflowSpec(path)
 }
