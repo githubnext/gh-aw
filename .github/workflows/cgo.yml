@@ -164,14 +164,14 @@ jobs:
         retention-days: 7
 
     - name: Upload unit test results
-      if: always()    # Upload even if tests fail so canary_go can track coverage
+      if: always()    # Upload even if tests fail so canary-go can track coverage
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
       with:
-        name: test-result-unit
+        name: test-result-cgo-unit
         path: test-result-unit.json
         retention-days: 14
 
-  canary_go:
+  canary-go:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs:
@@ -194,7 +194,7 @@ jobs:
       uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
       with:
         path: test-results
-        pattern: test-result-unit
+        pattern: test-result-cgo-unit
         merge-multiple: false
 
     - name: List downloaded artifacts
@@ -220,7 +220,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
       with:
-        name: test-coverage-analysis
+        name: test-coverage-analysis-cgo
         path: |
           all-tests.txt
           executed-tests.txt
