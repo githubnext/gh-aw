@@ -240,56 +240,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Get base branch for the resolved target repository.
     // Prefer explicit safe-output config value when provided, otherwise fall back
     // to dynamic resolution from trigger context/default branch.
-    let baseBranch = null;
-    if (prConfig.base_branch !== undefined && prConfig.base_branch !== null) {
-      if (typeof prConfig.base_branch !== "string") {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                result: "error",
-                error: `Invalid create_pull_request.base_branch: expected string, got ${typeof prConfig.base_branch}`,
-              }),
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const normalizedConfigBase = normalizeBranchName(prConfig.base_branch);
-      if (!normalizedConfigBase) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                result: "error",
-                error: `Invalid create_pull_request.base_branch: sanitization resulted in empty string (original: "${prConfig.base_branch}")`,
-              }),
-            },
-          ],
-          isError: true,
-        };
-      }
-      if (prConfig.base_branch !== normalizedConfigBase) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                result: "error",
-                error: `Invalid create_pull_request.base_branch: contains invalid characters (original: "${prConfig.base_branch}", normalized: "${normalizedConfigBase}")`,
-              }),
-            },
-          ],
-          isError: true,
-        };
-      }
-      baseBranch = prConfig.base_branch;
-    } else {
-      baseBranch = await getBaseBranch(repoParts);
-    }
+    const baseBranch = prConfig.base_branch || (await getBaseBranch(repoParts));
 
     // Determine the working directory for git operations
     // If repo is specified, find where it's checked out

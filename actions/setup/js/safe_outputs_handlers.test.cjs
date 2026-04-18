@@ -546,50 +546,6 @@ describe("safe_outputs_handlers", () => {
         delete process.env.GITHUB_REF_NAME;
       }
     });
-
-    it("should return a clear error when configured base_branch is not a string", async () => {
-      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
-        create_pull_request: {
-          allow_empty: true,
-          base_branch: 123,
-        },
-      });
-
-      const result = await handlers.createPullRequestHandler({
-        branch: "feature/test-change",
-        title: "Test PR",
-        body: "Test description",
-      });
-
-      expect(result.isError).toBe(true);
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("Invalid create_pull_request.base_branch");
-      expect(responseData.error).toContain("expected string");
-      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
-    });
-
-    it("should return a clear error when configured base_branch contains invalid characters", async () => {
-      handlers = createHandlers(mockServer, mockAppendSafeOutput, {
-        create_pull_request: {
-          allow_empty: true,
-          base_branch: "main;rm -rf",
-        },
-      });
-
-      const result = await handlers.createPullRequestHandler({
-        branch: "feature/test-change",
-        title: "Test PR",
-        body: "Test description",
-      });
-
-      expect(result.isError).toBe(true);
-      const responseData = JSON.parse(result.content[0].text);
-      expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("Invalid create_pull_request.base_branch");
-      expect(responseData.error).toContain("contains invalid characters");
-      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
-    });
   });
 
   describe("pushToPullRequestBranchHandler", () => {
