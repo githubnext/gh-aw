@@ -558,12 +558,13 @@ func extractAddDirPaths(args []string) []string {
 }
 
 func buildEngineCommandScriptSetup(command string) string {
-	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset -euo pipefail\n%s\n", command)
+	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset -eo pipefail\n%s \"$@\"\n", command)
 	scriptContentBase64 := base64.StdEncoding.EncodeToString([]byte(scriptContent))
 
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
+umask 0177
 printf %s | base64 --decode > %s
-chmod +x %s`, shellEscapeArg(scriptContentBase64), customEngineCommandScriptPath, customEngineCommandScriptPath)
+chmod 700 %s`, shellEscapeArg(scriptContentBase64), customEngineCommandScriptPath, customEngineCommandScriptPath)
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot
