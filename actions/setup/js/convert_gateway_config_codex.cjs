@@ -36,7 +36,8 @@ const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-conf
 function toCodexTomlSection(name, value, urlPrefix) {
   const url = `${urlPrefix}/mcp/${name}`;
   const rawHeaders = value.headers;
-  const headers = rawHeaders && typeof rawHeaders === "object" && !Array.isArray(rawHeaders) ? /** @type {Record<string, string>} */ rawHeaders : {};
+  /** @type {{ Authorization?: string }} */
+  const headers = rawHeaders && typeof rawHeaders === "object" && !Array.isArray(rawHeaders) ? rawHeaders : {};
   const authKey = headers.Authorization || "";
   let section = `[mcp_servers.${name}]\n`;
   section += `url = "${url}"\n`;

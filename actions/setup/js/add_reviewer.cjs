@@ -70,6 +70,12 @@ async function main(config = {}) {
         error,
       };
     }
+    if (prNumber === null) {
+      return {
+        success: false,
+        error: "Pull request number is required",
+      };
+    }
 
     const requestedReviewers = message.reviewers ?? [];
     const requestedTeamReviewers = message.team_reviewers ?? [];
