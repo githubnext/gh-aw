@@ -70,4 +70,4 @@ async function main() {
   }
 }
 
-module.exports = { main, closeIssueAsNotPlanned, CLOSE_ISSUE_MUTATION };
+module.exports = { main, closeIssueAsNotPlanned, CLOSE_ISSUE_MUTATION, NO_REPRO_MESSAGE };

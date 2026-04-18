@@ -56,7 +56,7 @@ describe("close_agentic_workflows_issues", () => {
       owner: "testowner",
       repo: "testrepo",
       issue_number: 101,
-      body: expect.stringContaining("Closing as no repro."),
+      body: module.NO_REPRO_MESSAGE,
     });
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
