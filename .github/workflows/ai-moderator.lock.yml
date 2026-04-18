@@ -401,7 +401,7 @@ jobs:
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"
-      - name: Cache cache-memory file share data
+      - name: Restore cache-memory file share data
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: memory-none-9f0b69b3-spam-tracking-${{ github.repository_owner }}-${{ github.run_id }}

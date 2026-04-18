@@ -149,7 +149,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
-		// steps[0] = Write Gemini Settings, steps[1] = Execute Gemini CLI
+		// steps[0] = Write Gemini Config, steps[1] = Execute Gemini CLI
 		stepContent := strings.Join(steps[1], "\n")
 
 		assert.Contains(t, stepContent, "name: Execute Gemini CLI", "Should have correct step name")
@@ -310,7 +310,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		settingsContent := strings.Join(steps[0], "\n")
 		execContent := strings.Join(steps[1], "\n")
 
-		assert.Contains(t, settingsContent, "Write Gemini Settings", "First step should be Write Gemini Settings")
+		assert.Contains(t, settingsContent, "Write Gemini Config", "First step should be Write Gemini Config")
 		assert.Contains(t, settingsContent, "includeDirectories", "Settings step should set includeDirectories")
 		assert.Contains(t, settingsContent, "/tmp/", "Settings step should include /tmp/ in include directories")
 		assert.Contains(t, execContent, "Execute Gemini CLI", "Second step should be Execute Gemini CLI")
@@ -464,7 +464,7 @@ func TestGenerateGeminiSettingsStep(t *testing.T) {
 		step := engine.generateGeminiSettingsStep(workflowData)
 		content := strings.Join(step, "\n")
 
-		assert.Contains(t, content, "Write Gemini Settings", "Should have correct step name")
+		assert.Contains(t, content, "Write Gemini Config", "Should have correct step name")
 		assert.Contains(t, content, "/tmp/", "Should include /tmp/ in include directories")
 		assert.Contains(t, content, "includeDirectories", "Should set includeDirectories")
 		assert.Contains(t, content, ".gemini", "Should reference .gemini directory")
