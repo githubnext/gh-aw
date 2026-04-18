@@ -25,6 +25,8 @@ on:
       with:
         script: |
           const { owner, repo } = context.repo;
+          const MAX_ISSUES_WITH_BODY_CONTEXT = 8;
+          const BODY_SNIPPET_MAX_LENGTH = 600;
           
           try {
             // Check for recent rate-limited PRs to avoid scheduling more work during rate limiting
@@ -346,9 +348,9 @@ on:
 
             // Pre-fetch compact body context for top candidates so the agent can
             // triage without extra reads in most runs.
-            const issueContext = scoredIssues.slice(0, 8).map(i => {
+            const issueContext = scoredIssues.slice(0, MAX_ISSUES_WITH_BODY_CONTEXT).map(i => {
               const body = (i.body || '').replace(/\s+/g, ' ').trim();
-              const bodySnippet = body.length > 600 ? `${body.slice(0, 600)}…` : body;
+              const bodySnippet = body.length > BODY_SNIPPET_MAX_LENGTH ? `${body.slice(0, BODY_SNIPPET_MAX_LENGTH)}…` : body;
               const labelStr = i.labels.length > 0 ? i.labels.join(', ') : 'none';
               return `#${i.number} | score=${i.score.toFixed(1)} | labels=${labelStr}\nTitle: ${i.title}\nBody: ${bodySnippet || '(no body)'}`;
             }).join('\n\n---\n\n');
@@ -553,7 +555,7 @@ For each selected issue (which has already been pre-filtered to ensure no open/c
 - Use the pre-fetched body context first
 - If a body excerpt is ambiguous, call `issue_read` with `method: get` for that issue
 - Do **not** fetch comments by default
-- Only fetch comments (`issue_read` with `method: get_comments`) when a specific triage rule truly requires comment context
+- Only fetch comments (`issue_read` with `method: get_comments`) when a specific triage rule truly requires comment context (for example: to confirm whether maintainers already requested a specific implementation approach, or to capture additional repro steps posted after the original issue body)
 - Understand what fix is needed
 - Identify the files that need to be modified
 - Verify it doesn't overlap with the other selected issues
