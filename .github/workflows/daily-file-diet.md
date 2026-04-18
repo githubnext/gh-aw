@@ -13,7 +13,9 @@ permissions:
   pull-requests: read
 
 tracker-id: daily-file-diet
-engine: copilot
+engine:
+  id: copilot
+  agent: "developer.instructions"
 
 imports:
   - shared/activation-app.md
@@ -29,6 +31,7 @@ safe-outputs:
     max: 1
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -38,6 +41,7 @@ tools:
 timeout-minutes: 20
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

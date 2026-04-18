@@ -207,3 +207,42 @@ func TestBuildAuditDataWithMCPToolUsage(t *testing.T) {
 	assert.Equal(t, 1024, tool.TotalInputSize)
 	assert.Equal(t, 5120, tool.TotalOutputSize)
 }
+
+func TestBuildAuditDataUsesMCPToolUsageForToolTypes(t *testing.T) {
+	processedRun := ProcessedRun{
+		Run: WorkflowRun{
+			DatabaseID:   2468,
+			WorkflowName: "Copilot MCP Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			Turns:        20,
+		},
+	}
+	metrics := LogMetrics{
+		Turns: 20,
+		// Intentionally empty to emulate copilot runs where ToolCalls parsing misses MCP tool calls.
+		ToolCalls: nil,
+	}
+	mcpData := &MCPToolUsageData{
+		Summary: []MCPToolSummary{
+			{ServerName: "safeoutputs", ToolName: "create_discussion", CallCount: 3},
+			{ServerName: "safeoutputs", ToolName: "push_repo_memory", CallCount: 1},
+		},
+	}
+
+	auditData := buildAuditData(processedRun, metrics, mcpData)
+
+	require.Len(t, auditData.ToolUsage, 2, "MCP tools should contribute to tool usage when metrics tool calls are empty")
+	require.NotNil(t, auditData.BehaviorFingerprint, "behavior fingerprint should be present")
+	assert.Equal(t, "narrow", auditData.BehaviorFingerprint.ToolBreadth, "2 tool types should still be narrow but no longer zero")
+
+	var executionInsight *ObservabilityInsight
+	for i := range auditData.ObservabilityInsights {
+		if auditData.ObservabilityInsights[i].Category == "execution" {
+			executionInsight = &auditData.ObservabilityInsights[i]
+			break
+		}
+	}
+	require.NotNil(t, executionInsight, "execution insight should be present")
+	assert.Contains(t, executionInsight.Evidence, "tool_types=2", "execution insight should report MCP-derived tool type count")
+}

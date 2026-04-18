@@ -16,6 +16,7 @@ engine:
   id: claude
   max-turns: 100
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash:
@@ -29,6 +30,9 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/reporting.md
+
+features:
+  mcp-cli: true
 ---
 
 # Commit Changes Analyzer

@@ -28,6 +28,7 @@ permissions:
 engine:
   id: copilot
   model: gpt-5
+  bare: true
 
 # Import shared reporting guidelines
 imports:
@@ -38,6 +39,7 @@ network: {}
 
 # Tools configuration
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   edit:
@@ -145,6 +147,9 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
+
+features:
+  mcp-cli: true
 ---
 
 # Poem Bot - A Creative Agentic Workflow

@@ -11,6 +11,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  mount-as-clis: true
   bash:
     - "git fetch"
     - "git checkout"
@@ -51,6 +52,9 @@ steps:
       # Exclude all .yml files in .github/workflows/
       .github/workflows/*.yml
       EOF
+
+features:
+  mcp-cli: true
 ---
 
 # Mergefest - Merge Main into Pull Request Branch

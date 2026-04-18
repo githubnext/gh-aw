@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"sort"
 	"strings"
 	"sync"
 
@@ -66,15 +67,6 @@ func GetAllScriptFilenames() []string {
 
 	registryLog.Printf("Found %d .cjs files in JavaScript sources", len(filenames))
 
-	sortedFilenames := make([]string, len(filenames))
-	copy(sortedFilenames, filenames)
-	for i := range sortedFilenames {
-		for j := i + 1; j < len(sortedFilenames); j++ {
-			if sortedFilenames[i] > sortedFilenames[j] {
-				sortedFilenames[i], sortedFilenames[j] = sortedFilenames[j], sortedFilenames[i]
-			}
-		}
-	}
-
-	return sortedFilenames
+	sort.Strings(filenames)
+	return filenames
 }

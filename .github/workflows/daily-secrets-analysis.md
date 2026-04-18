@@ -12,17 +12,17 @@ engine: copilot
 strict: true
 tracker-id: daily-secrets-analysis
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions]
   bash: true
 timeout-minutes: 20
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily secrets] "
-  - shared/reporting.md
-  - shared/observability-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}

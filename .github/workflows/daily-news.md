@@ -14,7 +14,9 @@ permissions:
   actions: read
 
 tracker-id: daily-news-weekday
-engine: copilot
+engine:
+  id: copilot
+  bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
 runs-on: aw-gpu-runner-T4
@@ -39,6 +41,7 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -285,10 +288,10 @@ imports:
       description: "Historical news digest data"
   - shared/mcp/tavily.md
   - shared/jqschema.md
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

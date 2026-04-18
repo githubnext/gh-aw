@@ -12,6 +12,7 @@ engine: claude
 network:
   allowed: [defaults, go]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
    toolsets:

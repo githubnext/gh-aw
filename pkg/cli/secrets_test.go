@@ -61,12 +61,12 @@ func TestExtractSecretName(t *testing.T) {
 func TestExtractSecretsFromConfig(t *testing.T) {
 	tests := []struct {
 		name            string
-		config          parser.MCPServerConfig
+		config          parser.RegistryMCPServerConfig
 		expectedSecrets []string
 	}{
 		{
 			name: "HTTP headers with secrets",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				Headers: map[string]string{
 					"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
 					"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
@@ -77,7 +77,7 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 		},
 		{
 			name: "env vars with secrets",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Env: map[string]string{
 					"API_KEY": "${{ secrets.API_KEY }}",
 					"TOKEN":   "${{ secrets.TOKEN }}",
@@ -87,7 +87,7 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 		},
 		{
 			name: "mixed headers and env",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				Headers: map[string]string{
 					"Authorization": "Bearer ${{ secrets.AUTH_TOKEN }}",
 				},
@@ -99,7 +99,7 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 		},
 		{
 			name: "no secrets",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Env: map[string]string{
 					"SIMPLE_VAR": "plain value",
 				}}, Name: "simple-server",
@@ -108,7 +108,7 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 		},
 		{
 			name: "duplicate secrets (should only appear once)",
-			config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+			config: parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 				Headers: map[string]string{
 					"Header1": "${{ secrets.API_KEY }}",
 					"Header2": "${{ secrets.API_KEY }}",

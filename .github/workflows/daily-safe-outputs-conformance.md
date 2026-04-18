@@ -10,6 +10,7 @@ tracker-id: safe-outputs-conformance
 engine: claude
 strict: true
 tools:
+  mount-as-clis: true
   github:
     toolsets: [repos, issues]
   bash: true
@@ -22,8 +23,10 @@ safe-outputs:
     max: 10
 timeout-minutes: 20
 imports:
-  - shared/reporting.md
-  - shared/observability-otlp.md
+  - shared/reporting-otlp.md
+
+features:
+  mcp-cli: true
 ---
 
 # Daily Safe Outputs Conformance Checker

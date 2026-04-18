@@ -37,7 +37,7 @@ func generateSaveBaseGitHubFoldersStep(folders, files []string) []string {
 // generateRestoreBaseGitHubFoldersStep generates a step (for the agent job) that restores
 // agent config from the activation artifact after checkout_pr_branch.cjs has run.
 // This prevents fork PRs from injecting malicious skill or instruction files.
-// The step also removes .mcp.json and only runs when the PR checkout step succeeded.
+// The step also removes .github/mcp.json and only runs when the PR checkout step succeeded.
 //
 // folders: the agent config directories to restore (must match save step)
 // files:   the root instruction files to restore (must match save step)

@@ -282,6 +282,25 @@ func TestBuildActivationJob_ReactionAfterSetupScripts(t *testing.T) {
 	assert.Less(t, awInfoIdx, reactIdx, "Reaction step should appear after generate_aw_info")
 }
 
+// TestBuildActivationJob_SkipsSecretValidationWithEnvironment verifies that top-level
+// environment configuration disables activation token validation.
+func TestBuildActivationJob_SkipsSecretValidationWithEnvironment(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:        "Test Workflow",
+		Environment: "environment: production",
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err, "buildActivationJob should succeed")
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+	assert.NotContains(t, stepsStr, "id: validate-secret", "Activation job should skip validate-secret when top-level environment is configured")
+	assert.NotContains(t, job.Outputs, "secret_verification_result", "Activation job should not expose secret_verification_result output when validate-secret is skipped")
+}
+
 // TestBuildMainJob_Basic tests building a basic main job
 func TestBuildMainJob_Basic(t *testing.T) {
 	compiler := NewCompiler()

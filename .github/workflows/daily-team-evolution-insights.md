@@ -19,17 +19,16 @@ network:
     - "anthropic.com"
     - "api.anthropic.com"
 tools:
+  mount-as-clis: true
   github:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]
 timeout-minutes: 90
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-team-evolution] "
       expires: 1d
-  - shared/reporting.md
-  - shared/observability-otlp.md
 features:
   mcp-cli: true
 ---

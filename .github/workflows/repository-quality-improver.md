@@ -18,6 +18,7 @@ imports:
   - shared/reporting.md
   - shared/mcp/serena-go.md
 tools:
+  mount-as-clis: true
   edit:
   bash: ["*"]
   cache-memory:
@@ -29,6 +30,8 @@ tools:
 timeout-minutes: 20
 strict: true
 
+features:
+  mcp-cli: true
 ---
 # Repository Quality Improvement Agent
 

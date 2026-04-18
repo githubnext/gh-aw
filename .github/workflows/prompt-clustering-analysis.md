@@ -38,6 +38,7 @@ cache:
       prompt-clustering-cache-
 
 tools:
+  mount-as-clis: true
   agentic-workflows:
   cache-memory: true
   github:

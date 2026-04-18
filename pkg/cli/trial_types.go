@@ -20,8 +20,8 @@ type CombinedTrialResult struct {
 	Timestamp     time.Time             `json:"timestamp"`
 }
 
-// RepoConfig groups repository-related configuration for trial execution
-type RepoConfig struct {
+// TrialRepoContext groups repository-related configuration for trial execution
+type TrialRepoContext struct {
 	LogicalRepo string // The repo to simulate execution against
 	CloneRepo   string // Alternative to LogicalRepo: clone this repo's contents
 	HostRepo    string // The host repository where workflows will be installed
@@ -29,7 +29,7 @@ type RepoConfig struct {
 
 // TrialOptions contains all configuration options for running workflow trials
 type TrialOptions struct {
-	Repos                  RepoConfig
+	Repos                  TrialRepoContext
 	DeleteHostRepo         bool
 	ForceDelete            bool
 	Quiet                  bool

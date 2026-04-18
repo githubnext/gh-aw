@@ -12,6 +12,7 @@ permissions:
 tracker-id: refactoring-cadence
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     toolsets: [repos, issues]
   bash: true

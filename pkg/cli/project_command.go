@@ -61,7 +61,7 @@ Examples:
 func NewProjectNewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new <title>",
-		Short: "Create a new GitHub Project V2",
+		Short: "Create a new GitHub Project V2 board",
 		Long: `Create a new GitHub Project V2 board owned by a user or organization.
 
 The project can optionally be linked to a specific repository.

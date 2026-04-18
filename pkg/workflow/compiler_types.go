@@ -48,8 +48,8 @@ func WithVersion(version string) CompilerOption {
 	return func(c *Compiler) { c.version = version }
 }
 
-// FileTracker interface for tracking files created during compilation
-type FileTracker interface {
+// FileCreationTracker interface for tracking files created during compilation
+type FileCreationTracker interface {
 	TrackCreated(filePath string)
 }
 
@@ -77,7 +77,7 @@ type Compiler struct {
 	jobManager              *JobManager              // Manages jobs and dependencies
 	engineRegistry          *EngineRegistry          // Registry of available agentic engines
 	engineCatalog           *EngineCatalog           // Catalog of engine definitions backed by the registry
-	fileTracker             FileTracker              // Optional file tracker for tracking created files
+	fileTracker             FileCreationTracker      // Optional file tracker for tracking created files
 	warningCount            int                      // Number of warnings encountered during compilation
 	stepOrderTracker        *StepOrderTracker        // Tracks step ordering for validation
 	actionCache             *ActionCache             // Shared cache for action pin resolutions across all workflows
@@ -91,6 +91,9 @@ type Compiler struct {
 	artifactManager         *ArtifactManager         // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string           // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string                   // Git repository root directory (if set, used for action cache path)
+	repoConfig              *RepoConfig              // Cached repository-level aw.json config
+	repoConfigErr           error                    // Cached repo config load error
+	repoConfigLoaded        bool                     // True once repo config has been loaded (success or failure)
 	contentOverride         string                   // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
@@ -167,7 +170,7 @@ func (c *Compiler) SetApprove(approve bool) {
 }
 
 // SetFileTracker sets the file tracker for tracking created files
-func (c *Compiler) SetFileTracker(tracker FileTracker) {
+func (c *Compiler) SetFileTracker(tracker FileCreationTracker) {
 	c.fileTracker = tracker
 }
 
@@ -386,6 +389,7 @@ type WorkflowData struct {
 	FrontmatterHash             string         // SHA-256 hash of frontmatter (computed before job building, used to derive stable heredoc delimiters)
 	Description                 string         // optional description rendered as comment in lock file
 	Source                      string         // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	Redirect                    string         // optional redirect field describing a moved workflow location
 	TrackerID                   string         // optional tracker identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	ImportedFiles               []string       // list of files imported via imports field (rendered as comment in lock file)
 	ImportedMarkdown            string         // Only imports WITH inputs (for compile-time substitution)
@@ -404,6 +408,7 @@ type WorkflowData struct {
 	TimeoutMinutes              string
 	CustomSteps                 string
 	PreSteps                    string // steps to run at the very start of the agent job, before checkout
+	PreAgentSteps               string // steps to run immediately before the agent execution step
 	PostSteps                   string // steps to run after AI execution
 	RunsOn                      string
 	RunsOnSlim                  string // runner override for all framework/generated jobs (activation, safe-outputs, unlock, etc.)
@@ -435,6 +440,9 @@ type WorkflowData struct {
 	LabelCommandOtherEvents     map[string]any            // for merging label-command with other events
 	LabelCommandRemoveLabel     bool                      // whether to automatically remove the triggering label (default: true)
 	AIReaction                  string                    // AI reaction type like "eyes", "heart", etc.
+	ReactionIssues              *bool                     // whether reactions are allowed on issues/issue_comment triggers (default: true)
+	ReactionPullRequests        *bool                     // whether reactions are allowed on pull_request/pull_request_review_comment triggers (default: true)
+	ReactionDiscussions         *bool                     // whether reactions are allowed on discussion/discussion_comment triggers (default: true)
 	StatusComment               *bool                     // whether to post status comments (default: true when ai-reaction is set, false otherwise)
 	StatusCommentIssues         *bool                     // whether status comments are allowed on issues/issue_comment triggers (default: true)
 	StatusCommentPullRequests   *bool                     // whether status comments are allowed on pull_request/pull_request_review_comment triggers (default: true)

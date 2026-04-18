@@ -22,6 +22,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -39,10 +40,10 @@ safe-outputs:
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/trends.md
-  - shared/observability-otlp.md
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

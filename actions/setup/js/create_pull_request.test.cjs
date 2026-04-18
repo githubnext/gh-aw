@@ -999,6 +999,24 @@ describe("create_pull_request - configured reviewers", () => {
     );
   });
 
+  it("should request configured team reviewers after creating the PR", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ team_reviewers: ["platform-team"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        pull_number: 42,
+        reviewers: [],
+        team_reviewers: ["platform-team"],
+      })
+    );
+  });
+
   it("should handle copilot reviewer separately from regular reviewers", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ reviewers: ["user1", "copilot"], allow_empty: true });
@@ -1010,6 +1028,18 @@ describe("create_pull_request - configured reviewers", () => {
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledTimes(2);
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(expect.objectContaining({ reviewers: ["user1"] }));
     expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledWith(expect.objectContaining({ reviewers: ["copilot-pull-request-reviewer[bot]"] }));
+  });
+
+  it("should keep configured team reviewers with non-copilot reviewers when copilot is configured", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ reviewers: ["user1", "copilot"], team_reviewers: ["platform-team"], allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenCalledTimes(2);
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(1, expect.objectContaining({ reviewers: ["user1"], team_reviewers: ["platform-team"] }));
+    expect(global.github.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(2, expect.objectContaining({ reviewers: ["copilot-pull-request-reviewer[bot]"] }));
   });
 
   it("should not call requestReviewers when no reviewers are configured", async () => {
@@ -1220,6 +1250,114 @@ describe("create_pull_request - wildcard target-repo", () => {
     );
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("create_pull_request - base branch override policy", () => {
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-base-override-test-"));
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 100, html_url: "https://github.com/test-owner/test-repo/pull/100", node_id: "PR_100" } }),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("should reject base override when allowed-base-branches is not configured", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body", base: "release/1.0" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Base branch override is not allowed");
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("allowed-base-branches is not configured"));
+  });
+
+  it("should allow base override when it matches allowed-base-branches", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, allowed_base_branches: ["release/*", "main"] });
+
+    const result = await handler({ title: "Test PR", body: "Test body", base: "release/1.0" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ base: "release/1.0" }));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Base branch override requested: "release/1.0"'));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('Base branch override accepted: "release/1.0"'));
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Using agent-provided base branch override: release/1.0"));
+  });
+
+  it("should reject base override when it does not match allowed-base-branches", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, allowed_base_branches: ["release/*"] });
+
+    const result = await handler({ title: "Test PR", body: "Test body", base: "main" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Base branch override 'main' is not allowed");
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("does not match allowed patterns"));
   });
 });
 

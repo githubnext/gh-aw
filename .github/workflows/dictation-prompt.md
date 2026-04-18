@@ -19,6 +19,7 @@ imports:
   - shared/reporting.md
 
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "*"
@@ -35,6 +36,7 @@ safe-outputs:
 
 timeout-minutes: 10
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

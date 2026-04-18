@@ -12,6 +12,7 @@ permissions:
 tracker-id: copilot-token-optimizer
 engine: copilot
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash:

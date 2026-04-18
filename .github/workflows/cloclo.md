@@ -20,6 +20,7 @@ imports:
   - shared/jqschema.md
   - shared/mcp/serena-go.md
 tools:
+  mount-as-clis: true
   agentic-workflows:
   edit:
   playwright:
@@ -42,6 +43,9 @@ safe-outputs:
     run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!"
 timeout-minutes: 20
+
+features:
+  mcp-cli: true
 ---
 
 # /cloclo

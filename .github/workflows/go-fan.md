@@ -30,6 +30,7 @@ imports:
   - shared/go-source-analysis.md
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default]

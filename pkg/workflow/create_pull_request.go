@@ -21,12 +21,14 @@ type CreatePullRequestsConfig struct {
 	Labels                         []string `yaml:"labels,omitempty"`
 	AllowedLabels                  []string `yaml:"allowed-labels,omitempty"`                      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	Reviewers                      []string `yaml:"reviewers,omitempty"`                           // List of users/bots to assign as reviewers to the pull request
+	TeamReviewers                  []string `yaml:"team-reviewers,omitempty"`                      // List of team slugs to assign as team reviewers to the pull request
 	Assignees                      []string `yaml:"assignees,omitempty"`                           // List of users to assign to any fallback issue created by create-pull-request
 	Draft                          *string  `yaml:"draft,omitempty"`                               // Pointer to distinguish between unset (nil), literal bool, and expression values
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty                     *string  `yaml:"allow-empty,omitempty"`                         // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository pull requests
 	AllowedRepos                   []string `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
+	AllowedBaseBranches            []string `yaml:"allowed-base-branches,omitempty"`               // List of allowed base branch globs (e.g. "release/*"). Enables agent-provided `base` override when configured.
 	Expires                        int      `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 	AutoMerge                      *string  `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
 	BaseBranch                     string   `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
@@ -64,6 +66,13 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 				// Convert single string to array
 				configData["reviewers"] = []string{reviewerStr}
 				createPRLog.Printf("Converted single reviewer string to array before unmarshaling")
+			}
+		}
+		if teamReviewers, exists := configData["team-reviewers"]; exists {
+			if teamReviewerStr, ok := teamReviewers.(string); ok {
+				// Convert single string to array
+				configData["team-reviewers"] = []string{teamReviewerStr}
+				createPRLog.Printf("Converted single team-reviewer string to array before unmarshaling")
 			}
 		}
 		// Pre-process the assignees field to convert single string to array BEFORE unmarshaling

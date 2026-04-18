@@ -12,10 +12,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: copilot
+engine:
+  id: copilot
+  agent: agentic-workflows
 imports:
   - shared/github-guard-policy.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets: [default]

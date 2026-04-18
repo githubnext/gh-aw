@@ -2,6 +2,7 @@
 interface Props {
     src: string
     caption?: string
+    title?: string
     aspectRatio?: '16:9' | '4:3' | '1:1' | 'auto'
     showControls?: boolean
     autoStart?: boolean
@@ -14,6 +15,7 @@ interface Props {
 const { 
     src, 
     caption, 
+    title,
     aspectRatio = 'auto',
     showControls = true,
     autoStart = false,
@@ -49,6 +51,12 @@ const ratioMap: Record<string, string> = {
     'auto': '0'
 }
 const paddingBottom = ratioMap[aspectRatio]
+const fallbackLabel = src
+    .split('/')
+    .pop()
+    ?.replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+const accessibilityLabel = title || caption || fallbackLabel
 ---
 
 <div class="gh-aw-video-wrapper" style={`max-width: ${maxWidth};`}>
@@ -62,7 +70,8 @@ const paddingBottom = ratioMap[aspectRatio]
             muted={silenced}
             poster={posterPath}
             preload="metadata"
-            aria-label={caption}
+            title={title}
+            aria-label={accessibilityLabel}
         >
             <source src={src} type={contentType} />
             <p>Your browser doesn't support HTML5 video. Download the video <a href={src}>here</a>.</p>

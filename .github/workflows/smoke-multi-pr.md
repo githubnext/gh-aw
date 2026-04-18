@@ -18,6 +18,7 @@ network:
     - defaults
     - node
 tools:
+  mount-as-clis: true
   edit:
   bash:
     - "date"

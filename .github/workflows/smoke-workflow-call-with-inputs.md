@@ -26,6 +26,7 @@ network:
   allowed:
     - defaults
 tools:
+  mount-as-clis: true
   bash:
     - "echo *"
     - "date"

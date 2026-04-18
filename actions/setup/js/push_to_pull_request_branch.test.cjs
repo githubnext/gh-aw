@@ -631,6 +631,35 @@ index 0000000..abc1234
       expect(result.commit_url).toContain("test-owner/test-repo/commit/");
     });
 
+    it("should detect deleted branch before fetch", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should fail with diagnostic error when branch existence check fails for other reasons", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: Authentication failed" });
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Failed to verify branch");
+      expect(result.error).toContain("Authentication failed");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
     it("should handle git fetch failure", async () => {
       const patchPath = createPatchFile();
 
@@ -738,6 +767,67 @@ index 0000000..abc1234
 
       // The error happens during push
       expect(result.success).toBe(false);
+    });
+
+    it("should diagnose deleted branch when push fails", async () => {
+      const patchPath = createPatchFile();
+
+      // Set up successful operations until push
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      // pushSignedCommits + post-failure diagnosis responses
+      const originalGetExecOutput = mockExec.getExecOutput;
+      let exitCodeLsRemoteCallCount = 0;
+      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (argList[0] === "rev-parse" && argList[1] === "HEAD") {
+          return { exitCode: 0, stdout: "before-sha\n", stderr: "" };
+        }
+        if (argList[0] === "rev-list") {
+          return { exitCode: 0, stdout: "abc123\n", stderr: "" };
+        }
+        if (argList[0] === "diff-tree") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        if (argList[0] === "ls-remote" && argList[1] === "--exit-code") {
+          exitCodeLsRemoteCallCount += 1;
+          if (exitCodeLsRemoteCallCount === 1) {
+            // Initial preflight check before fetch
+            return { exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" };
+          }
+          // Post-push diagnosis call from push_to_pull_request_branch catch block
+          return { exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" };
+        }
+        if (argList[0] === "ls-remote") {
+          return { exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" };
+        }
+        if (argList[0] === "log") {
+          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+        }
+        if (argList[0] === "diff" && argList[1] === "--name-status") {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return originalGetExecOutput(cmd, args);
+      });
+
+      // GraphQL call fails, triggering fallback to git push
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      // Fallback git push fails
+      mockExec.exec.mockRejectedValueOnce(new Error("remote: Internal Server Error"));
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error_type).toBe("push_failed");
+      expect(result.error).toContain("appears to have been deleted");
     });
 
     it("should detect force-pushed branch via ref mismatch", async () => {

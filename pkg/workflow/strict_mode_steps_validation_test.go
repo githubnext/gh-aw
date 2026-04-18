@@ -69,6 +69,19 @@ func TestValidateStepsSecrets(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "pre-agent-steps without secrets is allowed",
+			frontmatter: map[string]any{
+				"pre-agent-steps": []any{
+					map[string]any{
+						"name": "Prepare final context",
+						"run":  "echo ready",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: false,
+		},
+		{
 			name: "steps with secret in run field in strict mode fails",
 			frontmatter: map[string]any{
 				"steps": []any{
@@ -159,6 +172,20 @@ func TestValidateStepsSecrets(t *testing.T) {
 			strictMode:  true,
 			expectError: true,
 			errorMsg:    "strict mode: secrets expressions detected in 'post-steps' section",
+		},
+		{
+			name: "pre-agent-steps with secret in strict mode fails",
+			frontmatter: map[string]any{
+				"pre-agent-steps": []any{
+					map[string]any{
+						"name": "Use secret before agent",
+						"run":  "echo ${{ secrets.MY_SECRET }}",
+					},
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets expressions detected in 'pre-agent-steps' section",
 		},
 		{
 			name: "steps with secret in non-strict mode emits warning but no error",

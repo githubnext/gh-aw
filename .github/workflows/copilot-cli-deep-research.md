@@ -18,6 +18,7 @@ network:
     - github
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, actions]
   repo-memory:

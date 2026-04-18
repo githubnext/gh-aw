@@ -272,6 +272,8 @@ safe-outputs:
 Follow the report formatting guidelines from shared/reporting.md.
 ```
 
+For daily discussion-based audit workflows, prefer `shared/daily-audit-base.md` to bundle discussion publishing, reporting guidance, and OTLP observability in a single import.
+
 ## Agent Data Directory
 
 Use `/tmp/gh-aw/agent/` to share data with AI agents. Files here are automatically uploaded as artifacts and accessible to the agent:

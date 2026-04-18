@@ -83,7 +83,7 @@ func TestAgenticEngines(t *testing.T) {
 		t.Error("AgenticEngines should not be empty")
 	}
 
-	expectedEngines := []string{"claude", "codex", "copilot", "gemini"}
+	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "crush"}
 	if len(AgenticEngines) != len(expectedEngines) {
 		t.Errorf("AgenticEngines length = %d, want %d", len(AgenticEngines), len(expectedEngines))
 	}
@@ -332,6 +332,7 @@ func TestFeatureFlagConstants(t *testing.T) {
 		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
 		{"DisableXPIAPromptFeatureFlag", DisableXPIAPromptFeatureFlag, "disable-xpia-prompt"},
 		{"DIFCProxyFeatureFlag", DIFCProxyFeatureFlag, "difc-proxy"},
+		{"AwfDiagnosticLogsFeatureFlag", AwfDiagnosticLogsFeatureFlag, "awf-diagnostic-logs"},
 	}
 
 	for _, tt := range tests {

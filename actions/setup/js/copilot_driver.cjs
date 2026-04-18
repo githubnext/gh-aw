@@ -37,6 +37,9 @@ const INITIAL_DELAY_MS = 5000;
 const BACKOFF_MULTIPLIER = 2;
 // Maximum delay cap in milliseconds
 const MAX_DELAY_MS = 60000;
+// Additional startup retry budget for scheduled runs when Copilot exits with code 2
+// before producing any output (typically transient API interruption at startup).
+const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
 const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
@@ -57,6 +60,18 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 // This error means no auth token is available in the environment; retrying will not help
 // because the missing token will still be absent on every subsequent attempt.
 const NO_AUTH_INFO_PATTERN = /No authentication information found/;
+
+/**
+ * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} NodeAppendFileSync
+ */
+
+/**
+ * @typedef {(path: string, data: string, encoding: string) => void} StringAppendLineWriter
+ */
+
+/**
+ * @typedef {NodeAppendFileSync | StringAppendLineWriter} AppendFileSyncLike
+ */
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -117,6 +132,58 @@ function isNoAuthInfoError(output) {
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Build a structured report_incomplete payload for infrastructure failures.
+ * @param {string} details
+ * @returns {string}
+ */
+function buildInfrastructureIncompletePayload(details) {
+  return JSON.stringify({
+    type: "report_incomplete",
+    reason: "infrastructure_error",
+    details,
+  });
+}
+
+/**
+ * Append one safe-output entry line.
+ * @param {AppendFileSyncLike} appendFileSync
+ * @param {string} safeOutputsPath
+ * @param {string} payload
+ */
+function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
+  appendFileSync(safeOutputsPath, payload + "\n", "utf8");
+}
+
+/**
+ * Append a structured report_incomplete signal when infrastructure failures prevent completion.
+ * This allows downstream failure handling to classify transient infrastructure errors explicitly.
+ * @param {string} details
+ * @param {{
+ *   safeOutputsPath?: string,
+ *   appendFileSync?: AppendFileSyncLike,
+ *   logger?: (message: string) => void
+ * }=} options
+ */
+function emitInfrastructureIncomplete(details, options) {
+  const safeOutputsPath = options && typeof options.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
+  const appendFileSync = options && options.appendFileSync ? options.appendFileSync : fs.appendFileSync;
+  const logger = options && options.logger ? options.logger : log;
+
+  if (!safeOutputsPath) {
+    logger("report_incomplete skipped: GH_AW_SAFE_OUTPUTS is not set");
+    return;
+  }
+  try {
+    const payload = buildInfrastructureIncompletePayload(details);
+    appendSafeOutputLine(appendFileSync, safeOutputsPath, payload);
+    logger(`report_incomplete emitted: ${safeOutputsPath}`);
+  } catch (error) {
+    const err = /** @type {Error} */ error;
+    logger(`report_incomplete emission failed: ${err.message}`);
+  }
 }
 
 /**
@@ -313,14 +380,19 @@ async function main() {
 
   let delay = INITIAL_DELAY_MS;
   let lastExitCode = 1;
+  const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
+  let scheduledExit2Retries = 0;
+  let scheduledExit2RetryAttempted = false;
+  let useContinueOnRetry = false;
   const driverStartTime = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Add --continue flag on retries so the copilot session continues from where it left off
-    const currentArgs = attempt > 0 ? [...resolvedArgs, "--continue"] : resolvedArgs;
+    const currentArgs = attempt > 0 && useContinueOnRetry ? [...resolvedArgs, "--continue"] : resolvedArgs;
 
     if (attempt > 0) {
-      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt with --continue`);
+      const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
+      log(`retry ${attempt}/${MAX_RETRIES}: sleeping ${delay}ms before next attempt (${retryMode})`);
       await sleep(delay);
       delay = Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS);
       log(`retry ${attempt}/${MAX_RETRIES}: woke up, next delay cap will be ${Math.min(delay * BACKOFF_MULTIPLIER, MAX_DELAY_MS)}ms`);
@@ -376,8 +448,23 @@ async function main() {
       break;
     }
 
+    // Scheduled runs: retry once on exit code 2 even when no output was produced.
+    // This specifically targets transient Copilot API outages at startup where there is no
+    // partial session state to continue from.
+    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
+      scheduledExit2Retries += 1;
+      scheduledExit2RetryAttempted = true;
+      useContinueOnRetry = false;
+      log(`attempt ${attempt + 1}: scheduled startup interruption (exit code 2, no output)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
+      continue;
+    }
+    if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= MAX_RETRIES) {
+      log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
+    }
+
     if (attempt < MAX_RETRIES && result.hasOutput) {
       const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
+      useContinueOnRetry = true;
       log(`attempt ${attempt + 1}: ${reason} — will retry with --continue (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
       continue;
     }
@@ -392,6 +479,10 @@ async function main() {
     break;
   }
 
+  if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
+    emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
+  }
+
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);
 }
@@ -399,7 +490,10 @@ async function main() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     PROMPT_FILE_INLINE_THRESHOLD_BYTES,
+    appendSafeOutputLine,
     buildPromptFileFallbackInstruction,
+    buildInfrastructureIncompletePayload,
+    emitInfrastructureIncomplete,
     resolvePromptFileArgs,
   };
 }

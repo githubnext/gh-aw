@@ -23,6 +23,7 @@ network:
   allowed:
     - defaults
     - github
+    - go
 
 tools:
   github:

@@ -24,6 +24,7 @@ imports:
   - shared/github-guard-policy.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
       - issues
@@ -52,6 +53,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 15
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 

@@ -86,7 +86,7 @@ func getActionPinByRepo(repo string) (ActionPin, bool) {
 // getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
 func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
-	return actionpins.GetActionPinWithData(actionRepo, version, data.PinContext())
+	return actionpins.ResolveActionPin(actionRepo, version, data.PinContext())
 }
 
 // getCachedActionPin returns the pinned action reference for a given repository,

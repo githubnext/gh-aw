@@ -63,6 +63,13 @@ jobs:
           else
             echo "needs-linting=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Fix super-linter log permissions
+        if: always()
+        run: |
+          if [ -f "super-linter.log" ]; then
+            chmod 644 super-linter.log
+          fi
       
       - name: Upload super-linter log
         if: always()
@@ -78,6 +85,7 @@ steps:
       name: super-linter-log
       path: /tmp/gh-aw/
 tools:
+  mount-as-clis: true
   cache-memory: true
   edit:
   bash:

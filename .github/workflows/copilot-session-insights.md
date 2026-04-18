@@ -23,6 +23,7 @@ network:
     - python
 
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default]
   bash:
@@ -50,6 +51,8 @@ imports:
 
 timeout-minutes: 20
 
+features:
+  mcp-cli: true
 ---
 # Copilot coding agent Session Analysis
 

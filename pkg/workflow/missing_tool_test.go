@@ -284,6 +284,18 @@ func TestMissingToolConfigParsing(t *testing.T) {
 			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
 		},
 		{
+			name: "Custom labels as []string",
+			configData: map[string]any{
+				"missing-tool": map[string]any{
+					"labels": []string{"bug", "enhancement", "missing-tool"},
+				},
+			},
+			expectMax:         0,
+			expectCreateIssue: true,
+			expectTitlePrefix: "[missing tool]",
+			expectLabels:      []string{"bug", "enhancement", "missing-tool"},
+		},
+		{
 			name: "Full configuration",
 			configData: map[string]any{
 				"missing-tool": map[string]any{

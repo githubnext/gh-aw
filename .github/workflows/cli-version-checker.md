@@ -15,6 +15,7 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   web-fetch:
   cache-memory: true
   bash:

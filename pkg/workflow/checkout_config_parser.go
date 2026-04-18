@@ -63,6 +63,7 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 		return nil, fmt.Errorf("only one checkout target may have current: true, found %d", len(currentTargets))
 	}
 
+	checkoutManagerLog.Printf("Parsed %d checkout configuration(s), current-targets=%d", len(configs), len(currentTargets))
 	return configs, nil
 }
 
@@ -131,6 +132,9 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if cfg.GitHubToken != "" && cfg.GitHubApp != nil {
 		return nil, errors.New("checkout: github-token and github-app are mutually exclusive; use one or the other")
 	}
+
+	checkoutManagerLog.Printf("Parsed checkout config: repo=%q, ref=%q, path=%q, current=%v, hasToken=%v, hasApp=%v",
+		cfg.Repository, cfg.Ref, cfg.Path, cfg.Current, cfg.GitHubToken != "", cfg.GitHubApp != nil)
 
 	if v, ok := m["fetch-depth"]; ok {
 		switch n := v.(type) {
@@ -236,6 +240,7 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 	if len(checkouts) == 0 {
 		return ""
 	}
+	checkoutManagerLog.Printf("Building checkouts prompt content for %d checkout(s)", len(checkouts))
 
 	var sb strings.Builder
 	sb.WriteString("- **checkouts**: The following repositories have been checked out and are available in the workspace:\n")

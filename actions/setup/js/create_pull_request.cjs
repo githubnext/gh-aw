@@ -31,6 +31,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -87,6 +88,50 @@ function isLabelTransientError(error) {
 const LABEL_MAX_RETRIES = 3;
 /** @type {number} Initial delay in ms before the first label retry (3 seconds) */
 const LABEL_INITIAL_DELAY_MS = 3000;
+
+/**
+ * Parse allowed base branch patterns from config value (array or comma-separated string)
+ * @param {string[]|string|undefined} allowedBaseBranchesValue
+ * @returns {Set<string>}
+ */
+function parseAllowedBaseBranches(allowedBaseBranchesValue) {
+  const set = new Set();
+  if (Array.isArray(allowedBaseBranchesValue)) {
+    allowedBaseBranchesValue
+      .map(branch => String(branch).trim())
+      .filter(Boolean)
+      .forEach(branch => set.add(branch));
+  } else if (typeof allowedBaseBranchesValue === "string") {
+    allowedBaseBranchesValue
+      .split(",")
+      .map(branch => branch.trim())
+      .filter(Boolean)
+      .forEach(branch => set.add(branch));
+  }
+  return set;
+}
+
+/**
+ * Check if a base branch matches an allowed pattern.
+ * Supports exact matches and "*" glob patterns (e.g. "release/*").
+ * @param {string} baseBranch
+ * @param {Set<string>} allowedBaseBranches
+ * @returns {boolean}
+ */
+function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
+  if (allowedBaseBranches.has(baseBranch)) {
+    return true;
+  }
+  for (const pattern of allowedBaseBranches) {
+    if (pattern === "*") {
+      return true;
+    }
+    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(baseBranch)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Merges the required fallback label with any workflow-configured labels,
@@ -238,6 +283,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const configReviewers = config.reviewers ? (Array.isArray(config.reviewers) ? config.reviewers : config.reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
+  const configTeamReviewers = config.team_reviewers ? (Array.isArray(config.team_reviewers) ? config.team_reviewers : config.team_reviewers.split(",")).map(r => String(r).trim()).filter(r => r) : [];
   const rawAssignees = config.assignees ? (Array.isArray(config.assignees) ? config.assignees : config.assignees.split(",")).map(a => String(a).trim()).filter(a => a) : [];
   const hasCopilotInAssignees = rawAssignees.some(a => a.toLowerCase() === "copilot");
   const configAssignees = sanitizeFallbackAssignees(rawAssignees);
@@ -250,6 +296,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
   // Check if copilot assignment is enabled for fallback issues
@@ -350,11 +397,17 @@ async function main(config = {}) {
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
+  if (allowedBaseBranches.size > 0) {
+    core.info(`Allowed base branches: ${Array.from(allowedBaseBranches).join(", ")}`);
+  }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
   }
   if (configReviewers.length > 0) {
     core.info(`Configured reviewers: ${configReviewers.join(", ")}`);
+  }
+  if (configTeamReviewers.length > 0) {
+    core.info(`Configured team reviewers: ${configTeamReviewers.join(", ")}`);
   }
   if (configAssignees && configAssignees.length > 0) {
     core.info(`Configured assignees (for fallback issues): ${configAssignees.join(", ")}`);
@@ -443,6 +496,49 @@ async function main(config = {}) {
     // is not available in GitHub Actions expressions and requires an API call
     // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
     let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+
+    // Optional agent-provided base branch override.
+    // This is only allowed when allowed_base_branches is configured.
+    if (typeof pullRequestItem.base === "string" && pullRequestItem.base.trim() !== "") {
+      const requestedBaseBranchRaw = pullRequestItem.base.trim();
+      const requestedBaseBranchForLog = JSON.stringify(requestedBaseBranchRaw);
+      core.info(`Base branch override requested: ${requestedBaseBranchForLog}`);
+      if (allowedBaseBranches.size === 0) {
+        core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: allowed-base-branches is not configured`);
+        return {
+          success: false,
+          error: "Base branch override is not allowed. Configure safe-outputs.create-pull-request.allowed-base-branches to allow per-run base overrides.",
+        };
+      }
+
+      const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
+      if (!requestedBaseBranch) {
+        core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitization resulted in empty branch name`);
+        return {
+          success: false,
+          error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
+        };
+      }
+      if (requestedBaseBranchRaw !== requestedBaseBranch) {
+        core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitized value '${requestedBaseBranch}' does not match original`);
+        return {
+          success: false,
+          error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
+        };
+      }
+      const requestedBaseBranchSafeForLog = JSON.stringify(requestedBaseBranch);
+      if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
+        core.warning(`Rejecting base branch override ${requestedBaseBranchSafeForLog}: does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
+        return {
+          success: false,
+          error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
+        };
+      }
+
+      core.info(`Base branch override accepted: ${requestedBaseBranchSafeForLog}`);
+      baseBranch = requestedBaseBranch;
+      core.info(`Using agent-provided base branch override: ${baseBranch}`);
+    }
 
     // Multi-repo support: Switch checkout to target repo if different from current
     // This enables creating PRs in multiple repos from a single workflow run
@@ -1448,20 +1544,25 @@ ${patchPreview}`;
       }
 
       // Add configured reviewers if specified
-      if (configReviewers.length > 0) {
+      if (configReviewers.length > 0 || configTeamReviewers.length > 0) {
         const hasCopilot = configReviewers.includes("copilot");
         const otherReviewers = configReviewers.filter(r => r !== "copilot");
 
-        if (otherReviewers.length > 0) {
-          core.info(`Requesting ${otherReviewers.length} reviewer(s) for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
+        if (otherReviewers.length > 0 || configTeamReviewers.length > 0) {
+          core.info(`Requesting reviewers for pull request #${pullRequest.number}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(configTeamReviewers)}`);
           try {
-            await githubClient.rest.pulls.requestReviewers({
+            /** @type {{ owner: string, repo: string, pull_number: number, reviewers: string[], team_reviewers?: string[] }} */
+            const reviewerRequest = {
               owner: repoParts.owner,
               repo: repoParts.repo,
               pull_number: pullRequest.number,
               reviewers: otherReviewers,
-            });
-            core.info(`Requested reviewers for pull request #${pullRequest.number}: ${JSON.stringify(otherReviewers)}`);
+            };
+            if (configTeamReviewers.length > 0) {
+              reviewerRequest.team_reviewers = configTeamReviewers;
+            }
+            await githubClient.rest.pulls.requestReviewers(reviewerRequest);
+            core.info(`Requested reviewers for pull request #${pullRequest.number}: reviewers=${JSON.stringify(otherReviewers)}, team_reviewers=${JSON.stringify(configTeamReviewers)}`);
           } catch (reviewerError) {
             core.warning(`Failed to request reviewers for PR #${pullRequest.number}: ${reviewerError instanceof Error ? reviewerError.message : String(reviewerError)}`);
           }

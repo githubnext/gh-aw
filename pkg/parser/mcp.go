@@ -30,9 +30,11 @@ func IsMCPType(typeStr string) bool {
 	}
 }
 
-// MCPServerConfig represents a parsed MCP server configuration.
+// RegistryMCPServerConfig represents a parser-layer MCP server configuration.
+// It is intentionally distinct from workflow.MCPServerConfig, which models
+// workflow-facing YAML tool configuration.
 // It embeds BaseMCPServerConfig for common fields and adds parser-specific fields.
-type MCPServerConfig struct {
+type RegistryMCPServerConfig struct {
 	types.BaseMCPServerConfig
 
 	// Parser-specific fields
@@ -44,7 +46,7 @@ type MCPServerConfig struct {
 
 // MCPServerInfo contains the inspection results for an MCP server
 type MCPServerInfo struct {
-	Config    MCPServerConfig
+	Config    RegistryMCPServerConfig
 	Connected bool
 	Error     error
 	Tools     []*mcp.Tool
@@ -53,16 +55,16 @@ type MCPServerInfo struct {
 }
 
 // ExtractMCPConfigurations extracts MCP server configurations from workflow frontmatter
-func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]MCPServerConfig, error) {
+func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]RegistryMCPServerConfig, error) {
 	mcpLog.Printf("Extracting MCP configurations with filter: %s", serverFilter)
-	var configs []MCPServerConfig
+	var configs []RegistryMCPServerConfig
 
 	// Check for safe-outputs configuration first (built-in MCP)
 	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
 		mcpLog.Print("Found safe-outputs configuration")
 		// Apply server filter if specified
 		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
-			config := MCPServerConfig{
+			config := RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "stdio",
 					Command: "node",
@@ -112,7 +114,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		// Apply server filter if specified
 		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID.String(), strings.ToLower(serverFilter)) {
 			// Find existing safe-outputs config or create new one
-			var config *MCPServerConfig
+			var config *RegistryMCPServerConfig
 			for i := range configs {
 				if configs[i].Name == constants.SafeOutputsMCPServerID.String() {
 					config = &configs[i]
@@ -121,7 +123,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			}
 
 			if config == nil {
-				newConfig := MCPServerConfig{
+				newConfig := RegistryMCPServerConfig{
 					BaseMCPServerConfig: types.BaseMCPServerConfig{
 						Type:    "stdio",
 						Command: "node",
@@ -147,7 +149,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		mcpLog.Print("Found mcp-scripts configuration")
 		// Apply server filter if specified
 		if serverFilter == "" || strings.Contains(constants.MCPScriptsMCPServerID.String(), strings.ToLower(serverFilter)) {
-			config := MCPServerConfig{
+			config := RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "http",
 					Command: "",
@@ -250,7 +252,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 }
 
 // processBuiltinMCPTool handles built-in MCP tools (github, playwright, and serena)
-func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) (*MCPServerConfig, error) {
+func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) (*RegistryMCPServerConfig, error) {
 	// Apply server filter if specified
 	if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
 		return nil, nil
@@ -277,11 +279,11 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			}
 		}
 
-		var config MCPServerConfig
+		var config RegistryMCPServerConfig
 
 		if useRemote {
 			// Handle GitHub MCP server in remote mode (hosted)
-			config = MCPServerConfig{
+			config = RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "http",
 					URL:     "https://api.githubcopilot.com/mcp/",
@@ -300,7 +302,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			config.Headers["X-MCP-Readonly"] = "true"
 		} else {
 			// Handle GitHub MCP server - use local/Docker by default
-			config = MCPServerConfig{
+			config = RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Type:    "docker", // GitHub defaults to Docker (local containerized)
 					Command: "docker",
@@ -372,7 +374,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		return &config, nil
 	} else if toolName == "playwright" {
 		// Handle Playwright MCP server - always use Docker by default
-		config := MCPServerConfig{
+		config := RegistryMCPServerConfig{
 			BaseMCPServerConfig: types.BaseMCPServerConfig{
 				Type:    "docker", // Playwright defaults to Docker (containerized)
 				Command: "docker",
@@ -422,7 +424,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		return &config, nil
 	} else if toolName == "serena" {
 		// Handle Serena MCP server - uses uvx to install and run from GitHub
-		config := MCPServerConfig{
+		config := RegistryMCPServerConfig{
 			BaseMCPServerConfig: types.BaseMCPServerConfig{
 				Type:    "stdio",
 				Command: "uvx",
@@ -479,9 +481,9 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 }
 
 // ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
-func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error) {
+func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (RegistryMCPServerConfig, error) {
 	mcpLog.Printf("Parsing MCP configuration for tool: %s", toolName)
-	config := MCPServerConfig{
+	config := RegistryMCPServerConfig{
 		BaseMCPServerConfig: types.BaseMCPServerConfig{
 			Env:     make(map[string]string),
 			Headers: make(map[string]string),

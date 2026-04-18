@@ -40,7 +40,7 @@ Shows health metrics for workflows including:
 - Success/failure rates over time period
 - Trend indicators (↑ improving, → stable, ↓ degrading)
 - Average execution duration
-- Alerts when success rate drops below threshold
+- Warnings when success rate drops below threshold
 
 When called without a workflow name, displays summary for all workflows.
 When called with a specific workflow name, displays detailed metrics for that workflow.
@@ -51,7 +51,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` health                       # Summary of all workflows (last 7 days)
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster         # Detailed metrics for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` health --days 30             # Summary for last 30 days
-  ` + string(constants.CLIExtensionPrefix) + ` health --threshold 90        # Alert if below 90% success rate
+  ` + string(constants.CLIExtensionPrefix) + ` health --threshold 90        # Warn if below 90% success rate
   ` + string(constants.CLIExtensionPrefix) + ` health --json                # Output in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster --days 90  # 90-day metrics for workflow`,
 		Args: cobra.MaximumNArgs(1),

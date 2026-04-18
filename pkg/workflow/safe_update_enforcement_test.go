@@ -15,6 +15,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 		manifest    *GHAWManifest
 		secretNames []string
 		actionRefs  []string
+		redirect    string
 		wantErr     bool
 		wantErrMsgs []string
 	}{
@@ -285,11 +286,60 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			actionRefs:  []string{"github/gh-aw-actions/setup@abc1234 # v0.68.1"},
 			wantErr:     false,
 		},
+		{
+			name:        "new redirect causes failure",
+			manifest:    &GHAWManifest{Version: 1},
+			secretNames: []string{},
+			actionRefs:  []string{},
+			redirect:    "owner/repo/workflows/new.md@main",
+			wantErr:     true,
+			wantErrMsgs: []string{"New redirect configured", "owner/repo/workflows/new.md@main"},
+		},
+		{
+			name: "removed redirect causes failure",
+			manifest: &GHAWManifest{
+				Version:  1,
+				Redirect: "owner/repo/workflows/old.md@main",
+			},
+			secretNames: []string{},
+			actionRefs:  []string{},
+			redirect:    "",
+			wantErr:     true,
+			wantErrMsgs: []string{"Previously-approved redirect removed", "owner/repo/workflows/old.md@main"},
+		},
+		{
+			name: "changed redirect reports add and remove",
+			manifest: &GHAWManifest{
+				Version:  1,
+				Redirect: "owner/repo/workflows/old.md@main",
+			},
+			secretNames: []string{},
+			actionRefs:  []string{},
+			redirect:    "owner/repo/workflows/new.md@main",
+			wantErr:     true,
+			wantErrMsgs: []string{
+				"New redirect configured",
+				"Previously-approved redirect removed",
+				"owner/repo/workflows/new.md@main",
+				"owner/repo/workflows/old.md@main",
+			},
+		},
+		{
+			name: "redirect whitespace differences are normalized",
+			manifest: &GHAWManifest{
+				Version:  1,
+				Redirect: "owner/repo/workflows/new.md@main",
+			},
+			secretNames: []string{},
+			actionRefs:  []string{},
+			redirect:    "  owner/repo/workflows/new.md@main  ",
+			wantErr:     false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs)
+			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs, tt.redirect)
 			if tt.wantErr {
 				require.Error(t, err, "expected safe update enforcement error")
 				for _, msg := range tt.wantErrMsgs {
@@ -305,7 +355,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 func TestBuildSafeUpdateError(t *testing.T) {
 	t.Run("secrets only", func(t *testing.T) {
 		violations := []string{"NEW_SECRET", "ANOTHER_SECRET"}
-		err := buildSafeUpdateError(violations, nil, nil)
+		err := buildSafeUpdateError(violations, nil, nil, "", "")
 		require.Error(t, err, "should return an error")
 
 		msg := err.Error()
@@ -316,7 +366,7 @@ func TestBuildSafeUpdateError(t *testing.T) {
 	})
 
 	t.Run("added actions only", func(t *testing.T) {
-		err := buildSafeUpdateError(nil, []string{"evil-org/bad-action"}, nil)
+		err := buildSafeUpdateError(nil, []string{"evil-org/bad-action"}, nil, "", "")
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "evil-org/bad-action", "action in message")
@@ -324,11 +374,27 @@ func TestBuildSafeUpdateError(t *testing.T) {
 	})
 
 	t.Run("removed actions only", func(t *testing.T) {
-		err := buildSafeUpdateError(nil, nil, []string{"actions/setup-node"})
+		err := buildSafeUpdateError(nil, nil, []string{"actions/setup-node"}, "", "")
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "actions/setup-node", "action in message")
 		assert.Contains(t, msg, "Previously-approved action", "section header in message")
+	})
+
+	t.Run("added redirect only", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, nil, nil, "owner/repo/workflows/new.md@main", "")
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "New redirect configured", "added redirect section header in message")
+		assert.Contains(t, msg, "owner/repo/workflows/new.md@main", "added redirect in message")
+	})
+
+	t.Run("removed redirect only", func(t *testing.T) {
+		err := buildSafeUpdateError(nil, nil, nil, "", "owner/repo/workflows/old.md@main")
+		require.Error(t, err, "should return an error")
+		msg := err.Error()
+		assert.Contains(t, msg, "Previously-approved redirect removed", "removed redirect section header in message")
+		assert.Contains(t, msg, "owner/repo/workflows/old.md@main", "removed redirect in message")
 	})
 
 	t.Run("mixed violations", func(t *testing.T) {
@@ -336,12 +402,16 @@ func TestBuildSafeUpdateError(t *testing.T) {
 			[]string{"MY_SECRET"},
 			[]string{"evil-org/bad-action"},
 			[]string{"actions/checkout"},
+			"owner/repo/workflows/new.md@main",
+			"owner/repo/workflows/old.md@main",
 		)
 		require.Error(t, err, "should return an error")
 		msg := err.Error()
 		assert.Contains(t, msg, "MY_SECRET", "secret in message")
 		assert.Contains(t, msg, "evil-org/bad-action", "added action in message")
 		assert.Contains(t, msg, "actions/checkout", "removed action in message")
+		assert.Contains(t, msg, "New redirect configured", "added redirect section in message")
+		assert.Contains(t, msg, "Previously-approved redirect removed", "removed redirect section in message")
 	})
 }
 

@@ -42,6 +42,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw project` | `NewProjectCommand` | Project management helpers |
 | `gh aw remove` | `NewRemoveCommand` | Remove workflow files from the repository |
 | `gh aw secrets` | `NewSecretsCommand` | Manage workflow secrets |
+| `gh aw secrets set` | (secret_set_command.go) | Create or update a repository secret |
+| `gh aw secrets bootstrap` | (secret_set_command.go) | Validate and configure all required secrets for workflows |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | `gh aw deps` | (deps_*.go) | Dependency inspection and security advisories |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |

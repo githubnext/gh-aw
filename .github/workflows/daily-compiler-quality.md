@@ -6,30 +6,28 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  discussions: read
   issues: read
   pull-requests: read
 tracker-id: daily-compiler-quality
 engine: copilot
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-compiler-quality] "
       expires: 1d
-  - shared/reporting.md
   - shared/go-source-analysis.md
-  - shared/observability-otlp.md
 tools:
+  mount-as-clis: true
   github:
     toolsets:
-      - default
+      - discussions
   cache-memory: true
-  edit:
   bash:
     - "find pkg/workflow -name 'compiler*.go' ! -name '*_test.go' -type f"
     - "wc -l pkg/workflow/compiler*.go"
     - "git log --since='7 days ago' --format='%h %s' -- pkg/workflow/compiler*.go"
-    - "git diff HEAD~7 -- pkg/workflow/compiler*.go"
-    - "git show HEAD:pkg/workflow/compiler*.go"
+    - "git log --since='7 days ago' --oneline --name-only -- pkg/workflow/compiler*.go"
 timeout-minutes: 30
 strict: true
 features:

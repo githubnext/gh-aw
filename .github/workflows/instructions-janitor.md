@@ -29,6 +29,7 @@ safe-outputs:
     protected-files: allowed
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default]

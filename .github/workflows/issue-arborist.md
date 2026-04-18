@@ -18,6 +18,7 @@ imports:
   - shared/jqschema.md
   - shared/reporting.md
 tools:
+  mount-as-clis: true
   github:
     min-integrity: approved
     toolsets:
@@ -69,6 +70,9 @@ safe-outputs:
     category: "audits"
     close-older-discussions: true
 timeout-minutes: 15
+
+features:
+  mcp-cli: true
 ---
 
 # Issue Arborist 🌳

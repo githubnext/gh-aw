@@ -63,7 +63,11 @@ steps:
 timeout-minutes: 20
 
 features:
+  mcp-cli: true
   copilot-requests: true
+
+tools:
+  mount-as-clis: true
 ---
 # Copilot PR Conversation NLP Analysis
 

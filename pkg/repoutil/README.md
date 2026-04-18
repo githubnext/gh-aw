@@ -40,3 +40,7 @@ repoutil.SplitRepoSlug("github/gh-aw/x") // error: invalid repo format: github/g
 
 - All debug output uses `logger.New("repoutil:repoutil")` and is only emitted when `DEBUG=repoutil:*`.
 - For paths that include sub-folders (e.g. GitHub Actions `uses:` fields such as `github/codeql-action/upload-sarif`), use `gitutil.ExtractBaseRepo` first to strip the sub-path before calling `SplitRepoSlug`.
+
+---
+
+*This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

@@ -237,6 +237,8 @@ on:
   roles: all                         # Allow any user (⚠️ use with caution)
 ```
 
+You can also use a single role string, for example `roles: write`.
+
 Available roles: `admin`, `maintainer`/`maintain`, `write`, `triage`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
 
 > [!TIP]
@@ -431,8 +433,24 @@ features:
 
 Without this flag, BYOK mode requires manual composition of all three behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
 
+> [!IMPORTANT]
+> `byok-copilot` is a gh-aw convenience extension point, not an enforcement boundary. gh-aw does not enforce Copilot BYOK usage.
+>
+> For Copilot BYOK setup and policy details, see [Using your LLM provider API keys with Copilot](https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-for-enterprise/use-your-own-api-keys).
+ 
 > [!NOTE]
 > `byok-copilot` applies only to `engine: copilot` workflows. The implicit `cli-proxy` enablement does not apply to other engines.
+
+#### AWF Failure Diagnostics (`features.awf-diagnostic-logs`)
+
+Enables AWF Docker operational diagnostics collection on failure by adding `--diagnostic-logs` to AWF runtime arguments.
+
+When enabled, AWF includes failure diagnostics under the `diagnostics/` subdirectory in the `firewall-audit-logs` artifact (for example, container logs, exit codes, mount metadata, and sanitized compose configuration).
+
+```yaml wrap
+features:
+  awf-diagnostic-logs: true
+```
 
 #### Reaction-based Trust Signals (`features.integrity-reactions`)
 
@@ -648,6 +666,20 @@ steps:
 Use custom steps to precompute data, filter triggers, or prepare context for AI agents. See [Deterministic & Agentic Patterns](/gh-aw/guides/deterministic-agentic-patterns/) for combining computation with AI reasoning.
 
 Custom steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
+
+## Pre-Agent Steps (`pre-agent-steps:`)
+
+Add custom steps immediately before the agent execution step, after all initialization/setup logic in the agent job.
+
+```yaml wrap
+pre-agent-steps:
+  - name: Finalize Context
+    run: ./scripts/prepare-agent-context.sh
+```
+
+Use pre-agent steps when work must happen right before the engine runs (for example, final context preparation or last-moment validations).
+
+Pre-agent steps run outside the firewall sandbox. These steps execute with standard GitHub Actions security.
 
 ## Post-Execution Steps (`post-steps:`)
 

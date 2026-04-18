@@ -213,10 +213,10 @@ func findCompatiblePin(pins []ActionPin, version string) (ActionPin, bool) {
 	return ActionPin{}, false
 }
 
-// GetActionPinWithData returns the pinned action reference for a given action@version.
+// ResolveActionPin returns the pinned action reference for a given action@version.
 // It consults ctx.Resolver first, then falls back to embedded pins.
 // If ctx is nil, only embedded pins are consulted.
-func GetActionPinWithData(actionRepo, version string, ctx *PinContext) (string, error) {
+func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, error) {
 	if ctx == nil {
 		ctx = &PinContext{}
 	}
@@ -329,7 +329,7 @@ func GetCachedActionPin(repo string, ctx *PinContext) string {
 	}
 
 	latestVersion := pins[0].Version
-	pinnedRef, err := GetActionPinWithData(repo, latestVersion, ctx)
+	pinnedRef, err := ResolveActionPin(repo, latestVersion, ctx)
 	if err != nil || pinnedRef == "" {
 		return getActionPin(repo)
 	}

@@ -258,8 +258,8 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 		t.Errorf("Codex engine should declare output files for log collection, got: %v", codexOutputFiles)
 	}
 
-	if len(codexOutputFiles) > 0 && codexOutputFiles[0] != "${{ runner.temp }}/gh-aw/mcp-config/logs/" {
-		t.Errorf("Codex engine should declare ${{ runner.temp }}/gh-aw/mcp-config/logs/, got: %v", codexOutputFiles[0])
+	if len(codexOutputFiles) > 0 && codexOutputFiles[0] != "/tmp/gh-aw/mcp-config/logs/" {
+		t.Errorf("Codex engine should declare /tmp/gh-aw/mcp-config/logs/, got: %v", codexOutputFiles[0])
 	}
 
 	// Test Gemini engine declares output files for error log collection

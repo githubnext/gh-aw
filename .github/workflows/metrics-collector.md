@@ -9,6 +9,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets: [default]

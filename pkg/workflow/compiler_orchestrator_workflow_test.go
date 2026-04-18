@@ -530,6 +530,65 @@ func TestProcessAndMergePreSteps_WithImportedPreSteps(t *testing.T) {
 	assert.Less(t, importedIdx, mainIdx, "Imported pre-steps should come before main pre-steps")
 }
 
+// TestProcessAndMergePreAgentSteps_NoPreAgentSteps tests processAndMergePreAgentSteps with no pre-agent-steps
+func TestProcessAndMergePreAgentSteps_NoPreAgentSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{}
+	importsResult := &parser.ImportsResult{}
+
+	compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+
+	assert.Empty(t, workflowData.PreAgentSteps)
+}
+
+// TestProcessAndMergePreAgentSteps_WithPreAgentSteps tests processAndMergePreAgentSteps with pre-agent-steps defined
+func TestProcessAndMergePreAgentSteps_WithPreAgentSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+
+	frontmatter := map[string]any{
+		"pre-agent-steps": []any{
+			map[string]any{"name": "Prepare final context", "run": "echo 'prepare'"},
+		},
+	}
+	importsResult := &parser.ImportsResult{}
+
+	compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+
+	assert.NotEmpty(t, workflowData.PreAgentSteps)
+	assert.Contains(t, workflowData.PreAgentSteps, "Prepare final context")
+}
+
+// TestProcessAndMergePreAgentSteps_WithImportedPreAgentSteps tests that imported pre-agent-steps are prepended
+func TestProcessAndMergePreAgentSteps_WithImportedPreAgentSteps(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+
+	frontmatter := map[string]any{
+		"pre-agent-steps": []any{
+			map[string]any{"name": "Main pre-agent step", "run": "echo 'main'"},
+		},
+	}
+
+	importedPreAgentStepsYAML, err := yaml.Marshal([]any{
+		map[string]any{"name": "Imported pre-agent step", "run": "echo 'imported'"},
+	})
+	require.NoError(t, err, "yaml.Marshal should not fail for well-formed pre-agent-steps")
+	importsResult := &parser.ImportsResult{
+		MergedPreAgentSteps: string(importedPreAgentStepsYAML),
+	}
+
+	compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
+
+	assert.Contains(t, workflowData.PreAgentSteps, "Main pre-agent step")
+	assert.Contains(t, workflowData.PreAgentSteps, "Imported pre-agent step")
+
+	importedIdx := strings.Index(workflowData.PreAgentSteps, "Imported pre-agent step")
+	mainIdx := strings.Index(workflowData.PreAgentSteps, "Main pre-agent step")
+	assert.Less(t, importedIdx, mainIdx, "Imported pre-agent-steps should come before main pre-agent-steps")
+}
+
 // TestProcessAndMergeServices_NoServices tests processAndMergeServices with no services
 func TestProcessAndMergeServices_NoServices(t *testing.T) {
 	compiler := NewCompiler()

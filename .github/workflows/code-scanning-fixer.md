@@ -13,6 +13,7 @@ imports:
   - shared/security-analysis-base.md
   - shared/activation-app.md
 tools:
+  mount-as-clis: true
   github:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests]
@@ -33,6 +34,9 @@ safe-outputs:
     labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
     reviewers: [copilot]
 timeout-minutes: 20
+
+features:
+  mcp-cli: true
 ---
 
 # Code Scanning Alert Fixer Agent

@@ -13,6 +13,7 @@ engine: copilot
 strict: true
 tracker-id: daily-performance-summary
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions]
 safe-outputs:
@@ -21,13 +22,14 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily performance] "
   - shared/github-queries-mcp-script.md
   - shared/trending-charts-simple.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -448,6 +448,7 @@ func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {
 				BaseBranch:           "dev",
 				Draft:                strPtr("true"),
 				Reviewers:            []string{"corb3nik"},
+				TeamReviewers:        []string{"platform-reviewers"},
 				TitlePrefix:          "[refactor] ",
 				FallbackAsIssue:      &falseVal,
 			},
@@ -478,6 +479,11 @@ func TestGenerateSafeOutputsConfigCreatePullRequestTargetRepo(t *testing.T) {
 	require.True(t, ok, "reviewers should be an array")
 	assert.Len(t, reviewers, 1, "Should have 1 reviewer")
 	assert.Equal(t, "corb3nik", reviewers[0], "reviewer should match")
+
+	teamReviewers, ok := prConfig["team_reviewers"].([]any)
+	require.True(t, ok, "team_reviewers should be an array")
+	assert.Len(t, teamReviewers, 1, "Should have 1 team reviewer")
+	assert.Equal(t, "platform-reviewers", teamReviewers[0], "team reviewer should match")
 
 	assert.Equal(t, "[refactor] ", prConfig["title_prefix"], "title_prefix should be set")
 	assert.Equal(t, false, prConfig["fallback_as_issue"], "fallback_as_issue should be false")

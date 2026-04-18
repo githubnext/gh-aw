@@ -607,3 +607,123 @@ func TestGetLatestActionRelease_PrereleaseTagsSkipped(t *testing.T) {
 		t.Errorf("version = %q, want %q (prerelease v1.1.0-beta.1 should be skipped)", version, "v1.0.0")
 	}
 }
+
+// TestUpdateActions_GhAwNativeActionCappedAtCLIVersion verifies that gh-aw native actions
+// (github/gh-aw-actions/* and github/gh-aw/actions/*) are never updated to a version newer
+// than the currently running CLI. This prevents users on an older CLI version from having
+// their gh-aw actions pinned to a newer (possibly incompatible or pre-release) version.
+func TestUpdateActions_GhAwNativeActionCappedAtCLIVersion(t *testing.T) {
+	// Set the running CLI version to v0.68.3
+	origVersion := GetVersion()
+	SetVersionInfo("v0.68.3")
+	defer SetVersionInfo(origVersion)
+
+	// Stub getLatestActionReleaseFn to return a newer version (v0.68.7) simulating
+	// the scenario where a newer release exists but the CLI is still at v0.68.3.
+	origReleaseFn := getLatestActionReleaseFn
+	defer func() { getLatestActionReleaseFn = origReleaseFn }()
+	getLatestActionReleaseFn = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		switch repo {
+		case "github/gh-aw-actions/setup":
+			return "v0.68.7", "newersha1234567890123456789012345678901234", nil
+		case "github/gh-aw/actions/setup":
+			return "v0.68.7", "newersha1234567890123456789012345678901234", nil
+		default:
+			return currentVersion, "defaultsha12345678901234567890123456789012", nil
+		}
+	}
+
+	// Stub getActionSHAForTagFn to return a SHA for the CLI version tag (v0.68.3).
+	origSHAfn := getActionSHAForTagFn
+	defer func() { getActionSHAForTagFn = origSHAfn }()
+	const cliVersionSHA = "cliversha12345678901234567890123456789012"
+	getActionSHAForTagFn = func(_ context.Context, repo, tag string) (string, error) {
+		if tag == "v0.68.3" {
+			return cliVersionSHA, nil
+		}
+		return "othersha12345678901234567890123456789012", nil
+	}
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := workflow.NewActionCache(tmpDir)
+	cache.Set("github/gh-aw-actions/setup", "v0.68.1", "oldsha1234567890123456789012345678901234a")
+	cache.Set("github/gh-aw/actions/setup", "v0.68.1", "oldsha1234567890123456789012345678901234b")
+	if err := cache.Save(); err != nil {
+		t.Fatalf("failed to save initial cache: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Errorf("failed to restore working directory: %v", err)
+		}
+	})
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	if err := UpdateActions(context.Background(), false, false, false); err != nil {
+		t.Fatalf("UpdateActions() error = %v", err)
+	}
+
+	saved := workflow.NewActionCache(tmpDir)
+	if err := saved.Load(); err != nil {
+		t.Fatalf("failed to reload cache: %v", err)
+	}
+
+	// Both gh-aw native actions must have been updated to the CLI version (v0.68.3),
+	// not the latest release (v0.68.7).
+	for _, repo := range []string{"github/gh-aw-actions/setup", "github/gh-aw/actions/setup"} {
+		expectedKey := repo + "@v0.68.3"
+		entry, ok := saved.Entries[expectedKey]
+		if !ok {
+			t.Errorf("expected entry %q in actions-lock.json (capped at CLI version), got entries: %v", expectedKey, savedEntryKeys(saved))
+			continue
+		}
+		if entry.SHA != cliVersionSHA {
+			t.Errorf("%s SHA = %q, want CLI-version SHA %q", repo, entry.SHA, cliVersionSHA)
+		}
+		// The newer version must NOT appear.
+		newerKey := repo + "@v0.68.7"
+		if _, found := saved.Entries[newerKey]; found {
+			t.Errorf("found unexpected entry %q (gh-aw native action must not exceed CLI version)", newerKey)
+		}
+	}
+}
+
+// TestIsGhAwNativeAction verifies that isGhAwNativeAction correctly identifies gh-aw
+// native action repos and excludes non-native repos.
+func TestIsGhAwNativeAction(t *testing.T) {
+	tests := []struct {
+		repo string
+		want bool
+	}{
+		{"github/gh-aw-actions/setup", true},
+		{"github/gh-aw/actions/setup", true},
+		{"github/gh-aw/actions/setup-cli", true},
+		{"actions/checkout", false},
+		{"actions/setup-node", false},
+		{"docker/login-action", false},
+		{"github/codeql-action/upload-sarif", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.repo, func(t *testing.T) {
+			got := isGhAwNativeAction(tt.repo)
+			if got != tt.want {
+				t.Errorf("isGhAwNativeAction(%q) = %v, want %v", tt.repo, got, tt.want)
+			}
+		})
+	}
+}
+
+// savedEntryKeys returns the map keys of a loaded ActionCache for error messages.
+func savedEntryKeys(cache *workflow.ActionCache) []string {
+	keys := make([]string, 0, len(cache.Entries))
+	for k := range cache.Entries {
+		keys = append(keys, k)
+	}
+	return keys
+}

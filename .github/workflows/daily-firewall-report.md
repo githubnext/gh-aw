@@ -22,6 +22,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 tools:
+  mount-as-clis: true
   agentic-workflows:
   github:
     toolsets:
@@ -30,12 +31,13 @@ tools:
     - "*"
   edit:
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-firewall-report] "
-  - shared/reporting.md
   - shared/trending-charts-simple.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

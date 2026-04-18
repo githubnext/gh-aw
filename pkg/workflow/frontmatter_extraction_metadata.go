@@ -68,6 +68,21 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	return ""
 }
 
+// extractRedirect extracts the redirect field from frontmatter
+func (c *Compiler) extractRedirect(frontmatter map[string]any) string {
+	value, exists := frontmatter["redirect"]
+	if !exists {
+		return ""
+	}
+
+	// Convert the value to string
+	if strValue, ok := value.(string); ok {
+		return strings.TrimSpace(strValue)
+	}
+
+	return ""
+}
+
 // extractTrackerID extracts and validates the tracker-id field from frontmatter
 func (c *Compiler) extractTrackerID(frontmatter map[string]any) (string, error) {
 	value, exists := frontmatter["tracker-id"]

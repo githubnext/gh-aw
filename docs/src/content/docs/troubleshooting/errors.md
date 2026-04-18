@@ -204,7 +204,7 @@ Use `gh aw init my-workflow --force` to overwrite.
 
 `failed to parse existing mcp.json: [details]`
 
-Fix the JSON syntax (validate with `cat .mcp.json | jq .`) or delete the file to regenerate.
+Fix the JSON syntax (validate with `cat .github/mcp.json | jq .`) or delete the file to regenerate.
 
 ### Failed to Marshal MCP Config
 

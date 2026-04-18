@@ -69,6 +69,22 @@ Workflow instructions here...
 
 Files without an `on` field are shared workflow components — validated but not compiled into GitHub Actions, only imported by other workflows. The compiler skips them with an informative message.
 
+### Common bundles
+
+Use bundled shared components when you regularly import the same pair together:
+
+```aw wrap
+---
+on:
+  schedule: daily
+engine: copilot
+imports:
+  - shared/reporting-otlp.md
+---
+```
+
+`shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/observability-otlp.md` for telemetry-enabled reporting workflows.
+
 ## Import Schema (`import-schema`)
 
 Use `import-schema` to declare a typed parameter contract. Callers pass values via `with`; the compiler validates them and substitutes them into the shared file's frontmatter and body before processing.

@@ -118,7 +118,7 @@ The `auth.type: github-oidc` field is only valid on HTTP servers. The MCP server
 
 ### Registry-based MCP Servers
 
-Reference MCP servers from the GitHub MCP registry (the `registry` field provides metadata for tooling):
+Reference MCP servers from the GitHub MCP registry (the `registry` field provides metadata for tooling and is not enforced by gh-aw):
 
 ```yaml wrap
 mcp-servers:

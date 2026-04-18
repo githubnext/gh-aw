@@ -467,7 +467,7 @@ async function sendJobSetupSpan(options = {}) {
   // that the child's setup span is nested under the parent's setup span in the trace.
   const rawContextParentSpanId = typeof awInfo.context?.otel_parent_span_id === "string" ? awInfo.context.otel_parent_span_id.trim().toLowerCase() : "";
   const contextParentSpanId = isValidSpanId(rawContextParentSpanId) ? rawContextParentSpanId : "";
-  const staged = awInfo.staged === true;
+  const staged = awInfo.staged === true || process.env.GH_AW_INFO_STAGED === "true";
 
   const traceId = optionsTraceId || inputTraceId || contextTraceId || generateTraceId();
 
@@ -508,6 +508,7 @@ async function sendJobSetupSpan(options = {}) {
   if (eventName) {
     attributes.push(buildAttr("gh-aw.event_name", eventName));
   }
+  attributes.push(buildAttr("gh-aw.staged", staged));
 
   const resourceAttributes = [buildAttr("github.repository", repository), buildAttr("github.run_id", runId)];
   if (repository && runId) {
@@ -832,12 +833,13 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   }
 
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
-  if (typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
+  const conclusionSpanId = generateSpanId();
+  if (jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0 && typeof agentEndMs === "number" && agentEndMs > agentStartMs) {
     const agentSpanEvents = buildSpanEvents(agentEndMs);
     const agentPayload = buildOTLPPayload({
       traceId,
       spanId: generateSpanId(),
-      ...(parentSpanId ? { parentSpanId } : {}),
+      parentSpanId: conclusionSpanId,
       spanName: jobName ? `gh-aw.${jobName}.agent` : "gh-aw.job.agent",
       startMs: agentStartMs,
       endMs: agentEndMs,
@@ -857,7 +859,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 
   const payload = buildOTLPPayload({
     traceId,
-    spanId: generateSpanId(),
+    spanId: conclusionSpanId,
     ...(parentSpanId ? { parentSpanId } : {}),
     spanName,
     startMs,

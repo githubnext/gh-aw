@@ -14,6 +14,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:
+  mount-as-clis: true
   edit:
   bash: true
   github:

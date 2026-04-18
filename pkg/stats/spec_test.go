@@ -20,11 +20,11 @@ func TestSpec_PublicAPI_EmptyBehavior(t *testing.T) {
 	var sv StatVar
 
 	assert.Equal(t, 0, sv.Count(), "Count should return 0 for an empty StatVar")
-	assert.Equal(t, 0.0, sv.Sum(), "Sum should return 0 for an empty StatVar")
-	assert.Equal(t, 0.0, sv.Min(), "Min should return 0 when no observations have been added")
-	assert.Equal(t, 0.0, sv.Max(), "Max should return 0 when no observations have been added")
-	assert.Equal(t, 0.0, sv.Mean(), "Mean should return 0 when no observations have been added")
-	assert.Equal(t, 0.0, sv.Median(), "Median should return 0 when no observations have been added")
+	assert.InDelta(t, 0.0, sv.Sum(), 1e-9, "Sum should return 0 for an empty StatVar")
+	assert.InDelta(t, 0.0, sv.Min(), 1e-9, "Min should return 0 when no observations have been added")
+	assert.InDelta(t, 0.0, sv.Max(), 1e-9, "Max should return 0 when no observations have been added")
+	assert.InDelta(t, 0.0, sv.Mean(), 1e-9, "Mean should return 0 when no observations have been added")
+	assert.InDelta(t, 0.0, sv.Median(), 1e-9, "Median should return 0 when no observations have been added")
 }
 
 // TestSpec_PublicAPI_Add validates that each Add call records exactly one
@@ -54,7 +54,7 @@ func TestSpec_PublicAPI_Sum(t *testing.T) {
 	sv.Add(2.0)
 	sv.Add(3.0)
 
-	assert.Equal(t, 6.0, sv.Sum(),
+	assert.InDelta(t, 6.0, sv.Sum(), 1e-9,
 		"Sum should equal the arithmetic sum of all added observations")
 }
 
@@ -71,9 +71,9 @@ func TestSpec_PublicAPI_MinMax(t *testing.T) {
 	sv.Add(9.0)
 	sv.Add(3.0)
 
-	assert.Equal(t, 1.0, sv.Min(),
+	assert.InDelta(t, 1.0, sv.Min(), 1e-9,
 		"Min should return the smallest value ever passed to Add")
-	assert.Equal(t, 9.0, sv.Max(),
+	assert.InDelta(t, 9.0, sv.Max(), 1e-9,
 		"Max should return the largest value ever passed to Add")
 }
 
@@ -152,7 +152,7 @@ func TestSpec_PublicAPI_Median_OddCount(t *testing.T) {
 	sv.Add(1.0)
 	sv.Add(2.0)
 
-	assert.Equal(t, 2.0, sv.Median(),
+	assert.InDelta(t, 2.0, sv.Median(), 1e-9,
 		"Median with odd count should return the middle value in sorted order")
 }
 
@@ -167,6 +167,6 @@ func TestSpec_PublicAPI_Median_EvenCount(t *testing.T) {
 	sv.Add(3.0)
 	sv.Add(2.0)
 
-	assert.Equal(t, 2.5, sv.Median(),
+	assert.InDelta(t, 2.5, sv.Median(), 1e-9,
 		"Median with even count should return the average of the two middle sorted values")
 }

@@ -12,6 +12,7 @@ permissions:
 strict: true
 tracker-id: daily-regulatory
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions]
   bash:
@@ -19,12 +20,13 @@ tools:
   edit:
 timeout-minutes: 30
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily regulatory] "
   - shared/github-queries-mcp-script.md
-  - shared/reporting.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -46,6 +46,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` update --force            # Force update even if no changes
   ` + string(constants.CLIExtensionPrefix) + ` update --disable-release-bump  # Update without force-bumping all action versions
   ` + string(constants.CLIExtensionPrefix) + ` update --no-compile           # Update without regenerating lock files
+  ` + string(constants.CLIExtensionPrefix) + ` update --no-redirect          # Refuse workflows that use redirect frontmatter
   ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,6 +60,7 @@ Examples:
 			noMergeFlag, _ := cmd.Flags().GetBool("no-merge")
 			disableReleaseBump, _ := cmd.Flags().GetBool("disable-release-bump")
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
+			noRedirect, _ := cmd.Flags().GetBool("no-redirect")
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
@@ -73,7 +75,7 @@ Examples:
 				}
 			}
 
-			if err := RunUpdateWorkflows(cmd.Context(), args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile); err != nil {
+			if err := RunUpdateWorkflows(cmd.Context(), args, majorFlag, forceFlag, verbose, engineOverride, workflowDir, noStopAfter, stopAfter, noMergeFlag, disableReleaseBump, noCompile, noRedirect); err != nil {
 				return err
 			}
 
@@ -96,6 +98,7 @@ Examples:
 	cmd.Flags().Bool("no-merge", false, "Override local changes with upstream version instead of merging")
 	cmd.Flags().Bool("disable-release-bump", false, "Disable automatic major version bumps for all actions (only core actions/* are force-updated)")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files)")
+	cmd.Flags().Bool("no-redirect", false, "Refuse updates when redirect frontmatter is present")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
@@ -110,12 +113,12 @@ Examples:
 
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
-func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool) error {
-	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump, noCompile)
+func RunUpdateWorkflows(ctx context.Context, workflowNames []string, allowMajor, force, verbose bool, engineOverride string, workflowsDir string, noStopAfter bool, stopAfter string, noMerge bool, disableReleaseBump bool, noCompile bool, noRedirect bool) error {
+	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v", workflowNames, allowMajor, force, noMerge, disableReleaseBump, noCompile, noRedirect)
 
 	var firstErr error
 
-	if err := UpdateWorkflows(ctx, workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile); err != nil {
+	if err := UpdateWorkflows(ctx, workflowNames, allowMajor, force, verbose, engineOverride, workflowsDir, noStopAfter, stopAfter, noMerge, noCompile, noRedirect); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)
 	}
 

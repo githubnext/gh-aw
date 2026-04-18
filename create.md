@@ -132,7 +132,7 @@ You do not need to run `gh aw init` as part of your workflow creation. However i
 
 - `.github/agents/agentic-workflows.agent.md`
 - `.vscode/settings.json`
-- `.mcp.json`
+- `.github/mcp.json`
 - And several other configuration files
 
 Don't remove these but don't add them if not already present in the repo. Unless instructed otherwise do NOT commit the changes to ANY files except the gitattributes file and workflow files.

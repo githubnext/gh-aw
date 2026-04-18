@@ -11,17 +11,19 @@ engine: codex
 strict: true
 tracker-id: daily-observability-report
 tools:
+  mount-as-clis: true
   github:
     toolsets: [default, discussions, actions]
   agentic-workflows: true
 timeout-minutes: 45
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[observability] "
       expires: 1d
-  - shared/reporting.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

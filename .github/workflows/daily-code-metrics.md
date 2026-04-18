@@ -10,6 +10,7 @@ permissions:
 tracker-id: daily-code-metrics
 engine: claude
 tools:
+  mount-as-clis: true
   repo-memory:
     branch-prefix: daily
     description: "Historical code quality and health metrics"
@@ -20,13 +21,14 @@ tools:
 timeout-minutes: 30
 strict: true
 imports:
-  - uses: shared/daily-audit-discussion.md
+  - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-code-metrics] "
-  - shared/reporting.md
   - shared/python-dataviz.md
   - shared/trends.md
-  - shared/observability-otlp.md
+
+features:
+  mcp-cli: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -12,7 +12,12 @@ permissions:
 env:
   TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY || github.repository }}
 
+engine:
+  id: copilot
+  agent: contribution-checker
+
 tools:
+  mount-as-clis: true
   github:
     toolsets: [pull_requests, repos, issues]
     allowed-repos: all
@@ -88,6 +93,9 @@ steps:
         echo "# No CONTRIBUTING.md found" > "$GITHUB_WORKSPACE/contributing-guidelines.md"
         echo "ℹ No CONTRIBUTING.md found in $TARGET_REPOSITORY (checked root, .github/, docs/)"
       fi
+
+features:
+  mcp-cli: true
 ---
 
 ## Target Repository

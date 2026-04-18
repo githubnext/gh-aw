@@ -5,12 +5,16 @@ permissions:
   issues: read
   pull-requests: read
 tools:
+  mount-as-clis: true
   github:
 safe-outputs:
   create-issue:
     title-prefix: '[dependabot-burner] '
 imports:
   - shared/reporting.md
+
+features:
+  mcp-cli: true
 ---
 # Dependabot Burner
 

@@ -29,6 +29,7 @@ safe-outputs:
     draft: false
 
 tools:
+  mount-as-clis: true
   cache-memory:
     key: developer-docs-cache
   repo-memory:

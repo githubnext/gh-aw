@@ -1051,6 +1051,9 @@ The MCP Gateway uses a simple API key authentication scheme. When `gateway.apiKe
 - Implementations MAY use different formats (e.g., direct value or Bearer scheme)
 - The specific format is implementation-dependent
 
+> [!WARNING]
+> The gateway API key should not be treated as a secure lock against code already running inside the agent container. A sufficiently capable agent may extract it from in-memory process state or other runtime channels. Treat this key as leaked by design and rely on container isolation, network controls, and staged permission boundaries for defense in depth.
+
 **Example formats**:
 
 ```http

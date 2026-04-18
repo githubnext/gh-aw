@@ -23,6 +23,14 @@ func isCoreAction(repo string) bool {
 	return strings.HasPrefix(repo, "actions/")
 }
 
+// isGhAwNativeAction returns true if the action repo is part of the gh-aw native ecosystem
+// (i.e., maintained in the github/gh-aw or github/gh-aw-actions repository). These actions
+// are versioned in lock-step with the CLI and must never be updated beyond the running CLI version.
+func isGhAwNativeAction(repo string) bool {
+	base := gitutil.ExtractBaseRepo(repo)
+	return base == "github/gh-aw" || base == "github/gh-aw-actions"
+}
+
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
 // It checks each action for newer releases and updates the SHA if a newer version is found.
 // By default all actions are updated to the latest major version; pass disableReleaseBump=true
@@ -89,6 +97,35 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 			}
 			failedActions = append(failedActions, actionUpdateFailure{name: entry.Repo, err: err.Error()})
 			continue
+		}
+
+		// For gh-aw native actions (github/gh-aw/* and github/gh-aw-actions/*), the action
+		// versions are published in lock-step with the CLI. Never update these actions beyond
+		// the version of the currently running CLI — doing so would pin a newer (possibly
+		// pre-release) action that may be incompatible with the user's installed CLI.
+		if isGhAwNativeAction(entry.Repo) {
+			cliVersion := GetVersion()
+			cliVer := parseVersion(cliVersion)
+			latestVer := parseVersion(latestVersion)
+			if cliVer != nil && latestVer != nil && latestVer.IsNewer(cliVer) {
+				cappedVersion := semverutil.EnsureVPrefix(cliVersion)
+				updateLog.Printf("Capping %s update to CLI version %s (latest available %s exceeds running CLI)", entry.Repo, cappedVersion, latestVersion)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s: capping update target to CLI version %s (latest %s is newer than running CLI)", entry.Repo, cappedVersion, latestVersion)))
+				}
+				cappedSHA, shaErr := getActionSHAForTagFn(ctx, gitutil.ExtractBaseRepo(entry.Repo), cappedVersion)
+				if shaErr != nil {
+					updateLog.Printf("Cannot resolve SHA for %s@%s (CLI version cap): %v; skipping update", entry.Repo, cappedVersion, shaErr)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: cannot resolve SHA for CLI version %s: %v", entry.Repo, cappedVersion, shaErr)))
+					failedActions = append(failedActions, actionUpdateFailure{
+						name: entry.Repo,
+						err:  fmt.Sprintf("cannot resolve SHA for CLI version %s: %v", cappedVersion, shaErr),
+					})
+					continue
+				}
+				latestVersion = cappedVersion
+				latestSHA = cappedSHA
+			}
 		}
 
 		// Check if update is available

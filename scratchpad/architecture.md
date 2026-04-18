@@ -1,76 +1,88 @@
 # Architecture Diagram
 
-> Last updated: 2026-04-16 · Source: [Issue #25999](https://github.com/github/gh-aw/issues/25999)
+> Last updated: 2026-04-17 · Source: [Issue #26033](https://github.com/github/gh-aw/issues/26033)
 
 ## Overview
 
 This diagram shows the package structure and dependencies of the `gh-aw` codebase.
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                         ENTRY POINTS                                               │
-│  ┌────────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────────────┐ │
-│  │        cmd/gh-aw           │   │    cmd/gh-aw-wasm      │   │     internal/tools/ (×2)       │ │
-│  │  GitHub CLI extension bin  │   │   WebAssembly target   │   │  actions-build, gen-metadata   │ │
-│  └────────────┬───────────────┘   └────────────┬───────────┘   └──────────────┬─────────────────┘ │
-│               │                                 │                              │                   │
-├───────────────┼─────────────────────────────────┼──────────────────────────────┼───────────────────┤
-│               ▼          CORE PACKAGES           ▼                              ▼                  │
-│  ┌──────────────────┐   ┌──────────────────────┐   ┌────────────────────┐   ┌───────────────────┐ │
-│  │    pkg/cli       │──▶│    pkg/workflow       │──▶│    pkg/parser      │   │   pkg/console     │ │
-│  │  Command impls   │   │  Workflow compilation │   │  MD/YAML parsing   │◀──│  Terminal UI      │ │
-│  └──────┬───────────┘   └─────────┬────────────┘   └────────────────────┘   └───────────────────┘ │
-│         │                         │                                                                 │
-│         ▼                         ▼                                                                 │
-│  ┌──────────────────────┐   ┌────────────────────────┐                                            │
-│  │    pkg/agentdrain    │   │    pkg/actionpins       │                                            │
-│  │  Log template mining │   │  Action pin resolution  │                                            │
-│  └──────────────────────┘   └────────────────────────┘                                            │
-│                                                                                                     │
-│                 ┌──────────────────────────────────────────────────────────────────────────────┐   │
-│                 │           pkg/constants · pkg/types   (shared primitives, no deps)           │   │
-│                 └──────────────────────────────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                           UTILITIES                                                 │
-│  ┌──────────┐ ┌──────────────┐ ┌────────────┐ ┌───────────┐ ┌──────────┐ ┌──────────┐            │
-│  │pkg/logger│ │pkg/stringutil│ │pkg/fileutil│ │pkg/gitutil│ │pkg/styles│ │  pkg/tty │            │
-│  └──────────┘ └──────────────┘ └────────────┘ └───────────┘ └──────────┘ └──────────┘            │
-│  ┌───────────┐ ┌─────────────┐ ┌─────────────┐ ┌──────────────┐ ┌────────────┐ ┌─────────────┐   │
-│  │pkg/envutil│ │pkg/repoutil │ │pkg/sliceutil│ │pkg/semverutil│ │pkg/timeutil│ │pkg/typeutil │   │
-│  └───────────┘ └─────────────┘ └─────────────┘ └──────────────┘ └────────────┘ └─────────────┘   │
-│  ┌──────────┐ ┌──────────────┐                                                                    │
-│  │pkg/stats │ │ pkg/testutil │  (test support only)                                              │
-│  └──────────┘ └──────────────┘                                                                    │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│  ENTRY POINTS                                                                                 │
+│  ┌───────────────────────────────────────────┐    ┌──────────────────────────────────────┐   │
+│  │              cmd/gh-aw                    │    │          cmd/gh-aw-wasm              │   │
+│  │          Main CLI binary                  │    │          WebAssembly target          │   │
+│  └──────────────────────┬────────────────────┘    └──────────────┬───────┬──────────────┘   │
+│                          │                                        │       │                   │
+│  ┌───────────────────────┘  internal/tools ──▶ pkg/cli           │       │                   │
+│  │  (actions-build, generate-action-metadata)                     │       │                   │
+├──┼────────────────────────────────────────────────────────────────┼───────┼───────────────────┤
+│  CORE                    ▼                                        │       │                   │
+│  ┌────────────────────────────────────────────────────────────┐   │       │                   │
+│  │                       pkg/cli                               │   │       │                   │
+│  │   Commands: compile, run, audit, mcp, logs, fix, add...     │   │       │                   │
+│  └────────────────────────────────────────┬────────────────────┘   │       │                   │
+│                                            │                        │       │                   │
+│                                            ▼                        ▼       │                   │
+│  ┌──────────────────────┐  ┌──────────────────────────────────────────┐     │                   │
+│  │    pkg/agentdrain    │  │               pkg/workflow               │     │                   │
+│  │  Log drain, cluster  │  │  Workflow compilation engine &           │     │                   │
+│  │  & anomaly detection │  │  GitHub Actions YAML generation          │     │                   │
+│  └──────────────────────┘  └────────────────────┬──────────┬─────────┘     │                   │
+│                                                  │          │               │                   │
+│                                                  ▼          │               ▼                   │
+│  ┌───────────────────────────────────────────┐   │  ┌───────────────────────────────────────┐  │
+│  │               pkg/parser                  │◀──┘  │         pkg/actionpins               │  │
+│  │  Markdown frontmatter parsing &            │      │  GitHub Actions pin resolution        │  │
+│  │  YAML schema validation                    │      │  (SHA pinning from version refs)      │  │
+│  └───────────────────────────────────────────┘      └───────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                            pkg/console                                                   │  │
+│  │   Terminal UI: rendering, progress bars, spinner, prompts & output formatting            │  │
+│  │   ← consumed by: cli · workflow · parser · actionpins                                    │  │
+│  └───────────────────────────────────────────────────────────────────────────┬────────────┘  │
+│                                                                                │               │
+├────────────────────────────────────────────────────────────────────────────────┼───────────────┤
+│  UTILITIES                                                                     ▼               │
+│  ┌────────┐  ┌──────┐  ┌─────┐  ┌──────────┐  ┌──────────┐  ┌────────────┐  ┌──────────┐   │
+│  │ logger │  │styles│  │ tty │  │  types   │  │constants │  │ stringutil │  │ sliceutil│   │
+│  └────────┘  └──────┘  └─────┘  └──────────┘  └──────────┘  └────────────┘  └──────────┘   │
+│  ┌─────────┐  ┌──────────┐  ┌────────┐  ┌─────────┐  ┌──────────┐  ┌──────┐  ┌────────┐   │
+│  │typeutil │  │ fileutil │  │gitutil │  │repoutil │  │semverutil│  │stats │  │envutil │   │
+│  └─────────┘  └──────────┘  └────────┘  └─────────┘  └──────────┘  └──────┘  └────────┘   │
+│  ┌──────────┐  ┌─────────┐                                                                   │
+│  │ timeutil │  │testutil │                                                                   │
+│  └──────────┘  └─────────┘                                                                   │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Package Reference
 
 | Package | Layer | Description |
 |---------|-------|-------------|
-| cmd/gh-aw | Entry | GitHub CLI extension binary entry point |
-| cmd/gh-aw-wasm | Entry | WebAssembly target entry point |
-| internal/tools/actions-build | Internal | Build/validate custom GitHub Actions |
+| cmd/gh-aw | Entry | Main CLI binary (GitHub CLI extension entry point) |
+| cmd/gh-aw-wasm | Entry | WebAssembly compilation target |
+| internal/tools/actions-build | Internal | Build and validate custom GitHub Actions |
 | internal/tools/generate-action-metadata | Internal | Generate action.yml and README.md for JS modules |
-| pkg/cli | Core | Command implementations (cobra commands) |
-| pkg/workflow | Core | Workflow compilation engine (MD → GitHub Actions YAML) |
-| pkg/parser | Core | Markdown frontmatter and YAML parsing |
-| pkg/console | Core | Terminal UI rendering and formatting |
-| pkg/agentdrain | Core | Drain3 log template mining and anomaly detection |
-| pkg/actionpins | Core | Action pin resolution — maps repo refs to pinned commit SHAs |
-| pkg/constants | Shared | Shared constants and semantic type aliases |
-| pkg/types | Shared | Shared type definitions across packages |
+| pkg/cli | Core | Command implementations: compile, run, audit, mcp, logs, fix, add, update |
+| pkg/workflow | Core | Workflow compilation engine (Markdown → GitHub Actions YAML) |
+| pkg/parser | Core | Markdown frontmatter parsing & YAML schema validation |
+| pkg/console | Core | Terminal UI: rendering, progress bars, spinner, prompts & output formatting |
+| pkg/agentdrain | Core | Log drain, clustering & anomaly detection (DRAIN3 algorithm) |
+| pkg/actionpins | Core | GitHub Actions pin resolution — maps version refs to pinned SHAs |
 | pkg/logger | Utility | Namespace-based debug logging with zero overhead when disabled |
-| pkg/stringutil | Utility | String manipulation utilities |
-| pkg/fileutil | Utility | File path and file operation utilities |
-| pkg/gitutil | Utility | Git repository utilities |
 | pkg/styles | Utility | Centralized terminal color and style definitions |
 | pkg/tty | Utility | TTY (terminal) detection utilities |
-| pkg/envutil | Utility | Environment variable reading and validation |
-| pkg/repoutil | Utility | GitHub repository slug and URL utilities |
+| pkg/types | Utility | Shared type definitions across packages |
+| pkg/constants | Utility | Shared constants: engine names, job names, feature flags, URLs |
+| pkg/stringutil | Utility | String manipulation utilities |
 | pkg/sliceutil | Utility | Generic slice utility functions |
-| pkg/semverutil | Utility | Semantic versioning primitives |
-| pkg/timeutil | Utility | Time formatting utilities |
 | pkg/typeutil | Utility | Safe type conversion utilities for any/JSON/YAML values |
+| pkg/fileutil | Utility | File path and file operation utilities |
+| pkg/gitutil | Utility | Git repository utilities |
+| pkg/repoutil | Utility | GitHub repository slug and URL utilities |
+| pkg/semverutil | Utility | Semantic versioning primitives |
 | pkg/stats | Utility | Numerical statistics utilities for metric collection |
+| pkg/envutil | Utility | Environment variable reading and validation |
+| pkg/timeutil | Utility | Time formatting utilities |
 | pkg/testutil | Utility | Test support utilities (test-only) |

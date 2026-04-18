@@ -8,6 +8,7 @@ permissions:
   issues: read
   pull-requests: read
 tools:
+  mount-as-clis: true
   github:
     toolsets: [repos, issues, pull_requests]
 strict: false

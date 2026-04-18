@@ -15,12 +15,11 @@ tracker-id: mcp-concurrency-analysis
 engine: copilot
 
 imports:
-  - shared/reporting.md
+  - shared/reporting-otlp.md
   - shared/safe-output-app.md
   - uses: shared/mcp/serena.md
     with:
       languages: ["go", "typescript"]
-  - shared/observability-otlp.md
 
 safe-outputs:
   create-issue:
@@ -32,6 +31,7 @@ safe-outputs:
     max: 3
 
 tools:
+  mount-as-clis: true
   cache-memory: true
   github:
     toolsets: [default]
@@ -50,6 +50,7 @@ tools:
 timeout-minutes: 45
 strict: true
 features:
+  mcp-cli: true
   copilot-requests: true
 ---
 
