@@ -326,15 +326,24 @@ Returns formatted text output showing:
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		stdout, err := cmd.Output()
 
 		if err != nil {
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to inspect MCP servers", map[string]any{"error": err.Error(), "output": string(output)})
+			var stderr string
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				stderr = string(exitErr.Stderr)
+			}
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to inspect MCP servers", map[string]any{
+				"error":  err.Error(),
+				"stdout": string(stdout),
+				"stderr": stderr,
+			})
 		}
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
+				&mcp.TextContent{Text: string(stdout)},
 			},
 		}, nil, nil
 	})
