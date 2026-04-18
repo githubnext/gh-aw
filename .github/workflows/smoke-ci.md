@@ -15,10 +15,9 @@ permissions:
 engine:
   id: copilot
   command: >-
-    bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-    safeoutputs add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run
-    (${GITHUB_RUN_ID})"; else echo "smoke-ci: push event - no PR context, skipping
-    add_comment"; fi'
+    bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs
+    add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})";
+    else echo "smoke-ci: push event - no PR context, skipping add_comment"; fi'
 tools:
   mount-as-clis: true
 safe-outputs:
