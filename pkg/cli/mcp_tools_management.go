@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
-	"os/exec"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -61,24 +59,15 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			var stderr string
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderr = string(exitErr.Stderr)
-			}
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to add workflows", map[string]any{
-				"error":  err.Error(),
-				"stdout": string(stdout),
-				"stderr": stderr,
-			})
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to add workflows", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(stdout)},
+				&mcp.TextContent{Text: string(output)},
 			},
 		}, nil, nil
 	})
@@ -142,24 +131,15 @@ Returns formatted text output showing:
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			var stderr string
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderr = string(exitErr.Stderr)
-			}
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to update workflows", map[string]any{
-				"error":  err.Error(),
-				"stdout": string(stdout),
-				"stderr": stderr,
-			})
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to update workflows", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(stdout)},
+				&mcp.TextContent{Text: string(output)},
 			},
 		}, nil, nil
 	})
@@ -232,24 +212,15 @@ Returns formatted text output showing:
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
-		stdout, err := cmd.Output()
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			var stderr string
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
-				stderr = string(exitErr.Stderr)
-			}
-			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fix workflows", map[string]any{
-				"error":  err.Error(),
-				"stdout": string(stdout),
-				"stderr": stderr,
-			})
+			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fix workflows", map[string]any{"error": err.Error(), "output": string(output)})
 		}
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(stdout)},
+				&mcp.TextContent{Text: string(output)},
 			},
 		}, nil, nil
 	})

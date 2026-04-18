@@ -52,7 +52,7 @@ func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 	assert.NotContains(t, output, stderrNoise, "compile tool output should not contain stderr noise")
 }
 
-func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
+func TestMCPInspectTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 	tests := []struct {
 		name         string
 		toolName     string
@@ -61,40 +61,6 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 		stderrNoise  string
 		registerTool func(server *mcp.Server)
 	}{
-		{
-			name:     "add",
-			toolName: "add",
-			args: map[string]any{
-				"workflows": []string{"owner/repo/workflow"},
-			},
-			expectedOut: "add-stdout",
-			stderrNoise: "add-stderr",
-			registerTool: func(server *mcp.Server) {
-				registerAddTool(server, mockCommandWithOutput("add-stdout", "add-stderr"))
-			},
-		},
-		{
-			name:        "update",
-			toolName:    "update",
-			args:        map[string]any{},
-			expectedOut: "update-stdout",
-			stderrNoise: "update-stderr",
-			registerTool: func(server *mcp.Server) {
-				registerUpdateTool(server, mockCommandWithOutput("update-stdout", "update-stderr"))
-			},
-		},
-		{
-			name:     "fix",
-			toolName: "fix",
-			args: map[string]any{
-				"list_codemods": true,
-			},
-			expectedOut: "fix-stdout",
-			stderrNoise: "fix-stderr",
-			registerTool: func(server *mcp.Server) {
-				registerFixTool(server, mockCommandWithOutput("fix-stdout", "fix-stderr"))
-			},
-		},
 		{
 			name:        "mcp-inspect",
 			toolName:    "mcp-inspect",
