@@ -53,11 +53,11 @@ Find open pull requests that are in a mergeable state, then for each one call Gi
 \n\n---
 🔧 Maintenance update executed by `${{ github.workflow }}`
 - Run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
-- Timestamp (UTC): `${{ github.run_id }}`
+- Run ID: `${{ github.run_id }}`
 ```
 
 5. Process all mergeable PRs found in this run.
-6. If no mergeable PRs are found, call `noop` with a short reason.
+6. Only if zero mergeable PRs are found, call `noop` with a short reason.
 
 ## Requirements
 
