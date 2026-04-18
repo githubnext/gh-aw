@@ -2492,7 +2492,7 @@ jobs:
         run: |
           echo "Cloning github/gh-aw-marketplace repository..."
           cd /tmp
-          git clone --depth 1 https://github.com/github/gh-aw-marketplace.git
+          git -c http.extraHeader="Authorization: Bearer ${{ github.token }}" clone --depth 1 https://github.com/github/gh-aw-marketplace.git
           echo "✅ Repository cloned successfully"
 
       - name: Compile gh-aw-marketplace workflows
