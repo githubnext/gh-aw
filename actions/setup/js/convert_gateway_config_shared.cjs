@@ -67,11 +67,7 @@ function loadGatewayContext(options = {}) {
   /** @type {Record<string, Record<string, unknown>>} */
   let servers = {};
   if (rawServers && typeof rawServers === "object" && !Array.isArray(rawServers)) {
-    for (const [name, value] of Object.entries(rawServers)) {
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        servers[name] = value;
-      }
-    }
+    servers = Object.fromEntries(Object.entries(rawServers));
   }
 
   return {

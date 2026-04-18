@@ -68,8 +68,13 @@ function extractRepoFromPayload(payload) {
   /** @type {{ owner?: unknown, name?: unknown, repo?: unknown }} */
   const repository = repositoryValue;
 
+  let owner;
   const ownerValue = repository.owner;
-  const owner = typeof ownerValue === "string" ? ownerValue : ownerValue && typeof ownerValue === "object" && "login" in ownerValue && typeof ownerValue.login === "string" ? ownerValue.login : undefined;
+  if (typeof ownerValue === "string") {
+    owner = ownerValue;
+  } else if (ownerValue && typeof ownerValue === "object" && "login" in ownerValue && typeof ownerValue.login === "string") {
+    owner = ownerValue.login;
+  }
   const repo = typeof repository.name === "string" ? repository.name : typeof repository.repo === "string" ? repository.repo : undefined;
 
   if (owner && repo) {
