@@ -510,6 +510,7 @@ tools:
 
 	userSnippet := `--user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"'`
 	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
+	hostMappingSnippet := `--add-host host.docker.internal:host-gateway`
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
 	runnerGIDComputeSnippet := `MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')`
@@ -518,6 +519,8 @@ tools:
 		"Shell should compute MCP_GATEWAY_UID before docker command")
 	require.Contains(t, yamlStr, runnerGIDComputeSnippet,
 		"Shell should compute MCP_GATEWAY_GID before docker command")
+	require.Contains(t, yamlStr, hostMappingSnippet,
+		"Docker command should include host.docker.internal mapping for non-root containers")
 	require.Contains(t, yamlStr, userSnippet,
 		"Docker command should include runner UID/GID user mapping")
 	require.Contains(t, yamlStr, socketGIDComputeSnippet,
@@ -530,6 +533,8 @@ tools:
 		"MCP_GATEWAY_UID should be computed before it is used in the docker command")
 	require.Less(t, strings.Index(yamlStr, runnerGIDComputeSnippet), strings.Index(yamlStr, userSnippet),
 		"MCP_GATEWAY_GID should be computed before it is used in the docker command")
+	require.Less(t, strings.Index(yamlStr, hostMappingSnippet), strings.Index(yamlStr, userSnippet),
+		"Docker command should include host mapping before user mapping")
 	require.Less(t, strings.Index(yamlStr, userSnippet), strings.Index(yamlStr, groupAddSnippet),
 		"Docker command should include user mapping before supplementary group mapping")
 	require.Less(t, strings.Index(yamlStr, socketGIDComputeSnippet), strings.Index(yamlStr, groupAddSnippet),

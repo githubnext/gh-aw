@@ -696,6 +696,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")
+	// Ensure host.docker.internal resolves even when the container runs as a non-root user
+	// and cannot write /etc/hosts at runtime.
+	containerCmd.WriteString(" --add-host host.docker.internal:host-gateway")
 	// Use runner UID/GID so gateway-created /tmp logs remain readable by downstream
 	// redaction/upload steps; keep a supplementary docker.sock group for daemon access.
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")
