@@ -1568,6 +1568,24 @@ func TestCopilotEngineSkipInstallationWithCommand(t *testing.T) {
 	if len(steps) != 0 {
 		t.Errorf("Expected 0 installation steps when command is specified, got %d", len(steps))
 	}
+
+	// Test with custom command + firewall - should still install AWF runtime
+	workflowData = &WorkflowData{
+		EngineConfig: &EngineConfig{Command: "/usr/local/bin/custom-copilot"},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+	steps = engine.GetInstallationSteps(workflowData)
+
+	if len(steps) == 0 {
+		t.Fatal("Expected installation steps when firewall is enabled with custom command")
+	}
+
+	installContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(installContent, "Install AWF binary") {
+		t.Errorf("Expected AWF installation step when firewall is enabled with custom command, got:\n%s", installContent)
+	}
 }
 
 // TestGenerateCopilotSessionFileCopyStep verifies the generated step copies session state files.
@@ -1710,6 +1728,34 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 
 	t.Run("CopilotEngine implements DriverProvider interface", func(t *testing.T) {
 		var _ DriverProvider = engine
+	})
+
+	t.Run("Execution serializes engine.command into shell script", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:      "copilot",
+				Command: `bash -lc 'echo custom command'`,
+			},
+			Tools: make(map[string]any),
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if !strings.Contains(stepContent, "copilot_driver.cjs /tmp/gh-aw/engine-command.sh") {
+			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "cat <<'GH_AW_ENGINE_COMMAND_EOF' > /tmp/gh-aw/engine-command.sh") {
+			t.Errorf("Expected step to serialize engine.command into script, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "bash -lc 'echo custom command'") {
+			t.Errorf("Expected serialized script to contain original engine.command, got:\n%s", stepContent)
+		}
 	})
 }
 

@@ -54,6 +54,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// Skip installation if custom command is specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		copilotInstallLog.Printf("Skipping installation steps: custom command specified (%s)", workflowData.EngineConfig.Command)
+		// Keep firewall runtime installation when firewall is enabled, since the
+		// custom engine command still runs inside the AWF harness.
+		if isFirewallEnabled(workflowData) {
+			return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{}, workflowData)
+		}
 		return []GitHubActionStep{}
 	}
 
