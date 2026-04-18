@@ -30,6 +30,8 @@
 #     - shared/jqschema.md
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

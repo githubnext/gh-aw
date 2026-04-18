@@ -30,6 +30,8 @@
 #     - shared/observability-otlp.md
 #     - shared/reporting.md
 #     - shared/daily-audit-base.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

@@ -27,6 +27,8 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/go-make.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - ANTHROPIC_API_KEY

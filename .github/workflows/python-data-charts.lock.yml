@@ -29,6 +29,8 @@
 #     - shared/python-dataviz.md
 #     - shared/trends.md
 #     - shared/charts-with-trending.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

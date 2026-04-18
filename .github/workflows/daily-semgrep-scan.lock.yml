@@ -29,6 +29,8 @@
 #     - shared/mcp/semgrep.md
 #     - shared/observability-otlp.md
 #     - shared/security-analysis-base.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

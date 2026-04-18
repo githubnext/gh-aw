@@ -28,6 +28,8 @@
 #   Imports:
 #     - shared/github-guard-policy.md
 #     - shared/pr-code-review-config.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - CODEX_API_KEY

@@ -30,6 +30,8 @@
 #     - shared/mcp/serena.md
 #     - shared/reporting.md
 #     - shared/go-source-analysis.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_AGENT_TOKEN

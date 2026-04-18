@@ -24,6 +24,10 @@
 #
 # Reusable workflow to validate checkout from fork works correctly in workflow_call context
 #
+# Resolved workflow manifest:
+#   Includes:
+#     - shared/noop-reminder.md
+#
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

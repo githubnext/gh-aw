@@ -30,6 +30,8 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mcp/serena-go.md
 #     - shared/mcp/serena.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN

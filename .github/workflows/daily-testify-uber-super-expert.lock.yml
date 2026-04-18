@@ -33,6 +33,8 @@
 #     - shared/reporting.md
 #     - shared/go-source-analysis.md
 #     - shared/safe-output-app.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN

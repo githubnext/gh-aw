@@ -27,6 +27,8 @@
 #   Imports:
 #     - shared/github-guard-policy.md
 #     - shared/reporting.md
+#   Includes:
+#     - shared/noop-reminder.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
