@@ -27,7 +27,7 @@ const EVENT_TYPE_DESCRIPTIONS = {
 /**
  * Helper function to get discussion node ID via GraphQL
  * @param {number} discussionNumber - The discussion number
- * @param {{ owner: string, repo: string }} [eventRepo=context.repo] - Repository where the discussion event occurred
+ * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the discussion event occurred (defaults to context.repo at runtime)
  * @returns {Promise<string>} The discussion node ID
  */
 async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
@@ -49,7 +49,7 @@ async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
  * Helper function to set comment outputs
  * @param {string|number} commentId - The comment ID
  * @param {string} commentUrl - The comment URL
- * @param {{ owner: string, repo: string }} [eventRepo=context.repo] - Repository where the comment was created
+ * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the comment was created (defaults to context.repo at runtime)
  */
 function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
   core.info(`Successfully created comment with workflow link`);
@@ -190,7 +190,7 @@ function buildCommentBody(eventName, runUrl) {
  * @param {number} discussionNumber - The discussion number
  * @param {string} commentBody - The comment body
  * @param {string|null} replyToNodeId - Parent comment node ID for threading (null for top-level)
- * @param {{ owner: string, repo: string }} [eventRepo=context.repo] - Repository where the discussion exists
+ * @param {{ owner: string, repo: string }} [eventRepo] - Repository where the discussion exists (defaults to context.repo at runtime)
  */
 async function postDiscussionComment(discussionNumber, commentBody, replyToNodeId = null, eventRepo = context.repo) {
   const discussionId = await getDiscussionNodeId(discussionNumber, eventRepo);

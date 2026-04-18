@@ -290,7 +290,13 @@ function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo) {
  * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
  * @param {string} runUrl - The URL of the workflow run
  * @param {string} eventName - The event type (to determine the comment text)
- * @param {{ eventPayload?: any, eventRepo?: { owner: string, repo: string } } | null} [invocationContext=null] - Resolved invocation event context. When omitted, falls back to global context payload/repo.
+ * @param {{
+ *   source?: "native" | "workflow_dispatch" | "repository_dispatch",
+ *   eventName?: string,
+ *   eventPayload?: any,
+ *   workflowRepo?: { owner: string, repo: string },
+ *   eventRepo?: { owner: string, repo: string }
+ * } | null} [invocationContext=null] - Resolved invocation event context. When omitted, falls back to global context payload/repo.
  */
 async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocationContext = null) {
   const eventPayload = invocationContext?.eventPayload || context.payload;
