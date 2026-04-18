@@ -462,6 +462,7 @@ Returns JSON describing the differences between the base run and each comparison
 				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to diff workflow runs: "+mainMsg, nil)
 			}
 			return &mcp.CallToolResult{
+				IsError: true,
 				Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
 			}, nil, nil
 		}

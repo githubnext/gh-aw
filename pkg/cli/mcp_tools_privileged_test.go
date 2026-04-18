@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -257,7 +259,9 @@ func TestAuditToolPassesGithubRepositoryAsRepoFlag(t *testing.T) {
 // returned as JSON envelopes are marked with IsError=true in the MCP response.
 func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		return exec.CommandContext(ctx, "sh", "-c", "echo '✗ failed to fetch run metadata' 1>&2; exit 1")
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess")
+		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_HELPER_PROCESS=1")
+		return cmd
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
@@ -284,4 +288,58 @@ func TestAuditToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
 	errorMessage, ok := envelope["error"].(string)
 	require.True(t, ok, "error envelope should include string error field")
 	assert.Contains(t, errorMessage, "failed to audit workflow run", "error envelope should include contextual prefix")
+}
+
+func TestAuditToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
+	if os.Getenv("GH_AW_AUDIT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	_, _ = fmt.Fprintln(os.Stderr, "✗ failed to fetch run metadata")
+	os.Exit(1)
+}
+
+func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrue(t *testing.T) {
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestAuditDiffToolErrorEnvelopeSetsIsErrorTrueHelperProcess")
+		cmd.Env = append(os.Environ(), "GH_AW_AUDIT_DIFF_HELPER_PROCESS=1")
+		return cmd
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerAuditDiffTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerAuditDiffTool should succeed")
+
+	session := connectInMemory(t, server)
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "audit-diff",
+		Arguments: map[string]any{
+			"base_run_id":     "100",
+			"compare_run_ids": []string{"200"},
+		},
+	})
+	require.NoError(t, err, "audit-diff tool should return result envelope without protocol error")
+	require.NotNil(t, result, "result should not be nil")
+	assert.True(t, result.IsError, "audit-diff error envelope should set IsError=true")
+	require.NotEmpty(t, result.Content, "result should contain text content")
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	require.True(t, ok, "expected text content in audit-diff error response")
+
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal([]byte(textContent.Text), &envelope), "error response should be valid JSON")
+	assert.Equal(t, "100", envelope["base_run_id"], "error envelope should include base run ID")
+	errorMessage, ok := envelope["error"].(string)
+	require.True(t, ok, "error envelope should include string error field")
+	assert.Contains(t, errorMessage, "failed to diff workflow runs", "error envelope should include contextual prefix")
+}
+
+func TestAuditDiffToolErrorEnvelopeSetsIsErrorTrueHelperProcess(t *testing.T) {
+	if os.Getenv("GH_AW_AUDIT_DIFF_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	_, _ = fmt.Fprintln(os.Stderr, "✗ failed to diff workflow runs")
+	os.Exit(1)
 }

@@ -72,7 +72,13 @@ func buildLogsFileResponse(outputStr string) string {
 	filePath := filepath.Join(mcpLogsCacheDir, fileName)
 
 	// Skip writing if a file with identical content already exists.
-	if _, err := os.Lstat(filePath); err == nil {
+	if fileInfo, err := os.Lstat(filePath); err == nil {
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			return buildLogsFileErrorResponse(fmt.Sprintf("logs cache file path %q is a symlink; refusing to use it", filePath))
+		}
+		if !fileInfo.Mode().IsRegular() {
+			return buildLogsFileErrorResponse(fmt.Sprintf("logs cache file path %q is not a regular file", filePath))
+		}
 		if chmodErr := os.Chmod(filePath, mcpLogsCacheFilePerm); chmodErr != nil {
 			mcpLogsGuardrailLog.Printf("Failed to update logs cache file permissions: %v", chmodErr)
 			return buildLogsFileErrorResponse(fmt.Sprintf("failed to set logs cache file permissions: %v", chmodErr))
@@ -95,6 +101,11 @@ func buildLogsFileResponse(outputStr string) string {
 			}
 			mcpLogsGuardrailLog.Printf("Failed to write logs data to file: %v", errMsg)
 			return buildLogsFileErrorResponse(fmt.Sprintf("failed to write logs data to file: %v", errMsg))
+		}
+		if chmodErr := os.Chmod(filePath, mcpLogsCacheFilePerm); chmodErr != nil {
+			_ = os.Remove(filePath)
+			mcpLogsGuardrailLog.Printf("Failed to set logs cache file permissions: %v", chmodErr)
+			return buildLogsFileErrorResponse(fmt.Sprintf("failed to set logs cache file permissions: %v", chmodErr))
 		}
 		mcpLogsGuardrailLog.Printf("Logs data written to file: %s (%d bytes)", filePath, len(outputStr))
 	} else {
