@@ -558,6 +558,8 @@ func extractAddDirPaths(args []string) []string {
 }
 
 func buildEngineCommandScriptSetup(command string) string {
+	// engine.command intentionally accepts shell-form commands from trusted workflow
+	// configuration authored in-repo; preserve shell semantics and forward driver args.
 	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset -eo pipefail\n%s \"$@\"\n", command)
 	scriptContentBase64 := base64.StdEncoding.EncodeToString([]byte(scriptContent))
 

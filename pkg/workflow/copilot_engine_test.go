@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -1867,16 +1868,13 @@ func TestBuildEngineCommandScriptSetup(t *testing.T) {
 		t.Fatalf("Expected owner-only execute permissions, got:\n%s", setup)
 	}
 
-	const prefix = "printf "
-	const suffix = " | base64 --decode"
-	start := strings.Index(setup, prefix)
-	end := strings.Index(setup, suffix)
-	if start == -1 || end == -1 || end <= start+len(prefix) {
+	re := regexp.MustCompile(`(?m)^printf ('[^']+'|"[^"]+"|[^[:space:]]+) \| base64 --decode`)
+	matches := re.FindStringSubmatch(setup)
+	if len(matches) < 2 {
 		t.Fatalf("Expected base64-encoded script payload in setup, got:\n%s", setup)
 	}
 
-	encoded := strings.TrimSpace(setup[start+len(prefix) : end])
-	encoded = strings.Trim(encoded, "'")
+	encoded := strings.Trim(matches[1], `'"`)
 
 	decoded, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
