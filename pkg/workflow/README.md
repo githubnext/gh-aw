@@ -25,7 +25,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `Compiler` | struct | Main compilation engine; use `NewCompiler(opts...)` |
 | `CompilerOption` | func type | Functional option for configuring a `Compiler` |
 | `WorkflowData` | struct | Complete in-memory representation of a compiled workflow |
-| `FileTracker` | interface | Abstraction for tracking written files |
+| `FileCreationTracker` | interface | Abstraction for tracking written files |
 
 #### `Compiler` Methods
 

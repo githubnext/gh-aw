@@ -129,7 +129,7 @@ func TestConnectHTTPMCPServer_WithHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	config := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+	config := parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 		URL: server.URL,
 		Headers: map[string]string{
 			"Authorization":   "Bearer test-token-123",
@@ -199,7 +199,7 @@ func TestConnectHTTPMCPServer_NoHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	config := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+	config := parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 		URL:     server.URL,
 		Headers: map[string]string{}}, Name: "test-http-server-no-headers",
 
@@ -238,7 +238,7 @@ func TestConnectHTTPMCPServer_NilHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	config := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+	config := parser.RegistryMCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
 		URL:     server.URL,
 		Headers: nil}, Name: "test-http-server-nil-headers",
 

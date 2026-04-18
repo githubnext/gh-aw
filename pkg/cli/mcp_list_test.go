@@ -179,12 +179,12 @@ func TestNewMCPListSubcommand(t *testing.T) {
 func TestDetermineConfigStatus(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   parser.MCPServerConfig
+		config   parser.RegistryMCPServerConfig
 		expected string
 	}{
 		{
 			name: "valid_stdio_config",
-			config: parser.MCPServerConfig{
+			config: parser.RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Command: "npx",
 				},
@@ -193,7 +193,7 @@ func TestDetermineConfigStatus(t *testing.T) {
 		},
 		{
 			name: "valid_http_config",
-			config: parser.MCPServerConfig{
+			config: parser.RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					URL: "http://localhost:3000",
 				},
@@ -202,7 +202,7 @@ func TestDetermineConfigStatus(t *testing.T) {
 		},
 		{
 			name: "valid_container_config",
-			config: parser.MCPServerConfig{
+			config: parser.RegistryMCPServerConfig{
 				BaseMCPServerConfig: types.BaseMCPServerConfig{
 					Container: "docker",
 				},
@@ -211,7 +211,7 @@ func TestDetermineConfigStatus(t *testing.T) {
 		},
 		{
 			name:     "incomplete_config",
-			config:   parser.MCPServerConfig{},
+			config:   parser.RegistryMCPServerConfig{},
 			expected: "⚠ Incomplete",
 		},
 	}

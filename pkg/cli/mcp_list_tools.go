@@ -59,7 +59,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	mcpListToolsLog.Printf("Found %d MCP configs in workflow, searching for server: %s", len(mcpConfigs), mcpServerName)
 
 	// Find the specific MCP server
-	var targetConfig *parser.MCPServerConfig
+	var targetConfig *parser.RegistryMCPServerConfig
 	for _, config := range mcpConfigs {
 		if strings.EqualFold(config.Name, mcpServerName) {
 			targetConfig = &config
@@ -74,7 +74,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		// Show available servers
 		if len(mcpConfigs) > 0 {
 			fmt.Fprintf(os.Stderr, "Available MCP servers: ")
-			serverNames := sliceutil.Map(mcpConfigs, func(config parser.MCPServerConfig) string { return config.Name })
+			serverNames := sliceutil.Map(mcpConfigs, func(config parser.RegistryMCPServerConfig) string { return config.Name })
 			fmt.Fprintf(os.Stderr, "%s\n", strings.Join(serverNames, ", "))
 		}
 		return nil

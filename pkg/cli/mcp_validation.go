@@ -74,7 +74,7 @@ func logAndValidateBinaryPath() (string, error) {
 }
 
 // validateServerSecrets checks if required environment variables/secrets are available
-func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActionsSecrets bool) error {
+func validateServerSecrets(config parser.RegistryMCPServerConfig, verbose bool, useActionsSecrets bool) error {
 	mcpValidationLog.Printf("Validating server secrets: server=%s, type=%s, useActionsSecrets=%v", config.Name, config.Type, useActionsSecrets)
 
 	// Extract secrets from the config

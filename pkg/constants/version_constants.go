@@ -39,7 +39,7 @@ const DefaultClaudeCodeVersion Version = "2.1.112"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.31"
+const DefaultCopilotVersion Version = "1.0.21"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion Version = "0.121.0"

@@ -17,7 +17,7 @@ type WorkflowMCPMetadata struct {
 	FilePath    string
 	FileName    string
 	BaseName    string
-	MCPConfigs  []parser.MCPServerConfig
+	MCPConfigs  []parser.RegistryMCPServerConfig
 	Frontmatter map[string]any
 }
 

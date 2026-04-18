@@ -557,7 +557,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
 
 	// Verify new expanded sections are populated
-	t.Run("EngineConfig", func(t *testing.T) {
+	t.Run("AuditEngineConfig", func(t *testing.T) {
 		require.NotNil(t, auditData.EngineConfig, "Engine config should be populated")
 		assert.Equal(t, "copilot", auditData.EngineConfig.EngineID, "Engine ID should match")
 		assert.Equal(t, "gpt-4", auditData.EngineConfig.Model, "Model should match")
