@@ -32,6 +32,36 @@ import (
 
 var copilotEngineToolsLog = logger.New("workflow:copilot_engine_tools")
 
+func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) *WorkflowData {
+	if workflowData == nil {
+		workflowData = &WorkflowData{}
+	}
+
+	copied := *workflowData
+	if copied.Tools == nil {
+		copied.Tools = tools
+	}
+	if copied.SafeOutputs == nil {
+		copied.SafeOutputs = safeOutputs
+	}
+	if copied.MCPScripts == nil {
+		copied.MCPScripts = mcpScripts
+	}
+	if copied.ParsedTools == nil && copied.Tools != nil {
+		copied.ParsedTools = NewTools(copied.Tools)
+	}
+	// Some call paths may not provide WorkflowData.Features (e.g. direct unit calls).
+	// When mount-as-clis is explicitly enabled in tools config, synthesize the feature
+	// flag so mounted MCP CLI server names can still be derived consistently.
+	if copied.Features == nil && copied.ParsedTools != nil && copied.ParsedTools.MountAsCLIs {
+		copied.Features = map[string]any{
+			string(constants.MCPCLIFeatureFlag): true,
+		}
+	}
+
+	return &copied
+}
+
 // computeCopilotToolArguments computes the --allow-tool arguments for Copilot CLI based on tool configurations.
 // It handles bash/shell tools, edit tools, safe outputs, mcp-scripts, and MCP server tools.
 // Returns a sorted list of arguments ready to be passed to the Copilot CLI.
@@ -89,34 +119,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// ensure mounted MCP CLI commands are executable via shell(<server>:*).
 	// This avoids Copilot CLI permission blocks for mounted commands such as safeoutputs.
 	if hasRestrictedBashAllowlist {
-		cliWorkflowData := &WorkflowData{
-			Tools:       tools,
-			SafeOutputs: safeOutputs,
-			MCPScripts:  mcpScripts,
-		}
-		if workflowData != nil {
-			copied := *workflowData
-			if copied.Tools == nil {
-				copied.Tools = tools
-			}
-			if copied.SafeOutputs == nil {
-				copied.SafeOutputs = safeOutputs
-			}
-			if copied.MCPScripts == nil {
-				copied.MCPScripts = mcpScripts
-			}
-			cliWorkflowData = &copied
-		}
-		if cliWorkflowData.ParsedTools == nil && cliWorkflowData.Tools != nil {
-			cliWorkflowData.ParsedTools = NewTools(cliWorkflowData.Tools)
-		}
-		if cliWorkflowData.Features == nil && cliWorkflowData.ParsedTools != nil && cliWorkflowData.ParsedTools.MountAsCLIs {
-			cliWorkflowData.Features = map[string]any{
-				string(constants.MCPCLIFeatureFlag): true,
-			}
-		}
-
-		for _, serverName := range getMCPCLIServerNames(cliWorkflowData) {
+		for _, serverName := range getMCPCLIServerNames(buildCLIWorkflowDataForMounts(workflowData, tools, safeOutputs, mcpScripts)) {
 			args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", serverName))
 		}
 	}
