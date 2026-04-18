@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 import { tmpdir } from "os";
 import { join } from "path";
-import { writeFileSync, readFileSync, unlinkSync, existsSync } from "fs";
+import { writeFileSync, readFileSync, mkdtempSync, rmSync } from "fs";
 
 const req = createRequire(import.meta.url);
 
@@ -30,6 +30,8 @@ describe("action_setup_otlp.cjs", () => {
   let outputFile;
   /** @type {string} */
   let envFile;
+  /** @type {string} */
+  let tempDir;
   /** @type {Record<string, string | undefined>} */
   let savedEnv;
 
@@ -42,9 +44,9 @@ describe("action_setup_otlp.cjs", () => {
     mockSendJobSetupSpan.mockResolvedValue({ traceId: VALID_TRACE_ID, spanId: VALID_SPAN_ID });
 
     // Provide fresh temp files so GITHUB_OUTPUT and GITHUB_ENV writes are isolated
-    const ts = Date.now();
-    outputFile = join(tmpdir(), `test_github_output_${ts}`);
-    envFile = join(tmpdir(), `test_github_env_${ts}`);
+    tempDir = mkdtempSync(join(tmpdir(), "action-setup-otlp-test-"));
+    outputFile = join(tempDir, "test_github_output");
+    envFile = join(tempDir, "test_github_env");
     writeFileSync(outputFile, "");
     writeFileSync(envFile, "");
 
@@ -75,8 +77,7 @@ describe("action_setup_otlp.cjs", () => {
     sendOtlpModule.isValidTraceId = originalIsValidTraceId;
     sendOtlpModule.isValidSpanId = originalIsValidSpanId;
 
-    if (existsSync(outputFile)) unlinkSync(outputFile);
-    if (existsSync(envFile)) unlinkSync(envFile);
+    rmSync(tempDir, { recursive: true, force: true });
 
     for (const [key, val] of Object.entries(savedEnv)) {
       if (val !== undefined) process.env[key] = val;
@@ -156,13 +157,12 @@ describe("action_setup_otlp.cjs", () => {
       expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ startMs: jobStartMs }));
     });
 
-    it("should pass NaN when SETUP_START_MS is not a number", async () => {
+    it("should pass startMs=0 when SETUP_START_MS is not a number", async () => {
       process.env.SETUP_START_MS = "not-a-number";
 
       await run();
 
-      const [options] = /** @type {[{startMs: number}]} */ mockSendJobSetupSpan.mock.calls[0];
-      expect(isNaN(options.startMs)).toBe(true);
+      expect(mockSendJobSetupSpan).toHaveBeenCalledWith(expect.objectContaining({ startMs: 0 }));
     });
   });
 
