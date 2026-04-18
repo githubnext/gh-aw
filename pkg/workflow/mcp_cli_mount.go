@@ -154,7 +154,7 @@ func buildCLIWorkflowDataForMounts(workflowData *WorkflowData, tools map[string]
 	return &copied
 }
 
-func getMountedCLIServerNamesForRestrictedBash(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
+func getMountedCLIServerNamesIfBashRestricted(workflowData *WorkflowData, tools map[string]any, safeOutputs *SafeOutputsConfig, mcpScripts *MCPScriptsConfig) []string {
 	if tools == nil {
 		return nil
 	}
@@ -175,11 +175,14 @@ func getMountedCLIServerNamesForRestrictedBash(workflowData *WorkflowData, tools
 }
 
 func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map[string]any {
-	if workflowData == nil || workflowData.Tools == nil {
+	if workflowData == nil {
+		return nil
+	}
+	if workflowData.Tools == nil {
 		return workflowData.Tools
 	}
 
-	servers := getMountedCLIServerNamesForRestrictedBash(workflowData, workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts)
+	servers := getMountedCLIServerNamesIfBashRestricted(workflowData, workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts)
 	if len(servers) == 0 {
 		return workflowData.Tools
 	}
@@ -190,6 +193,8 @@ func withMountedCLIShellCommandsInRestrictedBash(workflowData *WorkflowData) map
 	}
 
 	copiedTools := make(map[string]any, len(workflowData.Tools))
+	// A shallow copy is sufficient because we only replace the top-level "bash"
+	// value with a newly allocated slice and do not mutate nested map/slice values.
 	maps.Copy(copiedTools, workflowData.Tools)
 
 	augmentedBash := append([]any(nil), bashCommands...)
