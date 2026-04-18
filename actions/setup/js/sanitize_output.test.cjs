@@ -319,7 +319,11 @@ const mockCore = {
         (beforeEach(() => {
           const testDir = "/tmp/gh-aw";
           const testFile = "/tmp/gh-aw/test-output.txt";
-          (fs.existsSync(testDir) || fs.mkdirSync(testDir, { recursive: !0 }), fs.existsSync(testFile) && fs.unlinkSync(testFile), (global.fs = fs));
+          if (!fs.existsSync(testDir)) {
+            fs.mkdirSync(testDir, { recursive: true });
+          }
+          fs.existsSync(testFile) && fs.unlinkSync(testFile);
+          global.fs = fs;
         }),
           afterEach(() => {
             delete global.fs;
