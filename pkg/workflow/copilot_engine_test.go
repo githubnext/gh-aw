@@ -577,6 +577,43 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			expected: []string{"--allow-tool", "mcpscripts", "--allow-tool", "shell(mcpscripts:*)", "--allow-tool", "shell(python3 *)"},
 		},
+		{
+			name: "mount-as-clis with restricted bash allows all mounted mcp clis",
+			tools: map[string]any{
+				"bash":       []any{"echo"},
+				"playwright": true,
+				"mymcp": map[string]any{
+					"command": "npx",
+					"args":    []any{"-y", "@acme/mcp-server"},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{},
+			},
+			mcpScripts: &MCPScriptsConfig{
+				Tools: map[string]*MCPScriptToolConfig{
+					"query": {Name: "query", Description: "test", Script: "return {};"},
+				},
+			},
+			workflowData: &WorkflowData{
+				ParsedTools: &Tools{
+					MountAsCLIs: true,
+				},
+				Features: map[string]any{
+					string(constants.MCPCLIFeatureFlag): true,
+				},
+			},
+			expected: []string{
+				"--allow-tool", "mcpscripts",
+				"--allow-tool", "mymcp",
+				"--allow-tool", "safeoutputs",
+				"--allow-tool", "shell(echo)",
+				"--allow-tool", "shell(mcpscripts:*)",
+				"--allow-tool", "shell(mymcp:*)",
+				"--allow-tool", "shell(playwright:*)",
+				"--allow-tool", "shell(safeoutputs:*)",
+			},
+		},
 	}
 
 	for _, tt := range tests {
