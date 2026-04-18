@@ -123,7 +123,6 @@ engine: copilot
 
 	absBinaryPath := filepath.Join(originalDir, binaryPath)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
 
 	cmd := exec.CommandContext(ctx, absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
 	cmd.Dir = tmpDir
@@ -144,6 +143,7 @@ engine: copilot
 		t.Fatalf("Failed to start MCP server: %v", err)
 	}
 	defer func() {
+		cancel()
 		_ = stdin.Close()
 		_ = cmd.Wait()
 	}()

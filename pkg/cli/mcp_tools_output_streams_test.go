@@ -4,7 +4,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"testing"
 
@@ -15,8 +14,7 @@ import (
 
 func mockCommandWithOutput(stdoutText, stderrText string) execCmdFunc {
 	return func(ctx context.Context, args ...string) *exec.Cmd {
-		script := fmt.Sprintf("printf %q; printf %q 1>&2", stdoutText, stderrText)
-		return exec.CommandContext(ctx, "sh", "-c", script)
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"; printf '%s' "$2" 1>&2`, "sh", stdoutText, stderrText)
 	}
 }
 
