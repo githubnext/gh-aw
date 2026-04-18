@@ -17,7 +17,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw add` | `NewAddCommand` | Add remote or local workflows to the repository |
 | `gh aw add-wizard` | `NewAddWizardCommand` | Interactive wizard for adding workflows |
 | `gh aw compile` | (compile_command.go) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
-| `gh aw run` | `NewRunCommand` (run_command.go) | Dispatch and monitor workflow runs |
+| `gh aw run` | `RunWorkflowOnGitHub` (main.go) | Dispatch and monitor workflow runs |
 | `gh aw audit` | `NewAuditCommand` | Audit a specific workflow run by run ID |
 | `gh aw audit diff` | `NewAuditDiffSubcommand` | Diff audit data between multiple runs |
 | `gh aw logs` | `NewLogsCommand` | Download and analyze workflow run logs |
@@ -39,8 +39,10 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw init` | `NewInitCommand` | Initialize a repository for agentic workflows |
 | `gh aw list` | `NewListCommand` | List installed workflows |
 | `gh aw pr` | `NewPRCommand` | Pull-request helpers |
+| `gh aw pr transfer` | `NewPRTransferSubcommand` | Transfer a pull request to another repository |
 | `gh aw project` | `NewProjectCommand` | Project management helpers |
-| `gh aw remove` | `NewRemoveCommand` | Remove workflow files from the repository |
+| `gh aw project new` | `NewProjectNewCommand` | Create a new GitHub Project V2 board |
+| `gh aw remove` | `RemoveWorkflows` (main.go) | Remove workflow files from the repository |
 | `gh aw secrets` | `NewSecretsCommand` | Manage workflow secrets |
 | `gh aw secrets set` | (secret_set_command.go) | Create or update a repository secret |
 | `gh aw secrets bootstrap` | (secret_set_command.go) | Validate and configure all required secrets for workflows |
