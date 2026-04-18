@@ -510,7 +510,7 @@ tools:
 
 	userSnippet := `--user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"'`
 	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
-	addHostSnippet := `--add-host host.docker.internal:host-gateway`
+	addHostSnippet := `--add-host host.docker.internal:127.0.0.1`
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
 	defaultGatewayPortSnippet := `export MCP_GATEWAY_PORT="8080"`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
