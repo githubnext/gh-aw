@@ -395,7 +395,7 @@ constants.DefaultAllowedDomains   // []string{"localhost","localhost:*","127.0.0
 ## Network Port Constants
 
 ```go
-constants.DefaultMCPGatewayPort     // 80    — MCP gateway HTTP service
+constants.DefaultMCPGatewayPort     // 8080  — MCP gateway HTTP service
 constants.DefaultMCPServerPort      // 3000  — mcp-scripts MCP server
 constants.DefaultMCPInspectorPort   // 3001  — safe-outputs MCP inspector
 constants.MinNetworkPort            // 1

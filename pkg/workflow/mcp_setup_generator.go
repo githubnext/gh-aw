@@ -54,7 +54,7 @@
 //   - Start safe-outputs HTTP server on port 3001
 //   - Write mcp-scripts config to ${RUNNER_TEMP}/gh-aw/mcp-scripts/
 //   - Start mcp-scripts HTTP server on port 3000
-//   - Start MCP Gateway on port 80
+//   - Start MCP Gateway on port 8080
 //   - Render MCP config based on engine (copilot/claude/codex/custom)
 package workflow
 
@@ -696,6 +696,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	var containerCmd strings.Builder
 	containerCmd.WriteString("docker run -i --rm --network host")
+	containerCmd.WriteString(" --add-host host.docker.internal:host-gateway")
 	// Use runner UID/GID so gateway-created /tmp logs remain readable by downstream
 	// redaction/upload steps; keep a supplementary docker.sock group for daemon access.
 	containerCmd.WriteString(" --user ${MCP_GATEWAY_UID}:${MCP_GATEWAY_GID}")

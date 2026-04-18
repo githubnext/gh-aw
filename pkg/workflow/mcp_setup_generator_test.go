@@ -510,14 +510,20 @@ tools:
 
 	userSnippet := `--user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"'`
 	groupAddSnippet := `--group-add '"${DOCKER_SOCK_GID}"'`
+	addHostSnippet := `--add-host host.docker.internal:host-gateway`
 	mountSnippet := `-v /var/run/docker.sock:/var/run/docker.sock`
+	defaultGatewayPortSnippet := `export MCP_GATEWAY_PORT="8080"`
 	uidComputeSnippet := `MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')`
 	runnerGIDComputeSnippet := `MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')`
 	socketGIDComputeSnippet := `DOCKER_SOCK_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo '0')`
+	require.Contains(t, yamlStr, defaultGatewayPortSnippet,
+		"Default MCP gateway port should be exported as 8080")
 	require.Contains(t, yamlStr, uidComputeSnippet,
 		"Shell should compute MCP_GATEWAY_UID before docker command")
 	require.Contains(t, yamlStr, runnerGIDComputeSnippet,
 		"Shell should compute MCP_GATEWAY_GID before docker command")
+	require.Contains(t, yamlStr, addHostSnippet,
+		"Docker command should map host.docker.internal to host-gateway")
 	require.Contains(t, yamlStr, userSnippet,
 		"Docker command should include runner UID/GID user mapping")
 	require.Contains(t, yamlStr, socketGIDComputeSnippet,

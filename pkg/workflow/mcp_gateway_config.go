@@ -14,7 +14,7 @@
 //
 // The gateway configuration includes:
 //   - Container image and version (defaults to github/gh-aw-mcpg)
-//   - Network port (default: 80)
+//   - Network port (default: 8080)
 //   - Domain for gateway access (localhost or host.docker.internal)
 //   - API key for authentication
 //   - Volume mounts for workspace and temporary directories
@@ -38,7 +38,7 @@
 //	  mcp:
 //	    container: github/gh-aw-mcpg
 //	    version: v0.0.12
-//	    port: 80
+//	    port: 8080
 //	    domain: host.docker.internal
 //	    mounts:
 //	      - /opt:/opt:ro

@@ -66,9 +66,9 @@ function shellEscapeDoubleQuoted(str) {
 /**
  * Rewrite a raw gateway manifest URL to use the container-accessible domain.
  *
- * The manifest stores raw gateway-output URLs (e.g., http://0.0.0.0:80/mcp/server)
+ * The manifest stores raw gateway-output URLs (e.g., http://0.0.0.0:8080/mcp/server)
  * that work from the host. Inside the AWF sandbox the gateway is reachable via
- * MCP_GATEWAY_DOMAIN:MCP_GATEWAY_PORT (typically host.docker.internal:80).
+ * MCP_GATEWAY_DOMAIN:MCP_GATEWAY_PORT (typically host.docker.internal:8080).
  *
  * @param {string} rawUrl - URL from the manifest (host-accessible)
  * @returns {string} URL suitable for use inside AWF containers
@@ -338,7 +338,7 @@ async function main() {
       skippedServers.push(name);
       continue;
     }
-    // The manifest URL is the host-accessible raw gateway address (e.g., http://0.0.0.0:80/mcp/server).
+    // The manifest URL is the host-accessible raw gateway address (e.g., http://0.0.0.0:8080/mcp/server).
     // Rewrite it to the container-accessible URL for the generated CLI wrapper scripts,
     // which run inside the AWF sandbox where the gateway is reached via MCP_GATEWAY_DOMAIN.
     const containerUrl = toContainerUrl(url);

@@ -5,7 +5,7 @@
 // This file provides access to MCP gateway configuration constants.
 //
 // Gateway default values:
-//   - Port: 80 (HTTP standard port) - defined in pkg/constants
+//   - Port: 8080 (non-privileged HTTP port) - defined in pkg/constants
 //
 // The MCP gateway port is used when:
 //   - No custom port is specified in sandbox.mcp.port
@@ -22,7 +22,7 @@
 //   - constants/constants.go: Defines all MCP-related constants (versions, containers, ports)
 //
 // Related constants in pkg/constants:
-//   - DefaultMCPGatewayPort: Gateway port (80)
+//   - DefaultMCPGatewayPort: Gateway port (8080)
 //   - DefaultMCPGatewayVersion: Gateway container version
 //   - DefaultMCPGatewayContainer: Gateway container image
 //   - DefaultGitHubMCPServerVersion: GitHub MCP server version
