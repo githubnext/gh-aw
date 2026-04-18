@@ -568,7 +568,8 @@ func buildEngineCommandScriptSetup(command string) string {
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
 umask 0177
 cat > %s <<'%s'
-%s%s
+%s
+%s
 chmod 700 %s`, customEngineCommandScriptPath, heredocDelimiter, scriptContent, heredocDelimiter, customEngineCommandScriptPath)
 }
 
