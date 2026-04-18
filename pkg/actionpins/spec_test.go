@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/github/gh-aw/pkg/actionpins"
 )
@@ -180,7 +181,7 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 		// implementation returns ("", nil) and emits a warning to stderr instead.
 		ctx := &actionpins.PinContext{StrictMode: true, Warnings: make(map[string]bool)}
 		result, err := actionpins.ResolveActionPin("does-not-exist/unknown-action-xyzzy", "v1", ctx)
-		assert.NoError(t, err, "implementation returns no error even in strict mode for unknown pin")
+		require.NoError(t, err, "implementation returns no error even in strict mode for unknown pin")
 		assert.Empty(t, result, "strict mode should return empty reference for unknown pin")
 	})
 }
