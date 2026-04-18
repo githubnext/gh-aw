@@ -232,7 +232,7 @@ func TestFetchIncludeFromSource_SectionExtraction(t *testing.T) {
 		},
 		{
 			name:          "section at end of path with ref",
-			includePath:   "owner/repo/file.md@v1.0.0#section",
+			includePath:   "shared/file.md@v1.0.0#section",
 			expectSection: "#section", // Section is extracted from the end regardless of @ref position
 		},
 		{
@@ -244,7 +244,7 @@ func TestFetchIncludeFromSource_SectionExtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// We expect errors since these are remote paths, but section should still be extracted
+			// We expect resolution errors in these unit tests, but section should still be extracted
 			_, section, _ := FetchIncludeFromSource(tt.includePath, nil, false)
 			assert.Equal(t, tt.expectSection, section, "section should be correctly extracted")
 		})

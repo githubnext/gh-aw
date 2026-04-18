@@ -7,6 +7,29 @@ const TARGET_LABEL = "agentic-workflows";
 const NO_REPRO_MESSAGE = `Closing as no repro.
 
 If this is still reproducible, please open a new issue with clear reproduction steps.`;
+const CLOSE_ISSUE_MUTATION = `
+mutation CloseIssue($issueId: ID!, $stateReason: IssueClosedStateReason!) {
+  closeIssue(input: { issueId: $issueId, stateReason: $stateReason }) {
+    issue {
+      number
+      state
+      stateReason
+    }
+  }
+}
+`;
+
+/**
+ * Close an issue via GraphQL with explicit close reason.
+ * @param {string} issueId - GraphQL node ID for the issue
+ * @returns {Promise<void>}
+ */
+async function closeIssueAsNotPlanned(issueId) {
+  await github.graphql(CLOSE_ISSUE_MUTATION, {
+    issueId,
+    stateReason: "NOT_PLANNED",
+  });
+}
 
 /**
  * Close all open issues with the "agentic-workflows" label.
@@ -43,14 +66,8 @@ async function main() {
       body: NO_REPRO_MESSAGE,
     });
 
-    await github.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issue.number,
-      state: "closed",
-      state_reason: "not_planned",
-    });
+    await closeIssueAsNotPlanned(issue.node_id);
   }
 }
 
-module.exports = { main };
+module.exports = { main, closeIssueAsNotPlanned, CLOSE_ISSUE_MUTATION, NO_REPRO_MESSAGE };

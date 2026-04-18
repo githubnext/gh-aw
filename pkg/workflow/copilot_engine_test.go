@@ -1714,6 +1714,9 @@ func TestCopilotEngineDriverScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_driver.cjs") {
 			t.Errorf("Expected copilot_driver.cjs in execution step, got:\n%s", stepContent)
 		}
+		if !strings.Contains(stepContent, nodeRuntimeResolutionCommand) {
+			t.Errorf("Expected runtime node resolution logic in execution step, got:\n%s", stepContent)
+		}
 
 		// Driver should appear before the copilot args
 		driverIdx := strings.Index(stepContent, "copilot_driver.cjs")

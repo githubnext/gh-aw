@@ -37,6 +37,7 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
+const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || echo node)"; fi; "$GH_AW_NODE_EXEC"`
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
@@ -186,16 +187,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
 	//
-	// Use ${GH_AW_NODE_BIN:-node} instead of plain `node` so the absolute node path
-	// (exported by install_awf_binary.sh as GH_AW_NODE_BIN when the bundle is installed)
-	// is used inside the AWF container. In AWF's chroot mode the host filesystem is
-	// accessible, so the absolute path works even when sudo resets PATH on GPU runners
-	// (e.g. aw-gpu-runner-T4) and the actions/setup-node directory is not in PATH.
+	// Resolve node dynamically at runtime:
+	// - Prefer GH_AW_NODE_BIN when set and executable.
+	// - Fall back to `command -v node` if GH_AW_NODE_BIN points to a non-mounted toolcache path.
+	// This prevents agent startup failures when host toolcache paths are not present in the AWF container.
 	driverScriptName := e.GetDriverScriptName()
 	var execPrefix string
 	if driverScriptName != "" {
 		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
-		execPrefix = fmt.Sprintf(`${GH_AW_NODE_BIN:-node} %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
+		execPrefix = fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, driverScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}
@@ -268,7 +268,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// secure_path, stripping the actions/setup-node directory.  By capturing
 			// the path here (where PATH is still intact) and exporting it, sudo -E
 			// preserves the variable and AWF's --env-all forwards it into the container,
-			// where ${GH_AW_NODE_BIN:-node} resolves to the correct binary.
+			// where the execution command validates GH_AW_NODE_BIN and falls back to
+			// command -v node when the path does not exist in the container.
 			PathSetup: pathSetup,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
