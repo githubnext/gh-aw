@@ -426,6 +426,74 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsAllowHostPorts tests that BuildAWFArgs includes --allow-host-ports
+// with port 80, 443, and the MCP gateway port so the AWF agent container can reach
+// the gateway through the firewall's iptables rules.
+func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
+	t.Run("includes default MCP gateway port 8080", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
+		assert.Contains(t, argsStr, "80,443,8080", "Should allow default gateway port 8080 alongside 80 and 443")
+	})
+
+	t.Run("uses custom MCP gateway port from sandbox config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{Port: 9090},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
+		assert.Contains(t, argsStr, "80,443,9090", "Should use custom gateway port from sandbox config")
+		assert.NotContains(t, argsStr, "8080", "Should not include default port when custom port is set")
+	})
+
+	t.Run("handles nil SandboxConfig gracefully", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "80,443,8080", "Should fall back to default port with nil SandboxConfig")
+	})
+}
+
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
 // only when features.awf-diagnostic-logs is enabled.
 func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {

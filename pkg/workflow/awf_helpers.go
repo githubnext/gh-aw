@@ -256,6 +256,19 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--enable-host-access")
 	awfHelpersLog.Print("Added --enable-host-access for API proxy and MCP gateway")
 
+	// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
+	// listens on port 8080 (non-privileged), so we must explicitly allow it.
+	// Without this, iptables drops traffic from the agent container to the
+	// gateway, causing tool-call timeouts (safe-outputs, GitHub MCP, etc.).
+	mcpGatewayPort := int(DefaultMCPGatewayPort)
+	if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
+		config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
+		mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
+	}
+	hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+	awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
+	awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
+
 	// Pin AWF Docker image version to match the installed binary version
 	awfImageTag := getAWFImageTag(firewallConfig)
 	awfArgs = append(awfArgs, "--image-tag", awfImageTag)
