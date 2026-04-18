@@ -104,6 +104,17 @@ const createTestableFunction = scriptContent => {
         },
       };
     }
+    if (module === "./invocation_context_helpers.cjs") {
+      return {
+        resolveInvocationContext: ctx => ({
+          source: "native",
+          eventName: ctx.eventName || "",
+          eventPayload: ctx.payload || {},
+          workflowRepo: ctx.workflowRepo || ctx.repo,
+          eventRepo: ctx.eventRepo || ctx.repo,
+        }),
+      };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(

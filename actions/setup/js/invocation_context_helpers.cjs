@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseRepoSlug: parseSharedRepoSlug } = require("./repo_helpers.cjs");
+
 /**
  * @typedef {{ owner: string, repo: string }} RepoRef
  */
@@ -20,12 +22,7 @@ function parseRepoSlug(value) {
     return null;
   }
 
-  const parts = trimmed.split("/");
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return null;
-  }
-
-  return { owner: parts[0], repo: parts[1] };
+  return parseSharedRepoSlug(trimmed);
 }
 
 /**
