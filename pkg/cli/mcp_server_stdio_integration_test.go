@@ -230,7 +230,10 @@ func sendJSONRPCMessage(t *testing.T, w io.Writer, msg map[string]any) {
 	}
 }
 
-func waitForJSONRPCResponse(t *testing.T, scanner *bufio.Scanner, expectedID int) (map[string]any, string) {
+// waitForJSONRPCResponse reads JSON-RPC lines from stdout until it finds the
+// response with the expected ID. It returns the decoded response object and the
+// raw JSON line as read from stdout.
+func waitForJSONRPCResponse(t *testing.T, scanner *bufio.Scanner, expectedID int) (response map[string]any, rawLine string) {
 	t.Helper()
 
 	for scanner.Scan() {

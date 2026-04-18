@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mockExecWithStdoutAndStderr(stdoutText, stderrText string) execCmdFunc {
+func mockCommandWithOutput(stdoutText, stderrText string) execCmdFunc {
 	return func(ctx context.Context, args ...string) *exec.Cmd {
 		script := fmt.Sprintf("printf %q; printf %q 1>&2", stdoutText, stderrText)
 		return exec.CommandContext(ctx, "sh", "-c", script)
@@ -37,7 +37,7 @@ func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 	)
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
-	err := registerCompileTool(server, mockExecWithStdoutAndStderr(expectedStdout, stderrNoise), "")
+	err := registerCompileTool(server, mockCommandWithOutput(expectedStdout, stderrNoise), "")
 	require.NoError(t, err, "registerCompileTool should succeed")
 
 	session := connectInMemory(t, server)
@@ -70,7 +70,7 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 			expectedOut: "add-stdout",
 			stderrNoise: "add-stderr",
 			registerTool: func(server *mcp.Server) {
-				registerAddTool(server, mockExecWithStdoutAndStderr("add-stdout", "add-stderr"))
+				registerAddTool(server, mockCommandWithOutput("add-stdout", "add-stderr"))
 			},
 		},
 		{
@@ -80,7 +80,7 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 			expectedOut: "update-stdout",
 			stderrNoise: "update-stderr",
 			registerTool: func(server *mcp.Server) {
-				registerUpdateTool(server, mockExecWithStdoutAndStderr("update-stdout", "update-stderr"))
+				registerUpdateTool(server, mockCommandWithOutput("update-stdout", "update-stderr"))
 			},
 		},
 		{
@@ -92,7 +92,7 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 			expectedOut: "fix-stdout",
 			stderrNoise: "fix-stderr",
 			registerTool: func(server *mcp.Server) {
-				registerFixTool(server, mockExecWithStdoutAndStderr("fix-stdout", "fix-stderr"))
+				registerFixTool(server, mockCommandWithOutput("fix-stdout", "fix-stderr"))
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func TestCommandBackedTools_UseOnlyStdoutOnSuccess(t *testing.T) {
 			expectedOut: "inspect-stdout",
 			stderrNoise: "inspect-stderr",
 			registerTool: func(server *mcp.Server) {
-				registerMCPInspectTool(server, mockExecWithStdoutAndStderr("inspect-stdout", "inspect-stderr"))
+				registerMCPInspectTool(server, mockCommandWithOutput("inspect-stdout", "inspect-stderr"))
 			},
 		},
 	}
