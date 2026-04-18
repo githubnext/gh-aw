@@ -108,12 +108,6 @@ func ReconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 	return strings.Join(lines, "\n"), nil
 }
 
-// reconstructWorkflowFile reconstructs a complete workflow file from frontmatter YAML and markdown content.
-// Deprecated: use ReconstructWorkflowFile.
-func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, error) {
-	return ReconstructWorkflowFile(frontmatterYAML, markdownContent)
-}
-
 // QuoteCronExpressions ensures cron expressions in schedule sections are properly quoted.
 // The YAML library may drop quotes from cron expressions like "0 14 * * 1-5" which
 // causes validation errors since they start with numbers but contain spaces and special chars.
