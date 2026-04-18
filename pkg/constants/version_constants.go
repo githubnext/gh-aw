@@ -54,7 +54,7 @@ const DefaultCrushVersion Version = "0.59.0"
 const DefaultGitHubMCPServerVersion Version = "v1.0.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.25.24"
+const DefaultFirewallVersion Version = "v0.25.25"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -76,7 +76,7 @@ const AWFAllowHostPortsMinVersion Version = "v0.25.24"
 const CopilotNoAskUserMinVersion Version = "1.0.19"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.2.24"
+const DefaultMCPGatewayVersion Version = "v0.2.25"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
