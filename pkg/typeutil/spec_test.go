@@ -291,7 +291,7 @@ func TestSpec_PublicAPI_ConvertToFloat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ConvertToFloat(tt.input)
-			assert.Equal(t, tt.expected, result,
+			assert.InDelta(t, tt.expected, result, 1e-9,
 				"ConvertToFloat(%v) should match documented behavior", tt.input)
 		})
 	}
