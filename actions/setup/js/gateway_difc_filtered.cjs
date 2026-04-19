@@ -91,11 +91,13 @@ function generateDifcFilteredSection(filteredEvents) {
 
   const count = uniqueEvents.length;
   const itemWord = count === 1 ? "item" : "items";
+  const verb = count === 1 ? "was" : "were";
+  const pronoun = count === 1 ? "it doesn't" : "they don't";
 
   let section = "\n\n> [!NOTE]\n";
   section += `> **🔒 Integrity filter blocked ${count} ${itemWord}**\n`;
   section += `>\n`;
-  section += `> The following ${itemWord} ${count === 1 ? "was" : "were"} blocked because ${count === 1 ? "it doesn't" : "they don't"} meet the GitHub integrity level.\n`;
+  section += `> The following ${itemWord} ${verb} blocked because ${pronoun} meet the GitHub integrity level.\n`;
   section += `>\n`;
 
   const maxItems = 16;
