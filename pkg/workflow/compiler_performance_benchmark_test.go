@@ -178,6 +178,7 @@ on:
     types: [opened, synchronize]
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 engine: copilot
 tools:
@@ -268,6 +269,7 @@ func BenchmarkValidation(b *testing.B) {
 on: pull_request
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 engine: copilot
 tools:
@@ -291,6 +293,7 @@ Test validation performance.
 
 	compiler := NewCompiler(WithNoEmit(true))
 	compiler.SetStrictMode(true)
+	compiler.SetQuiet(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
