@@ -768,17 +768,25 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				// Add basic steps if specified (only for non-reusable workflow jobs).
 				// `pre-steps` are inserted after setup-injected steps and before the
 				// regular `steps` list so they run before any checkout in steps.
-				preSteps, err := c.extractPinnedJobSteps(configMap, "pre-steps", jobName, data)
-				if err != nil {
-					return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
-				}
-				regularSteps, err := c.extractPinnedJobSteps(configMap, "steps", jobName, data)
-				if err != nil {
-					return fmt.Errorf("failed to process steps for job '%s': %w", jobName, err)
-				}
-
+				var preSteps []string
+				var regularSteps []string
 				_, hasPreStepsField := configMap["pre-steps"]
 				_, hasStepsField := configMap["steps"]
+				if hasPreStepsField {
+					var err error
+					preSteps, err = c.extractPinnedJobSteps(configMap, "pre-steps", jobName, data)
+					if err != nil {
+						return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
+					}
+				}
+				if hasStepsField {
+					var err error
+					regularSteps, err = c.extractPinnedJobSteps(configMap, "steps", jobName, data)
+					if err != nil {
+						return fmt.Errorf("failed to process steps for job '%s': %w", jobName, err)
+					}
+				}
+
 				if hasPreStepsField || hasStepsField {
 					// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
 					// Custom frontmatter jobs run as independent GitHub Actions jobs that
@@ -809,7 +817,7 @@ func (c *Compiler) extractPinnedJobSteps(configMap map[string]any, fieldName str
 
 	stepsList, ok := raw.([]any)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("%s for job '%s' must be an array of step objects", fieldName, jobName)
 	}
 
 	steps := make([]string, 0, len(stepsList))
