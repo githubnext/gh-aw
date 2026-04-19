@@ -137,6 +137,184 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `ExecuteWithRepeat` | `func(RepeatOptions) error` | Repeats an operation with delay |
 | `IsRunningInCI` | `func() bool` | Detects CI environment |
 | `DetectShell` | `func() ShellType` | Detects the user's current shell |
+| `AddResolvedWorkflows` | `func([]string, *ResolvedWorkflows, AddOptions) (*AddWorkflowsResult, error)` | Adds pre-resolved workflows |
+| `FetchWorkflowFromSource` | `func(*WorkflowSpec, bool) (*FetchedWorkflow, error)` | Fetches a workflow from a remote or local source |
+| `FetchIncludeFromSource` | `func(string, *WorkflowSpec, bool) ([]byte, string, error)` | Fetches an `@include` target from source |
+| `MergeWorkflowContent` | `func(base, current, new, oldSpec, newSpec, localPath string, bool) (string, bool, error)` | Three-way merge of workflow content |
+| `CompileWorkflowDataWithValidation` | `func(*workflow.Compiler, *workflow.WorkflowData, string, ...) error` | Compiles a pre-loaded WorkflowData and runs security validators |
+| `ResolveWorkflowPath` | `func(string) (string, error)` | Resolves a workflow name to its absolute file path |
+| `ExtractWorkflowDescription` | `func(string) string` | Extracts the `description` field from workflow markdown content |
+| `ExtractWorkflowDescriptionFromFile` | `func(string) string` | Extracts the `description` field from a workflow file |
+| `ExtractWorkflowEngine` | `func(string) string` | Extracts the `engine` field from workflow markdown content |
+| `ExtractWorkflowPrivate` | `func(string) bool` | Returns true if the workflow is marked private |
+| `UpdateFieldInFrontmatter` | `func(content, fieldName, fieldValue string) (string, error)` | Sets a field in frontmatter YAML |
+| `SetFieldInOnTrigger` | `func(content, fieldName, fieldValue string) (string, error)` | Sets a field inside the `on:` trigger block |
+| `RemoveFieldFromOnTrigger` | `func(content, fieldName string) (string, error)` | Removes a field from the `on:` trigger block |
+| `UpdateScheduleInOnBlock` | `func(content, scheduleExpr string) (string, error)` | Updates the cron schedule in the `on:` block |
+| `ScanWorkflowsForMCP` | `func(workflowsDir, serverFilter string, verbose bool) ([]WorkflowMCPMetadata, error)` | Scans all workflows for MCP server configurations |
+| `ListToolsForMCP` | `func(workflowFile, mcpServerName string, verbose bool) error` | Lists tools for a specific MCP server in a workflow |
+| `CollectLockFileManifests` | `func(workflowsDir string) map[string]*workflow.GHAWManifest` | Reads all `*.lock.yml` manifests from a directory |
+| `WritePriorManifestFile` | `func(map[string]*workflow.GHAWManifest) (string, error)` | Writes manifest cache to a temporary file |
+| `GroupRunsByWorkflow` | `func([]WorkflowRun) map[string][]WorkflowRun` | Groups a flat slice of runs by workflow name |
+| `WaitForWorkflowCompletion` | `func(ctx, repoSlug, runID string, timeoutMinutes int, verbose bool) error` | Polls until a workflow run finishes or times out |
+| `ValidArtifactSetNames` | `func() []string` | Returns the valid artifact set name strings |
+| `ResolveArtifactFilter` | `func([]string) []string` | Expands artifact set aliases to concrete artifact names |
+| `ValidateArtifactSets` | `func([]string) error` | Validates that all provided artifact set names are known |
+| `ParseCopilotCodingAgentLogMetrics` | `func(logContent string, verbose bool) workflow.LogMetrics` | Parses Copilot coding-agent logs into metrics |
+| `ExtractLogMetricsFromRun` | `func(ProcessedRun) workflow.LogMetrics` | Extracts log metrics from a processed run |
+| `TrainDrain3Weights` | `func([]ProcessedRun, outputDir string, verbose bool) error` | Trains Drain3 anomaly-detection weights from run history |
+| `DisplayOutdatedDependencies` | `func([]OutdatedDependency, int)` | Renders an outdated-dependencies table to stdout |
+| `DisplayDependencyReport` | `func(*DependencyReport)` | Renders a full dependency report to stdout |
+| `DisplayDependencyReportJSON` | `func(*DependencyReport) error` | Renders a dependency report as JSON to stdout |
+| `DisplaySecurityAdvisories` | `func([]SecurityAdvisory)` | Renders a security-advisory table to stdout |
+| `IsDockerAvailable` | `func() bool` | Returns true if the Docker daemon is reachable |
+| `IsDockerImageAvailable` | `func(string) bool` | Returns true if a Docker image is present locally |
+| `IsDockerImageDownloading` | `func(string) bool` | Returns true if an image pull is in progress |
+| `StartDockerImageDownload` | `func(ctx, image string) bool` | Begins a background image pull; returns false if already pulling |
+| `CheckAndPrepareDockerImages` | `func(ctx, useZizmor, usePoutine, useActionlint, useRunnerGuard bool) error` | Pre-pulls security-scanner Docker images |
+| `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
+| `CreatePRWithChanges` | `func(branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
+| `AutoMergePullRequestsCreatedAfter` | `func(repoSlug string, createdAfter time.Time, verbose bool) error` | Auto-merges eligible PRs created after a given time |
+| `PreflightCheckForCreatePR` | `func(bool) error` | Validates prerequisites before creating a PR |
+| `DisableAllWorkflowsExcept` | `func(repoSlug string, exceptWorkflows []string, verbose bool) error` | Disables all workflows in a repo except the named ones |
+| `GetEngineSecretNameAndValue` | `func(engine string, existingSecrets map[string]bool) (string, string, bool, error)` | Prompts for and validates an engine API secret |
+| `CheckForUpdatesAsync` | `func(ctx, noCheckUpdate, verbose bool)` | Checks for a newer `gh-aw` version in the background |
+| `FetchChecksResult` | `func(repoOverride, prNumber string) (*ChecksResult, error)` | Fetches CI check results for a pull request |
+| `ValidEngineNames` | `func() []string` | Returns the supported engine names for shell completion |
+| `CompleteWorkflowNames` | `func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective)` | Shell-completion provider for workflow names |
+| `CompleteEngineNames` | `func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective)` | Shell-completion provider for engine names |
+| `CompleteDirectories` | `func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective)` | Shell-completion provider for directory paths |
+| `RegisterEngineFlagCompletion` | `func(*cobra.Command)` | Registers shell completions for the `--engine` flag |
+| `RegisterDirFlagCompletion` | `func(*cobra.Command, string)` | Registers shell completions for a directory flag |
+| `UninstallShellCompletion` | `func(verbose bool) error` | Uninstalls shell completion scripts |
+| `IsCommitSHA` | `func(string) bool` | Returns true if the string is a full Git commit SHA |
+| `ValidateWorkflowIntent` | `func(string) error` | Validates the workflow intent string |
+
+### Additional Exported Types
+
+The `cli` package exports many types used across its command implementations. The following supplements the main "Key Types" table above:
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `AccessLogEntry` | struct | A single entry from an AWF network access log |
+| `AccessLogSummary` | struct | Aggregated summary of access log entries |
+| `ActionInput` | struct | An input parameter definition from `action.yml` |
+| `ActionMetadata` | struct | Parsed `action.yml` metadata for a composite action |
+| `ActionOutput` | struct | An output definition from `action.yml` |
+| `ActionlintStats` | struct | Static-analysis statistics from an actionlint run |
+| `AddInteractiveConfig` | struct | Configuration for the interactive `add-wizard` command |
+| `AgenticAssessment` | struct | Agentic behavior assessment derived from audit logs |
+| `ArtifactSet` | string alias | Named set of artifacts (e.g. `"agent"`, `"detection"`) |
+| `AuditComparisonData` | struct | Full comparison between two audit runs |
+| `AuditComparisonBaseline` | struct | Baseline metrics for an audit comparison |
+| `AuditComparisonDelta` | struct | Numeric delta between baseline and compare run |
+| `AuditEngineConfig` | struct | Engine configuration captured in an audit run |
+| `AuditLogEntry` | struct | A structured entry from the agent audit log |
+| `AwContext` | struct | Agentic workflow context parsed from the run |
+| `AwInfo` | struct | Top-level `gh-aw` metadata block from an audit artifact |
+| `BehaviorFingerprint` | struct | Pattern fingerprint of agent behavior across turns |
+| `CheckState` | string alias | CI check state (`"success"`, `"failure"`, `"pending"`, ...) |
+| `CodemodResult` | struct | Result of a single codemod transformation |
+| `CompilationStats` | struct | Statistics from a compilation run (files, errors, warnings) |
+| `CompileValidationError` | struct | A validation error emitted during compilation |
+| `CombinedTrialResult` | struct | Combined results from multiple trial runs |
+| `ContinuationData` | struct | State for multi-turn agent continuations |
+| `CopilotCodingAgentDetector` | struct | Detector for Copilot coding-agent log patterns |
+| `CrossRunSummary` | struct | Summary of cross-run metrics across multiple workflow runs |
+| `DependencyInfo` | struct | Metadata for a single dependency in `go.mod` or `package.json` |
+| `DevcontainerConfig` | struct | Parsed `.devcontainer/devcontainer.json` configuration |
+| `DomainAnalysis` | struct | Aggregated per-domain network request analysis |
+| `DomainBuckets` | struct | Domain requests bucketed by category (allow, deny, unknown) |
+| `DomainDiffEntry` | struct | Per-domain diff between two runs |
+| `DownloadResult` | struct | Result of a log artifact download |
+| `EpisodeData` | struct | A single agent episode (one tool-call turn) |
+| `ErrorInfo` | struct | Structured error captured from an agent run |
+| `ErrorSummary` | struct | Aggregated error summary for a workflow run |
+| `FetchedWorkflow` | struct | A workflow fetched from a remote or local source with metadata |
+| `FileInfo` | struct | File metadata captured during a workflow run |
+| `Finding` | struct | A finding from a security scanner (Zizmor/Poutine/Actionlint) |
+| `FirewallAnalysis` | struct | Analysis of AWF network firewall logs |
+| `FirewallLogEntry` | struct | A single entry from the AWF firewall log |
+| `GatewayLogEntry` | struct | A log entry from the MCP gateway proxy |
+| `GatewayMetrics` | struct | Aggregate metrics from MCP gateway logs |
+| `GitHubRateLimitEntry` | struct | A GitHub API rate-limit snapshot from the agent run |
+| `GitHubWorkflow` | struct | Minimal GitHub Actions workflow metadata |
+| `GuardPolicySummary` | struct | Summary of guard-policy evaluations during a run |
+| `InitOptions` | struct | Options for `InitRepository` |
+| `JobData` | struct | Data for a single GitHub Actions job |
+| `JobInfo` | struct | Metadata for a GitHub Actions job |
+| `ListWorkflowRunsOptions` | struct | Options for listing workflow runs |
+| `LockFileStatus` | struct | Status of a compiled `.lock.yml` file |
+| `LogsData` | struct | Full log data downloaded for a workflow run |
+| `LogsSummary` | struct | Summary view of downloaded log data |
+| `MCPConfig` | struct | MCP server configuration as parsed from a workflow |
+| `MCPFailureReport` | struct | Report of MCP server failures during a run |
+| `MCPLogsGuardrailResponse` | struct | Guardrail evaluation response from MCP log analysis |
+| `MCPPackage` | struct | An npm/pip package entry used by an MCP server |
+| `MCPRegistryServerForProcessing` | struct | Server entry retrieved from the MCP registry |
+| `MCPServerHealth` | struct | Health metrics for a single MCP server |
+| `MCPSlowestToolCall` | struct | The slowest tool call recorded for an MCP server |
+| `MCPToolCall` | struct | A single MCP tool invocation from an agent turn |
+| `MCPToolSummary` | struct | Aggregated MCP tool usage summary |
+| `MCPToolUsageData` | struct | Per-tool usage counts and latencies |
+| `MetricsData` | struct | Core performance metrics for a workflow run |
+| `MetricsTrendData` | struct | Trend data for a metric across multiple runs |
+| `ModelTokenUsage` | struct | Token usage for a single AI model |
+| `NoopReport` | struct | Report for a noop safe-output event |
+| `ObservabilityInsight` | struct | An insight derived from observability data |
+| `OverviewData` | struct | High-level overview data for a workflow run |
+| `PRCheckRun` | struct | A single CI check run attached to a pull request |
+| `PRCommitStatus` | struct | A commit status context for a pull request |
+| `PRInfo` | struct | Pull-request metadata used by `gh aw pr` commands |
+| `PerformanceMetrics` | struct | Performance counters for a workflow run |
+| `PolicyAnalysis` | struct | Analysis of guard-policy evaluation results |
+| `PolicyManifest` | struct | A manifest of guard policies applied during a run |
+| `ProcessedRun` | struct | A fully-processed workflow run with parsed artifacts |
+| `ProjectConfig` | struct | Configuration for `gh aw project new` |
+| `PromptAnalysis` | struct | Analysis of the prompt sent to the agent |
+| `RPCMessageEntry` | struct | A single RPC message from MCP gateway logs |
+| `Recommendation` | struct | An actionable recommendation derived from audit data |
+| `RedactedDomainsAnalysis` | struct | Analysis of redacted domain entries in firewall logs |
+| `Release` | struct | A GitHub release entry |
+| `Remote` | struct | A Git remote |
+| `RepoSpec` | struct | A parsed repository specifier (`owner/repo[@ref]`) |
+| `Repository` | struct | A GitHub repository |
+| `RuleHitStats` | struct | Statistics for a single AWF firewall rule |
+| `RunData` | struct | All data collected for a single workflow run |
+| `RunSummary` | struct | Summary of a workflow run |
+| `SafeOutputSummary` | struct | Summary of safe-output events in a run |
+| `SecretInfo` | struct | Metadata for a configured repository secret |
+| `SecretRequirement` | struct | A required secret for a workflow |
+| `SessionAnalysis` | struct | Analysis of agent session metadata |
+| `ShellType` | string alias | Shell type detected by `DetectShell` (e.g. `"bash"`, `"zsh"`) |
+| `SourceSpec` | struct | A parsed workflow source specifier (local, remote, or registry) |
+| `TokenUsageEntry` | struct | Per-request token usage from the agent |
+| `TokenUsageSummary` | struct | Aggregated token usage for a workflow run |
+| `ToolTransition` | struct | A transition between tool calls in an agent episode |
+| `ToolUsageInfo` | struct | Usage information for a single tool |
+| `ToolUsageSummary` | struct | Aggregated tool usage statistics |
+| `Transport` | struct | MCP server transport configuration |
+| `TrendDirection` | int alias | Direction of a metric trend (`Up`, `Down`, `Stable`) |
+| `TrialArtifacts` | struct | Artifacts generated during a trial run |
+| `TrialRepoContext` | struct | Repository context used during a trial run |
+| `VSCodeMCPServer` | struct | An MCP server entry in `.vscode/mcp.json` |
+| `VSCodeSettings` | struct | Parsed `.vscode/settings.json` |
+| `Workflow` | struct | Minimal workflow metadata used in list operations |
+| `WorkflowDomainsDetail` | struct | Detailed per-workflow domain information |
+| `WorkflowDomainsSummary` | struct | Summary of domains used across workflows |
+| `WorkflowFailure` | struct | A workflow failure record |
+| `WorkflowFileStatus` | struct | Status of a workflow file (exists, outdated, etc.) |
+| `WorkflowJob` | struct | A GitHub Actions job within a workflow run |
+| `WorkflowListItem` | struct | A single item in the `gh aw list` output |
+| `WorkflowMCPMetadata` | struct | MCP server metadata scanned from a workflow file |
+| `WorkflowNode` | struct | A node in the workflow dependency graph |
+| `WorkflowOption` | struct | A selectable workflow option for interactive prompts |
+| `WorkflowRunInfo` | struct | Summary of a workflow run from the GitHub API |
+| `WorkflowSpec` | struct | A fully resolved workflow specification with source metadata |
+| `WorkflowStats` | struct | Aggregate statistics for a workflow |
+| `LogMetrics` | type alias | Alias for `workflow.LogMetrics` — log parsing metrics |
+| `PostTransformFunc` | func type | A post-compilation transformation function |
+| `LogParser[T]` | generic func type | Generic log-parser function type parameterized on analysis result |
 
 ## Usage Examples
 

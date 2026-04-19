@@ -430,8 +430,10 @@ constants.DangerousPropertyNames
 constants.DangerousPropertyNamesSet
 
 // Default GitHub tool lists used when no explicit tools: configuration is present
-constants.DefaultReadOnlyGitHubTools
-constants.DefaultGitHubTools
+constants.DefaultReadOnlyGitHubTools      // read-only tools (base set)
+constants.DefaultGitHubToolsLocal         // default tools for local (Docker) mode — equals DefaultReadOnlyGitHubTools
+constants.DefaultGitHubToolsRemote        // default tools for remote (hosted) mode — equals DefaultReadOnlyGitHubTools
+constants.DefaultGitHubTools              // deprecated: use DefaultGitHubToolsLocal or DefaultGitHubToolsRemote
 constants.DefaultBashTools
 ```
 
