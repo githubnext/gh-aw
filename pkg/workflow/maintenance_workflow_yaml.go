@@ -59,7 +59,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
-          - 'activity-report'
+          - 'activity_report'
           - 'close_agentic_workflows_issues'
           - 'clean_cache_memories'
           - 'validate'
@@ -71,7 +71,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity-report, close_agentic_workflows_issues, clean_cache_memories, validate)'
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)'
         required: false
         type: string
         default: ''
@@ -196,8 +196,8 @@ jobs:
 `)
 
 	// Add unified run_operation job for all dispatch operations except those with dedicated jobs
-	// (safe_outputs, create_labels, activity-report, close_agentic_workflows_issues, clean_cache_memories, validate)
-	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity-report", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
+	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
 	yaml.WriteString(`
   run_operation:
     if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
@@ -350,10 +350,10 @@ jobs:
             await main();
 `)
 
-	// Add activity_report job for workflow_dispatch with operation == 'activity-report'
+	// Add activity_report job for workflow_dispatch with operation == 'activity_report'
 	yaml.WriteString(`
   activity_report:
-    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity-report")) + ` }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity_report")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: read
