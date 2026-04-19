@@ -150,4 +150,3 @@ func TestTuistoryAddWizardIntegration(t *testing.T) {
 	_, statErr := os.Stat(addedWorkflowPath)
 	assert.ErrorIs(t, statErr, os.ErrNotExist, "Workflow file should not be created when add-wizard is cancelled")
 }
-
