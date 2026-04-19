@@ -43,6 +43,30 @@ describe("merge_pull_request branch validation", () => {
     expect(policy.requiredChecks).toEqual([]);
   });
 
+  it("marks default base branch as default", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        repos: {
+          getBranch: vi.fn().mockResolvedValue({
+            data: {
+              protected: false,
+            },
+          }),
+          getBranchProtection: vi.fn().mockResolvedValue({
+            data: { required_status_checks: { contexts: ["ci/test"] } },
+          }),
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+      },
+    };
+
+    const policy = await __testables.getBranchPolicy(githubClient, "github", "gh-aw", "main");
+    expect(policy.isDefault).toBe(true);
+    expect(policy.requiredChecks).toEqual(["ci/test"]);
+  });
+
   it("rejects unsafe base branch names before branch policy lookup", async () => {
     const { __testables } = await import("./merge_pull_request.cjs");
 
@@ -67,5 +91,20 @@ describe("merge_pull_request branch validation", () => {
     expect(__testables.findAllowedLabelMatches(["release/*", "automerge/*"], ["release/*", "automerge/*"])).toEqual(["release/*", "automerge/*"]);
     expect(__testables.findAllowedLabelMatches([], ["automerge"])).toEqual([]);
     expect(__testables.findAllowedLabelMatches(["AutoMerge"], ["automerge"])).toEqual([]);
+  });
+
+  it("resolves temporary ID for pull_request_number", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+    const result = __testables.resolvePullRequestNumber({ pull_request_number: "aw_pr1" }, { aw_pr1: { number: 42 } });
+    expect(result).toEqual({ success: true, pullNumber: 42, fromTemporaryId: true });
+  });
+
+  it("fails on unresolved temporary ID for pull_request_number", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+    const result = __testables.resolvePullRequestNumber({ pull_request_number: "aw_missing" }, {});
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Unresolved temporary ID");
+    }
   });
 });

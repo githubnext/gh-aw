@@ -24,6 +24,8 @@ func TestSafeOutputsSpecificationDocumentsMergePullRequest(t *testing.T) {
 		"spec should define merge_pull_request purpose")
 	assert.Contains(t, section, "Base Branch Protection",
 		"spec should document base branch restrictions for merge_pull_request")
+	assert.Contains(t, section, "repository default branch",
+		"spec should explicitly refuse merge_pull_request to repository default branch")
 	assert.Contains(t, section, "`required-labels`",
 		"spec should document required-labels configuration for merge_pull_request")
 	assert.Contains(t, section, "`allowed-files`",
@@ -34,6 +36,8 @@ func TestSafeOutputsSpecificationDocumentsMergePullRequest(t *testing.T) {
 		"spec should document contents: write permission for merge_pull_request")
 	assert.Contains(t, section, "`pull-requests: write`",
 		"spec should document pull-requests: write permission for merge_pull_request")
+	assert.Contains(t, section, "temporary ID",
+		"spec should document temporary ID support for merge_pull_request pull_request_number")
 }
 
 func extractSpecTypeSection(t *testing.T, spec, typeName string) string {

@@ -2779,7 +2779,7 @@ This section provides complete definitions for all remaining safe output types. 
     "properties": {
       "pull_request_number": {
         "type": ["number", "string"],
-        "description": "Pull request number to merge. If omitted, uses triggering pull request context."
+        "description": "Pull request number to merge. Supports numeric values or temporary IDs from prior safe-output operations. If omitted, uses triggering pull request context."
       },
       "merge_method": {
         "type": "string",
@@ -2833,7 +2833,9 @@ This section provides complete definitions for all remaining safe output types. 
 **Notes**:
 
 - Merge execution is blocked unless all configured gates pass.
+- Merge to the repository default branch is always refused by this safe output type.
 - `allowed-files` and `protected-files` are evaluated independently; both must pass.
+- `pull_request_number` may be a temporary ID that resolves to a pull request number from earlier safe-output operations.
 - GraphQL mergeability and review-summary queries are retried with transient-error retry logic.
 
 ---

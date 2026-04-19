@@ -9,6 +9,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { selectLatestRelevantChecks } = require("./check_runs_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+const { resolveNumberFromTemporaryId } = require("./temporary_id.cjs");
 const MERGEABILITY_PENDING_ERROR = "pull request mergeability is still being computed";
 
 /**
@@ -325,6 +326,28 @@ function findAllowedLabelMatches(labels, allowedLabels) {
 }
 
 /**
+ * @param {any} message
+ * @param {any} resolvedTemporaryIds
+ * @returns {{success: true, pullNumber: number, fromTemporaryId: boolean} | {success: false, error: string}}
+ */
+function resolvePullRequestNumber(message, resolvedTemporaryIds) {
+  const pullNumberRaw = message?.pull_request_number;
+  if (pullNumberRaw !== undefined && pullNumberRaw !== null) {
+    const resolution = resolveNumberFromTemporaryId(pullNumberRaw, resolvedTemporaryIds);
+    if (resolution.errorMessage || resolution.resolved === null) {
+      return { success: false, error: resolution.errorMessage || "pull_request_number is required for merge_pull_request" };
+    }
+    return { success: true, pullNumber: resolution.resolved, fromTemporaryId: resolution.wasTemporaryId };
+  }
+
+  const contextPullNumber = resolveContextPullNumber();
+  if (!contextPullNumber) {
+    return { success: false, error: "pull_request_number is required for merge_pull_request" };
+  }
+  return { success: true, pullNumber: contextPullNumber, fromTemporaryId: false };
+}
+
+/**
  * Handler factory for merge_pull_request.
  * @type {HandlerFactoryFunction}
  */
@@ -348,7 +371,7 @@ async function main(config = {}) {
 
   let processedCount = 0;
 
-  return async function handleMergePullRequest(message) {
+  return async function handleMergePullRequest(message, resolvedTemporaryIds) {
     core.info(`Processing merge_pull_request message: ${JSON.stringify({ pull_request_number: message?.pull_request_number, repo: message?.repo, merge_method: message?.merge_method })}`);
     if (processedCount >= maxCount) {
       core.warning(`Skipping merge_pull_request: max count of ${maxCount} reached`);
@@ -364,11 +387,14 @@ async function main(config = {}) {
     const { owner, repo } = repoResult.repoParts;
     core.info(`Resolved target repository: ${owner}/${repo}`);
 
-    const pullNumberRaw = message.pull_request_number ?? resolveContextPullNumber();
-    const pullNumber = parseInt(String(pullNumberRaw || ""), 10);
-    if (!pullNumber || Number.isNaN(pullNumber)) {
-      core.error("pull_request_number is required for merge_pull_request");
-      return { success: false, error: "pull_request_number is required for merge_pull_request" };
+    const pullNumberResolution = resolvePullRequestNumber(message, resolvedTemporaryIds);
+    if (!pullNumberResolution.success) {
+      core.error(pullNumberResolution.error);
+      return { success: false, error: pullNumberResolution.error };
+    }
+    const pullNumber = pullNumberResolution.pullNumber;
+    if (pullNumberResolution.fromTemporaryId) {
+      core.info(`Resolved temporary ID '${String(message?.pull_request_number)}' to pull request #${pullNumber}`);
     }
     core.info(`Target PR number: ${pullNumber}`);
 
@@ -619,5 +645,6 @@ module.exports = {
     sanitizeBranchName,
     getBranchPolicy,
     findAllowedLabelMatches,
+    resolvePullRequestNumber,
   },
 };
