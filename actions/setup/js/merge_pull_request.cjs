@@ -8,6 +8,7 @@ const { globPatternToRegex, simpleGlobToRegex } = require("./glob_pattern_helper
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { selectLatestRelevantChecks } = require("./check_runs_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const MERGEABILITY_PENDING_ERROR = "pull request mergeability is still being computed";
 
 /**
@@ -163,12 +164,18 @@ async function getReviewSummary(githubClient, owner, repo, pullNumber) {
  * @returns {Promise<{isProtected: boolean, isDefault: boolean, defaultBranch: string|null, requiredChecks: string[]}>}
  */
 async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
-  core.info(`Checking target branch policy for ${owner}/${repo}@${baseBranch}`);
+  const baseBranchValidation = sanitizeBranchName(baseBranch, "target base");
+  if (!baseBranchValidation.valid || !baseBranchValidation.value) {
+    throw new Error(`Invalid target base branch for policy evaluation: ${baseBranchValidation.error} (original: ${JSON.stringify(baseBranch)}, normalized: ${JSON.stringify(baseBranchValidation.normalized || "")})`);
+  }
+  const sanitizedBaseBranch = baseBranchValidation.value;
+
+  core.info(`Checking target branch policy for ${owner}/${repo}@${sanitizedBaseBranch}`);
   const [{ data: branch }, { data: repository }] = await Promise.all([
     githubClient.rest.repos.getBranch({
       owner,
       repo,
-      branch: baseBranch,
+      branch: sanitizedBaseBranch,
     }),
     githubClient.rest.repos.get({
       owner,
@@ -176,15 +183,17 @@ async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
     }),
   ]);
 
-  const defaultBranch = repository.default_branch;
-  const isDefault = defaultBranch !== null && baseBranch === defaultBranch;
+  const defaultBranchRaw = repository.default_branch;
+  const defaultBranchValidation = sanitizeBranchName(defaultBranchRaw, "default");
+  const defaultBranch = defaultBranchValidation.valid ? defaultBranchValidation.value : defaultBranchRaw;
+  const isDefault = defaultBranch !== null && sanitizedBaseBranch === defaultBranch;
   if (isDefault) {
-    core.info(`Target branch ${baseBranch} is the repository default branch`);
+    core.info(`Target branch ${sanitizedBaseBranch} is the repository default branch`);
   }
 
   const isProtected = branch?.protected === true;
   if (isProtected) {
-    core.info(`Target branch ${baseBranch} is protected`);
+    core.info(`Target branch ${sanitizedBaseBranch} is protected`);
     return { isProtected: true, isDefault, defaultBranch, requiredChecks: [] };
   }
 
@@ -192,18 +201,18 @@ async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
     const { data } = await githubClient.rest.repos.getBranchProtection({
       owner,
       repo,
-      branch: baseBranch,
+      branch: sanitizedBaseBranch,
     });
     const contexts = Array.isArray(data?.required_status_checks?.contexts) ? data.required_status_checks.contexts : [];
     const checks = Array.isArray(data?.required_status_checks?.checks) ? data.required_status_checks.checks.map(c => c?.context).filter(Boolean) : [];
-    core.info(`Branch protection checks for ${baseBranch}: ${[...new Set([...contexts, ...checks])].join(", ") || "(none)"}`);
+    core.info(`Branch protection checks for ${sanitizedBaseBranch}: ${[...new Set([...contexts, ...checks])].join(", ") || "(none)"}`);
     return { isProtected: false, isDefault, defaultBranch, requiredChecks: [...new Set([...contexts, ...checks])] };
   } catch (error) {
     if (error && typeof error === "object" && "status" in error && error.status === 404) {
-      core.info(`No branch protection rules found for ${baseBranch}`);
+      core.info(`No branch protection rules found for ${sanitizedBaseBranch}`);
       return { isProtected: false, isDefault, defaultBranch, requiredChecks: [] };
     }
-    core.error(`Failed to read branch protection for ${baseBranch}: ${getErrorMessage(error)}`);
+    core.error(`Failed to read branch protection for ${sanitizedBaseBranch}: ${getErrorMessage(error)}`);
     throw error;
   }
 }
@@ -285,6 +294,36 @@ function resolveContextPullNumber() {
 }
 
 /**
+ * @param {string|undefined|null} branchName
+ * @param {string} branchRole
+ * @returns {{valid: boolean, value?: string, error?: string, normalized?: string}}
+ */
+function sanitizeBranchName(branchName, branchRole) {
+  if (typeof branchName !== "string" || branchName.trim() === "") {
+    return { valid: false, error: `${branchRole} branch is missing` };
+  }
+
+  const normalized = normalizeBranchName(branchName);
+  if (typeof normalized !== "string" || normalized.trim() === "") {
+    return {
+      valid: false,
+      error: `${branchRole} branch is invalid after sanitization`,
+      normalized: String(normalized || ""),
+    };
+  }
+
+  if (normalized !== branchName) {
+    return {
+      valid: false,
+      error: `${branchRole} branch contains invalid characters`,
+      normalized,
+    };
+  }
+
+  return { valid: true, value: normalized };
+}
+
+/**
  * Handler factory for merge_pull_request.
  * @type {HandlerFactoryFunction}
  */
@@ -342,7 +381,29 @@ async function main(config = {}) {
         core.error(`Pull request #${pullNumber} not found`);
         return { success: false, error: `Pull request #${pullNumber} not found` };
       }
-      core.info(`PR state: merged=${pr.merged}, draft=${pr.draft}, mergeable=${pr.mergeable}, mergeable_state=${pr.mergeable_state || "unknown"}, head=${pr.head?.ref}, base=${pr.base?.ref}`);
+      const sourceBranchValidation = sanitizeBranchName(pr.head?.ref, "source");
+      if (!sourceBranchValidation.valid) {
+        failureReasons.push({
+          code: "source_branch_invalid",
+          message: sourceBranchValidation.error || "source branch is invalid",
+          details: { source_branch: pr.head?.ref, normalized: sourceBranchValidation.normalized || null },
+        });
+      }
+      const sourceBranch = sourceBranchValidation.valid ? sourceBranchValidation.value : null;
+
+      const baseBranchValidation = sanitizeBranchName(pr.base?.ref, "target base");
+      if (!baseBranchValidation.valid) {
+        failureReasons.push({
+          code: "target_base_branch_invalid",
+          message: baseBranchValidation.error || "target base branch is invalid",
+          details: { base_branch: pr.base?.ref, normalized: baseBranchValidation.normalized || null },
+        });
+      }
+      const baseBranch = baseBranchValidation.valid ? baseBranchValidation.value : null;
+
+      core.info(
+        `PR state: merged=${pr.merged}, draft=${pr.draft}, mergeable=${pr.mergeable}, mergeable_state=${pr.mergeable_state || "unknown"}, head=${JSON.stringify(sourceBranch || pr.head?.ref || null)}, base=${JSON.stringify(baseBranch || pr.base?.ref || null)}`
+      );
       if (pr.merged) {
         core.info(`PR #${pullNumber} is already merged, returning idempotent success`);
         return {
@@ -388,30 +449,34 @@ async function main(config = {}) {
         }
       }
 
-      if (allowedBranchPatterns.length > 0 && !allowedBranchPatterns.some(re => re.test(pr.head.ref))) {
+      if (allowedBranchPatterns.length > 0 && sourceBranch && !allowedBranchPatterns.some(re => re.test(sourceBranch))) {
         failureReasons.push({
           code: "branch_not_allowed",
-          message: `Source branch "${pr.head.ref}" does not match allowed-branches`,
-          details: { source_branch: pr.head.ref, patterns: allowedBranches },
+          message: `Source branch "${sourceBranch}" does not match allowed-branches`,
+          details: { source_branch: sourceBranch, patterns: allowedBranches },
         });
       }
       if (allowedBranchPatterns.length > 0) {
         core.info(`Allowed branch patterns: ${allowedBranches.join(", ")}`);
       }
 
-      const branchPolicy = await getBranchPolicy(githubClient, owner, repo, pr.base.ref);
-      if (branchPolicy.isProtected) {
-        failureReasons.push({
-          code: "target_branch_protected",
-          message: `Target branch "${pr.base.ref}" is protected`,
-        });
-      }
-      if (branchPolicy.isDefault) {
-        failureReasons.push({
-          code: "target_branch_default",
-          message: `Target branch "${pr.base.ref}" is the repository default branch`,
-          details: { default_branch: branchPolicy.defaultBranch },
-        });
+      /** @type {{isProtected: boolean, isDefault: boolean, defaultBranch: string|null, requiredChecks: string[]}} */
+      let branchPolicy = { isProtected: false, isDefault: false, defaultBranch: null, requiredChecks: [] };
+      if (baseBranch) {
+        branchPolicy = await getBranchPolicy(githubClient, owner, repo, baseBranch);
+        if (branchPolicy.isProtected) {
+          failureReasons.push({
+            code: "target_branch_protected",
+            message: `Target branch "${baseBranch}" is protected`,
+          });
+        }
+        if (branchPolicy.isDefault) {
+          failureReasons.push({
+            code: "target_branch_default",
+            message: `Target branch "${baseBranch}" is the repository default branch`,
+            details: { default_branch: branchPolicy.defaultBranch },
+          });
+        }
       }
 
       const checkSummary = await evaluateRequiredChecks(githubClient, owner, repo, pr.head.sha, branchPolicy.requiredChecks);
@@ -545,4 +610,13 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main };
+module.exports = {
+  main,
+  __testables: {
+    compilePathGlobs,
+    listChangedFiles,
+    resolveContextPullNumber,
+    sanitizeBranchName,
+    getBranchPolicy,
+  },
+};
