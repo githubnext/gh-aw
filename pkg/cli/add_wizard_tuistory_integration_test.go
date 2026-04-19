@@ -86,6 +86,8 @@ func waitForTuistoryText(t *testing.T, sessionName string, text string, timeoutM
 }
 
 func TestTuistoryAddWizardIntegration(t *testing.T) {
+	const launchTimeoutMs = 30000 // 30 seconds
+
 	if _, err := exec.LookPath("npx"); err != nil {
 		t.Skip("npx not available, skipping tuistory add-wizard integration test")
 	}
@@ -111,7 +113,7 @@ func TestTuistoryAddWizardIntegration(t *testing.T) {
 		"--rows", "40",
 		"--env", "CI=",
 		"--env", "GO_TEST_MODE=",
-		"--timeout", "30000",
+		"--timeout", fmt.Sprintf("%d", launchTimeoutMs),
 	}
 
 	launchOutput, err := runTuistory(t, launchArgs...)
