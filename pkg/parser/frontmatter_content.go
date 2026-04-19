@@ -83,6 +83,11 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	frontmatterLines := []string{}
 	if frontmatterYAML != "" {
 		frontmatterLines = strings.Split(frontmatterYAML, "\n")
+		// Preserve previous behavior from lines[1:endIndex]: a trailing newline before
+		// the closing delimiter does not create an additional empty frontmatter line.
+		if strings.HasSuffix(frontmatterYAML, "\n") {
+			frontmatterLines = frontmatterLines[:len(frontmatterLines)-1]
+		}
 	}
 
 	// Sanitize no-break whitespace characters (U+00A0) which break the YAML parser
