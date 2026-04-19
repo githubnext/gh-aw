@@ -133,6 +133,10 @@ func IsWorkflowSpec(path string) bool {
 	if len(parts) < 3 {
 		return false
 	}
+	// Preserve legacy behavior: URL-like paths are treated as workflowspecs.
+	if strings.Contains(cleanPath, "://") {
+		return true
+	}
 	if strings.HasPrefix(cleanPath, ".") {
 		return false
 	}
@@ -140,6 +144,11 @@ func IsWorkflowSpec(path string) bool {
 		return false
 	}
 	if strings.HasPrefix(cleanPath, "/") {
+		return false
+	}
+	owner := parts[0]
+	repo := parts[1]
+	if owner == "" || repo == "" {
 		return false
 	}
 	return true

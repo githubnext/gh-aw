@@ -715,6 +715,11 @@ func TestIsWorkflowSpecFormat(t *testing.T) {
 			expected: false,
 		},
 		{
+			name:     "malformed workflowspec with empty repo segment",
+			path:     "owner//path/file.md",
+			expected: false,
+		},
+		{
 			name:     "simple filename",
 			path:     "file.md",
 			expected: false,
