@@ -162,6 +162,9 @@ function resolveInvocationContext(rawContext) {
       const inputsEventName = typeof inputs.event_name === "string" ? inputs.event_name : typeof inputs.eventName === "string" ? inputs.eventName : "";
       const parsedPayload = parseJSONPayload(inputs.event_payload) || parseJSONPayload(inputs.eventPayload);
       const targetRepo = parseRepoSlug(inputs.target_repo) || parseRepoSlug(inputs.targetRepo);
+      if (targetRepo) {
+        checkAllowedRepo(workflowRepo, targetRepo);
+      }
       if (inputsEventName) {
         eventName = inputsEventName;
       }
@@ -169,9 +172,6 @@ function resolveInvocationContext(rawContext) {
         eventPayload = parsedPayload;
       }
       eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || targetRepo;
-      if (targetRepo && eventRepo && eventRepo.owner === targetRepo.owner && eventRepo.repo === targetRepo.repo) {
-        checkAllowedRepo(workflowRepo, eventRepo);
-      }
     }
   }
 
