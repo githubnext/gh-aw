@@ -167,7 +167,7 @@ async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
     }),
   ]);
 
-  const defaultBranch = typeof repository?.default_branch === "string" ? repository.default_branch : null;
+  const defaultBranch = repository.default_branch;
   const isDefault = defaultBranch !== null && baseBranch === defaultBranch;
   if (isDefault) {
     core.info(`Target branch ${baseBranch} is the repository default branch`);
