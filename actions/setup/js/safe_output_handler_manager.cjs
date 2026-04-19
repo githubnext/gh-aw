@@ -1254,9 +1254,7 @@ async function main() {
       })
       .join("\n");
 
-    const createDiscussionErrorCount = processingResult.results.filter(
-      r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled,
-    ).length;
+    const createDiscussionErrorCount = processingResult.results.filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled).length;
 
     core.setOutput("create_discussion_errors", createDiscussionErrors);
     core.setOutput("create_discussion_error_count", createDiscussionErrorCount.toString());
