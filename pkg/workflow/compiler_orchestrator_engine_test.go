@@ -239,6 +239,16 @@ func TestShouldScanImportedMarkdown(t *testing.T) {
 			importFilePath: "shared/workflow.lock.yml",
 			want:           false,
 		},
+		{
+			name:           "skips uppercase markdown extension",
+			importFilePath: "shared/workflow.MD",
+			want:           false,
+		},
+		{
+			name:           "skips builtin non-markdown imports",
+			importFilePath: parser.BuiltinPathPrefix + "engines/claude.yml",
+			want:           false,
+		},
 	}
 
 	for _, tt := range tests {
