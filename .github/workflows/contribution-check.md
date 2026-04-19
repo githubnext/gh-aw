@@ -240,6 +240,13 @@ After creating the report issue, call the `add_labels` safe output tool to apply
 
 When you create the report issue, set a `temporary_id` (for example `aw_summary`). Then set `add_labels.item_number` to `#<temporary_id>` (for example `#aw_summary`) so labels are applied to the issue created in the same run.
 
+Example:
+
+```json
+{"type":"create_issue","temporary_id":"aw_summary","title":"Contribution Check — 2026-04-19","body":"..."}
+{"type":"add_labels","item_number":"#aw_summary","labels":["lgtm","needs-work"]}
+```
+
 For example, if the batch contains rows with `lgtm`, `spam`, and `needs-work` quality values, apply all three labels: `lgtm`, `spam`, `needs-work`.
 
 If any subagent call failed (❓), also apply `outdated`.
