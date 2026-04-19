@@ -522,6 +522,7 @@ describe("safe_outputs_handlers", () => {
       });
 
       process.env.GITHUB_BASE_REF = "master";
+      process.env.GITHUB_HEAD_REF = "feature/test-change";
       process.env.GITHUB_REF_NAME = "feature/test-change";
       try {
         const result = await handlers.createPullRequestHandler({
@@ -543,6 +544,7 @@ describe("safe_outputs_handlers", () => {
         );
       } finally {
         delete process.env.GITHUB_BASE_REF;
+        delete process.env.GITHUB_HEAD_REF;
         delete process.env.GITHUB_REF_NAME;
       }
     });
