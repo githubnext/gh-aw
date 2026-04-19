@@ -125,4 +125,12 @@ describe("run_activity_report", () => {
     expect(hasRateLimitText("secondary rate limit")).toBe(true);
     expect(hasRateLimitText("normal output")).toBe(false);
   });
+
+  it("demotes report headings by two levels", async () => {
+    const { normalizeReportMarkdown } = await import("./run_activity_report.cjs");
+    const transformed = normalizeReportMarkdown("# H1\n## H2\n### H3");
+    expect(transformed).toContain("### H1");
+    expect(transformed).toContain("#### H2");
+    expect(transformed).toContain("##### H3");
+  });
 });

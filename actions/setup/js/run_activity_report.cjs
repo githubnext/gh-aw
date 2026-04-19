@@ -7,6 +7,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const ISSUE_TITLE = "[aw] agentic status report";
 const REPORT_COUNT = 100;
+const HEADING_DEMOTION_LEVELS = 2;
 
 /** @typedef {{ key: string, heading: string, startDate: string, optionalOnRateLimit: boolean }} ActivityRange */
 
@@ -103,7 +104,11 @@ async function runRangeReport(bin, prefixArgs, repoSlug, range) {
  * @returns {string}
  */
 function normalizeReportMarkdown(markdown) {
-  return markdown.replace(/^(#{1,6})\s+/gm, (_, hashes) => `${"#".repeat(Math.min(6, hashes.length + 2))} `);
+  return markdown.replace(/^(#{1,6})\s+/gm, (_, hashes) => {
+    const headingLevel = hashes.length;
+    const demotedHeadingLevel = Math.min(6, headingLevel + HEADING_DEMOTION_LEVELS);
+    return `${"#".repeat(demotedHeadingLevel)} `;
+  });
 }
 
 /**
@@ -138,4 +143,4 @@ async function main() {
   core.info(`Created issue #${createdIssue.data.number}: ${createdIssue.data.html_url}`);
 }
 
-module.exports = { main, hasRateLimitText, runRangeReport };
+module.exports = { main, hasRateLimitText, runRangeReport, normalizeReportMarkdown };
