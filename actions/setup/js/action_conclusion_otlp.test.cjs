@@ -19,20 +19,30 @@ const mockSendJobConclusionSpan = vi.fn();
 const MANAGED_ENV_VARS = ["OTEL_EXPORTER_OTLP_ENDPOINT", "INPUT_JOB_NAME", "INPUT_JOB-NAME", "GITHUB_AW_OTEL_JOB_START_MS"];
 
 describe("action_conclusion_otlp.cjs", () => {
+  /** @type {Record<string, string | undefined>} */
+  let originalEnv = {};
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {});
     mockSendJobConclusionSpan.mockResolvedValue(undefined);
     // Patch the shared CJS exports object — run() accesses this at call time
     sendOtlpModule.sendJobConclusionSpan = mockSendJobConclusionSpan;
+    originalEnv = Object.fromEntries(MANAGED_ENV_VARS.map(key => [key, process.env[key]]));
     MANAGED_ENV_VARS.forEach(key => delete process.env[key]);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllEnvs();
     sendOtlpModule.sendJobConclusionSpan = originalSendJobConclusionSpan;
-    MANAGED_ENV_VARS.forEach(key => delete process.env[key]);
+    MANAGED_ENV_VARS.forEach(key => {
+      const value = originalEnv[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    });
   });
 
   it("should export run as a function", () => {
