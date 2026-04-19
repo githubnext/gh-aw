@@ -422,7 +422,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
       - name: Setup jq utilities directory
-        run: |-
+        run: |
           mkdir -p /tmp/gh-aw
           cat > /tmp/gh-aw/jqschema.sh << 'EOF'
           #!/usr/bin/env bash
@@ -457,7 +457,7 @@ jobs:
           GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
       - name: Fetch issues
-        run: |-
+        run: |
           # Create output directories
           mkdir -p /tmp/gh-aw/issues-data
           mkdir -p /tmp/gh-aw/cache-memory
@@ -575,7 +575,7 @@ jobs:
             /tmp/gh-aw/python/data/*
           retention-days: 30
       - name: Setup Python NLP environment
-        run: |-
+        run: |
           mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
           # Create a virtual environment for proper package isolation (avoids --break-system-packages)
           if [ ! -d /tmp/gh-aw/venv ]; then

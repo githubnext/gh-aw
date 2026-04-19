@@ -1599,6 +1599,7 @@ jobs:
           echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
           GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
           
+          
           GH_AW_MCP_SCRIPTS_SH_GH_3f037928c8983f03_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/gh.sh"
           cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_e26de5d9f22a9887_EOF'
@@ -1735,6 +1736,7 @@ jobs:
           }
           EOF
           fi
+          
           
           GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_e26de5d9f22a9887_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh"
@@ -1928,6 +1930,7 @@ jobs:
           
           echo "make $INPUT_ARGS"
           make $INPUT_ARGS
+          
           
           GH_AW_MCP_SCRIPTS_SH_MAKE_97eb02f03d43280c_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/make.sh"
