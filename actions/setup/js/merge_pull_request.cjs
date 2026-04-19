@@ -8,6 +8,7 @@ const { globPatternToRegex, simpleGlobToRegex } = require("./glob_pattern_helper
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { selectLatestRelevantChecks } = require("./check_runs_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
+const MERGEABILITY_PENDING_ERROR = "pull request mergeability is still being computed";
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -64,7 +65,7 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
         pull_number: pullNumber,
       });
       if (data && data.mergeable === null) {
-        throw new Error("pull request mergeability is still being computed");
+        throw new Error(MERGEABILITY_PENDING_ERROR);
       }
       return data;
     },
@@ -73,19 +74,23 @@ async function getPullRequestWithMergeability(githubClient, owner, repo, pullNum
       initialDelayMs: 1000,
       shouldRetry: error => {
         const msg = getErrorMessage(error).toLowerCase();
-        return isTransientError(error) || msg.includes("mergeability is still being computed");
+        return isTransientError(error) || msg === MERGEABILITY_PENDING_ERROR;
       },
     },
     `fetch pull request #${pullNumber}`
   ).catch(async error => {
-    const fallback = await githubClient.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: pullNumber,
-    });
-    if (fallback?.data) {
-      core.warning(`Mergeability remained unknown after retries for PR #${pullNumber}, continuing with latest state`);
-      return fallback.data;
+    try {
+      const fallback = await githubClient.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber,
+      });
+      if (fallback?.data) {
+        core.warning(`Mergeability remained unknown after retries for PR #${pullNumber}, continuing with latest state`);
+        return fallback.data;
+      }
+    } catch (fallbackError) {
+      throw new Error(`Failed to fetch pull request #${pullNumber} after retry and fallback attempts. Retry error: ${getErrorMessage(error)}. Fallback error: ${getErrorMessage(fallbackError)}`);
     }
     throw error;
   });
@@ -158,7 +163,7 @@ async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
 
   const isProtected = branch?.protected === true;
   if (isProtected) {
-    core.warning(`Target branch ${baseBranch} is protected`);
+    core.info(`Target branch ${baseBranch} is protected`);
     return { isProtected: true, requiredChecks: [] };
   }
 
