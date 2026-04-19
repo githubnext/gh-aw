@@ -62,15 +62,7 @@ const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 const NO_AUTH_INFO_PATTERN = /No authentication information found/;
 
 /**
- * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} NodeAppendFileSync
- */
-
-/**
- * @typedef {(path: string, data: string, encoding: string) => void} StringAppendLineWriter
- */
-
-/**
- * @typedef {NodeAppendFileSync | StringAppendLineWriter} AppendFileSyncLike
+ * @typedef {(path: import("node:fs").PathOrFileDescriptor, data: string | Uint8Array, options?: import("node:fs").WriteFileOptions) => void} AppendFileSyncLike
  */
 
 /**
@@ -154,7 +146,7 @@ function buildInfrastructureIncompletePayload(details) {
  * @param {string} payload
  */
 function appendSafeOutputLine(appendFileSync, safeOutputsPath, payload) {
-  appendFileSync(safeOutputsPath, payload + "\n", "utf8");
+  appendFileSync(safeOutputsPath, payload + "\n", { encoding: "utf8" });
 }
 
 /**
