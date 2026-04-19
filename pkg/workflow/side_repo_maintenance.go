@@ -432,6 +432,7 @@ jobs:
     runs-on: ` + runsOnValue + `
     permissions:
       actions: read
+      contents: read
       issues: write
     steps:
       - name: Checkout repository
@@ -457,12 +458,22 @@ jobs:
 `)
 
 	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(`      - name: Cache activity report logs
+        uses: ` + getActionPin("actions/cache") + `
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ runner.os }}-activity-report-logs-` + repoSlug + `-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-activity-report-logs-` + repoSlug + `-
+            ${{ runner.os }}-activity-report-logs-
+`)
 	yaml.WriteString(`      - name: Generate agentic workflow activity report in target repository
         uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
         env:
           GH_TOKEN: ` + token + `
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
           GH_AW_TARGET_REPO_SLUG: "` + repoSlug + `"
+          GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs
         with:
           github-token: ` + token + `
           script: |

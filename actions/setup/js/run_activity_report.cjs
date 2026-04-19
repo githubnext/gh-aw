@@ -6,8 +6,9 @@ const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const ISSUE_TITLE = "[aw] agentic status report";
-const REPORT_COUNT = 100;
+const REPORT_COUNT = 1000;
 const HEADING_DEMOTION_LEVELS = 2;
+const DEFAULT_REPORT_OUTPUT_DIR = "./.cache/gh-aw/activity-report-logs";
 
 /** @typedef {{ key: string, heading: string, startDate: string, optionalOnRateLimit: boolean }} ActivityRange */
 
@@ -33,10 +34,11 @@ function hasRateLimitText(text) {
  * @param {string[]} prefixArgs
  * @param {string} repoSlug
  * @param {ActivityRange} range
+ * @param {string} outputDir
  * @returns {Promise<{ heading: string, body: string }>}
  */
-async function runRangeReport(bin, prefixArgs, repoSlug, range) {
-  const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--count", String(REPORT_COUNT), "--format", "markdown"];
+async function runRangeReport(bin, prefixArgs, repoSlug, range, outputDir) {
+  const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--count", String(REPORT_COUNT), "--output", outputDir, "--format", "markdown"];
   core.info(`Running: ${bin} ${args.join(" ")}`);
 
   try {
@@ -117,6 +119,7 @@ function normalizeReportMarkdown(markdown) {
  */
 async function main() {
   const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
+  const reportOutputDir = process.env.GH_AW_ACTIVITY_REPORT_OUTPUT_DIR || DEFAULT_REPORT_OUTPUT_DIR;
   const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
   const { owner, repo } = resolveExecutionOwnerRepo();
   const repoSlug = `${owner}/${repo}`;
@@ -125,7 +128,7 @@ async function main() {
 
   const sections = [];
   for (const range of REPORT_RANGES) {
-    sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range));
+    sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range, reportOutputDir));
   }
 
   const headerLines = ["### Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];

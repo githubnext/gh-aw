@@ -71,19 +71,19 @@ describe("run_activity_report", () => {
     expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
       1,
       "gh",
-      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--count", "100", "--format", "markdown"]),
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
       expect.objectContaining({ ignoreReturnCode: true })
     );
     expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
       2,
       "gh",
-      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--count", "100", "--format", "markdown"]),
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
       expect.objectContaining({ ignoreReturnCode: true })
     );
     expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
       3,
       "gh",
-      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1mo", "--count", "100", "--format", "markdown"]),
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1mo", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
       expect.objectContaining({ ignoreReturnCode: true })
     );
 

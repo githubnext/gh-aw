@@ -317,6 +317,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: read
+      contents: read
       issues: write
     steps:
       - name: Checkout repository
@@ -348,11 +349,21 @@ jobs:
       - name: Build gh-aw
         run: make build
 
+      - name: Cache activity report logs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v5.0.5
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ runner.os }}-activity-report-logs-${{ github.repository }}-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-activity-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-activity-report-logs-
+
       - name: Generate agentic workflow activity report
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_CMD_PREFIX: ./gh-aw
+          GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
