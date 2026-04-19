@@ -99,6 +99,13 @@ type Compiler struct {
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping
+	frontmatterHashCache    map[string]frontmatterHashCacheEntry
+}
+
+type frontmatterHashCacheEntry struct {
+	fileSize        int64
+	fileModTimeNS   int64
+	frontmatterHash string
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -114,18 +121,19 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	// Create compiler with defaults
 	c := &Compiler{
-		verbose:           false,
-		engineOverride:    "",
-		version:           version,
-		skipValidation:    true,                      // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:        DetectActionMode(version), // Auto-detect action mode based on version
-		jobManager:        NewJobManager(),
-		engineRegistry:    GetGlobalEngineRegistry(),
-		engineCatalog:     NewEngineCatalog(GetGlobalEngineRegistry()),
-		stepOrderTracker:  NewStepOrderTracker(),
-		artifactManager:   NewArtifactManager(),
-		actionPinWarnings: make(map[string]bool), // Initialize warning cache
-		gitRoot:           gitRoot,               // Auto-detected git root
+		verbose:              false,
+		engineOverride:       "",
+		version:              version,
+		skipValidation:       true,                      // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:           DetectActionMode(version), // Auto-detect action mode based on version
+		jobManager:           NewJobManager(),
+		engineRegistry:       GetGlobalEngineRegistry(),
+		engineCatalog:        NewEngineCatalog(GetGlobalEngineRegistry()),
+		stepOrderTracker:     NewStepOrderTracker(),
+		artifactManager:      NewArtifactManager(),
+		actionPinWarnings:    make(map[string]bool), // Initialize warning cache
+		gitRoot:              gitRoot,               // Auto-detected git root
+		frontmatterHashCache: make(map[string]frontmatterHashCacheEntry),
 	}
 
 	// Apply functional options

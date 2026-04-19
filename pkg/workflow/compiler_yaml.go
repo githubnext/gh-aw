@@ -294,6 +294,74 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString(c.jobManager.RenderToYAML())
 }
 
+func canUseFrontmatterHashCache(rawFrontmatter map[string]any) bool {
+	importsValue, hasImports := rawFrontmatter["imports"]
+	if !hasImports {
+		return true
+	}
+
+	switch imports := importsValue.(type) {
+	case []any:
+		return len(imports) == 0
+	case []string:
+		return len(imports) == 0
+	case string:
+		return strings.TrimSpace(imports) == ""
+	default:
+		return false
+	}
+}
+
+func (c *Compiler) getCachedFrontmatterHash(markdownPath string) (string, bool) {
+	entry, ok := c.frontmatterHashCache[markdownPath]
+	if !ok {
+		return "", false
+	}
+
+	info, err := os.Stat(markdownPath)
+	if err != nil {
+		return "", false
+	}
+	if info.Size() != entry.fileSize || info.ModTime().UnixNano() != entry.fileModTimeNS {
+		return "", false
+	}
+
+	return entry.frontmatterHash, true
+}
+
+func (c *Compiler) cacheFrontmatterHash(markdownPath string, hash string) {
+	info, err := os.Stat(markdownPath)
+	if err != nil {
+		return
+	}
+
+	c.frontmatterHashCache[markdownPath] = frontmatterHashCacheEntry{
+		fileSize:        info.Size(),
+		fileModTimeNS:   info.ModTime().UnixNano(),
+		frontmatterHash: hash,
+	}
+}
+
+func (c *Compiler) computeFrontmatterHash(markdownPath string, rawFrontmatter map[string]any) (string, error) {
+	if canUseFrontmatterHashCache(rawFrontmatter) {
+		if cachedHash, ok := c.getCachedFrontmatterHash(markdownPath); ok {
+			return cachedHash, nil
+		}
+	}
+
+	cache := c.getSharedImportCache()
+	hash, err := parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, rawFrontmatter, cache, parser.DefaultFileReader)
+	if err != nil {
+		return "", err
+	}
+
+	if canUseFrontmatterHashCache(rawFrontmatter) {
+		c.cacheFrontmatterHash(markdownPath, hash)
+	}
+
+	return hash, nil
+}
+
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
@@ -303,9 +371,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// the compiled lock file identical across repeated compilations of the same workflow.
 	var frontmatterHash string
 	if markdownPath != "" {
-		baseDir := filepath.Dir(markdownPath)
-		cache := parser.NewImportCache(baseDir)
-		hash, err := parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+		hash, err := c.computeFrontmatterHash(markdownPath, data.RawFrontmatter)
 		if err != nil {
 			compilerYamlLog.Printf("Warning: failed to compute frontmatter hash: %v", err)
 			// Continue without hash - non-fatal error

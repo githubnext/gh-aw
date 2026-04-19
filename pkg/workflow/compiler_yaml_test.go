@@ -1438,3 +1438,59 @@ Test prompt.
 		})
 	}
 }
+
+func TestFrontmatterHashCacheInvalidatesWhenWorkflowChanges(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-hash-cache")
+	workflowPath := filepath.Join(tmpDir, "cache-test.md")
+	compiler := NewCompiler()
+
+	writeWorkflow := func(t *testing.T, name string) {
+		t.Helper()
+		content := fmt.Sprintf(`---
+name: %s
+on: push
+engine: copilot
+---
+
+# Cache Test
+`, name)
+		if err := os.WriteFile(workflowPath, []byte(content), 0o644); err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+	}
+
+	readFrontmatterHash := func(t *testing.T) string {
+		t.Helper()
+		lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+		content, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		metadata, _, err := ExtractMetadataFromLockFile(string(content))
+		if err != nil {
+			t.Fatalf("Failed to extract lock metadata: %v", err)
+		}
+		if metadata == nil || metadata.FrontmatterHash == "" {
+			t.Fatal("Expected lock metadata to include a frontmatter hash")
+		}
+
+		return metadata.FrontmatterHash
+	}
+
+	writeWorkflow(t, "first")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("First compile failed: %v", err)
+	}
+	firstHash := readFrontmatterHash(t)
+
+	writeWorkflow(t, "second")
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Second compile failed: %v", err)
+	}
+	secondHash := readFrontmatterHash(t)
+
+	if firstHash == secondHash {
+		t.Fatalf("Expected frontmatter hash to change after workflow update, but both were %q", firstHash)
+	}
+}
