@@ -150,10 +150,13 @@ func TestMasking(t *testing.T) {
 
 func TestFlattenEvent(t *testing.T) {
 	tests := []struct {
-		name    string
-		evt     AgentEvent
-		exclude []string
-		assert  func(t *testing.T, got string)
+		name             string
+		evt              AgentEvent
+		exclude          []string
+		expected         string
+		excludedField    string
+		checkStagePrefix bool
+		checkSortedOrder bool
 	}{
 		{
 			name: "normal event excludes field and keeps sorted output",
@@ -166,15 +169,11 @@ func TestFlattenEvent(t *testing.T) {
 					"latency_ms": "42",
 				},
 			},
-			exclude: []string{"session_id"},
-			assert: func(t *testing.T, got string) {
-				assert.NotContains(t, got, "session_id", "excluded field should not appear in flattened output")
-				assert.True(t, strings.HasPrefix(got, "stage=tool_call"), "stage should appear first in flattened output: %q", got)
-				assert.True(t,
-					strings.Index(got, "latency_ms=") < strings.Index(got, "query=") &&
-						strings.Index(got, "query=") < strings.Index(got, "tool="),
-					"keys should be sorted alphabetically in flattened output: %q", got)
-			},
+			exclude:          []string{"session_id"},
+			expected:         "stage=tool_call latency_ms=42 query=foo tool=search",
+			excludedField:    "session_id",
+			checkStagePrefix: true,
+			checkSortedOrder: true,
 		},
 		{
 			name: "empty stage omits stage token",
@@ -184,9 +183,7 @@ func TestFlattenEvent(t *testing.T) {
 					"a": "first",
 				},
 			},
-			assert: func(t *testing.T, got string) {
-				assert.Equal(t, "a=first z=last", got, "FlattenEvent should sort keys and omit empty stage")
-			},
+			expected: "a=first z=last",
 		},
 		{
 			name: "all fields excluded keeps only stage",
@@ -197,24 +194,32 @@ func TestFlattenEvent(t *testing.T) {
 					"step":   "1",
 				},
 			},
-			exclude: []string{"action", "step"},
-			assert: func(t *testing.T, got string) {
-				assert.Equal(t, "stage=plan", got, "FlattenEvent should keep only stage when all fields are excluded")
-			},
+			exclude:  []string{"action", "step"},
+			expected: "stage=plan",
 		},
 		{
-			name: "empty event returns empty string",
-			evt:  AgentEvent{},
-			assert: func(t *testing.T, got string) {
-				assert.Empty(t, got, "FlattenEvent should return an empty string for an empty event")
-			},
+			name:     "empty event returns empty string",
+			evt:      AgentEvent{},
+			expected: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := FlattenEvent(tt.evt, tt.exclude)
-			tt.assert(t, got)
+			assert.Equal(t, tt.expected, got, "FlattenEvent output mismatch for case %q", tt.name)
+			if tt.excludedField != "" {
+				assert.NotContains(t, got, tt.excludedField, "excluded field should not appear in flattened output")
+			}
+			if tt.checkStagePrefix {
+				assert.True(t, strings.HasPrefix(got, "stage="+tt.evt.Stage), "stage should appear first in flattened output: %q", got)
+			}
+			if tt.checkSortedOrder {
+				latencyIndex := strings.Index(got, "latency_ms=")
+				queryIndex := strings.Index(got, "query=")
+				toolIndex := strings.Index(got, "tool=")
+				assert.True(t, latencyIndex < queryIndex && queryIndex < toolIndex, "keys should be sorted alphabetically in flattened output: %q", got)
+			}
 		})
 	}
 }
