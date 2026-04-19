@@ -11,8 +11,8 @@ permissions:
   discussions: read
   actions: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-cloclo
-  cancel-in-progress: false
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  cancel-in-progress: true
 engine:
   id: claude
   max-turns: 100

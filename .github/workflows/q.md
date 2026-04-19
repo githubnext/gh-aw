@@ -13,6 +13,9 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  cancel-in-progress: true
 engine: copilot
 imports:
   - shared/mcp/serena-go.md

@@ -22,6 +22,9 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  cancel-in-progress: true
 engine: claude
 imports:
   - shared/reporting.md
