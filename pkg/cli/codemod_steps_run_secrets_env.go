@@ -78,6 +78,8 @@ func transformSectionStepsRunSecrets(lines []string, sectionName string) ([]stri
 		}
 	}
 
+	stepsRunSecretsEnvCodemodLog.Printf("Transforming section '%s': lines %d-%d", sectionName, sectionStart, sectionEnd)
+
 	sectionLines := lines[sectionStart : sectionEnd+1]
 	updatedSection, changed := transformStepsWithinSection(sectionLines, sectionIndent)
 	if !changed {
@@ -219,6 +221,8 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 		return stepLines, modified
 	}
 
+	stepsRunSecretsEnvCodemodLog.Printf("Found %d unique secret references in step run commands", len(orderedSecrets))
+
 	missingSecrets := make([]string, 0, len(orderedSecrets))
 	for _, name := range orderedSecrets {
 		if !existingEnvKeys[name] {
@@ -228,6 +232,8 @@ func rewriteStepRunSecretsToEnv(stepLines []string, stepIndent string) ([]string
 	if len(missingSecrets) == 0 {
 		return stepLines, true
 	}
+
+	stepsRunSecretsEnvCodemodLog.Printf("Adding env bindings for %d missing secrets: %v", len(missingSecrets), missingSecrets)
 
 	if envStart != -1 {
 		insertAt := envEnd + 1
