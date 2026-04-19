@@ -112,21 +112,30 @@ async function getReviewSummary(githubClient, owner, repo, pullNumber) {
   let page = 0;
   while (hasNextPage) {
     page++;
-    const result = await githubClient.graphql(
-      `
-        query($owner: String!, $repo: String!, $number: Int!, $after: String) {
-          repository(owner: $owner, name: $repo) {
-            pullRequest(number: $number) {
-              reviewDecision
-              reviewThreads(first: 100, after: $after) {
-                pageInfo { hasNextPage endCursor }
-                nodes { isResolved }
+    const result = await withRetry(
+      async () =>
+        githubClient.graphql(
+          `
+            query($owner: String!, $repo: String!, $number: Int!, $after: String) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $number) {
+                  reviewDecision
+                  reviewThreads(first: 100, after: $after) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes { isResolved }
+                  }
+                }
               }
             }
-          }
-        }
-      `,
-      { owner, repo, number: pullNumber, after: cursor }
+          `,
+          { owner, repo, number: pullNumber, after: cursor }
+        ),
+      {
+        maxRetries: 3,
+        initialDelayMs: 1000,
+        shouldRetry: error => isTransientError(error),
+      },
+      `fetch review summary GraphQL page ${page} for PR #${pullNumber}`
     );
 
     const pr = result?.repository?.pullRequest;
