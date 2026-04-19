@@ -191,12 +191,21 @@ Use this template:
 - Data quality caveats (if any)
 ```
 
+## Items That Should Not Be Addressed
+
+The following items are out of scope because they are not actionable by repository users:
+
+- **Copilot-assigned branch naming conventions** (for example, `-again` / `-yet-again` suffixes)
+  - **Rationale:** Branch names are generated automatically by GitHub Copilot and are not user-configurable in this workflow context.
+  - **Rule:** Do not create recommendations or issues requesting changes to Copilot's auto-generated branch naming behavior.
+
 ## Output Constraints
 
 - Do not generate implementation code or modify repository files.
 - Do not create more or fewer than three issues.
 - Keep findings grounded in analyzed data only.
 - Keep recommendations non-overlapping and actionable.
+- Do not create issues for items listed in **Items That Should Not Be Addressed**.
 
 ## Final Validation Checklist
 
