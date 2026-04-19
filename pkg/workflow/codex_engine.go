@@ -236,6 +236,17 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			codexCommandWithSetup = fmt.Sprintf("%s && %s", mcpCLIPath, codexCommandWithSetup)
 		}
 
+		excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"})
+		// Codex CLI must read API credentials from environment variables directly.
+		// Keep CODEX_API_KEY/OPENAI_API_KEY available in-container; only exclude other secret vars.
+		var filteredExcludeEnvVarNames []string
+		for _, name := range excludeEnvVarNames {
+			if name == "CODEX_API_KEY" || name == "OPENAI_API_KEY" {
+				continue
+			}
+			filteredExcludeEnvVarNames = append(filteredExcludeEnvVarNames, name)
+		}
+
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "codex",
 			EngineCommand:  codexCommandWithSetup,
@@ -248,8 +259,9 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			// appended to $GITHUB_STEP_SUMMARY after secret redaction.
 			PathSetup: "mkdir -p \"$CODEX_HOME/logs\" && touch " + AgentStepSummaryPath,
 			// Exclude every env var whose step-env value is a secret so the agent
-			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"CODEX_API_KEY", "OPENAI_API_KEY"}),
+			// cannot read raw token values via bash tools (env / printenv), except
+			// CODEX_API_KEY/OPENAI_API_KEY which Codex needs for API authentication.
+			ExcludeEnvVarNames: filteredExcludeEnvVarNames,
 		})
 	} else {
 		// Build the command without AWF wrapping.

@@ -776,6 +776,40 @@ func TestCodexEngineEnvOverridesTokenExpression(t *testing.T) {
 	})
 }
 
+func TestCodexEngineAWFDoesNotExcludeAuthEnvVars(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		ParsedTools: &ToolsConfig{
+			GitHub: &GitHubToolConfig{},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Allowed: []string{"defaults"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join(steps[0], "\n")
+
+	if strings.Contains(stepContent, "--exclude-env CODEX_API_KEY") {
+		t.Errorf("Codex API key env var must not be excluded from AWF container, got:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "--exclude-env OPENAI_API_KEY") {
+		t.Errorf("OpenAI API key env var must not be excluded from AWF container, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "--exclude-env GITHUB_MCP_SERVER_TOKEN") {
+		t.Errorf("Expected non-Codex secret env vars to still be excluded, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineWebSearch(t *testing.T) {
 	engine := NewCodexEngine()
 
