@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var log = logger.New("gitutil:gitutil")
+
+var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 // IsRateLimitError checks if an error message indicates a GitHub API rate limit error.
 // This is used to detect transient failures caused by hitting the GitHub API rate limit
@@ -52,6 +55,11 @@ func IsHexString(s string) bool {
 		}
 	}
 	return true
+}
+
+// IsValidFullSHA checks if s is a valid 40-character lowercase hexadecimal SHA.
+func IsValidFullSHA(s string) bool {
+	return fullSHARegex.MatchString(s)
 }
 
 // ExtractBaseRepo extracts the base repository (owner/repo) from a repository path

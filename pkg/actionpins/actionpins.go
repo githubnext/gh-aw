@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
@@ -61,9 +61,6 @@ type PinContext struct {
 	// Keys are cache keys in the form "repo@version".
 	Warnings map[string]bool
 }
-
-// fullSHARegex matches a valid 40-character lowercase hexadecimal SHA.
-var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 var (
 	cachedActionPins       []ActionPin
@@ -199,7 +196,7 @@ func ExtractVersion(uses string) string {
 
 // isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA.
 func isValidFullSHA(s string) bool {
-	return fullSHARegex.MatchString(s)
+	return gitutil.IsValidFullSHA(s)
 }
 
 // findCompatiblePin returns the first pin whose version is semver-compatible with

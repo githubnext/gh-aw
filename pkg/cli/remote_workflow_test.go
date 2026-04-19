@@ -156,20 +156,20 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 			errorContains: "cannot resolve include path", // Not a workflowspec format (only 2 parts)
 		},
 		{
-			name:          "section extraction from workflowspec",
-			includePath:   "owner/repo/path/file.md#section-name",
+			name:          "malformed workflowspec with empty repo rejects path with section",
+			includePath:   "owner//path/file.md#section-name",
 			baseSpec:      nil,
 			expectSection: "#section-name",
-			expectError:   true, // Will fail to download, but section should be extracted
-			errorContains: "",   // Don't check error message, just that section is extracted
+			expectError:   true,
+			errorContains: "cannot resolve include path",
 		},
 		{
-			name:          "no section in workflowspec",
-			includePath:   "owner/repo/path/file.md",
+			name:          "malformed workflowspec with empty repo rejects path without section",
+			includePath:   "owner//path/file.md",
 			baseSpec:      nil,
 			expectSection: "",
-			expectError:   true, // Will fail to download
-			errorContains: "",
+			expectError:   true,
+			errorContains: "cannot resolve include path",
 		},
 		{
 			name:          "relative path without base spec",
@@ -217,17 +217,17 @@ func TestFetchIncludeFromSource_SectionExtraction(t *testing.T) {
 	}{
 		{
 			name:          "hash section",
-			includePath:   "owner/repo/file.md#section",
+			includePath:   "shared/file.md#section",
 			expectSection: "#section",
 		},
 		{
 			name:          "complex section with hyphens",
-			includePath:   "owner/repo/file.md#my-complex-section-name",
+			includePath:   "shared/file.md#my-complex-section-name",
 			expectSection: "#my-complex-section-name",
 		},
 		{
 			name:          "no section",
-			includePath:   "owner/repo/file.md",
+			includePath:   "shared/file.md",
 			expectSection: "",
 		},
 		{
@@ -237,7 +237,7 @@ func TestFetchIncludeFromSource_SectionExtraction(t *testing.T) {
 		},
 		{
 			name:          "section after everything",
-			includePath:   "owner/repo/file.md#section-name",
+			includePath:   "shared/file.md#section-name",
 			expectSection: "#section-name",
 		},
 	}

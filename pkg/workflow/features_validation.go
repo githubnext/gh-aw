@@ -25,14 +25,12 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
 
 var featuresValidationLog = newValidationLogger("features")
-
-var shaRegex = regexp.MustCompile("^[0-9a-f]{40}$")
 
 // validateFeatures validates all feature flags in the workflow data
 func validateFeatures(data *WorkflowData) error {
@@ -100,8 +98,5 @@ func validateActionTag(value any) error {
 
 // isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA
 func isValidFullSHA(s string) bool {
-	if len(s) != 40 {
-		return false
-	}
-	return shaRegex.MatchString(s)
+	return gitutil.IsValidFullSHA(s)
 }
