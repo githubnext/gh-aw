@@ -159,8 +159,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		if idx := strings.Index(importFilePath, "#"); idx >= 0 {
 			importFilePath = importFilePath[:idx]
 		}
-		// Only scan markdown files — .yml imports are YAML config, not markdown content
-		if !strings.HasSuffix(importFilePath, ".md") {
+		// Only scan non-builtin markdown imports.
+		// Builtin imports are trusted project assets and are validated in-source.
+		if !shouldScanImportedMarkdown(importFilePath) {
 			continue
 		}
 		// Resolve the import path to a full filesystem path
@@ -356,6 +357,15 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		importsResult:      importsResult,
 		configSteps:        configSteps,
 	}, nil
+}
+
+// shouldScanImportedMarkdown reports whether an import path should be processed by
+// markdown security scanning.
+func shouldScanImportedMarkdown(importFilePath string) bool {
+	if !strings.HasSuffix(importFilePath, ".md") {
+		return false
+	}
+	return !strings.HasPrefix(importFilePath, parser.BuiltinPathPrefix)
 }
 
 // isStringFormEngine reports whether the "engine" field in the given frontmatter is a
