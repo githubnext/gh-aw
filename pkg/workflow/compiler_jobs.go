@@ -821,10 +821,10 @@ func (c *Compiler) extractPinnedJobSteps(configMap map[string]any, fieldName str
 	}
 
 	steps := make([]string, 0, len(stepsList))
-	for _, step := range stepsList {
+	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			continue
+			return nil, fmt.Errorf("%s for job '%s' contains invalid step at index %d: expected object", fieldName, jobName, i)
 		}
 
 		typedStep, err := MapToStep(stepMap)

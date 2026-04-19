@@ -850,20 +850,13 @@ jobs:
 		t.Fatal("Expected custom_job section in lock file")
 	}
 
-	ghesSetupIdx := indexInNonCommentLines(customJobSection, "- name: Configure GH_HOST for enterprise compatibility")
-	preSetupIdx := indexInNonCommentLines(customJobSection, "- name: Pre setup")
-	prepareTokenIdx := indexInNonCommentLines(customJobSection, "- name: Prepare token")
-	checkoutIdx := indexInNonCommentLines(customJobSection, "- name: Checkout repo")
-	mainWorkIdx := indexInNonCommentLines(customJobSection, "- name: Main work")
-
-	if ghesSetupIdx == -1 || preSetupIdx == -1 || prepareTokenIdx == -1 || checkoutIdx == -1 || mainWorkIdx == -1 {
-		t.Fatalf("Missing expected steps in custom job section:\n%s", customJobSection)
-	}
-
-	if ghesSetupIdx >= preSetupIdx || preSetupIdx >= prepareTokenIdx || prepareTokenIdx >= checkoutIdx || checkoutIdx >= mainWorkIdx {
-		t.Fatalf("Expected order setup -> pre-steps -> checkout -> steps, got indexes setup=%d pre1=%d pre2=%d checkout=%d main=%d\n%s",
-			ghesSetupIdx, preSetupIdx, prepareTokenIdx, checkoutIdx, mainWorkIdx, customJobSection)
-	}
+	assertStepOrderInSection(t, customJobSection,
+		"- name: Configure GH_HOST for enterprise compatibility",
+		"- name: Pre setup",
+		"- name: Prepare token",
+		"- name: Checkout repo",
+		"- name: Main work",
+	)
 }
 
 func TestCustomJobPreStepsSchemaValidation(t *testing.T) {
@@ -900,6 +893,23 @@ jobs:
 	}
 	if !strings.Contains(err.Error(), "pre-steps") {
 		t.Fatalf("Expected error to mention pre-steps, got: %v", err)
+	}
+}
+
+func assertStepOrderInSection(t *testing.T, section string, orderedSteps ...string) {
+	t.Helper()
+
+	prev := -1
+	for _, step := range orderedSteps {
+		idx := indexInNonCommentLines(section, step)
+		if idx == -1 {
+			t.Fatalf("Expected step %q in section:\n%s", step, section)
+		}
+		if prev >= idx {
+			t.Fatalf("Expected step order %v in section, but %q appeared at %d after previous index %d\n%s",
+				orderedSteps, step, idx, prev, section)
+		}
+		prev = idx
 	}
 }
 
