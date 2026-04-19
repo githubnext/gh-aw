@@ -51,6 +51,11 @@ gh aw audit 1234567890 --repo owner/repo
 
 **Report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items.
 
+The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run:
+- `ambient_context.input_tokens` — input tokens for the first invocation
+- `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
+- `ambient_context.effective_tokens` — `input_tokens + cached_tokens`
+
 ## `gh aw audit diff <base-run-id> <comparison-run-id> [<comparison-run-id>...]`
 
 Compare behavior between workflow runs. Detects policy regressions, new unauthorized domains, behavioral drift, and changes in MCP tool usage or run metrics.
@@ -117,6 +122,8 @@ This feature is built into the `gh aw logs` command via the `--format` flag.
 | `--verbose` | off | Print detailed progress |
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
+
+For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, `effective_tokens`).
 
 **Examples:**
 

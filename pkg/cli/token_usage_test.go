@@ -71,6 +71,39 @@ func TestParseTokenUsageFile(t *testing.T) {
 		assert.InDelta(t, expectedEfficiency, summary.CacheEfficiency, 0.001, "cache efficiency")
 	})
 
+	t.Run("extracts ambient context from first chronological invocation", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+
+		content := `{"timestamp":"2026-04-01T17:58:00.000Z","request_id":"2","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":12,"output_tokens":10,"cache_read_tokens":99,"cache_write_tokens":0,"duration_ms":4000,"response_bytes":3000}
+{"timestamp":"2026-04-01T17:56:00.000Z","request_id":"1","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":7,"output_tokens":5,"cache_read_tokens":3,"cache_write_tokens":0,"duration_ms":1000,"response_bytes":500}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644), "should write test file")
+
+		summary, err := parseTokenUsageFile(filePath, nil)
+		require.NoError(t, err, "should parse without error")
+		require.NotNil(t, summary, "should return non-nil summary")
+		require.NotNil(t, summary.AmbientContext, "ambient context should be present")
+		assert.Equal(t, 7, summary.AmbientContext.InputTokens, "ambient input tokens should come from first invocation")
+		assert.Equal(t, 3, summary.AmbientContext.CachedTokens, "ambient cached tokens should come from first invocation")
+		assert.Equal(t, 10, summary.AmbientContext.EffectiveTokens, "ambient effective tokens should be input + cached")
+	})
+
+	t.Run("ambient context defaults cached tokens to zero when absent", func(t *testing.T) {
+		tmpDir := testutil.TempDir(t, "token-usage")
+		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
+
+		content := `{"timestamp":"2026-04-01T17:56:00.000Z","request_id":"1","provider":"anthropic","model":"claude-sonnet-4-6","path":"/v1/messages","status":200,"streaming":true,"input_tokens":11,"output_tokens":5,"duration_ms":1000,"response_bytes":500}`
+		require.NoError(t, os.WriteFile(filePath, []byte(content+"\n"), 0o644), "should write test file")
+
+		summary, err := parseTokenUsageFile(filePath, nil)
+		require.NoError(t, err, "should parse without error")
+		require.NotNil(t, summary, "should return non-nil summary")
+		require.NotNil(t, summary.AmbientContext, "ambient context should be present")
+		assert.Equal(t, 11, summary.AmbientContext.InputTokens, "ambient input tokens should match")
+		assert.Equal(t, 0, summary.AmbientContext.CachedTokens, "missing cached tokens should default to zero")
+		assert.Equal(t, 11, summary.AmbientContext.EffectiveTokens, "ambient effective tokens should fall back to input only")
+	})
+
 	t.Run("empty file returns nil", func(t *testing.T) {
 		tmpDir := testutil.TempDir(t, "token-usage")
 		filePath := filepath.Join(tmpDir, "token-usage.jsonl")
