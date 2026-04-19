@@ -176,7 +176,7 @@ jobs:
     timeout-minutes: 15
     needs:
     - test
-    if: always()  # Run even if some tests fail to report coverage
+    if: always() && needs.test.result == 'success'  # Skip coverage check for cancelled/failed test runs
     permissions:
       contents: read
     steps:

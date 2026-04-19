@@ -17,7 +17,7 @@ engine:
   command: >-
     bash -lc 'if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then safeoutputs
     add_comment --body "✅ smoke-ci: safeoutputs CLI comment only run (${GITHUB_RUN_ID})";
-    else echo "smoke-ci: push event - no PR context, skipping add_comment"; fi'
+    else safeoutputs noop --message "smoke-ci: push event - no PR context, no action needed"; fi'
 tools:
   mount-as-clis: true
 safe-outputs:
@@ -32,4 +32,5 @@ strict: true
 ---
 
 Run exactly one CLI action: use the mounted `safeoutputs` CLI to add a short comment.
+If there is no PR context, use `safeoutputs noop` with a brief message.
 Do not call any LLM tools or perform any additional analysis.

@@ -30,8 +30,10 @@ func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Clus
 	report := &AnomalyReport{
 		IsNewTemplate:     isNew,
 		NewClusterCreated: isNew,
-		LowSimilarity:     !isNew && result.Similarity < d.threshold,
-		RareCluster:       cluster != nil && cluster.Size <= d.rareThreshold,
+		// LowSimilarity is mutually exclusive with IsNewTemplate: brand-new templates are
+		// already classified as anomalies, so we only evaluate similarity for existing ones.
+		LowSimilarity: !isNew && result.Similarity < d.threshold,
+		RareCluster:   cluster != nil && cluster.Size <= d.rareThreshold,
 	}
 
 	// Weighted anomaly score.
@@ -47,6 +49,8 @@ func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Clus
 	}
 	// Normalize to [0, 1].
 	const maxScore = 2.0
+	// Defensive guard: with current mutually exclusive flags the score cannot exceed maxScore,
+	// but keep clamping in case future weighting or flag logic changes.
 	if score > maxScore {
 		score = maxScore
 	}
