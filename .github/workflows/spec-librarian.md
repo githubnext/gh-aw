@@ -316,6 +316,7 @@ The following specifications are outdated:
 - [ ] Update stale specifications for N packages (use spec-extractor)
 - [ ] Resolve N cross-package inconsistencies
 - [ ] Review N spec-implementation mismatches
+- [ ] When opening a fix PR for this issue, include `Closes #<this issue number>` (or `Fixes`/`Resolves`) in the PR description.
 
 ---
 
