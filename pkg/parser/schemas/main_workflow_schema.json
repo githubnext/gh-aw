@@ -7074,6 +7074,11 @@
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
+                "ignore-missing-branch-failure": {
+                  "type": "boolean",
+                  "description": "When true, treat deleted/missing pull request branch errors as a skipped push instead of a hard failure. Useful when the PR branch may be deleted before safe outputs run.",
+                  "default": false
+                },
                 "commit-title-suffix": {
                   "type": "string",
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"

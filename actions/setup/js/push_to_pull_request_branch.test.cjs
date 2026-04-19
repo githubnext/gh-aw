@@ -645,6 +645,22 @@ index 0000000..abc1234
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
+    it("should skip deleted branch failure when ignore_missing_branch_failure is enabled", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+
+      const module = await loadModule();
+      const handler = await module.main({ ignore_missing_branch_failure: true });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-missing-branch-failure"));
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
     it("should fail with diagnostic error when branch existence check fails for other reasons", async () => {
       const patchPath = createPatchFile();
 
@@ -687,6 +703,23 @@ index 0000000..abc1234
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("does not exist on origin");
+    });
+
+    it("should skip rev-parse missing branch failure when ignore_missing_branch_failure is enabled", async () => {
+      const patchPath = createPatchFile();
+
+      // git fetch succeeds, but git rev-parse fails
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockRejectedValueOnce(new Error("fatal: Needed a single revision"));
+
+      const module = await loadModule();
+      const handler = await module.main({ ignore_missing_branch_failure: true });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-missing-branch-failure"));
     });
 
     it("should handle git checkout failure", async () => {

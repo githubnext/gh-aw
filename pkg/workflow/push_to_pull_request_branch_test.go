@@ -93,6 +93,43 @@ Please make changes and push them to the feature branch.
 	}
 }
 
+func TestPushToPullRequestBranchIgnoreMissingBranchFailureConfig(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    ignore-missing-branch-failure: true
+---
+
+# Test Push to PR Branch Missing Branch Ignore
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-ignore-missing.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	if !strings.Contains(lockContentStr, `"ignore_missing_branch_failure":true`) && !strings.Contains(lockContentStr, `"ignore_missing_branch_failure": true`) {
+		t.Errorf("Generated workflow should contain ignore_missing_branch_failure in handler config JSON")
+	}
+}
+
 func TestPushToPullRequestBranchWithTargetAsterisk(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")

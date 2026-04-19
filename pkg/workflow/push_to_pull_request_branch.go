@@ -16,6 +16,7 @@ type PushToPullRequestBranchConfig struct {
 	TitlePrefix                    string   `yaml:"title-prefix,omitempty"`                        // Required title prefix for pull request validation
 	Labels                         []string `yaml:"labels,omitempty"`                              // Required labels for pull request validation
 	IfNoChanges                    string   `yaml:"if-no-changes,omitempty"`                       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	IgnoreMissingBranchFailure     bool     `yaml:"ignore-missing-branch-failure,omitempty"`       // When true, missing/deleted target branches are treated as skipped instead of hard failures.
 	CommitTitleSuffix              string   `yaml:"commit-title-suffix,omitempty"`                 // Optional suffix to append to generated commit titles
 	GithubTokenForExtraEmptyCommit string   `yaml:"github-token-for-extra-empty-commit,omitempty"` // Token used to push an empty commit to trigger CI events. Use a PAT or "app" for GitHub App auth.
 	TargetRepoSlug                 string   `yaml:"target-repo,omitempty"`                         // Target repository in format "owner/repo" for cross-repository push to pull request branch
@@ -110,6 +111,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 						}
 						pushToBranchConfig.IfNoChanges = "warn"
 					}
+				}
+			}
+
+			// Parse ignore-missing-branch-failure (optional, defaults to false)
+			if ignoreMissingBranchFailure, exists := configMap["ignore-missing-branch-failure"]; exists {
+				if ignoreMissingBranchFailureBool, ok := ignoreMissingBranchFailure.(bool); ok {
+					pushToBranchConfig.IgnoreMissingBranchFailure = ignoreMissingBranchFailureBool
 				}
 			}
 

@@ -36,6 +36,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const ifNoChanges = config.if_no_changes || "warn";
+  const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const maxCount = config.max || 0; // 0 means no limit
@@ -70,6 +71,7 @@ async function main(config = {}) {
     core.info(`Required labels: ${envLabels.join(", ")}`);
   }
   core.info(`If no changes: ${ifNoChanges}`);
+  core.info(`Ignore missing branch failure: ${ignoreMissingBranchFailure}`);
   if (commitTitleSuffix) {
     core.info(`Commit title suffix: ${commitTitleSuffix}`);
   }
@@ -464,9 +466,18 @@ async function main(config = {}) {
       });
 
       if (lsRemoteResult.exitCode === 2) {
+        const missingBranchError = `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+        if (ignoreMissingBranchFailure) {
+          core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
+          return {
+            success: false,
+            error: missingBranchError,
+            skipped: true,
+          };
+        }
         return {
           success: false,
-          error: `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`,
+          error: missingBranchError,
         };
       }
 
@@ -488,6 +499,13 @@ async function main(config = {}) {
         env: { ...process.env, ...gitAuthEnv },
       });
     } catch (fetchError) {
+      const fetchErrorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const missingRemoteRefPatterns = ["couldn't find remote ref", "could not find remote ref", "remote ref does not exist", "did not match any file(s) known to git"];
+      if (ignoreMissingBranchFailure && missingRemoteRefPatterns.some(pattern => fetchErrorMessage.toLowerCase().includes(pattern))) {
+        const missingBranchError = `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+        core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
+        return { success: false, error: missingBranchError, skipped: true };
+      }
       return { success: false, error: `Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
@@ -495,6 +513,11 @@ async function main(config = {}) {
     try {
       await exec.exec(`git rev-parse --verify origin/${branchName}`);
     } catch (verifyError) {
+      const missingBranchError = `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+      if (ignoreMissingBranchFailure) {
+        core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
+        return { success: false, error: missingBranchError, skipped: true };
+      }
       return { success: false, error: `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}` };
     }
 

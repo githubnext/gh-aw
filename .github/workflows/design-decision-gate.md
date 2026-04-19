@@ -22,6 +22,7 @@ safe-outputs:
     allowed-files:
       - docs/adr/**
     patch-format: bundle
+    ignore-missing-branch-failure: true
     commit-title-suffix: " [design-decision-gate]"
   noop:
   messages:
