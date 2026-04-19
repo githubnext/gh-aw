@@ -111,9 +111,9 @@ async function main() {
     sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range));
   }
 
-  const body = ["## Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, "", ...sections.flatMap(section => ["---", "", `## ${section.heading}`, "", section.body, ""])].join(
-    "\n"
-  );
+  const headerLines = ["## Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];
+  const sectionLines = sections.flatMap(section => ["---", "", `## ${section.heading}`, "", section.body, ""]);
+  const body = [...headerLines, ...sectionLines].join("\n");
 
   const createdIssue = await github.rest.issues.create({
     owner,
