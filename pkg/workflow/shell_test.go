@@ -104,6 +104,21 @@ func TestShellEscapeArg(t *testing.T) {
 			expected: `"${{ env.DOMAINS }}"`,
 		},
 		{
+			name:     "embedded GitHub Actions expression uses double quotes",
+			input:    "prefix-${{ env.DOMAINS }}-suffix",
+			expected: `"prefix-${{ env.DOMAINS }}-suffix"`,
+		},
+		{
+			name:     "incomplete expression marker is treated as normal shell input",
+			input:    "${{ env.DOMAINS",
+			expected: "'${{ env.DOMAINS'",
+		},
+		{
+			name:     "empty expression body is treated as normal shell input",
+			input:    "${{}}",
+			expected: "'${{}}'",
+		},
+		{
 			name:     "GitHub Actions expression with embedded double quotes escapes them",
 			input:    `${{ env.X == "test" && env.Y || env.Z }}`,
 			expected: `"${{ env.X == \"test\" && env.Y || env.Z }}"`,
