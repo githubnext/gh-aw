@@ -157,7 +157,7 @@ Use this compact analysis matrix:
 
 | Area | Required checks | Output |
 |---|---|---|
-| Tool usage | Compare configured tools vs observed usage across multiple runs | Keep / Consider removing / Remove |
+| Tool usage | Compare configured tools from workflow source (read via `gh api` through cli-proxy) vs observed usage across multiple runs | Keep / Consider removing / Remove |
 | Token efficiency | Evaluate token totals, effective tokens, cache efficiency, turns | Top token waste drivers |
 | Reliability | Repeated errors, warnings, retries, missing tools | Token waste from failures |
 | Prompt efficiency | Redundant instructions, overlong sections, avoidable iteration | Prompt reduction opportunities |
@@ -170,7 +170,7 @@ Rules:
 
 ## Phase 3 — Read Workflow Source
 
-Use `gh` CLI (via cli-proxy) to read the target workflow `.md` source and validate:
+Use `gh` CLI requests (via cli-proxy) to read the target workflow `.md` source and validate. Run `gh` commands normally in bash steps; cli-proxy forwards them over its HTTP interface:
 
 - configured tools and feature flags
 - imported shared components
