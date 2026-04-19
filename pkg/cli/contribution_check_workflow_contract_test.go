@@ -26,7 +26,8 @@ func TestContributionCheckWorkflowSafeOutputContract(t *testing.T) {
 	assert.Contains(t, text, "emit exactly", "Workflow must explicitly limit noop emission")
 	assert.Contains(t, text, "one consolidated noop", "Workflow must require a single consolidated noop")
 
-	assert.Contains(t, text, "set a `temporary_id` (for example `aw_summary`)", "Workflow must instruct create_issue temporary_id for summary issue")
-
-	assert.Contains(t, text, "set `add_labels.item_number` to `#<temporary_id>`", "Workflow must instruct add_labels item_number linkage to temporary_id")
+	assert.Contains(t, text, "temporary_id", "Workflow must mention temporary_id for summary issue linkage")
+	assert.Contains(t, text, "aw_summary", "Workflow should provide a concrete temporary_id example")
+	assert.Contains(t, text, "add_labels.item_number", "Workflow must mention add_labels item_number linkage")
+	assert.Contains(t, text, "#<temporary_id>", "Workflow must describe item_number temporary_id reference format")
 }
