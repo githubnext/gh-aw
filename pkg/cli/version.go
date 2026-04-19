@@ -2,23 +2,12 @@ package cli
 
 import "github.com/github/gh-aw/pkg/workflow"
 
-// Package-level version information
-var (
-	version = "dev"
-)
-
-func init() {
-	// Set the version in the workflow package so NewCompiler() auto-detects it
-	workflow.SetVersion(version)
-}
-
-// SetVersionInfo sets the version information for the CLI and workflow package
+// SetVersionInfo sets version information for the workflow package.
 func SetVersionInfo(v string) {
-	version = v
-	workflow.SetVersion(v) // Keep workflow package in sync
+	workflow.SetVersion(v)
 }
 
-// GetVersion returns the current version
+// GetVersion returns the current version.
 func GetVersion() string {
-	return version
+	return workflow.GetVersion()
 }

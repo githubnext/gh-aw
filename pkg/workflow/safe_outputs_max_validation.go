@@ -64,7 +64,7 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 		}
 
 		maxPtr, ok := maxField.Interface().(*string)
-		if !ok || maxPtr == nil || isExpressionString(*maxPtr) {
+		if !ok || maxPtr == nil || isExpression(*maxPtr) {
 			continue
 		}
 
@@ -94,7 +94,7 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 
 		for _, toolName := range sortedToolNames {
 			tool := config.DispatchRepository.Tools[toolName]
-			if tool == nil || tool.Max == nil || isExpressionString(*tool.Max) {
+			if tool == nil || tool.Max == nil || isExpression(*tool.Max) {
 				continue
 			}
 

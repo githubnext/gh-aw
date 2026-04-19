@@ -289,7 +289,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		} else if blockedUsers, ok := configMap["blocked-users"].([]string); ok {
 			config.BlockedUsers = blockedUsers
 		} else if blockedUsersStr, ok := configMap["blocked-users"].(string); ok {
-			if isGitHubActionsExpression(blockedUsersStr) {
+			if hasExpressionMarker(blockedUsersStr) {
 				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
 				config.BlockedUsersExpr = blockedUsersStr
 			} else {
@@ -309,7 +309,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		} else if approvalLabels, ok := configMap["approval-labels"].([]string); ok {
 			config.ApprovalLabels = approvalLabels
 		} else if approvalLabelsStr, ok := configMap["approval-labels"].(string); ok {
-			if isGitHubActionsExpression(approvalLabelsStr) {
+			if hasExpressionMarker(approvalLabelsStr) {
 				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
 				config.ApprovalLabelsExpr = approvalLabelsStr
 			} else {
@@ -329,7 +329,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		} else if trustedUsers, ok := configMap["trusted-users"].([]string); ok {
 			config.TrustedUsers = trustedUsers
 		} else if trustedUsersStr, ok := configMap["trusted-users"].(string); ok {
-			if isGitHubActionsExpression(trustedUsersStr) {
+			if hasExpressionMarker(trustedUsersStr) {
 				// GitHub Actions expression: store as-is; raw map retains the string for JSON rendering.
 				config.TrustedUsersExpr = trustedUsersStr
 			} else {
@@ -521,7 +521,7 @@ func parseTimeoutTool(val any) *TemplatableInt32 {
 		t := TemplatableInt32(strconv.Itoa(int(v)))
 		return &t
 	case string:
-		if isExpressionString(v) {
+		if isExpression(v) {
 			t := TemplatableInt32(v)
 			return &t
 		}
@@ -550,7 +550,7 @@ func parseStartupTimeoutTool(val any) *TemplatableInt32 {
 		t := TemplatableInt32(strconv.Itoa(int(v)))
 		return &t
 	case string:
-		if isExpressionString(v) {
+		if isExpression(v) {
 			t := TemplatableInt32(v)
 			return &t
 		}

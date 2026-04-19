@@ -31,7 +31,7 @@ func shellEscapeArg(arg string) string {
 	// so single-quoting would mangle the expression syntax (e.g., 'staging' inside
 	// ${{ env.X == 'staging' }} becomes '\''staging'\'' which GA cannot parse).
 	// Double-quoting preserves the expression for GA evaluation.
-	if containsGitHubActionsExpression(arg) {
+	if containsExpression(arg) {
 		shellLog.Print("Argument contains GitHub Actions expression, using double-quote wrapping")
 		escaped := strings.ReplaceAll(arg, `"`, `\"`)
 		return `"` + escaped + `"`
@@ -47,16 +47,6 @@ func shellEscapeArg(arg string) string {
 		return "'" + escaped + "'"
 	}
 	return arg
-}
-
-// containsGitHubActionsExpression checks if a string contains GitHub Actions
-// expressions (${{ ... }}). It verifies that ${{ appears before }}.
-func containsGitHubActionsExpression(s string) bool {
-	openIdx := strings.Index(s, "${{")
-	if openIdx < 0 {
-		return false
-	}
-	return strings.Contains(s[openIdx:], "}}")
 }
 
 // buildDockerCommandWithExpandableVars builds a properly quoted docker command
