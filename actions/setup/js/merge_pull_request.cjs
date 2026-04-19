@@ -328,16 +328,19 @@ function findAllowedLabelMatches(labels, allowedLabels) {
 /**
  * @param {any} message
  *   Message object containing pull_request_number (optional)
- * @param {any} resolvedTemporaryIds
- *   Map of resolved temporary IDs from prior safe-output operations
+ * @param {any} [resolvedTemporaryIds]
+ *   Optional map of resolved temporary IDs from prior safe-output operations
  * @returns {{success: true, pullNumber: number, fromTemporaryId: boolean} | {success: false, error: string}}
  */
 function resolvePullRequestNumber(message, resolvedTemporaryIds) {
   const pullNumberRaw = message?.pull_request_number;
   if (pullNumberRaw !== undefined && pullNumberRaw !== null) {
     const resolution = resolveNumberFromTemporaryId(pullNumberRaw, resolvedTemporaryIds);
-    if (resolution.errorMessage || resolution.resolved === null) {
-      return { success: false, error: resolution.errorMessage || "pull_request_number is required for merge_pull_request" };
+    if (resolution.errorMessage) {
+      return { success: false, error: resolution.errorMessage };
+    }
+    if (resolution.resolved === null) {
+      return { success: false, error: "Failed to resolve pull_request_number" };
     }
     return { success: true, pullNumber: resolution.resolved, fromTemporaryId: resolution.wasTemporaryId };
   }

@@ -67,6 +67,23 @@ describe("merge_pull_request branch validation", () => {
     expect(policy.requiredChecks).toEqual(["ci/test"]);
   });
 
+  it("does not mark non-default branches as default", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    const githubClient = {
+      rest: {
+        repos: {
+          getBranch: vi.fn().mockResolvedValue({ data: { protected: false } }),
+          getBranchProtection: vi.fn().mockRejectedValue({ status: 404 }),
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+      },
+    };
+
+    const policy = await __testables.getBranchPolicy(githubClient, "github", "gh-aw", "feature-branch");
+    expect(policy.isDefault).toBe(false);
+  });
+
   it("rejects unsafe base branch names before branch policy lookup", async () => {
     const { __testables } = await import("./merge_pull_request.cjs");
 
