@@ -501,6 +501,7 @@ function buildNormalizedSchemaKeyMap(schemaProperties) {
       normalizedSchemaKeyMap.set(normalized, key);
     } else if (existing !== key) {
       ambiguousNormalizedSchemaKeys.add(normalized);
+      normalizedSchemaKeyMap.delete(normalized);
     }
   }
   return { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys };

@@ -94,6 +94,31 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("falls back to raw key when normalized schema key is ambiguous", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+      issue_number: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issuenumber", "11"], schemaProperties);
+
+    expect(args).toEqual({
+      issuenumber: "11",
+    });
+  });
+
+  it("keeps unknown argument keys unchanged", () => {
+    const schemaProperties = {
+      issue_number: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--custom-field", "value"], schemaProperties);
+
+    expect(args).toEqual({
+      "custom-field": "value",
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {
