@@ -34,13 +34,6 @@ description: "Description of the workflow"
 # (optional)
 source: "example-value"
 
-# Optional workflow location redirect for updates. Format: workflow spec or GitHub
-# URL (e.g., owner/repo/path@ref or
-# https://github.com/owner/repo/blob/main/path.md). When present, update follows
-# this location and rewrites source.
-# (optional)
-redirect: "example-value"
-
 # Optional tracker identifier to tag all created assets (issues, discussions,
 # comments, pull requests). Must be at least 8 characters and contain only
 # alphanumeric characters, hyphens, and underscores. This identifier will be
@@ -827,10 +820,9 @@ on:
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Single repository permission level that can trigger the workflow. Use
-  # 'all' to allow any authenticated user (⚠️ disables permission checking entirely
-  # - use with caution)
-  roles: "admin"
+  # Option 1: Allow any authenticated user to trigger the workflow (⚠️ disables
+  # permission checking entirely - use with caution)
+  roles: "all"
 
   # Option 2: List of repository permission levels that can trigger the workflow.
   # Permission checks are automatically applied to potentially unsafe triggers.
@@ -1538,8 +1530,8 @@ engine: "example-value"
 # Option 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'crush')
-  # or a named catalog entry
+  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini',
+  # 'crush') or a named catalog entry
   id: "example-value"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
@@ -1772,7 +1764,8 @@ engine:
 # Option 4: Engine definition: full declarative metadata for a named engine entry
 # (used in builtin engine shared workflow files such as @builtin:engines/*.md)
 engine:
-  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'crush')
+  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini',
+  # 'crush')
   id: "example-value"
 
   # Human-readable display name for the engine
@@ -3414,18 +3407,6 @@ safe-outputs:
     reviewers: []
       # Array items: string
 
-    # Optional team reviewer(s) to assign to the pull request. Accepts either a single
-    # string or an array of team slugs.
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single team slug to assign as a reviewer to the pull request.
-    team-reviewers: "example-value"
-
-    # Option 2: List of team slugs to assign as reviewers to the pull request.
-    team-reviewers: []
-      # Array items: string
-
     # Optional assignee(s) for a fallback issue created when pull request creation
     # cannot proceed, including protected-files fallback-to-issue and pull request
     # creation or push failures. Accepts either a single string or an array of
@@ -3503,14 +3484,6 @@ safe-outputs:
     # non-default branches (e.g., 'vnext', 'release/v1.0').
     # (optional)
     base-branch: "example-value"
-
-    # Optional list of allowed base branch patterns (glob syntax, e.g. 'main',
-    # 'release/*'). When configured, the agent may provide a `base` field in
-    # create_pull_request output to override base-branch for a single run, but only if
-    # it matches one of these patterns.
-    # (optional)
-    allowed-base-branches: []
-      # Array of strings
 
     # Controls whether AI-generated footer is added to the pull request. When false,
     # the visible footer content is omitted but XML markers (workflow-id, tracker-id,
@@ -4063,18 +4036,6 @@ safe-outputs:
     reviewers: []
       # Array of strings
 
-    # Optional allowed team reviewer or list of allowed team reviewers. If omitted,
-    # any team reviewers are allowed.
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: string
-    team-reviewers: "example-value"
-
-    # Option 2: array
-    team-reviewers: []
-      # Array items: string
-
     # Optional maximum number of reviewers to add (default: 3) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -4614,12 +4575,6 @@ safe-outputs:
     # 'error' (fail the action), or 'ignore' (silent success)
     # (optional)
     if-no-changes: "warn"
-
-    # When true, treat deleted/missing pull request branch errors as a skipped push
-    # instead of a hard failure. Useful when the PR branch may be deleted before safe
-    # outputs run.
-    # (optional)
-    ignore-missing-branch-failure: true
 
     # Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to
     # prevent triggering CI on the commit)
