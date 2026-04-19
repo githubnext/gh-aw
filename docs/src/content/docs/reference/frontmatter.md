@@ -755,6 +755,7 @@ The following job-level fields are supported in custom jobs:
 | `continue-on-error` | Allow the workflow to continue if this job fails |
 | `container` | Docker container to run steps in |
 | `services` | Service containers (e.g. databases) |
+| `pre-steps` | Steps injected after compiler setup steps and before checkout/`steps` in that job |
 | `steps` | List of steps — supports complete GitHub Actions step specification |
 | `uses` | Reusable workflow to call |
 | `with` | Input parameters for a reusable workflow |
@@ -773,6 +774,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 ```
+
+When `jobs.<job-id>.pre-steps` is set, step execution order is deterministic:
+
+1. Compiler-injected setup steps
+2. `jobs.<job-id>.pre-steps`
+3. Checkout steps
+4. Remaining `jobs.<job-id>.steps`
 
 The following example uses `timeout-minutes` and `env`:
 

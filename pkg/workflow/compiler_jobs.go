@@ -765,35 +765,28 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					}
 				}
 			} else {
-				// Add basic steps if specified (only for non-reusable workflow jobs)
-				if steps, hasSteps := configMap["steps"]; hasSteps {
-					if stepsList, ok := steps.([]any); ok {
-						// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
-						// Custom frontmatter jobs run as independent GitHub Actions jobs that
-						// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
-						// know which host to target without this step.
-						job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
+				// Add basic steps if specified (only for non-reusable workflow jobs).
+				// `pre-steps` are inserted after setup-injected steps and before the
+				// regular `steps` list so they run before any checkout in steps.
+				preSteps, err := c.extractPinnedJobSteps(configMap, "pre-steps", jobName, data)
+				if err != nil {
+					return err
+				}
+				regularSteps, err := c.extractPinnedJobSteps(configMap, "steps", jobName, data)
+				if err != nil {
+					return err
+				}
 
-						for _, step := range stepsList {
-							if stepMap, ok := step.(map[string]any); ok {
-								// Convert to typed step for action pinning
-								typedStep, err := MapToStep(stepMap)
-								if err != nil {
-									return fmt.Errorf("failed to convert step to typed step for job '%s': %w", jobName, err)
-								}
-
-								// Apply action pinning using type-safe version
-								pinnedStep := applyActionPinToTypedStep(typedStep, data)
-
-								// Convert back to map for YAML generation
-								stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
-								if err != nil {
-									return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
-								}
-								job.Steps = append(job.Steps, stepYAML)
-							}
-						}
-					}
+				_, hasPreStepsField := configMap["pre-steps"]
+				_, hasStepsField := configMap["steps"]
+				if hasPreStepsField || hasStepsField {
+					// Prepend GH_HOST configuration step for GHES/GHEC compatibility.
+					// Custom frontmatter jobs run as independent GitHub Actions jobs that
+					// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
+					// know which host to target without this step.
+					job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
+					job.Steps = append(job.Steps, preSteps...)
+					job.Steps = append(job.Steps, regularSteps...)
 				}
 			}
 
@@ -806,6 +799,40 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 
 	compilerJobsLog.Print("Completed building all custom jobs")
 	return nil
+}
+
+func (c *Compiler) extractPinnedJobSteps(configMap map[string]any, fieldName string, jobName string, data *WorkflowData) ([]string, error) {
+	raw, hasField := configMap[fieldName]
+	if !hasField {
+		return nil, nil
+	}
+
+	stepsList, ok := raw.([]any)
+	if !ok {
+		return nil, nil
+	}
+
+	steps := make([]string, 0, len(stepsList))
+	for _, step := range stepsList {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		typedStep, err := MapToStep(stepMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert %s to typed step for job '%s': %w", fieldName, jobName, err)
+		}
+
+		pinnedStep := applyActionPinToTypedStep(typedStep, data)
+		stepYAML, err := ConvertStepToYAML(pinnedStep.ToMap())
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert %s to YAML for job '%s': %w", fieldName, jobName, err)
+		}
+		steps = append(steps, stepYAML)
+	}
+
+	return steps, nil
 }
 
 // shouldAddCheckoutStep returns true if the workflow requires a checkout step.

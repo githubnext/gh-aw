@@ -799,6 +799,109 @@ Test content`
 	// custom_build has explicit needs so should keep that
 }
 
+// TestCustomJobPreStepsAreInsertedBeforeCheckout verifies jobs.<job-id>.pre-steps
+// are emitted after setup-injected steps and before checkout in custom jobs.
+func TestCustomJobPreStepsAreInsertedBeforeCheckout(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-pre-steps")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  custom_job:
+    runs-on: ubuntu-latest
+    pre-steps:
+      - name: Pre setup
+        run: echo "pre"
+      - name: Prepare token
+        run: echo "token"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+      - name: Main work
+        run: echo "work"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+	customJobSection := extractJobSection(yamlStr, "custom_job")
+	if customJobSection == "" {
+		t.Fatal("Expected custom_job section in lock file")
+	}
+
+	ghesSetupIdx := indexInNonCommentLines(customJobSection, "- name: Configure GH_HOST for enterprise compatibility")
+	preSetupIdx := indexInNonCommentLines(customJobSection, "- name: Pre setup")
+	prepareTokenIdx := indexInNonCommentLines(customJobSection, "- name: Prepare token")
+	checkoutIdx := indexInNonCommentLines(customJobSection, "- name: Checkout repo")
+
+	if ghesSetupIdx == -1 || preSetupIdx == -1 || prepareTokenIdx == -1 || checkoutIdx == -1 {
+		t.Fatalf("Missing expected steps in custom job section:\n%s", customJobSection)
+	}
+
+	if ghesSetupIdx >= preSetupIdx || preSetupIdx >= prepareTokenIdx || prepareTokenIdx >= checkoutIdx {
+		t.Fatalf("Expected order setup -> pre-steps -> checkout, got indexes setup=%d pre1=%d pre2=%d checkout=%d\n%s",
+			ghesSetupIdx, preSetupIdx, prepareTokenIdx, checkoutIdx, customJobSection)
+	}
+}
+
+func TestCustomJobPreStepsSchemaValidation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-pre-steps-schema")
+
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  custom_job:
+    runs-on: ubuntu-latest
+    pre-steps:
+      name: Invalid pre-steps
+      run: echo "invalid"
+    steps:
+      - run: echo "work"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	if err == nil {
+		t.Fatal("Expected schema validation error for non-array jobs.<job-id>.pre-steps, got nil")
+	}
+	if !strings.Contains(err.Error(), "pre-steps") {
+		t.Fatalf("Expected error to mention pre-steps, got: %v", err)
+	}
+}
+
 // TestBuildSafeOutputsJobsCreatesExpectedJobs tests that safe output steps are created correctly
 // in the consolidated safe_outputs job
 func TestBuildSafeOutputsJobsCreatesExpectedJobs(t *testing.T) {

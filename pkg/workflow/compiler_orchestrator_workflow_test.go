@@ -758,6 +758,42 @@ func TestMergeJobsFromYAMLImports_MainJobTakesPrecedence(t *testing.T) {
 	assert.Equal(t, "ubuntu-latest", testJob["runs-on"])
 }
 
+// TestMergeJobsFromYAMLImports_MergesPreStepsOnConflict tests deterministic merging of
+// jobs.<job-id>.pre-steps when main and imported workflows define the same job.
+func TestMergeJobsFromYAMLImports_MergesPreStepsOnConflict(t *testing.T) {
+	compiler := NewCompiler()
+
+	mainJobs := map[string]any{
+		"test": map[string]any{
+			"runs-on": "ubuntu-latest",
+			"pre-steps": []any{
+				map[string]any{"name": "main pre", "run": "echo main"},
+			},
+			"steps": []any{
+				map[string]any{"run": "echo main job"},
+			},
+		},
+	}
+
+	importedJobsJSON := `{"test": {"runs-on": "macos-latest", "pre-steps": [{"name": "import pre", "run": "echo import"}], "steps": [{"run": "echo imported job"}]}}`
+	result := compiler.mergeJobsFromYAMLImports(mainJobs, importedJobsJSON)
+
+	assert.Len(t, result, 1)
+	testJob := result["test"].(map[string]any)
+
+	// Main job fields still take precedence.
+	assert.Equal(t, "ubuntu-latest", testJob["runs-on"])
+
+	preSteps, ok := testJob["pre-steps"].([]any)
+	require.True(t, ok, "Expected merged pre-steps array")
+	require.Len(t, preSteps, 2, "Expected imported+main pre-steps to be merged")
+
+	first := preSteps[0].(map[string]any)
+	second := preSteps[1].(map[string]any)
+	assert.Equal(t, "import pre", first["name"], "Imported pre-steps should run first")
+	assert.Equal(t, "main pre", second["name"], "Main workflow pre-steps should run after imported pre-steps")
+}
+
 // TestMergeJobsFromYAMLImports_MultipleImportedJobs tests merging multiple imported jobs
 func TestMergeJobsFromYAMLImports_MultipleImportedJobs(t *testing.T) {
 	compiler := NewCompiler()
