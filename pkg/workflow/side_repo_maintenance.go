@@ -430,6 +430,7 @@ jobs:
   activity_report:
     if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity_report")) + ` }}
     runs-on: ` + runsOnValue + `
+    timeout-minutes: 120
     permissions:
       actions: read
       contents: read

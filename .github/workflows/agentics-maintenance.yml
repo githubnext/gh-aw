@@ -315,6 +315,7 @@ jobs:
   activity_report:
     if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'activity_report' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
+    timeout-minutes: 120
     permissions:
       actions: read
       contents: read

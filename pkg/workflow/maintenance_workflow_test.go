@@ -380,6 +380,9 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		if !strings.Contains(activityReportSection, "contents: read") {
 			t.Errorf("Job activity_report should include contents: read permission in:\n%s", activityReportSection)
 		}
+		if !strings.Contains(activityReportSection, "timeout-minutes: 120") {
+			t.Errorf("Job activity_report should set timeout-minutes: 120 in:\n%s", activityReportSection)
+		}
 	}
 	if !strings.Contains(yaml, "Cache activity report logs") {
 		t.Errorf("Job activity_report should include a cache step in:\n%s", yaml)

@@ -96,6 +96,8 @@ This workflow operates on a separate repository.
 		"generated workflow should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR for activity_report logs")
 	assert.Contains(t, contentStr, "actions: read\n      contents: read\n      issues: write",
 		"activity_report job should include contents: read with explicit permissions")
+	assert.Contains(t, contentStr, "timeout-minutes: 120",
+		"activity_report job should include a 2 hour timeout")
 
 	// GH_AW_TARGET_REPO_SLUG must be wired with the correct slug.
 	assert.Contains(t, contentStr, `GH_AW_TARGET_REPO_SLUG: "my-org/target-repo"`,
