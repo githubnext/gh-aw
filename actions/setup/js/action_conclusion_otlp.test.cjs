@@ -15,52 +15,24 @@ const { run } = req("./action_conclusion_otlp.cjs");
 // Shared mock function — patched onto the module exports in beforeEach
 const mockSendJobConclusionSpan = vi.fn();
 
-describe("action_conclusion_otlp.cjs", () => {
-  let originalEnv;
+/** Env vars read by this module — cleared before each test */
+const MANAGED_ENV_VARS = ["OTEL_EXPORTER_OTLP_ENDPOINT", "INPUT_JOB_NAME", "INPUT_JOB-NAME", "GITHUB_AW_OTEL_JOB_START_MS"];
 
+describe("action_conclusion_otlp.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "log").mockImplementation(() => {});
     mockSendJobConclusionSpan.mockResolvedValue(undefined);
     // Patch the shared CJS exports object — run() accesses this at call time
     sendOtlpModule.sendJobConclusionSpan = mockSendJobConclusionSpan;
-
-    originalEnv = {
-      OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-      INPUT_JOB_NAME: process.env.INPUT_JOB_NAME,
-      "INPUT_JOB-NAME": process.env["INPUT_JOB-NAME"],
-      GITHUB_AW_OTEL_JOB_START_MS: process.env.GITHUB_AW_OTEL_JOB_START_MS,
-    };
-    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-    delete process.env.INPUT_JOB_NAME;
-    delete process.env["INPUT_JOB-NAME"];
-    delete process.env.GITHUB_AW_OTEL_JOB_START_MS;
+    MANAGED_ENV_VARS.forEach(key => delete process.env[key]);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     sendOtlpModule.sendJobConclusionSpan = originalSendJobConclusionSpan;
-
-    if (originalEnv.OTEL_EXPORTER_OTLP_ENDPOINT !== undefined) {
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalEnv.OTEL_EXPORTER_OTLP_ENDPOINT;
-    } else {
-      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-    }
-    if (originalEnv.INPUT_JOB_NAME !== undefined) {
-      process.env.INPUT_JOB_NAME = originalEnv.INPUT_JOB_NAME;
-    } else {
-      delete process.env.INPUT_JOB_NAME;
-    }
-    if (originalEnv["INPUT_JOB-NAME"] !== undefined) {
-      process.env["INPUT_JOB-NAME"] = originalEnv["INPUT_JOB-NAME"];
-    } else {
-      delete process.env["INPUT_JOB-NAME"];
-    }
-    if (originalEnv.GITHUB_AW_OTEL_JOB_START_MS !== undefined) {
-      process.env.GITHUB_AW_OTEL_JOB_START_MS = originalEnv.GITHUB_AW_OTEL_JOB_START_MS;
-    } else {
-      delete process.env.GITHUB_AW_OTEL_JOB_START_MS;
-    }
+    MANAGED_ENV_VARS.forEach(key => delete process.env[key]);
   });
 
   it("should export run as a function", () => {
@@ -172,6 +144,14 @@ describe("action_conclusion_otlp.cjs", () => {
 
       it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is not a number", async () => {
         process.env.GITHUB_AW_OTEL_JOB_START_MS = "not-a-number";
+
+        await run();
+
+        expect(mockSendJobConclusionSpan).toHaveBeenCalledWith("gh-aw.job.conclusion", { startMs: undefined });
+      });
+
+      it("should pass startMs: undefined when GITHUB_AW_OTEL_JOB_START_MS is a negative number", async () => {
+        process.env.GITHUB_AW_OTEL_JOB_START_MS = "-1000";
 
         await run();
 
