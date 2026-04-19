@@ -17,7 +17,8 @@ describe("mount_mcp_as_cli.cjs", () => {
   });
 
   it("parses SSE data lines and returns the JSON payload", () => {
-    const body = ["event: message", 'data: {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"logs","inputSchema":{"properties":{"count":{"type":"integer"}}}}]}}', ""].join("\n");
+    const sseToolListPayload = 'data: {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"logs","inputSchema":{"properties":{"count":{"type":"integer"}}}}]}}';
+    const body = ["event: message", sseToolListPayload, ""].join("\n");
 
     expect(parseMCPResponseBody(body)).toEqual({
       jsonrpc: "2.0",

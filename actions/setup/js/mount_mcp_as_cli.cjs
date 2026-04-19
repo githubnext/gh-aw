@@ -156,7 +156,7 @@ function httpPostJSON(urlStr, headers, body, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS
  * @returns {unknown}
  */
 function parseMCPResponseBody(body) {
-  if (body && typeof body === "object") {
+  if (body && typeof body === "object" && !Array.isArray(body)) {
     return body;
   }
   if (typeof body !== "string") {
