@@ -584,6 +584,8 @@ For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` M
 safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
 ```
 
+Use the exact field name `issue_number` (underscore). Do **not** use `issue-number` (hyphen), which is invalid and will fail safe-output validation.
+
 Do not use GitHub tools for this assignment. The `assign_to_agent` tool will handle the actual assignment.
 
 The Copilot coding agent will:
@@ -597,7 +599,7 @@ The Copilot coding agent will:
 For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
 
 ```
-safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster has assigned this to Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and assigned it to the Copilot coding agent.\n\nThe Copilot coding agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
+safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster selected this for Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and requested assignment to the Copilot coding agent.\n\nIf assignment succeeds, the Copilot coding agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
 ```
 
 **Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
