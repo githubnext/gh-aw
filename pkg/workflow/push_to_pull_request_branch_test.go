@@ -130,6 +130,43 @@ safe-outputs:
 	}
 }
 
+func TestPushToPullRequestBranchFallbackAsPullRequestDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    fallback-as-pull-request: false
+---
+
+# Test Push to PR Branch Fallback Disabled
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-fallback-disabled.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	if strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Errorf("Generated workflow should NOT have pull-requests: write permission when fallback-as-pull-request is false")
+	}
+}
+
 func TestPushToPullRequestBranchWithTargetAsterisk(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := testutil.TempDir(t, "test-*")

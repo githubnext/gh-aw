@@ -4599,6 +4599,13 @@ safe-outputs:
     # (optional)
     github-token-for-extra-empty-commit: "example-value"
 
+    # When true (default), if pushing to the PR branch fails due to a
+    # non-fast-forward/diverged branch, create a fallback pull request that targets
+    # the original PR branch. Set to false to disable this behavior and avoid
+    # requiring pull-requests: write permission.
+    # (optional)
+    fallback-as-pull-request: true
+
     # Target repository in format 'owner/repo' for cross-repository push to pull
     # request branch. Takes precedence over trial target repo settings.
     # (optional)

@@ -363,7 +363,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   // Track when a code-push operation falls back to creating a review issue instead.
   // When set, subsequent add_comment messages will receive a correction note prepended
   // to their body so the posted comment accurately reflects the actual outcome.
-  /** @type {{type: string, issueNumber: number, issueUrl: string}|null} */
+  /** @type {{type: string, fallbackTargetType: "issue" | "pull_request", number: number, url: string}|null} */
   let codePushFallbackInfo = null;
 
   // Load custom safe output job types (from GH_AW_SAFE_OUTPUT_JOBS env var)
@@ -481,9 +481,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         // If a previous code-push operation fell back to a review issue, prepend a correction note
         // so the posted comment accurately reflects the outcome.
         if (codePushFallbackInfo) {
-          const fallbackNote = `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.issueNumber}](${codePushFallbackInfo.issueUrl})\n\n`;
+          const fallbackNote =
+            codePushFallbackInfo.fallbackTargetType === "pull_request"
+              ? `\n\n---\n> [!NOTE]\n> Direct push to the original pull request branch was not possible (diverged/non-fast-forward). A fallback pull request was created instead: [#${codePushFallbackInfo.number}](${codePushFallbackInfo.url})\n\n`
+              : `\n\n---\n> [!NOTE]\n> The pull request was not created — a fallback review issue was created instead due to protected file changes: [#${codePushFallbackInfo.number}](${codePushFallbackInfo.url})\n\n`;
           effectiveMessage = { ...effectiveMessage, body: fallbackNote + (effectiveMessage.body || "") };
-          core.info(`Prepending fallback correction note to add_comment body (fallback issue: #${codePushFallbackInfo.issueNumber})`);
+          core.info(`Prepending fallback correction note to add_comment body (fallback ${codePushFallbackInfo.fallbackTargetType}: #${codePushFallbackInfo.number})`);
         }
         // If a previous code-push operation failed outright (e.g. patch application error),
         // prepend a failure warning so the status comment accurately reflects that the
@@ -587,9 +590,24 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Track when a code-push operation falls back to a review issue so subsequent
       // add_comment messages can include a correction note.
-      if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true && result.issue_number != null && result.issue_url) {
-        codePushFallbackInfo = { type: messageType, issueNumber: result.issue_number, issueUrl: result.issue_url };
-        core.info(`Code push '${messageType}' fell back to review issue #${result.issue_number} — add_comment messages will be annotated`);
+      if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true) {
+        if (result.issue_number != null && result.issue_url) {
+          codePushFallbackInfo = {
+            type: messageType,
+            fallbackTargetType: "issue",
+            number: result.issue_number,
+            url: result.issue_url,
+          };
+          core.info(`Code push '${messageType}' fell back to review issue #${result.issue_number} — add_comment messages will be annotated`);
+        } else if (result.pull_request_number != null && result.pull_request_url) {
+          codePushFallbackInfo = {
+            type: messageType,
+            fallbackTargetType: "pull_request",
+            number: result.pull_request_number,
+            url: result.pull_request_url,
+          };
+          core.info(`Code push '${messageType}' fell back to pull request #${result.pull_request_number} — add_comment messages will be annotated`);
+        }
       }
 
       // Check if this output was created with unresolved temporary IDs

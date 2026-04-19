@@ -7096,6 +7096,11 @@
                   "type": "string",
                   "description": "Token used to push an empty commit after pushing changes to trigger CI events. Works around the GITHUB_TOKEN limitation where pushes don't trigger workflow runs. Defaults to the magic secret GH_AW_CI_TRIGGER_TOKEN if set in the repository. Use a secret expression (e.g. '${{ secrets.CI_TOKEN }}') for a custom token, or 'app' for GitHub App auth."
                 },
+                "fallback-as-pull-request": {
+                  "type": "boolean",
+                  "description": "When true (default), if pushing to the PR branch fails due to a non-fast-forward/diverged branch, create a fallback pull request that targets the original PR branch. Set to false to disable this behavior and avoid requiring pull-requests: write permission.",
+                  "default": true
+                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository push to pull request branch. Takes precedence over trial target repo settings."

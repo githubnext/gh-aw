@@ -26,6 +26,7 @@ type PushToPullRequestBranchConfig struct {
 	AllowedFiles                   []string `yaml:"allowed-files,omitempty"`                       // Strict allowlist of glob patterns for files eligible for push. Checked independently of protected-files; both checks must pass.
 	ExcludedFiles                  []string `yaml:"excluded-files,omitempty"`                      // List of glob patterns for files to exclude from the patch using git :(exclude) pathspecs. Matching files are stripped by git at generation time and will not appear in the commit or be subject to allowed-files or protected-files checks.
 	PatchFormat                    string   `yaml:"patch-format,omitempty"`                        // Transport format for packaging changes: "am" (default, uses git format-patch) or "bundle" (uses git bundle, preserves merge topology and per-commit metadata).
+	FallbackAsPullRequest          *bool    `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
 	AllowWorkflows                 bool     `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
 }
 
@@ -170,6 +171,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			if patchFormat, exists := configMap["patch-format"]; exists {
 				if patchFormatStr, ok := patchFormat.(string); ok {
 					pushToBranchConfig.PatchFormat = patchFormatStr
+				}
+			}
+
+			// Parse fallback-as-pull-request (optional, defaults to true)
+			if fallbackAsPullRequest, exists := configMap["fallback-as-pull-request"]; exists {
+				if fallbackAsPullRequestBool, ok := fallbackAsPullRequest.(bool); ok {
+					pushToBranchConfig.FallbackAsPullRequest = &fallbackAsPullRequestBool
 				}
 			}
 

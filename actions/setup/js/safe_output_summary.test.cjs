@@ -360,6 +360,32 @@ describe("safe_output_summary", () => {
       expect(summary).not.toContain("⚠️");
       expect(summary).not.toContain("Fallback");
     });
+
+    it("should show fallback pull request status when push_to_pull_request_branch falls back to pull request", () => {
+      const options = {
+        type: "push_to_pull_request_branch",
+        messageIndex: 3,
+        success: true,
+        result: {
+          fallback_used: true,
+          fallback_type: "pull_request",
+          pull_request_number: 71,
+          pull_request_url: "https://github.com/owner/repo/pull/71",
+          repo: "owner/repo",
+        },
+        message: {
+          body: "Pushing to PR branch.",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("⚠️");
+      expect(summary).toContain("Fallback Pull Request Created");
+      expect(summary).toContain("https://github.com/owner/repo/pull/71");
+      expect(summary).toContain("owner/repo#71");
+      expect(summary).toContain("non-fast-forward");
+    });
   });
 
   describe("writeSafeOutputSummaries", () => {

@@ -56,6 +56,7 @@ async function main(config = {}) {
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const ifNoChanges = config.if_no_changes || "warn";
   const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
+  const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const maxCount = config.max || 0; // 0 means no limit
@@ -91,6 +92,7 @@ async function main(config = {}) {
   }
   core.info(`If no changes: ${ifNoChanges}`);
   core.info(`Ignore missing branch failure: ${ignoreMissingBranchFailure}`);
+  core.info(`Fallback as pull request: ${fallbackAsPullRequest}`);
   if (commitTitleSuffix) {
     core.info(`Commit title suffix: ${commitTitleSuffix}`);
   }
@@ -768,6 +770,58 @@ async function main(config = {}) {
           }
         } catch (diagnosisError) {
           core.warning(`Push failed and branch existence re-check errored for ${branchName}: ${getErrorMessage(diagnosisError)}`);
+        }
+
+        // Fallback path for diverged branches: create a new pull request so changes
+        // can still be reviewed and merged into the original PR branch.
+        if (isNonFastForward && fallbackAsPullRequest) {
+          const fallbackBranchName = normalizeBranchName(`${branchName}-fallback`, String(Date.now()));
+          core.warning(`Non-fast-forward push detected; creating fallback pull request from '${fallbackBranchName}' to '${branchName}'`);
+          try {
+            await exec.exec("git", ["checkout", "-b", fallbackBranchName]);
+            await exec.exec("git", ["push", "origin", fallbackBranchName], {
+              env: { ...process.env, ...gitAuthEnv },
+            });
+
+            const fallbackBody = [
+              "> [!NOTE]",
+              "> Direct push to the original pull request branch failed because the branch diverged (non-fast-forward).",
+              `> Original PR branch: \`${branchName}\``,
+              "",
+              `This fallback PR contains the prepared changes for PR #${pullNumber}.`,
+              "Merge this fallback PR into the original PR branch to apply them.",
+              "",
+              `Workflow run: ${buildWorkflowRunUrl(context, context.repo)}`,
+            ].join("\n");
+
+            const { data: fallbackPR } = await githubClient.rest.pulls.create({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              title: `[fallback] ${prTitle || `Changes for #${pullNumber}`}`,
+              body: fallbackBody,
+              head: fallbackBranchName,
+              base: branchName,
+            });
+
+            core.info(`Created fallback pull request #${fallbackPR.number}: ${fallbackPR.html_url}`);
+            await updateActivationComment(github, context, core, fallbackPR.html_url, fallbackPR.number, "pull_request");
+
+            return {
+              success: true,
+              fallback_used: true,
+              fallback_type: "pull_request",
+              pull_request_number: fallbackPR.number,
+              pull_request_url: fallbackPR.html_url,
+              branch_name: fallbackBranchName,
+              repo: itemRepo,
+              number: fallbackPR.number,
+              url: fallbackPR.html_url,
+            };
+          } catch (fallbackError) {
+            const fallbackErrorMessage = getErrorMessage(fallbackError);
+            core.error(`Failed to create fallback pull request: ${fallbackErrorMessage}`);
+            userMessage = `${userMessage} Fallback pull request creation also failed: ${fallbackErrorMessage}`;
+          }
         }
 
         return { success: false, error_type: "push_failed", error: userMessage };
