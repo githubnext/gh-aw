@@ -327,7 +327,9 @@ function findAllowedLabelMatches(labels, allowedLabels) {
 
 /**
  * @param {any} message
+ *   Message object containing pull_request_number (optional)
  * @param {any} resolvedTemporaryIds
+ *   Map of resolved temporary IDs from prior safe-output operations
  * @returns {{success: true, pullNumber: number, fromTemporaryId: boolean} | {success: false, error: string}}
  */
 function resolvePullRequestNumber(message, resolvedTemporaryIds) {

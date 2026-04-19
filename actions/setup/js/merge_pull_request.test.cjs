@@ -43,7 +43,7 @@ describe("merge_pull_request branch validation", () => {
     expect(policy.requiredChecks).toEqual([]);
   });
 
-  it("marks default base branch as default", async () => {
+  it("detects repository default branch", async () => {
     const { __testables } = await import("./merge_pull_request.cjs");
 
     const githubClient = {
