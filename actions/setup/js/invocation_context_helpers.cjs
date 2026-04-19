@@ -109,6 +109,7 @@ function parseJSONPayload(value) {
 
 /**
  * Validate workflow_dispatch target repository against allowlist configuration.
+ * Enforces SEC-005 by rejecting disallowed cross-repository target overrides.
  * @param {RepoRef} workflowRepo
  * @param {RepoRef} targetRepo
  */

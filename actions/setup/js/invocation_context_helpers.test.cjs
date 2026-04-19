@@ -68,7 +68,7 @@ describe("invocation_context_helpers", () => {
     expect(resolved.eventPayload.issue.number).toBe(777);
   });
 
-  it("rejects workflow_dispatch target_repo when not in allowlist", () => {
+  it.each(["target_repo", "targetRepo"])("rejects workflow_dispatch %s when not in allowlist", targetRepoKey => {
     const originalAllowedRepos = process.env.GH_AW_ALLOWED_REPOS;
     try {
       process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
@@ -79,7 +79,7 @@ describe("invocation_context_helpers", () => {
           repo: { owner: "side-owner", repo: "side-repo" },
           payload: {
             inputs: {
-              target_repo: "target-owner/target-repo",
+              [targetRepoKey]: "target-owner/target-repo",
             },
           },
         })
