@@ -4,20 +4,20 @@ This directory includes tests for the JavaScript frontmatter hash implementation
 
 ## Running Tests
 
-### Standard Test Suite (with mocks)
+### Integration Test Suite (not part of default `npm run test:js`)
 ```bash
-npm test -- frontmatter_hash_github_api.test.cjs
+npm run test:js-integration-live-api
 ```
 
-This runs all tests including mocked GitHub API calls.
+This runs `frontmatter_hash_github_api.test.cjs`, including mocked GitHub API coverage and the optional live API check.
 
 ### Live GitHub API Test (no mocks)
 
 The test suite includes a live API test that fetches real data from the GitHub repository. To run it, you need a GitHub token:
 
-#### Option 1: Run via npm test
+#### Option 1: Run via npm integration script
 ```bash
-GITHUB_TOKEN=ghp_your_token_here npm test -- frontmatter_hash_github_api.test.cjs
+GITHUB_TOKEN=ghp_your_token_here npm run test:js-integration-live-api
 ```
 
 #### Option 2: Run standalone script
@@ -56,7 +56,7 @@ This validates that the JavaScript hash implementation works correctly with real
 stdout | frontmatter_hash_github_api.test.cjs > live GitHub API integration > should compute hash using real GitHub API (no mocks)
 Skipping live API test - no GITHUB_TOKEN or GH_TOKEN available
 To run this test, set GITHUB_TOKEN or GH_TOKEN environment variable
-Example: GITHUB_TOKEN=ghp_xxx npm test -- frontmatter_hash_github_api.test.cjs
+Example: GITHUB_TOKEN=ghp_xxx npm run test:js-integration-live-api
 
  ✓ frontmatter_hash_github_api.test.cjs (10 tests) 16ms
 ```

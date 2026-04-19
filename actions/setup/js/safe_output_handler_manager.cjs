@@ -1259,18 +1259,20 @@ async function main() {
     }
 
     // Export create_discussion errors for conclusion job
+    // Exclude cancelled results (cancelled == the discussion was skipped because a code-push
+    // operation failed earlier in the same run; that failure is already reported separately).
     const createDiscussionErrors = processingResult.results
-      .filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped)
+      .filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled)
       .map((r, index) => {
         const message = agentOutput.items[r.messageIndex];
         const title = message?.title || "Discussion";
-        const repo = message?.repo || "unknown";
-        const errorMsg = r.error || "Unknown error";
+        const repo = message?.repo || process.env.GITHUB_REPOSITORY || "unknown";
+        const errorMsg = r.error || r.reason || "Unknown error";
         return `discussion:${index}:${repo}:${title}:${errorMsg}`;
       })
       .join("\n");
 
-    const createDiscussionErrorCount = processingResult.results.filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped).length;
+    const createDiscussionErrorCount = processingResult.results.filter(r => r.type === "create_discussion" && !r.success && !r.deferred && !r.skipped && !r.cancelled).length;
 
     core.setOutput("create_discussion_errors", createDiscussionErrors);
     core.setOutput("create_discussion_error_count", createDiscussionErrorCount.toString());

@@ -369,7 +369,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Start DIFC proxy for pre-agent gh calls
+      - name: Start DIFC Proxy for pre-agent gh calls
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
@@ -432,7 +432,7 @@ jobs:
           GH_AW_APPROVAL_LABELS_EXTRA: cookie,community
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh"
-      - name: Stop DIFC proxy
+      - name: Stop DIFC Proxy
         if: always()
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh"

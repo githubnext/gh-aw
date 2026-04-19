@@ -58,25 +58,25 @@ describe("run_activity_report", () => {
     vi.clearAllMocks();
   });
 
-  it("creates an activity report issue with all three time ranges", async () => {
-    mockExec.getExecOutput
-      .mockResolvedValueOnce({ stdout: "## 24h report\nok", stderr: "", exitCode: 0 })
-      .mockResolvedValueOnce({ stdout: "## 7d report\nok", stderr: "", exitCode: 0 })
-      .mockResolvedValueOnce({ stdout: "## 30d report\nok", stderr: "", exitCode: 0 });
+  it("creates an activity report issue with 24h and 7d time ranges", async () => {
+    mockExec.getExecOutput.mockResolvedValueOnce({ stdout: "## 24h report\nok", stderr: "", exitCode: 0 }).mockResolvedValueOnce({ stdout: "## 7d report\nok", stderr: "", exitCode: 0 });
 
     const { main } = await import("./run_activity_report.cjs");
     await main();
 
-    expect(mockExec.getExecOutput).toHaveBeenCalledTimes(3);
-    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(1, "gh", expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--format", "markdown"]), expect.objectContaining({ ignoreReturnCode: true }));
-    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(2, "gh", expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--format", "markdown"]), expect.objectContaining({ ignoreReturnCode: true }));
+    expect(mockExec.getExecOutput).toHaveBeenCalledTimes(2);
     expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
-      3,
+      1,
       "gh",
-      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1mo", "--format", "markdown"]),
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
       expect.objectContaining({ ignoreReturnCode: true })
     );
-
+    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
+      2,
+      "gh",
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--count", "1000", "--output", "./.cache/gh-aw/activity-report-logs", "--format", "markdown"]),
+      expect.objectContaining({ ignoreReturnCode: true })
+    );
     expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: "testowner",
@@ -87,23 +87,12 @@ describe("run_activity_report", () => {
     );
 
     const issueBody = mockGithub.rest.issues.create.mock.calls[0][0].body;
-    expect(issueBody).toContain("## Last 24 hours");
-    expect(issueBody).toContain("## Last 7 days");
-    expect(issueBody).toContain("## Last 30 days");
-  });
-
-  it("skips the 30-day query when rate limited", async () => {
-    mockExec.getExecOutput
-      .mockResolvedValueOnce({ stdout: "24h", stderr: "", exitCode: 0 })
-      .mockResolvedValueOnce({ stdout: "7d", stderr: "", exitCode: 0 })
-      .mockResolvedValueOnce({ stdout: "", stderr: "API rate limit exceeded", exitCode: 1 });
-
-    const { main } = await import("./run_activity_report.cjs");
-    await main();
-
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping Last 30 days report"));
-    const issueBody = mockGithub.rest.issues.create.mock.calls[0][0].body;
-    expect(issueBody).toContain("Skipped due to GitHub API rate limiting.");
+    expect(issueBody).toContain("### Agentic workflow activity report");
+    expect(issueBody).toContain("<details>");
+    expect(issueBody).toContain("<summary>Last 24 hours</summary>");
+    expect(issueBody).toContain("<summary>Last 7 days</summary>");
+    expect(issueBody).not.toContain("<summary>Last 30 days</summary>");
+    expect(issueBody).toContain("#### 24h report");
   });
 
   it("detects rate limit text helper", async () => {
@@ -111,5 +100,13 @@ describe("run_activity_report", () => {
     expect(hasRateLimitText("API rate limit exceeded")).toBe(true);
     expect(hasRateLimitText("secondary rate limit")).toBe(true);
     expect(hasRateLimitText("normal output")).toBe(false);
+  });
+
+  it("demotes report headings by two levels", async () => {
+    const { normalizeReportMarkdown } = await import("./run_activity_report.cjs");
+    const transformed = normalizeReportMarkdown("# H1\n## H2\n### H3");
+    expect(transformed).toContain("### H1");
+    expect(transformed).toContain("#### H2");
+    expect(transformed).toContain("##### H3");
   });
 });

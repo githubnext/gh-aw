@@ -6,6 +6,9 @@ const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const ISSUE_TITLE = "[aw] agentic status report";
+const REPORT_COUNT = 1000;
+const HEADING_DEMOTION_LEVELS = 2;
+const DEFAULT_REPORT_OUTPUT_DIR = "./.cache/gh-aw/activity-report-logs";
 
 /** @typedef {{ key: string, heading: string, startDate: string, optionalOnRateLimit: boolean }} ActivityRange */
 
@@ -13,7 +16,6 @@ const ISSUE_TITLE = "[aw] agentic status report";
 const REPORT_RANGES = [
   { key: "24h", heading: "Last 24 hours", startDate: "-1d", optionalOnRateLimit: false },
   { key: "7d", heading: "Last 7 days", startDate: "-1w", optionalOnRateLimit: false },
-  { key: "30d", heading: "Last 30 days", startDate: "-1mo", optionalOnRateLimit: true },
 ];
 
 /**
@@ -31,10 +33,11 @@ function hasRateLimitText(text) {
  * @param {string[]} prefixArgs
  * @param {string} repoSlug
  * @param {ActivityRange} range
+ * @param {string} outputDir
  * @returns {Promise<{ heading: string, body: string }>}
  */
-async function runRangeReport(bin, prefixArgs, repoSlug, range) {
-  const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--format", "markdown"];
+async function runRangeReport(bin, prefixArgs, repoSlug, range, outputDir) {
+  const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--count", String(REPORT_COUNT), "--output", outputDir, "--format", "markdown"];
   core.info(`Running: ${bin} ${args.join(" ")}`);
 
   try {
@@ -45,7 +48,7 @@ async function runRangeReport(bin, prefixArgs, repoSlug, range) {
     if (result.exitCode === 0 && result.stdout.trim()) {
       return {
         heading: range.heading,
-        body: sanitizeContent(result.stdout.trim()),
+        body: normalizeReportMarkdown(sanitizeContent(result.stdout.trim())),
       };
     }
 
@@ -95,11 +98,27 @@ async function runRangeReport(bin, prefixArgs, repoSlug, range) {
 }
 
 /**
+ * Normalize report markdown for issue rendering.
+ * Demotes headings so top-level report headings start at H3.
+ *
+ * @param {string} markdown
+ * @returns {string}
+ */
+function normalizeReportMarkdown(markdown) {
+  return markdown.replace(/^(#{1,6})\s+/gm, (_, hashes) => {
+    const headingLevel = hashes.length;
+    const demotedHeadingLevel = Math.min(6, headingLevel + HEADING_DEMOTION_LEVELS);
+    return `${"#".repeat(demotedHeadingLevel)} `;
+  });
+}
+
+/**
  * Generate an agentic workflow activity report issue.
  * @returns {Promise<void>}
  */
 async function main() {
   const cmdPrefixStr = process.env.GH_AW_CMD_PREFIX || "gh aw";
+  const reportOutputDir = process.env.GH_AW_ACTIVITY_REPORT_OUTPUT_DIR || DEFAULT_REPORT_OUTPUT_DIR;
   const [bin, ...prefixArgs] = cmdPrefixStr.split(" ").filter(Boolean);
   const { owner, repo } = resolveExecutionOwnerRepo();
   const repoSlug = `${owner}/${repo}`;
@@ -108,11 +127,11 @@ async function main() {
 
   const sections = [];
   for (const range of REPORT_RANGES) {
-    sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range));
+    sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range, reportOutputDir));
   }
 
-  const headerLines = ["## Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];
-  const sectionLines = sections.flatMap(section => ["---", "", `## ${section.heading}`, "", section.body, ""]);
+  const headerLines = ["### Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];
+  const sectionLines = sections.flatMap(section => ["<details>", `<summary>${section.heading}</summary>`, "", section.body, "", "</details>", ""]);
   const body = [...headerLines, ...sectionLines].join("\n");
 
   const createdIssue = await github.rest.issues.create({
@@ -126,4 +145,4 @@ async function main() {
   core.info(`Created issue #${createdIssue.data.number}: ${createdIssue.data.html_url}`);
 }
 
-module.exports = { main, hasRateLimitText, runRangeReport };
+module.exports = { main, hasRateLimitText, runRangeReport, normalizeReportMarkdown };
