@@ -85,7 +85,7 @@ Examples:
 				components.Repo = parts[1]
 			}
 
-			if err := guardGitHubAPIRateLimit(minGitHubAPILimits, verbose); err != nil {
+			if err := guardGitHubAPIRateLimit(cmd.Context(), minGitHubAPILimits, verbose); err != nil {
 				return err
 			}
 

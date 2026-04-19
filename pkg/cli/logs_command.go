@@ -185,7 +185,7 @@ Examples:
 
 			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s, train=%v", workflowName, count, engine, train)
 
-			if err := guardGitHubAPIRateLimit(minGitHubAPILimits, verbose); err != nil {
+			if err := guardGitHubAPIRateLimit(cmd.Context(), minGitHubAPILimits, verbose); err != nil {
 				return err
 			}
 

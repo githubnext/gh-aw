@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -132,14 +133,14 @@ func TestGuardGitHubAPIRateLimit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fetchRateLimitFn = func() (rateLimitResource, error) {
+			fetchRateLimitFn = func(_ context.Context) (rateLimitResource, error) {
 				if tt.fetchErr != nil {
 					return rateLimitResource{}, tt.fetchErr
 				}
 				return tt.resource, nil
 			}
 
-			err := guardGitHubAPIRateLimit(tt.minimum, false)
+			err := guardGitHubAPIRateLimit(context.Background(), tt.minimum, false)
 			if tt.wantError {
 				assert.Error(t, err, "guard should return an error for case %q", tt.name)
 				return
@@ -147,6 +148,30 @@ func TestGuardGitHubAPIRateLimit(t *testing.T) {
 			assert.NoError(t, err, "guard should allow execution for case %q", tt.name)
 		})
 	}
+}
+
+func TestGuardGitHubAPIRateLimit_UsesProvidedContext(t *testing.T) {
+	originalFetch := fetchRateLimitFn
+	t.Cleanup(func() {
+		fetchRateLimitFn = originalFetch
+	})
+
+	type contextKey string
+	const rateLimitContextKey contextKey = "rate-limit-ctx-key"
+
+	ctx := context.WithValue(context.Background(), rateLimitContextKey, "rate-limit-ctx-value")
+	fetchRateLimitFn = func(fetchCtx context.Context) (rateLimitResource, error) {
+		got := fetchCtx.Value(rateLimitContextKey)
+		assert.Equal(t, "rate-limit-ctx-value", got, "guard should pass provided context to fetch helper")
+		return rateLimitResource{
+			Limit:     5000,
+			Remaining: 5000,
+			Reset:     time.Now().Add(1 * time.Minute).Unix(),
+		}, nil
+	}
+
+	err := guardGitHubAPIRateLimit(ctx, 1, false)
+	assert.NoError(t, err, "guard should succeed when remaining quota is above minimum")
 }
 
 // jsonInt is a helper that converts an int64 to its JSON number representation.

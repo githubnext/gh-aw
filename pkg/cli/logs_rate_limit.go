@@ -11,6 +11,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -48,10 +49,10 @@ type rateLimitResource struct {
 // fetchRateLimit queries the GitHub API and returns the current core rate-limit
 // state.  It is a thin wrapper around `gh api rate_limit` so that callers do
 // not need to know about the CLI invocation details.
-func fetchRateLimit() (rateLimitResource, error) {
+func fetchRateLimit(ctx context.Context) (rateLimitResource, error) {
 	logsRateLimitLog.Print("Querying GitHub API rate limit")
 
-	output, err := workflow.RunGHCombined("Verifying API quota...", "api", "rate_limit")
+	output, err := workflow.RunGHCombinedContext(ctx, "Verifying API quota...", "api", "rate_limit")
 	if err != nil {
 		return rateLimitResource{}, fmt.Errorf("failed to query rate limit: %w", err)
 	}
@@ -71,9 +72,10 @@ func fetchRateLimit() (rateLimitResource, error) {
 	return resp.Resources.Core, nil
 }
 
-// guardGitHubAPIRateLimit cancels execution when the current GitHub core API
-// remaining budget is below the configured minimum.
-func guardGitHubAPIRateLimit(minimum int, verbose bool) error {
+// guardGitHubAPIRateLimit cancels execution when the current GitHub
+// core API remaining budget is below the configured minimum. It honors context
+// cancellation for the underlying rate limit API request.
+func guardGitHubAPIRateLimit(ctx context.Context, minimum int, verbose bool) error {
 	if minimum < 0 {
 		return fmt.Errorf("invalid --min-github-api-limits value %d: must be >= 0", minimum)
 	}
@@ -81,7 +83,7 @@ func guardGitHubAPIRateLimit(minimum int, verbose bool) error {
 		return nil
 	}
 
-	rl, err := fetchRateLimitFn()
+	rl, err := fetchRateLimitFn(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to verify --min-github-api-limits=%d: %w", minimum, err)
 	}
@@ -112,7 +114,7 @@ func guardGitHubAPIRateLimit(minimum int, verbose bool) error {
 // back to the static APICallCooldown sleep and returns the error so callers
 // can decide whether to surface it.
 func checkAndWaitForRateLimit(verbose bool) error {
-	rl, err := fetchRateLimitFn()
+	rl, err := fetchRateLimitFn(context.Background())
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)
