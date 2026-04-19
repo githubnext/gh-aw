@@ -107,6 +107,20 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("keeps normalized key unresolved when 3+ schema keys collide", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+      issue_number: { type: "integer" },
+      issueNumber: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issuenumber", "15"], schemaProperties);
+
+    expect(args).toEqual({
+      issuenumber: "15",
+    });
+  });
+
   it("keeps unknown argument keys unchanged", () => {
     const schemaProperties = {
       issue_number: { type: "integer" },

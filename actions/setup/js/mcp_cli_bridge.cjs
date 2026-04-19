@@ -505,6 +505,9 @@ function buildNormalizedSchemaKeyMap(schemaProperties) {
   const ambiguousNormalizedSchemaKeys = new Set();
   for (const key of Object.keys(schemaProperties)) {
     const normalized = normalizeSchemaKey(key);
+    if (ambiguousNormalizedSchemaKeys.has(normalized)) {
+      continue;
+    }
     const existing = normalizedSchemaKeyMap.get(normalized);
     if (existing === undefined) {
       normalizedSchemaKeyMap.set(normalized, key);
