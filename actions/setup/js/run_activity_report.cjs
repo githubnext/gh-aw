@@ -5,7 +5,7 @@ const { getErrorMessage, isRateLimitError } = require("./error_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
-const ISSUE_TITLE = "[AW activity report]";
+const ISSUE_TITLE = "[aw] agentic status report";
 
 /** @typedef {{ key: string, heading: string, startDate: string, optionalOnRateLimit: boolean }} ActivityRange */
 

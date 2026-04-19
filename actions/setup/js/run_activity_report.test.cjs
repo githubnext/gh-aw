@@ -81,7 +81,7 @@ describe("run_activity_report", () => {
       expect.objectContaining({
         owner: "testowner",
         repo: "testrepo",
-        title: "[AW activity report]",
+        title: "[aw] agentic status report",
         labels: ["agentic-workflows"],
       })
     );

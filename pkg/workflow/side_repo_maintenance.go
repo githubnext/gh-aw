@@ -216,7 +216,7 @@ on:
           - ''
           - 'safe_outputs'
           - 'create_labels'
-          - 'activity_report'
+          - 'activity-report'
           - 'validate'
       run_url:
         description: 'Run URL or run ID to replay safe outputs from (e.g. https://github.com/owner/repo/actions/runs/12345 or 12345). Required when operation is safe_outputs.'
@@ -226,7 +226,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (safe_outputs, create_labels, activity_report, validate)'
+        description: 'Optional maintenance operation to run (safe_outputs, create_labels, activity-report, validate)'
         required: false
         type: string
         default: ''
@@ -425,10 +425,10 @@ jobs:
             await main();
 `)
 
-	// Add activity_report job for workflow_dispatch/workflow_call with operation == 'activity_report'
+	// Add activity_report job for workflow_dispatch/workflow_call with operation == 'activity-report'
 	yaml.WriteString(`
   activity_report:
-    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity_report")) + ` }}
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity-report")) + ` }}
     runs-on: ` + runsOnValue + `
     permissions:
       actions: read
