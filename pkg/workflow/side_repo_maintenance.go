@@ -463,7 +463,7 @@ jobs:
         uses: ` + getActionPin("actions/cache") + `
         with:
           path: ./.cache/gh-aw/activity-report-logs
-          key: ${{ runner.os }}-activity-report-logs-` + repoSlug + `-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ${{ runner.os }}-activity-report-logs-` + repoSlug + `-${{ github.ref_name }}-${{ github.run_id }}
           restore-keys: |
             ${{ runner.os }}-activity-report-logs-` + repoSlug + `-
             ${{ runner.os }}-activity-report-logs-
