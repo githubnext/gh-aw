@@ -87,6 +87,10 @@ This workflow operates on a separate repository.
 	assert.Contains(t, contentStr, "create_labels:",
 		"generated workflow should include create_labels job")
 
+	// Must have activity_report job.
+	assert.Contains(t, contentStr, "activity_report:",
+		"generated workflow should include activity_report job")
+
 	// GH_AW_TARGET_REPO_SLUG must be wired with the correct slug.
 	assert.Contains(t, contentStr, `GH_AW_TARGET_REPO_SLUG: "my-org/target-repo"`,
 		"GH_AW_TARGET_REPO_SLUG should be set to the target repo slug")
