@@ -19,6 +19,7 @@ engine:
 imports:
   - shared/jqschema.md
   - shared/mcp/serena-go.md
+  - shared/reporting.md
 tools:
   mount-as-clis: true
   agentic-workflows:
@@ -172,7 +173,7 @@ When posting a comment:
 When adding a comment, structure it like:
 
 ```markdown
-## ✨ Claude Response via `/cloclo`
+### ✨ Claude Response via `/cloclo`
 
 ### Summary
 [Brief, glamorous summary of what you did]
