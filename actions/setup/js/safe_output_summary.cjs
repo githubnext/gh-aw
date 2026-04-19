@@ -34,7 +34,7 @@ function generateSafeOutputSummary(options) {
   // Prefer explicit fallback_type when available; infer only for backward compatibility.
   const isFallback = success && result && result.fallback_used === true;
   const inferredFallbackType = isFallback && (result.pull_request_url || result.pull_request_number != null) ? "pull_request" : "issue";
-  const fallbackType = isFallback && result?.fallback_type ? result.fallback_type : inferredFallbackType;
+  const fallbackType = result?.fallback_type || inferredFallbackType;
 
   // Choose emoji and status based on success and fallback
   const emoji = isFallback ? "⚠️" : success ? "✅" : "❌";
