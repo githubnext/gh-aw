@@ -68,12 +68,22 @@ describe("run_activity_report", () => {
     await main();
 
     expect(mockExec.getExecOutput).toHaveBeenCalledTimes(3);
-    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(1, "gh", expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--format", "markdown"]), expect.objectContaining({ ignoreReturnCode: true }));
-    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(2, "gh", expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--format", "markdown"]), expect.objectContaining({ ignoreReturnCode: true }));
+    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
+      1,
+      "gh",
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1d", "--count", "100", "--format", "markdown"]),
+      expect.objectContaining({ ignoreReturnCode: true })
+    );
+    expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
+      2,
+      "gh",
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1w", "--count", "100", "--format", "markdown"]),
+      expect.objectContaining({ ignoreReturnCode: true })
+    );
     expect(mockExec.getExecOutput).toHaveBeenNthCalledWith(
       3,
       "gh",
-      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1mo", "--format", "markdown"]),
+      expect.arrayContaining(["aw", "logs", "--repo", "testowner/testrepo", "--start-date", "-1mo", "--count", "100", "--format", "markdown"]),
       expect.objectContaining({ ignoreReturnCode: true })
     );
 
@@ -87,9 +97,12 @@ describe("run_activity_report", () => {
     );
 
     const issueBody = mockGithub.rest.issues.create.mock.calls[0][0].body;
-    expect(issueBody).toContain("## Last 24 hours");
-    expect(issueBody).toContain("## Last 7 days");
-    expect(issueBody).toContain("## Last 30 days");
+    expect(issueBody).toContain("### Agentic workflow activity report");
+    expect(issueBody).toContain("<details>");
+    expect(issueBody).toContain("<summary>Last 24 hours</summary>");
+    expect(issueBody).toContain("<summary>Last 7 days</summary>");
+    expect(issueBody).toContain("<summary>Last 30 days</summary>");
+    expect(issueBody).toContain("#### 24h report");
   });
 
   it("skips the 30-day query when rate limited", async () => {

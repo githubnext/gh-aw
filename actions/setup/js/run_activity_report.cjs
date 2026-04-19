@@ -6,6 +6,7 @@ const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const ISSUE_TITLE = "[aw] agentic status report";
+const REPORT_COUNT = 100;
 
 /** @typedef {{ key: string, heading: string, startDate: string, optionalOnRateLimit: boolean }} ActivityRange */
 
@@ -34,7 +35,7 @@ function hasRateLimitText(text) {
  * @returns {Promise<{ heading: string, body: string }>}
  */
 async function runRangeReport(bin, prefixArgs, repoSlug, range) {
-  const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--format", "markdown"];
+  const args = [...prefixArgs, "logs", "--repo", repoSlug, "--start-date", range.startDate, "--count", String(REPORT_COUNT), "--format", "markdown"];
   core.info(`Running: ${bin} ${args.join(" ")}`);
 
   try {
@@ -45,7 +46,7 @@ async function runRangeReport(bin, prefixArgs, repoSlug, range) {
     if (result.exitCode === 0 && result.stdout.trim()) {
       return {
         heading: range.heading,
-        body: sanitizeContent(result.stdout.trim()),
+        body: normalizeReportMarkdown(sanitizeContent(result.stdout.trim())),
       };
     }
 
@@ -95,6 +96,17 @@ async function runRangeReport(bin, prefixArgs, repoSlug, range) {
 }
 
 /**
+ * Normalize report markdown for issue rendering.
+ * Demotes headings so top-level report headings start at H3.
+ *
+ * @param {string} markdown
+ * @returns {string}
+ */
+function normalizeReportMarkdown(markdown) {
+  return markdown.replace(/^(#{1,6})\s+/gm, (_, hashes) => `${"#".repeat(Math.min(6, hashes.length + 2))} `);
+}
+
+/**
  * Generate an agentic workflow activity report issue.
  * @returns {Promise<void>}
  */
@@ -111,8 +123,8 @@ async function main() {
     sections.push(await runRangeReport(bin, prefixArgs, repoSlug, range));
   }
 
-  const headerLines = ["## Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];
-  const sectionLines = sections.flatMap(section => ["---", "", `## ${section.heading}`, "", section.body, ""]);
+  const headerLines = ["### Agentic workflow activity report", "", `Repository: \`${repoSlug}\``, `Generated at: ${new Date().toISOString()}`, ""];
+  const sectionLines = sections.flatMap(section => ["<details>", `<summary>${section.heading}</summary>`, "", section.body, "", "</details>", ""]);
   const body = [...headerLines, ...sectionLines].join("\n");
 
   const createdIssue = await github.rest.issues.create({
