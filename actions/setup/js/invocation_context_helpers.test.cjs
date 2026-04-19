@@ -67,4 +67,29 @@ describe("invocation_context_helpers", () => {
     expect(resolved.eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
     expect(resolved.eventPayload.issue.number).toBe(777);
   });
+
+  it("rejects workflow_dispatch target_repo when not in allowlist", () => {
+    const originalAllowedRepos = process.env.GH_AW_ALLOWED_REPOS;
+    try {
+      process.env.GH_AW_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+
+      expect(() =>
+        resolveInvocationContext({
+          eventName: "workflow_dispatch",
+          repo: { owner: "side-owner", repo: "side-repo" },
+          payload: {
+            inputs: {
+              target_repo: "target-owner/target-repo",
+            },
+          },
+        })
+      ).toThrow(/ERR_VALIDATION: Repository 'target-owner\/target-repo' is not in the allowed-repos list/);
+    } finally {
+      if (originalAllowedRepos === undefined) {
+        delete process.env.GH_AW_ALLOWED_REPOS;
+      } else {
+        process.env.GH_AW_ALLOWED_REPOS = originalAllowedRepos;
+      }
+    }
+  });
 });
