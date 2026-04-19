@@ -15,7 +15,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func extractPushToPullRequestBranchHandlerConfigFromLockContent(t *testing.T, lockContent []byte) map[string]any {
+func extractPushToPRBranchHandlerConfig(t *testing.T, lockContent []byte) map[string]any {
 	t.Helper()
 
 	var workflowDoc map[string]any
@@ -221,13 +221,17 @@ safe-outputs:
 	}
 
 	lockContentStr := string(lockContent)
-	pushConfig := extractPushToPullRequestBranchHandlerConfigFromLockContent(t, lockContent)
+	pushConfig := extractPushToPRBranchHandlerConfig(t, lockContent)
 	fallbackAsPullRequest, exists := pushConfig["fallback_as_pull_request"]
 	if !exists {
 		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
 	}
-	if fallbackAsPullRequest != false {
-		t.Errorf("Expected fallback_as_pull_request=false, got %#v", fallbackAsPullRequest)
+	fallbackAsPullRequestBool, isBool := fallbackAsPullRequest.(bool)
+	if !isBool {
+		t.Errorf("Expected fallback_as_pull_request to be a bool, got %#v", fallbackAsPullRequest)
+	}
+	if fallbackAsPullRequestBool {
+		t.Errorf("Expected fallback_as_pull_request=false, got %#v", fallbackAsPullRequestBool)
 	}
 	if strings.Contains(lockContentStr, "pull-requests: write") {
 		t.Errorf("Generated workflow should NOT have pull-requests: write permission when fallback-as-pull-request is false")
@@ -266,13 +270,17 @@ safe-outputs:
 	}
 
 	lockContentStr := string(lockContent)
-	pushConfig := extractPushToPullRequestBranchHandlerConfigFromLockContent(t, lockContent)
+	pushConfig := extractPushToPRBranchHandlerConfig(t, lockContent)
 	fallbackAsPullRequest, exists := pushConfig["fallback_as_pull_request"]
 	if !exists {
 		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
 	}
-	if fallbackAsPullRequest != true {
-		t.Errorf("Expected fallback_as_pull_request=true, got %#v", fallbackAsPullRequest)
+	fallbackAsPullRequestBool, isBool := fallbackAsPullRequest.(bool)
+	if !isBool {
+		t.Errorf("Expected fallback_as_pull_request to be a bool, got %#v", fallbackAsPullRequest)
+	}
+	if !fallbackAsPullRequestBool {
+		t.Errorf("Expected fallback_as_pull_request=true, got %#v", fallbackAsPullRequestBool)
 	}
 	if !strings.Contains(lockContentStr, "pull-requests: write") {
 		t.Errorf("Generated workflow should have pull-requests: write permission when fallback-as-pull-request is true")
