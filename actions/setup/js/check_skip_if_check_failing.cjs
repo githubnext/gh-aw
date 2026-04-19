@@ -5,6 +5,7 @@ const { getErrorMessage, isRateLimitError } = require("./error_helpers.cjs");
 const { ERR_API } = require("./error_codes.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { writeDenialSummary } = require("./pre_activation_summary.cjs");
+const { selectLatestRelevantChecks, getFailingChecks } = require("./check_runs_helpers.cjs");
 
 /**
  * Determines the ref to check for CI status.
@@ -50,22 +51,6 @@ function parseListEnv(envValue) {
   } catch {
     return null;
   }
-}
-
-/**
- * Returns true for check runs that represent deployment environment gates rather
- * than CI checks. These should be ignored by default so that a pending deployment
- * approval does not falsely block the agentic workflow.
- *
- * Deployment gate checks are identified by the GitHub App that created them:
- *   - "github-deployments" – the built-in GitHub Deployments service
- *
- * @param {object} run - A check run object from the GitHub API
- * @returns {boolean}
- */
-function isDeploymentCheck(run) {
-  const slug = run.app?.slug;
-  return slug === "github-deployments";
 }
 
 /**
@@ -149,25 +134,11 @@ async function main() {
     // Filter to the latest run per check name (GitHub may have multiple runs per name).
     // Deployment gate checks and the current run's own checks are silently skipped here
     // so they never influence the gate.
-    /** @type {Map<string, object>} */
-    const latestByName = new Map();
-    let deploymentCheckCount = 0;
-    let currentRunFilterCount = 0;
-    for (const run of checkRuns) {
-      if (isDeploymentCheck(run)) {
-        deploymentCheckCount++;
-        continue;
-      }
-      if (currentRunCheckRunIds.has(run.id)) {
-        currentRunFilterCount++;
-        continue;
-      }
-      const name = run.name;
-      const existing = latestByName.get(name);
-      if (!existing || new Date(run.started_at ?? 0) > new Date(existing.started_at ?? 0)) {
-        latestByName.set(name, run);
-      }
-    }
+    const { relevant, deploymentCheckCount, currentRunFilterCount } = selectLatestRelevantChecks(checkRuns, {
+      includeList,
+      excludeList,
+      excludedCheckRunIds: currentRunCheckRunIds,
+    });
 
     if (deploymentCheckCount > 0) {
       core.info(`Skipping ${deploymentCheckCount} deployment gate check(s) (app: github-deployments)`);
@@ -176,32 +147,9 @@ async function main() {
       core.info(`Skipping ${currentRunFilterCount} check run(s) from the current workflow run`);
     }
 
-    // Apply user-defined include/exclude filtering
-    const relevant = [];
-    for (const [name, run] of latestByName) {
-      if (includeList && includeList.length > 0 && !includeList.includes(name)) {
-        continue;
-      }
-      if (excludeList && excludeList.length > 0 && excludeList.includes(name)) {
-        continue;
-      }
-      relevant.push(run);
-    }
-
     core.info(`Evaluating ${relevant.length} check run(s) after filtering`);
 
-    // A check is "failing" if it either:
-    //   1. Completed with a non-success conclusion (failure, cancelled, timed_out), OR
-    //   2. Is still pending/in-progress — unless allow-pending is set
-    const failedConclusions = new Set(["failure", "cancelled", "timed_out"]);
-
-    const failingChecks = relevant.filter(run => {
-      if (run.status === "completed") {
-        return run.conclusion != null && failedConclusions.has(run.conclusion);
-      }
-      // Pending/queued/in_progress: treat as failing unless allow-pending is true
-      return !allowPending;
-    });
+    const failingChecks = getFailingChecks(relevant, { allowPending });
 
     if (failingChecks.length > 0) {
       const names = failingChecks.map(r => (r.status === "completed" ? `${r.name} (${r.conclusion})` : `${r.name} (${r.status})`)).join(", ");

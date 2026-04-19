@@ -49,6 +49,7 @@ const HANDLER_MAP = {
   create_pull_request: "./create_pull_request.cjs",
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
+  merge_pull_request: "./merge_pull_request.cjs",
   close_pull_request: "./close_pull_request.cjs",
   mark_pull_request_as_ready_for_review: "./mark_pull_request_as_ready_for_review.cjs",
   hide_comment: "./hide_comment.cjs",

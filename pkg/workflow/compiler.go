@@ -170,6 +170,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate safe-outputs merge-pull-request configuration
+	log.Printf("Validating safe-outputs merge-pull-request")
+	if err := validateSafeOutputsMergePullRequest(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate safe-job needs: declarations against known generated job IDs
 	log.Printf("Validating safe-job needs declarations")
 	if err := validateSafeJobNeeds(workflowData); err != nil {
