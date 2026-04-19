@@ -1203,6 +1203,65 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 	}
 }
 
+func TestUpdatePullRequestMergeBaseHandlerConfig(t *testing.T) {
+	tests := []struct {
+		name      string
+		mergeBase *bool
+		expected  bool
+	}{
+		{
+			name:      "defaults merge_base to false",
+			mergeBase: nil,
+			expected:  false,
+		},
+		{
+			name:      "sets merge_base true when configured",
+			mergeBase: testBoolPtr(true),
+			expected:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					UpdatePullRequests: &UpdatePullRequestsConfig{
+						MergeBase: tt.mergeBase,
+					},
+				},
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					if len(parts) == 2 {
+						jsonStr := strings.TrimSpace(parts[1])
+						jsonStr = strings.Trim(jsonStr, "\"")
+						jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+						var config map[string]map[string]any
+						err := json.Unmarshal([]byte(jsonStr), &config)
+						require.NoError(t, err)
+
+						updatePRConfig, ok := config["update_pull_request"]
+						require.True(t, ok, "Expected update_pull_request config")
+
+						mergeBaseValue, ok := updatePRConfig["merge_base"]
+						require.True(t, ok, "Expected merge_base key in update_pull_request config")
+						assert.Equal(t, tt.expected, mergeBaseValue)
+					}
+				}
+			}
+		})
+	}
+}
+
 // TestEmptySafeOutputsConfig tests behavior with no safe outputs
 func TestEmptySafeOutputsConfig(t *testing.T) {
 	compiler := NewCompiler()

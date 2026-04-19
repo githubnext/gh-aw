@@ -23,6 +23,7 @@ const mockGithub = {
     pulls: {
       get: vi.fn(),
       update: vi.fn(),
+      updateBranch: vi.fn(),
     },
   },
 };
@@ -79,6 +80,11 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
         title: "Test PR",
         body: "Updated body",
         html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+    mockGithub.rest.pulls.updateBranch.mockResolvedValue({
+      data: {
+        message: "Branch updated",
       },
     });
   });
@@ -735,6 +741,87 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
       // Should only have one island marker pair
       const startMarkerCount = (bodyAfterSecond.match(/<!-- gh-aw-island-start:12345 -->/g) || []).length;
       expect(startMarkerCount).toBe(1);
+    });
+  });
+});
+
+describe("update_pull_request.cjs - merge_base behavior", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+
+    updatePRModule = await import("./update_pull_request.cjs");
+
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 100,
+        title: "Test PR",
+        body: "Original body content",
+        html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+
+    mockGithub.rest.pulls.update.mockResolvedValue({
+      data: {
+        number: 100,
+        title: "Updated PR",
+        body: "Original body content",
+        html_url: "https://github.com/testowner/testrepo/pull/100",
+      },
+    });
+
+    mockGithub.rest.pulls.updateBranch.mockResolvedValue({
+      data: {
+        message: "Branch updated",
+      },
+    });
+  });
+
+  it("should include merge_base when item requests it", () => {
+    const result = updatePRModule.buildPRUpdateData({ merge_base: true }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.data.merge_base).toBe(true);
+  });
+
+  it("should inherit merge_base from config when item does not set it", () => {
+    const result = updatePRModule.buildPRUpdateData({}, { merge_base: true });
+
+    expect(result.success).toBe(true);
+    expect(result.data.merge_base).toBe(true);
+  });
+
+  it("should call updateBranch when merge_base is enabled and no other fields are updated", async () => {
+    const handlerFactory = await updatePRModule.main();
+    const handler = await handlerFactory({ merge_base: true });
+
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+    });
+    expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+  });
+
+  it("should call updateBranch before pulls.update when merge_base and title update are both requested", async () => {
+    const handlerFactory = await updatePRModule.main();
+    const handler = await handlerFactory({});
+
+    await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+      merge_base: true,
+    });
+
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalled();
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
     });
   });
 });

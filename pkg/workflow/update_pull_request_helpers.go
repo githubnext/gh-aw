@@ -14,6 +14,7 @@ type UpdatePullRequestsConfig struct {
 	UpdateEntityConfig `yaml:",inline"`
 	Title              *bool   `yaml:"title,omitempty"`     // Allow updating PR title - defaults to true, set to false to disable
 	Body               *bool   `yaml:"body,omitempty"`      // Allow updating PR body - defaults to true, set to false to disable
+	MergeBase          *bool   `yaml:"merge-base,omitempty"` // When true, update PR branch with latest base branch changes before applying other updates. Defaults to false.
 	Operation          *string `yaml:"operation,omitempty"` // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
 	Footer             *string `yaml:"footer,omitempty"`    // Controls whether AI-generated footer is added. When false, visible footer is omitted.
 }
@@ -28,6 +29,7 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 			return []UpdateEntityFieldSpec{
 				{Name: "title", Mode: FieldParsingBoolValue, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
+				{Name: "merge-base", Mode: FieldParsingBoolValue, Dest: &cfg.MergeBase},
 				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
 			}
 		}, func(configMap map[string]any, cfg *UpdatePullRequestsConfig) {

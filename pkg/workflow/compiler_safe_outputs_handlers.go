@@ -437,6 +437,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
+			AddBoolPtrOrDefault("merge_base", c.MergeBase, false).
 			AddStringPtr("default_operation", c.Operation).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).

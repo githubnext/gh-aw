@@ -32,6 +32,17 @@ async function executePRUpdate(github, context, prNumber, updateData) {
 
   // Remove internal fields
   const { _operation, _rawBody, _includeFooter, _workflowRepo, ...apiData } = updateData;
+  const mergeBase = apiData.merge_base === true;
+  delete apiData.merge_base;
+
+  if (mergeBase) {
+    core.info(`Updating pull request #${prNumber} branch with base branch changes`);
+    await github.rest.pulls.updateBranch({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: prNumber,
+    });
+  }
 
   // If we have a body, process it with the appropriate operation
   if (rawBody !== undefined) {
@@ -75,6 +86,15 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     });
 
     core.info(`Will update body (length: ${apiData.body.length})`);
+  }
+
+  if (Object.keys(apiData).length === 0) {
+    const { data: pr } = await github.rest.pulls.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: prNumber,
+    });
+    return pr;
   }
 
   const { data: pr } = await github.rest.pulls.update({
@@ -141,6 +161,12 @@ function buildPRUpdateData(item, config) {
     hasUpdates = true;
   }
 
+  const mergeBase = item.merge_base !== undefined ? item.merge_base === true : config.merge_base === true;
+  if (mergeBase) {
+    updateData.merge_base = true;
+    hasUpdates = true;
+  }
+
   if (!hasUpdates) {
     return {
       success: true,
@@ -181,7 +207,8 @@ const main = createUpdateHandlerFactory({
   additionalConfig: {
     allow_title: true,
     allow_body: true,
+    merge_base: false,
   },
 });
 
-module.exports = { main };
+module.exports = { main, buildPRUpdateData };
