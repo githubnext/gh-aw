@@ -58,4 +58,11 @@ describe("merge_pull_request branch validation", () => {
     await expect(__testables.getBranchPolicy(githubClient, "github", "gh-aw", "main;rm -rf /")).rejects.toThrow("Invalid target base branch for policy evaluation");
     expect(githubClient.rest.repos.getBranch).not.toHaveBeenCalled();
   });
+
+  it("matches allowed labels by exact value (no glob matching)", async () => {
+    const { __testables } = await import("./merge_pull_request.cjs");
+
+    expect(__testables.findAllowedLabelMatches(["release/v1", "automerge/pr-1"], ["release/*", "automerge/*"])).toEqual([]);
+    expect(__testables.findAllowedLabelMatches(["release/*", "automerge/*"], ["release/*", "automerge/*"])).toEqual(["release/*", "automerge/*"]);
+  });
 });

@@ -2809,7 +2809,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - `max`: Operation limit (default: 1)
 - `required-labels`: Labels that must exist on the pull request
-- `allowed-labels`: Label glob patterns; at least one pull request label must match when configured
+- `allowed-labels`: Exact label names; at least one pull request label must exactly match when configured
 - `allowed-branches`: Source branch glob patterns
 - `allowed-files`: Changed-file glob allowlist
 - `protected-files`: Changed-file glob denylist (any match blocks merge)

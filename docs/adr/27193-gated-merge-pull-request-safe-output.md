@@ -71,7 +71,7 @@ Merge could have been treated as a distinct risk tier requiring its own runtime 
    d. Review decision — the PR's review decision **MUST NOT** be `CHANGES_REQUESTED` or `REVIEW_REQUIRED` when those states are present.
    e. Unresolved review threads — the PR **MUST** have zero unresolved review threads.
    f. Required labels — every label in `required-labels` **MUST** be present on the PR.
-   g. Allowed labels — when `allowed-labels` is configured, at least one PR label **MUST** match a configured glob pattern.
+   g. Allowed labels — when `allowed-labels` is configured, at least one PR label **MUST** exactly match a configured label name.
    h. Allowed branches — when `allowed-branches` is configured, the PR source branch **MUST** match at least one configured glob pattern.
    i. Default-branch protection — the PR target branch **MUST NOT** be the repository default branch.
    j. Allowed files — when `allowed-files` is configured, every changed file **MUST** match at least one configured glob pattern.

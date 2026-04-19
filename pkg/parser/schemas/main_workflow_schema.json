@@ -7054,7 +7054,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Glob patterns for pull request labels. At least one existing PR label must match one of these patterns when configured."
+                  "description": "Exact pull request label names. At least one existing PR label must exactly match one of these values when configured."
                 },
                 "allowed-branches": {
                   "type": "array",

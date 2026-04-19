@@ -8,7 +8,7 @@ var mergePullRequestLog = logger.New("workflow:merge_pull_request")
 type MergePullRequestConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	RequiredLabels       []string `yaml:"required-labels,omitempty"`  // Labels that must be present on the PR
-	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`   // Glob patterns; at least one PR label must match when configured
+	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`   // Exact label names; at least one PR label must match when configured
 	AllowedBranches      []string `yaml:"allowed-branches,omitempty"` // Glob patterns for source branch names
 	AllowedFiles         []string `yaml:"allowed-files,omitempty"`    // Glob patterns; all changed files must match when configured
 	ProtectedFiles       []string `yaml:"protected-files,omitempty"`  // Glob patterns; any match blocks merge

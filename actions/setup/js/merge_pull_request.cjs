@@ -4,7 +4,7 @@
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { globPatternToRegex, simpleGlobToRegex } = require("./glob_pattern_helpers.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { selectLatestRelevantChecks } = require("./check_runs_helpers.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
@@ -21,14 +21,6 @@ const MERGEABILITY_PENDING_ERROR = "pull request mergeability is still being com
  */
 function compilePathGlobs(patterns) {
   return patterns.map(p => globPatternToRegex(p, { pathMode: true, caseSensitive: true }));
-}
-
-/**
- * @param {string[]} patterns
- * @returns {RegExp[]}
- */
-function compileLabelGlobs(patterns) {
-  return patterns.map(p => simpleGlobToRegex(p, false));
 }
 
 /**
@@ -324,6 +316,15 @@ function sanitizeBranchName(branchName, branchRole) {
 }
 
 /**
+ * @param {string[]} labels
+ * @param {string[]} allowedLabels
+ * @returns {string[]}
+ */
+function findAllowedLabelMatches(labels, allowedLabels) {
+  return labels.filter(label => allowedLabels.includes(label));
+}
+
+/**
  * Handler factory for merge_pull_request.
  * @type {HandlerFactoryFunction}
  */
@@ -338,7 +339,6 @@ async function main(config = {}) {
   const allowedFiles = Array.isArray(config.allowed_files) ? config.allowed_files : [];
   const protectedFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
 
-  const allowedLabelPatterns = compileLabelGlobs(allowedLabels);
   const allowedBranchPatterns = compilePathGlobs(allowedBranches);
   const allowedFilePatterns = compilePathGlobs(allowedFiles);
   const protectedFilePatterns = compilePathGlobs(protectedFiles);
@@ -437,14 +437,14 @@ async function main(config = {}) {
         });
       }
 
-      if (allowedLabelPatterns.length > 0) {
-        const matchedLabels = labels.filter(label => allowedLabelPatterns.some(re => re.test(label)));
+      if (allowedLabels.length > 0) {
+        const matchedLabels = findAllowedLabelMatches(labels, allowedLabels);
         core.info(`Allowed label match count: ${matchedLabels.length}`);
         if (matchedLabels.length === 0) {
           failureReasons.push({
             code: "allowed_labels_no_match",
-            message: "No pull request label matches allowed-labels patterns",
-            details: { present: labels, patterns: allowedLabels },
+            message: "No pull request label matches allowed-labels",
+            details: { present: labels, allowed_labels: allowedLabels },
           });
         }
       }
@@ -618,5 +618,6 @@ module.exports = {
     resolveContextPullNumber,
     sanitizeBranchName,
     getBranchPolicy,
+    findAllowedLabelMatches,
   },
 };

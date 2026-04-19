@@ -200,14 +200,14 @@ var safeOutputsAllowWorkflowsValidationLog = newValidationLogger("safe_outputs_a
 
 var safeOutputsMergePullRequestValidationLog = newValidationLogger("safe_outputs_merge_pull_request")
 
-// validateSafeOutputsMergePullRequest validates merge-pull-request glob configuration.
+// validateSafeOutputsMergePullRequest validates merge-pull-request policy configuration.
 func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 	if config == nil || config.MergePullRequest == nil {
 		return nil
 	}
 
 	c := config.MergePullRequest
-	safeOutputsMergePullRequestValidationLog.Print("Validating merge-pull-request glob fields")
+	safeOutputsMergePullRequestValidationLog.Print("Validating merge-pull-request policy fields")
 
 	validatePathGlobList := func(field string, patterns []string) error {
 		for i, pat := range patterns {
@@ -222,9 +222,9 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 		return nil
 	}
 
-	validateSimpleGlobList := func(field string, patterns []string) error {
-		for i, pat := range patterns {
-			if strings.TrimSpace(pat) == "" {
+	validateNonEmptyStringList := func(field string, values []string) error {
+		for i, value := range values {
+			if strings.TrimSpace(value) == "" {
 				return fmt.Errorf("safe-outputs.merge-pull-request.%s[%d] cannot be empty", field, i)
 			}
 		}
@@ -244,7 +244,10 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 		return nil
 	}
 
-	if err := validateSimpleGlobList("allowed-labels", c.AllowedLabels); err != nil {
+	if err := validateNonEmptyStringList("required-labels", c.RequiredLabels); err != nil {
+		return err
+	}
+	if err := validateNonEmptyStringList("allowed-labels", c.AllowedLabels); err != nil {
 		return err
 	}
 	if err := validateRefGlobList("allowed-branches", c.AllowedBranches); err != nil {
