@@ -183,17 +183,17 @@ func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetr
 		return nil
 	}
 
-	type entryWithOrder struct {
+	type orderedTokenEntry struct {
 		entry        TokenUsageEntry
 		timestamp    time.Time
 		hasTimestamp bool
 		order        int
 	}
 
-	ordered := make([]entryWithOrder, 0, len(entries))
+	ordered := make([]orderedTokenEntry, 0, len(entries))
 	for i, entry := range entries {
 		ts, hasTimestamp := parseTokenUsageTimestamp(entry.Timestamp)
-		ordered = append(ordered, entryWithOrder{
+		ordered = append(ordered, orderedTokenEntry{
 			entry:        entry,
 			timestamp:    ts,
 			hasTimestamp: hasTimestamp,
@@ -202,15 +202,15 @@ func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetr
 	}
 
 	sort.SliceStable(ordered, func(i, j int) bool {
-		li := ordered[i]
-		rj := ordered[j]
-		if li.hasTimestamp && rj.hasTimestamp {
-			return li.timestamp.Before(rj.timestamp)
+		left := ordered[i]
+		right := ordered[j]
+		if left.hasTimestamp && right.hasTimestamp {
+			return left.timestamp.Before(right.timestamp)
 		}
-		if li.hasTimestamp != rj.hasTimestamp {
-			return li.hasTimestamp
+		if left.hasTimestamp != right.hasTimestamp {
+			return left.hasTimestamp
 		}
-		return li.order < rj.order
+		return left.order < right.order
 	})
 
 	firstCall := ordered[0].entry
