@@ -14,6 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -69,6 +72,16 @@ func TestIsPermissionError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewAuditCommandMinGitHubAPILimitsFlag(t *testing.T) {
+	cmd := NewAuditCommand()
+	require.NotNil(t, cmd, "NewAuditCommand should not return nil")
+
+	minFlag := cmd.Flags().Lookup("min-github-api-limits")
+	require.NotNil(t, minFlag, "min-github-api-limits flag should exist")
+	assert.Equal(t, "int", minFlag.Value.Type(), "min-github-api-limits should be int type")
+	assert.Equal(t, "0", minFlag.DefValue, "min-github-api-limits should default to 0")
 }
 
 func TestBuildAuditData(t *testing.T) {

@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -74,6 +75,76 @@ func TestRateLimitResourceIsBelowThreshold(t *testing.T) {
 			shouldWait := rl.Remaining <= RateLimitThreshold
 			assert.Equal(t, tt.wantWait, shouldWait,
 				"remaining=%d vs threshold=%d: wait mismatch", tt.remaining, RateLimitThreshold)
+		})
+	}
+}
+
+func TestGuardGitHubAPIRateLimit(t *testing.T) {
+	originalFetch := fetchRateLimitFn
+	t.Cleanup(func() {
+		fetchRateLimitFn = originalFetch
+	})
+
+	tests := []struct {
+		name      string
+		minimum   int
+		resource  rateLimitResource
+		fetchErr  error
+		wantError bool
+	}{
+		{
+			name:      "disabled guard allows execution",
+			minimum:   0,
+			wantError: false,
+		},
+		{
+			name:      "negative minimum is rejected",
+			minimum:   -1,
+			wantError: true,
+		},
+		{
+			name:    "remaining below minimum cancels execution",
+			minimum: 50,
+			resource: rateLimitResource{
+				Limit:     5000,
+				Remaining: 49,
+				Reset:     time.Now().Add(1 * time.Minute).Unix(),
+			},
+			wantError: true,
+		},
+		{
+			name:    "remaining equal minimum is allowed",
+			minimum: 50,
+			resource: rateLimitResource{
+				Limit:     5000,
+				Remaining: 50,
+				Reset:     time.Now().Add(1 * time.Minute).Unix(),
+			},
+			wantError: false,
+		},
+		{
+			name:      "fetch error fails guard",
+			minimum:   50,
+			fetchErr:  errors.New("boom"),
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fetchRateLimitFn = func() (rateLimitResource, error) {
+				if tt.fetchErr != nil {
+					return rateLimitResource{}, tt.fetchErr
+				}
+				return tt.resource, nil
+			}
+
+			err := guardGitHubAPIRateLimit(tt.minimum, false)
+			if tt.wantError {
+				assert.Error(t, err, "guard should return an error for case %q", tt.name)
+				return
+			}
+			assert.NoError(t, err, "guard should allow execution for case %q", tt.name)
 		})
 	}
 }

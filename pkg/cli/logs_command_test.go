@@ -73,6 +73,10 @@ func TestNewLogsCommand(t *testing.T) {
 	// Check repo flag
 	repoFlag := flags.Lookup("repo")
 	assert.NotNil(t, repoFlag, "Should have 'repo' flag")
+
+	// Check min-github-api-limits flag
+	minGitHubAPILimitsFlag := flags.Lookup("min-github-api-limits")
+	assert.NotNil(t, minGitHubAPILimitsFlag, "Should have 'min-github-api-limits' flag")
 }
 
 func TestLogsCommandFlagDefaults(t *testing.T) {
@@ -91,6 +95,7 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 		{"after-run-id", "0"},
 		{"before-run-id", "0"},
 		{"repo", ""},
+		{"min-github-api-limits", "0"},
 	}
 
 	for _, tt := range tests {
@@ -100,6 +105,16 @@ func TestLogsCommandFlagDefaults(t *testing.T) {
 			assert.Equal(t, tt.defaultValue, flag.DefValue, "Default value should match for flag: %s", tt.flagName)
 		})
 	}
+}
+
+func TestLogsCommandMinGitHubAPILimitsFlag(t *testing.T) {
+	cmd := NewLogsCommand()
+	flags := cmd.Flags()
+
+	minFlag := flags.Lookup("min-github-api-limits")
+	require.NotNil(t, minFlag, "min-github-api-limits flag should exist")
+	assert.Equal(t, "int", minFlag.Value.Type(), "min-github-api-limits should be int type")
+	assert.Equal(t, "0", minFlag.DefValue, "min-github-api-limits should default to 0")
 }
 
 func TestLogsCommandBooleanFlags(t *testing.T) {

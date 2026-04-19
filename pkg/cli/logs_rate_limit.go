@@ -22,6 +22,7 @@ import (
 )
 
 var logsRateLimitLog = logger.New("cli:logs_rate_limit")
+var fetchRateLimitFn = fetchRateLimit
 
 // rateLimitResponse models the JSON returned by `gh api rate_limit`.
 // Only the "core" resource bucket is used because log downloads and
@@ -70,6 +71,37 @@ func fetchRateLimit() (rateLimitResource, error) {
 	return resp.Resources.Core, nil
 }
 
+// guardGitHubAPIRateLimit cancels execution when the current GitHub core API
+// remaining budget is below the configured minimum.
+func guardGitHubAPIRateLimit(minimum int, verbose bool) error {
+	if minimum < 0 {
+		return fmt.Errorf("invalid --min-github-api-limits value %d: must be >= 0", minimum)
+	}
+	if minimum == 0 {
+		return nil
+	}
+
+	rl, err := fetchRateLimitFn()
+	if err != nil {
+		return fmt.Errorf("failed to verify --min-github-api-limits=%d: %w", minimum, err)
+	}
+
+	if rl.Remaining < minimum {
+		return fmt.Errorf(
+			"cancelled: GitHub API core rate limit remaining (%d/%d) is below --min-github-api-limits=%d",
+			rl.Remaining, rl.Limit, minimum,
+		)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(
+			fmt.Sprintf("Rate limit guard OK: %d/%d requests remaining (minimum %d)", rl.Remaining, rl.Limit, minimum),
+		))
+	}
+
+	return nil
+}
+
 // checkAndWaitForRateLimit queries the GitHub API rate limit and sleeps until
 // the reset window when the remaining core request budget falls at or below
 // RateLimitThreshold.  It always waits at least APICallCooldown between
@@ -80,7 +112,7 @@ func fetchRateLimit() (rateLimitResource, error) {
 // back to the static APICallCooldown sleep and returns the error so callers
 // can decide whether to surface it.
 func checkAndWaitForRateLimit(verbose bool) error {
-	rl, err := fetchRateLimit()
+	rl, err := fetchRateLimitFn()
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)

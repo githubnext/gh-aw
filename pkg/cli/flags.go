@@ -37,3 +37,9 @@ func addOutputFlag(cmd *cobra.Command, defaultValue string) {
 func addJSONFlag(cmd *cobra.Command) {
 	cmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 }
+
+// addMinGitHubAPILimitsFlag adds the --min-github-api-limits flag to a command.
+// This flag guards execution by requiring at least N remaining GitHub API core requests.
+func addMinGitHubAPILimitsFlag(cmd *cobra.Command) {
+	cmd.Flags().Int("min-github-api-limits", 0, "Cancel execution when remaining GitHub API core requests are below this value (0 disables guard)")
+}

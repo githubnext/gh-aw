@@ -73,6 +73,7 @@ Examples:
 			parse, _ := cmd.Flags().GetBool("parse")
 			repoFlag, _ := cmd.Flags().GetString("repo")
 			artifacts, _ := cmd.Flags().GetStringSlice("artifacts")
+			minGitHubAPILimits, _ := cmd.Flags().GetInt("min-github-api-limits")
 
 			// If --repo is provided and owner/repo were not parsed from a URL, apply them
 			if repoFlag != "" && components.Owner == "" {
@@ -82,6 +83,10 @@ Examples:
 				}
 				components.Owner = parts[0]
 				components.Repo = parts[1]
+			}
+
+			if err := guardGitHubAPIRateLimit(minGitHubAPILimits, verbose); err != nil {
+				return err
 			}
 
 			return AuditWorkflowRun(
@@ -105,6 +110,7 @@ Examples:
 	addOutputFlag(cmd, defaultLogsOutputDir)
 	addJSONFlag(cmd)
 	addRepoFlag(cmd)
+	addMinGitHubAPILimitsFlag(cmd)
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 
