@@ -16,7 +16,7 @@ tools:
   github:
     toolsets: [all]
   agentic-workflows:
-  bash: ["*"]
+  bash: ["cat", "grep", "jq", "find", "ls", "head", "tail", "sort", "uniq", "wc", "sed", "awk", "cut", "tr", "xargs", "date", "du", "df", "mkdir", "git", "gh", "make", "npm", "node", "python", "pip", "bash", "curl", "timeout"]
   edit:
   web-fetch:
 safe-outputs:

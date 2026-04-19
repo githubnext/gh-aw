@@ -19,8 +19,7 @@ tools:
   mount-as-clis: true
   github:
     toolsets: [default]
-  bash:
-    - "*"
+  bash: ["cat", "grep", "jq", "find", "ls", "head", "tail", "sort", "uniq", "wc", "sed", "awk", "cut", "tr", "xargs", "date", "du", "df", "mkdir", "git", "gh", "make", "npm", "node", "python", "pip", "bash", "curl", "timeout"]
   edit:
 safe-outputs:
   create-discussion:

@@ -43,8 +43,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]
-  bash: ["*"]
-
+  bash: ["cat", "grep", "jq", "find", "ls", "head", "tail", "sort", "uniq", "wc", "sed", "awk", "cut", "tr", "xargs", "date", "du", "df", "mkdir", "git", "gh", "make", "npm", "node", "python", "pip", "bash", "curl", "timeout"]
 steps:
   - name: Download full PR data with comments and reviews
     env:
