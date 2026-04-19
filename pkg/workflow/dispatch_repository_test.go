@@ -381,8 +381,11 @@ func TestValidateDispatchRepository_PartialExpressionMarker(t *testing.T) {
 			DispatchRepository: &DispatchRepositoryConfig{
 				Tools: map[string]*DispatchRepositoryToolConfig{
 					"trigger_ci": {
-						Workflow:            "ci.yml",
-						EventType:           "ci_trigger",
+						Workflow:  "ci.yml",
+						EventType: "ci_trigger",
+						// Intentionally incomplete expressions: gh-aw should treat marker-based
+						// values as dynamic and skip static slug validation. GitHub Actions will
+						// still fail later if the expression itself is malformed at runtime.
 						Repository:          "${{ vars.TARGET_REPOSITORY",
 						AllowedRepositories: []string{"${{ vars.ALLOWED_REPOSITORY", "org/static-repo"},
 					},
