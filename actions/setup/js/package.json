@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && vitest run --no-file-parallelism",
     "test:js": "vitest run",
+    "test:js-integration-live-api": "vitest run --config vitest.integration.config.mjs --no-file-parallelism",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
     "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../../../.prettierignore",

@@ -377,11 +377,11 @@ jobs:
         if [ -z "$GITHUB_TOKEN" ]; then
           echo "⚠️ GITHUB_TOKEN not available - test will be skipped" >> $GITHUB_STEP_SUMMARY
           echo "ℹ️ This is expected in forks or when secrets are not available" >> $GITHUB_STEP_SUMMARY
-          cd actions/setup/js && npm test -- frontmatter_hash_github_api.test.cjs
+          cd actions/setup/js && npm run test:js-integration-live-api
         else
           echo "✅ GITHUB_TOKEN available - running live API test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          cd actions/setup/js && npm test -- frontmatter_hash_github_api.test.cjs
+          cd actions/setup/js && npm run test:js-integration-live-api
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✨ Live API test completed successfully" >> $GITHUB_STEP_SUMMARY
         fi
