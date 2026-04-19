@@ -1,3 +1,4 @@
+"mempalace==3.2.0"
 markitdown-mcp
 numpy
 scikit-learn
