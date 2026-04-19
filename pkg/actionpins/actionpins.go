@@ -152,9 +152,9 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	return pins[0], true
 }
 
-// getActionPin returns the pinned reference for the latest version of the repo.
+// getLatestActionPinReference returns the pinned reference for the latest version of the repo.
 // Returns an empty string if no pin is found.
-func getActionPin(repo string) string {
+func getLatestActionPinReference(repo string) string {
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
 		return ""
@@ -317,18 +317,18 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 // If ctx is nil, only embedded pins are consulted.
 func ResolveLatestActionPin(repo string, ctx *PinContext) string {
 	if ctx == nil {
-		return getActionPin(repo)
+		return getLatestActionPinReference(repo)
 	}
 
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
-		return getActionPin(repo)
+		return getLatestActionPinReference(repo)
 	}
 
 	latestVersion := pins[0].Version
 	pinnedRef, err := ResolveActionPin(repo, latestVersion, ctx)
 	if err != nil || pinnedRef == "" {
-		return getActionPin(repo)
+		return getLatestActionPinReference(repo)
 	}
 	return pinnedRef
 }
