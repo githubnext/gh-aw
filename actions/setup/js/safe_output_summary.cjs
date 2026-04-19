@@ -30,9 +30,16 @@ function generateSafeOutputSummary(options) {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
-  // Detect fallback outcomes for code-push types
+  // Detect fallback outcomes for code-push types.
+  // Prefer explicit fallback_type when available; infer only for backward compatibility.
   const isFallback = success && result && result.fallback_used === true;
-  const fallbackType = isFallback && (result.pull_request_url || result.pull_request_number != null) ? "pull_request" : "issue";
+  const inferredFallbackType = isFallback && (result.pull_request_url || result.pull_request_number != null) ? "pull_request" : "issue";
+  let fallbackType = inferredFallbackType;
+  if (isFallback && result?.fallback_type === "pull_request") {
+    fallbackType = "pull_request";
+  } else if (isFallback && result?.fallback_type === "issue") {
+    fallbackType = "issue";
+  }
 
   // Choose emoji and status based on success and fallback
   const emoji = isFallback ? "⚠️" : success ? "✅" : "❌";
@@ -42,7 +49,7 @@ function generateSafeOutputSummary(options) {
   let summary = `<details>\n<summary>${emoji} ${displayType} - ${status} (Message ${messageIndex})</summary>\n\n`;
 
   // Add message details
-  const sectionTitle = isFallback ? `### ${displayType} — Fallback Issue\n\n` : `### ${displayType}\n\n`;
+  const sectionTitle = isFallback ? `### ${displayType} — ${fallbackType === "pull_request" ? "Fallback Pull Request" : "Fallback Issue"}\n\n` : `### ${displayType}\n\n`;
   summary += sectionTitle;
 
   if (isFallback) {

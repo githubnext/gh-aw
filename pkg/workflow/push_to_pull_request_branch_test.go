@@ -162,6 +162,9 @@ safe-outputs:
 	}
 
 	lockContentStr := string(lockContent)
+	if !strings.Contains(lockContentStr, `"fallback_as_pull_request":false`) && !strings.Contains(lockContentStr, `"fallback_as_pull_request": false`) {
+		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
+	}
 	if strings.Contains(lockContentStr, "pull-requests: write") {
 		t.Errorf("Generated workflow should NOT have pull-requests: write permission when fallback-as-pull-request is false")
 	}

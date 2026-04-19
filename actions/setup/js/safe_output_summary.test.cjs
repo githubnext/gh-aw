@@ -386,6 +386,33 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("owner/repo#71");
       expect(summary).toContain("non-fast-forward");
     });
+
+    it("should prefer explicit fallback_type over inferred shape for backward compatibility", () => {
+      const options = {
+        type: "push_to_pull_request_branch",
+        messageIndex: 4,
+        success: true,
+        result: {
+          fallback_used: true,
+          fallback_type: "issue",
+          // pull_request_url present by shape, but explicit fallback_type should win
+          pull_request_url: "https://github.com/owner/repo/pull/72",
+          issue_number: 123,
+          issue_url: "https://github.com/owner/repo/issues/123",
+          repo: "owner/repo",
+        },
+        message: {
+          body: "Pushing to PR branch.",
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("Fallback Issue Created");
+      expect(summary).toContain("Fallback Issue:");
+      expect(summary).toContain("https://github.com/owner/repo/issues/123");
+      expect(summary).not.toContain("Fallback Pull Request Created");
+    });
   });
 
   describe("writeSafeOutputSummaries", () => {

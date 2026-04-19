@@ -360,9 +360,9 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   /** @type {Array<{type: string, error: string}>} */
   const codePushFailures = [];
 
-  // Track when a code-push operation falls back to creating a review issue instead.
+  // Track when a code-push operation falls back to creating an issue or pull request instead.
   // When set, subsequent add_comment messages will receive a correction note prepended
-  // to their body so the posted comment accurately reflects the actual outcome.
+  // to their body so the posted comment accurately reflects the actual fallback target.
   /** @type {{type: string, fallbackTargetType: "issue" | "pull_request", number: number, url: string}|null} */
   let codePushFallbackInfo = null;
 
@@ -588,7 +588,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         }
       }
 
-      // Track when a code-push operation falls back to a review issue so subsequent
+      // Track when a code-push operation falls back to an issue or pull request so subsequent
       // add_comment messages can include a correction note.
       if (CODE_PUSH_TYPES.has(messageType) && result && result.fallback_used === true) {
         if (result.issue_number != null && result.issue_url) {
