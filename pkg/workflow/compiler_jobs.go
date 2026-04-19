@@ -767,21 +767,21 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			} else {
 				// Add basic steps if specified (only for non-reusable workflow jobs).
 				// `pre-steps` are inserted after setup-injected steps and before the
-				// regular `steps` list so they run before any checkout in steps.
+				// regular `steps` list (including any checkout step it may contain).
 				var preSteps []string
 				var regularSteps []string
 				_, hasPreStepsField := configMap["pre-steps"]
 				_, hasStepsField := configMap["steps"]
 				if hasPreStepsField {
 					var err error
-					preSteps, err = c.extractPinnedJobSteps(configMap, "pre-steps", jobName, data)
+					preSteps, err = c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
 					if err != nil {
 						return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
 					}
 				}
 				if hasStepsField {
 					var err error
-					regularSteps, err = c.extractPinnedJobSteps(configMap, "steps", jobName, data)
+					regularSteps, err = c.extractPinnedJobSteps("steps", jobName, configMap, data)
 					if err != nil {
 						return fmt.Errorf("failed to process steps for job '%s': %w", jobName, err)
 					}
@@ -809,7 +809,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	return nil
 }
 
-func (c *Compiler) extractPinnedJobSteps(configMap map[string]any, fieldName string, jobName string, data *WorkflowData) ([]string, error) {
+func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, configMap map[string]any, data *WorkflowData) ([]string, error) {
 	raw, hasField := configMap[fieldName]
 	if !hasField {
 		return nil, nil
