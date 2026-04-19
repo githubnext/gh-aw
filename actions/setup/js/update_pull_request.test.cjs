@@ -792,8 +792,7 @@ describe("update_pull_request.cjs - merge_base behavior", () => {
   });
 
   it("should call updateBranch when merge_base is enabled and no other fields are updated", async () => {
-    const handlerFactory = await updatePRModule.main();
-    const handler = await handlerFactory({ merge_base: true });
+    const handler = await updatePRModule.main({ merge_base: true });
 
     const result = await handler({ pull_request_number: 100 });
 
@@ -807,8 +806,7 @@ describe("update_pull_request.cjs - merge_base behavior", () => {
   });
 
   it("should call updateBranch before pulls.update when merge_base and title update are both requested", async () => {
-    const handlerFactory = await updatePRModule.main();
-    const handler = await handlerFactory({});
+    const handler = await updatePRModule.main({});
 
     await handler({
       pull_request_number: 100,
