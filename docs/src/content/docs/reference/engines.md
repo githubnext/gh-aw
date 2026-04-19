@@ -158,9 +158,14 @@ The specified hostname must also be listed in `network.allowed` for the firewall
 
 #### Custom API Endpoints via Environment Variables
 
-Three environment variables receive special treatment when set in `engine.env`: `OPENAI_BASE_URL` (for `codex` and `crush`), `ANTHROPIC_BASE_URL` (for `claude`), `GITHUB_COPILOT_BASE_URL` (for `copilot`), and `GEMINI_API_BASE_URL` (for `gemini`). When any of these is present, the API proxy automatically routes API calls to the specified host instead of the default endpoint. Firewall enforcement remains active, but this routing layer is not a separate authentication boundary for arbitrary code already running inside the agent container.
+Set a base URL environment variable in `engine.env` to route API calls to an internal LLM router, Azure OpenAI deployment, or corporate proxy. AWF automatically extracts the hostname and applies it to the API proxy. The target domain must also appear in `network.allowed`.
 
-This enables workflows to use internal LLM routers, Azure OpenAI deployments, corporate Copilot proxies, or other compatible endpoints without bypassing AWF's security model.
+| Engine | Environment variable |
+|--------|---------------------|
+| `codex`, `crush` | `OPENAI_BASE_URL` |
+| `claude` | `ANTHROPIC_BASE_URL` |
+| `copilot` | `GITHUB_COPILOT_BASE_URL` |
+| `gemini` | `GEMINI_API_BASE_URL` |
 
 ```yaml wrap
 engine:
@@ -173,74 +178,10 @@ engine:
 network:
   allowed:
     - github.com
-    - llm-router.internal.example.com   # must be listed here for the firewall to permit outbound requests
+    - llm-router.internal.example.com
 ```
 
-For Claude workflows routed through a custom Anthropic-compatible endpoint:
-
-```yaml wrap
-engine:
-  id: claude
-  env:
-    ANTHROPIC_BASE_URL: "https://anthropic-proxy.internal.example.com"
-    ANTHROPIC_API_KEY: ${{ secrets.PROXY_API_KEY }}
-
-network:
-  allowed:
-    - github.com
-    - anthropic-proxy.internal.example.com
-```
-
-For Copilot workflows routed through a custom Copilot-compatible endpoint (e.g., a corporate proxy or a GHE Cloud data residency instance):
-
-```yaml wrap
-engine:
-  id: copilot
-  env:
-    GITHUB_COPILOT_BASE_URL: "https://copilot-proxy.corp.example.com"
-
-network:
-  allowed:
-    - github.com
-    - copilot-proxy.corp.example.com
-```
-
-`GITHUB_COPILOT_BASE_URL` is used as a fallback when `engine.api-target` is not explicitly set. If both are configured, `engine.api-target` takes precedence.
-
-For Gemini workflows routed through a custom Gemini-compatible endpoint:
-
-```yaml wrap
-engine:
-  id: gemini
-  env:
-    GEMINI_API_BASE_URL: "https://gemini-proxy.internal.example.com"
-    GEMINI_API_KEY: ${{ secrets.PROXY_API_KEY }}
-
-network:
-  allowed:
-    - github.com
-    - gemini-proxy.internal.example.com
-```
-
-The custom hostname is extracted from the URL and passed to the AWF `--openai-api-target`, `--anthropic-api-target`, `--copilot-api-target`, or `--gemini-api-target` flag automatically at compile time. No additional configuration is required.
-
-For Crush workflows routed through a custom OpenAI-compatible endpoint:
-
-```yaml wrap
-engine:
-  id: crush
-  model: openai/gpt-4o
-  env:
-    OPENAI_BASE_URL: "https://openai-proxy.internal.example.com/v1"
-    OPENAI_API_KEY: ${{ secrets.PROXY_API_KEY }}
-
-network:
-  allowed:
-    - github.com
-    - openai-proxy.internal.example.com
-```
-
-Crush uses the OpenAI-compatible API format by default (via Copilot routing). The `model` field uses a `provider/model` format — the provider prefix determines which API domains are added to the firewall allowlist.
+`GITHUB_COPILOT_BASE_URL` is a fallback — if both it and `engine.api-target` are set, `engine.api-target` takes precedence. Crush uses OpenAI-compatible API format; its `model` field uses `provider/model` format (e.g., `openai/gpt-4o`).
 
 ### Engine Command-Line Arguments
 
@@ -346,37 +287,11 @@ timeout-minutes: 60
 
 The `CLAUDE_CODE_MAX_TURNS` environment variable is a Claude Code CLI equivalent of `max-turns`. When `max-turns` is set in frontmatter, gh-aw passes it to the Claude CLI automatically — you do not need to set this env var separately.
 
-#### Codex
+#### Codex, Gemini, and Crush
 
-Codex does not support `max-turns`. Use `tools.timeout` and `timeout-minutes` to control execution budgets:
-
-```yaml wrap
-engine:
-  id: codex
-tools:
-  timeout: 300         # 5 minutes per tool call
-timeout-minutes: 60
-```
-
-#### Gemini
-
-Gemini does not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
+These engines do not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
 
 ```yaml wrap
-engine:
-  id: gemini
-tools:
-  timeout: 300
-timeout-minutes: 60
-```
-
-#### Crush
-
-Crush does not support `max-turns` or `max-continuations`. Use `timeout-minutes` and `tools.timeout` to bound execution:
-
-```yaml wrap
-engine:
-  id: crush
 tools:
   timeout: 300
 timeout-minutes: 60
