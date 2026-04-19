@@ -829,7 +829,12 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   try {
     agentEndMs = fs.statSync("/tmp/gh-aw/agent_output.json").mtimeMs;
   } catch {
-    // agent_output.json may not exist for non-agent jobs; skip dedicated span.
+    // agent_output.json may be absent for timed-out agent runs where the process
+    // was killed before writing output. Fall back to nowMs() so we still emit
+    // the dedicated agent span for this failure mode.
+    if (isAgentFailure && jobName === "agent" && typeof agentStartMs === "number" && agentStartMs > 0) {
+      agentEndMs = nowMs();
+    }
   }
 
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
