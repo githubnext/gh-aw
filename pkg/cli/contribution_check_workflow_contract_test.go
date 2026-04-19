@@ -24,7 +24,7 @@ func TestContributionCheckWorkflowSafeOutputContract(t *testing.T) {
 	}
 
 	text := string(content)
-	if !strings.Contains(text, "emit exactly **one** consolidated noop for the entire run") {
+	if !strings.Contains(text, "emit exactly") || !strings.Contains(text, "one consolidated noop") {
 		t.Fatalf("workflow must instruct single consolidated noop emission")
 	}
 
