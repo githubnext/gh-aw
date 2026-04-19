@@ -387,6 +387,10 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	if !strings.Contains(yaml, "Cache activity report logs") {
 		t.Errorf("Job activity_report should include a cache step in:\n%s", yaml)
 	}
+	if !strings.Contains(yaml, "${{ github.run_id }}-${{ github.run_attempt }}") {
+		t.Errorf("Job activity_report cache key should include run_id and run_attempt for latest-cache resolution in:\n%s", yaml)
+	}
+
 	if !strings.Contains(yaml, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs") {
 		t.Errorf("Job activity_report should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR in:\n%s", yaml)
 	}

@@ -98,6 +98,8 @@ This workflow operates on a separate repository.
 		"activity_report job should include contents: read with explicit permissions")
 	assert.Contains(t, contentStr, "timeout-minutes: 120",
 		"activity_report job should include a 2 hour timeout")
+	assert.Contains(t, contentStr, "${{ github.run_id }}-${{ github.run_attempt }}",
+		"activity_report cache key should include run id and attempt for latest-cache resolution")
 
 	// GH_AW_TARGET_REPO_SLUG must be wired with the correct slug.
 	assert.Contains(t, contentStr, `GH_AW_TARGET_REPO_SLUG: "my-org/target-repo"`,
