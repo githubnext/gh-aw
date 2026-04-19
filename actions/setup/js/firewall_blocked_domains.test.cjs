@@ -305,7 +305,7 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(generateBlockedDomainsSection(undefined)).toBe("");
     });
 
-    it("should generate details section for single blocked domain", () => {
+    it("should generate warning section for single blocked domain", () => {
       const result = generateBlockedDomainsSection(["blocked.example.com"]);
 
       expect(result).toContain("> [!WARNING]");
@@ -316,7 +316,7 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(result).toContain("> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.");
     });
 
-    it("should generate details section for multiple blocked domains", () => {
+    it("should generate warning section for multiple blocked domains", () => {
       const domains = ["alpha.example.com", "beta.example.com", "gamma.example.com"];
       const result = generateBlockedDomainsSection(domains);
 
