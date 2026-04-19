@@ -16,7 +16,6 @@ const DEFAULT_REPORT_OUTPUT_DIR = "./.cache/gh-aw/activity-report-logs";
 const REPORT_RANGES = [
   { key: "24h", heading: "Last 24 hours", startDate: "-1d", optionalOnRateLimit: false },
   { key: "7d", heading: "Last 7 days", startDate: "-1w", optionalOnRateLimit: false },
-  { key: "30d", heading: "Last 30 days", startDate: "-1mo", optionalOnRateLimit: true },
 ];
 
 /**
