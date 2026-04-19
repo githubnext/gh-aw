@@ -836,6 +836,7 @@ index 0000000..abc1234
 
       expect(result.success).toBe(false);
       expect(result.error_type).toBe("push_failed");
+      expect(result.error).toContain("non-fast-forward");
       expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     });
 
