@@ -95,7 +95,8 @@ function generateDifcFilteredSection(filteredEvents) {
   const pronoun = count === 1 ? "it doesn't" : "they don't";
 
   let section = "\n\n> [!NOTE]\n";
-  section += `> **🔒 Integrity filter blocked ${count} ${itemWord}**\n`;
+  section += `> <details>\n`;
+  section += `> <summary>🔒 Integrity filter blocked ${count} ${itemWord}</summary>\n`;
   section += `>\n`;
   section += `> The following ${itemWord} ${verb} blocked because ${pronoun} meet the GitHub integrity level.\n`;
   section += `>\n`;
@@ -130,6 +131,8 @@ function generateDifcFilteredSection(filteredEvents) {
   for (const line of remediationText.trimEnd().split("\n")) {
     section += line ? `> ${line}\n` : `>\n`;
   }
+  section += `>\n`;
+  section += `> </details>\n`;
 
   return section;
 }
