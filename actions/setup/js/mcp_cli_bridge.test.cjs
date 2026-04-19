@@ -77,6 +77,23 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("keeps exact schema keys when normalized forms collide", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+      issue_number: { type: "integer" },
+    };
+
+    const dashed = parseToolArgs(["--issue-number", "7"], schemaProperties);
+    const underscored = parseToolArgs(["--issue_number", "8"], schemaProperties);
+
+    expect(dashed.args).toEqual({
+      "issue-number": 7,
+    });
+    expect(underscored.args).toEqual({
+      issue_number: 8,
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {

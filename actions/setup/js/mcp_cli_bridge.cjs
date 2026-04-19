@@ -443,7 +443,7 @@ function parseToolArgs(args, schemaProperties = {}) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
-  const normalizedSchemaKeyMap = buildNormalizedSchemaKeyMap(schemaProperties);
+  const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
@@ -455,17 +455,17 @@ function parseToolArgs(args, schemaProperties = {}) {
         if (key === "json") {
           jsonOutput = true;
         } else {
-          const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap);
+          const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
           result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey]);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap);
+        const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
         result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey]);
         i++;
       } else {
-        const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap);
+        const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
         result[canonicalKey] = true;
       }
     }
@@ -489,17 +489,21 @@ function normalizeSchemaKey(key) {
  * Build a map from normalized key -> canonical schema key.
  *
  * @param {Record<string, {type?: string|string[]}>} schemaProperties
- * @returns {Map<string, string>}
+ * @returns {{normalizedSchemaKeyMap: Map<string, string>, ambiguousNormalizedSchemaKeys: Set<string>}}
  */
 function buildNormalizedSchemaKeyMap(schemaProperties) {
-  const keyMap = new Map();
+  const normalizedSchemaKeyMap = new Map();
+  const ambiguousNormalizedSchemaKeys = new Set();
   for (const key of Object.keys(schemaProperties)) {
     const normalized = normalizeSchemaKey(key);
-    if (!keyMap.has(normalized)) {
-      keyMap.set(normalized, key);
+    const existing = normalizedSchemaKeyMap.get(normalized);
+    if (existing == null) {
+      normalizedSchemaKeyMap.set(normalized, key);
+    } else if (existing !== key) {
+      ambiguousNormalizedSchemaKeys.add(normalized);
     }
   }
-  return keyMap;
+  return { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys };
 }
 
 /**
@@ -509,13 +513,17 @@ function buildNormalizedSchemaKeyMap(schemaProperties) {
  * @param {string} key
  * @param {Record<string, {type?: string|string[]}>} schemaProperties
  * @param {Map<string, string>} normalizedSchemaKeyMap
+ * @param {Set<string>} ambiguousNormalizedSchemaKeys
  * @returns {string}
  */
-function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap) {
+function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys) {
   if (Object.prototype.hasOwnProperty.call(schemaProperties, key)) {
     return key;
   }
   const normalized = normalizeSchemaKey(key);
+  if (ambiguousNormalizedSchemaKeys.has(normalized)) {
+    return key;
+  }
   return normalizedSchemaKeyMap.get(normalized) || key;
 }
 
