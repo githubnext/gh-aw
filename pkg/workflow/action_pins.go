@@ -71,7 +71,7 @@ func getCachedActionPinFromResolver(repo string, resolver ActionSHAResolver) str
 	if resolver != nil {
 		ctx.Resolver = resolver
 	}
-	return actionpins.GetCachedActionPin(repo, ctx)
+	return actionpins.ResolveLatestActionPin(repo, ctx)
 }
 
 // --------------------------------------------------------------------------
@@ -92,7 +92,7 @@ func getActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 // getCachedActionPin returns the pinned action reference for a given repository,
 // preferring the dynamic resolver from WorkflowData over the embedded pins.
 func getCachedActionPin(repo string, data *WorkflowData) string {
-	return actionpins.GetCachedActionPin(repo, data.PinContext())
+	return actionpins.ResolveLatestActionPin(repo, data.PinContext())
 }
 
 // --------------------------------------------------------------------------

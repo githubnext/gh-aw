@@ -312,10 +312,10 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	return "", nil
 }
 
-// GetCachedActionPin returns the pinned action reference for a given repository,
+// ResolveLatestActionPin returns the pinned action reference for a given repository,
 // preferring the user's cache (via ctx.Resolver) over the embedded action_pins.json.
 // If ctx is nil, only embedded pins are consulted.
-func GetCachedActionPin(repo string, ctx *PinContext) string {
+func ResolveLatestActionPin(repo string, ctx *PinContext) string {
 	if ctx == nil {
 		return getActionPin(repo)
 	}
