@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 )
 
 var compilerJobsLog = logger.New("workflow:compiler_jobs")
+var exactSetupStepIDPattern = regexp.MustCompile(`(?m)^\s*id:\s*setup\s*$`)
 
 // This file contains job building functions extracted from compiler.go
 // These functions are responsible for constructing the various jobs that make up
@@ -220,6 +222,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Build safe outputs jobs if configured
 	if err := c.buildSafeOutputsJobs(data, string(constants.AgentJobName), markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
+	}
+
+	// Apply jobs.<builtin-job>.pre-steps customizations to already-created built-in jobs
+	// before processing non-built-in custom jobs.
+	if err := c.applyBuiltinJobPreSteps(data); err != nil {
+		return fmt.Errorf("failed to apply built-in job pre-steps: %w", err)
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
@@ -487,6 +495,13 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
 		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 			compilerJobsLog.Printf("Skipping jobs.%s (handled in buildPreActivationJob)", jobName)
+			continue
+		}
+
+		// Built-in jobs are already created before buildCustomJobs; treat jobs.<builtin>
+		// entries as customization-only and do not create duplicate jobs.
+		if _, exists := c.jobManager.GetJob(jobName); exists {
+			compilerJobsLog.Printf("Skipping jobs.%s (built-in job already exists)", jobName)
 			continue
 		}
 
@@ -807,6 +822,78 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 
 	compilerJobsLog.Print("Completed building all custom jobs")
 	return nil
+}
+
+func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
+	if data == nil || data.Jobs == nil {
+		return nil
+	}
+
+	for jobName, jobConfig := range data.Jobs {
+		targetJobName := jobName
+		if jobName == "pre-activation" {
+			targetJobName = string(constants.PreActivationJobName)
+		}
+
+		job, exists := c.jobManager.GetJob(targetJobName)
+		if !exists {
+			continue
+		}
+
+		configMap, ok := jobConfig.(map[string]any)
+		if !ok {
+			return fmt.Errorf("jobs.%s must be an object, got %T", jobName, jobConfig)
+		}
+		if _, hasPreSteps := configMap["pre-steps"]; !hasPreSteps {
+			continue
+		}
+
+		preSteps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
+		if err != nil {
+			return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
+		}
+		if len(preSteps) == 0 {
+			continue
+		}
+
+		job.Steps = insertPreStepsAfterSetupBeforeCheckout(job.Steps, preSteps)
+		compilerJobsLog.Printf("Inserted %d pre-steps into built-in job '%s'", len(preSteps), targetJobName)
+	}
+
+	return nil
+}
+
+func insertPreStepsAfterSetupBeforeCheckout(steps []string, preSteps []string) []string {
+	if len(preSteps) == 0 {
+		return steps
+	}
+
+	firstCheckoutIdx := -1
+	lastSetupIdx := -1
+	for i, step := range steps {
+		if firstCheckoutIdx == -1 && strings.Contains(step, "uses: actions/checkout@") {
+			firstCheckoutIdx = i
+		}
+		if exactSetupStepIDPattern.MatchString(step) {
+			lastSetupIdx = i
+		}
+	}
+
+	insertIdx := len(steps)
+	if lastSetupIdx >= 0 {
+		insertIdx = lastSetupIdx + 1
+	} else if firstCheckoutIdx >= 0 {
+		insertIdx = firstCheckoutIdx
+	}
+	if insertIdx > len(steps) {
+		insertIdx = len(steps)
+	}
+
+	result := make([]string, 0, len(steps)+len(preSteps))
+	result = append(result, steps[:insertIdx]...)
+	result = append(result, preSteps...)
+	result = append(result, steps[insertIdx:]...)
+	return result
 }
 
 func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, configMap map[string]any, data *WorkflowData) ([]string, error) {
