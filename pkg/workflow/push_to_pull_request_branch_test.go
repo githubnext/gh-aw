@@ -15,7 +15,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func extractPushToPRBranchHandlerConfig(t *testing.T, lockContent []byte) map[string]any {
+func extractPushToPullRequestBranchHandlerConfig(t *testing.T, lockContent []byte) map[string]any {
 	t.Helper()
 
 	var workflowDoc map[string]any
@@ -221,7 +221,7 @@ safe-outputs:
 	}
 
 	lockContentStr := string(lockContent)
-	pushConfig := extractPushToPRBranchHandlerConfig(t, lockContent)
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
 	fallbackAsPullRequest, exists := pushConfig["fallback_as_pull_request"]
 	if !exists {
 		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
@@ -270,7 +270,7 @@ safe-outputs:
 	}
 
 	lockContentStr := string(lockContent)
-	pushConfig := extractPushToPRBranchHandlerConfig(t, lockContent)
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
 	fallbackAsPullRequest, exists := pushConfig["fallback_as_pull_request"]
 	if !exists {
 		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
