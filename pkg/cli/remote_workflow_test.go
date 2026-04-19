@@ -156,7 +156,7 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 			errorContains: "cannot resolve include path", // Not a workflowspec format (only 2 parts)
 		},
 		{
-			name:          "section extraction from malformed workflowspec-like path",
+			name:          "malformed workflowspec with empty repo rejects path with section",
 			includePath:   "owner//path/file.md#section-name",
 			baseSpec:      nil,
 			expectSection: "#section-name",
@@ -164,7 +164,7 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 			errorContains: "cannot resolve include path",
 		},
 		{
-			name:          "no section in malformed workflowspec-like path",
+			name:          "malformed workflowspec with empty repo rejects path without section",
 			includePath:   "owner//path/file.md",
 			baseSpec:      nil,
 			expectSection: "",

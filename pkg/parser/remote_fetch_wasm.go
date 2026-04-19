@@ -133,7 +133,9 @@ func IsWorkflowSpec(path string) bool {
 	if len(parts) < 3 {
 		return false
 	}
-	// Preserve legacy behavior: URL-like paths are treated as workflowspecs.
+	// Preserve legacy behavior expected by parser tests: URL-like paths are
+	// currently treated as workflowspecs because downstream parsing supports
+	// repository/path extraction from slash-delimited remote references.
 	if strings.Contains(cleanPath, "://") {
 		return true
 	}
@@ -146,6 +148,7 @@ func IsWorkflowSpec(path string) bool {
 	if strings.HasPrefix(cleanPath, "/") {
 		return false
 	}
+	// Safe indexing: len(parts) >= 3 is guaranteed above.
 	owner := parts[0]
 	repo := parts[1]
 	if owner == "" || repo == "" {
