@@ -770,11 +770,11 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 				// regular `steps` list so they run before any checkout in steps.
 				preSteps, err := c.extractPinnedJobSteps(configMap, "pre-steps", jobName, data)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
 				}
 				regularSteps, err := c.extractPinnedJobSteps(configMap, "steps", jobName, data)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to process steps for job '%s': %w", jobName, err)
 				}
 
 				_, hasPreStepsField := configMap["pre-steps"]

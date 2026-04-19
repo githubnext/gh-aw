@@ -854,14 +854,15 @@ jobs:
 	preSetupIdx := indexInNonCommentLines(customJobSection, "- name: Pre setup")
 	prepareTokenIdx := indexInNonCommentLines(customJobSection, "- name: Prepare token")
 	checkoutIdx := indexInNonCommentLines(customJobSection, "- name: Checkout repo")
+	mainWorkIdx := indexInNonCommentLines(customJobSection, "- name: Main work")
 
-	if ghesSetupIdx == -1 || preSetupIdx == -1 || prepareTokenIdx == -1 || checkoutIdx == -1 {
+	if ghesSetupIdx == -1 || preSetupIdx == -1 || prepareTokenIdx == -1 || checkoutIdx == -1 || mainWorkIdx == -1 {
 		t.Fatalf("Missing expected steps in custom job section:\n%s", customJobSection)
 	}
 
-	if ghesSetupIdx >= preSetupIdx || preSetupIdx >= prepareTokenIdx || prepareTokenIdx >= checkoutIdx {
-		t.Fatalf("Expected order setup -> pre-steps -> checkout, got indexes setup=%d pre1=%d pre2=%d checkout=%d\n%s",
-			ghesSetupIdx, preSetupIdx, prepareTokenIdx, checkoutIdx, customJobSection)
+	if ghesSetupIdx >= preSetupIdx || preSetupIdx >= prepareTokenIdx || prepareTokenIdx >= checkoutIdx || checkoutIdx >= mainWorkIdx {
+		t.Fatalf("Expected order setup -> pre-steps -> checkout -> steps, got indexes setup=%d pre1=%d pre2=%d checkout=%d main=%d\n%s",
+			ghesSetupIdx, preSetupIdx, prepareTokenIdx, checkoutIdx, mainWorkIdx, customJobSection)
 	}
 }
 
