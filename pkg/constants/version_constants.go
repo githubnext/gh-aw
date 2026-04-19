@@ -65,6 +65,11 @@ const AWFExcludeEnvMinVersion Version = "v0.25.3"
 // v0.25.17 must not emit CLI proxy flags or the run will fail.
 const AWFCliProxyMinVersion Version = "v0.25.17"
 
+// AWFAllowHostPortsMinVersion is the minimum AWF version that supports the
+// --allow-host-ports flag. Workflows pinning an older AWF version must not emit
+// --allow-host-ports or the run will fail at startup with an unknown flag error.
+const AWFAllowHostPortsMinVersion Version = "v0.25.24"
+
 // CopilotNoAskUserMinVersion is the minimum Copilot CLI version that supports the --no-ask-user
 // flag, which enables fully autonomous agentic runs by suppressing interactive prompts.
 // Workflows using an older Copilot CLI version must not emit --no-ask-user or the run will fail.

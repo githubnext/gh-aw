@@ -426,6 +426,96 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 	})
 }
 
+// TestBuildAWFArgsAllowHostPorts tests that BuildAWFArgs includes --allow-host-ports
+// with port 80, 443, and the MCP gateway port so the AWF agent container can reach
+// the gateway through the firewall's iptables rules.
+func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
+	t.Run("includes default MCP gateway port 8080", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
+		assert.Contains(t, argsStr, "80,443,8080", "Should allow default gateway port 8080 alongside 80 and 443")
+	})
+
+	t.Run("uses custom MCP gateway port from sandbox config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{Port: 9090},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
+		assert.Contains(t, argsStr, "80,443,9090", "Should use custom gateway port from sandbox config")
+		assert.NotContains(t, argsStr, "8080", "Should not include default port when custom port is set")
+	})
+
+	t.Run("handles nil SandboxConfig gracefully", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "80,443,8080", "Should fall back to default port with nil SandboxConfig")
+	})
+
+	t.Run("skips --allow-host-ports when AWF version is too old", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						Enabled: true,
+						Version: "v0.25.23",
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.NotContains(t, argsStr, "--allow-host-ports", "Should skip --allow-host-ports for AWF versions below minimum support")
+	})
+}
+
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
 // only when features.awf-diagnostic-logs is enabled.
 func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {
@@ -987,6 +1077,58 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := awfSupportsCliProxy(tt.firewallConfig)
 			assert.Equal(t, tt.want, got, "awfSupportsCliProxy result")
+		})
+	}
+}
+
+// TestAWFSupportsAllowHostPorts tests the awfSupportsAllowHostPorts version gate function.
+func TestAWFSupportsAllowHostPorts(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config returns true (uses default version)",
+			firewallConfig: nil,
+			want:           true,
+		},
+		{
+			name:           "empty version returns true (uses default version)",
+			firewallConfig: &FirewallConfig{},
+			want:           true,
+		},
+		{
+			name:           "latest returns true",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.24 supports --allow-host-ports (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.25.24"},
+			want:           true,
+		},
+		{
+			name:           "v0.26.0 supports --allow-host-ports",
+			firewallConfig: &FirewallConfig{Version: "v0.26.0"},
+			want:           true,
+		},
+		{
+			name:           "v0.25.23 does not support --allow-host-ports",
+			firewallConfig: &FirewallConfig{Version: "v0.25.23"},
+			want:           false,
+		},
+		{
+			name:           "v0.1.0 does not support --allow-host-ports",
+			firewallConfig: &FirewallConfig{Version: "v0.1.0"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsAllowHostPorts(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsAllowHostPorts result")
 		})
 	}
 }

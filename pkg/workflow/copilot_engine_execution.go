@@ -35,6 +35,9 @@ import (
 
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
+const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
+const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || echo node)"; fi; "$GH_AW_NODE_EXEC"`
+
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	copilotExecLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
@@ -162,9 +165,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Determine which command to use (once for both sandbox and non-sandbox modes)
 	var commandName string
+	var customCommandScriptSetup string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		commandName = workflowData.EngineConfig.Command
-		copilotExecLog.Printf("Using custom command: %s", commandName)
+		commandName = customEngineCommandScriptPath
+		customCommandScriptSetup = buildEngineCommandScriptSetup(workflowData.EngineConfig.Command)
+		copilotExecLog.Printf("Using serialized custom command script: %s", commandName)
 	} else if sandboxEnabled {
 		// AWF - use the installed binary directly
 		// The binary is mounted into the AWF container from /usr/local/bin/copilot
@@ -181,16 +186,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// When a driver script is provided (GetDriverScriptName), wrap the copilot invocation with
 	// `node <driver> <commandName> <args>` to enable retry logic for transient CAPIError 400 errors.
 	//
-	// Use ${GH_AW_NODE_BIN:-node} instead of plain `node` so the absolute node path
-	// (exported by install_awf_binary.sh as GH_AW_NODE_BIN when the bundle is installed)
-	// is used inside the AWF container. In AWF's chroot mode the host filesystem is
-	// accessible, so the absolute path works even when sudo resets PATH on GPU runners
-	// (e.g. aw-gpu-runner-T4) and the actions/setup-node directory is not in PATH.
+	// Resolve node dynamically at runtime:
+	// - Prefer GH_AW_NODE_BIN when set and executable.
+	// - Fall back to `command -v node` if GH_AW_NODE_BIN points to a non-mounted toolcache path.
+	// This prevents agent startup failures when host toolcache paths are not present in the AWF container.
 	driverScriptName := e.GetDriverScriptName()
 	var execPrefix string
 	if driverScriptName != "" {
 		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.
-		execPrefix = fmt.Sprintf(`${GH_AW_NODE_BIN:-node} %s/%s %s`, SetupActionDestinationShell, driverScriptName, commandName)
+		execPrefix = fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, driverScriptName, commandName)
 	} else {
 		execPrefix = commandName
 	}
@@ -241,6 +245,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			engineCommand = fmt.Sprintf("%s && %s", mcpCLIPath, copilotCommand)
 		}
+		pathSetup := "touch " + AgentStepSummaryPath + "\n" +
+			"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
+			"export GH_AW_NODE_BIN"
+		if customCommandScriptSetup != "" {
+			pathSetup = customCommandScriptSetup + "\n" + pathSetup
+		}
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "copilot",
 			EngineCommand:  engineCommand,
@@ -257,10 +267,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			// secure_path, stripping the actions/setup-node directory.  By capturing
 			// the path here (where PATH is still intact) and exporting it, sudo -E
 			// preserves the variable and AWF's --env-all forwards it into the container,
-			// where ${GH_AW_NODE_BIN:-node} resolves to the correct binary.
-			PathSetup: "touch " + AgentStepSummaryPath + "\n" +
-				"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
-				"export GH_AW_NODE_BIN",
+			// where the execution command validates GH_AW_NODE_BIN and falls back to
+			// command -v node when the path does not exist in the container.
+			PathSetup: pathSetup,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"COPILOT_GITHUB_TOKEN"}),
@@ -268,10 +277,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	} else {
 		// Run copilot command without AWF wrapper.
 		// Prepend a touch command to create the agent step summary file before copilot runs.
+		preCommandSetup := mkdirCommands.String()
+		if customCommandScriptSetup != "" {
+			preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
+		}
 		command = fmt.Sprintf(`set -o pipefail
 touch %s
 (umask 177 && touch %s)
-%s%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, mkdirCommands.String(), copilotCommand, logFile)
+%s%s 2>&1 | tee %s`, AgentStepSummaryPath, logFile, preCommandSetup, copilotCommand, logFile)
 	}
 
 	// Use COPILOT_GITHUB_TOKEN: when the copilot-requests feature is enabled, use the GitHub
@@ -541,6 +554,23 @@ func extractAddDirPaths(args []string) []string {
 		}
 	}
 	return dirs
+}
+
+func buildEngineCommandScriptSetup(command string) string {
+	// engine.command intentionally accepts shell-form commands from trusted workflow
+	// configuration authored in-repo; preserve shell semantics and forward driver args.
+	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset -eo pipefail\n%s \"$@\"\n", command)
+	heredocDelimiter := "GH_AW_ENGINE_COMMAND_EOF"
+	for strings.Contains(scriptContent, heredocDelimiter) {
+		heredocDelimiter += "_X"
+	}
+
+	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
+umask 0177
+cat > %s <<'%s'
+%s
+%s
+chmod 700 %s`, customEngineCommandScriptPath, heredocDelimiter, scriptContent, heredocDelimiter, customEngineCommandScriptPath)
 }
 
 // generateCopilotSessionFileCopyStep generates a step to copy the entire Copilot

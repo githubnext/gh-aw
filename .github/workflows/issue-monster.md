@@ -25,6 +25,8 @@ on:
       with:
         script: |
           const { owner, repo } = context.repo;
+          const MAX_ISSUES_WITH_BODY_CONTEXT = 8;
+          const BODY_SNIPPET_MAX_LENGTH = 600;
           
           try {
             // Check for recent rate-limited PRs to avoid scheduling more work during rate limiting
@@ -94,6 +96,7 @@ on:
               core.setOutput('issue_count', 0);
               core.setOutput('issue_numbers', '');
               core.setOutput('issue_list', '');
+              core.setOutput('issue_context', '');
               core.setOutput('has_issues', 'false');
               return;
             }
@@ -330,6 +333,7 @@ on:
                   number: issue.number,
                   title: issue.title,
                   labels: issue.labels.map(l => l.name),
+                  body: issue.body,
                   created_at: issue.created_at,
                   score
                 };
@@ -341,6 +345,15 @@ on:
               const labelStr = i.labels.length > 0 ? ` [${i.labels.join(', ')}]` : '';
               return `#${i.number}: ${i.title}${labelStr} (score: ${i.score.toFixed(1)})`;
             }).join('\n');
+
+            // Pre-fetch compact body context for top candidates so the agent can
+            // triage without extra reads in most runs.
+            const issueContext = scoredIssues.slice(0, MAX_ISSUES_WITH_BODY_CONTEXT).map(i => {
+              const body = (i.body || '').replace(/\s+/g, ' ').trim();
+              const bodySnippet = body.length > BODY_SNIPPET_MAX_LENGTH ? `${body.slice(0, BODY_SNIPPET_MAX_LENGTH)}…` : body;
+              const labelStr = i.labels.length > 0 ? i.labels.join(', ') : 'none';
+              return `#${i.number} | score=${i.score.toFixed(1)} | labels=${labelStr}\nTitle: ${i.title}\nBody: ${bodySnippet || '(no body)'}`;
+            }).join('\n\n---\n\n');
             
             const issueNumbers = scoredIssues.map(i => i.number).join(',');
             
@@ -352,6 +365,7 @@ on:
             core.setOutput('issue_count', scoredIssues.length);
             core.setOutput('issue_numbers', issueNumbers);
             core.setOutput('issue_list', issueList);
+            core.setOutput('issue_context', issueContext);
             
             if (scoredIssues.length === 0) {
               core.info('🍽️ No suitable candidate issues - the plate is empty!');
@@ -364,6 +378,7 @@ on:
             core.setOutput('issue_count', 0);
             core.setOutput('issue_numbers', '');
             core.setOutput('issue_list', '');
+            core.setOutput('issue_context', '');
             core.setOutput('has_issues', 'false');
           }
 
@@ -375,7 +390,7 @@ permissions:
 
 engine:
   id: copilot
-  model: gpt-5.1-codex-mini
+  model: claude-haiku-4.5
 
 imports:
   - shared/github-guard-policy.md
@@ -387,7 +402,7 @@ tools:
   mount-as-clis: true
   github:
     min-integrity: approved
-    toolsets: [default, pull_requests]
+    toolsets: [issues]
 
 if: needs.pre_activation.outputs.has_issues == 'true'
 
@@ -397,6 +412,7 @@ jobs:
       issue_count: ${{ steps.search.outputs.issue_count }}
       issue_numbers: ${{ steps.search.outputs.issue_numbers }}
       issue_list: ${{ steps.search.outputs.issue_list }}
+      issue_context: ${{ steps.search.outputs.issue_context }}
       has_issues: ${{ steps.search.outputs.has_issues }}
 
 safe-outputs:
@@ -473,7 +489,12 @@ Issues are scored and sorted by priority:
 ${{ needs.pre_activation.outputs.issue_list }}
 ```
 
-Work with this pre-fetched, filtered, and prioritized list of issues. Do not perform additional searches - the issue numbers are already identified above, sorted from highest to lowest priority.
+**Pre-fetched Body Context (top candidates):**
+```
+${{ needs.pre_activation.outputs.issue_context }}
+```
+
+Work with this pre-fetched, filtered, and prioritized list of issues. Do not perform additional searches - candidate issue numbers and body excerpts are already identified above.
 
 ### 1a. Handle Parent-Child Issue Relationships (for "task" or "plan" labeled issues)
 
@@ -494,17 +515,7 @@ For issues with the "task" or "plan" label, check if they are sub-issues linked 
 - Only after #101's PR is merged/closed, process #102
 - This ensures orderly, sequential processing of related tasks
 
-### 2. Review the Pre-Filtered Issue List
-
-The pre-activation job has already performed comprehensive filtering, including:
-- Issues already assigned to Copilot
-- Issues with open PRs linked to them (from any author)
-- Issues with closed/merged PRs (treated as complete)
-- **For "task" or "plan" labeled sub-issues**: Check if any sibling sub-issue (same parent) has an open PR from Copilot
-
-The list you receive has already been filtered to exclude all of these cases, so you can focus on the actual assignment logic.
-
-### 3. Select Up to Three Issues to Work On
+### 2. Select Up to Three Issues to Work On
 
 From the prioritized and filtered list (issues WITHOUT Copilot assignments or open PRs):
 - **Select up to three appropriate issues** to assign
@@ -538,10 +549,13 @@ From the prioritized and filtered list (issues WITHOUT Copilot assignments or op
 - Assign only the issues that are clearly separate in topic
 - Do not force assignments just to reach the maximum
 
-### 4. Read and Understand Each Selected Issue
+### 3. Validate Selected Issues (Body-First)
 
 For each selected issue (which has already been pre-filtered to ensure no open/closed PRs exist):
-- Read the full issue body and any comments
+- Use the pre-fetched body context first
+- If a body excerpt is ambiguous, call `issue_read` with `method: get` for that issue
+- Do **not** fetch comments by default
+- Only fetch comments (`issue_read` with `method: get_comments`) when a specific triage rule truly requires comment context (for example: to confirm whether maintainers already requested a specific implementation approach, or to capture additional repro steps posted after the original issue body)
 - Understand what fix is needed
 - Identify the files that need to be modified
 - Verify it doesn't overlap with the other selected issues
@@ -562,7 +576,7 @@ Some issues may be blocked by an integrity policy when you try to read them with
 → Call `noop` with: `"🛡️ All 3 candidates (#100, #102, #105) were integrity-filtered. No assignments made this run."`
 
 
-### 5. Assign Issues to Copilot Agent
+### 4. Assign Issues to Copilot Agent
 
 For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot coding agent:
 
@@ -578,7 +592,7 @@ The Copilot coding agent will:
 3. Create a pull request with the fix
 4. Follow the repository's AGENTS.md guidelines
 
-### 6. Add Comment to Each Assigned Issue
+### 5. Add Comment to Each Assigned Issue
 
 For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
 
@@ -616,21 +630,11 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 ## Success Criteria
 
 A successful run means:
-1. **Rate limiting check passed** - The search verified no recent PRs are rate-limited (or workflow skipped if rate limiting detected)
-2. You reviewed the pre-searched, filtered, and prioritized issue list
-3. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
-4. The search already excluded issues with campaign labels (campaign:*) as these are managed by campaign orchestrators
-5. The search already excluded issues that already have assignees
-6. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
-7. The search already excluded issues with closed or merged PRs (treated as complete)
-8. The search already excluded issues with open PRs from Copilot coding agent (already being worked on)
-9. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
-10. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs if necessary
-11. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic
-12. You read and understood each issue
-13. You verified that the selected issues don't have overlapping concerns or file changes
-14. You assigned each issue to the Copilot coding agent using `assign_to_agent`
-15. You commented on each issue being assigned
+1. You used the pre-fetched prioritized list (and body context) without re-searching
+2. You selected up to three issues that are clearly separate in topic
+3. You used body-first validation and only fetched comments when strictly necessary
+4. You assigned each selected issue to Copilot using `assign_to_agent`
+5. You commented on each assigned issue (or called `noop` when no assignments were made)
 
 ## Error Handling
 

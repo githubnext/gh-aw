@@ -256,6 +256,22 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfArgs = append(awfArgs, "--enable-host-access")
 	awfHelpersLog.Print("Added --enable-host-access for API proxy and MCP gateway")
 
+	// AWF's --enable-host-access defaults to ports 80,443. The MCP gateway now
+	// listens on port 8080 (non-privileged), so we must explicitly allow it
+	// when AWF supports --allow-host-ports.
+	if awfSupportsAllowHostPorts(firewallConfig) {
+		mcpGatewayPort := int(DefaultMCPGatewayPort)
+		if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
+			config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
+			mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
+		}
+		hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+		awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
+		awfHelpersLog.Printf("Added --allow-host-ports %s for MCP gateway access", hostPorts)
+	} else {
+		awfHelpersLog.Printf("Skipping --allow-host-ports: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAllowHostPortsMinVersion)
+	}
+
 	// Pin AWF Docker image version to match the installed binary version
 	awfImageTag := getAWFImageTag(firewallConfig)
 	awfArgs = append(awfArgs, "--image-tag", awfImageTag)
@@ -723,5 +739,32 @@ func awfSupportsCliProxy(firewallConfig *FirewallConfig) bool {
 
 	// Normalise the v-prefix for semverutil.Compare.
 	minVersion := string(constants.AWFCliProxyMinVersion)
+	return semverutil.Compare(versionStr, minVersion) >= 0
+}
+
+// awfSupportsAllowHostPorts returns true when the effective AWF version supports
+// --allow-host-ports.
+//
+// Special cases:
+//   - No version override (firewallConfig is nil or has no Version): use DefaultFirewallVersion
+//     and compare against AWFAllowHostPortsMinVersion (currently this returns true because
+//     DefaultFirewallVersion is at or above the minimum supported version).
+//   - "latest": always returns true (latest is always a new release).
+//   - Any semver string ≥ AWFAllowHostPortsMinVersion: returns true.
+//   - Any semver string < AWFAllowHostPortsMinVersion: returns false.
+//   - Non-semver string (e.g. a branch name): returns false (conservative).
+func awfSupportsAllowHostPorts(firewallConfig *FirewallConfig) bool {
+	var versionStr string
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		versionStr = firewallConfig.Version
+	} else {
+		versionStr = string(constants.DefaultFirewallVersion)
+	}
+
+	if strings.EqualFold(versionStr, "latest") {
+		return true
+	}
+
+	minVersion := string(constants.AWFAllowHostPortsMinVersion)
 	return semverutil.Compare(versionStr, minVersion) >= 0
 }
