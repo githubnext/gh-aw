@@ -53,6 +53,30 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("maps dashed arg names to underscored schema keys", () => {
+    const schemaProperties = {
+      issue_number: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issue-number", "42"], schemaProperties);
+
+    expect(args).toEqual({
+      issue_number: 42,
+    });
+  });
+
+  it("maps underscored arg names to dashed schema keys", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issue_number=99"], schemaProperties);
+
+    expect(args).toEqual({
+      "issue-number": 99,
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {

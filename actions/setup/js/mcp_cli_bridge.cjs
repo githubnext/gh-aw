@@ -443,6 +443,7 @@ function parseToolArgs(args, schemaProperties = {}) {
   /** @type {Record<string, unknown>} */
   const result = {};
   let jsonOutput = false;
+  const normalizedSchemaKeyMap = buildNormalizedSchemaKeyMap(schemaProperties);
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
@@ -454,21 +455,68 @@ function parseToolArgs(args, schemaProperties = {}) {
         if (key === "json") {
           jsonOutput = true;
         } else {
-          result[key] = coerceToolArgValue(key, raw.slice(eqIdx + 1), schemaProperties[key], result[key]);
+          const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap);
+          result[canonicalKey] = coerceToolArgValue(canonicalKey, raw.slice(eqIdx + 1), schemaProperties[canonicalKey], result[canonicalKey]);
         }
       } else if (raw === "json") {
         jsonOutput = true;
       } else if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        result[raw] = coerceToolArgValue(raw, args[i + 1], schemaProperties[raw], result[raw]);
+        const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap);
+        result[canonicalKey] = coerceToolArgValue(canonicalKey, args[i + 1], schemaProperties[canonicalKey], result[canonicalKey]);
         i++;
       } else {
-        result[raw] = true;
+        const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap);
+        result[canonicalKey] = true;
       }
     }
     // Skip non-flag arguments
   }
 
   return { args: result, json: jsonOutput };
+}
+
+/**
+ * Normalize a CLI argument/schema key by removing separators and lowercasing.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+function normalizeSchemaKey(key) {
+  return key.replace(/[-_]/g, "").toLowerCase();
+}
+
+/**
+ * Build a map from normalized key -> canonical schema key.
+ *
+ * @param {Record<string, {type?: string|string[]}>} schemaProperties
+ * @returns {Map<string, string>}
+ */
+function buildNormalizedSchemaKeyMap(schemaProperties) {
+  const keyMap = new Map();
+  for (const key of Object.keys(schemaProperties)) {
+    const normalized = normalizeSchemaKey(key);
+    if (!keyMap.has(normalized)) {
+      keyMap.set(normalized, key);
+    }
+  }
+  return keyMap;
+}
+
+/**
+ * Resolve a user-provided CLI key to the canonical schema key when possible.
+ * Falls back to the original key when no schema match exists.
+ *
+ * @param {string} key
+ * @param {Record<string, {type?: string|string[]}>} schemaProperties
+ * @param {Map<string, string>} normalizedSchemaKeyMap
+ * @returns {string}
+ */
+function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap) {
+  if (Object.prototype.hasOwnProperty.call(schemaProperties, key)) {
+    return key;
+  }
+  const normalized = normalizeSchemaKey(key);
+  return normalizedSchemaKeyMap.get(normalized) || key;
 }
 
 /**
