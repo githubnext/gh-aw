@@ -54,6 +54,7 @@ fmt.Println(reference) // actions/checkout@<sha> # v5
 
 **Internal**:
 - `pkg/console` — warning message formatting
+- `pkg/gitutil` — dynamic SHA resolution via GitHub API/CLI helpers
 - `pkg/logger` — debug logging
 - `pkg/semverutil` — semantic version compatibility checks
 

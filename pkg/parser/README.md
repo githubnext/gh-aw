@@ -238,8 +238,15 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 ## Dependencies
 
 **Internal**:
+- `pkg/console` — parser-facing warning/error message formatting
+- `pkg/constants` — shared parser constants and default values
+- `pkg/fileutil` — file existence and path helper utilities
+- `pkg/gitutil` — Git remote and host detection helpers
 - `pkg/types` — `BaseMCPServerConfig`
+- `pkg/typeutil` — safe type conversion helpers for dynamic frontmatter
 - `pkg/logger` — debug logging
+- `pkg/sliceutil` — slice helper utilities for validation and merging
+- `pkg/stringutil` — string normalization and ANSI/format helpers
 
 **External**:
 - `github.com/santhosh-tekuri/jsonschema/v5` — JSON schema validation
