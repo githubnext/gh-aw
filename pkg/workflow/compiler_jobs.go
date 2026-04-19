@@ -820,7 +820,7 @@ func (c *Compiler) extractPinnedJobSteps(configMap map[string]any, fieldName str
 		return nil, fmt.Errorf("%s for job '%s' must be an array of step objects", fieldName, jobName)
 	}
 
-	steps := make([]string, 0, len(stepsList))
+	pinnedSteps := make([]string, 0, len(stepsList))
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
@@ -837,10 +837,10 @@ func (c *Compiler) extractPinnedJobSteps(configMap map[string]any, fieldName str
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert %s to YAML for job '%s': %w", fieldName, jobName, err)
 		}
-		steps = append(steps, stepYAML)
+		pinnedSteps = append(pinnedSteps, stepYAML)
 	}
 
-	return steps, nil
+	return pinnedSteps, nil
 }
 
 // shouldAddCheckoutStep returns true if the workflow requires a checkout step.

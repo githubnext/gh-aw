@@ -144,6 +144,9 @@ func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
 	}
 
 	merged := make(map[string]any, len(mainMap))
+	// Intentionally shallow-copy the top-level job map: this merge operation only
+	// replaces the "pre-steps" key with a newly allocated slice and does not mutate
+	// any nested structures from other keys.
 	maps.Copy(merged, mainMap)
 
 	mergedPreSteps := make([]any, 0, len(importedPreSteps)+len(mainPreSteps))

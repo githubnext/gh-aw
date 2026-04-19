@@ -901,7 +901,7 @@ func assertStepOrderInSection(t *testing.T, section string, orderedSteps ...stri
 
 	prev := -1
 	for _, step := range orderedSteps {
-		idx := indexInNonCommentLines(section, step)
+		idx := indexInNonCommentLinesInSection(section, step)
 		if idx == -1 {
 			t.Fatalf("Expected step %q in section:\n%s", step, section)
 		}
@@ -911,6 +911,20 @@ func assertStepOrderInSection(t *testing.T, section string, orderedSteps ...stri
 		}
 		prev = idx
 	}
+}
+
+func indexInNonCommentLinesInSection(content string, target string) int {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.Contains(line, target) {
+			return i
+		}
+	}
+	return -1
 }
 
 // TestBuildSafeOutputsJobsCreatesExpectedJobs tests that safe output steps are created correctly
