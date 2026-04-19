@@ -428,9 +428,18 @@ async function main(config = {}) {
         commit_message: message.commit_message,
       });
 
+      if (mergeResponse.data?.merged !== true) {
+        return {
+          success: false,
+          error: mergeResponse.data?.message || "Merge API returned merged=false",
+          failure_reasons: [{ code: "merge_not_completed", message: mergeResponse.data?.message || "Merge was not completed" }],
+          checks_evaluated: branchPolicy.requiredChecks,
+        };
+      }
+
       return {
-        success: mergeResponse.data?.merged === true,
-        merged: mergeResponse.data?.merged === true,
+        success: true,
+        merged: true,
         pull_request_number: pr.number,
         pull_request_url: pr.html_url,
         sha: mergeResponse.data?.sha,
