@@ -320,9 +320,11 @@ func (c *Compiler) getCachedFrontmatterHash(markdownPath string) (string, bool) 
 
 	info, err := os.Stat(markdownPath)
 	if err != nil {
+		delete(c.frontmatterHashCache, markdownPath)
 		return "", false
 	}
 	if info.Size() != entry.fileSize || info.ModTime().UnixNano() != entry.fileModTimeNS {
+		delete(c.frontmatterHashCache, markdownPath)
 		return "", false
 	}
 
@@ -343,7 +345,8 @@ func (c *Compiler) cacheFrontmatterHash(markdownPath string, hash string) {
 }
 
 func (c *Compiler) computeFrontmatterHash(markdownPath string, rawFrontmatter map[string]any) (string, error) {
-	if canUseFrontmatterHashCache(rawFrontmatter) {
+	useCache := canUseFrontmatterHashCache(rawFrontmatter)
+	if useCache {
 		if cachedHash, ok := c.getCachedFrontmatterHash(markdownPath); ok {
 			return cachedHash, nil
 		}
@@ -355,7 +358,7 @@ func (c *Compiler) computeFrontmatterHash(markdownPath string, rawFrontmatter ma
 		return "", err
 	}
 
-	if canUseFrontmatterHashCache(rawFrontmatter) {
+	if useCache {
 		c.cacheFrontmatterHash(markdownPath, hash)
 	}
 
