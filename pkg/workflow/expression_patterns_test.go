@@ -487,8 +487,10 @@ func TestExpressionHelpers(t *testing.T) {
 			wantWholeExprOnly: false,
 		},
 		{
-			name:              "empty expression body",
-			input:             "${{}}",
+			name:  "empty expression body",
+			input: "${{}}",
+			// isExpression is a strict wrapper check, while containsExpression
+			// requires a non-empty expression body between markers.
 			wantHasMarker:     true,
 			wantContainsExpr:  false,
 			wantWholeExprOnly: true,

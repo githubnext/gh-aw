@@ -70,8 +70,9 @@ func hasExpressionMarker(s string) bool {
 	return strings.Contains(s, "${{")
 }
 
-// containsExpression reports whether s contains a complete GitHub Actions expression.
-// A complete expression has a "${{" marker that appears before a closing "}}" marker.
+// containsExpression reports whether s contains a complete non-empty GitHub Actions expression.
+// A complete expression has a "${{" marker that appears before a closing "}}" marker
+// with at least one character between them.
 func containsExpression(s string) bool {
 	_, afterOpen, found := strings.Cut(s, "${{")
 	if !found {

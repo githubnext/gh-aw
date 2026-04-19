@@ -374,7 +374,7 @@ func TestValidateTargetValue(t *testing.T) {
 	}
 }
 
-func TestContainsExpression(t *testing.T) {
+func TestContainsExpressionForTargetValidation(t *testing.T) {
 	tests := []struct {
 		name string
 		s    string
