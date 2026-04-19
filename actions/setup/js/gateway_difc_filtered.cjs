@@ -93,10 +93,9 @@ function generateDifcFilteredSection(filteredEvents) {
   const itemWord = count === 1 ? "item" : "items";
 
   let section = "\n\n> [!NOTE]\n";
-  section += `> <details>\n`;
-  section += `> <summary>🔒 Integrity filter blocked ${count} ${itemWord}</summary>\n`;
+  section += `> **🔒 Integrity filter blocked ${count} ${itemWord}**\n`;
   section += `>\n`;
-  section += `> The following ${itemWord} were blocked because they don't meet the GitHub integrity level.\n`;
+  section += `> The following ${itemWord} ${count === 1 ? "was" : "were"} blocked because ${count === 1 ? "it doesn't" : "they don't"} meet the GitHub integrity level.\n`;
   section += `>\n`;
 
   const maxItems = 16;
@@ -129,8 +128,6 @@ function generateDifcFilteredSection(filteredEvents) {
   for (const line of remediationText.trimEnd().split("\n")) {
     section += line ? `> ${line}\n` : `>\n`;
   }
-  section += `>\n`;
-  section += `> </details>\n`;
 
   return section;
 }

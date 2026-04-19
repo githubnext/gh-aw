@@ -173,9 +173,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       expect(result).toContain("> [!NOTE]");
-      expect(result).toContain("> <details>");
-      expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary>🔒 Integrity filter blocked 1 item</summary>");
+      expect(result).toContain("> **🔒 Integrity filter blocked 1 item**");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("`list_issues`");
       expect(result).toContain("Integrity check failed");
@@ -202,7 +200,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       expect(result).toContain("> [!NOTE]");
-      expect(result).toContain("> <summary>🔒 Integrity filter blocked 2 items</summary>");
+      expect(result).toContain("> **🔒 Integrity filter blocked 2 items**");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });
@@ -259,7 +257,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const events = [{ type: "DIFC_FILTERED", tool_name: "tool", reason: "reason" }];
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("blocked because they don't meet");
+      expect(result).toMatch(/blocked because (it doesn't|they don't) meet/);
       expect(result).toContain("GitHub integrity level");
     });
 
@@ -318,7 +316,7 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("> <summary>🔒 Integrity filter blocked 2 items</summary>");
+      expect(result).toContain("> **🔒 Integrity filter blocked 2 items**");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
       expect(result).toContain("[#99](https://github.com/org/repo/issues/99)");
     });
@@ -363,7 +361,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       // Summary still shows the total count
-      expect(result).toContain("> <summary>🔒 Integrity filter blocked 20 items</summary>");
+      expect(result).toContain("> **🔒 Integrity filter blocked 20 items**");
       // First 16 items rendered
       expect(result).toContain("[#1](https://github.com/org/repo/issues/1)");
       expect(result).toContain("[#16](https://github.com/org/repo/issues/16)");
@@ -418,7 +416,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const result = generateDifcFilteredSection(events);
 
       // Both entries should be shown; #unknown text hidden, tool_name used instead
-      expect(result).toContain("> <summary>🔒 Integrity filter blocked 2 items</summary>");
+      expect(result).toContain("> **🔒 Integrity filter blocked 2 items**");
       expect(result).not.toContain("#unknown");
       expect(result).toContain("`search_issues`");
       expect(result).toContain("[#42](https://github.com/org/repo/issues/42)");
@@ -436,7 +434,7 @@ describe("gateway_difc_filtered.cjs", () => {
 
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("> <summary>🔒 Integrity filter blocked 1 item</summary>");
+      expect(result).toContain("> **🔒 Integrity filter blocked 1 item**");
       expect(result).toContain("`search_issues`");
       expect(result).not.toContain("#unknown");
     });
