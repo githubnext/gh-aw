@@ -898,6 +898,7 @@ jobs:
           EOF
           fi
           
+          
           GH_AW_MCP_SCRIPTS_SH_GITHUB-DISCUSSION-QUERY_5ff556e202d3b5a7_EOF
           chmod +x "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-discussion-query.sh"
           cat > "${RUNNER_TEMP}/gh-aw/mcp-scripts/github-issue-query.sh" << 'GH_AW_MCP_SCRIPTS_SH_GITHUB-ISSUE-QUERY_682bb0e38af621c3_EOF'

@@ -1203,7 +1203,7 @@ jobs:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
         with:
-          script: |-
+          script: |
             const fs = require('fs');
             const notionToken = process.env.NOTION_API_TOKEN;
             const pageId = process.env.NOTION_PAGE_ID;

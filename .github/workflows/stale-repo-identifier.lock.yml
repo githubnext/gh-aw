@@ -399,7 +399,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
       - name: Setup jq utilities directory
-        run: |-
+        run: |
           mkdir -p /tmp/gh-aw
           cat > /tmp/gh-aw/jqschema.sh << 'EOF'
           #!/usr/bin/env bash
@@ -470,7 +470,7 @@ jobs:
           NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
           ORGANIZATION: ${{ env.ORGANIZATION }}
       - name: Save stale repos output
-        run: |-
+        run: |
           mkdir -p /tmp/stale-repos-data
           echo "$INACTIVE_REPOS" > /tmp/stale-repos-data/inactive-repos.json
           echo "Stale repositories data saved"
