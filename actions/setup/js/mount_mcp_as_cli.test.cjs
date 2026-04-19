@@ -1,3 +1,4 @@
+// @ts-check
 import { describe, expect, it } from "vitest";
 
 import { parseMCPResponseBody } from "./mount_mcp_as_cli.cjs";
