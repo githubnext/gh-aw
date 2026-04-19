@@ -151,20 +151,32 @@ async function getReviewSummary(githubClient, owner, repo, pullNumber) {
  * @param {string} owner
  * @param {string} repo
  * @param {string} baseBranch
- * @returns {Promise<{isProtected: boolean, requiredChecks: string[]}>}
+ * @returns {Promise<{isProtected: boolean, isDefault: boolean, defaultBranch: string|null, requiredChecks: string[]}>}
  */
 async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
   core.info(`Checking target branch policy for ${owner}/${repo}@${baseBranch}`);
-  const { data: branch } = await githubClient.rest.repos.getBranch({
-    owner,
-    repo,
-    branch: baseBranch,
-  });
+  const [{ data: branch }, { data: repository }] = await Promise.all([
+    githubClient.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: baseBranch,
+    }),
+    githubClient.rest.repos.get({
+      owner,
+      repo,
+    }),
+  ]);
+
+  const defaultBranch = typeof repository?.default_branch === "string" ? repository.default_branch : null;
+  const isDefault = defaultBranch !== null && baseBranch === defaultBranch;
+  if (isDefault) {
+    core.info(`Target branch ${baseBranch} is the repository default branch`);
+  }
 
   const isProtected = branch?.protected === true;
   if (isProtected) {
     core.info(`Target branch ${baseBranch} is protected`);
-    return { isProtected: true, requiredChecks: [] };
+    return { isProtected: true, isDefault, defaultBranch, requiredChecks: [] };
   }
 
   try {
@@ -176,11 +188,11 @@ async function getBranchPolicy(githubClient, owner, repo, baseBranch) {
     const contexts = Array.isArray(data?.required_status_checks?.contexts) ? data.required_status_checks.contexts : [];
     const checks = Array.isArray(data?.required_status_checks?.checks) ? data.required_status_checks.checks.map(c => c?.context).filter(Boolean) : [];
     core.info(`Branch protection checks for ${baseBranch}: ${[...new Set([...contexts, ...checks])].join(", ") || "(none)"}`);
-    return { isProtected: false, requiredChecks: [...new Set([...contexts, ...checks])] };
+    return { isProtected: false, isDefault, defaultBranch, requiredChecks: [...new Set([...contexts, ...checks])] };
   } catch (error) {
     if (error && typeof error === "object" && "status" in error && error.status === 404) {
       core.info(`No branch protection rules found for ${baseBranch}`);
-      return { isProtected: false, requiredChecks: [] };
+      return { isProtected: false, isDefault, defaultBranch, requiredChecks: [] };
     }
     core.error(`Failed to read branch protection for ${baseBranch}: ${getErrorMessage(error)}`);
     throw error;
@@ -383,6 +395,13 @@ async function main(config = {}) {
         failureReasons.push({
           code: "target_branch_protected",
           message: `Target branch "${pr.base.ref}" is protected`,
+        });
+      }
+      if (branchPolicy.isDefault) {
+        failureReasons.push({
+          code: "target_branch_default",
+          message: `Target branch "${pr.base.ref}" is the repository default branch`,
+          details: { default_branch: branchPolicy.defaultBranch },
         });
       }
 
