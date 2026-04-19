@@ -24,6 +24,25 @@ const { getGitAuthEnv } = require("./git_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "push_to_pull_request_branch";
+const MISSING_BRANCH_ERROR_TEMPLATE = branchName => `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+const MISSING_REMOTE_REF_PATTERNS = [
+  "couldn't find remote ref",
+  "could not find remote ref",
+  "remote ref does not exist",
+  "did not match any file(s) known to git",
+  "unknown revision or path not in the working tree",
+  "fatal: couldn't find remote ref",
+  "exit code 128",
+];
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function looksLikeMissingRemoteBranchError(value) {
+  const text = String(value ?? "").toLowerCase();
+  return MISSING_REMOTE_REF_PATTERNS.some(pattern => text.includes(pattern));
+}
 
 /**
  * Main handler factory for push_to_pull_request_branch
@@ -466,7 +485,7 @@ async function main(config = {}) {
       });
 
       if (lsRemoteResult.exitCode === 2) {
-        const missingBranchError = `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+        const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
         if (ignoreMissingBranchFailure) {
           core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
           return {
@@ -500,9 +519,8 @@ async function main(config = {}) {
       });
     } catch (fetchError) {
       const fetchErrorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      const missingRemoteRefPatterns = ["couldn't find remote ref", "could not find remote ref", "remote ref does not exist", "did not match any file(s) known to git"];
-      if (ignoreMissingBranchFailure && missingRemoteRefPatterns.some(pattern => fetchErrorMessage.toLowerCase().includes(pattern))) {
-        const missingBranchError = `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+      if (ignoreMissingBranchFailure && looksLikeMissingRemoteBranchError(fetchErrorMessage)) {
+        const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
         core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
         return { success: false, error: missingBranchError, skipped: true };
       }
@@ -513,7 +531,7 @@ async function main(config = {}) {
     try {
       await exec.exec(`git rev-parse --verify origin/${branchName}`);
     } catch (verifyError) {
-      const missingBranchError = `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+      const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
       if (ignoreMissingBranchFailure) {
         core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
         return { success: false, error: missingBranchError, skipped: true };
