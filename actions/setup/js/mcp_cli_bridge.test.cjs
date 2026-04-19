@@ -119,6 +119,18 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("normalizes repeated mixed dash/underscore arguments for array schema", () => {
+    const schemaProperties = {
+      issue_number: { type: "array" },
+    };
+
+    const { args } = parseToolArgs(["--issue-number", "1", "--issue_number", "2"], schemaProperties);
+
+    expect(args).toEqual({
+      issue_number: ["1", "2"],
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {

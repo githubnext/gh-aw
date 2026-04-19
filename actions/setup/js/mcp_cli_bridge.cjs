@@ -478,7 +478,13 @@ function parseToolArgs(args, schemaProperties = {}) {
 /**
  * Normalize a CLI argument/schema key by removing separators and lowercasing.
  *
- * @param {string} key
+ * @param {string} key - Raw CLI or schema key
+ * @example
+ * normalizeSchemaKey("issue-number")
+ * // => "issuenumber"
+ * @example
+ * normalizeSchemaKey("issue_number")
+ * // => "issuenumber"
  * @returns {string}
  */
 function normalizeSchemaKey(key) {
@@ -488,8 +494,11 @@ function normalizeSchemaKey(key) {
 /**
  * Build a map from normalized key -> canonical schema key.
  *
- * @param {Record<string, {type?: string|string[]}>} schemaProperties
- * @returns {{normalizedSchemaKeyMap: Map<string, string>, ambiguousNormalizedSchemaKeys: Set<string>}}
+ * @param {Record<string, {type?: string|string[]}>} schemaProperties - Tool input schema properties
+ * @returns {{
+ *   normalizedSchemaKeyMap: Map<string, string>,
+ *   ambiguousNormalizedSchemaKeys: Set<string>
+ * }} Object containing resolvable normalized keys and ambiguous normalized keys
  */
 function buildNormalizedSchemaKeyMap(schemaProperties) {
   const normalizedSchemaKeyMap = new Map();
@@ -497,7 +506,7 @@ function buildNormalizedSchemaKeyMap(schemaProperties) {
   for (const key of Object.keys(schemaProperties)) {
     const normalized = normalizeSchemaKey(key);
     const existing = normalizedSchemaKeyMap.get(normalized);
-    if (existing == null) {
+    if (existing === undefined) {
       normalizedSchemaKeyMap.set(normalized, key);
     } else if (existing !== key) {
       ambiguousNormalizedSchemaKeys.add(normalized);
@@ -511,10 +520,10 @@ function buildNormalizedSchemaKeyMap(schemaProperties) {
  * Resolve a user-provided CLI key to the canonical schema key when possible.
  * Falls back to the original key when no schema match exists.
  *
- * @param {string} key
- * @param {Record<string, {type?: string|string[]}>} schemaProperties
- * @param {Map<string, string>} normalizedSchemaKeyMap
- * @param {Set<string>} ambiguousNormalizedSchemaKeys
+ * @param {string} key - User-provided CLI argument key (without leading `--`)
+ * @param {Record<string, {type?: string|string[]}>} schemaProperties - Tool input schema properties
+ * @param {Map<string, string>} normalizedSchemaKeyMap - Map from normalized key to canonical schema key
+ * @param {Set<string>} ambiguousNormalizedSchemaKeys - Normalized keys that map to multiple schema keys
  * @returns {string}
  */
 function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys) {
