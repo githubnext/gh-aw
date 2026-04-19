@@ -63,6 +63,9 @@ describe("merge_pull_request branch validation", () => {
     const { __testables } = await import("./merge_pull_request.cjs");
 
     expect(__testables.findAllowedLabelMatches(["release/v1", "automerge/pr-1"], ["release/*", "automerge/*"])).toEqual([]);
+    expect(__testables.findAllowedLabelMatches(["automerge", "release"], ["automerge", "deploy"])).toEqual(["automerge"]);
     expect(__testables.findAllowedLabelMatches(["release/*", "automerge/*"], ["release/*", "automerge/*"])).toEqual(["release/*", "automerge/*"]);
+    expect(__testables.findAllowedLabelMatches([], ["automerge"])).toEqual([]);
+    expect(__testables.findAllowedLabelMatches(["AutoMerge"], ["automerge"])).toEqual([]);
   });
 });
