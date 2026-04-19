@@ -326,7 +326,7 @@ func TestGenerateStartDIFCProxyStep(t *testing.T) {
 
 		result := yaml.String()
 		require.NotEmpty(t, result, "should generate proxy start step")
-		assert.Contains(t, result, "Start DIFC proxy for pre-agent gh calls", "step name should be present")
+		assert.Contains(t, result, "Start DIFC Proxy for pre-agent gh calls", "step name should be present")
 		assert.Contains(t, result, "GH_TOKEN:", "step should include GH_TOKEN env var")
 		assert.Contains(t, result, "GITHUB_SERVER_URL:", "step should include GITHUB_SERVER_URL env var")
 		assert.Contains(t, result, "DIFC_PROXY_POLICY:", "step should include policy as env var")
@@ -369,7 +369,7 @@ func TestGenerateStopDIFCProxyStep(t *testing.T) {
 
 		result := yaml.String()
 		require.NotEmpty(t, result, "should generate proxy stop step")
-		assert.Contains(t, result, "Stop DIFC proxy", "step name should be present")
+		assert.Contains(t, result, "Stop DIFC Proxy", "step name should be present")
 		assert.Contains(t, result, "stop_difc_proxy.sh", "step should call the stop script")
 	})
 }
@@ -434,11 +434,11 @@ Test that DIFC proxy is injected by default when min-integrity is set with custo
 	require.NoError(t, err, "compilation should succeed")
 
 	// Verify proxy start step is present
-	assert.Contains(t, result, "Start DIFC proxy for pre-agent gh calls",
+	assert.Contains(t, result, "Start DIFC Proxy for pre-agent gh calls",
 		"compiled workflow should contain proxy start step")
 
 	// Verify proxy stop step is present
-	assert.Contains(t, result, "Stop DIFC proxy",
+	assert.Contains(t, result, "Stop DIFC Proxy",
 		"compiled workflow should contain proxy stop step")
 
 	// Verify the standalone "Set GH_REPO" step is no longer emitted;
@@ -459,22 +459,22 @@ Test that DIFC proxy is injected by default when min-integrity is set with custo
 		"custom step should have NODE_EXTRA_CA_CERTS in step-level env")
 
 	// Verify step ordering: Start proxy must come before Stop proxy
-	startIdx := strings.Index(result, "Start DIFC proxy for pre-agent gh calls")
-	stopIdx := strings.Index(result, "Stop DIFC proxy")
+	startIdx := strings.Index(result, "Start DIFC Proxy for pre-agent gh calls")
+	stopIdx := strings.Index(result, "Stop DIFC Proxy")
 	require.Greater(t, startIdx, -1, "start proxy step should be in output")
 	require.Greater(t, stopIdx, -1, "stop proxy step should be in output")
-	assert.Less(t, startIdx, stopIdx, "Start DIFC proxy must come before Stop DIFC proxy")
+	assert.Less(t, startIdx, stopIdx, "Start DIFC Proxy must come before Stop DIFC Proxy")
 
 	// Verify the custom step comes after proxy start and before proxy stop
 	customStepIdx := strings.Index(result, "Fetch repo data")
 	require.Greater(t, customStepIdx, -1, "custom step should be in output")
-	assert.Less(t, startIdx, customStepIdx, "Start DIFC proxy must come before custom step")
-	assert.Less(t, customStepIdx, stopIdx, "custom step must come before Stop DIFC proxy")
+	assert.Less(t, startIdx, customStepIdx, "Start DIFC Proxy must come before custom step")
+	assert.Less(t, customStepIdx, stopIdx, "custom step must come before Stop DIFC Proxy")
 
 	// Verify proxy stop is before MCP gateway start
 	gatewayIdx := strings.Index(result, "Start MCP Gateway")
 	require.Greater(t, gatewayIdx, -1, "gateway start step should be in output")
-	assert.Less(t, stopIdx, gatewayIdx, "Stop DIFC proxy must come before Start MCP Gateway")
+	assert.Less(t, stopIdx, gatewayIdx, "Stop DIFC Proxy must come before Start MCP Gateway")
 
 	// Verify start_difc_proxy.sh and stop_difc_proxy.sh are referenced
 	assert.Contains(t, result, "start_difc_proxy.sh", "should reference start script")
@@ -522,9 +522,9 @@ Test that DIFC proxy is NOT injected when min-integrity is not set.
 	result, err := compiler.CompileToYAML(data, "test-workflow.md")
 	require.NoError(t, err, "compilation should succeed")
 
-	assert.NotContains(t, result, "Start DIFC proxy",
+	assert.NotContains(t, result, "Start DIFC Proxy",
 		"compiled workflow should NOT contain proxy start step without guard policy")
-	assert.NotContains(t, result, "Stop DIFC proxy",
+	assert.NotContains(t, result, "Stop DIFC Proxy",
 		"compiled workflow should NOT contain proxy stop step without guard policy")
 }
 
@@ -558,9 +558,9 @@ Test that DIFC proxy is NOT injected when integrity-proxy: false is set.
 	result, err := compiler.CompileToYAML(data, "test-workflow.md")
 	require.NoError(t, err, "compilation should succeed")
 
-	assert.NotContains(t, result, "Start DIFC proxy",
+	assert.NotContains(t, result, "Start DIFC Proxy",
 		"compiled workflow should NOT contain proxy start step without guard policy")
-	assert.NotContains(t, result, "Stop DIFC proxy",
+	assert.NotContains(t, result, "Stop DIFC Proxy",
 		"compiled workflow should NOT contain proxy stop step without guard policy")
 }
 
@@ -890,7 +890,7 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		}
 
 		result := c.buildStartCliProxyStepYAML(data)
-		assert.Contains(t, result, "name: Start CLI proxy", "should have correct step name")
+		assert.Contains(t, result, "name: Start CLI Proxy", "should have correct step name")
 		assert.Contains(t, result, "GH_TOKEN:", "should include GH_TOKEN")
 		assert.Contains(t, result, "GITHUB_SERVER_URL:", "should include GITHUB_SERVER_URL")
 		assert.Contains(t, result, "CLI_PROXY_IMAGE:", "should include CLI_PROXY_IMAGE")
