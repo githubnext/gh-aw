@@ -116,6 +116,16 @@ constants.EnvVarMaxTurns        // "GH_AW_MAX_TURNS"
 constants.EnvVarStartupTimeout  // "GH_AW_STARTUP_TIMEOUT"
 constants.EnvVarToolTimeout     // "GH_AW_TOOL_TIMEOUT"
 constants.EnvVarGitHubToken     // "GH_AW_GITHUB_TOKEN"
+constants.EnvVarGitHubBlockedUsers   // "GH_AW_GITHUB_BLOCKED_USERS"   (tools.github.blocked-users fallback)
+constants.EnvVarGitHubApprovalLabels // "GH_AW_GITHUB_APPROVAL_LABELS" (tools.github.approval-labels fallback)
+constants.EnvVarGitHubTrustedUsers   // "GH_AW_GITHUB_TRUSTED_USERS"   (tools.github.trusted-users fallback)
+```
+
+### Copilot BYOK
+
+```go
+constants.CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode" — placeholder key used for AWF runtime BYOK detection
+constants.CopilotBYOKDefaultModel // "claude-sonnet-4.6" — explicit fallback model when GH_AW_MODEL_*_COPILOT is unset
 ```
 
 ### Copilot Stem Commands
@@ -270,6 +280,7 @@ These constants guard feature flag emission: the compiler MUST NOT emit certain 
 ```go
 constants.AWFExcludeEnvMinVersion       // "v0.25.3"  — minimum AWF for --exclude-env
 constants.AWFCliProxyMinVersion         // "v0.25.17" — minimum AWF for CLI proxy flags
+constants.AWFAllowHostPortsMinVersion   // "v0.25.24" — minimum AWF for --allow-host-ports
 constants.CopilotNoAskUserMinVersion    // "1.0.19"   — minimum Copilot CLI for --no-ask-user
 constants.MCPGIntegrityReactionsMinVersion // "v0.2.18" — minimum MCPG for integrity-reactions policy
 ```

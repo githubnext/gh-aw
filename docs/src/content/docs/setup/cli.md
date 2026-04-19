@@ -560,7 +560,7 @@ gh aw update --create-pull-request        # Update and open a pull request
 
 **Options:** `--dir`, `--no-merge`, `--major`, `--force`, `--engine`, `--no-stop-after`, `--stop-after`, `--disable-release-bump`, `--create-pull-request`, `--no-compile`, `--no-redirect`
 
-The `--no-redirect` flag causes `update` to fail when the source workflow has a [`redirect`](/gh-aw/reference/frontmatter/#redirect) field, rather than following the redirect to its new location. Use this when you want explicit control over redirect handling.
+The `--no-redirect` flag causes `update` to fail when the source workflow has a [`redirect`](/gh-aw/reference/frontmatter/) field, rather than following the redirect to its new location. Use this when you want explicit control over redirect handling.
 
 #### `upgrade`
 
