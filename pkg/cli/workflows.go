@@ -299,11 +299,11 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 		}
 
 		firstLine := content
-		if newline := bytes.IndexByte(firstLine, '\n'); newline >= 0 {
-			firstLine = firstLine[:newline]
+		if line, _, found := bytes.Cut(content, []byte("\n")); found {
+			firstLine = line
 		}
 
-		if string(firstLine) != "---" {
+		if !bytes.Equal(firstLine, []byte("---")) {
 			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
 			continue
 		}
