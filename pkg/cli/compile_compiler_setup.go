@@ -134,6 +134,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 
 	// Set strict mode if specified
 	compiler.SetStrictMode(config.Strict)
+	compiler.SetAllowActionRefs(config.AllowActionRefs)
 
 	// Set trial mode if specified
 	if config.TrialMode {

@@ -1094,6 +1094,7 @@ func TestActionPinWarningDeduplication(t *testing.T) {
 			// Create a shared WorkflowData with the warning cache
 			data := &WorkflowData{
 				StrictMode:        false,
+				AllowActionRefs:   true,
 				ActionPinWarnings: make(map[string]bool),
 			}
 
@@ -1137,6 +1138,7 @@ func TestActionPinWarningDeduplicationAcrossDifferentVersions(t *testing.T) {
 	// Create a shared WorkflowData with the warning cache
 	data := &WorkflowData{
 		StrictMode:        false,
+		AllowActionRefs:   true,
 		ActionPinWarnings: make(map[string]bool),
 	}
 

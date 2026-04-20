@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -99,7 +100,7 @@ func TestAddWorkflows(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := AddOptions{}
-			_, err := AddWorkflows(tt.workflows, opts)
+			_, err := AddWorkflows(context.Background(), tt.workflows, opts)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error for test case: %s", tt.name)

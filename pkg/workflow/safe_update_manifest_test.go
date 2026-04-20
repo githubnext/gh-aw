@@ -14,11 +14,13 @@ func TestNewGHAWManifest(t *testing.T) {
 		name                string
 		secretNames         []string
 		actionRefs          []string
+		resolutionFailures  []GHAWManifestResolutionFailure
 		containers          []GHAWManifestContainer
 		redirect            string
 		wantVersion         int
 		wantSecrets         []string
 		wantActionRepos     []string
+		wantFailures        []GHAWManifestResolutionFailure
 		wantContainerImages []string
 		wantRedirect        string
 	}{
@@ -77,6 +79,22 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantActionRepos: []string{"actions/checkout"},
 		},
 		{
+			name: "resolution failures are normalized, deduplicated, and sorted",
+			resolutionFailures: []GHAWManifestResolutionFailure{
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "pin_not_found"},
+				{Repo: "actions/checkout", Ref: "v5", ErrorType: "pin_not_found"},
+			},
+			wantVersion: 1,
+			wantSecrets: []string{},
+			wantFailures: []GHAWManifestResolutionFailure{
+				{Repo: "actions/checkout", Ref: "v5", ErrorType: "pin_not_found"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "pin_not_found"},
+			},
+		},
+		{
 			name: "containers are sorted and deduplicated",
 			containers: []GHAWManifestContainer{
 				{Image: "node:lts-alpine"},
@@ -120,7 +138,7 @@ func TestNewGHAWManifest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.containers, tt.redirect)
+			m := NewGHAWManifest(tt.secretNames, tt.actionRefs, tt.resolutionFailures, tt.containers, tt.redirect)
 			require.NotNil(t, m, "manifest should not be nil")
 			assert.Equal(t, tt.wantVersion, m.Version, "manifest version")
 			if tt.wantSecrets != nil {
@@ -140,6 +158,9 @@ func TestNewGHAWManifest(t *testing.T) {
 				}
 				assert.Equal(t, tt.wantContainerImages, images, "container images")
 			}
+			if tt.wantFailures != nil {
+				assert.Equal(t, tt.wantFailures, m.ResolutionFailures, "resolution failures")
+			}
 			assert.Equal(t, tt.wantRedirect, m.Redirect, "manifest redirect")
 		})
 	}
@@ -156,7 +177,7 @@ func TestNewGHAWManifestContainerDigest(t *testing.T) {
 			Image: "alpine:3.14", // no digest
 		},
 	}
-	m := NewGHAWManifest(nil, nil, containers, "")
+	m := NewGHAWManifest(nil, nil, nil, containers, "")
 	require.Len(t, m.Containers, 2, "should have two containers")
 
 	// Sorted: alpine before node
@@ -187,6 +208,9 @@ func TestGHAWManifestToJSON(t *testing.T) {
 		Actions: []GHAWManifestAction{
 			{Repo: "actions/checkout", SHA: "abc123", Version: "v4"},
 		},
+		ResolutionFailures: []GHAWManifestResolutionFailure{
+			{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
+		},
 		Redirect: "owner/repo/workflows/new.md@main",
 	}
 
@@ -198,6 +222,8 @@ func TestGHAWManifestToJSON(t *testing.T) {
 	assert.Contains(t, json, `"actions/checkout"`, "action repo in JSON")
 	assert.Contains(t, json, `"abc123"`, "action SHA in JSON")
 	assert.Contains(t, json, `"v4"`, "action version in JSON")
+	assert.Contains(t, json, `"resolution_failures"`, "resolution failures in JSON")
+	assert.Contains(t, json, `"dynamic_resolution_failed"`, "error type in JSON")
 	assert.Contains(t, json, `"redirect":"owner/repo/workflows/new.md@main"`, "redirect in JSON")
 }
 

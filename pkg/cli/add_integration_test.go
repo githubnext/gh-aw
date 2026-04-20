@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -356,6 +358,47 @@ Please analyze the repository and provide a summary.
 	assert.Contains(t, lockContentStr, "name: \"Test Local Workflow\"", "lock file should have workflow name")
 	assert.Contains(t, lockContentStr, "workflow_dispatch", "lock file should have trigger")
 	assert.Contains(t, lockContentStr, "jobs:", "lock file should have jobs section")
+
+	// Verify frontmatter hash parity between source markdown and lock metadata.
+	computedHash, hashErr := parser.ComputeFrontmatterHashFromFile(destWorkflowFile, parser.NewImportCache(setup.tempDir))
+	require.NoError(t, hashErr, "should compute frontmatter hash from added markdown file")
+	metadata, _, metadataErr := workflow.ExtractMetadataFromLockFile(lockContentStr)
+	require.NoError(t, metadataErr, "should extract lock metadata from compiled lock file")
+	require.NotNil(t, metadata, "lock metadata should be present")
+	assert.Equal(t, computedHash, metadata.FrontmatterHash,
+		"lock file frontmatter hash should match the hash recomputed from markdown file bytes")
+}
+
+// TestAddRemoteWorkflowFailsWhenSHAResolutionFails tests that add fails loudly when ref-to-SHA
+// resolution fails and does not write partial workflow artifacts.
+func TestAddRemoteWorkflowFailsWhenSHAResolutionFails(t *testing.T) {
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	nonExistentWorkflowSpec := "github/gh-aw-does-not-exist/.github/workflows/not-real.md@main"
+
+	cmd := exec.Command(setup.binaryPath, "add", nonExistentWorkflowSpec)
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	require.Error(t, err, "add command should fail when SHA resolution fails")
+	assert.Contains(t, outputStr, "failed to resolve 'main' to commit SHA",
+		"error output should clearly explain SHA resolution failure")
+	assert.Contains(t, outputStr, "Expected the GitHub API to return a commit SHA for the ref",
+		"error output should explain expected behavior")
+	assert.Contains(t, outputStr, "gh aw add github/gh-aw-does-not-exist/.github/workflows/not-real.md@<40-char-sha>",
+		"error output should provide a concrete retry example")
+
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+	workflowFile := filepath.Join(workflowsDir, "not-real.md")
+	lockFile := filepath.Join(workflowsDir, "not-real.lock.yml")
+
+	_, workflowErr := os.Stat(workflowFile)
+	assert.True(t, os.IsNotExist(workflowErr), "workflow markdown file should not be written on SHA resolution failure")
+
+	_, lockErr := os.Stat(lockFile)
+	assert.True(t, os.IsNotExist(lockErr), "lock file should not be written on SHA resolution failure")
 }
 
 // TestAddWorkflowWithCustomName tests adding a workflow with a custom name

@@ -22,6 +22,7 @@ safe-outputs:
     title-prefix: "[copilot-token-optimizer] "
     close-older-issues: true
     max: 1
+  threat-detection: false
 timeout-minutes: 30
 imports:
   - uses: shared/repo-memory-standard.md

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -46,7 +47,7 @@ type ResolvedWorkflows struct {
 // ResolveWorkflows resolves workflow specifications by parsing specs and fetching workflow content.
 // For remote workflows, content is fetched directly from GitHub without cloning.
 // Wildcards are only supported for local workflows (not remote repositories).
-func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, error) {
+func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*ResolvedWorkflows, error) {
 	resolutionLog.Printf("Resolving workflows: count=%d", len(workflows))
 
 	if len(workflows) == 0 {
@@ -117,7 +118,7 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 
 	for _, spec := range parsedSpecs {
 		// Fetch workflow content - FetchWorkflowFromSource handles both local and remote
-		fetched, err := FetchWorkflowFromSource(spec, verbose)
+		fetched, err := FetchWorkflowFromSourceWithContext(ctx, spec, verbose)
 		if err != nil {
 			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 		}

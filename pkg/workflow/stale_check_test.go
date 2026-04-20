@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
@@ -97,6 +98,57 @@ Test workflow for stale check step explicitly enabled.
 				assert.Contains(t, lockStr, "# stale-check:",
 					"stale-check should appear as a comment in the lock file")
 			}
+		})
+	}
+}
+
+func TestStaleCheckFrontmatterHashParityForPinnedAndUnpinnedSource(t *testing.T) {
+	tests := []struct {
+		name       string
+		sourceLine string
+	}{
+		{
+			name:       "pinned source sha",
+			sourceLine: "source: github/gh-aw/.github/workflows/test.md@0123456789abcdef0123456789abcdef01234567",
+		},
+		{
+			name:       "unpinned source ref",
+			sourceLine: "source: github/gh-aw/.github/workflows/test.md@main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "stale-check-hash-parity")
+			workflowPath := filepath.Join(tmpDir, "hash-parity.md")
+			workflowMD := `---
+engine: copilot
+on:
+  workflow_dispatch:
+` + tt.sourceLine + `
+---
+Hash parity regression coverage.
+`
+
+			require.NoError(t, os.WriteFile(workflowPath, []byte(workflowMD), 0644), "Should write workflow file")
+
+			compiler := NewCompiler()
+			err := compiler.CompileWorkflow(workflowPath)
+			require.NoError(t, err, "Workflow should compile without errors")
+
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
+			lockContent, err := os.ReadFile(lockPath)
+			require.NoError(t, err, "Lock file should be readable")
+
+			metadata, _, err := ExtractMetadataFromLockFile(string(lockContent))
+			require.NoError(t, err, "Lock metadata should be parseable")
+			require.NotNil(t, metadata, "Lock metadata should exist")
+
+			currentHash, err := parser.ComputeFrontmatterHashFromFile(workflowPath, parser.NewImportCache(tmpDir))
+			require.NoError(t, err, "Frontmatter hash should be recomputable from workflow markdown")
+
+			assert.Equal(t, currentHash, metadata.FrontmatterHash,
+				"Frontmatter hash in lock metadata should match markdown source hash")
 		})
 	}
 }

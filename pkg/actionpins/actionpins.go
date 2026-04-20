@@ -49,6 +49,23 @@ type SHAResolver interface {
 	ResolveSHA(repo, version string) (string, error)
 }
 
+// ResolutionErrorType classifies unresolved action-ref pinning outcomes for auditing.
+type ResolutionErrorType string
+
+const (
+	// ResolutionErrorTypeDynamicResolutionFailed indicates dynamic tag/ref -> SHA resolution failed.
+	ResolutionErrorTypeDynamicResolutionFailed ResolutionErrorType = "dynamic_resolution_failed"
+	// ResolutionErrorTypePinNotFound indicates no usable hardcoded pin was found for the ref.
+	ResolutionErrorTypePinNotFound ResolutionErrorType = "pin_not_found"
+)
+
+// ResolutionFailure captures an unresolved action-ref pinning event.
+type ResolutionFailure struct {
+	Repo      string
+	Ref       string
+	ErrorType ResolutionErrorType
+}
+
 // PinContext provides the runtime context needed for action pin resolution.
 // Callers construct one from their own state (e.g. WorkflowData fields).
 // The Warnings map is mutated in place to deduplicate warning output.
@@ -57,9 +74,16 @@ type PinContext struct {
 	Resolver SHAResolver
 	// StrictMode controls how resolution failures are handled.
 	StrictMode bool
+	// EnforcePinned requires unresolved refs to fail unless AllowActionRefs is true.
+	EnforcePinned bool
+	// AllowActionRefs lowers unresolved pinning failures to warnings.
+	// When false, unresolved action refs return an error.
+	AllowActionRefs bool
 	// Warnings is a shared map for deduplicating warning messages.
 	// Keys are cache keys in the form "repo@version".
 	Warnings map[string]bool
+	// RecordResolutionFailure receives unresolved pinning failures for auditing.
+	RecordResolutionFailure func(f ResolutionFailure)
 }
 
 var (
@@ -210,6 +234,17 @@ func findCompatiblePin(pins []ActionPin, version string) (ActionPin, bool) {
 	return ActionPin{}, false
 }
 
+func notifyResolutionFailure(ctx *PinContext, actionRepo, version string, errorType ResolutionErrorType) {
+	if ctx == nil || ctx.RecordResolutionFailure == nil {
+		return
+	}
+	ctx.RecordResolutionFailure(ResolutionFailure{
+		Repo:      actionRepo,
+		Ref:       version,
+		ErrorType: errorType,
+	})
+}
+
 // ResolveActionPin returns the pinned action reference for a given action@version.
 // It consults ctx.Resolver first, then falls back to embedded pins.
 // If ctx is nil, only embedded pins are consulted.
@@ -301,6 +336,18 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		ctx.Warnings = make(map[string]bool)
 	}
 	cacheKey := FormatCacheKey(actionRepo, version)
+	errorType := ResolutionErrorTypePinNotFound
+	if ctx.Resolver != nil {
+		errorType = ResolutionErrorTypeDynamicResolutionFailed
+	}
+	notifyResolutionFailure(ctx, actionRepo, version, errorType)
+	if ctx.EnforcePinned && !ctx.AllowActionRefs {
+		if ctx.Resolver != nil {
+			return "", fmt.Errorf("unable to pin action %s@%s: resolution failed", actionRepo, version)
+		}
+		return "", fmt.Errorf("unable to pin action %s@%s", actionRepo, version)
+	}
+
 	if !ctx.Warnings[cacheKey] {
 		warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
 		if ctx.Resolver != nil {

@@ -118,28 +118,27 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 }
 
 // TestActionPinResolutionWithStrictMode tests action pin resolution in strict mode
-// Note: Strict mode now emits warnings instead of errors when SHA resolution fails,
-// as it's not always possible to resolve pins
+// with compiler-enforced action pinning.
 func TestActionPinResolutionWithStrictMode(t *testing.T) {
 	tests := []struct {
 		name          string
 		repo          string
 		requestedVer  string
-		expectWarning bool
+		expectError   bool
 		expectSuccess bool
 	}{
 		{
-			name:          "ai-inference v1 emits warning in strict mode",
+			name:          "ai-inference v1 returns error when pin cannot be resolved",
 			repo:          "actions/ai-inference",
 			requestedVer:  "v1",
-			expectWarning: true,
+			expectError:   true,
 			expectSuccess: false,
 		},
 		{
-			name:          "checkout v6.0.2 succeeds in strict mode",
+			name:          "checkout v6.0.2 succeeds when exact pin exists",
 			repo:          "actions/checkout",
 			requestedVer:  "v6.0.2",
-			expectWarning: false,
+			expectError:   false,
 			expectSuccess: true,
 		},
 	}
@@ -166,19 +165,17 @@ func TestActionPinResolutionWithStrictMode(t *testing.T) {
 			buf.ReadFrom(r)
 			stderrOutput := buf.String()
 
-			// Strict mode should never return an error for resolution failures
-			if err != nil {
-				t.Errorf("Unexpected error in strict mode for %s@%s: %v", tt.repo, tt.requestedVer, err)
-			}
-
-			if tt.expectWarning {
-				// Should emit warning and return empty result
-				if !strings.Contains(stderrOutput, "Unable to pin action") {
-					t.Errorf("Expected warning message for %s@%s, got: %s", tt.repo, tt.requestedVer, stderrOutput)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for %s@%s", tt.repo, tt.requestedVer)
+				}
+				if !strings.Contains(err.Error(), "unable to pin action") {
+					t.Errorf("Expected pinning error message for %s@%s, got: %v", tt.repo, tt.requestedVer, err)
 				}
 				if result != "" {
-					t.Errorf("Expected empty result on warning, got: %s", result)
+					t.Errorf("Expected empty result on pinning error, got: %s", result)
 				}
+				return
 			}
 
 			if tt.expectSuccess {
@@ -186,11 +183,58 @@ func TestActionPinResolutionWithStrictMode(t *testing.T) {
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}
+				if stderrOutput != "" {
+					t.Errorf("Expected no warning output for successful pin, got: %s", stderrOutput)
+				}
 				if result == "" {
 					t.Errorf("Expected non-empty result")
 				}
 			}
 		})
+	}
+}
+
+func TestActionPinResolutionWithAllowActionRefs(t *testing.T) {
+	data := &WorkflowData{
+		StrictMode:      true,
+		AllowActionRefs: true,
+		ActionResolver:  nil,
+	}
+
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	result, err := getActionPinWithData("actions/ai-inference", "v1", data)
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	stderrOutput := buf.String()
+
+	if err != nil {
+		t.Fatalf("Expected warning mode with --allow-action-refs behavior, got error: %v", err)
+	}
+	if result != "" {
+		t.Fatalf("Expected empty result when unresolved action ref is allowed, got: %s", result)
+	}
+	if !strings.Contains(stderrOutput, "Unable to pin action") {
+		t.Fatalf("Expected warning output for unresolved action ref, got: %s", stderrOutput)
+	}
+	if len(data.ActionResolutionFailures) != 1 {
+		t.Fatalf("Expected one recorded resolution failure, got: %d", len(data.ActionResolutionFailures))
+	}
+	failure := data.ActionResolutionFailures[0]
+	if failure.Repo != "actions/ai-inference" {
+		t.Fatalf("Unexpected resolution failure repo: got %q", failure.Repo)
+	}
+	if failure.Ref != "v1" {
+		t.Fatalf("Unexpected resolution failure ref: got %q", failure.Ref)
+	}
+	if failure.ErrorType != "pin_not_found" {
+		t.Fatalf("Unexpected resolution failure error type: got %q", failure.ErrorType)
 	}
 }
 

@@ -118,7 +118,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 				StopAfter:              stopAfter,
 				DisableSecurityScanner: disableSecurityScanner,
 			}
-			_, err := AddWorkflows(workflows, opts)
+			_, err := AddWorkflows(cmd.Context(), workflows, opts)
 			return err
 		},
 	}
@@ -172,9 +172,9 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation.
 // Returns AddWorkflowsResult containing PR number (if created) and other metadata.
-func AddWorkflows(workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
+func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
 	// Resolve workflows first - fetches content directly from GitHub
-	resolved, err := ResolveWorkflows(workflows, opts.Verbose)
+	resolved, err := ResolveWorkflows(ctx, workflows, opts.Verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -494,12 +494,18 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 	}
+	// Read back the just-written file to ensure downstream processing (including
+	// frontmatter hash computation) uses the exact bytes on disk and avoids parity drift.
+	writtenContent, err := os.ReadFile(destFile)
+	if err != nil {
+		return fmt.Errorf("failed to read back destination file '%s': %w", destFile, err)
+	}
 
 	// Show output
 	if !opts.Quiet {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added workflow: "+destFile))
 
-		if description := ExtractWorkflowDescription(content); description != "" {
+		if description := ExtractWorkflowDescription(string(writtenContent)); description != "" {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
 			fmt.Fprintln(os.Stderr, "")
