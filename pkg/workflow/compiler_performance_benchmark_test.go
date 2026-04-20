@@ -295,13 +295,18 @@ Test validation performance.
 	compiler.SetStrictMode(true)
 	compiler.SetQuiet(true)
 
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		b.Fatal(err)
+	}
+
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
-	_ = compiler.CompileWorkflow(testFile)
+	_ = compiler.validateWorkflowData(workflowData, testFile)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = compiler.CompileWorkflow(testFile)
+		_ = compiler.validateWorkflowData(workflowData, testFile)
 	}
 }
 
