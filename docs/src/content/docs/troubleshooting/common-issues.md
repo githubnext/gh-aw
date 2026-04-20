@@ -170,7 +170,7 @@ Use this `.crush.json` structure:
       "name": "Copilot Proxy",
       "type": "openai-compatible",
       "baseURL": "http://172.30.0.30:10004",
-      "models": ["gpt-4.1", "claude-sonnet-4-5"]
+      "models": ["gpt-4.1", "claude-sonnet-4-6"]
     }
   },
   "model": "copilot-proxy/claude-sonnet-4-6",
@@ -203,8 +203,8 @@ Key gotchas:
 - Crush/OpenCode do not auto-discover MCP servers. Add an explicit top-level `mcp` section.
 - Use routed gateway URLs: `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`.
 - Use `agent.build.permission` (singular). `permissions` is ignored by OpenCode-compatible config loaders.
-- In non-interactive mode, `external_directory` defaults to `ask`, which becomes deny. Set it to `allow`.
-- If using OpenAI-compatible Copilot routing, avoid appending `/v1` incorrectly in base URLs.
+- In non-interactive mode, `external_directory` defaults to `ask`, which becomes deny. Set it to `allow` when the agent needs to read or write files outside its default sandbox working path.
+- If using OpenAI-compatible Copilot routing, do not append `/v1` for `api.githubcopilot.com` paths. Use the provider's expected base path (for example `https://models.inference.ai.azure.com`) so the OpenAI-compatible client appends `/chat/completions` correctly.
 - When running through AWF `--enable-api-proxy`, provide `COPILOT_GITHUB_TOKEN` in the same execute step `env:` so the proxy can authenticate.
 
 ### Playwright Network Access Denied
