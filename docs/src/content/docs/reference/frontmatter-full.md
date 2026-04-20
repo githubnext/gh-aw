@@ -3167,6 +3167,10 @@ safe-outputs:
     # (optional)
     staged: true
 
+    # Reason for closing the issue (default: completed)
+    # (optional)
+    state-reason: "completed"
+
   # Option 2: Enable issue closing with default configuration
   close-issue: null
 

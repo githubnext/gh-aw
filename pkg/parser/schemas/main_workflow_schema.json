@@ -5468,6 +5468,12 @@
                   "type": "boolean",
                   "description": "If true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
                   "examples": [true, false]
+                },
+                "state-reason": {
+                  "type": "string",
+                  "enum": ["completed", "not_planned", "duplicate"],
+                  "default": "completed",
+                  "description": "Reason for closing the issue (default: completed)"
                 }
               },
               "additionalProperties": false,
