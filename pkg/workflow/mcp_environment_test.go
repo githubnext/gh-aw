@@ -175,3 +175,40 @@ func TestOIDCEnvVarsNotInDockerCommandWithoutOIDCAuth(t *testing.T) {
 	assert.NotContains(t, output, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
 		"Docker command should NOT include OIDC env vars without github-oidc auth")
 }
+
+// TestCollectMCPEnvironmentVariables_CodexEngineIncludesCODEXHOME verifies that
+// CODEX_HOME is included in the MCP gateway step environment for Codex engine workflows
+func TestCollectMCPEnvironmentVariables_CodexEngineIncludesCODEXHOME(t *testing.T) {
+	tools := map[string]any{
+		"github": map[string]any{
+			"toolsets": []string{"repos"},
+		},
+	}
+	mcpTools := []string{"github"}
+	workflowData := &WorkflowData{AI: "codex"}
+
+	envVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, false)
+
+	assert.Equal(t, "/tmp/gh-aw/mcp-config", envVars["CODEX_HOME"],
+		"CODEX_HOME should be set to /tmp/gh-aw/mcp-config for Codex engine")
+}
+
+// TestCollectMCPEnvironmentVariables_NonCodexEngineExcludesCODEXHOME verifies that
+// CODEX_HOME is NOT included for non-Codex engine workflows
+func TestCollectMCPEnvironmentVariables_NonCodexEngineExcludesCODEXHOME(t *testing.T) {
+	tools := map[string]any{
+		"github": map[string]any{
+			"toolsets": []string{"repos"},
+		},
+	}
+	mcpTools := []string{"github"}
+
+	for _, engine := range []string{"copilot", "claude", ""} {
+		t.Run("engine="+engine, func(t *testing.T) {
+			workflowData := &WorkflowData{AI: engine}
+			envVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, false)
+			assert.NotContains(t, envVars, "CODEX_HOME",
+				"CODEX_HOME should not be set for %s engine", engine)
+		})
+	}
+}

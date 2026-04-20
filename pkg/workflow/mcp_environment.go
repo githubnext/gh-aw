@@ -50,6 +50,7 @@ import (
 
 	"slices"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -187,6 +188,13 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 				maps.Copy(envVars, envExprs)
 			}
 		}
+	}
+
+	// Codex engine needs CODEX_HOME available in the gateway setup step so that
+	// the converted MCP config can be copied into the writable Codex home directory.
+	// This matches the value set on the agent step in codex_engine.go.
+	if workflowData != nil && workflowData.AI == string(constants.CodexEngine) {
+		envVars["CODEX_HOME"] = "/tmp/gh-aw/mcp-config"
 	}
 
 	return envVars
