@@ -3,6 +3,9 @@ interface Props {
     src: string
     caption?: string
     title?: string
+    captionsSrc?: string
+    captionsLang?: string
+    captionsLabel?: string
     aspectRatio?: '16:9' | '4:3' | '1:1' | 'auto'
     showControls?: boolean
     autoStart?: boolean
@@ -16,6 +19,9 @@ const {
     src, 
     caption, 
     title,
+    captionsSrc,
+    captionsLang = 'en',
+    captionsLabel = 'English',
     aspectRatio = 'auto',
     showControls = true,
     autoStart = false,
@@ -57,6 +63,9 @@ const fallbackLabel = src
     ?.replace(/\.[^.]+$/, '')
     .replace(/[-_]+/g, ' ')
 const accessibilityLabel = title || caption || fallbackLabel
+const fallbackLinkLabel = accessibilityLabel
+    ? `Download ${accessibilityLabel}`
+    : 'Download this video'
 ---
 
 <div class="gh-aw-video-wrapper" style={`max-width: ${maxWidth};`}>
@@ -74,7 +83,10 @@ const accessibilityLabel = title || caption || fallbackLabel
             aria-label={accessibilityLabel}
         >
             <source src={src} type={contentType} />
-            <p>Your browser doesn't support HTML5 video. Download the video <a href={src}>here</a>.</p>
+            {captionsSrc && (
+                <track kind="captions" src={captionsSrc} srclang={captionsLang} label={captionsLabel} />
+            )}
+            <p>Your browser doesn't support HTML5 video. <a href={src}>{fallbackLinkLabel}</a>.</p>
         </video>
     </div>
     {caption && (
