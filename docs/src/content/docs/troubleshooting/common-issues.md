@@ -161,7 +161,7 @@ mcp-servers:
 
 When integrating OpenCode-compatible engines (such as `crush`) in AWF workflows (including smoke tests), runs can complete while never calling MCP tools or file tools.
 
-Use this `.crush.json` structure. In this example, `10004` is the default local AWF API proxy port used with `--enable-api-proxy` for OpenCode/Crush-compatible routing. `MCP_GATEWAY_PORT` is the MCP gateway port.
+Use this `.crush.json` structure. Port `10004` is the default local AWF API proxy port (used with `--enable-api-proxy` for OpenCode/Crush-compatible routing), while `MCP_GATEWAY_PORT` is a placeholder for the MCP gateway port.
 
 ```json
 {
@@ -198,16 +198,15 @@ Use this `.crush.json` structure. In this example, `10004` is the default local 
 }
 ```
 
-`MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are placeholders. They are expanded from workflow environment variables when the config is rendered at runtime. If running outside workflow context, replace them with concrete values before writing `.crush.json`.
+`MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are placeholders that are expanded from workflow environment variables when AWF renders the config at runtime. When running outside workflow context (such as local development), replace them with concrete values before writing `.crush.json`.
 
 Key gotchas:
 
 - Crush/OpenCode do not auto-discover MCP servers. Add an explicit top-level `mcp` section.
 - Use routed gateway URLs: `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`.
 - ⚠️ Use `agent.build.permission` (singular). Using `permissions` (plural) is silently ignored by OpenCode-compatible config loaders, which leaves tools unavailable even though the run continues.
-- In non-interactive mode (for example `crush run` in CI/AWF), `external_directory` defaults to `ask`, which becomes an implicit deny without terminal prompts. Set it to `allow` only when the agent must access paths outside its primary workspace, such as `/tmp` or mounted external directories.
-- For direct Copilot-compatible endpoints, do not append `/v1` for `api.githubcopilot.com` paths.
-- For other OpenAI-compatible providers, use the provider's expected base path (for example `https://models.inference.ai.azure.com`) so the client appends `/chat/completions` correctly.
+- In non-interactive mode (such as when running `crush run` in CI or AWF workflows), `external_directory` defaults to `ask`, which becomes an implicit deny without terminal prompts. Set it to `allow` only when the agent must access paths outside its primary workspace, such as `/tmp` or mounted external directories.
+- For direct Copilot-compatible endpoints (`api.githubcopilot.com`), do not append `/v1` to the base URL. For other OpenAI-compatible providers, use the provider's expected base path (for example `https://models.inference.ai.azure.com`) so the client can append `/chat/completions` correctly.
 - If you route through the local proxy (`http://host.docker.internal:10004`), keep the proxy URL as-is.
 - When running through AWF `--enable-api-proxy`, provide `COPILOT_GITHUB_TOKEN` in the same execute step `env:` so the proxy can authenticate.
 
