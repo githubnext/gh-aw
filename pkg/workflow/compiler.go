@@ -310,6 +310,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for merge-pull-request feature
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: merge-pull-request"))
+		c.IncrementWarningCount()
+	}
+
 	// Inform users when this workflow is a redirect stub for updates.
 	if workflowData.Redirect != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info",

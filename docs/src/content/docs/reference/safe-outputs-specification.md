@@ -2837,6 +2837,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `allowed-files` and `protected-files` are evaluated independently; both must pass.
 - `pull_request_number` may be a temporary ID that resolves to a pull request number from earlier safe-output operations.
 - GraphQL mergeability and review-summary queries are retried with transient-error retry logic.
+- Compiling a workflow with `merge-pull-request` emits: `Using experimental feature: merge-pull-request`.
 
 ---
 
