@@ -802,6 +802,7 @@ describe("update_pull_request.cjs - merge_base behavior", () => {
       repo: "testrepo",
       pull_number: 100,
     });
+    expect(mockGithub.rest.pulls.get).not.toHaveBeenCalled();
     expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
   });
 

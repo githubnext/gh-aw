@@ -89,12 +89,10 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   }
 
   if (Object.keys(apiData).length === 0) {
-    const { data: pr } = await github.rest.pulls.get({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      pull_number: prNumber,
-    });
-    return pr;
+    return {
+      number: prNumber,
+      html_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`,
+    };
   }
 
   const { data: pr } = await github.rest.pulls.update({
