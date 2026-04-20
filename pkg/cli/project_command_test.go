@@ -26,7 +26,7 @@ func TestNewProjectNewCommand(t *testing.T) {
 	// Check flags
 	ownerFlag := cmd.Flags().Lookup("owner")
 	require.NotNil(t, ownerFlag, "Should have --owner flag")
-	assert.Equal(t, "o", ownerFlag.Shorthand, "Owner flag should have short form 'o'")
+	assert.Empty(t, ownerFlag.Shorthand, "Owner flag should not define a shorthand to avoid -o collision with output")
 
 	linkFlag := cmd.Flags().Lookup("link")
 	require.NotNil(t, linkFlag, "Should have --link flag")
