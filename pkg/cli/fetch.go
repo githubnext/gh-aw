@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +23,8 @@ var shaResolutionRetryDelays = []time.Duration{
 	3 * time.Second,
 	9 * time.Second,
 }
+
+var transientHTTP5xxPattern = regexp.MustCompile(`http 5\d{2}`)
 
 // FetchedWorkflow contains content and metadata from a directly fetched workflow file.
 // This is the unified type that combines content with source information.
@@ -140,7 +143,6 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 }
 
 func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, verbose bool) (string, error) {
-	retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<exact-sha>", owner, repo, workflowPath)
 	attempts := len(shaResolutionRetryDelays) + 1
 	var lastErr error
 
@@ -155,6 +157,7 @@ func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, ve
 		remoteWorkflowLog.Printf("Failed to resolve ref %s to SHA (attempt %d/%d): %v", ref, attempt, attempts, err)
 
 		if !isTransientSHAResolutionError(err) {
+			retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
 			message := fmt.Sprintf(
 				"failed to resolve '%s' to commit SHA for '%s/%s': %v. Expected the GitHub API to return a commit SHA for the ref. Try: %s.",
 				ref, owner, repo, err, retryCommand,
@@ -174,6 +177,7 @@ func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, ve
 		}
 	}
 
+	retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
 	message := fmt.Sprintf(
 		"failed to resolve '%s' to commit SHA after %d retries for '%s/%s': %v. Expected the GitHub API to return a commit SHA for the ref. Check rate limits or try: %s.",
 		ref, len(shaResolutionRetryDelays), owner, repo, lastErr, retryCommand,
@@ -182,6 +186,9 @@ func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, ve
 	return "", fmt.Errorf("%s: %w", message, lastErr)
 }
 
+// isTransientSHAResolutionError returns true when the ref-to-SHA failure appears
+// transient and worth retrying (rate limits, network/timeout failures, or HTTP 5xx).
+// All other errors are treated as permanent and fail immediately.
 func isTransientSHAResolutionError(err error) bool {
 	if err == nil {
 		return false
@@ -200,11 +207,5 @@ func isTransientSHAResolutionError(err error) bool {
 		return true
 	}
 
-	for statusCode := 500; statusCode <= 599; statusCode++ {
-		if strings.Contains(errorText, fmt.Sprintf("http %d", statusCode)) {
-			return true
-		}
-	}
-
-	return false
+	return transientHTTP5xxPattern.MatchString(errorText)
 }

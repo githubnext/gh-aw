@@ -144,10 +144,10 @@ Hash parity regression coverage.
 			require.NoError(t, err, "Lock metadata should be parseable")
 			require.NotNil(t, metadata, "Lock metadata should exist")
 
-			recomputedHash, err := parser.ComputeFrontmatterHashFromFile(workflowPath, parser.NewImportCache(tmpDir))
+			currentHash, err := parser.ComputeFrontmatterHashFromFile(workflowPath, parser.NewImportCache(tmpDir))
 			require.NoError(t, err, "Frontmatter hash should be recomputable from workflow markdown")
 
-			assert.Equal(t, recomputedHash, metadata.FrontmatterHash,
+			assert.Equal(t, currentHash, metadata.FrontmatterHash,
 				"Frontmatter hash in lock metadata should match markdown source hash")
 		})
 	}

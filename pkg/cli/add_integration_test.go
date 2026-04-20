@@ -360,24 +360,24 @@ Please analyze the repository and provide a summary.
 	assert.Contains(t, lockContentStr, "jobs:", "lock file should have jobs section")
 
 	// Verify frontmatter hash parity between source markdown and lock metadata.
-	computedHash, err := parser.ComputeFrontmatterHashFromFile(destWorkflowFile, parser.NewImportCache(setup.tempDir))
-	require.NoError(t, err, "should compute frontmatter hash from added markdown file")
-	metadata, _, err := workflow.ExtractMetadataFromLockFile(lockContentStr)
-	require.NoError(t, err, "should extract lock metadata from compiled lock file")
+	computedHash, hashErr := parser.ComputeFrontmatterHashFromFile(destWorkflowFile, parser.NewImportCache(setup.tempDir))
+	require.NoError(t, hashErr, "should compute frontmatter hash from added markdown file")
+	metadata, _, metadataErr := workflow.ExtractMetadataFromLockFile(lockContentStr)
+	require.NoError(t, metadataErr, "should extract lock metadata from compiled lock file")
 	require.NotNil(t, metadata, "lock metadata should be present")
 	assert.Equal(t, computedHash, metadata.FrontmatterHash,
 		"lock file frontmatter hash should match the hash recomputed from markdown file bytes")
 }
 
-// TestAddRemoteWorkflowFailsWhenSHAResolutionFails verifies add fails loudly when ref-to-SHA
+// TestAddRemoteWorkflowFailsWhenSHAResolutionFails tests that add fails loudly when ref-to-SHA
 // resolution fails and does not write partial workflow artifacts.
 func TestAddRemoteWorkflowFailsWhenSHAResolutionFails(t *testing.T) {
 	setup := setupAddIntegrationTest(t)
 	defer setup.cleanup()
 
-	workflowSpec := "github/gh-aw-does-not-exist/.github/workflows/not-real.md@main"
+	nonExistentWorkflowSpec := "github/gh-aw-does-not-exist/.github/workflows/not-real.md@main"
 
-	cmd := exec.Command(setup.binaryPath, "add", workflowSpec)
+	cmd := exec.Command(setup.binaryPath, "add", nonExistentWorkflowSpec)
 	cmd.Dir = setup.tempDir
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -387,7 +387,7 @@ func TestAddRemoteWorkflowFailsWhenSHAResolutionFails(t *testing.T) {
 		"error output should clearly explain SHA resolution failure")
 	assert.Contains(t, outputStr, "Expected the GitHub API to return a commit SHA for the ref",
 		"error output should explain expected behavior")
-	assert.Contains(t, outputStr, "gh aw add github/gh-aw-does-not-exist/.github/workflows/not-real.md@<exact-sha>",
+	assert.Contains(t, outputStr, "gh aw add github/gh-aw-does-not-exist/.github/workflows/not-real.md@<40-char-sha>",
 		"error output should provide a concrete retry example")
 
 	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")

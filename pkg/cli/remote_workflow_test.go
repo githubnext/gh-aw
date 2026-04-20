@@ -15,6 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testSHAResolutionRetryDelays = []time.Duration{
+	time.Millisecond,
+	2 * time.Millisecond,
+	3 * time.Millisecond,
+}
+
 func TestFetchLocalWorkflow(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -149,7 +155,7 @@ func TestResolveCommitSHAWithRetries_TransientFailureThenSuccess(t *testing.T) {
 		shaResolutionRetryDelays = originalDelays
 	}()
 
-	shaResolutionRetryDelays = []time.Duration{time.Millisecond, 2 * time.Millisecond, 3 * time.Millisecond}
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
 	resolveAttempts := 0
 	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
 		resolveAttempts++
@@ -181,7 +187,7 @@ func TestResolveCommitSHAWithRetries_PermanentFailureDoesNotRetry(t *testing.T) 
 		shaResolutionRetryDelays = originalDelays
 	}()
 
-	shaResolutionRetryDelays = []time.Duration{time.Millisecond, 2 * time.Millisecond, 3 * time.Millisecond}
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
 	resolveAttempts := 0
 	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
 		resolveAttempts++
@@ -200,6 +206,7 @@ func TestResolveCommitSHAWithRetries_PermanentFailureDoesNotRetry(t *testing.T) 
 	assert.Equal(t, 0, sleepCalls, "No backoff sleep should happen for permanent failures")
 	assert.Contains(t, err.Error(), "Expected the GitHub API to return a commit SHA for the ref",
 		"Error should explain expected behavior")
+	assert.Contains(t, err.Error(), "@<40-char-sha>", "Error should include retry command with full SHA placeholder")
 }
 
 func TestResolveCommitSHAWithRetries_TransientFailureExhaustsRetries(t *testing.T) {
@@ -212,7 +219,7 @@ func TestResolveCommitSHAWithRetries_TransientFailureExhaustsRetries(t *testing.
 		shaResolutionRetryDelays = originalDelays
 	}()
 
-	shaResolutionRetryDelays = []time.Duration{time.Millisecond, 2 * time.Millisecond, 3 * time.Millisecond}
+	shaResolutionRetryDelays = testSHAResolutionRetryDelays
 	resolveAttempts := 0
 	resolveRefToSHAForHost = func(owner, repo, ref, host string) (string, error) {
 		resolveAttempts++

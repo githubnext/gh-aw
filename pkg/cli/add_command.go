@@ -494,7 +494,8 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 	}
-	// Read back the just-written file so all downstream processing uses the exact bytes on disk.
+	// Read back the just-written file to ensure downstream processing (including
+	// frontmatter hash computation) uses the exact bytes on disk and avoids parity drift.
 	writtenContent, err := os.ReadFile(destFile)
 	if err != nil {
 		return fmt.Errorf("failed to read back destination file '%s': %w", destFile, err)
