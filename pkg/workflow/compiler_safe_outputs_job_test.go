@@ -162,6 +162,33 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 	}
 }
 
+func TestBuildConsolidatedSafeOutputsJob_ConfiguresGHHostViaStepOutput(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test] ",
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test-workflow.md")
+	require.NoError(t, err, "should build safe outputs job without error")
+	require.NotNil(t, job, "safe outputs job should be created")
+
+	stepsContent := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsContent, "id: ghes-host-config", "safe outputs job should include GH_HOST configuration step")
+	assert.Contains(t, stepsContent, "echo \"gh_host=${GH_HOST}\" >> \"$GITHUB_OUTPUT\"",
+		"safe outputs job should write GH host via step output instead of GITHUB_ENV")
+	assert.Contains(t, stepsContent, "GH_HOST: ${{ steps.ghes-host-config.outputs.gh_host }}",
+		"safe outputs processing should consume GH host from ghes-host-config output")
+	assert.NotContains(t, stepsContent, "echo \"GH_HOST=${GH_HOST}\" >> \"$GITHUB_ENV\"",
+		"safe outputs GH host configuration should not write to GITHUB_ENV")
+}
+
 // TestBuildConsolidatedSafeOutputsJobConcurrencyGroup tests that the concurrency-group field
 // is correctly applied to the safe_outputs job
 func TestBuildConsolidatedSafeOutputsJobConcurrencyGroup(t *testing.T) {

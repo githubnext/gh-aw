@@ -32,6 +32,20 @@ func TestGenerateGHESHostConfigurationStep(t *testing.T) {
 	}
 }
 
+func TestGenerateGHESHostConfigurationOutputStep(t *testing.T) {
+	step := generateGHESHostConfigurationOutputStep()
+
+	assert.Contains(t, step, "Configure GH_HOST for enterprise compatibility", "step should have the expected name")
+	assert.Contains(t, step, "id: ghes-host-config", "step should have the step ID ghes-host-config")
+	assert.Contains(t, step, "shell: bash", "step should explicitly set shell to bash for Windows runner compatibility")
+	assert.Contains(t, step, "GITHUB_SERVER_URL", "step should reference GITHUB_SERVER_URL")
+	assert.Contains(t, step, "gh_host=", "step should set gh_host output")
+	assert.Contains(t, step, "GITHUB_OUTPUT", "step should write to GITHUB_OUTPUT")
+	assert.NotContains(t, step, "GITHUB_ENV", "step should not write to GITHUB_ENV")
+	assert.Contains(t, step, "${GITHUB_SERVER_URL#https://}", "step should strip https:// prefix")
+	assert.Contains(t, step, "${GH_HOST#http://}", "step should also strip http:// prefix")
+}
+
 func TestGHESHostStepInCustomJobs(t *testing.T) {
 	compiler := &Compiler{
 		jobManager: NewJobManager(),

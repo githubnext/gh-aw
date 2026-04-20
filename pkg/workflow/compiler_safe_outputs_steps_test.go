@@ -421,6 +421,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"id: process_safe_outputs",
 				"uses: actions/github-script@",
 				"GH_AW_AGENT_OUTPUT",
+				"GH_HOST: ${{ steps.ghes-host-config.outputs.gh_host }}",
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 				"setupGlobals",
 				"safe_output_handler_manager.cjs",

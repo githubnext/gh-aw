@@ -4,6 +4,8 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var ghesHostStepLog = logger.New("workflow:ghes_host_step")
 
+const ghesHostOutputExpression = "${{ steps.ghes-host-config.outputs.gh_host }}"
+
 // generateGHESHostConfigurationStep generates a lightweight inline step that exports GH_HOST
 // to GITHUB_ENV by stripping the protocol prefix from GITHUB_SERVER_URL. This ensures the
 // gh CLI targets the correct GitHub instance in all subsequent steps within the job.
@@ -27,5 +29,23 @@ func generateGHESHostConfigurationStep() string {
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+`
+}
+
+// generateGHESHostConfigurationOutputStep generates a step that derives GH_HOST from
+// GITHUB_SERVER_URL and exposes it as a step output. This avoids cross-step mutation
+// via GITHUB_ENV while still allowing downstream steps to set GH_HOST explicitly.
+func generateGHESHostConfigurationOutputStep() string {
+	ghesHostStepLog.Print("Generating inline GH_HOST output step for GHES compatibility")
+
+	return `      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: |
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "gh_host=${GH_HOST}" >> "$GITHUB_OUTPUT"
 `
 }
