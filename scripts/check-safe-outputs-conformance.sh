@@ -695,6 +695,194 @@ check_git_dir_exclusion() {
 }
 check_git_dir_exclusion
 
+# CI-005: Integrity-Scoped Cache Keys (Section 11.3 CI1)
+echo "Running CI-005: Integrity-Scoped Cache Keys..."
+check_integrity_scoped_keys() {
+    local failed=0
+
+    # Per spec Section 11.3 CI1: All cache-memory keys MUST include the integrity level
+    # and policy hash as prefixes in the format: memory-{integrityLevel}-{policyHash}-...
+
+    local cache_lock_files
+    cache_lock_files=$(find .github/workflows -name "*.lock.yml" -exec grep -l "GH_AW_CACHE_MEMORY\|cache-memory" {} \; 2>/dev/null)
+
+    if [ -z "$cache_lock_files" ]; then
+        log_pass "CI-005: No cache-memory workflows found — nothing to check"
+        return
+    fi
+
+    while IFS= read -r workflow; do
+        # Extract cache keys from the workflow
+        # Valid format: memory-{integrityLevel}-{policyHash}-...
+        # integrityLevel must be one of: merged, approved, unapproved, none
+        # policyHash must be 8-char hex or the sentinel "nopolicy"
+        while IFS= read -r key_line; do
+            key=$(echo "$key_line" | sed 's/.*key:\s*//')
+            if [[ "$key" =~ ^memory- ]]; then
+                if ! echo "$key" | grep -qE "^memory-(merged|approved|unapproved|none)-(nopolicy|[0-9a-f]{8})-"; then
+                    log_high "CI-005: Cache key in $workflow does not follow integrity-scoped format (CI1): $key"
+                    failed=1
+                fi
+            fi
+        done < <(grep "key: memory-" "$workflow" 2>/dev/null)
+    done <<< "$cache_lock_files"
+
+    if [ $failed -eq 0 ]; then
+        log_pass "CI-005: All cache-memory keys use the integrity-scoped format (CI1)"
+    fi
+}
+check_integrity_scoped_keys
+
+# CI-006: Restore Key Cascade (Section 11.3 CI2)
+echo "Running CI-006: Restore Key Cascade..."
+check_restore_key_cascade() {
+    local failed=0
+
+    # Per spec Section 11.3 CI2: Restore keys MUST use the same integrity-scoped prefix
+    # so that a partial key match never crosses integrity level boundaries.
+    # The restore-keys pattern must not contain a run_id (to allow matching prior runs).
+
+    local cache_lock_files
+    cache_lock_files=$(find .github/workflows -name "*.lock.yml" -exec grep -l "GH_AW_CACHE_MEMORY\|cache-memory" {} \; 2>/dev/null)
+
+    if [ -z "$cache_lock_files" ]; then
+        log_pass "CI-006: No cache-memory workflows found — nothing to check"
+        return
+    fi
+
+    while IFS= read -r workflow; do
+        # Check each restore-key entry that starts with "memory-"
+        while IFS= read -r restore_key; do
+            key=$(echo "$restore_key" | sed 's/^\s*//')
+            if [[ "$key" =~ ^memory- ]]; then
+                # restore-keys should include the integrity level and policy hash prefix
+                # but must NOT include the run_id (to match prior runs of same workflow)
+                if ! echo "$key" | grep -qE "^memory-(merged|approved|unapproved|none)-(nopolicy|[0-9a-f]{8})-"; then
+                    # Allow the legacy fallback "memory-" entry documented in spec
+                    if [ "$key" != "memory-" ]; then
+                        log_high "CI-006: Restore key in $workflow does not use integrity-scoped prefix (CI2): $key"
+                        failed=1
+                    fi
+                fi
+                # Restore keys must NOT include github.run_id (they are prefix-only)
+                if echo "$key" | grep -q "run_id"; then
+                    log_medium "CI-006: Restore key in $workflow includes run_id — should be prefix-only for cascade (CI2): $key"
+                    failed=1
+                fi
+            fi
+        done < <(awk '/restore-keys:/,/^[^|]/' "$workflow" 2>/dev/null | grep "memory-")
+    done <<< "$cache_lock_files"
+
+    if [ $failed -eq 0 ]; then
+        log_pass "CI-006: All cache-memory restore keys use the integrity-scoped prefix (CI2)"
+    fi
+}
+check_restore_key_cascade
+
+# MCE-004: Early Validation at MCP Invocation (Section 8.3 MCE1)
+echo "Running MCE-004: Early Validation at MCP Invocation..."
+check_mce_early_validation() {
+    local gateway_handler="actions/setup/js/safe_outputs_handlers.cjs"
+    local failed=0
+
+    # Per spec Section 8.3 MCE1: MCP servers MUST enforce operational constraints during
+    # tool invocation (Phase 4) rather than deferring all validation to safe output
+    # processing (Phase 6). This provides immediate feedback to the LLM.
+
+    if [ ! -f "$gateway_handler" ]; then
+        log_high "MCE-004: MCP gateway handler missing: $gateway_handler"
+        return
+    fi
+
+    # Check that constraint validation (enforceCommentLimits or equivalent) is called
+    # before the operation is appended to safe outputs (appendSafeOutput)
+    if ! grep -q "enforceCommentLimits\|enforceConstraints\|validateEarly" "$gateway_handler"; then
+        log_high "MCE-004: MCP gateway handler does not call early constraint validation (MCE1)"
+        failed=1
+    fi
+
+    # Verify the handler references MCE1 requirement in documentation
+    if ! grep -q "MCE1\|Early Validation\|tool invocation" "$gateway_handler"; then
+        log_medium "MCE-004: MCE1 early validation pattern not documented in $gateway_handler"
+        failed=1
+    fi
+
+    # Ensure validation occurs before recording (appendSafeOutput / recordOperation)
+    # by checking that enforceCommentLimits appears before appendSafeOutput in the file
+    enforce_line=$(grep -n "enforceCommentLimits" "$gateway_handler" | head -1 | cut -d: -f1)
+    append_line=$(grep -n "appendSafeOutput" "$gateway_handler" | head -1 | cut -d: -f1)
+    if [ -n "$enforce_line" ] && [ -n "$append_line" ]; then
+        if [ "$enforce_line" -gt "$append_line" ]; then
+            log_critical "MCE-004: enforceCommentLimits appears AFTER appendSafeOutput — validation is not early (MCE1)"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "MCE-004: MCP gateway enforces constraints early at tool invocation (MCE1)"
+    fi
+}
+check_mce_early_validation
+
+# MCE-005: Actionable Error Responses (Section 8.3 MCE3)
+echo "Running MCE-005: Actionable Error Responses..."
+check_mce_actionable_errors() {
+    local helpers_file="actions/setup/js/comment_limit_helpers.cjs"
+    local gateway_handler="actions/setup/js/safe_outputs_handlers.cjs"
+    local failed=0
+
+    # Per spec Section 8.3 MCE3: When constraints are violated, MCP servers MUST return
+    # error responses that:
+    #   1. Identify the violated constraint with specific name and limit
+    #   2. Report the actual value that triggered the violation
+    #   3. Provide remediation guidance on how to correct the issue
+    #   4. Use standard error codes (E006-E008 for add_comment limits)
+
+    if [ ! -f "$helpers_file" ]; then
+        log_high "MCE-005: Constraint helper module missing: $helpers_file"
+        return
+    fi
+
+    # Check that error messages identify the constraint name and limit (requirement 1)
+    if ! grep -qE "E006.*length|E007.*mention|E008.*link" "$helpers_file"; then
+        log_medium "MCE-005: Error messages do not clearly identify constraint name in $helpers_file (MCE3 req 1)"
+        failed=1
+    fi
+
+    # Check that error messages report the actual violating value (requirement 2)
+    # Look for patterns like "got ${body.length}" or "contains ${mentions}" 
+    if ! grep -qE "got \\\${|contains \\\${|\\.length\}" "$helpers_file"; then
+        log_medium "MCE-005: Error messages do not report the actual violating value in $helpers_file (MCE3 req 2)"
+        failed=1
+    fi
+
+    # Check that error responses include remediation guidance (requirement 3)
+    # Either via a structured data.guidance field or guidance-oriented language in errors
+    if ! grep -qE "guidance|reduce|Reduce|consider|Consider|fewer|lower" "$helpers_file"; then
+        log_low "MCE-005: Error responses in $helpers_file may lack remediation guidance (MCE3 req 3)"
+        failed=1
+    fi
+
+    # Check that standard error codes are used (requirement 4)
+    if ! grep -qE "E006|E007|E008" "$helpers_file"; then
+        log_medium "MCE-005: Standard error codes E006-E008 not used in $helpers_file (MCE3 req 4)"
+        failed=1
+    fi
+
+    # Check gateway handler re-throws with standard -32602 JSON-RPC error code
+    if [ -f "$gateway_handler" ]; then
+        if ! grep -q "\-32602" "$gateway_handler"; then
+            log_medium "MCE-005: MCP gateway handler does not return -32602 JSON-RPC error code for constraint violations (MCE3)"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "MCE-005: Error responses include constraint identification, actual values, and standard codes (MCE3)"
+    fi
+}
+check_mce_actionable_errors
+
 # Summary
 echo ""
 echo "=================================================="
