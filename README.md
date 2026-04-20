@@ -124,6 +124,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ### @bbonafed
 
+- #26719 _(direct issue)_
 - #26045 _(direct issue)_
 - #26043 _(direct issue)_
 - #24949 _(direct issue)_
@@ -509,6 +510,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 - #18480 _(direct issue)_
 - #16312 _(direct issue)_
+
+### @jsoref
+
+- #27230 _(direct issue)_
 
 ### @kbreit-insight
 
@@ -931,6 +936,7 @@ should be credited:
 - **@dulalbert** for Azure MCP tool calls fail with 'invalid character' via MCP gateway ([#18636](https://github.com/github/gh-aw/issues/18636)) — closed 2026-02-27, NOT_PLANNED
 - **@strawgate** for bug(safe-inputs): script: return value is silently dropped ([#18534](https://github.com/github/gh-aw/issues/18534)) — closed 2026-03-01, NOT_PLANNED
 - **@jeremiah-snee-openx** for Enhance Daily Documentation Updater ([#18204](https://github.com/github/gh-aw/issues/18204)) — closed 2026-02-25, NOT_PLANNED
+- **@Ray961123** for Question: Why do some GitHub Actions steps intermittently have no logs ([#26175](https://github.com/github/gh-aw/issues/26175)) — closed 2026-04-19, NOT_PLANNED
 
 ## Share Feedback
 
