@@ -1236,9 +1236,11 @@ func TestUpdatePullRequestMergeBaseHandlerConfig(t *testing.T) {
 
 			var steps []string
 			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			foundHandlerConfig := false
 
 			for _, step := range steps {
 				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					foundHandlerConfig = true
 					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
 					if len(parts) == 2 {
 						jsonStr := strings.TrimSpace(parts[1])
@@ -1258,6 +1260,8 @@ func TestUpdatePullRequestMergeBaseHandlerConfig(t *testing.T) {
 					}
 				}
 			}
+
+			require.True(t, foundHandlerConfig, "Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in generated steps")
 		})
 	}
 }
