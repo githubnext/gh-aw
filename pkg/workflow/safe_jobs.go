@@ -256,9 +256,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		}
 
 		// Add custom steps from the job configuration, injecting env vars from the
-		// "Configure Safe Outputs Job Environment Variables" step output so user steps can access them.
+		// setup-safe-job-env step outputs so user steps can access them.
 		if len(jobConfig.Steps) > 0 {
-			// Build the env vars that were set in the setup step so we can inject them.
+			// Build the env vars that were set in the setup-safe-job-env step so we can inject them.
 			setupEnvVars := map[string]string{
 				"GH_AW_AGENT_OUTPUT": "${{ steps.setup-safe-job-env.outputs.GH_AW_AGENT_OUTPUT }}",
 			}
