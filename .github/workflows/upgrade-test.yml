@@ -84,8 +84,9 @@ jobs:
           #   2. Runs `gh extension upgrade github/gh-aw`
           #   3. On Windows: binary is in use → rename+retry workaround is triggered
           #   4. Re-launches the freshly installed binary with --skip-extension-upgrade
+          # --pre-releases ensures the upgrade check considers prereleases.
           # --no-fix keeps the test focused: skips codemods, action updates, and compilation.
-          gh aw upgrade --no-fix
+          gh aw upgrade --pre-releases --no-fix
 
       - name: Verify version after upgrade
         shell: bash

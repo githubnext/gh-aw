@@ -5672,10 +5672,10 @@
                 },
                 "allowed-reasons": {
                   "type": "array",
-                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved, low_quality).",
                   "items": {
                     "type": "string",
-                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved", "low_quality"]
                   }
                 },
                 "discussions": {
@@ -7215,10 +7215,10 @@
                 },
                 "allowed-reasons": {
                   "type": "array",
-                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
+                  "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved, low_quality).",
                   "items": {
                     "type": "string",
-                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved", "low_quality"]
                   }
                 },
                 "discussions": {

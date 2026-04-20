@@ -504,7 +504,8 @@ jobs:
                       "ABUSE",
                       "OFF_TOPIC",
                       "OUTDATED",
-                      "RESOLVED"
+                      "RESOLVED",
+                      "LOW_QUALITY"
                     ]
                   },
                   "repo": {

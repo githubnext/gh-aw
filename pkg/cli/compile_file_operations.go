@@ -125,10 +125,14 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	if err != nil {
 		return stats, fmt.Errorf("failed to find markdown files: %w", err)
 	}
+	mdFiles, err = filterMarkdownFilesWithFrontmatter(mdFiles)
+	if err != nil {
+		return stats, fmt.Errorf("failed to filter markdown files: %w", err)
+	}
 	if len(mdFiles) == 0 {
-		compileHelpersLog.Printf("No markdown files found in %s", workflowsDir)
+		compileHelpersLog.Printf("No workflow markdown files found in %s after frontmatter filtering", workflowsDir)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No markdown files found in "+workflowsDir))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow markdown files found in "+workflowsDir+" (workflow files must start with a frontmatter opener on the first line)"))
 		}
 		return stats, nil
 	}

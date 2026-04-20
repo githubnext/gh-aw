@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsWorkflowFile(t *testing.T) {
@@ -234,4 +235,42 @@ func TestGetMarkdownWorkflowFilesExcludesREADME(t *testing.T) {
 
 	// Verify total count
 	assert.Len(t, files, 5, "Should have exactly 5 workflow files (excluding README variants)")
+}
+
+func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0o755)
+	require.NoError(t, err)
+
+	testFiles := map[string]string{
+		"workflow1.md":           "---\non: push\n---\n# Workflow 1",
+		"workflow-crlf.md":       "---\r\non: push\r\n---\r\n# Workflow CRLF",
+		"docs.md":                "# This is documentation",
+		"empty.md":               "",
+		"leading-whitespace.md":  "  ---\non: push\n---\n# Valid Frontmatter Start",
+		"delimiter-not-first.md": "# Header\n---\non: push\n---\n# Not Valid Frontmatter Start",
+	}
+
+	for filename, content := range testFiles {
+		path := filepath.Join(workflowsDir, filename)
+		err := os.WriteFile(path, []byte(content), 0o644)
+		require.NoError(t, err)
+	}
+
+	inputFiles := []string{
+		filepath.Join(workflowsDir, "workflow1.md"),
+		filepath.Join(workflowsDir, "workflow-crlf.md"),
+		filepath.Join(workflowsDir, "docs.md"),
+		filepath.Join(workflowsDir, "empty.md"),
+		filepath.Join(workflowsDir, "leading-whitespace.md"),
+		filepath.Join(workflowsDir, "delimiter-not-first.md"),
+	}
+
+	filtered, err := filterMarkdownFilesWithFrontmatter(inputFiles)
+	require.NoError(t, err)
+	assert.Len(t, filtered, 3)
+	assert.Contains(t, filtered, filepath.Join(workflowsDir, "workflow1.md"))
+	assert.Contains(t, filtered, filepath.Join(workflowsDir, "workflow-crlf.md"))
+	assert.Contains(t, filtered, filepath.Join(workflowsDir, "leading-whitespace.md"))
 }

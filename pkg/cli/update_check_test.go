@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShouldCheckForUpdate(t *testing.T) {
@@ -337,4 +339,52 @@ func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 	// because the context was cancelled
 	// Note: The check might still run if it started before cancellation,
 	// so we just verify no panics occurred
+}
+
+func TestFindLatestPublishedReleaseTag(t *testing.T) {
+	tests := []struct {
+		name     string
+		releases []Release
+		want     string
+	}{
+		{
+			name: "returns first non-draft release tag",
+			releases: []Release{
+				{TagName: "v1.2.0-beta.1", Draft: false, Prerelease: true},
+				{TagName: "v1.1.0", Draft: false, Prerelease: false},
+			},
+			want: "v1.2.0-beta.1",
+		},
+		{
+			name: "skips draft releases",
+			releases: []Release{
+				{TagName: "v1.3.0", Draft: true},
+				{TagName: "v1.2.0", Draft: false},
+			},
+			want: "v1.2.0",
+		},
+		{
+			name: "skips empty tags",
+			releases: []Release{
+				{TagName: "", Draft: false},
+				{TagName: "v1.0.0", Draft: false},
+			},
+			want: "v1.0.0",
+		},
+		{
+			name: "returns empty when no published releases",
+			releases: []Release{
+				{TagName: "", Draft: true},
+				{TagName: "", Draft: false},
+			},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := findLatestPublishedReleaseTag(tt.releases)
+			assert.Equal(t, tt.want, got, "unexpected latest published release tag")
+		})
+	}
 }
