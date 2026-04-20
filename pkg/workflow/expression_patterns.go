@@ -58,9 +58,34 @@ package workflow
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
+
+// hasExpressionMarker reports whether s contains a GitHub Actions expression opening marker.
+// This is a permissive check used in scenarios where partial expressions should be treated
+// as dynamic values.
+func hasExpressionMarker(s string) bool {
+	return strings.Contains(s, "${{")
+}
+
+// containsExpression reports whether s contains a complete non-empty GitHub Actions expression.
+// A complete expression has a "${{" marker that appears before a closing "}}" marker
+// with at least one character between them.
+func containsExpression(s string) bool {
+	_, afterOpen, found := strings.Cut(s, "${{")
+	if !found {
+		return false
+	}
+	closeIdx := strings.Index(afterOpen, "}}")
+	return closeIdx > 0
+}
+
+// isExpression reports whether the entire string s is a GitHub Actions expression.
+func isExpression(s string) bool {
+	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
+}
 
 var expressionPatternsLog = logger.New("workflow:expression_patterns")
 

@@ -511,14 +511,6 @@ func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
 	if string(step1) != "check_membership" {
 		t.Errorf("StepID string conversion failed: got %q, want %q", step1, "check_membership")
 	}
-
-	// Verify that different semantic types have different underlying types
-	// (this is a compile-time check, but we verify the values are correct)
-	jobStr := string(AgentJobName)
-	stepStr := string(CheckMembershipStepID)
-	_ = jobStr  // Used for demonstration
-	_ = stepStr // Used for demonstration
-	// Different semantic types prevent accidental mixing even if string values match
 }
 
 // TestHelperMethods tests the helper methods on semantic types

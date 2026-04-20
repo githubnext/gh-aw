@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
@@ -33,6 +34,13 @@ type TokenUsageEntry struct {
 	ResponseBytes    int    `json:"response_bytes"`
 }
 
+// AmbientContextMetrics captures token footprint for the first LLM invocation.
+type AmbientContextMetrics struct {
+	InputTokens     int `json:"input_tokens" console:"header:Ambient Input,format:number"`
+	CachedTokens    int `json:"cached_tokens" console:"header:Ambient Cached,format:number"`
+	EffectiveTokens int `json:"effective_tokens" console:"header:Ambient Effective,format:number"`
+}
+
 // TokenUsageSummary contains aggregated token usage from the firewall proxy
 type TokenUsageSummary struct {
 	TotalInputTokens      int                         `json:"total_input_tokens" console:"header:Input Tokens,format:number"`
@@ -44,6 +52,7 @@ type TokenUsageSummary struct {
 	TotalResponseBytes    int                         `json:"total_response_bytes"`
 	CacheEfficiency       float64                     `json:"cache_efficiency"`
 	TotalEffectiveTokens  int                         `json:"total_effective_tokens" console:"header:Effective Tokens,format:number"`
+	AmbientContext        *AmbientContextMetrics      `json:"ambient_context,omitempty"`
 	ByModel               map[string]*ModelTokenUsage `json:"by_model"`
 }
 
@@ -96,6 +105,7 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 	// Increase buffer size for potentially large lines
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
+	entries := make([]TokenUsageEntry, 0)
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
@@ -109,7 +119,19 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
 			continue
 		}
+		entries = append(entries, entry)
+	}
 
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading token usage file: %w", err)
+	}
+
+	if len(entries) == 0 {
+		tokenUsageLog.Print("No token usage entries found")
+		return nil, nil
+	}
+
+	for _, entry := range entries {
 		// Aggregate totals
 		summary.TotalInputTokens += entry.InputTokens
 		summary.TotalOutputTokens += entry.OutputTokens
@@ -139,15 +161,6 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 		m.ResponseBytes += entry.ResponseBytes
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading token usage file: %w", err)
-	}
-
-	if summary.TotalRequests == 0 {
-		tokenUsageLog.Print("No token usage entries found")
-		return nil, nil
-	}
-
 	// Compute cache efficiency: cache_read / (input + cache_read)
 	totalInputPlusCacheRead := summary.TotalInputTokens + summary.TotalCacheReadTokens
 	if totalInputPlusCacheRead > 0 {
@@ -160,8 +173,65 @@ func parseTokenUsageFile(filePath string, customWeights *types.TokenWeights) (*T
 
 	// Compute effective tokens using per-model multipliers (with optional custom overrides)
 	populateEffectiveTokensWithCustomWeights(summary, customWeights)
+	summary.AmbientContext = extractAmbientContextMetrics(entries)
 
 	return summary, nil
+}
+
+func extractAmbientContextMetrics(entries []TokenUsageEntry) *AmbientContextMetrics {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	type orderedTokenEntry struct {
+		entry        TokenUsageEntry
+		timestamp    time.Time
+		hasTimestamp bool
+		order        int
+	}
+
+	ordered := make([]orderedTokenEntry, 0, len(entries))
+	for i, entry := range entries {
+		ts, hasTimestamp := parseTokenUsageTimestamp(entry.Timestamp)
+		ordered = append(ordered, orderedTokenEntry{
+			entry:        entry,
+			timestamp:    ts,
+			hasTimestamp: hasTimestamp,
+			order:        i,
+		})
+	}
+
+	sort.SliceStable(ordered, func(i, j int) bool {
+		left := ordered[i]
+		right := ordered[j]
+		if left.hasTimestamp && right.hasTimestamp {
+			return left.timestamp.Before(right.timestamp)
+		}
+		if left.hasTimestamp != right.hasTimestamp {
+			return left.hasTimestamp
+		}
+		return left.order < right.order
+	})
+
+	firstCall := ordered[0].entry
+	return &AmbientContextMetrics{
+		InputTokens:     firstCall.InputTokens,
+		CachedTokens:    firstCall.CacheReadTokens,
+		EffectiveTokens: firstCall.InputTokens + firstCall.CacheReadTokens,
+	}
+}
+
+func parseTokenUsageTimestamp(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+	if ts, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return ts, true
+	}
+	if ts, err := time.Parse(time.RFC3339, value); err == nil {
+		return ts, true
+	}
+	return time.Time{}, false
 }
 
 // findTokenUsageFile searches for token-usage.jsonl in the run directory

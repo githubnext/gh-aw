@@ -1,5 +1,7 @@
 # logger Package
 
+## Overview
+
 A simple, debug-style logging framework for Go that follows the pattern matching syntax of the [debug npm package](https://www.npmjs.com/package/debug).
 
 ## Features

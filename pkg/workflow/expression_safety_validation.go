@@ -226,7 +226,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 			rightExpr := strings.TrimSpace(orMatch[2])
 
 			leftErr := validateSingleExpression(leftExpr, opts)
-			leftIsSafe := leftErr == nil && !containsExpression(opts.UnauthorizedExpressions, leftExpr)
+			leftIsSafe := leftErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, leftExpr)
 
 			if leftIsSafe {
 				// Check if right side is a literal string (single, double, or backtick quotes)
@@ -242,7 +242,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 				} else {
 					// If right side is also a safe expression, recursively check it
 					rightErr := validateSingleExpression(rightExpr, opts)
-					if rightErr == nil && !containsExpression(opts.UnauthorizedExpressions, rightExpr) {
+					if rightErr == nil && !containsExpressionInList(opts.UnauthorizedExpressions, rightExpr) {
 						allowed = true
 					}
 				}
@@ -296,7 +296,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 	return nil
 }
 
-// containsExpression checks if an expression is in the list
-func containsExpression(list *[]string, expr string) bool {
+// containsExpressionInList checks if an expression is in the list.
+func containsExpressionInList(list *[]string, expr string) bool {
 	return slices.Contains(*list, expr)
 }

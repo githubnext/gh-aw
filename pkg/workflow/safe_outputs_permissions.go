@@ -51,6 +51,14 @@ func isHandlerStaged(globalStaged, handlerStaged bool) bool {
 	return globalStaged || handlerStaged
 }
 
+// getPushFallbackAsPullRequest returns the effective fallback-as-pull-request setting (defaults to true).
+func getPushFallbackAsPullRequest(config *PushToPullRequestBranchConfig) bool {
+	if config == nil || config.FallbackAsPullRequest == nil {
+		return true // Default
+	}
+	return *config.FallbackAsPullRequest
+}
+
 // ComputePermissionsForSafeOutputs computes the minimal required permissions
 // based on the configured safe-outputs. This function is used by both the
 // consolidated safe outputs job and the conclusion job to ensure they only
@@ -137,8 +145,13 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		}
 	}
 	if safeOutputs.PushToPullRequestBranch != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.PushToPullRequestBranch.Staged) {
-		safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch")
-		permissions.Merge(NewPermissionsContentsWritePRWrite())
+		if getPushFallbackAsPullRequest(safeOutputs.PushToPullRequestBranch) {
+			safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch with fallback-as-pull-request")
+			permissions.Merge(NewPermissionsContentsWritePRWrite())
+		} else {
+			safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch without fallback-as-pull-request")
+			permissions.Merge(NewPermissionsContentsWrite())
+		}
 		// Add workflows: write when allow-workflows is true (GitHub App-only permission)
 		if safeOutputs.PushToPullRequestBranch.AllowWorkflows {
 			safeOutputsPermissionsLog.Print("Adding workflows: write for push-to-pull-request-branch (allow-workflows: true)")
@@ -147,7 +160,12 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
+		if safeOutputs.UpdatePullRequests.UpdateBranch != nil && *safeOutputs.UpdatePullRequests.UpdateBranch {
+			safeOutputsPermissionsLog.Print("update-pull-request has update-branch enabled; requiring contents: write")
+			permissions.Merge(NewPermissionsContentsWritePRWrite())
+		} else {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
 	}
 	if safeOutputs.MergePullRequest != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.MergePullRequest.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for merge-pull-request")

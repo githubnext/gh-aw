@@ -219,6 +219,35 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
+			name: "update-pull-request without update-branch requires contents read",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "update-pull-request with update-branch requires contents write",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+					UpdateBranch: boolPtr(true),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
 			name: "create-pull-request with fallback-as-issue (default) - includes issues permission",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{
@@ -245,7 +274,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "push-to-pull-request-branch - no issues permission",
+			name: "push-to-pull-request-branch default fallback - requires pull-requests write",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{},
@@ -254,6 +283,18 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with fallback-as-pull-request false - no pull-requests permission",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig:  BaseSafeOutputConfig{},
+					FallbackAsPullRequest: boolPtr(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionWrite,
 			},
 		},
 		{

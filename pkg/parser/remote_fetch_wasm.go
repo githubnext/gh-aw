@@ -120,7 +120,8 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 	return "", fmt.Errorf("file not found: %s", fullPath)
 }
 
-func isWorkflowSpec(path string) bool {
+// IsWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref]).
+func IsWorkflowSpec(path string) bool {
 	cleanPath := path
 	if idx := strings.Index(path, "#"); idx != -1 {
 		cleanPath = path[:idx]
@@ -132,6 +133,12 @@ func isWorkflowSpec(path string) bool {
 	if len(parts) < 3 {
 		return false
 	}
+	// Preserve legacy behavior expected by parser tests: URL-like paths are
+	// currently treated as workflowspecs because downstream parsing supports
+	// repository/path extraction from slash-delimited remote references.
+	if strings.Contains(cleanPath, "://") {
+		return true
+	}
 	if strings.HasPrefix(cleanPath, ".") {
 		return false
 	}
@@ -141,5 +148,15 @@ func isWorkflowSpec(path string) bool {
 	if strings.HasPrefix(cleanPath, "/") {
 		return false
 	}
+	// Safe indexing: len(parts) >= 3 is guaranteed above.
+	owner := parts[0]
+	repo := parts[1]
+	if owner == "" || repo == "" {
+		return false
+	}
 	return true
+}
+
+func isWorkflowSpec(path string) bool {
+	return IsWorkflowSpec(path)
 }

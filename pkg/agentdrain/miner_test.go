@@ -4,6 +4,7 @@ package agentdrain
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -148,36 +149,139 @@ func TestMasking(t *testing.T) {
 }
 
 func TestFlattenEvent(t *testing.T) {
-	evt := AgentEvent{
-		Stage: "tool_call",
-		Fields: map[string]string{
-			"tool":       "search",
-			"query":      "foo",
-			"session_id": "abc123",
-			"latency_ms": "42",
+	tests := []struct {
+		name             string
+		evt              AgentEvent
+		exclude          []string
+		expected         string
+		excludedField    string
+		checkStagePrefix bool
+		checkSortedOrder bool
+	}{
+		{
+			name: "normal event excludes field and keeps sorted output",
+			evt: AgentEvent{
+				Stage: "tool_call",
+				Fields: map[string]string{
+					"tool":       "search",
+					"query":      "foo",
+					"session_id": "abc123",
+					"latency_ms": "42",
+				},
+			},
+			exclude:          []string{"session_id"},
+			expected:         "stage=tool_call latency_ms=42 query=foo tool=search",
+			excludedField:    "session_id",
+			checkStagePrefix: true,
+			checkSortedOrder: true,
+		},
+		{
+			name: "empty stage omits stage token",
+			evt: AgentEvent{
+				Fields: map[string]string{
+					"z": "last",
+					"a": "first",
+				},
+			},
+			expected: "a=first z=last",
+		},
+		{
+			name: "all fields excluded keeps only stage",
+			evt: AgentEvent{
+				Stage: "plan",
+				Fields: map[string]string{
+					"action": "start",
+					"step":   "1",
+				},
+			},
+			exclude:  []string{"action", "step"},
+			expected: "stage=plan",
+		},
+		{
+			name:     "empty event returns empty string",
+			evt:      AgentEvent{},
+			expected: "",
 		},
 	}
-	exclude := []string{"session_id"}
-	result := FlattenEvent(evt, exclude)
 
-	assert.NotContains(t, result, "session_id", "excluded field should not appear in flattened output")
-	assert.True(t, len(result) > 0 &&
-		indexIn(result, "latency_ms=") < indexIn(result, "query=") &&
-		indexIn(result, "query=") < indexIn(result, "tool="),
-		"keys should be sorted alphabetically in flattened output: %q", result)
-	assert.True(t, len(result) >= len("stage=tool_call") &&
-		result[:len("stage=tool_call")] == "stage=tool_call",
-		"stage should appear first in flattened output: %q", result)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FlattenEvent(tt.evt, tt.exclude)
+			assert.Equal(t, tt.expected, got, "FlattenEvent output mismatch for case %q", tt.name)
+			if tt.excludedField != "" {
+				assert.NotContains(t, got, tt.excludedField, "excluded field should not appear in flattened output")
+			}
+			if tt.checkStagePrefix {
+				assert.True(t, strings.HasPrefix(got, "stage="+tt.evt.Stage), "stage should appear first in flattened output: %q", got)
+			}
+			if tt.checkSortedOrder {
+				latencyIndex := strings.Index(got, "latency_ms=")
+				queryIndex := strings.Index(got, "query=")
+				toolIndex := strings.Index(got, "tool=")
+				assert.True(t, latencyIndex < queryIndex && queryIndex < toolIndex, "keys should be sorted alphabetically in flattened output: %q", got)
+			}
+		})
+	}
 }
 
-// indexIn returns the byte offset of substr in s, or -1 if not found.
-func indexIn(s, substr string) int {
-	for i := range len(s) - len(substr) + 1 {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
+func TestTokenize(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		expected []string
+	}{
+		{
+			name:     "empty string",
+			line:     "",
+			expected: []string{},
+		},
+		{
+			name:     "extra whitespace",
+			line:     "   stage=plan\t  action=start \n  id=123  ",
+			expected: []string{"stage=plan", "action=start", "id=123"},
+		},
+		{
+			name:     "single token",
+			line:     "stage=finish",
+			expected: []string{"stage=finish"},
+		},
+		{
+			name:     "key value pairs",
+			line:     "tool=bash status=ok",
+			expected: []string{"tool=bash", "status=ok"},
+		},
 	}
-	return -1
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Tokenize(tt.line)
+			assert.Equal(t, tt.expected, got, "Tokenize(%q) should split into expected tokens", tt.line)
+		})
+	}
+}
+
+func TestTrainEmptyLine(t *testing.T) {
+	m, err := NewMiner(DefaultConfig())
+	require.NoError(t, err, "NewMiner should succeed for empty-line training test")
+
+	result, err := m.Train(" \t\n ")
+	assert.Nil(t, result, "Train should return nil result for whitespace-only input")
+	require.Error(t, err, "Train should return an error for whitespace-only input")
+	assert.Contains(t, err.Error(), "empty line after masking", "Train error should explain empty line after masking")
+}
+
+func TestNewMaskerInvalidPattern(t *testing.T) {
+	masker, err := NewMasker([]MaskRule{
+		{
+			Name:        "invalid",
+			Pattern:     "(",
+			Replacement: "<BAD>",
+		},
+	})
+
+	assert.Nil(t, masker, "NewMasker should return nil masker for invalid regex pattern")
+	require.Error(t, err, "NewMasker should fail when a regex pattern is invalid")
+	assert.Contains(t, err.Error(), `mask rule "invalid"`, "NewMasker error should identify the failing rule")
 }
 
 func TestConcurrency(t *testing.T) {

@@ -67,13 +67,6 @@ func TestSplitRepoSlug(t *testing.T) {
 	}
 }
 
-func BenchmarkSplitRepoSlug(b *testing.B) {
-	slug := "github/gh-aw"
-	for b.Loop() {
-		_, _, _ = SplitRepoSlug(slug)
-	}
-}
-
 // Additional edge case tests
 
 func TestSplitRepoSlug_Whitespace(t *testing.T) {

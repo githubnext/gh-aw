@@ -259,7 +259,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const events = [{ type: "DIFC_FILTERED", tool_name: "tool", reason: "reason" }];
       const result = generateDifcFilteredSection(events);
 
-      expect(result).toContain("blocked because they don't meet");
+      expect(result).toContain("blocked because it doesn't meet");
       expect(result).toContain("GitHub integrity level");
     });
 
@@ -300,6 +300,7 @@ describe("gateway_difc_filtered.cjs", () => {
       const singleResult = generateDifcFilteredSection(singleEvent);
       expect(singleResult).toContain("1 item");
       expect(singleResult).not.toContain("items");
+      expect(singleResult).toContain("blocked because it doesn't meet");
 
       const multiEvents = [
         { type: "DIFC_FILTERED", tool_name: "tool1", reason: "r1" },
@@ -307,6 +308,7 @@ describe("gateway_difc_filtered.cjs", () => {
       ];
       const multiResult = generateDifcFilteredSection(multiEvents);
       expect(multiResult).toContain("2 items");
+      expect(multiResult).toContain("blocked because they don't meet");
     });
 
     it("should deduplicate filtered events with identical fields", () => {

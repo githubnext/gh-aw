@@ -59,6 +59,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'activity_report'
           - 'close_agentic_workflows_issues'
           - 'clean_cache_memories'
           - 'validate'
@@ -70,7 +71,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, close_agentic_workflows_issues, clean_cache_memories, validate)'
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)'
         required: false
         type: string
         default: ''
@@ -195,8 +196,8 @@ jobs:
 `)
 
 	// Add unified run_operation job for all dispatch operations except those with dedicated jobs
-	// (safe_outputs, create_labels, close_agentic_workflows_issues, clean_cache_memories, validate)
-	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
+	// (safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)
+	runOperationCondition := buildRunOperationCondition("safe_outputs", "create_labels", "activity_report", "close_agentic_workflows_issues", "clean_cache_memories", "validate")
 	yaml.WriteString(`
   run_operation:
     if: ${{ ` + RenderCondition(runOperationCondition) + ` }}
@@ -346,6 +347,64 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/create_labels.cjs');
+            await main();
+`)
+
+	// Add activity_report job for workflow_dispatch with operation == 'activity_report'
+	yaml.WriteString(`
+  activity_report:
+    if: ${{ ` + RenderCondition(buildDispatchOperationCondition("activity_report")) + ` }}
+    runs-on: ` + runsOnValue + `
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: ` + getActionPin("actions/checkout") + `
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+`)
+
+	yaml.WriteString(generateInstallCLISteps(actionMode, version, actionTag, resolver))
+	yaml.WriteString(`      - name: Cache activity report logs
+        uses: ` + getActionPin("actions/cache") + `
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ runner.os }}-activity-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-activity-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-activity-report-logs-
+`)
+	yaml.WriteString(`      - name: Generate agentic workflow activity report
+        uses: ` + getCachedActionPinFromResolver("actions/github-script", resolver) + `
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(actionMode) + `
+          GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/run_activity_report.cjs');
             await main();
 `)
 

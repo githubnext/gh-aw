@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 6.4
-**Last Updated**: 2026-04-18
+**Version**: 6.5
+**Last Updated**: 2026-04-19
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1753,6 +1753,30 @@ sandbox:
 
 Migration: run `gh aw fix` to automatically migrate existing workflows.
 
+**`github-app:` replaces deprecated `app:` (⚠️ Breaking Change)**:
+
+The `app:` workflow field has been renamed to `github-app:`. Workflows using `app:` will fail validation.
+
+```yaml
+# ❌ Old (invalid): app: field no longer accepted
+app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+# ✅ Correct: use github-app:
+github-app:
+  app-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
+Migration: run `gh aw fix` to automatically migrate existing workflows.
+
+**`safe-inputs` renamed to `mcp-scripts`**:
+
+The `safe-inputs` feature flag and frontmatter field have been renamed to `mcp-scripts`. The `safe-inputs-to-mcp-scripts` codemod is available to migrate existing workflows automatically. In Go code, `SafeInputsFeatureFlag` is replaced by `MCPScriptsFeatureFlag`.
+
+Migration: run `gh aw fix` to automatically migrate existing workflows.
+
 ### Workflow Size Reduction Strategies
 
 ```mermaid
@@ -2284,7 +2308,7 @@ const MaxExpressionLineLength LineLength = 120
 | Workflows | `WorkflowID` | User-provided workflow identifiers |
 | AI Engines | `EngineName` | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `CustomEngine` |
 | Tool names | `GitHubToolName`, `GitHubToolset` | Typed tool/toolset names |
-| Feature flags | Named string constants | `MCPGatewayFeatureFlag`, `SafeInputsFeatureFlag` |
+| Feature flags | Named string constants | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 
 **When to use semantic type aliases**:
 - Multiple unrelated concepts share the same primitive type
@@ -2831,6 +2855,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v6.5 (2026-04-19): Maintenance tone scan — 0 tone issues found. Documented 2 breaking changes from pending changesets: (1) `app:` → `github-app:` rename (breaking: workflows using `app:` fail validation; migrate with `gh aw fix`); (2) `safe-inputs` → `mcp-scripts` rename (feature flag `SafeInputsFeatureFlag` → `MCPScriptsFeatureFlag`; migrate with `gh aw fix`). Updated Go Type Patterns table: `SafeInputsFeatureFlag` → `MCPScriptsFeatureFlag`. Coverage: 64 spec files (no new files).
 - v6.4 (2026-04-18): Maintenance tone scan — fixed 4 tone issues across 4 spec files: `github-mcp-access-control-specification.md` (1 fix: "Flexible Pattern Matching"→"Wildcard Pattern Matching"), `serena-tools-analysis.md` (1 fix: "Fast, flexible, familiar"→"Fast; broad pattern support; familiar syntax"), `github-actions-security-best-practices.md` (1 fix: "more robust than `ls`"→"avoids word splitting and globbing issues that affect `ls`"), `mdflow.md` (1 fix: "Less flexible context gathering"→"More limited context gathering options"). Coverage: 64 spec files (no new files).
 - v6.3 (2026-04-17): Maintenance tone scan — fixed 3 tone issues across 2 spec files: `testing.md` (2 fixes: "maintains high quality standards"→removed, "provides a solid foundation...immediately useful"→"ensures...scale incrementally"), `guard-policies-specification.md` (1 fix: "provides a solid foundation for guard policies"→"covers guard policies"). Updated Package Structure: added `pkg/agentdrain` and `pkg/actionpins` as Core packages (source: `architecture.md` update 2026-04-17); updated Utility Packages to add `pkg/typeutil`, `pkg/semverutil`, `pkg/stats` and remove non-existent `pkg/mathutil`. Coverage: 64 spec files (no new files).
 - v6.2 (2026-04-16): Maintenance tone scan — fixed 7 tone issues across 7 spec files: `labels.md` (1 fix: "Perfect overlap"→"100% overlap"), `file-inlining.md` (1 fix: "flexible way to include"→"mechanism to include"), `changesets.md` (1 fix: "Flexible Releases"→"Optional Changeset Releases"), `go-type-patterns.md` (1 fix: "flexible configuration"→"configuration"), `github-rate-limit-observability.md` (1 fix: "comprehensive view"→"observe all rate limit categories"), `mdflow.md` (1 fix: "Flexible Context Inclusion"→"Context Inclusion"), `mdflow-comparison.md` (1 fix: "Flexible: Any CLI tool"→"Broad compatibility: Works with any CLI tool"). Coverage: 64 spec files newly scanned.

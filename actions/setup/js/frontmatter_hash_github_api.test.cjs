@@ -378,7 +378,7 @@ describe("frontmatter_hash with GitHub API", () => {
       if (!token) {
         console.log("Skipping live API test - no GITHUB_TOKEN or GH_TOKEN available");
         console.log("To run this test, set GITHUB_TOKEN or GH_TOKEN environment variable");
-        console.log("Example: GITHUB_TOKEN=ghp_xxx npm test -- frontmatter_hash_github_api.test.cjs");
+        console.log("Example: GITHUB_TOKEN=ghp_xxx npm run test:js-integration-live-api");
         return;
       }
 

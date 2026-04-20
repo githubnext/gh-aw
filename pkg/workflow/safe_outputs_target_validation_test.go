@@ -374,7 +374,7 @@ func TestValidateTargetValue(t *testing.T) {
 	}
 }
 
-func TestIsGitHubExpression(t *testing.T) {
+func TestContainsExpressionForTargetValidation(t *testing.T) {
 	tests := []struct {
 		name string
 		s    string
@@ -434,9 +434,9 @@ func TestIsGitHubExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isGitHubExpression(tt.s)
+			got := containsExpression(tt.s)
 			if got != tt.want {
-				t.Errorf("isGitHubExpression() = %v, want %v", got, tt.want)
+				t.Errorf("containsExpression() = %v, want %v", got, tt.want)
 			}
 		})
 	}

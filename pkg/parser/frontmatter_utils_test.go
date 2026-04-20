@@ -607,6 +607,11 @@ func TestIsWorkflowSpec(t *testing.T) {
 			path: "shared/mcp/tavily.md@main",
 			want: false,
 		},
+		{
+			name: "malformed workflowspec with empty repo segment",
+			path: "owner//path/file.md",
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {

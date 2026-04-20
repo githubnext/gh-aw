@@ -144,6 +144,12 @@ describe("push_to_pull_request_branch.cjs", () => {
               labels: [],
             },
           }),
+          create: vi.fn().mockResolvedValue({
+            data: {
+              number: 999,
+              html_url: "https://github.com/test-owner/test-repo/pull/999",
+            },
+          }),
         },
         repos: {
           get: vi.fn().mockResolvedValue({
@@ -645,6 +651,22 @@ index 0000000..abc1234
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
+    it("should skip deleted branch failure when ignore_missing_branch_failure is enabled", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 2, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+
+      const module = await loadModule();
+      const handler = await module.main({ ignore_missing_branch_failure: true });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-missing-branch-failure"));
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
     it("should fail with diagnostic error when branch existence check fails for other reasons", async () => {
       const patchPath = createPatchFile();
 
@@ -687,6 +709,23 @@ index 0000000..abc1234
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("does not exist on origin");
+    });
+
+    it("should skip rev-parse missing branch failure when ignore_missing_branch_failure is enabled", async () => {
+      const patchPath = createPatchFile();
+
+      // git fetch succeeds, but git rev-parse fails
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockRejectedValueOnce(new Error("fatal: Needed a single revision"));
+
+      const module = await loadModule();
+      const handler = await module.main({ ignore_missing_branch_failure: true });
+      const result = await handler({ patch_path: patchPath }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.skipped).toBe(true);
+      expect(result.error).toContain("no longer exists on origin");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-missing-branch-failure"));
     });
 
     it("should handle git checkout failure", async () => {
@@ -734,7 +773,7 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Investigating patch failure...");
     });
 
-    it("should handle git push rejection (concurrent changes)", async () => {
+    it("should create fallback pull request on non-fast-forward push rejection by default", async () => {
       const patchPath = createPatchFile();
 
       // Set up successful operations until push
@@ -765,8 +804,40 @@ index 0000000..abc1234
       const handler = await module.main({});
       const result = await handler({ patch_path: patchPath }, {});
 
-      // The error happens during push
+      expect(result.success).toBe(true);
+      expect(result.fallback_used).toBe(true);
+      expect(result.fallback_type).toBe("pull_request");
+      expect(result.pull_request_number).toBe(999);
+      expect(mockGithub.rest.pulls.create).toHaveBeenCalled();
+    });
+
+    it("should not create fallback pull request when fallback-as-pull-request is disabled", async () => {
+      const patchPath = createPatchFile();
+
+      mockExec.exec.mockResolvedValueOnce(0); // fetch
+      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+      mockExec.exec.mockResolvedValueOnce(0); // checkout
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+
+      mockExec.exec.mockResolvedValueOnce(0); // git am
+
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "abc123\n", stderr: "" }); // git rev-list
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "remote-oid\trefs/heads/feature-branch\n", stderr: "" }); // git ls-remote
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "Test commit\n", stderr: "" }); // git log -1
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" }); // git diff --name-status
+
+      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+      const module = await loadModule();
+      const handler = await module.main({ fallback_as_pull_request: false });
+      const result = await handler({ patch_path: patchPath }, {});
+
       expect(result.success).toBe(false);
+      expect(result.error_type).toBe("push_failed");
+      expect(result.error).toContain("non-fast-forward");
+      expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
     });
 
     it("should diagnose deleted branch when push fails", async () => {

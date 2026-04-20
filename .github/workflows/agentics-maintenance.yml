@@ -50,6 +50,7 @@ on:
           - 'upgrade'
           - 'safe_outputs'
           - 'create_labels'
+          - 'activity_report'
           - 'close_agentic_workflows_issues'
           - 'clean_cache_memories'
           - 'validate'
@@ -61,7 +62,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, close_agentic_workflows_issues, clean_cache_memories, validate)'
+        description: 'Optional maintenance operation to run (disable, enable, update, upgrade, safe_outputs, create_labels, activity_report, close_agentic_workflows_issues, clean_cache_memories, validate)'
         required: false
         type: string
         default: ''
@@ -156,7 +157,7 @@ jobs:
             await main();
 
   run_operation:
-    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate' && (!(github.event.repository.fork)) }}
     runs-on: ubuntu-slim
     permissions:
       actions: write
@@ -309,6 +310,66 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/create_labels.cjs');
+            await main();
+
+  activity_report:
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'activity_report' && (!(github.event.repository.fork)) }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+
+      - name: Check admin/maintainer permissions
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/check_team_member.cjs');
+            await main();
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Cache activity report logs
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ./.cache/gh-aw/activity-report-logs
+          key: ${{ runner.os }}-activity-report-logs-${{ github.repository }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-activity-report-logs-${{ github.repository }}-
+            ${{ runner.os }}-activity-report-logs-
+      - name: Generate agentic workflow activity report
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_CMD_PREFIX: ./gh-aw
+          GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/run_activity_report.cjs');
             await main();
 
   close_agentic_workflows_issues:

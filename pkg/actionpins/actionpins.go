@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
@@ -61,9 +61,6 @@ type PinContext struct {
 	// Keys are cache keys in the form "repo@version".
 	Warnings map[string]bool
 }
-
-// fullSHARegex matches a valid 40-character lowercase hexadecimal SHA.
-var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 var (
 	cachedActionPins       []ActionPin
@@ -155,9 +152,9 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	return pins[0], true
 }
 
-// getActionPin returns the pinned reference for the latest version of the repo.
+// getLatestActionPinReference returns the pinned reference for the latest version of the repo.
 // Returns an empty string if no pin is found.
-func getActionPin(repo string) string {
+func getLatestActionPinReference(repo string) string {
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
 		return ""
@@ -199,7 +196,7 @@ func ExtractVersion(uses string) string {
 
 // isValidFullSHA checks if a string is a valid 40-character hexadecimal SHA.
 func isValidFullSHA(s string) bool {
-	return fullSHARegex.MatchString(s)
+	return gitutil.IsValidFullSHA(s)
 }
 
 // findCompatiblePin returns the first pin whose version is semver-compatible with
@@ -315,23 +312,23 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	return "", nil
 }
 
-// GetCachedActionPin returns the pinned action reference for a given repository,
+// ResolveLatestActionPin returns the pinned action reference for a given repository,
 // preferring the user's cache (via ctx.Resolver) over the embedded action_pins.json.
 // If ctx is nil, only embedded pins are consulted.
-func GetCachedActionPin(repo string, ctx *PinContext) string {
+func ResolveLatestActionPin(repo string, ctx *PinContext) string {
 	if ctx == nil {
-		return getActionPin(repo)
+		return getLatestActionPinReference(repo)
 	}
 
 	pins := GetActionPinsByRepo(repo)
 	if len(pins) == 0 {
-		return getActionPin(repo)
+		return getLatestActionPinReference(repo)
 	}
 
 	latestVersion := pins[0].Version
 	pinnedRef, err := ResolveActionPin(repo, latestVersion, ctx)
 	if err != nil || pinnedRef == "" {
-		return getActionPin(repo)
+		return getLatestActionPinReference(repo)
 	}
 	return pinnedRef
 }

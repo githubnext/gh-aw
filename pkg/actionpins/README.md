@@ -35,7 +35,7 @@ Resolution supports two modes:
 | `ExtractRepo` | `func(uses string) string` | Extracts the repository from a `uses` reference |
 | `ExtractVersion` | `func(uses string) string` | Extracts the version from a `uses` reference |
 | `ResolveActionPin` | `func(actionRepo, version string, ctx *PinContext) (string, error)` | Resolves a pinned reference with optional dynamic SHA lookup and fallback behavior |
-| `GetCachedActionPin` | `func(repo string, ctx *PinContext) string` | Returns a pinned reference preferring cache/dynamic resolution when available |
+| `ResolveLatestActionPin` | `func(repo string, ctx *PinContext) string` | Resolves a pinned reference for the latest known version, preferring cache/dynamic resolution when available |
 
 ## Usage Example
 
@@ -54,6 +54,7 @@ fmt.Println(reference) // actions/checkout@<sha> # v5
 
 **Internal**:
 - `pkg/console` — warning message formatting
+- `pkg/gitutil` — dynamic SHA resolution via GitHub API/CLI helpers
 - `pkg/logger` — debug logging
 - `pkg/semverutil` — semantic version compatibility checks
 

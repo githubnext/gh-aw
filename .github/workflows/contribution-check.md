@@ -121,6 +121,7 @@ A `pre-agent` step has already queried and filtered PRs from `${{ env.TARGET_REP
 ```
 
 If `pr_numbers` is empty, create a report stating no PRs matched the filters and skip dispatch.
+Do **not** emit one `noop` per PR slot or placeholder. If you need a noop, emit exactly **one** consolidated noop for the entire run.
 
 ## Step 1: Dispatch to Subagent
 
@@ -237,6 +238,15 @@ Evaluated: 4 · Skipped: 10
 
 After creating the report issue, call the `add_labels` safe output tool to apply labels based on the quality signals reported by the subagent. Collect the distinct `quality` values from all returned rows and add each as a label. The `add_labels` tool is pre-configured with `target-repo` pointing to the target repository.
 
+When you create the report issue, set a `temporary_id` (for example `aw_summary`). Then set `add_labels.item_number` to `#<temporary_id>` (for example `#aw_summary`) so labels are applied to the issue created in the same run.
+
+Example:
+
+```json
+{"type":"create_issue","temporary_id":"aw_summary","title":"Contribution Check — 2026-04-19","body":"..."}
+{"type":"add_labels","item_number":"#aw_summary","labels":["lgtm","needs-work"]}
+```
+
 For example, if the batch contains rows with `lgtm`, `spam`, and `needs-work` quality values, apply all three labels: `lgtm`, `spam`, `needs-work`.
 
 If any subagent call failed (❓), also apply `outdated`.
@@ -251,5 +261,7 @@ If any subagent call failed (❓), also apply `outdated`.
 - **Use safe output tools for target repository interactions** — use `add-comment` and `add-labels` safe output tools to post comments and labels to PRs in the target repository `${{ env.TARGET_REPOSITORY }}`. Never use `gh` CLI or direct API calls for writes.
 - Close the previous report issue when creating a new one (`close-older-issues: true`).
 - Be constructive in assessments — these reports help maintainers prioritize, not gatekeep.
+- `noop` is global, not per-PR. Emit at most one consolidated noop for the entire workflow run.
+- If you emitted any actionable safe outputs (`create_issue`, `add_comment`, `add_labels`), do **not** emit `noop`.
 
 {{#import shared/noop-reminder.md}}

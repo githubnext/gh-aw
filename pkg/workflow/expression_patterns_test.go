@@ -456,3 +456,66 @@ func TestRangePattern(t *testing.T) {
 		})
 	}
 }
+
+func TestExpressionHelpers(t *testing.T) {
+	tests := []struct {
+		name              string
+		input             string
+		wantHasMarker     bool
+		wantContainsExpr  bool
+		wantWholeExprOnly bool
+	}{
+		{
+			name:              "full expression",
+			input:             "${{ github.actor }}",
+			wantHasMarker:     true,
+			wantContainsExpr:  true,
+			wantWholeExprOnly: true,
+		},
+		{
+			name:              "embedded expression",
+			input:             "prefix ${{ github.actor }} suffix",
+			wantHasMarker:     true,
+			wantContainsExpr:  true,
+			wantWholeExprOnly: false,
+		},
+		{
+			name:              "partial expression marker only",
+			input:             "${{ github.actor",
+			wantHasMarker:     true,
+			wantContainsExpr:  false,
+			wantWholeExprOnly: false,
+		},
+		{
+			name:  "empty expression body",
+			input: "${{}}",
+			// isExpression is a strict wrapper check, while containsExpression
+			// requires a non-empty expression body between markers.
+			wantHasMarker:     true,
+			wantContainsExpr:  false,
+			wantWholeExprOnly: true,
+		},
+		{
+			name:              "wrong marker order",
+			input:             "}} before ${{",
+			wantHasMarker:     true,
+			wantContainsExpr:  false,
+			wantWholeExprOnly: false,
+		},
+		{
+			name:              "no expression",
+			input:             "plain text",
+			wantHasMarker:     false,
+			wantContainsExpr:  false,
+			wantWholeExprOnly: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantHasMarker, hasExpressionMarker(tt.input), "hasExpressionMarker result mismatch")
+			assert.Equal(t, tt.wantContainsExpr, containsExpression(tt.input), "containsExpression result mismatch")
+			assert.Equal(t, tt.wantWholeExprOnly, isExpression(tt.input), "isExpression result mismatch")
+		})
+	}
+}

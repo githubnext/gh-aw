@@ -75,7 +75,7 @@ jobs:
         - name: "CLI Completion & Other"    # Remaining catch-all (reduced from original)
           packages: "./pkg/cli"
           pattern: ""    # Catch-all for tests not matched by other CLI patterns
-          skip_pattern: "^TestCompile[^W]|TestPoutine|TestSafeUpdate|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild|TestDockerImage"
+          skip_pattern: "^TestCompile[^W]|TestPoutine|TestSafeUpdate|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild|TestDockerImage|TestTuistoryAddWizardIntegration"
         - name: "Workflow Compiler"
           packages: "./pkg/workflow"
           pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
@@ -316,6 +316,13 @@ jobs:
     - name: Build gh-aw binary
       run: make build
 
+    - name: Upload gh-aw binary artifact
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+      with:
+        name: gh-aw-linux-amd64
+        path: gh-aw
+        retention-days: 1
+
     - name: Test update command (dry-run)
       env:
         GH_TOKEN: ${{ github.token }}
@@ -370,11 +377,11 @@ jobs:
         if [ -z "$GITHUB_TOKEN" ]; then
           echo "⚠️ GITHUB_TOKEN not available - test will be skipped" >> $GITHUB_STEP_SUMMARY
           echo "ℹ️ This is expected in forks or when secrets are not available" >> $GITHUB_STEP_SUMMARY
-          cd actions/setup/js && npm test -- frontmatter_hash_github_api.test.cjs
+          cd actions/setup/js && npm run test:js-integration-live-api
         else
           echo "✅ GITHUB_TOKEN available - running live API test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          cd actions/setup/js && npm test -- frontmatter_hash_github_api.test.cjs
+          cd actions/setup/js && npm run test:js-integration-live-api
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✨ Live API test completed successfully" >> $GITHUB_STEP_SUMMARY
         fi

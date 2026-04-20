@@ -186,6 +186,24 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 	})
 }
 
+// TestSpec_PublicAPI_ResolveLatestActionPin validates latest-version resolution behavior.
+func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
+	t.Run("returns latest pinned reference for known repository", func(t *testing.T) {
+		all := actionpins.GetActionPins()
+		if len(all) == 0 {
+			t.Skip("no embedded pin data available")
+		}
+
+		known := all[0].Repo
+		latestPin, ok := actionpins.GetActionPinByRepo(known)
+		require.True(t, ok, "expected latest pin for known repository")
+
+		result := actionpins.ResolveLatestActionPin(known, nil)
+		expected := actionpins.FormatReference(known, latestPin.SHA, latestPin.Version)
+		assert.Equal(t, expected, result, "should resolve latest pinned reference")
+	})
+}
+
 // TestSpec_Types_PinContext validates the documented PinContext type fields.
 func TestSpec_Types_PinContext(t *testing.T) {
 	t.Run("can construct PinContext with StrictMode enabled", func(t *testing.T) {

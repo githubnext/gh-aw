@@ -218,6 +218,47 @@ strict: false
 	}
 }
 
+func TestShouldScanImportedMarkdown(t *testing.T) {
+	tests := []struct {
+		name           string
+		importFilePath string
+		want           bool
+	}{
+		{
+			name:           "scans regular markdown imports",
+			importFilePath: "shared/workflow.md",
+			want:           true,
+		},
+		{
+			name:           "skips builtin markdown imports",
+			importFilePath: parser.BuiltinPathPrefix + "engines/claude.md",
+			want:           false,
+		},
+		{
+			name:           "skips non-markdown imports",
+			importFilePath: "shared/workflow.lock.yml",
+			want:           false,
+		},
+		{
+			name:           "skips uppercase markdown extension",
+			importFilePath: "shared/workflow.MD",
+			want:           false,
+		},
+		{
+			name:           "skips builtin non-markdown imports",
+			importFilePath: parser.BuiltinPathPrefix + "engines/claude.yml",
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldScanImportedMarkdown(tt.importFilePath)
+			assert.Equal(t, tt.want, got, "shouldScanImportedMarkdown(%q)", tt.importFilePath)
+		})
+	}
+}
+
 // TestSetupEngineAndImports_NetworkMerging tests network permissions merging from imports
 func TestSetupEngineAndImports_NetworkMerging(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-network")

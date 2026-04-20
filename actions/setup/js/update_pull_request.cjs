@@ -15,6 +15,8 @@ const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
  * Execute the pull request update API call
@@ -32,6 +34,32 @@ async function executePRUpdate(github, context, prNumber, updateData) {
 
   // Remove internal fields
   const { _operation, _rawBody, _includeFooter, _workflowRepo, ...apiData } = updateData;
+  const updateBranch = apiData.update_branch === true;
+  delete apiData.update_branch;
+
+  if (updateBranch) {
+    core.info(`Updating pull request #${prNumber} branch with base branch changes`);
+    try {
+      await withRetry(
+        () =>
+          github.rest.pulls.updateBranch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: prNumber,
+          }),
+        {
+          maxRetries: 1,
+          initialDelayMs: 0,
+          jitterMs: 0,
+          shouldRetry: isTransientError,
+        },
+        `update pull request #${prNumber} branch from base`
+      );
+    } catch (error) {
+      core.warning(`Failed to update pull request #${prNumber} branch from base: ${getErrorMessage(error)}`);
+      throw error;
+    }
+  }
 
   // If we have a body, process it with the appropriate operation
   if (rawBody !== undefined) {
@@ -75,6 +103,13 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     });
 
     core.info(`Will update body (length: ${apiData.body.length})`);
+  }
+
+  if (Object.keys(apiData).length === 0) {
+    return {
+      number: prNumber,
+      html_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`,
+    };
   }
 
   const { data: pr } = await github.rest.pulls.update({
@@ -141,6 +176,12 @@ function buildPRUpdateData(item, config) {
     hasUpdates = true;
   }
 
+  const updateBranch = item.update_branch !== undefined ? item.update_branch === true : config.update_branch === true;
+  if (updateBranch) {
+    updateData.update_branch = true;
+    hasUpdates = true;
+  }
+
   if (!hasUpdates) {
     return {
       success: true,
@@ -181,7 +222,8 @@ const main = createUpdateHandlerFactory({
   additionalConfig: {
     allow_title: true,
     allow_body: true,
+    update_branch: false,
   },
 });
 
-module.exports = { main };
+module.exports = { main, buildPRUpdateData };

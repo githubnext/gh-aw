@@ -65,7 +65,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 		}
 
 		// Validate single repository format (skip if it looks like a GitHub Actions expression)
-		if hasRepository && !isGitHubActionsExpression(tool.Repository) {
+		if hasRepository && !hasExpressionMarker(tool.Repository) {
 			if !repoSlugPattern.MatchString(tool.Repository) {
 				repoFmtErr := fmt.Errorf("dispatch_repository: tool %q has invalid 'repository' format %q (expected 'owner/repo')", toolKey, tool.Repository)
 				if returnErr := collector.Add(repoFmtErr); returnErr != nil {
@@ -76,7 +76,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 
 		// Validate allowed_repositories format
 		for _, repo := range tool.AllowedRepositories {
-			if isGitHubActionsExpression(repo) {
+			if hasExpressionMarker(repo) {
 				continue
 			}
 			// Allow glob patterns like "org/*"
@@ -98,10 +98,4 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 		collector.Count(), len(config.Tools))
 
 	return collector.FormattedError("dispatch_repository")
-}
-
-// isGitHubActionsExpression returns true if the string contains a GitHub Actions
-// expression syntax (${{ }}), which should not be validated as a static value.
-func isGitHubActionsExpression(value string) bool {
-	return strings.Contains(value, "${{")
 }

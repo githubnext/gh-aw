@@ -1203,6 +1203,69 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 	}
 }
 
+func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		updateBranch *bool
+		expected     bool
+	}{
+		{
+			name:         "defaults update_branch to false",
+			updateBranch: nil,
+			expected:     false,
+		},
+		{
+			name:         "sets update_branch true when configured",
+			updateBranch: testBoolPtr(true),
+			expected:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			workflowData := &WorkflowData{
+				Name: "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					UpdatePullRequests: &UpdatePullRequestsConfig{
+						UpdateBranch: tt.updateBranch,
+					},
+				},
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+			foundHandlerConfig := false
+
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					foundHandlerConfig = true
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					if len(parts) == 2 {
+						jsonStr := strings.TrimSpace(parts[1])
+						jsonStr = strings.Trim(jsonStr, "\"")
+						jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+						var config map[string]map[string]any
+						err := json.Unmarshal([]byte(jsonStr), &config)
+						require.NoError(t, err)
+
+						updatePRConfig, ok := config["update_pull_request"]
+						require.True(t, ok, "Expected update_pull_request config")
+
+						updateBranchValue, ok := updatePRConfig["update_branch"]
+						require.True(t, ok, "Expected update_branch key in update_pull_request config")
+						assert.Equal(t, tt.expected, updateBranchValue)
+					}
+				}
+			}
+
+			require.True(t, foundHandlerConfig, "Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in generated steps")
+		})
+	}
+}
+
 // TestEmptySafeOutputsConfig tests behavior with no safe outputs
 func TestEmptySafeOutputsConfig(t *testing.T) {
 	compiler := NewCompiler()

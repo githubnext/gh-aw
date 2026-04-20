@@ -43,6 +43,8 @@ safe-outputs:
     max-uploads: 3
     retention-days: 30
     skip-archive: true
+    defaults:
+      if-no-files: ignore
   create-issue:
     expires: 2d
     labels: [cookie]

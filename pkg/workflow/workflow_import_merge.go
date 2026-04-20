@@ -109,6 +109,15 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 				workflowImportMergeLog.Printf("Adding imported job: %s", jobName)
 				result[jobName] = jobConfig
 			} else {
+				// Keep main workflow job precedence, but merge pre-steps deterministically
+				// when both imported and main define pre-steps for the same job.
+				mergedJob, merged := mergeJobPreSteps(result[jobName], jobConfig)
+				if merged {
+					workflowImportMergeLog.Printf("Merged pre-steps for conflicting job %s (imported first, then main)", jobName)
+					result[jobName] = mergedJob
+					continue
+				}
+
 				workflowImportMergeLog.Printf("Skipping imported job %s (already defined in main workflow)", jobName)
 			}
 		}
@@ -116,4 +125,46 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 
 	workflowImportMergeLog.Printf("Successfully merged jobs: total=%d, imported=%d", len(result), len(result)-len(mainJobs))
 	return result
+}
+
+func mergeJobPreSteps(mainJob any, importedJob any) (map[string]any, bool) {
+	mainMap, ok := mainJob.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	importedMap, ok := importedJob.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+
+	mainPreSteps, okMain := extractJobPreSteps(mainMap)
+	importedPreSteps, okImported := extractJobPreSteps(importedMap)
+	if !okMain || !okImported {
+		return nil, false
+	}
+
+	merged := make(map[string]any, len(mainMap))
+	// Intentionally shallow-copy the top-level job map: this merge operation only
+	// replaces the "pre-steps" key with a newly allocated slice and does not mutate
+	// any nested structures from other keys.
+	maps.Copy(merged, mainMap)
+
+	mergedPreSteps := make([]any, 0, len(importedPreSteps)+len(mainPreSteps))
+	mergedPreSteps = append(mergedPreSteps, importedPreSteps...)
+	mergedPreSteps = append(mergedPreSteps, mainPreSteps...)
+	merged["pre-steps"] = mergedPreSteps
+
+	return merged, true
+}
+
+func extractJobPreSteps(jobConfig map[string]any) ([]any, bool) {
+	raw, exists := jobConfig["pre-steps"]
+	if !exists {
+		return nil, false
+	}
+	steps, ok := raw.([]any)
+	if !ok {
+		return nil, false
+	}
+	return steps, true
 }

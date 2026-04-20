@@ -30,28 +30,41 @@ function generateSafeOutputSummary(options) {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
-  // Detect fallback-to-issue outcome for code-push types
+  // Detect fallback outcomes for code-push types.
+  // Prefer explicit fallback_type when available; infer only for backward compatibility.
   const isFallback = success && result && result.fallback_used === true;
+  const inferredFallbackType = isFallback && (result.pull_request_url || result.pull_request_number != null) ? "pull_request" : "issue";
+  const fallbackType = isFallback && result?.fallback_type ? result.fallback_type : inferredFallbackType;
 
   // Choose emoji and status based on success and fallback
   const emoji = isFallback ? "⚠️" : success ? "✅" : "❌";
-  const status = isFallback ? "Fallback Issue Created" : success ? "Success" : "Failed";
+  const status = isFallback ? (fallbackType === "pull_request" ? "Fallback Pull Request Created" : "Fallback Issue Created") : success ? "Success" : "Failed";
 
   // Start building the summary
   let summary = `<details>\n<summary>${emoji} ${displayType} - ${status} (Message ${messageIndex})</summary>\n\n`;
 
   // Add message details
-  const sectionTitle = isFallback ? `### ${displayType} — Fallback Issue\n\n` : `### ${displayType}\n\n`;
+  const sectionTitle = isFallback ? `### ${displayType} — ${fallbackType === "pull_request" ? "Fallback Pull Request" : "Fallback Issue"}\n\n` : `### ${displayType}\n\n`;
   summary += sectionTitle;
 
   if (isFallback) {
-    // Explain why the fallback occurred and show the created issue
-    summary += `> ℹ️ Pull request creation was blocked due to protected file changes. A review issue was created instead.\n\n`;
-    if (result.issue_url) {
-      summary += `**Fallback Issue:** ${result.issue_url}\n\n`;
-    }
-    if (result.issue_number != null && result.repo) {
-      summary += `**Location:** ${result.repo}#${result.issue_number}\n\n`;
+    // Explain why the fallback occurred and show the created fallback target
+    if (fallbackType === "pull_request") {
+      summary += `> ℹ️ Direct push to the original pull request branch was not possible (diverged/non-fast-forward). A fallback pull request was created instead.\n\n`;
+      if (result.pull_request_url) {
+        summary += `**Fallback Pull Request:** ${result.pull_request_url}\n\n`;
+      }
+      if (result.pull_request_number != null && result.repo) {
+        summary += `**Location:** ${result.repo}#${result.pull_request_number}\n\n`;
+      }
+    } else {
+      summary += `> ℹ️ Pull request creation was blocked due to protected file changes. A review issue was created instead.\n\n`;
+      if (result.issue_url) {
+        summary += `**Fallback Issue:** ${result.issue_url}\n\n`;
+      }
+      if (result.issue_number != null && result.repo) {
+        summary += `**Location:** ${result.repo}#${result.issue_number}\n\n`;
+      }
     }
     if (result.branch_name) {
       summary += `**Branch:** \`${result.branch_name}\`\n\n`;

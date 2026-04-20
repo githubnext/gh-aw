@@ -1333,6 +1333,34 @@ describe("Safe Output Handler Manager", () => {
       expect(calledMessage.body).toContain("#7");
     });
 
+    it("should prepend fallback note to add_comment body when push_to_pull_request_branch falls back to pull request", async () => {
+      const messages = [
+        { type: "push_to_pull_request_branch", branch: "fix-branch" },
+        { type: "add_comment", body: "Changes pushed." },
+      ];
+
+      const pushHandler = vi.fn().mockResolvedValue({
+        success: true,
+        fallback_used: true,
+        fallback_type: "pull_request",
+        pull_request_number: 71,
+        pull_request_url: "https://github.com/owner/repo/pull/71",
+      });
+      const commentHandler = vi.fn().mockResolvedValue([{ _tracking: null }]);
+
+      const handlers = new Map([
+        ["push_to_pull_request_branch", pushHandler],
+        ["add_comment", commentHandler],
+      ]);
+
+      await processMessages(handlers, messages);
+
+      const calledMessage = commentHandler.mock.calls[0][0];
+      expect(calledMessage.body).toContain("Direct push to the original pull request branch was not possible");
+      expect(calledMessage.body).toContain("#71");
+      expect(calledMessage.body).toContain("https://github.com/owner/repo/pull/71");
+    });
+
     it("should NOT prepend fallback note when create_pull_request succeeds normally", async () => {
       const messages = [
         { type: "create_pull_request", title: "My Fix PR" },

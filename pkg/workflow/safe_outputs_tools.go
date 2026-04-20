@@ -45,6 +45,8 @@ func GetSafeOutputToolOptions() []SafeOutputToolOption {
 		return nil
 	}
 
+	safeOutputsToolsLog.Printf("Parsing safe output tool options: totalTools=%d, internalTools=%d", len(tools), len(internalSafeOutputs))
+
 	options := make([]SafeOutputToolOption, 0, len(tools))
 	for _, t := range tools {
 		if internalSafeOutputs[t.Name] {
@@ -56,5 +58,7 @@ func GetSafeOutputToolOptions() []SafeOutputToolOption {
 			Description: t.Description,
 		})
 	}
+
+	safeOutputsToolsLog.Printf("Loaded %d user-facing safe output tool options", len(options))
 	return options
 }

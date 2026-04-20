@@ -203,6 +203,47 @@ func TestIsHexString(t *testing.T) {
 	}
 }
 
+func TestIsValidFullSHA(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "valid lowercase full SHA",
+			input:    "abcdef0123456789abcdef0123456789abcdef01",
+			expected: true,
+		},
+		{
+			name:     "invalid uppercase full SHA",
+			input:    "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+			expected: false,
+		},
+		{
+			name:     "invalid short SHA",
+			input:    "abcdef0",
+			expected: false,
+		},
+		{
+			name:     "invalid non-hex character",
+			input:    "abcdef0123456789abcdef0123456789abcdef0g",
+			expected: false,
+		},
+		{
+			name:     "invalid empty SHA",
+			input:    "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsValidFullSHA(tt.input)
+			assert.Equal(t, tt.expected, result, "IsValidFullSHA(%q) should return %v", tt.input, tt.expected)
+		})
+	}
+}
+
 func TestExtractBaseRepo(t *testing.T) {
 	tests := []struct {
 		name     string

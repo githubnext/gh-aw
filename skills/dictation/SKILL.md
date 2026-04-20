@@ -22,6 +22,7 @@ ACTIONS_STEP_DEBUG
 ANTHROPIC_API_KEY
 ANTHROPIC_BASE_URL
 CLAUDE_CODE_OAUTH_TOKEN
+CODEX_API_KEY
 COPILOT_GITHUB_TOKEN
 DEBUG
 FUZZY:BI-WEEKLY
@@ -33,6 +34,7 @@ GEMINI_API_KEY
 GH_AW_ACTION_MODE
 GH_AW_AGENT_TOKEN
 GH_AW_ALLOWED_DOMAINS
+GH_AW_CI_TRIGGER_TOKEN
 GH_AW_GITHUB_MCP_SERVER_TOKEN
 GH_AW_GITHUB_TOKEN
 GH_AW_PHASE
@@ -110,8 +112,10 @@ agents
 ai-generated
 ai-moderator
 allow
+allow-workflows
 allowed
 allowed-domains
+allowed-events
 allowed-extensions
 allowed-files
 allowed-github-references
@@ -160,6 +164,8 @@ automation-enabled
 availability
 aw-patch
 aw.patch
+aw_info.json
+awf-diagnostic-logs
 background
 banner
 base-branch
@@ -168,6 +174,7 @@ before_run_id
 bi-weekly
 blob
 blocked
+blocked-users
 board
 boards
 body
@@ -436,6 +443,7 @@ find_files
 find_referencing_symbols
 find_symbol
 firewall
+firewall-audit-logs
 flag
 flags
 fmt
@@ -532,6 +540,7 @@ implement
 implementation
 implements
 import-path
+import-schema
 importResolver
 imported
 imports
@@ -550,6 +559,7 @@ installation
 instructions
 integration
 integrity-proxy
+integrity-reactions
 interactive-mode
 interface
 isolation
@@ -576,6 +586,7 @@ knowledge
 label
 label-filter
 label-ops
+label_command
 labeled
 labeling
 labelops
@@ -626,6 +637,7 @@ matching
 max-continuations
 max-file-count
 max-file-size
+max-patch-size
 max-turns
 max_tokens
 maximize
@@ -674,6 +686,7 @@ node
 none
 noop
 null
+observability.otlp
 on-demand
 operations
 operations-log
@@ -761,6 +774,7 @@ projectops
 projects
 prompt
 prompt-injection
+protected-files
 protection
 protocol
 provider
@@ -824,6 +838,7 @@ report_diagnostics_to_pull_request
 reporting
 repos
 repository
+repository_dispatch
 repository_features_validation
 repository_slug
 requirements.txt
@@ -854,6 +869,7 @@ runner
 running
 runs
 runs-on
+runs-on-slim
 runtime
 runtime-env
 runtimes
@@ -871,6 +887,7 @@ safe-outputs.env
 safe-outputs.footer
 safe-outputs.jobs
 safe-outputs.messages
+safe-outputs.runs-on
 safe-outputs.staged
 safe-outputs.threat-detection
 safe_outputs
@@ -969,6 +986,7 @@ submit-pull-request-review
 submit_pull_request_review
 summary
 system
+target-repo
 task-ops
 tavily
 tavily-search
@@ -993,6 +1011,7 @@ tokens
 toolTimeout
 tool_usage
 toolsets
+traceparent
 tracker-id
 tracking
 tracking-issue
@@ -1006,6 +1025,8 @@ trigger-event
 triggers
 trusted
 trusted-domain
+trusted-users
+trustedBots
 ubuntu
 ubuntu-22.04
 ubuntu-24.04
@@ -1078,6 +1099,7 @@ write-permission
 yaml
 zizmor
 zsh
+
 ## Fix Speech-to-Text Errors
 
 When fixing dictated text, correct these common misrecognitions:

@@ -46,6 +46,16 @@ const SAMPLE_VALIDATION_CONFIG = {
       issue_number: { issueOrPRNumber: true },
     },
   },
+  update_pull_request: {
+    defaultMax: 1,
+    customValidation: "requiresOneOf:title,body,update_branch",
+    fields: {
+      title: { type: "string", sanitize: true, maxLength: 256 },
+      body: { type: "string", sanitize: true, maxLength: 65000 },
+      update_branch: { type: "boolean" },
+      pull_request_number: { issueOrPRNumber: true },
+    },
+  },
   assign_to_agent: {
     defaultMax: 1,
     customValidation: "requiresOneOf:issue_number,pull_number",
@@ -398,6 +408,23 @@ describe("safe_output_type_validator", () => {
       expect(result.error).toContain("requires at least one of");
       expect(result.error).toContain("issue_number");
       expect(result.error).toContain("pull_number");
+    });
+
+    it("should fail for update_pull_request when update_branch is false and no title/body is provided", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_pull_request", update_branch: false }, "update_pull_request", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("requires at least one of");
+    });
+
+    it("should pass for update_pull_request when update_branch is true", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_pull_request", update_branch: true }, "update_pull_request", 1);
+
+      expect(result.isValid).toBe(true);
     });
   });
 

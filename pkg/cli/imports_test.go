@@ -680,9 +680,9 @@ func TestIsWorkflowSpecFormat(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "workflowspec without version - NOT a workflowspec",
+			name:     "workflowspec without version",
 			path:     "owner/repo/path/file.md",
-			expected: false, // Without @, it's not detected as a workflowspec
+			expected: true,
 		},
 		{
 			name:     "three-part relative path - NOT a workflowspec",
@@ -708,6 +708,16 @@ func TestIsWorkflowSpecFormat(t *testing.T) {
 			name:     "workflowspec with section and version",
 			path:     "owner/repo/path/file.md@sha#section",
 			expected: true,
+		},
+		{
+			name:     "local path with section containing at-sign",
+			path:     "shared/mcp/file.md#user@example",
+			expected: false,
+		},
+		{
+			name:     "malformed workflowspec with empty repo segment",
+			path:     "owner//path/file.md",
+			expected: false,
 		},
 		{
 			name:     "simple filename",

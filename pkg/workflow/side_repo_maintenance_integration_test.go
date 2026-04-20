@@ -87,6 +87,20 @@ This workflow operates on a separate repository.
 	assert.Contains(t, contentStr, "create_labels:",
 		"generated workflow should include create_labels job")
 
+	// Must have activity_report job.
+	assert.Contains(t, contentStr, "activity_report:",
+		"generated workflow should include activity_report job")
+	assert.Contains(t, contentStr, "Cache activity report logs",
+		"generated workflow should include cache step for activity_report logs")
+	assert.Contains(t, contentStr, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs",
+		"generated workflow should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR for activity_report logs")
+	assert.Contains(t, contentStr, "actions: read\n      contents: read\n      issues: write",
+		"activity_report job should include contents: read with explicit permissions")
+	assert.Contains(t, contentStr, "timeout-minutes: 120",
+		"activity_report job should include a 2 hour timeout")
+	assert.Contains(t, contentStr, "${{ github.run_id }}",
+		"activity_report cache key should include run id for latest-cache resolution")
+
 	// GH_AW_TARGET_REPO_SLUG must be wired with the correct slug.
 	assert.Contains(t, contentStr, `GH_AW_TARGET_REPO_SLUG: "my-org/target-repo"`,
 		"GH_AW_TARGET_REPO_SLUG should be set to the target repo slug")

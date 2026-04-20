@@ -305,27 +305,23 @@ describe("firewall_blocked_domains.cjs", () => {
       expect(generateBlockedDomainsSection(undefined)).toBe("");
     });
 
-    it("should generate details section for single blocked domain", () => {
+    it("should generate warning section for single blocked domain", () => {
       const result = generateBlockedDomainsSection(["blocked.example.com"]);
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("> <details>");
-      expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary><strong>⚠️ Firewall blocked 1 domain</strong></summary>");
+      expect(result).toContain("> **⚠️ Firewall blocked 1 domain**");
       expect(result).toContain("> - `blocked.example.com`");
       expect(result).toContain("> The following domain was blocked by the firewall during workflow execution:");
       expect(result).toContain('> ```yaml\n> network:\n>   allowed:\n>     - defaults\n>     - "blocked.example.com"\n> ```');
       expect(result).toContain("> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.");
     });
 
-    it("should generate details section for multiple blocked domains", () => {
+    it("should generate warning section for multiple blocked domains", () => {
       const domains = ["alpha.example.com", "beta.example.com", "gamma.example.com"];
       const result = generateBlockedDomainsSection(domains);
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("> <details>");
-      expect(result).toContain("> </details>");
-      expect(result).toContain("> <summary><strong>⚠️ Firewall blocked 3 domains</strong></summary>");
+      expect(result).toContain("> **⚠️ Firewall blocked 3 domains**");
       expect(result).toContain("> - `alpha.example.com`");
       expect(result).toContain("> - `beta.example.com`");
       expect(result).toContain("> - `gamma.example.com`");

@@ -471,8 +471,9 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 
 		// Validate that only steps and outputs fields are present
 		allowedFields := map[string]bool{
-			"steps":   true,
-			"outputs": true,
+			"steps":     true,
+			"outputs":   true,
+			"pre-steps": true, // handled by generic built-in pre-steps insertion in compiler_jobs.go
 		}
 
 		for field := range configMap {

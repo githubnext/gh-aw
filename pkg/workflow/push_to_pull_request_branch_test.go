@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,65 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"go.yaml.in/yaml/v3"
 )
+
+func extractPushToPullRequestBranchHandlerConfig(t *testing.T, lockContent []byte) map[string]any {
+	t.Helper()
+
+	var workflowDoc map[string]any
+	if err := yaml.Unmarshal(lockContent, &workflowDoc); err != nil {
+		t.Fatalf("Failed to unmarshal lock workflow YAML: %v", err)
+	}
+
+	jobsRaw, ok := workflowDoc["jobs"].(map[string]any)
+	if !ok {
+		t.Fatalf("Generated workflow should contain jobs map")
+	}
+
+	safeOutputsJobRaw, ok := jobsRaw["safe_outputs"].(map[string]any)
+	if !ok {
+		t.Fatalf("Generated workflow should contain safe_outputs job")
+	}
+
+	stepsRaw, ok := safeOutputsJobRaw["steps"].([]any)
+	if !ok {
+		t.Fatalf("Generated workflow safe_outputs job should contain steps array")
+	}
+
+	var handlerConfigJSON string
+	for _, step := range stepsRaw {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		envMap, ok := stepMap["env"].(map[string]any)
+		if !ok {
+			continue
+		}
+		rawConfig, ok := envMap["GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG"].(string)
+		if ok && rawConfig != "" {
+			handlerConfigJSON = rawConfig
+			break
+		}
+	}
+
+	if handlerConfigJSON == "" {
+		t.Fatalf("Generated workflow should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG env var")
+	}
+
+	var handlerConfig map[string]any
+	if err := json.Unmarshal([]byte(handlerConfigJSON), &handlerConfig); err != nil {
+		t.Fatalf("Failed to unmarshal GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON: %v", err)
+	}
+
+	pushCfgRaw, ok := handlerConfig["push_to_pull_request_branch"].(map[string]any)
+	if !ok {
+		t.Fatalf("Handler config should contain push_to_pull_request_branch object")
+	}
+
+	return pushCfgRaw
+}
 
 func TestPushToPullRequestBranchConfigParsing(t *testing.T) {
 	// Create a temporary directory for the test
@@ -90,6 +149,141 @@ Please make changes and push them to the feature branch.
 	// Verify conditional execution using BuildSafeOutputType
 	if !strings.Contains(lockContentStr, "contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')") {
 		t.Errorf("Generated workflow should have safe output type condition")
+	}
+}
+
+func TestPushToPullRequestBranchIgnoreMissingBranchFailureConfig(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    ignore-missing-branch-failure: true
+---
+
+# Test Push to PR Branch Missing Branch Ignore
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-ignore-missing.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	if !strings.Contains(lockContentStr, `"ignore_missing_branch_failure":true`) && !strings.Contains(lockContentStr, `"ignore_missing_branch_failure": true`) {
+		t.Errorf("Generated workflow should contain ignore_missing_branch_failure in handler config JSON")
+	}
+}
+
+func TestPushToPullRequestBranchFallbackAsPullRequestDisabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    fallback-as-pull-request: false
+---
+
+# Test Push to PR Branch Fallback Disabled
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-fallback-disabled.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	fallbackAsPullRequest, exists := pushConfig["fallback_as_pull_request"]
+	if !exists {
+		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
+	}
+	fallbackAsPullRequestBool, isBool := fallbackAsPullRequest.(bool)
+	if !isBool {
+		t.Errorf("Expected fallback_as_pull_request to be a bool, got %#v", fallbackAsPullRequest)
+	}
+	if fallbackAsPullRequestBool {
+		t.Errorf("Expected fallback_as_pull_request=false, got %#v", fallbackAsPullRequestBool)
+	}
+	if strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Errorf("Generated workflow should NOT have pull-requests: write permission when fallback-as-pull-request is false")
+	}
+}
+
+func TestPushToPullRequestBranchFallbackAsPullRequestEnabled(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    fallback-as-pull-request: true
+---
+
+# Test Push to PR Branch Fallback Enabled
+`
+
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-fallback-enabled.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	fallbackAsPullRequest, exists := pushConfig["fallback_as_pull_request"]
+	if !exists {
+		t.Errorf("Generated workflow should contain fallback_as_pull_request in handler config JSON")
+	}
+	fallbackAsPullRequestBool, isBool := fallbackAsPullRequest.(bool)
+	if !isBool {
+		t.Errorf("Expected fallback_as_pull_request to be a bool, got %#v", fallbackAsPullRequest)
+	}
+	if !fallbackAsPullRequestBool {
+		t.Errorf("Expected fallback_as_pull_request=true, got %#v", fallbackAsPullRequestBool)
+	}
+	if !strings.Contains(lockContentStr, "pull-requests: write") {
+		t.Errorf("Generated workflow should have pull-requests: write permission when fallback-as-pull-request is true")
 	}
 }
 

@@ -98,13 +98,14 @@ type OverviewData struct {
 
 // MetricsData contains execution metrics
 type MetricsData struct {
-	TokenUsage      int     `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
-	EffectiveTokens int     `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
-	EstimatedCost   float64 `json:"estimated_cost,omitempty" console:"header:Estimated Cost,format:cost,omitempty"`
-	ActionMinutes   float64 `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
-	Turns           int     `json:"turns,omitempty" console:"header:Turns,omitempty"`
-	ErrorCount      int     `json:"error_count" console:"header:Errors"`
-	WarningCount    int     `json:"warning_count" console:"header:Warnings"`
+	TokenUsage      int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
+	EffectiveTokens int                    `json:"effective_tokens,omitempty" console:"header:Effective Tokens,format:number,omitempty"`
+	AmbientContext  *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
+	EstimatedCost   float64                `json:"estimated_cost,omitempty" console:"header:Estimated Cost,format:cost,omitempty"`
+	ActionMinutes   float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
+	Turns           int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount      int                    `json:"error_count" console:"header:Errors"`
+	WarningCount    int                    `json:"warning_count" console:"header:Warnings"`
 }
 
 // JobData contains information about individual jobs
@@ -284,6 +285,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		metricsData.EffectiveTokens = processedRun.TokenUsage.TotalEffectiveTokens
 	} else if run.EffectiveTokens > 0 {
 		metricsData.EffectiveTokens = run.EffectiveTokens
+	}
+	if processedRun.TokenUsage != nil && processedRun.TokenUsage.AmbientContext != nil {
+		metricsData.AmbientContext = processedRun.TokenUsage.AmbientContext
 	}
 
 	// Populate ActionMinutes from run duration so it is always visible even

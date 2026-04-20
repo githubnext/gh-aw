@@ -362,6 +362,42 @@ func TestValidateDispatchRepository_GitHubExpression(t *testing.T) {
 	assert.NoError(t, err, "GitHub Actions expressions should be accepted without format validation")
 }
 
+// TestValidateDispatchRepository_PartialExpressionMarker tests that values with only
+// the opening expression marker are still treated as dynamic values.
+func TestValidateDispatchRepository_PartialExpressionMarker(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	err := os.MkdirAll(awDir, 0755)
+	require.NoError(t, err)
+
+	workflowPath := filepath.Join(awDir, "dispatcher.md")
+	err = os.WriteFile(workflowPath, []byte("---\non: issues\n---\ntest"), 0644)
+	require.NoError(t, err)
+
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			DispatchRepository: &DispatchRepositoryConfig{
+				Tools: map[string]*DispatchRepositoryToolConfig{
+					"trigger_ci": {
+						Workflow:  "ci.yml",
+						EventType: "ci_trigger",
+						// Intentionally incomplete expressions: gh-aw should treat marker-based
+						// values as dynamic and skip static slug validation. GitHub Actions will
+						// still fail later if the expression itself is malformed at runtime.
+						Repository:          "${{ vars.TARGET_REPOSITORY",
+						AllowedRepositories: []string{"${{ vars.ALLOWED_REPOSITORY", "org/static-repo"},
+					},
+				},
+			},
+		},
+	}
+
+	err = compiler.validateDispatchRepository(workflowData, workflowPath)
+	assert.NoError(t, err, "Repository values with expression markers should bypass static slug validation")
+}
+
 // TestValidateDispatchRepository_EmptyTools tests error when no tools are defined
 func TestValidateDispatchRepository_EmptyTools(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))

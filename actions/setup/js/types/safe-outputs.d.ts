@@ -235,6 +235,8 @@ interface UpdatePullRequestItem extends BaseSafeOutputItem {
   body?: string;
   /** Update operation for body: 'replace' (default), 'append', or 'prepend' */
   operation?: "replace" | "append" | "prepend";
+  /** When true, updates the pull request branch with the latest base branch changes before other updates */
+  update_branch?: boolean;
   /** Optional pull request number for target "*" */
   pull_request_number?: number | string;
   /** Whether the PR should be a draft (true) or ready for review (false) */

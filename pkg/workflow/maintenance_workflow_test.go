@@ -282,9 +282,10 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	yaml := string(content)
 
 	operationSkipCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == ''`
-	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate'`
+	operationRunCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation != '' && inputs.operation != 'safe_outputs' && inputs.operation != 'create_labels' && inputs.operation != 'activity_report' && inputs.operation != 'close_agentic_workflows_issues' && inputs.operation != 'clean_cache_memories' && inputs.operation != 'validate'`
 	applySafeOutputsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'safe_outputs'`
 	createLabelsCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'create_labels'`
+	activityReportCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'activity_report'`
 	closeAgenticWorkflowIssuesCondition := `(github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.operation == 'close_agentic_workflows_issues'`
 	cleanCacheMemoriesCondition := `github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_call' || inputs.operation == '' || inputs.operation == 'clean_cache_memories'`
 
@@ -367,6 +368,33 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 		}
 	}
 
+	// activity_report job should be triggered when operation == 'activity_report'
+	activityReportIdx := strings.Index(yaml, "\n  activity_report:")
+	if activityReportIdx == -1 {
+		t.Errorf("Job activity_report not found in generated workflow")
+	} else {
+		activityReportSection := yaml[activityReportIdx : activityReportIdx+runOpSectionSearchRange]
+		if !strings.Contains(activityReportSection, activityReportCondition) {
+			t.Errorf("Job activity_report should have the activation condition %q in:\n%s", activityReportCondition, activityReportSection)
+		}
+		if !strings.Contains(activityReportSection, "contents: read") {
+			t.Errorf("Job activity_report should include contents: read permission in:\n%s", activityReportSection)
+		}
+		if !strings.Contains(activityReportSection, "timeout-minutes: 120") {
+			t.Errorf("Job activity_report should set timeout-minutes: 120 in:\n%s", activityReportSection)
+		}
+	}
+	if !strings.Contains(yaml, "Cache activity report logs") {
+		t.Errorf("Job activity_report should include a cache step in:\n%s", yaml)
+	}
+	if !strings.Contains(yaml, "${{ github.run_id }}") {
+		t.Errorf("Job activity_report cache key should include run_id for latest-cache resolution in:\n%s", yaml)
+	}
+
+	if !strings.Contains(yaml, "GH_AW_ACTIVITY_REPORT_OUTPUT_DIR: ./.cache/gh-aw/activity-report-logs") {
+		t.Errorf("Job activity_report should set GH_AW_ACTIVITY_REPORT_OUTPUT_DIR in:\n%s", yaml)
+	}
+
 	// close_agentic_workflows_issues job should be triggered when operation == 'close_agentic_workflows_issues'
 	closeAgenticWorkflowIssuesIdx := strings.Index(yaml, "\n  close_agentic_workflows_issues:")
 	if closeAgenticWorkflowIssuesIdx == -1 {
@@ -396,6 +424,11 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify validate is an option in the operation choices
 	if !strings.Contains(yaml, "- 'validate'") {
 		t.Error("workflow_dispatch operation choices should include 'validate'")
+	}
+
+	// Verify activity_report is an option in the operation choices
+	if !strings.Contains(yaml, "- 'activity_report'") {
+		t.Error("workflow_dispatch operation choices should include 'activity_report'")
 	}
 
 	// Verify close_agentic_workflows_issues is an option in the operation choices
@@ -430,9 +463,10 @@ func TestGenerateMaintenanceWorkflow_OperationJobConditions(t *testing.T) {
 	// Verify run_operation job exposes outputs
 	runOpIdx2 := strings.Index(yaml, "\n  run_operation:")
 	if runOpIdx2 != -1 {
-		runOpSection2 := yaml[runOpIdx2 : runOpIdx2+600]
+		runOpEnd := min(runOpIdx2+1200, len(yaml))
+		runOpSection2 := yaml[runOpIdx2:runOpEnd]
 		if !strings.Contains(runOpSection2, "outputs:\n      operation: ${{ steps.record.outputs.operation }}") {
-			t.Errorf("run_operation job should declare operation output, got:\n%s", runOpSection2[:300])
+			t.Errorf("run_operation job should declare operation output, got:\n%s", runOpSection2[:min(300, len(runOpSection2))])
 		}
 	}
 
@@ -678,12 +712,12 @@ func TestGenerateMaintenanceWorkflow_RunOperationCLICodegen(t *testing.T) {
 			t.Fatalf("Expected maintenance workflow to be generated: %v", err)
 		}
 		yaml := string(content)
-		// run_operation, create_labels, validate_workflows, and compile_workflows should use the same setup-go version
-		// (all use getActionPin, not hardcoded pins). Exactly 4 occurrences expected.
+		// run_operation, create_labels, activity_report, validate_workflows, and compile_workflows should use the same setup-go version
+		// (all use getActionPin, not hardcoded pins). Exactly 5 occurrences expected.
 		setupGoPin := getActionPin("actions/setup-go")
 		occurrences := strings.Count(yaml, setupGoPin)
-		if occurrences != 4 {
-			t.Errorf("Expected exactly 4 occurrences of pinned setup-go ref %q (run_operation + create_labels + validate_workflows + compile_workflows), got %d in:\n%s",
+		if occurrences != 5 {
+			t.Errorf("Expected exactly 5 occurrences of pinned setup-go ref %q (run_operation + create_labels + activity_report + validate_workflows + compile_workflows), got %d in:\n%s",
 				setupGoPin, occurrences, yaml)
 		}
 	})
@@ -1143,6 +1177,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 		if !strings.Contains(contentStr, "create_labels") {
 			t.Errorf("Side-repo maintenance should include create_labels job, got content length %d", len(contentStr))
 		}
+		if !strings.Contains(contentStr, "activity_report") {
+			t.Errorf("Side-repo maintenance should include activity_report job, got content length %d", len(contentStr))
+		}
 	})
 
 	t.Run("no side-repo file generated when no current checkout", func(t *testing.T) {
@@ -1172,7 +1209,7 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("side-repo generated without expires uses safe_outputs and create_labels only", func(t *testing.T) {
+	t.Run("side-repo generated without expires uses safe_outputs, create_labels, and activity_report", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		workflowDataList := []*WorkflowData{
 			{
@@ -1212,6 +1249,9 @@ func TestGenerateSideRepoMaintenanceWorkflow(t *testing.T) {
 		// Should NOT include close-expired-entities (no expires).
 		if strings.Contains(contentStr, "close-expired-entities") {
 			t.Errorf("Side-repo maintenance should NOT include close-expired-entities when no expires, got content length %d", len(contentStr))
+		}
+		if !strings.Contains(contentStr, "activity_report") {
+			t.Errorf("Side-repo maintenance should include activity_report when no expires, got content length %d", len(contentStr))
 		}
 	})
 

@@ -36,7 +36,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -74,7 +73,7 @@ func (t *TemplatableInt32) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %s", data)
 	}
-	if !strings.HasPrefix(s, "${{") || !strings.HasSuffix(s, "}}") {
+	if !isExpression(s) {
 		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got string %q", s)
 	}
 	*t = TemplatableInt32(s)
@@ -99,7 +98,7 @@ func (t *TemplatableInt32) String() string {
 // (i.e. starts with "${{" and ends with "}}").
 func (t *TemplatableInt32) IsExpression() bool {
 	s := string(*t)
-	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
+	return isExpression(s)
 }
 
 // IntValue returns the integer value for numeric literals.
@@ -160,7 +159,7 @@ func preprocessBoolFieldAsString(configData map[string]any, fieldName string, lo
 				log.Printf("Converted %s bool to string before unmarshaling", fieldName)
 			}
 		case string:
-			if !strings.HasPrefix(v, "${{") || !strings.HasSuffix(v, "}}") {
+			if !isExpression(v) {
 				return fmt.Errorf("field %q must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.flag }}'), got string %q", fieldName, v)
 			}
 			// expression string is already in the correct form
@@ -178,7 +177,7 @@ func buildTemplatableBoolEnvVar(envVarName string, value *string) []string {
 		return nil
 	}
 	v := *value
-	if strings.HasPrefix(v, "${{") {
+	if isExpression(v) {
 		return []string{fmt.Sprintf("          %s: %s\n", envVarName, v)}
 	}
 	return []string{fmt.Sprintf("          %s: %q\n", envVarName, v)}
@@ -245,7 +244,7 @@ func preprocessIntFieldAsString(configData map[string]any, fieldName string, log
 				log.Printf("Converted %s uint64 to string before unmarshaling", fieldName)
 			}
 		case string:
-			if !strings.HasPrefix(v, "${{") || !strings.HasSuffix(v, "}}") {
+			if !isExpression(v) {
 				return fmt.Errorf("field %q must be an integer or a GitHub Actions expression (e.g. '${{ inputs.max }}'), got string %q", fieldName, v)
 			}
 			// expression string is already in the correct form
@@ -263,7 +262,7 @@ func buildTemplatableIntEnvVar(envVarName string, value *string) []string {
 		return nil
 	}
 	v := *value
-	if strings.HasPrefix(v, "${{") {
+	if isExpression(v) {
 		return []string{fmt.Sprintf("          %s: %s\n", envVarName, v)}
 	}
 	return []string{fmt.Sprintf("          %s: %q\n", envVarName, v)}
@@ -312,11 +311,4 @@ func templatableIntValue(value *string) int {
 		return n
 	}
 	return 0 // expression strings are not evaluable at compile time
-}
-
-// isExpressionString returns true if s is a complete GitHub Actions expression
-// (i.e. the entire string starts with "${{" and ends with "}}").
-// This is the strict "entire value is an expression" check used for templatable fields.
-func isExpressionString(s string) bool {
-	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
 }

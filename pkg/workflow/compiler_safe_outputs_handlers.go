@@ -411,6 +411,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+			AddIfTrue("ignore_missing_branch_failure", c.IgnoreMissingBranchFailure).
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
@@ -424,6 +425,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_files", c.AllowedFiles).
 			AddStringSlice("excluded_files", c.ExcludedFiles).
 			AddIfNotEmpty("patch_format", c.PatchFormat).
+			AddBoolPtr("fallback_as_pull_request", c.FallbackAsPullRequest).
 			Build()
 	},
 	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
@@ -436,6 +438,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
+			AddBoolPtrOrDefault("update_branch", c.UpdateBranch, false).
 			AddStringPtr("default_operation", c.Operation).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).

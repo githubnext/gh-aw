@@ -24,10 +24,15 @@ type FrontmatterResult struct {
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
 func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	log.Printf("Extracting frontmatter from content: size=%d bytes", len(content))
-	lines := strings.Split(content, "\n")
+	// Fast-path: inspect only the first line to determine whether frontmatter exists.
+	firstNewline := strings.IndexByte(content, '\n')
+	firstLine := content
+	if firstNewline >= 0 {
+		firstLine = content[:firstNewline]
+	}
 
-	// Check if file starts with frontmatter delimiter
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+	// Check if file starts with frontmatter delimiter.
+	if strings.TrimSpace(firstLine) != "---" {
 		log.Print("No frontmatter delimiter found, returning content as markdown")
 		// No frontmatter, return entire content as markdown
 		return &FrontmatterResult{
@@ -38,22 +43,52 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		}, nil
 	}
 
-	// Find end of frontmatter
-	endIndex := -1
-	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
-			endIndex = i
+	// Find end of frontmatter by scanning line-by-line without splitting the entire document.
+	searchStart := len(content)
+	if firstNewline >= 0 {
+		searchStart = firstNewline + 1
+	}
+	frontmatterEndStart := -1
+	markdownStart := len(content)
+	for cursor := searchStart; cursor <= len(content); {
+		lineStart := cursor
+		lineEnd := len(content)
+		nextCursor := len(content) + 1
+
+		if cursor < len(content) {
+			if relNewline := strings.IndexByte(content[cursor:], '\n'); relNewline >= 0 {
+				lineEnd = cursor + relNewline
+				nextCursor = lineEnd + 1
+			}
+		}
+
+		if strings.TrimSpace(content[lineStart:lineEnd]) == "---" {
+			frontmatterEndStart = lineStart
+			markdownStart = nextCursor
 			break
 		}
+
+		if nextCursor > len(content) {
+			break
+		}
+		cursor = nextCursor
 	}
 
-	if endIndex == -1 {
+	if frontmatterEndStart == -1 {
 		return nil, errors.New("frontmatter not properly closed")
 	}
 
 	// Extract frontmatter YAML
-	frontmatterLines := lines[1:endIndex]
-	frontmatterYAML := strings.Join(frontmatterLines, "\n")
+	frontmatterYAML := content[searchStart:frontmatterEndStart]
+	frontmatterLines := []string{}
+	if frontmatterYAML != "" {
+		frontmatterLines = strings.Split(frontmatterYAML, "\n")
+		// Preserve previous behavior from lines[1:endIndex]: a trailing newline before
+		// the closing delimiter does not create an additional empty frontmatter line.
+		if strings.HasSuffix(frontmatterYAML, "\n") {
+			frontmatterLines = frontmatterLines[:len(frontmatterLines)-1]
+		}
+	}
 
 	// Sanitize no-break whitespace characters (U+00A0) which break the YAML parser
 	frontmatterYAML = strings.ReplaceAll(frontmatterYAML, "\u00A0", " ")
@@ -73,11 +108,10 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 
 	// Extract markdown content (everything after the closing ---)
-	var markdownLines []string
-	if endIndex+1 < len(lines) {
-		markdownLines = lines[endIndex+1:]
+	markdown := ""
+	if markdownStart <= len(content) {
+		markdown = content[markdownStart:]
 	}
-	markdown := strings.Join(markdownLines, "\n")
 
 	log.Printf("Successfully extracted frontmatter: fields=%d, markdown_size=%d bytes", len(frontmatter), len(markdown))
 	return &FrontmatterResult{

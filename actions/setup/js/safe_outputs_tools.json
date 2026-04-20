@@ -783,6 +783,10 @@
           "enum": ["replace", "append", "prepend"],
           "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced."
         },
+        "update_branch": {
+          "type": "boolean",
+          "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
+        },
         "pull_request_number": {
           "type": ["number", "string"],
           "description": "Pull request number to update. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR)."

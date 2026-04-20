@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -283,6 +284,74 @@ This is markdown.`,
 
 			if result != tt.expected {
 				t.Errorf("ExtractMarkdownContent() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractFrontmatterFromContent_FrontmatterLinesAndStart(t *testing.T) {
+	tests := []struct {
+		name                 string
+		content              string
+		wantFrontmatterLines []string
+		wantFrontmatterStart int
+	}{
+		{
+			name: "no trailing blank frontmatter line without blank before closing delimiter",
+			content: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+---
+# Body
+`,
+			wantFrontmatterLines: []string{
+				"on: workflow_dispatch",
+				"permissions:",
+				"  contents: read",
+			},
+			wantFrontmatterStart: 2,
+		},
+		{
+			name: "preserve intentional blank line before closing delimiter",
+			content: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+
+---
+# Body
+`,
+			wantFrontmatterLines: []string{
+				"on: workflow_dispatch",
+				"permissions:",
+				"  contents: read",
+				"",
+			},
+			wantFrontmatterStart: 2,
+		},
+		{
+			name: "no frontmatter keeps empty frontmatter metadata",
+			content: `# Body without frontmatter
+`,
+			wantFrontmatterLines: []string{},
+			wantFrontmatterStart: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ExtractFrontmatterFromContent(tt.content)
+			if err != nil {
+				t.Fatalf("ExtractFrontmatterFromContent() error = %v", err)
+			}
+
+			if !reflect.DeepEqual(result.FrontmatterLines, tt.wantFrontmatterLines) {
+				t.Errorf("ExtractFrontmatterFromContent() FrontmatterLines = %#v, want %#v", result.FrontmatterLines, tt.wantFrontmatterLines)
+			}
+
+			if result.FrontmatterStart != tt.wantFrontmatterStart {
+				t.Errorf("ExtractFrontmatterFromContent() FrontmatterStart = %d, want %d", result.FrontmatterStart, tt.wantFrontmatterStart)
 			}
 		})
 	}

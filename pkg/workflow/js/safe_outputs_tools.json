@@ -935,6 +935,10 @@
                     ],
                     "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced."
                 },
+                "update_branch": {
+                    "type": "boolean",
+                    "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
+                },
                 "pull_request_number": {
                     "type": [
                         "number",

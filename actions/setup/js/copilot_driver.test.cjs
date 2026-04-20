@@ -151,9 +151,9 @@ describe("copilot_driver.cjs", () => {
 
     it("appends one JSONL line through appendSafeOutputLine", () => {
       const writes = [];
-      const appendStub = (file, data, encoding) => writes.push({ file, data, encoding });
+      const appendStub = (file, data, options) => writes.push({ file, data, options });
       appendSafeOutputLine(appendStub, "/tmp/safeoutputs.jsonl", '{"type":"report_incomplete"}');
-      expect(writes).toEqual([{ file: "/tmp/safeoutputs.jsonl", data: '{"type":"report_incomplete"}\n', encoding: "utf8" }]);
+      expect(writes).toEqual([{ file: "/tmp/safeoutputs.jsonl", data: '{"type":"report_incomplete"}\n', options: { encoding: "utf8" } }]);
     });
 
     it("emitInfrastructureIncomplete writes payload when path is configured", () => {
@@ -161,7 +161,7 @@ describe("copilot_driver.cjs", () => {
       const logs = [];
       emitInfrastructureIncomplete("temporary outage", {
         safeOutputsPath: "/tmp/safeoutputs.jsonl",
-        appendFileSync: (file, data, encoding) => writes.push({ file, data, encoding }),
+        appendFileSync: (file, data, options) => writes.push({ file, data, options }),
         logger: message => logs.push(message),
       });
       expect(writes).toHaveLength(1);

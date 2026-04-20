@@ -24,6 +24,25 @@ const { getGitAuthEnv } = require("./git_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "push_to_pull_request_branch";
+const MISSING_BRANCH_ERROR_TEMPLATE = branchName => `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
+const MISSING_REMOTE_REF_PATTERNS = [
+  "couldn't find remote ref",
+  "could not find remote ref",
+  "remote ref does not exist",
+  "did not match any file(s) known to git",
+  "unknown revision or path not in the working tree",
+  "fatal: couldn't find remote ref",
+  "exit code 128",
+];
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function looksLikeMissingRemoteBranchError(value) {
+  const text = String(value ?? "").toLowerCase();
+  return MISSING_REMOTE_REF_PATTERNS.some(pattern => text.includes(pattern));
+}
 
 /**
  * Main handler factory for push_to_pull_request_branch
@@ -36,6 +55,8 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const ifNoChanges = config.if_no_changes || "warn";
+  const ignoreMissingBranchFailure = config.ignore_missing_branch_failure === true;
+  const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const maxCount = config.max || 0; // 0 means no limit
@@ -70,6 +91,8 @@ async function main(config = {}) {
     core.info(`Required labels: ${envLabels.join(", ")}`);
   }
   core.info(`If no changes: ${ifNoChanges}`);
+  core.info(`Ignore missing branch failure: ${ignoreMissingBranchFailure}`);
+  core.info(`Fallback as pull request: ${fallbackAsPullRequest}`);
   if (commitTitleSuffix) {
     core.info(`Commit title suffix: ${commitTitleSuffix}`);
   }
@@ -464,9 +487,18 @@ async function main(config = {}) {
       });
 
       if (lsRemoteResult.exitCode === 2) {
+        const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
+        if (ignoreMissingBranchFailure) {
+          core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
+          return {
+            success: false,
+            error: missingBranchError,
+            skipped: true,
+          };
+        }
         return {
           success: false,
-          error: `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`,
+          error: missingBranchError,
         };
       }
 
@@ -488,6 +520,12 @@ async function main(config = {}) {
         env: { ...process.env, ...gitAuthEnv },
       });
     } catch (fetchError) {
+      const fetchErrorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      if (ignoreMissingBranchFailure && looksLikeMissingRemoteBranchError(fetchErrorMessage)) {
+        const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
+        core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
+        return { success: false, error: missingBranchError, skipped: true };
+      }
       return { success: false, error: `Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
@@ -495,6 +533,11 @@ async function main(config = {}) {
     try {
       await exec.exec(`git rev-parse --verify origin/${branchName}`);
     } catch (verifyError) {
+      const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
+      if (ignoreMissingBranchFailure) {
+        core.warning(`${missingBranchError} Skipping as configured by ignore-missing-branch-failure.`);
+        return { success: false, error: missingBranchError, skipped: true };
+      }
       return { success: false, error: `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}` };
     }
 
@@ -727,6 +770,58 @@ async function main(config = {}) {
           }
         } catch (diagnosisError) {
           core.warning(`Push failed and branch existence re-check errored for ${branchName}: ${getErrorMessage(diagnosisError)}`);
+        }
+
+        // Fallback path for diverged branches: create a new pull request so changes
+        // can still be reviewed and merged into the original PR branch.
+        if (isNonFastForward && fallbackAsPullRequest) {
+          const fallbackBranchName = normalizeBranchName(`${branchName}-fallback`, String(Date.now()));
+          core.warning(`Non-fast-forward push detected; creating fallback pull request from '${fallbackBranchName}' to '${branchName}'`);
+          try {
+            await exec.exec("git", ["checkout", "-b", fallbackBranchName]);
+            await exec.exec("git", ["push", "origin", fallbackBranchName], {
+              env: { ...process.env, ...gitAuthEnv },
+            });
+
+            const fallbackBody = [
+              "> [!NOTE]",
+              "> Direct push to the original pull request branch failed because the branch diverged (non-fast-forward).",
+              `> Original PR branch: \`${branchName}\``,
+              "",
+              `This fallback PR contains the prepared changes for PR #${pullNumber}.`,
+              "Merge this fallback PR into the original PR branch to apply them.",
+              "",
+              `Workflow run: ${buildWorkflowRunUrl(context, context.repo)}`,
+            ].join("\n");
+
+            const { data: fallbackPR } = await githubClient.rest.pulls.create({
+              owner: repoParts.owner,
+              repo: repoParts.repo,
+              title: `[fallback] ${prTitle || `Changes for #${pullNumber}`}`,
+              body: fallbackBody,
+              head: fallbackBranchName,
+              base: branchName,
+            });
+
+            core.info(`Created fallback pull request #${fallbackPR.number}: ${fallbackPR.html_url}`);
+            await updateActivationComment(github, context, core, fallbackPR.html_url, fallbackPR.number, "pull_request");
+
+            return {
+              success: true,
+              fallback_used: true,
+              fallback_type: "pull_request",
+              pull_request_number: fallbackPR.number,
+              pull_request_url: fallbackPR.html_url,
+              branch_name: fallbackBranchName,
+              repo: itemRepo,
+              number: fallbackPR.number,
+              url: fallbackPR.html_url,
+            };
+          } catch (fallbackError) {
+            const fallbackErrorMessage = getErrorMessage(fallbackError);
+            core.error(`Failed to create fallback pull request: ${fallbackErrorMessage}`);
+            userMessage = `${userMessage} Fallback pull request creation also failed: ${fallbackErrorMessage}`;
+          }
         }
 
         return { success: false, error_type: "push_failed", error: userMessage };

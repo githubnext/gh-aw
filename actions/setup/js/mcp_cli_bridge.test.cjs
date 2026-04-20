@@ -53,6 +53,98 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
+  it("maps dashed arg names to underscored schema keys", () => {
+    const schemaProperties = {
+      issue_number: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issue-number", "42"], schemaProperties);
+
+    expect(args).toEqual({
+      issue_number: 42,
+    });
+  });
+
+  it("maps underscored arg names to dashed schema keys", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issue_number=99"], schemaProperties);
+
+    expect(args).toEqual({
+      "issue-number": 99,
+    });
+  });
+
+  it("keeps exact schema keys when normalized forms collide", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+      issue_number: { type: "integer" },
+    };
+
+    const dashed = parseToolArgs(["--issue-number", "7"], schemaProperties);
+    const underscored = parseToolArgs(["--issue_number", "8"], schemaProperties);
+
+    expect(dashed.args).toEqual({
+      "issue-number": 7,
+    });
+    expect(underscored.args).toEqual({
+      issue_number: 8,
+    });
+  });
+
+  it("falls back to raw key when normalized schema key is ambiguous", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+      issue_number: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issuenumber", "11"], schemaProperties);
+
+    expect(args).toEqual({
+      issuenumber: "11",
+    });
+  });
+
+  it("keeps normalized key unresolved when 3+ schema keys collide", () => {
+    const schemaProperties = {
+      "issue-number": { type: "integer" },
+      issue_number: { type: "integer" },
+      issueNumber: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--issuenumber", "15"], schemaProperties);
+
+    expect(args).toEqual({
+      issuenumber: "15",
+    });
+  });
+
+  it("keeps unknown argument keys unchanged", () => {
+    const schemaProperties = {
+      issue_number: { type: "integer" },
+    };
+
+    const { args } = parseToolArgs(["--custom-field", "value"], schemaProperties);
+
+    expect(args).toEqual({
+      "custom-field": "value",
+    });
+  });
+
+  it("normalizes repeated mixed dash/underscore arguments for array schema", () => {
+    const schemaProperties = {
+      issue_number: { type: "array" },
+    };
+
+    const { args } = parseToolArgs(["--issue-number", "1", "--issue_number", "2"], schemaProperties);
+
+    expect(args).toEqual({
+      issue_number: ["1", "2"],
+    });
+  });
+
   it("treats MCP result envelopes with isError=true as errors", () => {
     formatResponse(
       {

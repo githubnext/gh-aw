@@ -196,8 +196,7 @@ function generateBlockedDomainsSection(blockedDomains) {
   const domainWord = domainCount === 1 ? "domain" : "domains";
 
   let section = "\n\n> [!WARNING]\n";
-  section += `> <details>\n`;
-  section += `> <summary><strong>⚠️ Firewall blocked ${domainCount} ${domainWord}</strong></summary>\n`;
+  section += `> **⚠️ Firewall blocked ${domainCount} ${domainWord}**\n`;
   section += `>\n`;
   section += `> The following ${domainWord} ${domainCount === 1 ? "was" : "were"} blocked by the firewall during workflow execution:\n`;
   section += `>\n`;
@@ -220,8 +219,6 @@ function generateBlockedDomainsSection(blockedDomains) {
   section += `> \`\`\`\n`;
   section += `>\n`;
   section += `> See [Network Configuration](https://github.github.com/gh-aw/reference/network/) for more information.\n`;
-  section += `>\n`;
-  section += `> </details>\n`;
 
   return section;
 }
