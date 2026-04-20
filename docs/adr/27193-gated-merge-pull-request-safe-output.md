@@ -10,11 +10,11 @@
 
 ### Context
 
-The gh-aw agentic workflow platform already supports a safe-output model in which agents can perform real side-effects (creating issues, posting comments, etc.) only through a compiler-validated, runtime-gated execution path. Until this change, there was no way for an agent to merge a pull request through the same safety layer. Merging is a high-consequence, irreversible action that must be gated on repository policy (CI status, review approval, label constraints, branch restrictions, and file-scope rules) before it can be executed safely. The existing safe-output infrastructure — a Go compiler that validates frontmatter configuration and a Node.js runtime handler layer — already provides the extension point needed to add merge support without inventing a separate execution path.
+The gh-aw agentic workflow platform already supports a safe-output model in which agents can perform real side-effects (creating issues, posting comments, etc.) only through a compiler-validated, runtime-gated execution path. Until this change, there was no way for an agent to merge a pull request through the same safety layer. Merging is a high-consequence, irreversible action that must be gated on repository policy (CI status, review approval, label constraints, and branch restrictions) before it can be executed safely. The existing safe-output infrastructure — a Go compiler that validates frontmatter configuration and a Node.js runtime handler layer — already provides the extension point needed to add merge support without inventing a separate execution path.
 
 ### Decision
 
-We will add `merge-pull-request` as a new safe-output type that integrates with the existing compiler and runtime handler model rather than introducing a standalone merge action. The merge handler evaluates a sequenced set of policy gates — CI checks, review decision, unresolved threads, required/allowed labels, source-branch allow-list, default-branch protection, file-scope (allowed-files / protected-files), draft state, mergeability, and conflict state — and only proceeds when all gates pass. Configuration is expressed in workflow YAML frontmatter under `safe-outputs.merge-pull-request` using the same typed-config pattern already used by other safe-output types.
+We will add `merge-pull-request` as a new safe-output type that integrates with the existing compiler and runtime handler model rather than introducing a standalone merge action. The merge handler evaluates a sequenced set of policy gates — CI checks, review decision, unresolved threads, required/allowed labels, source-branch allow-list, default-branch protection, draft state, mergeability, and conflict state — and only proceeds when all gates pass. Configuration is expressed in workflow YAML frontmatter under `safe-outputs.merge-pull-request` using the same typed-config pattern already used by other safe-output types.
 
 ### Alternatives Considered
 
@@ -59,7 +59,7 @@ Merge could have been treated as a distinct risk tier requiring its own runtime 
 
 1. The `merge-pull-request` capability **MUST** be implemented as a safe-output type within the existing compiler-plus-runtime-handler model and **MUST NOT** introduce a separate merge execution path outside that model.
 2. Configuration for `merge-pull-request` **MUST** be expressed in workflow YAML frontmatter under the `safe-outputs.merge-pull-request` key, using the same typed-config parsing pattern used by other safe-output types.
-3. The compiler **MUST** validate `merge-pull-request` configuration at compile time, including glob-pattern fields (`allowed-files`, `protected-files`, `allowed-branches`, `allowed-labels`).
+3. The compiler **MUST** validate `merge-pull-request` configuration at compile time, including configured branch and label constraints (`allowed-branches`, `allowed-labels`, `required-labels`).
 4. The runtime handler **MUST** be registered in the safe-output handler manager alongside all other safe-output handlers.
 
 ### Policy Gate Evaluation
@@ -74,8 +74,6 @@ Merge could have been treated as a distinct risk tier requiring its own runtime 
    g. Allowed labels — when `allowed-labels` is configured, at least one PR label **MUST** exactly match a configured label name.
    h. Allowed branches — when `allowed-branches` is configured, the PR source branch **MUST** match at least one configured glob pattern.
    i. Default-branch protection — the PR target branch **MUST NOT** be the repository default branch.
-   j. Allowed files — when `allowed-files` is configured, every changed file **MUST** match at least one configured glob pattern.
-   k. Protected files — when `protected-files` is configured, no changed file **MUST** match any configured glob pattern.
 2. Gate evaluation **MUST** be idempotent: if the PR is already merged the handler **MUST** return a success response without attempting another merge.
 3. Mergeability retrieval **MUST** use retry logic to handle GitHub API eventual-consistency delays; implementations **SHOULD** retry at least 3 times with exponential back-off before reporting failure.
 

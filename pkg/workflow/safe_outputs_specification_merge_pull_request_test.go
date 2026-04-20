@@ -28,10 +28,6 @@ func TestSafeOutputsSpecificationDocumentsMergePullRequest(t *testing.T) {
 		"spec should explicitly refuse merge_pull_request to repository default branch")
 	assert.Contains(t, section, "`required-labels`",
 		"spec should document required-labels configuration for merge_pull_request")
-	assert.Contains(t, section, "`allowed-files`",
-		"spec should document allowed-files configuration for merge_pull_request")
-	assert.Contains(t, section, "`protected-files`",
-		"spec should document protected-files configuration for merge_pull_request")
 	assert.Contains(t, section, "`contents: write`",
 		"spec should document contents: write permission for merge_pull_request")
 	assert.Contains(t, section, "`pull-requests: write`",

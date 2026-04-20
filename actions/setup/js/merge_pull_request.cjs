@@ -25,24 +25,6 @@ function compilePathGlobs(patterns) {
 }
 
 /**
- * @param {string[]} changedFiles
- * @param {RegExp[]} patterns
- * @returns {string[]}
- */
-function findNonMatchingFiles(changedFiles, patterns) {
-  return changedFiles.filter(file => !patterns.some(re => re.test(file)));
-}
-
-/**
- * @param {string[]} changedFiles
- * @param {RegExp[]} patterns
- * @returns {string[]}
- */
-function findMatchingFiles(changedFiles, patterns) {
-  return changedFiles.filter(file => patterns.some(re => re.test(file)));
-}
-
-/**
  * @param {any} githubClient
  * @param {string} owner
  * @param {string} repo
@@ -254,26 +236,6 @@ async function evaluateRequiredChecks(githubClient, owner, repo, headSha, requir
 }
 
 /**
- * @param {any} githubClient
- * @param {string} owner
- * @param {string} repo
- * @param {number} pullNumber
- * @returns {Promise<string[]>}
- */
-async function listChangedFiles(githubClient, owner, repo, pullNumber) {
-  core.info(`Listing changed files for PR #${pullNumber}`);
-  const files = await githubClient.paginate(githubClient.rest.pulls.listFiles, {
-    owner,
-    repo,
-    pull_number: pullNumber,
-    per_page: 100,
-  });
-  const changed = files.map(f => f.filename).filter(Boolean);
-  core.info(`PR #${pullNumber} changed ${changed.length} file(s)`);
-  return changed;
-}
-
-/**
  * @returns {number|undefined}
  */
 function resolveContextPullNumber() {
@@ -364,15 +326,9 @@ async function main(config = {}) {
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
   const allowedLabels = Array.isArray(config.allowed_labels) ? config.allowed_labels : [];
   const allowedBranches = Array.isArray(config.allowed_branches) ? config.allowed_branches : [];
-  const allowedFiles = Array.isArray(config.allowed_files) ? config.allowed_files : [];
-  const protectedFiles = Array.isArray(config.protected_files) ? config.protected_files : [];
 
   const allowedBranchPatterns = compilePathGlobs(allowedBranches);
-  const allowedFilePatterns = compilePathGlobs(allowedFiles);
-  const protectedFilePatterns = compilePathGlobs(protectedFiles);
-  core.info(
-    `merge_pull_request handler configured: max=${maxCount}, requiredLabels=${requiredLabels.length}, allowedLabels=${allowedLabels.length}, allowedBranches=${allowedBranches.length}, allowedFiles=${allowedFiles.length}, protectedFiles=${protectedFiles.length}, staged=${isStaged}`
-  );
+  core.info(`merge_pull_request handler configured: max=${maxCount}, requiredLabels=${requiredLabels.length}, allowedLabels=${allowedLabels.length}, allowedBranches=${allowedBranches.length}, staged=${isStaged}`);
 
   let processedCount = 0;
 
@@ -553,33 +509,6 @@ async function main(config = {}) {
         });
       }
 
-      const changedFiles = await listChangedFiles(githubClient, owner, repo, pullNumber);
-      core.info(`Changed files sample: ${changedFiles.slice(0, 20).join(", ")}${changedFiles.length > 20 ? ", ..." : ""}`);
-
-      if (protectedFilePatterns.length > 0) {
-        const protectedMatches = findMatchingFiles(changedFiles, protectedFilePatterns);
-        core.info(`Protected file match count: ${protectedMatches.length}`);
-        if (protectedMatches.length > 0) {
-          failureReasons.push({
-            code: "protected_files_match",
-            message: "Protected files were changed",
-            details: { matched_files: protectedMatches, patterns: protectedFiles, protected_files_blocked: true },
-          });
-        }
-      }
-
-      if (allowedFilePatterns.length > 0) {
-        const disallowedFiles = findNonMatchingFiles(changedFiles, allowedFilePatterns);
-        core.info(`Allowed-file violations count: ${disallowedFiles.length}`);
-        if (disallowedFiles.length > 0) {
-          failureReasons.push({
-            code: "allowed_files_violation",
-            message: "Changed files outside allowed-files patterns",
-            details: { disallowed_files: disallowedFiles, patterns: allowedFiles },
-          });
-        }
-      }
-
       if (failureReasons.length > 0) {
         core.warning(`merge_pull_request blocked with ${failureReasons.length} gate failure(s): ${failureReasons.map(r => r.code).join(", ")}`);
         return {
@@ -645,7 +574,6 @@ module.exports = {
   main,
   __testables: {
     compilePathGlobs,
-    listChangedFiles,
     resolveContextPullNumber,
     sanitizeBranchName,
     getBranchPolicy,

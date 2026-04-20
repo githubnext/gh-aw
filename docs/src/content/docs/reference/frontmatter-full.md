@@ -4613,18 +4613,6 @@ safe-outputs:
     allowed-branches: []
       # Array of strings
 
-    # Exclusive allowlist of file path glob patterns. When configured, every changed
-    # file in the pull request must match at least one pattern.
-    # (optional)
-    allowed-files: []
-      # Array of strings
-
-    # Glob patterns for protected files. If any changed file matches, merge is
-    # blocked. This check takes precedence over allowed-files.
-    # (optional)
-    protected-files: []
-      # Array of strings
-
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)

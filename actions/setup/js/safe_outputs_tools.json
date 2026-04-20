@@ -809,7 +809,7 @@
   },
   {
     "name": "merge_pull_request",
-    "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch/file constraints, and mergeability gates). Use this when workflows require controlled merges instead of direct merge operations.",
+    "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch constraints, and mergeability gates). Use this when workflows require controlled merges instead of direct merge operations.",
     "inputSchema": {
       "type": "object",
       "properties": {

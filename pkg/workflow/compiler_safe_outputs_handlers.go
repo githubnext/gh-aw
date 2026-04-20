@@ -457,8 +457,6 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("required_labels", c.RequiredLabels).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddStringSlice("allowed_branches", c.AllowedBranches).
-			AddStringSlice("allowed_files", c.AllowedFiles).
-			AddStringSlice("protected_files", c.ProtectedFiles).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddIfTrue("staged", c.Staged).
 			Build()

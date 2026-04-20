@@ -2773,7 +2773,7 @@ This section provides complete definitions for all remaining safe output types. 
 ```json
 {
   "name": "merge_pull_request",
-  "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch/file constraints, and mergeability gates).",
+  "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch constraints, and mergeability gates).",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -2801,7 +2801,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 1. **Repository/PR Resolution**: Resolves target repository and pull request from context or explicit input.
 2. **Mergeability Check**: Validates pull request is mergeable and not draft/conflicted.
-3. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, source branch constraints, and file-scope constraints.
+3. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, and source branch constraints.
 4. **Base Branch Protection**: Refuses merges when the target base branch is protected or is the repository default branch.
 5. **Idempotency**: Returns success when the pull request is already merged.
 
@@ -2811,8 +2811,6 @@ This section provides complete definitions for all remaining safe output types. 
 - `required-labels`: Labels that must exist on the pull request
 - `allowed-labels`: Exact label names; at least one pull request label must exactly match when configured
 - `allowed-branches`: Source branch glob patterns
-- `allowed-files`: Changed-file glob allowlist
-- `protected-files`: Changed-file glob denylist (any match blocks merge)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repository allowlist
 - `staged`: Staged mode override
@@ -2834,7 +2832,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Merge execution is blocked unless all configured gates pass.
 - Merge to the repository default branch is always refused by this safe output type.
-- `allowed-files` and `protected-files` are evaluated independently; both must pass.
 - `pull_request_number` may be a temporary ID that resolves to a pull request number from earlier safe-output operations.
 - GraphQL mergeability and review-summary queries are retried with transient-error retry logic.
 - Compiling a workflow with `merge-pull-request` emits: `Using experimental feature: merge-pull-request`.

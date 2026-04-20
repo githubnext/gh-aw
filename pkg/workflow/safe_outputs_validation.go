@@ -192,19 +192,6 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 	c := config.MergePullRequest
 	safeOutputsMergePullRequestValidationLog.Print("Validating merge-pull-request policy fields")
 
-	validatePathGlobList := func(field string, patterns []string) error {
-		for i, pat := range patterns {
-			if errs := validatePathGlob(pat); len(errs) > 0 {
-				msgs := make([]string, 0, len(errs))
-				for _, e := range errs {
-					msgs = append(msgs, e.Message)
-				}
-				return fmt.Errorf("invalid glob pattern %q in safe-outputs.merge-pull-request.%s[%d]: %s", pat, field, i, strings.Join(msgs, "; "))
-			}
-		}
-		return nil
-	}
-
 	validateNonEmptyStringList := func(field string, values []string) error {
 		for i, value := range values {
 			if strings.TrimSpace(value) == "" {
@@ -234,12 +221,6 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 		return err
 	}
 	if err := validateRefGlobList("allowed-branches", c.AllowedBranches); err != nil {
-		return err
-	}
-	if err := validatePathGlobList("allowed-files", c.AllowedFiles); err != nil {
-		return err
-	}
-	if err := validatePathGlobList("protected-files", c.ProtectedFiles); err != nil {
 		return err
 	}
 
