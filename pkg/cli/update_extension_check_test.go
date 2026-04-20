@@ -59,15 +59,32 @@ func TestFirstAttemptWriter_Linux(t *testing.T) {
 	assert.Equal(t, &buf, w, "firstAttemptWriter should return the buffer on Linux")
 }
 
-func TestFirstAttemptWriter_NonLinux(t *testing.T) {
-	if runtime.GOOS == "linux" {
-		t.Skip("Non-Linux behavior only")
+func TestFirstAttemptWriter_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only behavior")
 	}
 	var buf bytes.Buffer
 	dst := &bytes.Buffer{}
 	w := firstAttemptWriter(dst, &buf)
-	// On non-Linux the writer should be dst.
-	assert.Equal(t, dst, w, "firstAttemptWriter should return dst on non-Linux")
+	// On Windows the writer should be the buffer (rename+retry workaround).
+	assert.Equal(t, &buf, w, "firstAttemptWriter should return the buffer on Windows")
+}
+
+func TestFirstAttemptWriter_NonLinuxNonWindows(t *testing.T) {
+	if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+		t.Skip("Non-Linux/non-Windows behavior only")
+	}
+	var buf bytes.Buffer
+	dst := &bytes.Buffer{}
+	w := firstAttemptWriter(dst, &buf)
+	// On other platforms the writer should be dst.
+	assert.Equal(t, dst, w, "firstAttemptWriter should return dst on non-Linux/non-Windows")
+}
+
+func TestNeedsRenameWorkaround(t *testing.T) {
+	result := needsRenameWorkaround()
+	expected := runtime.GOOS == "linux" || runtime.GOOS == "windows"
+	assert.Equal(t, expected, result, "needsRenameWorkaround should return true only on Linux and Windows")
 }
 
 func TestRenamePathForUpgrade(t *testing.T) {
