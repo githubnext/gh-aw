@@ -29,6 +29,7 @@ type Release struct {
 	Name       string `json:"name"`
 	HTMLURL    string `json:"html_url"`
 	Prerelease bool   `json:"prerelease"`
+	Draft      bool   `json:"draft"`
 }
 
 // shouldCheckForUpdate determines if we should check for updates based on:
@@ -160,7 +161,7 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 	}
 
 	// Query GitHub API for latest release
-	latestVersion, err := getLatestRelease()
+	latestVersion, err := getLatestRelease(false)
 	if err != nil {
 		// Silently ignore errors - update check should never fail the command
 		updateCheckLog.Printf("Error checking for updates (ignoring): %v", err)
@@ -207,7 +208,7 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 }
 
 // getLatestRelease queries GitHub API for the latest release of gh-aw
-func getLatestRelease() (string, error) {
+func getLatestRelease(includePrereleases bool) (string, error) {
 	updateCheckLog.Print("Querying GitHub API for latest release...")
 
 	// Create GitHub REST client using go-gh
@@ -216,7 +217,19 @@ func getLatestRelease() (string, error) {
 		return "", fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 
-	// Query the latest release
+	if includePrereleases {
+		var releases []Release
+		err = client.Get("repos/github/gh-aw/releases?per_page=50", &releases)
+		if err != nil {
+			return "", fmt.Errorf("failed to query releases: %w", err)
+		}
+
+		tag := findLatestPublishedReleaseTag(releases)
+		updateCheckLog.Printf("Latest published release (pre-releases allowed): %s", tag)
+		return tag, nil
+	}
+
+	// Query the latest stable release
 	var release Release
 	err = client.Get("repos/github/gh-aw/releases/latest", &release)
 	if err != nil {
@@ -232,6 +245,16 @@ func getLatestRelease() (string, error) {
 	}
 
 	return release.TagName, nil
+}
+
+func findLatestPublishedReleaseTag(releases []Release) string {
+	for _, release := range releases {
+		if release.Draft || release.TagName == "" {
+			continue
+		}
+		return release.TagName
+	}
+	return ""
 }
 
 // CheckForUpdatesAsync performs update check in background (best effort)
