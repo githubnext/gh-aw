@@ -79,7 +79,7 @@ network:
 
 ## Less Common Languages
 
-Additional language ecosystems are available for less common languages including Elixir, Haskell, Julia, Perl, OCaml, Deno, and Terraform. See the [Ecosystem Identifiers table](/gh-aw/reference/network/#ecosystem-identifiers) in the Network Permissions reference for the most up-to-date list of supported identifiers.
+Additional language ecosystems are available for less common languages including Elixir, Haskell, Julia, LaTeX, Perl, OCaml, Deno, and Terraform. See the [Ecosystem Identifiers table](/gh-aw/reference/network/#ecosystem-identifiers) in the Network Permissions reference for the most up-to-date list of supported identifiers.
 
 ## Related Documentation
 

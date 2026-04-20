@@ -320,6 +320,33 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 		}
 	})
 
+	t.Run("latex ecosystem includes CTAN and TeX Live domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"latex"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		expectedDomains := []string{
+			"ctan.org",
+			"mirror.ctan.org",
+			"mirrors.ctan.org",
+			"tug.org",
+			"www.tug.org",
+			"ftp.tug.org",
+			"latex-project.org",
+			"www.latex-project.org",
+			"miktex.org",
+			"packages.miktex.org",
+		}
+
+		for _, expectedDomain := range expectedDomains {
+			found := slices.Contains(domains, expectedDomain)
+			if !found {
+				t.Errorf("Expected domain '%s' to be included in latex ecosystem, but it was not found", expectedDomain)
+			}
+		}
+	})
+
 	t.Run("ocaml ecosystem includes opam domains", func(t *testing.T) {
 		permissions := &NetworkPermissions{
 			Allowed: []string{"ocaml"},
@@ -432,7 +459,7 @@ func TestAllEcosystemDomainFunctions(t *testing.T) {
 	// Test that all ecosystem categories return non-empty slices
 	ecosystemCategories := []string{
 		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
-		"terraform", "haskell", "java", "julia", "kotlin", "linux-distros", "lua", "node",
+		"terraform", "haskell", "java", "julia", "kotlin", "latex", "linux-distros", "lua", "node",
 		"ocaml", "perl", "php", "playwright", "python", "python-native", "r", "ruby", "rust", "swift",
 	}
 
@@ -457,7 +484,7 @@ func TestEcosystemDomainsUniqueness(t *testing.T) {
 	// Test that each ecosystem category returns unique domains (no duplicates)
 	ecosystemCategories := []string{
 		"defaults", "containers", "bazel", "dotnet", "dart", "github", "go",
-		"terraform", "haskell", "java", "julia", "kotlin", "linux-distros", "lua", "node",
+		"terraform", "haskell", "java", "julia", "kotlin", "latex", "linux-distros", "lua", "node",
 		"ocaml", "perl", "php", "playwright", "python", "python-native", "r", "ruby", "rust", "swift",
 	}
 

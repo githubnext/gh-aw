@@ -430,6 +430,7 @@ var ecosystemPriority = []string{
 	"java", // before "chrome" — maven.google.com and dl.google.com are Java domains, not chrome domains
 	"chrome",
 	"kotlin",
+	"latex",
 	"lean",
 	"linux-distros",
 	"local",
