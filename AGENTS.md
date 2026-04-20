@@ -73,6 +73,25 @@ make recompile   # REQUIRED - recompile all workflow files after code changes
 make fmt-cjs     # REQUIRED - ensures JavaScript is properly formatted
 ```
 
+### ⚠️ MANDATORY PR RETRY CONTROL ⚠️
+
+To prevent repeated `-again` / `-yet-again` PR branch churn:
+
+1. **Pre-PR smoke gate is required**
+   - Before opening or updating a PR, run:
+   ```bash
+   make test-unit
+   ```
+   - If tests fail, fix them first. Do not proceed to PR creation/update until they pass.
+
+2. **Always continue on the existing PR branch for follow-up fixes**
+   - If a PR already exists for the task, push fixes to that same branch.
+   - Do **not** create a new retry branch variant (for example `-again`, `-yet-again`, `-another-one`) for the same task.
+
+3. **Hard retry limit: 3 attempts**
+   - Maximum of 3 fix attempts per task/PR cycle.
+   - After the third failed attempt, stop autonomous retries and escalate to a human maintainer with a concise failure summary.
+
 **NEVER ADD LOCK FILES TO .GITIGNORE** - `.lock.yml` files are compiled workflows that must be tracked.
 
 **ALWAYS REBUILD AFTER SCHEMA CHANGES:**
