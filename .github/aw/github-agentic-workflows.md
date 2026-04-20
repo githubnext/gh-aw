@@ -280,6 +280,7 @@ The YAML frontmatter supports these fields:
     - `difc-proxy: true` - Enable DIFC (Data Integrity and Flow Control) proxy injection. When set alongside `tools.github.min-integrity`, injects proxy steps around the agent for full network-boundary integrity enforcement.
     - `cli-proxy: true` - Enable AWF CLI proxy sidecar for secure gh CLI access and reaction-based integrity decisions. Required for `integrity-reactions`.
     - `integrity-reactions: true` - Enable reaction-based integrity promotion/demotion. Maintainers can use 👍/❤️ reactions to promote content to `approved` and 👎/😕 to demote it to `none`. Compiler automatically enables `cli-proxy`. Requires `tools.github.min-integrity` to be set and MCPG >= v0.2.18. Defaults: endorsement reactions THUMBS_UP/HEART, disapproval reactions THUMBS_DOWN/CONFUSED, endorser-min-integrity: approved, disapproval-integrity: none. Available from v0.68.2.
+    - `mcp-cli: true` - Enable MCP CLI mounting feature. When enabled, MCP servers can be mounted as local CLI tools on `PATH`. Requires `tools.mount-as-clis: true` to mount standard MCP servers as CLIs; `safeoutputs` and `mcpscripts` are always mounted as CLIs when this feature is active.
 
 - **`imports:`** - Array of workflow specifications to import (array)
   - Format: `owner/repo/path@ref` or local paths like `shared/common.md`
@@ -530,6 +531,7 @@ The YAML frontmatter supports these fields:
   - Custom tool names for MCP servers
   - `timeout:` - Per-operation timeout in seconds for all tool and MCP server calls (integer or GitHub Actions expression). Defaults vary by engine (Claude: 60 s, Codex: 120 s).
   - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or GitHub Actions expression, default: 120). Useful in `workflow_call` reusable workflows: `startup-timeout: ${{ inputs.startup-timeout }}`
+  - `mount-as-clis:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). Requires `features.mcp-cli: true`. When enabled, the agent can call MCP servers via shell commands (e.g. `github issue_read --method get ...`). CLI-mounted servers remain in the MCP gateway so their containers start normally.
 
 - **`safe-outputs:`** - Safe output processing configuration (preferred way to handle GitHub API write operations)
   - `create-issue:` - Safe GitHub issue creation (bugs, features)
@@ -650,7 +652,15 @@ The YAML frontmatter supports these fields:
         auto-close-issue: false         # Optional: when true (default), adds "Fixes #N" closing keyword when triggered from an issue; set to false to prevent auto-closing the triggering issue on merge. Accepts a boolean or GitHub Actions expression.
         target-repo: "owner/repo"       # Optional: cross-repository
         github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on created PRs
+        allowed-files:                  # Optional: exclusive allowlist of glob patterns for eligible files
+          - "src/**"
+          - "docs/**"
+        excluded-files:                 # Optional: glob patterns to strip from the patch entirely
+          - "**/*.lock"
+        protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
     ```
+
+    **File Restrictions**: Use `allowed-files` as an **exclusive allowlist** — every file touched must match at least one pattern or the operation is refused. Use `excluded-files` to strip files (e.g. lock files) from the patch before any checks. The `protected-files` field controls handling of sensitive files (package manifests, CI configs, agent instruction files): `blocked` (default, hard-block), `fallback-to-issue` (push branch and create a review issue), or `allowed` (no restriction — use only when the workflow is explicitly designed to manage these files). Object form is also supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
     **Auto-Expiration**: The `expires` field auto-closes PRs after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Minimum duration: 2 hours. Only for same-repo PRs without target-repo. Generates `agentics-maintenance.yml` workflow.
 
@@ -955,9 +965,16 @@ The YAML frontmatter supports these fields:
         commit-title-suffix: "[auto]"   # Optional: suffix appended to commit title
         staged: true                    # Optional: preview mode (default: follows global staged)
         github-token-for-extra-empty-commit: ${{ secrets.MY_CI_PAT }}  # Optional: PAT or "app" to trigger CI on pushed commits
+        allowed-files:                  # Optional: exclusive allowlist of glob patterns for eligible files
+          - "src/**"
+        excluded-files:                 # Optional: glob patterns to strip from the patch entirely
+          - "**/*.lock"
+        protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
     ```
 
     Not supported for cross-repository operations. To trigger CI on pushed commits, use `github-token-for-extra-empty-commit` or set the magic secret `GH_AW_CI_TRIGGER_TOKEN`.
+
+    **File Restrictions**: Same as `create-pull-request`: `allowed-files` is an exclusive allowlist, `excluded-files` strips files before all checks, and `protected-files` controls handling of sensitive files. Object form supported: `protected-files: { policy: fallback-to-issue, exclude: [AGENTS.md] }`.
 
     **Compile-time warnings for `target: "*"`**: When `target: "*"` is set, the compiler emits warnings if:
     1. The checkout configuration does not include a wildcard fetch pattern — add `fetch: ["*"]` with `fetch-depth: 0` so the agent can access all PR branches at runtime
