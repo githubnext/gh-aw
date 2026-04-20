@@ -92,4 +92,44 @@ describe("invocation_context_helpers", () => {
       }
     }
   });
+
+  it("allows workflow_dispatch target_repo when it is in allowlist", () => {
+    const originalAllowedRepos = process.env.GH_AW_ALLOWED_REPOS;
+    try {
+      process.env.GH_AW_ALLOWED_REPOS = "target-owner/target-repo";
+
+      const resolved = resolveInvocationContext({
+        eventName: "workflow_dispatch",
+        repo: { owner: "side-owner", repo: "side-repo" },
+        payload: {
+          inputs: {
+            target_repo: "target-owner/target-repo",
+          },
+        },
+      });
+
+      expect(resolved.eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
+    } finally {
+      if (originalAllowedRepos === undefined) {
+        delete process.env.GH_AW_ALLOWED_REPOS;
+      } else {
+        process.env.GH_AW_ALLOWED_REPOS = originalAllowedRepos;
+      }
+    }
+  });
+
+  it("allows workflow_dispatch without target_repo inputs", () => {
+    const resolved = resolveInvocationContext({
+      eventName: "workflow_dispatch",
+      repo: { owner: "side-owner", repo: "side-repo" },
+      payload: {
+        inputs: {
+          event_name: "issues",
+        },
+      },
+    });
+
+    expect(resolved.eventName).toBe("issues");
+    expect(resolved.eventRepo).toEqual({ owner: "side-owner", repo: "side-repo" });
+  });
 });
