@@ -20,7 +20,7 @@ func TestNewGHAWManifest(t *testing.T) {
 		wantVersion         int
 		wantSecrets         []string
 		wantActionRepos     []string
-		wantFailureTypes    []string
+		wantFailures        []GHAWManifestResolutionFailure
 		wantContainerImages []string
 		wantRedirect        string
 	}{
@@ -79,15 +79,20 @@ func TestNewGHAWManifest(t *testing.T) {
 			wantActionRepos: []string{"actions/checkout"},
 		},
 		{
-			name: "resolution failures are sorted and deduplicated",
+			name: "resolution failures are normalized, deduplicated, and sorted",
 			resolutionFailures: []GHAWManifestResolutionFailure{
 				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
 				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "pin_not_found"},
 				{Repo: "actions/checkout", Ref: "v5", ErrorType: "pin_not_found"},
 			},
-			wantVersion:      1,
-			wantSecrets:      []string{},
-			wantFailureTypes: []string{"pin_not_found", "dynamic_resolution_failed"},
+			wantVersion: 1,
+			wantSecrets: []string{},
+			wantFailures: []GHAWManifestResolutionFailure{
+				{Repo: "actions/checkout", Ref: "v5", ErrorType: "pin_not_found"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "dynamic_resolution_failed"},
+				{Repo: "actions/setup-node", Ref: "v6", ErrorType: "pin_not_found"},
+			},
 		},
 		{
 			name: "containers are sorted and deduplicated",
@@ -153,12 +158,8 @@ func TestNewGHAWManifest(t *testing.T) {
 				}
 				assert.Equal(t, tt.wantContainerImages, images, "container images")
 			}
-			if tt.wantFailureTypes != nil {
-				types := make([]string, len(m.ResolutionFailures))
-				for i, f := range m.ResolutionFailures {
-					types[i] = f.ErrorType
-				}
-				assert.Equal(t, tt.wantFailureTypes, types, "resolution failure types")
+			if tt.wantFailures != nil {
+				assert.Equal(t, tt.wantFailures, m.ResolutionFailures, "resolution failures")
 			}
 			assert.Equal(t, tt.wantRedirect, m.Redirect, "manifest redirect")
 		})

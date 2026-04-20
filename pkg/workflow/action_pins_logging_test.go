@@ -227,8 +227,14 @@ func TestActionPinResolutionWithAllowActionRefs(t *testing.T) {
 		t.Fatalf("Expected one recorded resolution failure, got: %d", len(data.ActionResolutionFailures))
 	}
 	failure := data.ActionResolutionFailures[0]
-	if failure.Repo != "actions/ai-inference" || failure.Ref != "v1" || failure.ErrorType != "pin_not_found" {
-		t.Fatalf("Unexpected recorded resolution failure: %+v", failure)
+	if failure.Repo != "actions/ai-inference" {
+		t.Fatalf("Unexpected resolution failure repo: got %q", failure.Repo)
+	}
+	if failure.Ref != "v1" {
+		t.Fatalf("Unexpected resolution failure ref: got %q", failure.Ref)
+	}
+	if failure.ErrorType != "pin_not_found" {
+		t.Fatalf("Unexpected resolution failure error type: got %q", failure.ErrorType)
 	}
 }
 
