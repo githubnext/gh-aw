@@ -111,6 +111,7 @@ Available operations:
 | `create_labels` | Create any repository labels referenced in safe-outputs that do not yet exist |
 | `clean_cache_memories` | Clean up outdated cache-memory entries (same as the automated scheduled cleanup) |
 | `validate` | Run full workflow validation with all linters and file an issue if findings are detected |
+| `activity_report` | Generate a repository activity report for the last 24 hours, week, and month, and create an issue with the results |
 
 **Operation details:**
 
@@ -119,6 +120,7 @@ Available operations:
 - **`create_labels`**: Runs `gh aw compile --json --no-emit`, collects all unique label names across workflows, and creates missing ones with deterministic pastel colors. Requires `issues: write` permission.
 - **`validate`**: Runs `gh aw compile --validate --no-emit --zizmor --actionlint --poutine --verbose`. If errors or warnings are found, creates or updates a GitHub issue titled `[aw] workflow validation findings` with the full output.
 - **`clean_cache_memories`**: Lists all caches with the `memory-` prefix, groups them by workflow, keeps the latest per group, and deletes older entries.
+- **`activity_report`**: Runs `gh aw logs --format markdown` for the last 24 hours, 7 days, and 30 days (up to 1000 runs each), then creates an issue titled `[aw] agentic status report` with all three time-range sections as collapsible `<details>` blocks. Downloaded logs are cached under `./.cache/gh-aw/activity-report-logs`. The job has a 2-hour timeout and skips the 30-day query when the GitHub API is rate-limited.
 
 ### Maintenance Configuration
 
