@@ -81,11 +81,11 @@ steps:
         HAS_CUSTOM_CONFIG=false
       fi
 
-      BUSINESS_ADDITIONS=$(jq '[.[] | select(.filename | test("^(src|lib|pkg|internal|app|core|domain|services|api)/")) | .additions] | add // 0' /tmp/gh-aw/agent/pr-files.json)
+      BUSINESS_ADDITIONS_DEFAULT=$(jq '[.[] | select(.filename | test("^(src|lib|pkg|internal|app|core|domain|services|api)/")) | .additions] | add // 0' /tmp/gh-aw/agent/pr-files.json)
       HAS_IMPLEMENTATION_LABEL=$(jq '[.labels[]?.name] | index("implementation") != null' /tmp/gh-aw/agent/pr.json)
 
       jq -n \
-        --argjson business_additions "$BUSINESS_ADDITIONS" \
+        --argjson default_business_additions "$BUSINESS_ADDITIONS_DEFAULT" \
         --argjson has_implementation_label "$HAS_IMPLEMENTATION_LABEL" \
         --argjson has_custom_config "$HAS_CUSTOM_CONFIG" \
         --arg pr_number "$PR_NUMBER" \
@@ -95,8 +95,8 @@ steps:
           threshold: ($threshold | tonumber),
           has_custom_config: $has_custom_config,
           has_implementation_label: $has_implementation_label,
-          business_additions: $business_additions,
-          requires_adr_by_volume: ($business_additions > ($threshold | tonumber))
+          default_business_additions: $default_business_additions,
+          requires_adr_by_default_volume: ($default_business_additions > ($threshold | tonumber))
         }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
 features:
   mcp-cli: true
@@ -112,7 +112,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 - **Pull Request**: #${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 - **Event**: ${{ github.event_name }}
 - **Actor**: ${{ github.actor }}
-- **Hard Turn Budget**: 5 turns total (target ≤5, stop early when done)
+- **Hard Turn Budget**: 5 turns maximum (stop early when done)
 
 ### Mandatory Efficiency Rules
 
@@ -140,14 +140,14 @@ Decide if this PR needs ADR enforcement using the following deterministic checks
 If `has_implementation_label` is `true`, enforcement is **required** — proceed to Step 2.
 
 ### Condition B: Code Volume in Business Logic Directories
-If `business_additions` is `> 100`, enforcement is **required** — proceed to Step 2.
+If `has_custom_config` is `false` and `default_business_additions` is `> 100`, enforcement is **required** — proceed to Step 2.
 
 Configuration snapshot is pre-fetched:
 ```bash
 cat /tmp/gh-aw/agent/design-gate-config.yml
 ```
 
-If `has_custom_config` is `true` and the config defines custom business directories or thresholds, recompute Condition B from `pr-files.json` using that config before deciding.
+If `has_custom_config` is `true` and the config defines custom business directories or thresholds, recompute Condition B from `pr-files.json` using that config before deciding. Do not use `default_business_additions` for the final decision in that case.
 
 Default business logic directories (used when `.design-gate.yml` is absent):
 - `src/`
@@ -237,6 +237,8 @@ Use this scoped question template before writing the ADR. Answer each item in 1�
 4. **Consequences**: What are 2 positive and 2 negative consequences of the chosen decision?
 
 If any answer cannot be justified from `pr.json` + `pr-files.json` + `pr.diff`, state "Not inferable from current PR evidence" instead of speculating.
+
+If Question 1 (Decision) is not inferable from current PR evidence, call `missing_data` with a concise explanation of what is missing, then stop.
 
 Generate a draft ADR file following the **Michael Nygard template**:
 
