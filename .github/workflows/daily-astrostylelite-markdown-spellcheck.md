@@ -220,6 +220,11 @@ Spellcheck summary:
 - Findings: `${{ needs.spellcheck.outputs.findings_count }}`
 - Dictionary file (if any): `${{ needs.spellcheck.outputs.dictionary_path }}`
 
+## Conditional Execution
+
+This workflow is intentionally gated so activation and the agent path only run when `needs.spellcheck.outputs.has_findings == 'true'`.
+When no findings exist, the workflow stops after spellcheck and skips agent execution.
+
 ## Task
 
 1. Read `/tmp/gh-aw/spellcheck/summary.json` and `/tmp/gh-aw/spellcheck/findings.ndjson`.
@@ -233,6 +238,7 @@ Spellcheck summary:
 When creating the pull request:
 
 - Use branch name format: `spellcheck/YYYY-MM-DD` (prefix must be `spellcheck/`)
+- Provide the full branch name in the `create_pull_request` call (the prefix is not auto-added)
 - State that the run is automated
 - State the scope is `docs/src/content/`
 - State changes are markdown spellcheck fixes only
