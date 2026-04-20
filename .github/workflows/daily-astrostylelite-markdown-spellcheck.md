@@ -17,10 +17,22 @@ strict: true
 if: needs.spellcheck.outputs.has_findings == 'true'
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.gate.outputs.activated }}
+    steps:
+      - name: Mark workflow as activated
+        id: gate
+        shell: bash
+        run: echo "activated=true" >> "$GITHUB_OUTPUT"
+
   spellcheck:
     runs-on: ubuntu-latest
-    needs: [pre_activation]
-    if: needs.pre_activation.outputs.activated == 'true'
+    needs: [preflight]
+    if: needs.preflight.outputs.activated == 'true'
     permissions:
       contents: read
     outputs:
