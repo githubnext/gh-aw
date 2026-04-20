@@ -261,6 +261,22 @@ See [Integrity Filtering](/gh-aw/reference/integrity/) for available levels, use
 
 ## Configuration & Setup
 
+### Why do slash-command workflows show many "started then skipped" runs on comments?
+
+This is expected behavior. A `slash_command` is compiled into multiple GitHub event listeners (issue/PR bodies, issue comments, PR comments, and review comments, depending on `events:`). GitHub first dispatches the event, then the activation logic checks whether the comment starts with a matching command (for example `/refresh`). If it does not match, the run exits early and appears as a quick skipped/no-op run in Actions.
+
+To reduce this noise, narrow the trigger scope with `events:` so the workflow only listens where you actually use commands, and use [LabelOps](/gh-aw/patterns/label-ops/) for command-style operations that should not activate on every comment. LabelOps (`label_command`) triggers only when a specific label is applied, which produces fewer incidental runs than broad comment listeners.
+
+```yaml wrap
+on:
+  slash_command:
+    name: refresh
+    events: [pull_request_comment]   # only listen to PR comments
+  label_command:
+    name: refresh
+    events: [pull_request]           # optional low-noise label trigger
+```
+
 ### What is a workflow lock file?
 
 A **workflow lock file** (`.lock.yml`) is the compiled GitHub Actions workflow generated from your `.md` file by `gh aw compile`. It contains SHA-pinned actions, resolved imports, configured permissions, and all guardrail hardening - inspect it to see exactly what will run, with no hidden configuration.
@@ -521,4 +537,3 @@ engine: claude
 ```
 
 See [AI Engines](/gh-aw/reference/engines/) for all configuration options.
-
