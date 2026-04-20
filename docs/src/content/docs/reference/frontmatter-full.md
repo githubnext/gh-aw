@@ -4768,7 +4768,7 @@ safe-outputs:
     target-repo: "example-value"
 
     # List of allowed reasons for hiding comments. Default: all reasons allowed (spam,
-    # abuse, off_topic, outdated, resolved).
+    # abuse, off_topic, outdated, resolved, low_quality).
     # (optional)
     allowed-reasons: []
       # Array of strings

@@ -352,7 +352,7 @@ interface HideCommentItem extends BaseSafeOutputItem {
   /** GraphQL node ID of the comment to hide (e.g., 'IC_kwDOABCD123456') */
   comment_id: string;
   /** Optional reason for hiding the comment (default: SPAM) */
-  reason?: "SPAM" | "ABUSE" | "OFF_TOPIC" | "OUTDATED" | "RESOLVED";
+  reason?: "SPAM" | "ABUSE" | "OFF_TOPIC" | "OUTDATED" | "RESOLVED" | "LOW_QUALITY";
 }
 
 /**
