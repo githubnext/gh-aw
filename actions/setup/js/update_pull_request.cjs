@@ -15,6 +15,8 @@ const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
  * Execute the pull request update API call
@@ -37,11 +39,26 @@ async function executePRUpdate(github, context, prNumber, updateData) {
 
   if (mergeBase) {
     core.info(`Updating pull request #${prNumber} branch with base branch changes`);
-    await github.rest.pulls.updateBranch({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      pull_number: prNumber,
-    });
+    try {
+      await withRetry(
+        () =>
+          github.rest.pulls.updateBranch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: prNumber,
+          }),
+        {
+          maxRetries: 1,
+          initialDelayMs: 0,
+          jitterMs: 0,
+          shouldRetry: isTransientError,
+        },
+        `update pull request #${prNumber} branch from base`
+      );
+    } catch (error) {
+      core.warning(`Failed to update pull request #${prNumber} branch from base: ${getErrorMessage(error)}`);
+      throw error;
+    }
   }
 
   // If we have a body, process it with the appropriate operation

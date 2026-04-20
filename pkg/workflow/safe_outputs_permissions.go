@@ -147,7 +147,7 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.UpdatePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.UpdatePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
+		permissions.Merge(NewPermissionsContentsWritePRWrite())
 	}
 	if safeOutputs.ClosePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.ClosePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-pull-request")

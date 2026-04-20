@@ -823,4 +823,28 @@ describe("update_pull_request.cjs - merge_base behavior", () => {
       title: "Updated PR",
     });
   });
+
+  it("should retry updateBranch on transient failures", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("timeout contacting github")).mockResolvedValueOnce({
+      data: { message: "Branch updated after retry" },
+    });
+
+    const handler = await updatePRModule.main({ merge_base: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
+  });
+
+  it("should log merge-base operation failure when updateBranch fails", async () => {
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("branch update forbidden"));
+
+    const handler = await updatePRModule.main({ merge_base: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update pull request #100 branch from base failed");
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to update pull request #100 branch from base"));
+  });
 });
