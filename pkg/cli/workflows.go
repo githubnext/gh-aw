@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -297,12 +298,12 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
 		}
 
-		firstLine := string(content)
-		if newline := strings.IndexByte(firstLine, '\n'); newline >= 0 {
+		firstLine := content
+		if newline := bytes.IndexByte(firstLine, '\n'); newline >= 0 {
 			firstLine = firstLine[:newline]
 		}
 
-		if strings.TrimSpace(firstLine) != "---" {
+		if string(firstLine) != "---" {
 			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
 			continue
 		}
