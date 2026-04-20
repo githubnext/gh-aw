@@ -260,6 +260,9 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"GH_AW_CODEX_SHELL_POLICY_NORM_EOF",
 				"cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"",
 				"chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"",
+				"mkdir -p \"${CODEX_HOME}\"",
+				"cp \"/tmp/gh-aw/mcp-config/config.toml\" \"${CODEX_HOME}/config.toml\"",
+				"chmod 600 \"${CODEX_HOME}/config.toml\"",
 			},
 		},
 	}
