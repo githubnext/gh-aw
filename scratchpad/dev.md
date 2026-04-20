@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 6.5
-**Last Updated**: 2026-04-19
+**Version**: 6.6
+**Last Updated**: 2026-04-20
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
@@ -1027,6 +1027,8 @@ func TestCreateIssue_Integration(t *testing.T) {
 ```
 
 ### End-to-End Testing
+
+New features can be tested end-to-end in a pull request by modifying `.github/workflows/dev.md` to exercise the feature, triggering the Dev workflow on the PR branch, and reviewing the Dev Hawk agent's automated analysis comment. See `scratchpad/end-to-end-feature-testing.md` for the full step-by-step workflow including Dev Hawk integration and troubleshooting.
 
 **GitHub Actions Workflows**:
 - `dev.md` - Development workflow for testing features
@@ -2855,6 +2857,7 @@ These files are loaded automatically by compatible AI tools (e.g., GitHub Copilo
 ---
 
 **Document History**:
+- v6.6 (2026-04-20): Maintenance tone scan — 0 tone issues found across all scratchpad files. Added end-to-end feature testing description to Testing Guidelines section linking to `end-to-end-feature-testing.md`. Coverage: 64 spec files (no new files).
 - v6.5 (2026-04-19): Maintenance tone scan — 0 tone issues found. Documented 2 breaking changes from pending changesets: (1) `app:` → `github-app:` rename (breaking: workflows using `app:` fail validation; migrate with `gh aw fix`); (2) `safe-inputs` → `mcp-scripts` rename (feature flag `SafeInputsFeatureFlag` → `MCPScriptsFeatureFlag`; migrate with `gh aw fix`). Updated Go Type Patterns table: `SafeInputsFeatureFlag` → `MCPScriptsFeatureFlag`. Coverage: 64 spec files (no new files).
 - v6.4 (2026-04-18): Maintenance tone scan — fixed 4 tone issues across 4 spec files: `github-mcp-access-control-specification.md` (1 fix: "Flexible Pattern Matching"→"Wildcard Pattern Matching"), `serena-tools-analysis.md` (1 fix: "Fast, flexible, familiar"→"Fast; broad pattern support; familiar syntax"), `github-actions-security-best-practices.md` (1 fix: "more robust than `ls`"→"avoids word splitting and globbing issues that affect `ls`"), `mdflow.md` (1 fix: "Less flexible context gathering"→"More limited context gathering options"). Coverage: 64 spec files (no new files).
 - v6.3 (2026-04-17): Maintenance tone scan — fixed 3 tone issues across 2 spec files: `testing.md` (2 fixes: "maintains high quality standards"→removed, "provides a solid foundation...immediately useful"→"ensures...scale incrementally"), `guard-policies-specification.md` (1 fix: "provides a solid foundation for guard policies"→"covers guard policies"). Updated Package Structure: added `pkg/agentdrain` and `pkg/actionpins` as Core packages (source: `architecture.md` update 2026-04-17); updated Utility Packages to add `pkg/typeutil`, `pkg/semverutil`, `pkg/stats` and remove non-existent `pkg/mathutil`. Coverage: 64 spec files (no new files).
