@@ -412,6 +412,57 @@ imports:
 	assert.Equal(t, strPtr("5"), workflowData.SafeOutputs.AddComments.Max)
 }
 
+// TestSafeOutputsImportMergePullRequestType tests importing merge-pull-request from a shared workflow.
+func TestSafeOutputsImportMergePullRequestType(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	sharedWorkflow := `---
+safe-outputs:
+  merge-pull-request:
+    required-labels:
+      - ready-to-merge
+---
+
+# Shared Merge Pull Request Configuration
+`
+
+	sharedFile := filepath.Join(workflowsDir, "shared-merge-pr.md")
+	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
+	require.NoError(t, err, "Failed to write shared file")
+
+	mainWorkflow := `---
+on: pull_request
+permissions:
+  contents: read
+imports:
+  - ./shared-merge-pr.md
+---
+
+# Main Workflow
+`
+
+	mainFile := filepath.Join(workflowsDir, "main.md")
+	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
+	require.NoError(t, err, "Failed to write main file")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(workflowsDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("main.md")
+	require.NoError(t, err, "Failed to parse workflow")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.MergePullRequest, "MergePullRequest should be imported")
+	assert.Equal(t, []string{"ready-to-merge"}, workflowData.SafeOutputs.MergePullRequest.RequiredLabels)
+}
+
 // TestMergeSafeOutputsUnit tests the MergeSafeOutputs function directly
 func TestMergeSafeOutputsUnit(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
@@ -480,6 +531,15 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 			},
 			expectError:   false,
 			expectedTypes: []string{"create-issue", "add-comment"},
+		},
+		{
+			name:      "import merge-pull-request to empty config",
+			topConfig: nil,
+			importedJSON: []string{
+				`{"merge-pull-request":{"required-labels":["ready-to-merge"]}}`,
+			},
+			expectError:   false,
+			expectedTypes: []string{"merge-pull-request"},
 		},
 	}
 
