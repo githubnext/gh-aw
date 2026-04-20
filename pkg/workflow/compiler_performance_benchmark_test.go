@@ -38,7 +38,9 @@ Analyze the issue: ${{ steps.sanitized.outputs.text }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
+	compiler.SetQuiet(true)
+	compiler.SetApprove(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
