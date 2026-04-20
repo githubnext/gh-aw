@@ -452,7 +452,7 @@ Run `gh aw fix` to automatically update your workflow files to use the new termi
 
 **Note:** The external `gh agent-task` CLI command name remains unchanged as it is maintained separately.
 
-#### Rename `app:` to `github-app:`
+#### Replace removed `app:` with `github-app:`
 
 The deprecated `app:` workflow frontmatter field was removed and replaced with
 `github-app:`. Workflows still using `app:` will now fail validation.
@@ -461,7 +461,7 @@ The deprecated `app:` workflow frontmatter field was removed and replaced with
 - Replace `app:` with `github-app:`
 - Run `gh aw fix` to apply the codemod automatically
 
-#### Rename `supportsLLMGateway` to `llmGatewayPort`
+#### Replace `supportsLLMGateway` flag with `llmGatewayPort`
 
 Engine configuration now requires an explicit `llmGatewayPort` value instead of
 the old `supportsLLMGateway: true` flag. The `SupportsLLMGateway` interface
@@ -495,7 +495,8 @@ will fail validation.
 #### MCP Gateway v0.1.5 validation tightening
 
 MCP Gateway v0.1.5 introduces stricter MCP server validation:
-- stdio servers must use Docker-only TOML configuration
+- stdio servers must use Docker-based TOML configuration (non-Docker stdio
+  definitions are no longer supported)
 - mounts must include explicit mount modes
 - HTTP servers cannot define mounts
 
