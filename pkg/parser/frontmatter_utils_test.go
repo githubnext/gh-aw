@@ -898,9 +898,9 @@ func TestIsNotFoundError(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "404 substring edge case",
-			errMsg:   "error code 4040",
-			expected: true,
+			name:     "whitespace-only message",
+			errMsg:   "   ",
+			expected: false,
 		},
 	}
 
@@ -934,7 +934,7 @@ func TestFrontmatterContainsExpressions(t *testing.T) {
 			name: "nested map expression",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
-					"serena": "${{ github.aw.import-inputs.server }}",
+					"server": "${{ github.aw.import-inputs.server }}",
 				},
 			},
 			expected: true,
