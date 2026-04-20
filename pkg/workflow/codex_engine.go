@@ -176,6 +176,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		webFetchParam = ""
 	}
 
+	// Disable Codex analytics by default for workflow runs.
+	// Codex config schema supports [analytics] enabled = false, which maps to
+	// -c analytics.enabled=false for CLI overrides.
+	analyticsParam := " -c analytics.enabled=false"
+
 	// See https://github.com/github/gh-aw/issues/892
 	// --dangerously-bypass-approvals-and-sandbox: Skips all confirmation prompts and disables sandboxing
 	// This is safe because AWF already provides a container-level sandbox layer
@@ -203,8 +208,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		commandName = "codex"
 	}
 
-	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s\"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, fullAutoParam, customArgsParam)
+	codexCommand := fmt.Sprintf("%s %sexec%s%s%s%s%s\"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, analyticsParam, fullAutoParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string

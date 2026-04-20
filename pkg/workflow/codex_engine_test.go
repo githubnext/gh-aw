@@ -858,6 +858,23 @@ func TestCodexEngineWebFetch(t *testing.T) {
 	})
 }
 
+func TestCodexEngineAnalytics(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, "-c analytics.enabled=false") {
+		t.Errorf("Expected Codex analytics to be disabled by default, got:\n%s", stepContent)
+	}
+}
+
 func TestCodexEngineWithExpressionVersion(t *testing.T) {
 	engine := NewCodexEngine()
 

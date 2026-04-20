@@ -39,6 +39,7 @@ Not all features are available across all engines. The table below summarizes pe
 - `max-turns` limits the number of AI chat iterations per run (Claude only).
 - `max-continuations` enables autopilot mode with multiple consecutive runs (Copilot only).
 - `web-search` for Codex is disabled by default; add `tools: web-search:` to enable it. Other engines use a third-party MCP server — see [Using Web Search](/gh-aw/guides/web-search/).
+- Codex analytics are disabled by default in workflow runs.
 - `engine.agent` references a `.github/agents/` file for custom Copilot agent behavior. See [Copilot Custom Configuration](#copilot-custom-configuration).
 
 ## Extended Coding Agent Configuration
