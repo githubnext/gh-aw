@@ -21,8 +21,10 @@ Comprehensive strategies for analyzing CI workflows to identify optimization opp
 Read and understand the current CI workflow structure:
 
 ```bash
-# Read the CI workflow configuration
+# Read split CI workflow configurations
 cat .github/workflows/ci.yml
+cat .github/workflows/cgo.yml
+cat .github/workflows/cjs.yml
 
 # Understand the job structure
 # - lint (runs first)

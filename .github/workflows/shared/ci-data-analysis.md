@@ -23,15 +23,22 @@ steps:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      # Download workflow runs for the ci workflow
-      gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --limit 60 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs.json
+      # Download workflow runs for split CI workflows (ci, cgo, cjs)
+      gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs-ci.json
+      gh run list --repo "$GITHUB_REPOSITORY" --workflow=cgo.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs-cgo.json
+      gh run list --repo "$GITHUB_REPOSITORY" --workflow=cjs.yml --limit 30 --json databaseId,status,conclusion,createdAt,updatedAt,displayTitle,headBranch,event,url,workflowDatabaseId,number > /tmp/ci-runs-cjs.json
+      jq -s 'add | sort_by(.createdAt) | reverse | .[0:60]' /tmp/ci-runs-ci.json /tmp/ci-runs-cgo.json /tmp/ci-runs-cjs.json > /tmp/ci-runs.json
       
       # Create directory for artifacts
       mkdir -p /tmp/ci-artifacts
       
-      # Download artifacts from recent runs (last 5 successful runs)
-      echo "Downloading artifacts from recent CI runs..."
-      gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --status success --limit 5 --json databaseId | jq -r '.[].databaseId' | while read -r run_id; do
+      # Download artifacts from recent successful runs across split workflows
+      echo "Downloading artifacts from recent CI/cgo/cjs runs..."
+      {
+        gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --status success --limit 2 --json databaseId
+        gh run list --repo "$GITHUB_REPOSITORY" --workflow=cgo.yml --status success --limit 2 --json databaseId
+        gh run list --repo "$GITHUB_REPOSITORY" --workflow=cjs.yml --status success --limit 2 --json databaseId
+      } | jq -s 'add | .[].databaseId' -r | while read -r run_id; do
         echo "Processing run $run_id"
         gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --dir "/tmp/ci-artifacts/$run_id" 2>/dev/null || echo "No artifacts for run $run_id"
       done
@@ -107,7 +114,7 @@ Pre-downloaded CI run data and artifacts are available for analysis:
 ## Available Data
 
 1. **CI Runs**: `/tmp/ci-runs.json`
-   - Last 60 workflow runs with status, timing, and metadata
+   - Last 60 workflow runs with status, timing, and metadata from `ci.yml`, `cgo.yml`, and `cjs.yml`
 
 2. **CI Summary**: `/tmp/ci-summary.json`
    - Pre-computed totals, failure patterns, branch distribution, and average duration
@@ -117,8 +124,10 @@ Pre-downloaded CI run data and artifacts are available for analysis:
    - **Fuzz test results**: `*/fuzz-results/*.txt` - Output from fuzz tests
    - **Fuzz corpus data**: `*/fuzz-results/corpus/*` - Input corpus for each fuzz test
    
-4. **CI Configuration**: `.github/workflows/ci.yml`
-   - Current CI workflow configuration
+4. **CI Configuration**:
+   - `.github/workflows/ci.yml`
+   - `.github/workflows/cgo.yml`
+   - `.github/workflows/cjs.yml`
    
 5. **Cache Memory**: `/tmp/cache-memory/`
    - Historical analysis data from previous runs

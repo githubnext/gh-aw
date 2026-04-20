@@ -44,7 +44,10 @@ Analyze the CI workflow daily to identify concrete optimization opportunities th
 
 - **Repository**: ${{ github.repository }}
 - **Run Number**: #${{ github.run_number }}
-- **Target Workflow**: `.github/workflows/ci.yml`
+- **Target Workflows**:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/cgo.yml`
+  - `.github/workflows/cjs.yml`
 
 ## Data Available
 
@@ -53,7 +56,10 @@ The `ci-data-analysis` shared module has pre-downloaded CI run data and built th
 1. **CI Runs**: `/tmp/ci-runs.json` - Last 60 workflow runs
 2. **CI Summary**: `/tmp/ci-summary.json` - Pre-computed failure patterns, duration stats, and top opportunities
 3. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
-4. **CI Configuration**: `.github/workflows/ci.yml` - Current workflow
+4. **CI Configuration**:
+   - `.github/workflows/ci.yml`
+   - `.github/workflows/cgo.yml`
+   - `.github/workflows/cjs.yml`
 5. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data
 6. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
 7. **Fuzz Results**: `/tmp/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
@@ -124,7 +130,10 @@ Prioritize optimizations with high impact, low risk, and low to medium effort.
 
 If you identify improvements worth implementing:
 
-1. **Make focused changes** to `.github/workflows/ci.yml`:
+1. **Make focused changes** to CI workflows as needed:
+   - `.github/workflows/ci.yml`
+   - `.github/workflows/cgo.yml`
+   - `.github/workflows/cjs.yml`
    - Use the `edit` tool to make precise modifications
    - Keep changes minimal and well-documented
    - Add comments explaining why changes improve efficiency
@@ -256,8 +265,8 @@ The CI Coach workflow must NEVER alter test code (`*_test.go` files) in ways tha
 
 ## Success Criteria
 
-✅ Analyzed CI workflow structure thoroughly
-✅ Reviewed at least 100 recent workflow runs
+✅ Analyzed CI workflow structure thoroughly (`ci.yml`, `cgo.yml`, `cjs.yml`)
+✅ Reviewed recent workflow runs across split CI workflows
 ✅ Examined available artifacts and metrics
 ✅ Checked historical context from cache memory
 ✅ Identified concrete optimization opportunities OR confirmed CI is well-optimized
