@@ -223,6 +223,13 @@ func TestActionPinResolutionWithAllowActionRefs(t *testing.T) {
 	if !strings.Contains(stderrOutput, "Unable to pin action") {
 		t.Fatalf("Expected warning output for unresolved action ref, got: %s", stderrOutput)
 	}
+	if len(data.ActionResolutionFailures) != 1 {
+		t.Fatalf("Expected one recorded resolution failure, got: %d", len(data.ActionResolutionFailures))
+	}
+	failure := data.ActionResolutionFailures[0]
+	if failure.Repo != "actions/ai-inference" || failure.Ref != "v1" || failure.ErrorType != "pin_not_found" {
+		t.Fatalf("Unexpected recorded resolution failure: %+v", failure)
+	}
 }
 
 // TestActionCacheDuplicateSHAWarning verifies that we log warnings when multiple
