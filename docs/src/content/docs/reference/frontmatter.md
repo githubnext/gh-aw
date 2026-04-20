@@ -440,7 +440,12 @@ Debug workflow using script mode for custom actions.
 
 #### Copilot BYOK Mode (`features.byok-copilot`)
 
-Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling three required behaviors: injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path, implicitly enabling `cli-proxy`, and forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+Enables Copilot offline Bring Your Own Key (BYOK) mode with a single flag, bundling four required behaviors:
+
+1. Injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path.
+2. Implicitly enabling `cli-proxy`.
+3. Forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
+4. Setting `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` — Copilot BYOK providers require a non-empty model, so the compiler provides `claude-sonnet-4.6` as the fallback when `GH_AW_MODEL_AGENT_COPILOT` is not set.
 
 ```yaml wrap
 engine: copilot
@@ -448,7 +453,9 @@ features:
   byok-copilot: true
 ```
 
-Without this flag, BYOK mode requires manual composition of all three behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+Without this flag, BYOK mode requires manual composition of all four behaviors. With `byok-copilot: true`, the compiler handles the wiring automatically.
+
+To use a different model, set the `GH_AW_MODEL_AGENT_COPILOT` repository variable. The compiled workflow uses `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'claude-sonnet-4.6' }}` for `COPILOT_MODEL`.
 
 > [!IMPORTANT]
 > `byok-copilot` is a gh-aw convenience extension point, not an enforcement boundary. gh-aw does not enforce Copilot BYOK usage.
