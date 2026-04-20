@@ -241,6 +241,7 @@ Analyze issue and break down into implementation tasks
 - **Claude Code**
 - **OpenAI Codex**
 - **Google Gemini CLI**
+- **Crush** — Charm multi-provider AI coding agent (BYOK)
 
 ```yaml
 engine: copilot  # sensible defaults
