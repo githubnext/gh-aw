@@ -195,7 +195,7 @@ A safe output capability (`update-issue:`) for modifying existing issues without
 
 ### Update Pull Request (`update-pull-request:`)
 
-A safe output capability for modifying a pull request's `title` or `body`. Each field must be explicitly enabled (`true` or `false`). The `operation` field controls how body changes are applied: `append` (default), `prepend`, or `replace`. Accepts `target` (`"triggering"`, `"*"`, or a specific number) and cross-repository updates via `target-repo`. When `target: "*"` is used, the agent must supply `pull_request_number` in the tool output. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request).
+A safe output capability for modifying a pull request's `title` or `body`. Each field must be explicitly enabled (`true` or `false`). The `operation` field controls how body changes are applied: `append` (default), `prepend`, or `replace`. Accepts `target` (`"triggering"`, `"*"`, or a specific number) and cross-repository updates via `target-repo`. When `target: "*"` is used, the agent must supply `pull_request_number` in the tool output. The optional `update-branch: true` field synchronizes the PR branch with the latest base branch changes before applying other updates. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#pull-request-updates-update-pull-request).
 
 ### Protected Files
 
@@ -323,6 +323,10 @@ Controls over external domains and services a workflow can access. Configured vi
 
 A frontmatter field that enables distributed tracing for workflow runs via OpenTelemetry. Configured under `observability.otlp`, it exports structured spans to any OTLP-compatible backend (such as Honeycomb, Grafana Tempo, or Sentry). Every job emits setup and conclusion spans; cross-job trace correlation is wired automatically using a single trace ID from the activation job. Sensitive values in span attributes are automatically redacted before export. The MCP Gateway also receives OpenTelemetry configuration derived from `observability.otlp`, correlating MCP tool-call traces under the workflow root trace.
 
+### Pre-Steps (`jobs.<job-id>.pre-steps`)
+
+Steps injected at a specific lifecycle position within a custom or built-in job's step sequence: after the compiler-generated setup step and before the first checkout or regular `steps`. Defined under `jobs.<job-id>.pre-steps` in workflow frontmatter. For built-in jobs (`activation`, `pre_activation`), pre-steps are inserted after the `setup` step and before the first `actions/checkout` step. When both a main workflow and an imported workflow define `pre-steps` for the same job, imported pre-steps run first. This is distinct from the top-level `pre-steps` field, which injects steps into the agent job only. See [Custom Jobs](/gh-aw/reference/frontmatter/#custom-jobs-jobs).
+
 ### Stop After
 
 A workflow configuration field (`stop-after:`) that automatically prevents new runs after a specified time limit. Accepts absolute dates (`YYYY-MM-DD`, ISO 8601) or relative time deltas (`+48h`, `+7d`). Minimum granularity is hours. Useful for trial periods, experimental features, and cost-controlled schedules. Recompile with `gh aw compile --refresh-stop-time` to reset the deadline. See [Ephemerals](/gh-aw/guides/ephemerals/).
@@ -431,6 +435,10 @@ The elapsed time between consecutive LLM API calls in an agentic workflow run. A
 `gh aw audit` reports both average and maximum TBT in the Session Analysis section. A cache warning is emitted when the TBT used for cache analysis exceeds the Anthropic 5-minute threshold: the maximum observed TBT for Copilot engine runs, where precise per-turn timestamps are available in the `events.jsonl` session log, or the estimated average TBT for other engines, where TBT is derived from total wall time divided by turn count.
 
 To reduce TBT — and keep prompt caches warm — minimize blocking tool calls, parallelize independent tool invocations, and avoid long-running shell commands in the critical path between turns.
+
+### Ambient Context
+
+The token footprint of the first LLM invocation in a workflow run, used as a proxy for the static context loaded at startup (system prompt, tools list, memory). Because the first invocation fires before the agent has accumulated any conversation history, its input token count primarily reflects the overhead of the configured environment rather than task-specific content. Reported as an optional `ambient_context` object in `gh aw audit` and `gh aw logs` JSON output with three fields: `input_tokens`, `cached_tokens`, and `effective_tokens`. Useful for comparing context overhead across different workflow configurations. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Firewall Analysis
 
