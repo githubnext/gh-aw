@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsWorkflowFile(t *testing.T) {
@@ -234,4 +235,32 @@ func TestGetMarkdownWorkflowFilesExcludesREADME(t *testing.T) {
 
 	// Verify total count
 	assert.Len(t, files, 5, "Should have exactly 5 workflow files (excluding README variants)")
+}
+
+func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0o755)
+	require.NoError(t, err)
+
+	testFiles := map[string]string{
+		"workflow1.md": "---\non: push\n---\n# Workflow 1",
+		"docs.md":      "# This is documentation",
+	}
+
+	for filename, content := range testFiles {
+		path := filepath.Join(workflowsDir, filename)
+		err := os.WriteFile(path, []byte(content), 0o644)
+		require.NoError(t, err)
+	}
+
+	inputFiles := []string{
+		filepath.Join(workflowsDir, "workflow1.md"),
+		filepath.Join(workflowsDir, "docs.md"),
+	}
+
+	filtered, err := filterMarkdownFilesWithFrontmatter(inputFiles)
+	require.NoError(t, err)
+	assert.Len(t, filtered, 1)
+	assert.Equal(t, filepath.Join(workflowsDir, "workflow1.md"), filtered[0])
 }

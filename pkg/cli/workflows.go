@@ -288,6 +288,31 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 	return mdFiles, nil
 }
 
+// filterMarkdownFilesWithFrontmatter keeps only markdown files that begin with frontmatter.
+func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
+	workflowFiles := make([]string, 0, len(mdFiles))
+	for _, file := range mdFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
+		}
+
+		firstLine := string(content)
+		if newline := strings.IndexByte(firstLine, '\n'); newline >= 0 {
+			firstLine = firstLine[:newline]
+		}
+
+		if strings.TrimSpace(firstLine) != "---" {
+			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
+			continue
+		}
+
+		workflowFiles = append(workflowFiles, file)
+	}
+
+	return workflowFiles, nil
+}
+
 // fastParseTitle scans markdown content for the first H1 header, skipping an
 // optional frontmatter block, without performing a full YAML parse.
 //

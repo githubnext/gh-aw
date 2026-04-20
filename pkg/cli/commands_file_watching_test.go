@@ -15,6 +15,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestWatchAndCompileWorkflows tests the watchAndCompileWorkflows function
@@ -187,6 +188,34 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 				t.Errorf("Expected lock file %s to be created", lockFile)
 			}
 		}
+	})
+
+	t.Run("compile all skips markdown files without frontmatter", func(t *testing.T) {
+		tempDir := testutil.TempDir(t, "test-*")
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0o755)
+
+		validWorkflow := filepath.Join(workflowsDir, "valid.md")
+		validContent := "---\non: push\nengine: claude\n---\n# Valid Workflow\n\nContent"
+		os.WriteFile(validWorkflow, []byte(validContent), 0o644)
+
+		docsFile := filepath.Join(workflowsDir, "docs.md")
+		os.WriteFile(docsFile, []byte("# Documentation\n\nNo frontmatter here."), 0o644)
+
+		compiler := workflow.NewCompiler()
+		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, false)
+		if err != nil {
+			t.Fatalf("compileAllWorkflowFiles failed: %v", err)
+		}
+
+		assert.Equal(t, 1, stats.Total, "Should compile only frontmatter-based markdown workflows")
+		assert.Equal(t, 0, stats.Errors, "Valid workflow should compile without errors")
+
+		validLockFile := filepath.Join(workflowsDir, "valid.lock.yml")
+		assert.FileExists(t, validLockFile, "Expected lock file for valid workflow")
+
+		docsLockFile := filepath.Join(workflowsDir, "docs.lock.yml")
+		assert.NoFileExists(t, docsLockFile, "Should not emit lock file for documentation markdown without frontmatter")
 	})
 
 	t.Run("compile all handles glob error", func(t *testing.T) {
