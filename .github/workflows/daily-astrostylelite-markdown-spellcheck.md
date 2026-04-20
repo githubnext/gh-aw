@@ -183,7 +183,17 @@ The spellcheck job runs after activation and before the agent job, and stores ma
 - `/tmp/gh-aw/spellcheck/cspell-results.json`
 - `/tmp/gh-aw/spellcheck/findings.ndjson`
 - `/tmp/gh-aw/spellcheck/files.txt`
-- `/tmp/gh-aw/spellcheck/docs/.cspell.docs.json`
+- `docs/.cspell.docs.json`
+
+Dictionary source files referenced by `docs/.cspell.docs.json` are optional:
+
+- `docs/.cspell-words.txt`
+- `docs/.spellcheck-ignore.txt`
+- `.cspell-words.txt`
+- `.spellcheck-ignore.txt`
+- `.github/spellcheck-ignore.txt`
+
+If a dictionary file is absent, spellcheck continues without it.
 
 Spellcheck summary:
 
