@@ -1044,7 +1044,7 @@ func TestDetectRuntimeRequirements_CustomImageRunner(t *testing.T) {
 	}
 }
 
-func TestDetectRuntimeRequirements_CustomCopilotDriverAddsNode24(t *testing.T) {
+func TestDetectRuntimeRequirements_CustomDriverAddsNode24(t *testing.T) {
 	data := &WorkflowData{
 		RunsOn: "runs-on: ubuntu-latest",
 		EngineConfig: &EngineConfig{
@@ -1065,5 +1065,5 @@ func TestDetectRuntimeRequirements_CustomCopilotDriverAddsNode24(t *testing.T) {
 
 	require.NotNil(t, nodeReq, "Expected Node.js runtime requirement when custom copilot driver is configured")
 
-	assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version, "Custom copilot driver should require Node.js 24 runtime")
+	assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version, "Custom engine driver should require Node.js 24 runtime")
 }

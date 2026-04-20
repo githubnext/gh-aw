@@ -23,7 +23,7 @@ type EngineConfig struct {
 	Concurrency      string // Agent job-level concurrency configuration (YAML format)
 	UserAgent        string
 	Command          string // Custom executable path (when set, skip installation steps)
-	DriverScript     string // Custom Node.js driver script filename (copilot engine only; replaces default copilot_driver.cjs)
+	DriverScript     string // Custom Node.js driver script filename (replaces engine default driver script when supported)
 	Env              map[string]string
 	Config           string
 	Args             []string

@@ -39,7 +39,7 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
-	// When a custom Copilot driver script is configured, require Node.js runtime setup
+	// When a custom driver script is configured, require Node.js runtime setup
 	// with the default version so workflows consistently execute the driver with Node 24.
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.DriverScript != "" {
 		nodeRuntime := findRuntimeByID("node")

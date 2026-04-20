@@ -77,22 +77,10 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 }
 
 // validateEngineDriverScript validates optional engine.driver configuration.
-// engine.driver is only supported for the copilot engine and must point to a Node.js script.
+// engine.driver must point to a Node.js script.
 func (c *Compiler) validateEngineDriverScript(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.DriverScript == "" {
 		return nil
-	}
-
-	engineID := workflowData.EngineConfig.ID
-	if engineID == "" {
-		engineID = workflowData.AI
-	}
-	if engineID == "" {
-		engineID = "copilot"
-	}
-
-	if engineID != "copilot" {
-		return fmt.Errorf("engine.driver is only supported for the 'copilot' engine (found: %s).\n\nSee: %s", engineID, constants.DocsEnginesURL)
 	}
 
 	ext := strings.ToLower(filepath.Ext(workflowData.EngineConfig.DriverScript))

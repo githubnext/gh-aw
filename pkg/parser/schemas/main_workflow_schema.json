@@ -9499,7 +9499,7 @@
             },
             "driver": {
               "type": "string",
-              "description": "Custom Node.js driver script filename for the copilot engine. This replaces the built-in 'copilot_driver.cjs' wrapper script and must end with .js, .cjs, or .mjs."
+              "description": "Custom Node.js driver script filename for an agentic engine. This replaces the engine's built-in driver wrapper (when the engine supports one) and must end with .js, .cjs, or .mjs."
             },
             "env": {
               "type": "object",

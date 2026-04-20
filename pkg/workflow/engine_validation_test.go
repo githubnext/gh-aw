@@ -336,12 +336,11 @@ func TestValidateEngineDriverScript(t *testing.T) {
 			errorSubstr: "must be a Node.js script",
 		},
 		{
-			name: "driver configured for unsupported engine",
+			name: "driver configured for any engine",
 			workflow: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "claude", DriverScript: "driver.cjs"},
 			},
-			expectError: true,
-			errorSubstr: "only supported for the 'copilot' engine",
+			expectError: false,
 		},
 	}
 
