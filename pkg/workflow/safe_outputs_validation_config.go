@@ -165,6 +165,16 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"merge_pull_request": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"pull_request_number": {IssueOrPRNumber: true},
+			"merge_method":        {Type: "string", Enum: []string{"merge", "squash", "rebase"}},
+			"commit_title":        {Type: "string", Sanitize: true, MaxLength: 256},
+			"commit_message":      {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
 	"push_to_pull_request_branch": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{

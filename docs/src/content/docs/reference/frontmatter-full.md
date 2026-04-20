@@ -4575,6 +4575,54 @@ safe-outputs:
   # body updates enabled)
   update-pull-request: null
 
+  # Enable AI agents to merge pull requests under configured policy gates.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Enable pull request merge with default policy configuration
+  merge-pull-request: null
+
+  # Option 2: Configuration for controlled pull request merges. The merge is blocked
+  # unless all configured gates pass.
+  merge-pull-request:
+    # Maximum number of pull request merges to perform per run (default: 1). Supports
+    # integer or GitHub Actions expression (e.g. '${{ inputs.max }}').
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: integer
+    max: 1
+
+    # Option 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # List of labels that must all be present on the pull request before merge is
+    # allowed.
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # Exact pull request label names. At least one existing PR label must exactly
+    # match one of these values when configured.
+    # (optional)
+    allowed-labels: []
+      # Array of strings
+
+    # Glob patterns for allowed source branch names (pull request head ref).
+    # (optional)
+    allowed-branches: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # If true, evaluate merge gates and emit preview results without executing the
+    # merge API call.
+    # (optional)
+    staged: true
+
   # Enable AI agents to push commits directly to pull request branches for automated
   # fixes or improvements.
   # (optional)

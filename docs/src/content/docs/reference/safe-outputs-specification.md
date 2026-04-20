@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.16.0  
+**Version**: 1.17.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-04-06  
+**Publication Date**: 2026-04-19  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -2760,6 +2760,84 @@ This section provides complete definitions for all remaining safe output types. 
 
 ---
 
+#### Type: merge_pull_request
+
+**Purpose**: Merge pull requests only when configured policy gates pass.
+
+**Default Max**: 1  
+**Cross-Repository Support**: Yes  
+**Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "merge_pull_request",
+  "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch constraints, and mergeability gates).",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "pull_request_number": {
+        "type": ["number", "string"],
+        "description": "Pull request number to merge. Supports numeric values or temporary IDs from prior safe-output operations. If omitted, uses triggering pull request context."
+      },
+      "merge_method": {
+        "type": "string",
+        "enum": ["merge", "squash", "rebase"]
+      },
+      "commit_title": {"type": "string"},
+      "commit_message": {"type": "string"},
+      "repo": {
+        "type": "string",
+        "description": "Target repository in owner/repo format."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Repository/PR Resolution**: Resolves target repository and pull request from context or explicit input.
+2. **Mergeability Check**: Validates pull request is mergeable and not draft/conflicted.
+3. **Policy Gates**: Enforces required checks, review decision, unresolved review thread gating, label constraints, and source branch constraints.
+4. **Base Branch Protection**: Refuses merges when the target base branch is protected or is the repository default branch.
+5. **Idempotency**: Returns success when the pull request is already merged.
+
+**Configuration Parameters**:
+
+- `max`: Operation limit (default: 1)
+- `required-labels`: Labels that must exist on the pull request
+- `allowed-labels`: Exact label names; at least one pull request label must exactly match when configured
+- `allowed-branches`: Source branch glob patterns
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repository allowlist
+- `staged`: Staged mode override
+
+**Required Permissions**:
+
+*GitHub Actions Token*:
+
+- `contents: write` - Merge operation execution
+- `pull-requests: write` - Pull request metadata and merge operations
+
+*GitHub App*:
+
+- `contents: write` - Merge operation execution
+- `pull-requests: write` - Pull request metadata and merge operations
+- `metadata: read` - Repository metadata (automatically granted)
+
+**Notes**:
+
+- Merge execution is blocked unless all configured gates pass.
+- Merge to the repository default branch is always refused by this safe output type.
+- `pull_request_number` may be a temporary ID that resolves to a pull request number from earlier safe-output operations.
+- GraphQL mergeability and review-summary queries are retried with transient-error retry logic.
+- Compiling a workflow with `merge-pull-request` emits: `Using experimental feature: merge-pull-request`.
+
+---
+
 #### Type: mark_pull_request_as_ready_for_review
 
 **Purpose**: Convert draft pull request to ready-for-review status.
@@ -4714,6 +4792,12 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.17.0** (2026-04-19):
+
+- **Added**: `merge_pull_request` safe output type definition in Section 7.3, including schema, policy gate semantics, and required permissions
+- **Documented**: Merge policy gates for checks, reviews, labels, branch constraints, file constraints, and base-branch restrictions
+- **Updated**: Publication metadata to 1.17.0
 
 **Version 1.15.0** (2026-03-29):
 

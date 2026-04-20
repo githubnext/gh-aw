@@ -14,7 +14,7 @@ engine: copilot
 tools:
   mount-as-clis: true
   github:
-    toolsets: [default]
+    toolsets: [issues, pull_requests]
   edit:
 safe-outputs:
   create-pull-request:
@@ -28,6 +28,7 @@ imports:
   - shared/reporting.md
 features:
   mcp-cli: true
+  cli-proxy: true
   copilot-requests: true
 ---
 
@@ -43,20 +44,28 @@ Analyze the CI workflow daily to identify concrete optimization opportunities th
 
 - **Repository**: ${{ github.repository }}
 - **Run Number**: #${{ github.run_number }}
-- **Target Workflow**: `.github/workflows/ci.yml`
+- **Target Workflows**:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/cgo.yml`
+  - `.github/workflows/cjs.yml`
 
 ## Data Available
 
 The `ci-data-analysis` shared module has pre-downloaded CI run data and built the project. Available data:
 
-1. **CI Runs**: `/tmp/ci-runs.json` - Last 100 workflow runs
-2. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
-3. **CI Configuration**: `.github/workflows/ci.yml` - Current workflow
-4. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data
-5. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
-6. **Fuzz Results**: `/tmp/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
+1. **CI Runs**: `/tmp/ci-runs.json` - Last 60 workflow runs
+2. **CI Summary**: `/tmp/ci-summary.json` - Pre-computed failure patterns, duration stats, and top opportunities
+3. **Artifacts**: `/tmp/ci-artifacts/` - Coverage reports, benchmarks, and **fuzz test results**
+4. **CI Configuration**:
+   - `.github/workflows/ci.yml`
+   - `.github/workflows/cgo.yml`
+   - `.github/workflows/cjs.yml`
+5. **Cache Memory**: `/tmp/cache-memory/` - Historical analysis data
+6. **Test Results**: `/tmp/gh-aw/test-results.json` - Test performance data
+7. **Fuzz Results**: `/tmp/ci-artifacts/*/fuzz-results/` - Fuzz test output and corpus data
 
 The project has been **built, linted, and tested** so you can validate changes immediately.
+Start from `/tmp/ci-summary.json` first and only read raw files if a summary metric needs verification.
 
 ## Analysis Framework
 
@@ -84,6 +93,13 @@ Follow the optimization strategies defined in the `ci-optimization-strategies` s
   - Check for new crash inputs or interesting corpus growth
   - Evaluate fuzz test duration (currently 10s per test)
   - Consider if fuzz time should be increased for security-critical tests
+
+### Early Exit Gate (mandatory after Phase 2)
+
+If CI health is good and no actionable regression is found in Phases 1-2:
+1. Save a short no-op summary to cache memory
+2. Call `noop` with concise evidence
+3. Stop immediately (do not continue to Phases 3-5)
 
 ### Phase 3: Identify Optimization Opportunities (10 minutes)
 Apply the optimization strategies from the shared module:
@@ -114,7 +130,10 @@ Prioritize optimizations with high impact, low risk, and low to medium effort.
 
 If you identify improvements worth implementing:
 
-1. **Make focused changes** to `.github/workflows/ci.yml`:
+1. **Make focused changes** to CI workflows as needed:
+   - `.github/workflows/ci.yml`
+   - `.github/workflows/cgo.yml`
+   - `.github/workflows/cjs.yml`
    - Use the `edit` tool to make precise modifications
    - Keep changes minimal and well-documented
    - Add comments explaining why changes improve efficiency
@@ -151,113 +170,21 @@ If no improvements are found or changes are too risky:
 
 ## Pull Request Structure (if created)
 
-**Report Formatting**: Use h3 (###) or lower for all headers in your PR description to maintain proper document hierarchy. The PR title serves as h1, so start section headers at h3.
+Use this compact structure (h3 or lower headers only):
 
 ```markdown
 ### CI Optimization Proposal
-
 ### Summary
-[Brief overview of proposed changes and expected benefits]
-
-### Optimizations
-
-#### 1. [Optimization Name]
-**Type**: [Parallelization/Cache/Testing/Resource/etc.]
-**Impact**: [Estimated time/cost savings]
-**Risk**: [Low/Medium/High]
-**Changes**:
-- Line X: [Description of change]
-- Line Y: [Description of change]
-
-**Rationale**: [Why this improves efficiency]
-
-#### Example: Test Suite Restructuring
-**Type**: Test Suite Optimization
-**Impact**: ~5 minutes per run (40% reduction in test phase)
-**Risk**: Low
-**Changes**:
-- Lines 15-57: Split unit test job into 3 parallel jobs by package
-- Lines 58-117: Rebalance integration test matrix groups
-- Line 83: Split "Workflow" tests into separate groups with specific patterns
-
-**Rationale**: Current integration tests wait unnecessarily for unit tests to complete. Integration tests don't use unit test outputs, so they can run in parallel. Splitting unit tests by package and rebalancing integration matrix reduces the critical path by 52%.
-
-<details>
-<summary>View Detailed Test Structure Comparison</summary>
-
-**Current Test Structure:**
-```yaml
-test:
-  needs: [lint]
-  run: go test -v -count=1 -timeout=3m -tags '!integration' ./...
-  # Takes ~2.5 minutes, runs all unit tests sequentially
-
-integration:
-  needs: [test]  # Blocks on test completion
-  matrix: 6 groups (imbalanced: "Workflow" takes 8min, others 3-4min)
-```
-
-**Proposed Test Structure:**
-```yaml
-test-unit-cli:
-  needs: [lint]
-  run: go test -v -parallel=4 -timeout=2m -tags '!integration' ./pkg/cli/...
-  # ~1.5 minutes
-
-test-unit-workflow:
-  needs: [lint]
-  run: go test -v -parallel=4 -timeout=2m -tags '!integration' ./pkg/workflow/...
-  # ~1.5 minutes
-
-test-unit-parser:
-  needs: [lint]
-  run: go test -v -parallel=4 -timeout=2m -tags '!integration' ./pkg/parser/...
-  # ~1 minute
-
-integration:
-  needs: [lint]  # Run in parallel with unit tests
-  matrix: 8 balanced groups (each ~4 minutes)
-  # Split "Workflow" into 3 groups: workflow-compile, workflow-safe-outputs, workflow-tools
-```
-
-**Benefits:**
-- Unit tests run in parallel (1.5 min vs 2.5 min)
-- Integration starts immediately after lint (no waiting for unit tests)
-- Better matrix balance reduces longest job from 8 min to 4 min
-- Critical path: lint (2 min) → integration (4 min) = 6 min total
-- Previous path: lint (2 min) → test (2.5 min) → integration (8 min) = 12.5 min
-
-</details>
-
-#### 2. [Next optimization...]
-
+### Top 1-3 Optimizations
+#### [Optimization Name]
+- Type:
+- Impact:
+- Risk:
+- Changes:
+- Rationale:
 ### Expected Impact
-- **Total Time Savings**: ~X minutes per run
-- **Cost Reduction**: ~$Y per month (estimated)
-- **Risk Level**: [Overall risk assessment]
-
 ### Validation Results
-✅ All validations passed:
-- Linting: `make lint` - passed
-- Build: `make build` - passed
-- Unit tests: `make test-unit` - passed
-- Lock file compilation: `make recompile` - passed
-
-### Testing Plan
-- [ ] Verify workflow syntax
-- [ ] Test on feature branch
-- [ ] Monitor first few runs after merge
-- [ ] Validate cache hit rates
-- [ ] Compare run times before/after
-
 ### Metrics Baseline
-[Current metrics from analysis for future comparison]
-- Average run time: X minutes
-- Success rate: Y%
-- Cache hit rate: Z%
-
----
-*Proposed by CI Coach workflow run #${{ github.run_number }}*
 ```
 
 ## Token Budget Guidelines
@@ -338,8 +265,8 @@ The CI Coach workflow must NEVER alter test code (`*_test.go` files) in ways tha
 
 ## Success Criteria
 
-✅ Analyzed CI workflow structure thoroughly
-✅ Reviewed at least 100 recent workflow runs
+✅ Analyzed CI workflow structure thoroughly (`ci.yml`, `cgo.yml`, `cjs.yml`)
+✅ Reviewed recent workflow runs across split CI workflows
 ✅ Examined available artifacts and metrics
 ✅ Checked historical context from cache memory
 ✅ Identified concrete optimization opportunities OR confirmed CI is well-optimized
