@@ -849,6 +849,8 @@ func containsRunnerLabel(value any, target string) bool {
 			}
 		}
 	case map[string]any:
+		// Support object-form runs-on (e.g. {group: "...", labels: ["aw-gpu-runner-T4"]}).
+		// GitHub Actions allows object form for larger/self-hosted runners.
 		for _, item := range v {
 			if containsRunnerLabel(item, target) {
 				return true
