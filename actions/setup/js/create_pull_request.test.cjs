@@ -1574,6 +1574,63 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(result.error).toBe("Failed to apply patch");
     expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
   });
+
+  it("should fail loudly when preserve-branch-name is true and remote branch already exists", async () => {
+    // Simulate the remote branch existing (ls-remote returns content)
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("ls-remote --heads origin")) {
+          return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/preserve-me\n", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ preserve_branch_name: true, fallback_as_issue: false });
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "preserve-me", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error_type).toBe("push_failed");
+    expect(result.error).toContain('Remote branch "preserve-me" already exists');
+    expect(result.error).toContain("preserve-branch-name is enabled");
+    // Critical: should NOT have warned about appending random suffix (silent bypass)
+    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
+    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(false);
+  });
+
+  it("should append random suffix when preserve-branch-name is false and remote branch already exists", async () => {
+    let renameCalled = false;
+    global.exec = {
+      exec: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("git branch -m")) {
+          renameCalled = true;
+        }
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === "string" ? cmd : `${cmd} ${(args || []).join(" ")}`;
+        if (cmdStr.includes("ls-remote --heads origin")) {
+          return Promise.resolve({ exitCode: 0, stdout: "abc123\trefs/heads/some-branch\n", stderr: "" });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+      }),
+    };
+
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({});
+
+    const result = await handler({ title: "Test PR", body: "Test body", patch_path: patchFilePath, branch: "some-branch", base_commit: MOCK_BASE_COMMIT_SHA }, {});
+
+    expect(result.success).toBe(true);
+    expect(renameCalled).toBe(true);
+    const warningCalls = global.core.warning.mock.calls.map(call => String(call[0]));
+    expect(warningCalls.some(msg => msg.includes("appending random suffix"))).toBe(true);
+  });
 });
 
 describe("create_pull_request - copilot assignee on fallback issues", () => {

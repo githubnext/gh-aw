@@ -83,6 +83,8 @@ The `excluded-files` field accepts a list of glob patterns. Each matching file i
 
 The `preserve-branch-name` field, when set to `true`, omits the random hex salt suffix that is normally appended to the agent-specified branch name. This is useful when the target repository enforces branch naming conventions such as Jira keys in uppercase (e.g., `bugfix/BR-329-red` instead of `bugfix/br-329-red-cde2a954`). Invalid characters are always replaced for security, and casing is always preserved regardless of this setting. Defaults to `false`.
 
+When `preserve-branch-name: true` and the agent-supplied branch name already exists on the remote, the workflow fails with an explicit error rather than silently appending a random suffix. To resolve, delete the existing remote branch, choose a different branch name, or disable `preserve-branch-name` to allow collision-avoidance via a random suffix.
+
 The `draft` field is a **configuration policy**, not a default. Whatever value is set in the workflow frontmatter is always used — the agent cannot override it at runtime.
 
 By default, when a workflow is triggered from an issue, the `create-pull-request` handler automatically appends `- Fixes #N` to the PR description if no closing keyword is already present. This causes GitHub to auto-close the triggering issue when the PR is merged. Set `auto-close-issue: false` to opt out of this behavior — useful for partial-work PRs, multi-PR workflows, or any case where the PR should reference but not close the issue.

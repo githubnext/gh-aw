@@ -983,6 +983,13 @@ async function main(config = {}) {
         }
 
         if (remoteBranchExists) {
+          if (preserveBranchName) {
+            throw new Error(
+              `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
+                `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
+                `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
+            );
+          }
           core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
           const extraHex = crypto.randomBytes(4).toString("hex");
           const oldBranch = branchName;
@@ -1211,6 +1218,13 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${branchName} --repo
           }
 
           if (remoteBranchExists) {
+            if (preserveBranchName) {
+              throw new Error(
+                `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
+                  `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
+                  `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
+              );
+            }
             core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
             const extraHex = crypto.randomBytes(4).toString("hex");
             const oldBranch = branchName;
@@ -1374,6 +1388,13 @@ ${patchPreview}`;
             }
 
             if (remoteBranchExists) {
+              if (preserveBranchName) {
+                throw new Error(
+                  `Remote branch "${branchName}" already exists and preserve-branch-name is enabled. ` +
+                    `Refusing to silently rename the branch. Either delete the remote branch, choose a different ` +
+                    `branch name, or disable preserve-branch-name to allow a random suffix to be appended.`
+                );
+              }
               core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
               const extraHex = crypto.randomBytes(4).toString("hex");
               const oldBranch = branchName;
