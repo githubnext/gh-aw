@@ -120,6 +120,17 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	e.renderShellEnvironmentPolicyToml(yaml, tools, mcpTools, "          ")
 	yaml.WriteString("          " + shellPolicyDelimiter + "\n")
 	yaml.WriteString("          cat \"${RUNNER_TEMP}/gh-aw/mcp-config/config.toml\" >> \"/tmp/gh-aw/mcp-config/config.toml\"\n")
+	if strings.TrimSpace(workflowData.EngineConfig.Config) != "" {
+		customConfigDelimiter := GenerateHeredocDelimiterFromSeed("CODEX_CUSTOM_CONFIG", workflowData.FrontmatterHash)
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Append engine-level custom Codex config\n")
+		yaml.WriteString("          cat >> \"/tmp/gh-aw/mcp-config/config.toml\" << " + customConfigDelimiter + "\n")
+		yaml.WriteString(workflowData.EngineConfig.Config)
+		if !strings.HasSuffix(workflowData.EngineConfig.Config, "\n") {
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("          " + customConfigDelimiter + "\n")
+	}
 	yaml.WriteString("          chmod 600 \"/tmp/gh-aw/mcp-config/config.toml\"\n")
 
 	return nil
