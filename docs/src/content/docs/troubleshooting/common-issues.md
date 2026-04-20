@@ -157,11 +157,11 @@ mcp-servers:
       API_KEY: "${{ secrets.MCP_API_KEY }}"
 ```
 
-### Crush/OpenCode MCP Tools Not Being Called
+### OpenCode/Crush MCP Tools Not Being Called
 
 When integrating OpenCode-compatible engines (such as `crush`) in AWF smoke tests, runs can complete while never calling MCP tools or file tools.
 
-Use this `.crush.json` structure:
+Use this `.crush.json` structure. In this example, `10004` is the local AWF API proxy port for OpenCode/Crush-compatible routing, and `MCP_GATEWAY_PORT` is the MCP gateway port.
 
 ```json
 {
@@ -202,9 +202,9 @@ Key gotchas:
 
 - Crush/OpenCode do not auto-discover MCP servers. Add an explicit top-level `mcp` section.
 - Use routed gateway URLs: `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`.
-- Use `agent.build.permission` (singular). `permissions` is ignored by OpenCode-compatible config loaders.
-- In non-interactive mode, `external_directory` defaults to `ask`, which becomes deny. Set it to `allow` when the agent needs to read or write files outside its default sandbox working path.
-- If using OpenAI-compatible Copilot routing, do not append `/v1` for `api.githubcopilot.com` paths. Use the provider's expected base path (for example `https://models.inference.ai.azure.com`) so the OpenAI-compatible client appends `/chat/completions` correctly.
+- Use `agent.build.permission` (singular). Using `permissions` (plural) is silently ignored by OpenCode-compatible config loaders, which leaves tools unavailable even though the run continues.
+- In non-interactive mode, `external_directory` defaults to `ask`, which becomes deny. Set it to `allow` only when the agent must access paths outside its primary workspace (for example `/tmp` or mounted external directories).
+- For direct Copilot-compatible endpoints, do not append `/v1` for `api.githubcopilot.com` paths. Use the provider's expected base path (for example `https://models.inference.ai.azure.com`) so the OpenAI-compatible client appends `/chat/completions` correctly. If you route through the local proxy (`http://host.docker.internal:10004`), keep the proxy URL as-is.
 - When running through AWF `--enable-api-proxy`, provide `COPILOT_GITHUB_TOKEN` in the same execute step `env:` so the proxy can authenticate.
 
 ```yaml wrap
