@@ -219,12 +219,27 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "update-pull-request requires contents write for updateBranch API",
+			name: "update-pull-request without update-branch requires contents read",
 			safeOutputs: &SafeOutputsConfig{
 				UpdatePullRequests: &UpdatePullRequestsConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 					},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "update-pull-request with update-branch requires contents write",
+			safeOutputs: &SafeOutputsConfig{
+				UpdatePullRequests: &UpdatePullRequestsConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+					UpdateBranch: boolPtr(true),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{

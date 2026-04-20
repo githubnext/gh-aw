@@ -194,12 +194,12 @@ func TestUpdatePullRequestValidationConfig(t *testing.T) {
 		t.Fatal("update_pull_request not found in ValidationConfig")
 	}
 
-	if config.CustomValidation != "requiresOneOf:title,body,merge_base" {
-		t.Errorf("update_pull_request customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,merge_base")
+	if config.CustomValidation != "requiresOneOf:title,body,update_branch" {
+		t.Errorf("update_pull_request customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,update_branch")
 	}
 
-	if _, ok := config.Fields["merge_base"]; !ok {
-		t.Error("update_pull_request Fields is missing the 'merge_base' field")
+	if _, ok := config.Fields["update_branch"]; !ok {
+		t.Error("update_pull_request Fields is missing the 'update_branch' field")
 	}
 }
 
@@ -208,7 +208,7 @@ func TestValidationConfigConsistency(t *testing.T) {
 	validCustomValidations := map[string]bool{
 		"requiresOneOf:status,title,body":        true,
 		"requiresOneOf:title,body":               true,
-		"requiresOneOf:title,body,merge_base":    true,
+		"requiresOneOf:title,body,update_branch": true,
 		"requiresOneOf:title,body,labels":        true,
 		"requiresOneOf:issue_number,pull_number": true,
 		"requiresOneOf:reviewers,team_reviewers": true,

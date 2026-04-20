@@ -34,10 +34,10 @@ async function executePRUpdate(github, context, prNumber, updateData) {
 
   // Remove internal fields
   const { _operation, _rawBody, _includeFooter, _workflowRepo, ...apiData } = updateData;
-  const mergeBase = apiData.merge_base === true;
-  delete apiData.merge_base;
+  const updateBranch = apiData.update_branch === true;
+  delete apiData.update_branch;
 
-  if (mergeBase) {
+  if (updateBranch) {
     core.info(`Updating pull request #${prNumber} branch with base branch changes`);
     try {
       await withRetry(
@@ -176,9 +176,9 @@ function buildPRUpdateData(item, config) {
     hasUpdates = true;
   }
 
-  const mergeBase = item.merge_base !== undefined ? item.merge_base === true : config.merge_base === true;
-  if (mergeBase) {
-    updateData.merge_base = true;
+  const updateBranch = item.update_branch !== undefined ? item.update_branch === true : config.update_branch === true;
+  if (updateBranch) {
+    updateData.update_branch = true;
     hasUpdates = true;
   }
 
@@ -222,7 +222,7 @@ const main = createUpdateHandlerFactory({
   additionalConfig: {
     allow_title: true,
     allow_body: true,
-    merge_base: false,
+    update_branch: false,
   },
 });
 

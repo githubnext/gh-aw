@@ -1203,21 +1203,21 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 	}
 }
 
-func TestUpdatePullRequestMergeBaseHandlerConfig(t *testing.T) {
+func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 	tests := []struct {
-		name      string
-		mergeBase *bool
-		expected  bool
+		name         string
+		updateBranch *bool
+		expected     bool
 	}{
 		{
-			name:      "defaults merge_base to false",
-			mergeBase: nil,
-			expected:  false,
+			name:         "defaults update_branch to false",
+			updateBranch: nil,
+			expected:     false,
 		},
 		{
-			name:      "sets merge_base true when configured",
-			mergeBase: testBoolPtr(true),
-			expected:  true,
+			name:         "sets update_branch true when configured",
+			updateBranch: testBoolPtr(true),
+			expected:     true,
 		},
 	}
 
@@ -1229,7 +1229,7 @@ func TestUpdatePullRequestMergeBaseHandlerConfig(t *testing.T) {
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
 					UpdatePullRequests: &UpdatePullRequestsConfig{
-						MergeBase: tt.mergeBase,
+						UpdateBranch: tt.updateBranch,
 					},
 				},
 			}
@@ -1254,9 +1254,9 @@ func TestUpdatePullRequestMergeBaseHandlerConfig(t *testing.T) {
 						updatePRConfig, ok := config["update_pull_request"]
 						require.True(t, ok, "Expected update_pull_request config")
 
-						mergeBaseValue, ok := updatePRConfig["merge_base"]
-						require.True(t, ok, "Expected merge_base key in update_pull_request config")
-						assert.Equal(t, tt.expected, mergeBaseValue)
+						updateBranchValue, ok := updatePRConfig["update_branch"]
+						require.True(t, ok, "Expected update_branch key in update_pull_request config")
+						assert.Equal(t, tt.expected, updateBranchValue)
 					}
 				}
 			}

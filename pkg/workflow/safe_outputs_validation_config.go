@@ -154,12 +154,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_pull_request": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:title,body,merge_base",
+		CustomValidation: "requiresOneOf:title,body,update_branch",
 		Fields: map[string]FieldValidation{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend"}},
-			"merge_base":          {Type: "boolean"},
+			"update_branch":       {Type: "boolean"},
 			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"

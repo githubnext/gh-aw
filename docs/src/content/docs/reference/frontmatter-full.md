@@ -4527,7 +4527,7 @@ safe-outputs:
     # When true, update the pull request branch with the latest base branch changes
     # before applying other updates. Defaults to false.
     # (optional)
-    merge-base: true
+    update-branch: true
 
     # Default operation for body updates: 'append' (add to end), 'prepend' (add to
     # start), or 'replace' (overwrite completely). Defaults to 'replace' if not
