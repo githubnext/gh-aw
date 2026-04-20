@@ -17,22 +17,10 @@ strict: true
 if: needs.spellcheck.outputs.has_findings == 'true'
 
 jobs:
-  preflight:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      activated: ${{ steps.gate.outputs.activated }}
-    steps:
-      - name: Mark workflow as activated
-        id: gate
-        shell: bash
-        run: echo "activated=true" >> "$GITHUB_OUTPUT"
-
   spellcheck:
     runs-on: ubuntu-latest
-    needs: [preflight]
-    if: needs.preflight.outputs.activated == 'true'
+    needs: [activation]
+    if: needs.activation.outputs.activated == 'true'
     permissions:
       contents: read
     outputs:
@@ -66,10 +54,10 @@ jobs:
 
           DICTIONARY_PATH=""
           for candidate in \
-            docs/.spellcheck-ignore.txt \
             docs/.cspell-words.txt \
-            .spellcheck-ignore.txt \
+            docs/.spellcheck-ignore.txt \
             .cspell-words.txt \
+            .spellcheck-ignore.txt \
             .github/spellcheck-ignore.txt
           do
             if [ -f "$candidate" ]; then
@@ -77,24 +65,6 @@ jobs:
               break
             fi
           done
-
-          WORDS_JSON="[]"
-          if [ -n "$DICTIONARY_PATH" ]; then
-            WORDS_JSON=$(grep -Ev '^\s*(#|$)' "$DICTIONARY_PATH" | sed 's/\r$//' | jq -R -s 'split("\n") | map(select(length > 0))')
-          fi
-
-          cat > "$ARTIFACT_DIR/cspell.config.json" <<JSON
-          {
-            "version": "0.2",
-            "language": "en-US",
-            "enabledLanguageIds": ["markdown", "mdx"],
-            "ignorePaths": [
-              "**/node_modules/**",
-              "**/.git/**"
-            ],
-            "words": $WORDS_JSON
-          }
-          JSON
 
           if [ "$FILES_CHECKED" -eq 0 ]; then
             echo '[]' > "$ARTIFACT_DIR/cspell-results.json"
@@ -104,7 +74,7 @@ jobs:
               --no-summary \
               --show-suggestions \
               --format json \
-              --config "$ARTIFACT_DIR/cspell.config.json" \
+              --config docs/.cspell.docs.json \
               --file-list "$ARTIFACT_DIR/files.txt" \
               > "$ARTIFACT_DIR/cspell-results.json" || true
           fi
@@ -161,7 +131,7 @@ jobs:
             /tmp/gh-aw/spellcheck/cspell-results.json
             /tmp/gh-aw/spellcheck/findings.ndjson
             /tmp/gh-aw/spellcheck/files.txt
-            /tmp/gh-aw/spellcheck/cspell.config.json
+            docs/.cspell.docs.json
           if-no-files-found: error
           retention-days: 3
 
@@ -207,12 +177,13 @@ You maintain spelling quality for AstroStyleLite documentation under `docs/src/c
 
 ## Inputs from the Spellcheck Job
 
-The spellcheck job runs before activation and stores machine-readable results at:
+The spellcheck job runs after activation and before the agent job, and stores machine-readable results at:
 
 - `/tmp/gh-aw/spellcheck/summary.json`
 - `/tmp/gh-aw/spellcheck/cspell-results.json`
 - `/tmp/gh-aw/spellcheck/findings.ndjson`
 - `/tmp/gh-aw/spellcheck/files.txt`
+- `/tmp/gh-aw/spellcheck/docs/.cspell.docs.json`
 
 Spellcheck summary:
 
@@ -222,7 +193,7 @@ Spellcheck summary:
 
 ## Conditional Execution
 
-This workflow is intentionally gated so activation and the agent path only run when `needs.spellcheck.outputs.has_findings == 'true'`.
+This workflow is intentionally gated so the agent path only runs when `needs.spellcheck.outputs.has_findings == 'true'`.
 When no findings exist, the workflow stops after spellcheck and skips agent execution.
 
 ## Task
