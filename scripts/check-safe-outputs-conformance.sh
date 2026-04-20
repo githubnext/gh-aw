@@ -140,7 +140,7 @@ check_sanitization() {
         [[ "$handler" =~ (test|parse|buffer) ]] && continue
 
         # Skip files with a documented SEC-004 exemption annotation
-        if grep -q "@safe-outputs-exempt.*SEC-004" "$handler"; then
+        if grep -q "@safe-outputs-exempt[[:space:]]\\+SEC-004" "$handler"; then
             continue
         fi
         
