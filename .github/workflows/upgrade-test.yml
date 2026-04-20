@@ -24,6 +24,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION_REGEX: 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?'
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -68,7 +69,7 @@ jobs:
           gh extension install github/gh-aw --pin "$PREVIOUS" --force
 
           # Extract version string (supports stable and prerelease tags).
-          INSTALLED=$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' | head -1)
+          INSTALLED=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
           echo "Installed: $INSTALLED"
           [ "$INSTALLED" = "$PREVIOUS" ] || { echo "❌ Expected $PREVIOUS, got $INSTALLED"; exit 1; }
           echo "✅ n-1 installed: $INSTALLED"
@@ -91,7 +92,7 @@ jobs:
         env:
           LATEST: ${{ steps.releases.outputs.latest }}
         run: |
-          INSTALLED=$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' | head -1)
+          INSTALLED=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
           echo "Installed: $INSTALLED"
           echo "Expected:  $LATEST"
           [ "$INSTALLED" = "$LATEST" ] || { echo "❌ Version mismatch: got $INSTALLED, expected $LATEST"; exit 1; }
@@ -105,9 +106,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      contents: read
       issues: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      UPGRADE_JOB_NAME_PREFIX: "Extension upgrade on "
     steps:
       - name: Collect upgrade test outcomes
         id: outcomes
@@ -117,8 +120,8 @@ jobs:
 
           FAILURES=$(
             gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
-              --jq '.jobs
-                | map(select(.name | startswith("Extension upgrade on ")))
+              --jq --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '.jobs
+                | map(select(.name | startswith($job_prefix)))
                 | map(select(.conclusion != "success"))
                 | map("\(.name): \(.conclusion // "unknown")")
                 | join("\n")'
