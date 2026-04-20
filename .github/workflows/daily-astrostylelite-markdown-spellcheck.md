@@ -107,6 +107,7 @@ jobs:
               --no-progress \
               --no-summary \
               --show-suggestions \
+              # cspell v8 removed --format json for lint; use JSON reporter instead.
               --reporter @cspell/cspell-json-reporter \
               --config "$RUNTIME_CONFIG_PATH" \
               --file-list "$ARTIFACT_DIR/files.txt" \
