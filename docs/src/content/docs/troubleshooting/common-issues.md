@@ -157,6 +157,56 @@ mcp-servers:
       API_KEY: "${{ secrets.MCP_API_KEY }}"
 ```
 
+### Crush/OpenCode MCP Tools Not Being Called
+
+When integrating OpenCode-compatible engines (such as `crush`) in AWF smoke tests, runs can complete while never calling MCP tools or file tools.
+
+Use this `.crush.json` structure:
+
+```json
+{
+  "provider": {
+    "copilot-proxy": {
+      "name": "Copilot Proxy",
+      "type": "openai-compatible",
+      "baseURL": "http://172.30.0.30:10004",
+      "models": ["gpt-4.1", "claude-sonnet-4-5"]
+    }
+  },
+  "model": "copilot-proxy/claude-sonnet-4-6",
+  "mcp": {
+    "safeoutputs": {
+      "type": "remote",
+      "url": "http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/safeoutputs",
+      "headers": { "Authorization": "${MCP_GATEWAY_API_KEY}" },
+      "timeout": 30000
+    }
+  },
+  "agent": {
+    "build": {
+      "permission": {
+        "bash": "allow",
+        "edit": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "write": "allow",
+        "external_directory": "allow"
+      }
+    }
+  }
+}
+```
+
+Key gotchas:
+
+- Crush/OpenCode do not auto-discover MCP servers. Add an explicit top-level `mcp` section.
+- Use routed gateway URLs: `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`.
+- Use `agent.build.permission` (singular). `permissions` is ignored by OpenCode-compatible config loaders.
+- In non-interactive mode, `external_directory` defaults to `ask`, which becomes deny. Set it to `allow`.
+- If using OpenAI-compatible Copilot routing, avoid appending `/v1` incorrectly in base URLs.
+- When running through AWF `--enable-api-proxy`, provide `COPILOT_GITHUB_TOKEN` in the same execute step `env:` so the proxy can authenticate.
+
 ### Playwright Network Access Denied
 
 Add domains to `network.allowed`:
