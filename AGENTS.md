@@ -165,6 +165,7 @@ network:
 - Use `toolsets: [default]` for common operations, or specify toolsets like `[repos, issues, pull_requests]`
 - **Never use `mode: remote`** — it does not work with the GitHub Actions token (`GITHUB_TOKEN`) and requires a special PAT or GitHub App token
 - Never rely on direct `api.github.com` access in Copilot workflows
+- **Never use direct GitHub CLI API reads in agent prompts** (for example: `gh api`, `gh repo view`, `gh pr list`) — use MCP `github` tools instead
 
 See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for complete configuration details.
 
