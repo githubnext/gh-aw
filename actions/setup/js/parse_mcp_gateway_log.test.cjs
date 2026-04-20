@@ -340,6 +340,8 @@ Some content here.`;
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
       const gatewayMdPath = path.join(tmpDir, "gateway.md");
       const tokenUsagePath = path.join(tmpDir, "token-usage.jsonl");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
 
       try {
         fs.writeFileSync(gatewayMdPath, "# Gateway Summary\n\nSome markdown content");
@@ -373,9 +375,6 @@ Some content here.`;
           },
         };
 
-        const originalExistsSync = fs.existsSync;
-        const originalReadFileSync = fs.readFileSync;
-
         fs.existsSync = vi.fn(filepath => {
           if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return true;
           if (filepath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl") return true;
@@ -384,10 +383,10 @@ Some content here.`;
 
         fs.readFileSync = vi.fn((filepath, encoding) => {
           if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") {
-            return fs.readFileSync(gatewayMdPath, encoding);
+            return originalReadFileSync(gatewayMdPath, encoding);
           }
           if (filepath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl") {
-            return fs.readFileSync(tokenUsagePath, encoding);
+            return originalReadFileSync(tokenUsagePath, encoding);
           }
           return originalReadFileSync(filepath, encoding);
         });
@@ -401,11 +400,10 @@ Some content here.`;
         expect(mockCore.summary.addDetails).not.toHaveBeenCalledWith("Token Usage", expect.any(String));
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", expect.any(String));
         expect(mockCore.summary.write).toHaveBeenCalled();
-
+      } finally {
         fs.existsSync = originalExistsSync;
         fs.readFileSync = originalReadFileSync;
         delete global.core;
-      } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
