@@ -38,7 +38,7 @@ func getSerenaToSharedImportCodemod() Codemod {
 
 			languages, ok := extractSerenaLanguages(serenaAny)
 			if !ok || len(languages) == 0 {
-				serenaImportCodemodLog.Print("Found tools.serena but could not extract languages - skipping migration")
+				serenaImportCodemodLog.Print("Found tools.serena but languages configuration is invalid or empty - skipping migration; verify tools.serena languages are set")
 				return content, false, nil
 			}
 

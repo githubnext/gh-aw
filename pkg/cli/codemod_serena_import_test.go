@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,11 +35,15 @@ strict: false
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Codemod should not return an error")
 		assert.True(t, applied, "Codemod should be applied when tools.serena is present")
-		assert.NotContains(t, result, "tools:\n", "Codemod should remove empty tools block")
 		assert.NotContains(t, result, "serena:", "Codemod should remove tools.serena configuration")
 		assert.Contains(t, result, "imports:", "Codemod should add imports block")
 		assert.Contains(t, result, "- uses: shared/mcp/serena.md", "Codemod should add Serena shared import")
 		assert.Contains(t, result, "languages: [\"go\", \"typescript\"]", "Codemod should preserve short syntax languages")
+
+		parsed, parseErr := parser.ExtractFrontmatterFromContent(result)
+		require.NoError(t, parseErr, "Result should contain valid frontmatter")
+		_, hasTools := parsed.Frontmatter["tools"]
+		assert.False(t, hasTools, "Codemod should remove empty tools key from frontmatter")
 	})
 
 	t.Run("migrates tools.serena long syntax languages object to imports", func(t *testing.T) {
