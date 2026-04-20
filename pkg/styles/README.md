@@ -42,28 +42,28 @@ These `lipgloss.Style` values are ready to use directly:
 | `Warning` | Orange, bold | Warning messages |
 | `Success` | Green, bold | Success confirmations |
 | `Info` | Cyan, bold | Informational messages |
-| `FilePath` | Purple | File paths |
+| `FilePath` | Purple, bold | File paths |
 | `LineNumber` | Comment/muted | Line numbers in diffs |
 | `ContextLine` | Foreground | Context lines in diffs |
-| `Highlight` | Yellow, bold | Highlighted text |
-| `Location` | Purple, bold | Location references |
-| `Command` | Purple | CLI commands |
+| `Highlight` | Error bg, background fg (inverted) | Highlighted error text |
+| `Location` | Warning/orange, bold | Location references |
+| `Command` | Purple, bold | CLI commands |
 | `Progress` | Yellow | Progress indicators |
-| `Prompt` | Cyan | Interactive prompts |
-| `Count` | Yellow, bold | Numeric counts |
-| `Verbose` | Comment/muted | Verbose/debug output |
-| `ListHeader` | Purple, bold | List section headers |
+| `Prompt` | Success/green, bold | Interactive prompts |
+| `Count` | Info/cyan, bold | Numeric counts |
+| `Verbose` | Comment/muted, italic | Verbose/debug output |
+| `ListHeader` | Success/green, bold, underline | List section headers |
 | `ListItem` | Foreground | List items |
-| `TableHeader` | Purple, bold | Table column headers |
+| `TableHeader` | Comment/muted, bold | Table column headers |
 | `TableCell` | Foreground | Table cell content |
-| `TableTotal` | Yellow, bold | Table total/summary rows |
-| `TableTitle` | Purple, bold | Table titles |
+| `TableTotal` | Success/green, bold | Table total/summary rows |
+| `TableTitle` | Success/green, bold | Table titles |
 | `TableBorder` | Border color | Table border lines |
 | `ServerName` | Purple, bold | MCP server names |
-| `ServerType` | Comment/muted | MCP server type labels |
+| `ServerType` | Info/cyan | MCP server type labels |
 | `ErrorBox` | Error color, rounded border | Error message boxes |
-| `Header` | Foreground, bold, border | Section headers |
-| `TreeEnumerator` | Comment/muted | Tree branch characters |
+| `Header` | Success/green, bold, bottom margin | Section headers |
+| `TreeEnumerator` | Border color | Tree branch characters |
 | `TreeNode` | Foreground | Tree node text |
 
 ## Usage

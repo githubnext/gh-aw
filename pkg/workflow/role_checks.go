@@ -162,7 +162,38 @@ func (c *Compiler) extractBots(frontmatter map[string]any) []string {
 
 // parseBotsValue parses a bots value from frontmatter (supports string, []any, []string)
 func parseBotsValue(botsValue any, fieldName string) []string {
-	return extractStringSliceField(botsValue, fieldName)
+	return parseOptionalStringSliceField(botsValue, fieldName)
+}
+
+// parseOptionalStringSliceField parses string-list fields that accept either
+// a single string or an array. Empty strings are filtered out.
+func parseOptionalStringSliceField(value any, fieldName string) []string {
+	if singleValue, ok := value.(string); ok {
+		if singleValue == "" {
+			return nil
+		}
+		roleLog.Printf("Extracted single %s: %s", fieldName, singleValue)
+		return []string{singleValue}
+	}
+
+	values := parseStringSliceAny(value, roleLog)
+	if len(values) == 0 {
+		roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
+		return nil
+	}
+
+	result := make([]string, 0, len(values))
+	for _, item := range values {
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+
+	roleLog.Printf("Extracted %d %s: %v", len(result), fieldName, result)
+	return result
 }
 
 // extractRateLimitConfig extracts the 'rate-limit' field from frontmatter
@@ -486,7 +517,7 @@ func extractSkipField(frontmatter map[string]any, fieldName string) []string {
 	}
 	if on, ok := onValue.(map[string]any); ok {
 		if val, exists := on[fieldName]; exists && val != nil {
-			return extractStringSliceField(val, fieldName)
+			return parseOptionalStringSliceField(val, fieldName)
 		}
 	}
 	return nil

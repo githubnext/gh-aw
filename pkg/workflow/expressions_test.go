@@ -144,38 +144,6 @@ func TestBuildConditionTree(t *testing.T) {
 	}
 }
 
-func TestBuildReactionCondition(t *testing.T) {
-	result := BuildReactionCondition()
-	rendered := result.Render()
-
-	// The result should be a flat OR chain without deep nesting
-	// Note: pull_request_comment is NOT included because it maps to issue_comment in GitHub Actions
-	expectedSubstrings := []string{
-		"github.event_name == 'issues'",
-		"github.event_name == 'issue_comment'",
-		"github.event_name == 'pull_request_review_comment'",
-		"github.event_name == 'discussion'",
-		"github.event_name == 'discussion_comment'",
-		"github.event_name == 'pull_request'",
-		"github.event.pull_request.head.repo.id == github.repository_id",
-		"&&",
-		"||",
-	}
-
-	for _, substr := range expectedSubstrings {
-		if !strings.Contains(rendered, substr) {
-			t.Errorf("Expected rendered condition to contain '%s', but got: %s", substr, rendered)
-		}
-	}
-
-	// With the fork check, the pull_request condition should be more complex
-	// It should contain both the event name check and the not-from-fork check
-	// (ComparisonNode children of AndNode are not wrapped in parens)
-	if !strings.Contains(rendered, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.id == github.repository_id") {
-		t.Errorf("Expected pull_request condition to include fork check, but got: %s", rendered)
-	}
-}
-
 func TestBuildReactionConditionForTargetsExcludesPullRequests(t *testing.T) {
 	result := BuildReactionConditionForTargets(true, false, true)
 	rendered := result.Render()

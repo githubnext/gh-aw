@@ -79,19 +79,23 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 // including expressions, features, permissions, and configurations.
 func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath string) error {
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
-	log.Printf("Validating expression safety")
-	if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	if strings.Contains(workflowData.MarkdownContent, "${{") {
+		log.Printf("Validating expression safety")
+		if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
+			return formatCompilerError(markdownPath, "error", err.Error(), err)
+		}
 	}
 
 	// Validate expressions in runtime-import files at compile time
-	log.Printf("Validating runtime-import files")
-	// Go up from .github/workflows/file.md to repo root
-	workflowDir := filepath.Dir(markdownPath) // .github/workflows
-	githubDir := filepath.Dir(workflowDir)    // .github
-	workspaceDir := filepath.Dir(githubDir)   // repo root
-	if err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	if strings.Contains(workflowData.MarkdownContent, "{{#runtime-import") {
+		log.Printf("Validating runtime-import files")
+		// Go up from .github/workflows/file.md to repo root
+		workflowDir := filepath.Dir(markdownPath) // .github/workflows
+		githubDir := filepath.Dir(workflowDir)    // .github
+		workspaceDir := filepath.Dir(githubDir)   // repo root
+		if err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir); err != nil {
+			return formatCompilerError(markdownPath, "error", err.Error(), err)
+		}
 	}
 
 	// Validate feature flags

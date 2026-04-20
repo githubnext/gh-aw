@@ -32,10 +32,9 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   const rawBody = updateData._rawBody;
   const includeFooter = updateData._includeFooter !== false; // Default to true
 
-  // Remove internal fields
-  const { _operation, _rawBody, _includeFooter, _workflowRepo, ...apiData } = updateData;
-  const updateBranch = apiData.update_branch === true;
-  delete apiData.update_branch;
+  // Remove internal fields (including update_branch which is handled separately below)
+  const { _operation, _rawBody, _includeFooter, _workflowRepo, update_branch, ...apiData } = updateData;
+  const updateBranch = update_branch === true;
 
   if (updateBranch) {
     core.info(`Updating pull request #${prNumber} branch with base branch changes`);

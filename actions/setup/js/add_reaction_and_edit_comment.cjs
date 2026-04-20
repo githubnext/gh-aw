@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getRunStartedMessage } = require("./messages_run_status.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -169,18 +169,11 @@ async function main() {
       await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName, invocationContext);
     }
   } catch (error) {
-    const errorMessage = getErrorMessage(error);
-
-    // GitHub API returns 403 with specific messages for locked resources
-    const is403Error = error && typeof error === "object" && "status" in error && error.status === 403;
-    const hasLockedMessage = errorMessage && (errorMessage.includes("locked") || errorMessage.includes("Lock conversation"));
-
-    // Only ignore the error if it's BOTH a 403 status code AND mentions locked
-    if (is403Error && hasLockedMessage) {
+    if (isLockedError(error)) {
       core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
       return;
     }
-
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
     core.setFailed(`${ERR_API}: Failed to process reaction and comment creation: ${errorMessage}`);
   }

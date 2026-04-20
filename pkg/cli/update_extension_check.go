@@ -24,11 +24,11 @@ var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 //
 // Returns:
 //   - upgraded: true if an upgrade was performed.
-//   - installPath: on Linux, the resolved path where the new binary was installed
-//     (captured before any rename so the caller can relaunch the new binary from
-//     the correct path even after os.Executable() starts returning a "(deleted)"
-//     suffix). Empty string on non-Linux systems or when the path cannot be
-//     determined.
+//   - installPath: on Linux or Windows, the resolved path where the new binary
+//     was installed (captured before any rename so the caller can relaunch the
+//     new binary from the correct path; on Linux os.Executable() may return a
+//     "(deleted)"-suffixed path after the rename). Empty string on other systems
+//     or when the path cannot be determined.
 //   - err: non-nil if the upgrade failed.
 //
 // When upgraded is true the CURRENTLY RUNNING PROCESS still has the old version
@@ -92,13 +92,13 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Upgrading gh-aw extension from %s to %s...", currentVersion, latestVersion)))
 
 	// First attempt: run the upgrade without touching the filesystem.
-	// On most systems (and on Linux when there is no in-use binary conflict)
-	// this will succeed.  On Linux with WSL the kernel may return ETXTBSY when
-	// gh tries to open the currently-executing binary for writing; in that case
-	// we fall through to the rename+retry path below.
+	// On most systems this will succeed.  On Linux with WSL the kernel may
+	// return ETXTBSY when gh tries to open the currently-executing binary for
+	// writing; on Windows the OS returns "Access is denied" for the same
+	// reason.  In both cases we fall through to the rename+retry path below.
 	//
-	// On Linux we buffer the first attempt's output rather than printing it
-	// directly, so that the ETXTBSY error message is suppressed when the
+	// On Linux and Windows we buffer the first attempt's output rather than
+	// printing it directly, so that the error message is suppressed when the
 	// rename+retry path succeeds and the user is not shown a confusing failure.
 	var firstAttemptBuf bytes.Buffer
 	firstAttemptOut := firstAttemptWriter(os.Stderr, &firstAttemptBuf)
@@ -108,7 +108,7 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	firstErr := firstCmd.Run()
 	if firstErr == nil {
 		// First attempt succeeded without any file manipulation.
-		if runtime.GOOS == "linux" {
+		if needsRenameWorkaround() {
 			// Replay the buffered output that was not shown during the attempt.
 			_, _ = io.Copy(os.Stderr, &firstAttemptBuf)
 		}
@@ -117,27 +117,32 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	}
 
 	// First attempt failed.
-	if runtime.GOOS != "linux" {
-		// On non-Linux systems there is nothing more to try.
+	if !needsRenameWorkaround() {
+		// On platforms other than Linux and Windows there is nothing more to try.
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", firstErr)
 	}
 
-	// On Linux the failure is likely ETXTBSY.  Log the first attempt's output
-	// at debug level and attempt the rename+retry workaround.
-	updateExtensionCheckLog.Printf("First upgrade attempt failed (likely ETXTBSY); retrying with rename workaround. First attempt output: %s", firstAttemptBuf.String())
+	// On Linux the failure is likely ETXTBSY; on Windows it is likely
+	// "Access is denied". Both arise because the OS prevents overwriting a
+	// running binary. Attempt the rename+retry workaround: rename the
+	// currently-running binary away to free up its path, then retry the
+	// upgrade so that gh can write the new binary at the original location.
+	updateExtensionCheckLog.Printf("First upgrade attempt failed (likely locked binary); retrying with rename workaround. First attempt output: %s", firstAttemptBuf.String())
 
 	// Resolve the current executable path before renaming; after the rename
 	// os.Executable() returns a "(deleted)"-suffixed path on Linux.
 	var installPath string
+	var backupPath string
 	if exe, exeErr := os.Executable(); exeErr == nil {
 		if resolved, resolveErr := filepath.EvalSymlinks(exe); resolveErr == nil {
 			exe = resolved
 		}
-		if path, renameErr := renamePathForUpgrade(exe); renameErr != nil {
-			// Rename failed; the retry will likely fail again with ETXTBSY.
-			updateExtensionCheckLog.Printf("Could not rename executable for retry (upgrade will likely fail with ETXTBSY): %v", renameErr)
+		if iPath, bPath, renameErr := renamePathForUpgrade(exe); renameErr != nil {
+			// Rename failed; the retry will likely fail again.
+			updateExtensionCheckLog.Printf("Could not rename executable for retry (upgrade will likely fail): %v", renameErr)
 		} else {
-			installPath = path
+			installPath = iPath
+			backupPath = bPath
 		}
 	}
 
@@ -146,67 +151,107 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	retryCmd.Stderr = os.Stderr
 	if retryErr := retryCmd.Run(); retryErr != nil {
 		// Retry also failed. Restore the backup so the user still has gh-aw.
-		if installPath != "" {
-			restoreExecutableBackup(installPath)
+		if backupPath != "" {
+			restoreExecutableBackup(installPath, backupPath)
+		}
+		if runtime.GOOS == "windows" && isWindowsLockError(firstAttemptBuf.String(), retryErr) {
+			// On Windows, self-upgrade may not be possible while the binary is
+			// running. Guide the user to upgrade manually from a separate shell.
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("On Windows, gh-aw cannot self-upgrade while it is running."))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please upgrade manually by running one of the following:"))
+			fmt.Fprintln(os.Stderr, "  gh extension upgrade gh-aw")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If that does not work, try reinstalling:"))
+			fmt.Fprintln(os.Stderr, "  gh extension remove gh-aw")
+			fmt.Fprintln(os.Stderr, "  gh extension install github/gh-aw")
 		}
 		return false, "", fmt.Errorf("failed to upgrade gh-aw extension: %w", retryErr)
 	}
 
 	// Retry succeeded. Clean up the backup.
-	if installPath != "" {
-		cleanupExecutableBackup(installPath)
+	if backupPath != "" {
+		cleanupExecutableBackup(backupPath)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ gh-aw extension upgraded to "+latestVersion))
 	return true, installPath, nil
 }
 
-// firstAttemptWriter returns a writer that buffers output on Linux (so that
-// ETXTBSY error messages from a failed first upgrade attempt can be suppressed
-// when the rename+retry workaround succeeds) and writes directly to dst on
-// other platforms.
+// needsRenameWorkaround reports whether the current platform requires the
+// rename+retry workaround when upgrading the running binary.
+//
+// On Linux, overwriting a running binary returns ETXTBSY.
+// On Windows, the same operation returns "Access is denied".
+// Both errors are resolved by renaming the current binary away first.
+func needsRenameWorkaround() bool {
+	return runtime.GOOS == "linux" || runtime.GOOS == "windows"
+}
+
+// firstAttemptWriter returns a writer that buffers output on platforms that
+// use the rename+retry workaround (Linux and Windows), so that error messages
+// from a failed first upgrade attempt are suppressed when the retry succeeds.
+// On other platforms it writes directly to dst.
 func firstAttemptWriter(dst io.Writer, buf *bytes.Buffer) io.Writer {
-	if runtime.GOOS == "linux" {
+	if needsRenameWorkaround() {
 		return buf
 	}
 	return dst
 }
 
-// renamePathForUpgrade renames the binary at exe to exe+".bak", freeing the
-// original path for the new binary to be written by gh extension upgrade.
-// Returns exe (the install path) so the caller can relaunch the new binary and
-// restore the backup if the upgrade fails.
-func renamePathForUpgrade(exe string) (string, error) {
-	backup := exe + ".bak"
+// renamePathForUpgrade renames the binary at exe to a PID-qualified backup
+// path (exe+".<pid>.bak"), freeing the original path for the new binary to be
+// written by gh extension upgrade.  Using a PID-qualified name ensures each
+// invocation gets a unique backup so that a failed cleanup (e.g. Windows cannot
+// remove a running binary) does not cause the destination to already exist on
+// a subsequent upgrade attempt.
+// Returns the install path (exe) and the backup path so the caller can
+// relaunch the new binary and restore or clean up the backup.
+func renamePathForUpgrade(exe string) (string, string, error) {
+	backup := fmt.Sprintf("%s.%d.bak", exe, os.Getpid())
 	if err := os.Rename(exe, backup); err != nil {
-		return "", fmt.Errorf("could not rename %s → %s: %w", exe, backup, err)
+		return "", "", fmt.Errorf("could not rename %s → %s: %w", exe, backup, err)
 	}
-	updateExtensionCheckLog.Printf("Renamed %s → %s to avoid ETXTBSY on Linux", exe, backup)
-	return exe, nil
+	updateExtensionCheckLog.Printf("Renamed %s → %s to free path for upgrade", exe, backup)
+	return exe, backup, nil
 }
 
-// restoreExecutableBackup renames the exe+".bak" backup back to exe.
+// restoreExecutableBackup renames backupPath back to installPath.
 // Called when the upgrade command failed and the new binary was not written.
-func restoreExecutableBackup(installPath string) {
-	backup := installPath + ".bak"
+func restoreExecutableBackup(installPath, backupPath string) {
 	if _, statErr := os.Stat(installPath); os.IsNotExist(statErr) {
 		// New binary was not installed; restore the backup.
-		if renErr := os.Rename(backup, installPath); renErr != nil {
-			updateExtensionCheckLog.Printf("could not restore backup %s → %s: %v", backup, installPath, renErr)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to restore gh-aw backup after upgrade failure. Manually rename %s to %s to recover.", backup, installPath)))
+		if renErr := os.Rename(backupPath, installPath); renErr != nil {
+			updateExtensionCheckLog.Printf("could not restore backup %s → %s: %v", backupPath, installPath, renErr)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to restore gh-aw backup after upgrade failure. Manually rename %s to %s to recover.", backupPath, installPath)))
 		} else {
-			updateExtensionCheckLog.Printf("Restored backup %s → %s after failed upgrade", backup, installPath)
+			updateExtensionCheckLog.Printf("Restored backup %s → %s after failed upgrade", backupPath, installPath)
 		}
 	} else {
 		// New binary is present (upgrade partially succeeded); just clean up.
-		_ = os.Remove(backup)
+		_ = os.Remove(backupPath)
 	}
 }
 
-// cleanupExecutableBackup removes the exe+".bak" backup after a successful upgrade.
-func cleanupExecutableBackup(installPath string) {
-	backup := installPath + ".bak"
-	if err := os.Remove(backup); err != nil && !os.IsNotExist(err) {
-		updateExtensionCheckLog.Printf("Could not remove backup %s: %v", backup, err)
+// cleanupExecutableBackup removes backupPath after a successful upgrade.
+func cleanupExecutableBackup(backupPath string) {
+	if err := os.Remove(backupPath); err != nil && !os.IsNotExist(err) {
+		updateExtensionCheckLog.Printf("Could not remove backup %s: %v", backupPath, err)
 	}
+}
+
+// isWindowsLockError reports whether the output or error from an upgrade
+// attempt indicate a Windows file-locking issue (the running-binary-lock
+// symptom).  Only when a lock error is detected should the Windows-specific
+// self-upgrade guidance be shown; other failures should propagate the
+// underlying error message instead.
+func isWindowsLockError(output string, err error) bool {
+	lockMsgs := []string{"Access is denied", "The process cannot access the file"}
+	for _, msg := range lockMsgs {
+		if strings.Contains(output, msg) {
+			return true
+		}
+		if err != nil && strings.Contains(err.Error(), msg) {
+			return true
+		}
+	}
+	return false
 }

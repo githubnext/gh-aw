@@ -16,8 +16,6 @@ tools:
   cache-memory:
     key: copilot-session-data
   bash:
-    - "gh api *"
-    - "gh agent-task *"
     - "jq *"
     - "/tmp/gh-aw/jqschema.sh"
     - "mkdir *"

@@ -38,7 +38,9 @@ Analyze the issue: ${{ steps.sanitized.outputs.text }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
+	compiler.SetQuiet(true)
+	compiler.SetApprove(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
 	_ = compiler.CompileWorkflow(testFile)
@@ -295,13 +297,22 @@ Test validation performance.
 	compiler.SetStrictMode(true)
 	compiler.SetQuiet(true)
 
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		b.Fatal(err)
+	}
+
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
-	_ = compiler.CompileWorkflow(testFile)
+	if err := compiler.validateWorkflowData(workflowData, testFile); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = compiler.CompileWorkflow(testFile)
+		if err := compiler.validateWorkflowData(workflowData, testFile); err != nil {
+			b.Fatalf("validateWorkflowData failed: %v", err)
+		}
 	}
 }
 

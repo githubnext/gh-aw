@@ -131,7 +131,7 @@ The generated `agentics-maintenance.yml` workflow defaults to `ubuntu-slim` for 
 }
 ```
 
-This setting applies to every job in `agentics-maintenance.yml` (close-expired-entities, cleanup-cache-memory, run_operation, apply_safe_outputs, create_labels, and validate_workflows). Re-run `gh aw compile` after changing `aw.json` to regenerate the workflow.
+This setting applies to every job in `agentics-maintenance.yml` (close-expired-entities, cleanup-cache-memory, run_operation, apply_safe_outputs, create_labels, validate_workflows, and activity_report). Re-run `gh aw compile` after changing `aw.json` to regenerate the workflow.
 
 > [!NOTE]
 > `aw.json` is separate from individual workflow frontmatter. It provides repository-level settings for generated infrastructure workflows.

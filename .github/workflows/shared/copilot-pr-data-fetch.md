@@ -3,8 +3,6 @@ tools:
   cache-memory:
     key: copilot-pr-data
   bash:
-    - "gh pr list *"
-    - "gh api *"
     - "jq *"
     - "/tmp/gh-aw/jqschema.sh"
     - "mkdir *"

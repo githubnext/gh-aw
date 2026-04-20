@@ -21,6 +21,10 @@ engine:
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
 runs-on: aw-gpu-runner-T4
 
+runtimes:
+  node:
+    version: "24"
+
 network:
   allowed:
     - defaults

@@ -612,12 +612,17 @@ func TestIsWorkflowSpec(t *testing.T) {
 			path: "owner//path/file.md",
 			want: false,
 		},
+		{
+			name: "URL-like path with scheme",
+			path: "https://github.com/owner/repo/path/to/file.md",
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isWorkflowSpec(tt.path)
-			assert.Equal(t, tt.want, got, "isWorkflowSpec(%q)", tt.path)
+			got := IsWorkflowSpec(tt.path)
+			assert.Equal(t, tt.want, got, "IsWorkflowSpec(%q)", tt.path)
 		})
 	}
 }
@@ -736,12 +741,24 @@ This is an included file.`
 	err := os.WriteFile(includeFile, []byte(includeContent), 0644)
 	require.NoError(t, err, "should write include file")
 
+	// Create a test include file with an engine definition
+	engineFile := filepath.Join(tempDir, "engine.md")
+	engineContent := `---
+engine: copilot
+---
+# Engine Include
+This include defines an engine.`
+	err = os.WriteFile(engineFile, []byte(engineContent), 0644)
+	require.NoError(t, err, "should write engine file")
+
 	tests := []struct {
 		name          string
 		frontmatter   map[string]any
 		wantToolsJSON bool
 		wantEngines   bool
+		wantEngineHas string
 		wantErr       bool
+		wantErrHas    string
 	}{
 		{
 			name: "no imports field",
@@ -782,6 +799,28 @@ This is an included file.`
 			wantEngines:   false,
 			wantErr:       true,
 		},
+		{
+			name: "valid imports with engine",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"imports": []string{"engine.md"},
+			},
+			wantToolsJSON: true,
+			wantEngines:   true,
+			wantEngineHas: "copilot",
+			wantErr:       false,
+		},
+		{
+			name: "missing import file",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"imports": []string{"missing.md"},
+			},
+			wantToolsJSON: false,
+			wantEngines:   false,
+			wantErr:       true,
+			wantErrHas:    "file not found",
+		},
 	}
 
 	for _, tt := range tests {
@@ -789,7 +828,10 @@ This is an included file.`
 			tools, engines, err := processImportsFromFrontmatter(tt.frontmatter, tempDir)
 
 			if tt.wantErr {
-				assert.Error(t, err, "ProcessImportsFromFrontmatter() should return error")
+				require.Error(t, err, "ProcessImportsFromFrontmatter() should return error")
+				if tt.wantErrHas != "" {
+					require.ErrorContains(t, err, tt.wantErrHas, "ProcessImportsFromFrontmatter() error should contain %q", tt.wantErrHas)
+				}
 				return
 			}
 
@@ -807,6 +849,9 @@ This is an included file.`
 
 			if tt.wantEngines {
 				assert.NotEmpty(t, engines, "ProcessImportsFromFrontmatter() should return engines")
+				if tt.wantEngineHas != "" {
+					assert.Contains(t, engines[0], tt.wantEngineHas, "ProcessImportsFromFrontmatter() engine should contain expected value")
+				}
 			} else {
 				assert.Empty(t, engines, "ProcessImportsFromFrontmatter() should return no engines")
 			}
@@ -816,3 +861,109 @@ This is an included file.`
 
 // TestProcessIncludedFileWithNameAndDescription verifies that name and description fields
 // do not generate warnings when processing included files outside .github/workflows/
+func TestIsNotFoundError(t *testing.T) {
+	tests := []struct {
+		name     string
+		errMsg   string
+		expected bool
+	}{
+		{
+			name:     "HTTP 404 text",
+			errMsg:   "HTTP 404: Not Found",
+			expected: true,
+		},
+		{
+			name:     "not found phrase",
+			errMsg:   "failed to fetch file: not found",
+			expected: true,
+		},
+		{
+			name:     "uppercase not found phrase",
+			errMsg:   "RESOURCE NOT FOUND",
+			expected: true,
+		},
+		{
+			name:     "non-404 status",
+			errMsg:   "HTTP 401: Unauthorized",
+			expected: false,
+		},
+		{
+			name:     "word without space",
+			errMsg:   "remote returned notfound response",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			errMsg:   "",
+			expected: false,
+		},
+		{
+			name:     "whitespace-only message",
+			errMsg:   "   ",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isNotFoundError(tt.errMsg)
+			assert.Equal(t, tt.expected, result, "isNotFoundError(%q)", tt.errMsg)
+		})
+	}
+}
+
+func TestFrontmatterContainsExpressions(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    bool
+	}{
+		{
+			name:        "empty map",
+			frontmatter: map[string]any{},
+			expected:    false,
+		},
+		{
+			name: "flat expression",
+			frontmatter: map[string]any{
+				"name": "${{ github.actor }}",
+			},
+			expected: true,
+		},
+		{
+			name: "nested map expression",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"server": "${{ github.aw.import-inputs.server }}",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "slice expression",
+			frontmatter: map[string]any{
+				"labels": []any{"triage", "${{ github.ref_name }}"},
+			},
+			expected: true,
+		},
+		{
+			name: "no expressions",
+			frontmatter: map[string]any{
+				"name": "workflow",
+				"tools": map[string]any{
+					"bash": map[string]any{
+						"allowed": []any{"ls", "cat"},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := frontmatterContainsExpressions(tt.frontmatter)
+			assert.Equal(t, tt.expected, result, "frontmatterContainsExpressions(%v)", tt.frontmatter)
+		})
+	}
+}
