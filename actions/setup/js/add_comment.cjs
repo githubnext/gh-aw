@@ -528,7 +528,7 @@ async function main(config = {}) {
 
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers
-      processedBody += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd();
+      processedBody += "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl).trimEnd();
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
       processedBody += "\n\n" + generateXMLMarker(workflowName, runUrl);

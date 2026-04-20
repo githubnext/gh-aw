@@ -131,10 +131,10 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`). Enables MCP server integration by default (use `--no-mcp` to skip). Without arguments, enters interactive mode for engine selection and secret configuration.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher agent file (`.github/agents/agentic-workflows.agent.md`), and performs non-interactive setup. Enables MCP server integration by default (use `--no-mcp` to skip).
 
 ```bash wrap
-gh aw init                              # Interactive mode: select engine and configure secrets
+gh aw init                              # Initialize repository with defaults (non-interactive)
 gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --codespaces                 # Configure devcontainer for current repo
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
@@ -163,8 +163,8 @@ Add workflows from The Agentics collection or other repositories to `.github/wor
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
 gh aw add githubnext/agentics/ci-doctor@v1.0.0   # Add specific version
-gh aw add ci-doctor --dir shared                  # Organize in subdirectory
-gh aw add ci-doctor --create-pull-request        # Create PR instead of commit
+gh aw add githubnext/agentics/ci-doctor --dir shared                  # Organize in subdirectory
+gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
 ```
 
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--disable-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
@@ -400,7 +400,7 @@ gh aw logs --train                    # Train on last 10 runs
 gh aw logs my-workflow --train -c 50  # Train on up to 50 runs of a specific workflow
 ```
 
-**Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--train`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
+**Options:** `-c`, `--count`, `--last`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--train`, `--repo`, `--firewall`, `--no-firewall`, `--safe-output`, `--filtered-integrity`, `--after-run-id`, `--before-run-id`, `--no-staged`, `--tool-graph`, `--timeout`
 
 #### `audit`
 

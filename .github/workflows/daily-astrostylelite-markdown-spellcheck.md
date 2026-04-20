@@ -47,11 +47,23 @@ jobs:
           ARTIFACT_DIR="/tmp/gh-aw/spellcheck"
           mkdir -p "$ARTIFACT_DIR"
 
-          find docs/src/content -type f \( -name '*.md' -o -name '*.mdx' \) | sort > "$ARTIFACT_DIR/files.txt"
+          find "$GITHUB_WORKSPACE/docs/src/content" -type f \( -name '*.md' -o -name '*.mdx' \) | sort > "$ARTIFACT_DIR/files.txt"
 
           FILES_CHECKED=$(wc -l < "$ARTIFACT_DIR/files.txt" | tr -d ' ')
+          CSPELL_RESULTS_PATH="$ARTIFACT_DIR/cspell-results.json"
+          CSPELL_STDERR_PATH="$ARTIFACT_DIR/cspell.stderr.log"
+          RUNTIME_CONFIG_PATH="$ARTIFACT_DIR/cspell-runtime-config.json"
+
+          echo "::group::Spellcheck setup"
+          echo "Repository root: $GITHUB_WORKSPACE"
+          echo "Files discovered for spellcheck: $FILES_CHECKED"
+          echo "Pinned tool version: $(npx --yes cspell@8.19.4 --version)"
+          echo "Sample file list entries:"
+          sed -n '1,5p' "$ARTIFACT_DIR/files.txt"
+          echo "::endgroup::"
 
           DICTIONARY_PATH=""
+          DICTIONARY_PATH_REL=""
           for candidate in \
             docs/.cspell-words.txt \
             docs/.spellcheck-ignore.txt \
@@ -60,25 +72,76 @@ jobs:
             .github/spellcheck-ignore.txt
           do
             if [ -f "$candidate" ]; then
-              DICTIONARY_PATH="$candidate"
+              DICTIONARY_PATH_REL="$candidate"
+              DICTIONARY_PATH="$GITHUB_WORKSPACE/$candidate"
               break
             fi
           done
 
+          jq \
+            --arg dict "$DICTIONARY_PATH" \
+            '.
+            | .dictionaryDefinitions = (
+                if $dict == "" then
+                  []
+                else
+                  [{ name: "workflow-dictionary", path: $dict, addWords: true }]
+                end
+              )
+            | .dictionaries = (
+                if $dict == "" then
+                  []
+                else
+                  ["workflow-dictionary"]
+                end
+              )' \
+            docs/.cspell.docs.json > "$RUNTIME_CONFIG_PATH"
+
           if [ "$FILES_CHECKED" -eq 0 ]; then
-            echo '[]' > "$ARTIFACT_DIR/cspell-results.json"
+            echo '{"issues":[],"info":[],"debug":[],"error":[]}' > "$CSPELL_RESULTS_PATH"
+            : > "$CSPELL_STDERR_PATH"
+            CSPELL_EXIT_CODE=0
           else
+            # cspell v8 removed --format json for lint; use JSON reporter instead.
+            set +e
             npx --yes cspell@8.19.4 lint \
               --no-progress \
               --no-summary \
               --show-suggestions \
-              --format json \
-              --config docs/.cspell.docs.json \
+              --reporter @cspell/cspell-json-reporter \
+              --config "$RUNTIME_CONFIG_PATH" \
               --file-list "$ARTIFACT_DIR/files.txt" \
-              > "$ARTIFACT_DIR/cspell-results.json" || true
+              > "$CSPELL_RESULTS_PATH" 2> "$CSPELL_STDERR_PATH"
+            CSPELL_EXIT_CODE=$?
+            set -e
           fi
 
-          FINDINGS_COUNT=$(jq '[.. | objects | select(has("issues")) | .issues[]? | select((.isFlagged // true) == true)] | length' "$ARTIFACT_DIR/cspell-results.json")
+          echo "::group::Spellcheck diagnostics"
+          echo "Selected dictionary: ${DICTIONARY_PATH_REL:-none}"
+          echo "Runtime config path: $RUNTIME_CONFIG_PATH"
+          echo "cspell exit code: $CSPELL_EXIT_CODE"
+          if [ -s "$CSPELL_STDERR_PATH" ]; then
+            echo "cspell stderr (tail):"
+            tail -n 20 "$CSPELL_STDERR_PATH"
+          else
+            echo "cspell stderr: (empty)"
+          fi
+          echo "::endgroup::"
+
+          if ! jq -e . "$CSPELL_RESULTS_PATH" >/dev/null; then
+            echo "cspell output was not valid JSON"
+            sed -n '1,40p' "$CSPELL_RESULTS_PATH"
+            exit 2
+          fi
+
+          CSPELL_ERROR_COUNT=$(jq '[.. | objects | select(has("error")) | .error[]?] | length' "$CSPELL_RESULTS_PATH")
+          if [ "$CSPELL_ERROR_COUNT" -gt 0 ]; then
+            echo "cspell reported runtime errors: $CSPELL_ERROR_COUNT"
+            jq '.error' "$CSPELL_RESULTS_PATH"
+            exit 2
+          fi
+
+          FINDINGS_COUNT=$(jq '[.. | objects | select(has("issues")) | .issues[]? | select((.isFlagged // true) == true)] | length' "$CSPELL_RESULTS_PATH")
 
           jq -c '.. | objects | select(has("issues")) | .issues[]? | select((.isFlagged // true) == true) | {
             file: (.uri // .filename // .file // ""),
@@ -87,15 +150,17 @@ jobs:
             word: (.text // .word // ""),
             suggestions: (.suggestions // []),
             flagged: (.isFlagged // true)
-          }' "$ARTIFACT_DIR/cspell-results.json" > "$ARTIFACT_DIR/findings.ndjson"
+          }' "$CSPELL_RESULTS_PATH" > "$ARTIFACT_DIR/findings.ndjson"
 
           jq -n \
             --arg tool "cspell@8.19.4" \
             --arg locale "en-US" \
             --arg scope "docs/src/content/" \
-            --arg dict "$DICTIONARY_PATH" \
+            --arg dict "$DICTIONARY_PATH_REL" \
             --argjson files_checked "$FILES_CHECKED" \
             --argjson findings "$FINDINGS_COUNT" \
+            --argjson cspell_exit_code "$CSPELL_EXIT_CODE" \
+            --argjson cspell_error_count "$CSPELL_ERROR_COUNT" \
             '{
               tool: $tool,
               locale: $locale,
@@ -104,6 +169,8 @@ jobs:
               files_checked: $files_checked,
               findings: $findings,
               has_findings: ($findings > 0),
+              cspell_exit_code: $cspell_exit_code,
+              cspell_error_count: $cspell_error_count,
               dictionary: {
                 supported: true,
                 path: (if $dict == "" then null else $dict end)
@@ -118,7 +185,7 @@ jobs:
 
           echo "findings_count=$FINDINGS_COUNT" >> "$GITHUB_OUTPUT"
           echo "files_checked=$FILES_CHECKED" >> "$GITHUB_OUTPUT"
-          echo "dictionary_path=$DICTIONARY_PATH" >> "$GITHUB_OUTPUT"
+          echo "dictionary_path=$DICTIONARY_PATH_REL" >> "$GITHUB_OUTPUT"
 
       - name: Upload spellcheck artifact
         if: success()
@@ -128,6 +195,8 @@ jobs:
           path: |
             /tmp/gh-aw/spellcheck/summary.json
             /tmp/gh-aw/spellcheck/cspell-results.json
+            /tmp/gh-aw/spellcheck/cspell.stderr.log
+            /tmp/gh-aw/spellcheck/cspell-runtime-config.json
             /tmp/gh-aw/spellcheck/findings.ndjson
             /tmp/gh-aw/spellcheck/files.txt
             docs/.cspell.docs.json

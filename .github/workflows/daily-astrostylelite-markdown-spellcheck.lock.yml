@@ -1,4 +1,4 @@
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"3a774609e7d4714f2fe78982446fd64d52a07be74d21489f6b73581e4a381121","strict":true,"agent_id":"claude"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"58a292f13c85c76fe7747c0675912e5d1765c552909ccc8cc4c3712e97516e7c","strict":true,"agent_id":"claude"}
 # gh-aw-manifest: {"version":1,"secrets":["ANTHROPIC_API_KEY","GH_AW_CI_TRIGGER_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/setup-node","sha":"53b83947a5a98c8d113130e565377fae1a50d02f","version":"v6.3.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.25.25"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.25.25"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.25.25"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.2.25"},{"image":"ghcr.io/github/github-mcp-server:v1.0.0"},{"image":"node:lts-alpine","digest":"sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b","pinned_image":"node:lts-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b"}]}
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -172,23 +172,23 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_0d4f7106a03abc1a_EOF'
+          cat << 'GH_AW_PROMPT_500836302dc34c4a_EOF'
           <system>
-          GH_AW_PROMPT_0d4f7106a03abc1a_EOF
+          GH_AW_PROMPT_500836302dc34c4a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0d4f7106a03abc1a_EOF'
+          cat << 'GH_AW_PROMPT_500836302dc34c4a_EOF'
           <safe-output-tools>
           Tools: create_pull_request, missing_tool, missing_data, noop
-          GH_AW_PROMPT_0d4f7106a03abc1a_EOF
+          GH_AW_PROMPT_500836302dc34c4a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_create_pull_request.md"
-          cat << 'GH_AW_PROMPT_0d4f7106a03abc1a_EOF'
+          cat << 'GH_AW_PROMPT_500836302dc34c4a_EOF'
           </safe-output-tools>
-          GH_AW_PROMPT_0d4f7106a03abc1a_EOF
+          GH_AW_PROMPT_500836302dc34c4a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_0d4f7106a03abc1a_EOF'
+          cat << 'GH_AW_PROMPT_500836302dc34c4a_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if __GH_AW_GITHUB_ACTOR__ }}
@@ -217,12 +217,12 @@ jobs:
           {{/if}}
           </github-context>
           
-          GH_AW_PROMPT_0d4f7106a03abc1a_EOF
+          GH_AW_PROMPT_500836302dc34c4a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0d4f7106a03abc1a_EOF'
+          cat << 'GH_AW_PROMPT_500836302dc34c4a_EOF'
           </system>
           {{#runtime-import .github/workflows/daily-astrostylelite-markdown-spellcheck.md}}
-          GH_AW_PROMPT_0d4f7106a03abc1a_EOF
+          GH_AW_PROMPT_500836302dc34c4a_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
@@ -410,9 +410,9 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_b7626086c15058ae_EOF'
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_542be1f4f5c5d0a6_EOF'
           {"create_pull_request":{"allowed_files":["docs/src/content/**/*.md","docs/src/content/**/*.mdx"],"draft":false,"expires":72,"fallback_as_issue":false,"labels":["documentation","spellcheck","automation"],"max":1,"max_patch_size":1024,"preserve_branch_name":true,"protected_files":["package.json","bun.lockb","bunfig.toml","deno.json","deno.jsonc","deno.lock","global.json","NuGet.Config","Directory.Packages.props","mix.exs","mix.lock","go.mod","go.sum","stack.yaml","stack.yaml.lock","pom.xml","build.gradle","build.gradle.kts","settings.gradle","settings.gradle.kts","gradle.properties","package-lock.json","yarn.lock","pnpm-lock.yaml","npm-shrinkwrap.json","requirements.txt","Pipfile","Pipfile.lock","pyproject.toml","setup.py","setup.cfg","Gemfile","Gemfile.lock","uv.lock","CODEOWNERS","CLAUDE.md","AGENTS.md"],"protected_path_prefixes":[".github/",".agents/",".claude/"],"title_prefix":"[docs] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_b7626086c15058ae_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_542be1f4f5c5d0a6_EOF
       - name: Write Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -618,7 +618,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host --add-host host.docker.internal:127.0.0.1 --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.25'
           
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_355d0cb42943efc7_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_ac05d8c6a933a602_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -658,7 +658,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_355d0cb42943efc7_EOF
+          GH_AW_MCP_CONFIG_ac05d8c6a933a602_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1416,11 +1416,23 @@ jobs:
           ARTIFACT_DIR="/tmp/gh-aw/spellcheck"
           mkdir -p "$ARTIFACT_DIR"
 
-          find docs/src/content -type f \( -name '*.md' -o -name '*.mdx' \) | sort > "$ARTIFACT_DIR/files.txt"
+          find "$GITHUB_WORKSPACE/docs/src/content" -type f \( -name '*.md' -o -name '*.mdx' \) | sort > "$ARTIFACT_DIR/files.txt"
 
           FILES_CHECKED=$(wc -l < "$ARTIFACT_DIR/files.txt" | tr -d ' ')
+          CSPELL_RESULTS_PATH="$ARTIFACT_DIR/cspell-results.json"
+          CSPELL_STDERR_PATH="$ARTIFACT_DIR/cspell.stderr.log"
+          RUNTIME_CONFIG_PATH="$ARTIFACT_DIR/cspell-runtime-config.json"
+
+          echo "::group::Spellcheck setup"
+          echo "Repository root: $GITHUB_WORKSPACE"
+          echo "Files discovered for spellcheck: $FILES_CHECKED"
+          echo "Pinned tool version: $(npx --yes cspell@8.19.4 --version)"
+          echo "Sample file list entries:"
+          sed -n '1,5p' "$ARTIFACT_DIR/files.txt"
+          echo "::endgroup::"
 
           DICTIONARY_PATH=""
+          DICTIONARY_PATH_REL=""
           for candidate in \
             docs/.cspell-words.txt \
             docs/.spellcheck-ignore.txt \
@@ -1429,25 +1441,76 @@ jobs:
             .github/spellcheck-ignore.txt
           do
             if [ -f "$candidate" ]; then
-              DICTIONARY_PATH="$candidate"
+              DICTIONARY_PATH_REL="$candidate"
+              DICTIONARY_PATH="$GITHUB_WORKSPACE/$candidate"
               break
             fi
           done
 
+          jq \
+            --arg dict "$DICTIONARY_PATH" \
+            '.
+            | .dictionaryDefinitions = (
+                if $dict == "" then
+                  []
+                else
+                  [{ name: "workflow-dictionary", path: $dict, addWords: true }]
+                end
+              )
+            | .dictionaries = (
+                if $dict == "" then
+                  []
+                else
+                  ["workflow-dictionary"]
+                end
+              )' \
+            docs/.cspell.docs.json > "$RUNTIME_CONFIG_PATH"
+
           if [ "$FILES_CHECKED" -eq 0 ]; then
-            echo '[]' > "$ARTIFACT_DIR/cspell-results.json"
+            echo '{"issues":[],"info":[],"debug":[],"error":[]}' > "$CSPELL_RESULTS_PATH"
+            : > "$CSPELL_STDERR_PATH"
+            CSPELL_EXIT_CODE=0
           else
+            # cspell v8 removed --format json for lint; use JSON reporter instead.
+            set +e
             npx --yes cspell@8.19.4 lint \
               --no-progress \
               --no-summary \
               --show-suggestions \
-              --format json \
-              --config docs/.cspell.docs.json \
+              --reporter @cspell/cspell-json-reporter \
+              --config "$RUNTIME_CONFIG_PATH" \
               --file-list "$ARTIFACT_DIR/files.txt" \
-              > "$ARTIFACT_DIR/cspell-results.json" || true
+              > "$CSPELL_RESULTS_PATH" 2> "$CSPELL_STDERR_PATH"
+            CSPELL_EXIT_CODE=$?
+            set -e
           fi
 
-          FINDINGS_COUNT=$(jq '[.. | objects | select(has("issues")) | .issues[]? | select((.isFlagged // true) == true)] | length' "$ARTIFACT_DIR/cspell-results.json")
+          echo "::group::Spellcheck diagnostics"
+          echo "Selected dictionary: ${DICTIONARY_PATH_REL:-none}"
+          echo "Runtime config path: $RUNTIME_CONFIG_PATH"
+          echo "cspell exit code: $CSPELL_EXIT_CODE"
+          if [ -s "$CSPELL_STDERR_PATH" ]; then
+            echo "cspell stderr (tail):"
+            tail -n 20 "$CSPELL_STDERR_PATH"
+          else
+            echo "cspell stderr: (empty)"
+          fi
+          echo "::endgroup::"
+
+          if ! jq -e . "$CSPELL_RESULTS_PATH" >/dev/null; then
+            echo "cspell output was not valid JSON"
+            sed -n '1,40p' "$CSPELL_RESULTS_PATH"
+            exit 2
+          fi
+
+          CSPELL_ERROR_COUNT=$(jq '[.. | objects | select(has("error")) | .error[]?] | length' "$CSPELL_RESULTS_PATH")
+          if [ "$CSPELL_ERROR_COUNT" -gt 0 ]; then
+            echo "cspell reported runtime errors: $CSPELL_ERROR_COUNT"
+            jq '.error' "$CSPELL_RESULTS_PATH"
+            exit 2
+          fi
+
+          FINDINGS_COUNT=$(jq '[.. | objects | select(has("issues")) | .issues[]? | select((.isFlagged // true) == true)] | length' "$CSPELL_RESULTS_PATH")
 
           jq -c '.. | objects | select(has("issues")) | .issues[]? | select((.isFlagged // true) == true) | {
             file: (.uri // .filename // .file // ""),
@@ -1456,15 +1519,17 @@ jobs:
             word: (.text // .word // ""),
             suggestions: (.suggestions // []),
             flagged: (.isFlagged // true)
-          }' "$ARTIFACT_DIR/cspell-results.json" > "$ARTIFACT_DIR/findings.ndjson"
+          }' "$CSPELL_RESULTS_PATH" > "$ARTIFACT_DIR/findings.ndjson"
 
           jq -n \
             --arg tool "cspell@8.19.4" \
             --arg locale "en-US" \
             --arg scope "docs/src/content/" \
-            --arg dict "$DICTIONARY_PATH" \
+            --arg dict "$DICTIONARY_PATH_REL" \
             --argjson files_checked "$FILES_CHECKED" \
             --argjson findings "$FINDINGS_COUNT" \
+            --argjson cspell_exit_code "$CSPELL_EXIT_CODE" \
+            --argjson cspell_error_count "$CSPELL_ERROR_COUNT" \
             '{
               tool: $tool,
               locale: $locale,
@@ -1473,6 +1538,8 @@ jobs:
               files_checked: $files_checked,
               findings: $findings,
               has_findings: ($findings > 0),
+              cspell_exit_code: $cspell_exit_code,
+              cspell_error_count: $cspell_error_count,
               dictionary: {
                 supported: true,
                 path: (if $dict == "" then null else $dict end)
@@ -1487,7 +1554,7 @@ jobs:
 
           echo "findings_count=$FINDINGS_COUNT" >> "$GITHUB_OUTPUT"
           echo "files_checked=$FILES_CHECKED" >> "$GITHUB_OUTPUT"
-          echo "dictionary_path=$DICTIONARY_PATH" >> "$GITHUB_OUTPUT"
+          echo "dictionary_path=$DICTIONARY_PATH_REL" >> "$GITHUB_OUTPUT"
         shell: bash
       - name: Upload spellcheck artifact
         if: success()
@@ -1498,6 +1565,8 @@ jobs:
           path: |
             /tmp/gh-aw/spellcheck/summary.json
             /tmp/gh-aw/spellcheck/cspell-results.json
+            /tmp/gh-aw/spellcheck/cspell.stderr.log
+            /tmp/gh-aw/spellcheck/cspell-runtime-config.json
             /tmp/gh-aw/spellcheck/findings.ndjson
             /tmp/gh-aw/spellcheck/files.txt
             docs/.cspell.docs.json

@@ -2,13 +2,14 @@ name: Extension Upgrade Test
 
 on:
   workflow_dispatch: {}
+  release:
+    types: [created]
   pull_request:
     paths:
       - 'pkg/cli/update_extension_check.go'
       - '.github/workflows/upgrade-test.yml'
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   upgrade-path-test:
@@ -23,35 +24,41 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION_REGEX: 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?'
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Find two most recent stable releases
+      - name: Find target and previous releases
         id: releases
         shell: bash
         run: |
-          # Use /releases/latest to get n (mirrors getLatestRelease() logic: non-prerelease only).
-          LATEST=$(gh api repos/github/gh-aw/releases/latest --jq '.tag_name')
-
-          # Get the second most recent non-draft, non-prerelease release (n-1).
-          # per_page=50 is ample headroom given this project's release cadence.
-          PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
-            --jq '[.[] | select(.prerelease == false and .draft == false)][1].tag_name')
-
-          if [ -z "$LATEST" ] || [ -z "$PREVIOUS" ] || [ "$LATEST" = "null" ] || [ "$PREVIOUS" = "null" ]; then
-            echo "❌ Could not find two stable releases (latest=$LATEST, previous=$PREVIOUS)"
-            exit 1
-          fi
-          if [ "$LATEST" = "$PREVIOUS" ]; then
-            echo "❌ Only one stable release found; cannot test upgrade path"
-            exit 1
+          # Include prereleases too; /releases/latest only returns non-prerelease releases.
+          # For release-created events, use that exact tag as the upgrade target.
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TARGET="${{ github.event.release.tag_name }}"
+            PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
+              --jq --arg target "$TARGET" '[.[] | select(.draft == false and .tag_name != $target)][0].tag_name')
+          else
+            TARGET=$(gh api "repos/github/gh-aw/releases?per_page=50" \
+              --jq '[.[] | select(.draft == false)][0].tag_name')
+            PREVIOUS=$(gh api "repos/github/gh-aw/releases?per_page=50" \
+              --jq '[.[] | select(.draft == false)][1].tag_name')
           fi
 
-          echo "latest=$LATEST"   >> "$GITHUB_OUTPUT"
+          if [ -z "$TARGET" ] || [ -z "$PREVIOUS" ] || [ "$TARGET" = "null" ] || [ "$PREVIOUS" = "null" ]; then
+            echo "❌ Could not find two releases (target=$TARGET, previous=$PREVIOUS)"
+            exit 1
+          fi
+          if [ "$TARGET" = "$PREVIOUS" ]; then
+            echo "❌ Only one release found; cannot test upgrade path"
+            exit 1
+          fi
+
+          echo "latest=$TARGET"   >> "$GITHUB_OUTPUT"
           echo "previous=$PREVIOUS" >> "$GITHUB_OUTPUT"
-          echo "Latest stable:   $LATEST"
-          echo "Previous stable: $PREVIOUS"
+          echo "Target release:   $TARGET"
+          echo "Previous release: $PREVIOUS"
 
       - name: Install previous version (n-1)
         shell: bash
@@ -61,8 +68,8 @@ jobs:
           echo "Installing gh-aw $PREVIOUS ..."
           gh extension install github/gh-aw --pin "$PREVIOUS" --force
 
-          # Extract version string (stable releases always have the simple vX.Y.Z form).
-          INSTALLED=$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          # Extract version string (supports stable and prerelease tags).
+          INSTALLED=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
           echo "Installed: $INSTALLED"
           [ "$INSTALLED" = "$PREVIOUS" ] || { echo "❌ Expected $PREVIOUS, got $INSTALLED"; exit 1; }
           echo "✅ n-1 installed: $INSTALLED"
@@ -85,8 +92,79 @@ jobs:
         env:
           LATEST: ${{ steps.releases.outputs.latest }}
         run: |
-          INSTALLED=$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          INSTALLED=$(gh aw version 2>&1 | grep -oE "$VERSION_REGEX" | head -1)
           echo "Installed: $INSTALLED"
           echo "Expected:  $LATEST"
           [ "$INSTALLED" = "$LATEST" ] || { echo "❌ Version mismatch: got $INSTALLED, expected $LATEST"; exit 1; }
           echo "✅ Upgrade succeeded: $INSTALLED"
+
+  conclusion:
+    name: Conclusion
+    if: always()
+    needs:
+      - upgrade-path-test
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      UPGRADE_JOB_NAME_PREFIX: "Extension upgrade on "
+    steps:
+      - name: Collect upgrade test outcomes
+        id: outcomes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FAILURES=$(
+            gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
+              --jq --arg job_prefix "$UPGRADE_JOB_NAME_PREFIX" '.jobs
+                | map(select(.name | startswith($job_prefix)))
+                | map(select(.conclusion != "success"))
+                | map("\(.name): \(.conclusion // "unknown")")
+                | join("\n")'
+          )
+
+          if [ -n "$FAILURES" ]; then
+            echo "has_failures=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "failures<<EOF"
+              echo "$FAILURES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            {
+              echo "## ❌ Extension upgrade failures"
+              echo
+              echo '```text'
+              echo "$FAILURES"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "has_failures=false" >> "$GITHUB_OUTPUT"
+            echo "## ✅ Extension upgrade tests passed" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create issue for release failures
+        if: ${{ steps.outcomes.outputs.has_failures == 'true' && github.event_name == 'release' }}
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          FAILURES: ${{ steps.outcomes.outputs.failures }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TITLE="Extension Upgrade Test failure for release ${RELEASE_TAG}"
+          BODY=$(cat <<EOF
+          The extension upgrade workflow failed for release \`${RELEASE_TAG}\`.
+
+          Run: ${RUN_URL}
+
+          Failed jobs:
+          \`\`\`text
+          ${FAILURES}
+          \`\`\`
+          EOF
+          )
+
+          gh issue create --title "$TITLE" --body "$BODY" --label "bug"
