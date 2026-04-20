@@ -37,6 +37,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -73,6 +74,34 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 	return nil
+}
+
+// validateEngineDriverScript validates optional engine.driver configuration.
+// engine.driver is only supported for the copilot engine and must point to a Node.js script.
+func (c *Compiler) validateEngineDriverScript(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.DriverScript == "" {
+		return nil
+	}
+
+	engineID := workflowData.EngineConfig.ID
+	if engineID == "" {
+		engineID = workflowData.AI
+	}
+	if engineID == "" {
+		engineID = "copilot"
+	}
+
+	if engineID != "copilot" {
+		return fmt.Errorf("engine.driver is only supported for the 'copilot' engine (found: %s).\n\nSee: %s", engineID, constants.DocsEnginesURL)
+	}
+
+	ext := strings.ToLower(filepath.Ext(workflowData.EngineConfig.DriverScript))
+	switch ext {
+	case ".js", ".cjs", ".mjs":
+		return nil
+	default:
+		return fmt.Errorf("engine.driver must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", workflowData.EngineConfig.DriverScript, constants.DocsEnginesURL)
+	}
 }
 
 // validateEngineInlineDefinition validates an inline engine definition parsed from

@@ -288,3 +288,78 @@ func TestValidateEngineVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateEngineDriverScript(t *testing.T) {
+	tests := []struct {
+		name        string
+		workflow    *WorkflowData
+		expectError bool
+		errorSubstr string
+	}{
+		{
+			name: "no engine config",
+			workflow: &WorkflowData{
+				EngineConfig: nil,
+			},
+			expectError: false,
+		},
+		{
+			name: "no driver configured",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid cjs driver on copilot",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "custom_driver.cjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid mjs driver on copilot",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "custom_driver.mjs"},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid extension",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", DriverScript: "driver.sh"},
+			},
+			expectError: true,
+			errorSubstr: "must be a Node.js script",
+		},
+		{
+			name: "driver configured for unsupported engine",
+			workflow: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude", DriverScript: "driver.cjs"},
+			},
+			expectError: true,
+			errorSubstr: "only supported for the 'copilot' engine",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			err := compiler.validateEngineDriverScript(tt.workflow)
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+				if tt.errorSubstr != "" && !strings.Contains(err.Error(), tt.errorSubstr) {
+					t.Fatalf("Expected error containing %q, got: %s", tt.errorSubstr, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Expected no error, got: %v", err)
+			}
+		})
+	}
+}

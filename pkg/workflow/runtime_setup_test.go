@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1040,4 +1041,30 @@ func TestDetectRuntimeRequirements_CustomImageRunner(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDetectRuntimeRequirements_CustomCopilotDriverAddsNode24(t *testing.T) {
+	data := &WorkflowData{
+		RunsOn: "runs-on: ubuntu-latest",
+		EngineConfig: &EngineConfig{
+			ID:           "copilot",
+			DriverScript: "custom_driver.cjs",
+		},
+	}
+
+	requirements := DetectRuntimeRequirements(data)
+
+	var nodeReq *RuntimeRequirement
+	for i := range requirements {
+		if requirements[i].Runtime != nil && requirements[i].Runtime.ID == "node" {
+			nodeReq = &requirements[i]
+			break
+		}
+	}
+
+	if nodeReq == nil {
+		t.Fatal("Expected Node.js runtime requirement when custom copilot driver is configured")
+	}
+
+	assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version, "Custom copilot driver should require Node.js 24 runtime")
 }

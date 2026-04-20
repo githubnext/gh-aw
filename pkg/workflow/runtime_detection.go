@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
@@ -35,6 +36,15 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		nodeRuntime := findRuntimeByID("node")
 		if nodeRuntime != nil {
 			updateRequiredRuntime(nodeRuntime, "", requirements)
+		}
+	}
+
+	// When a custom Copilot driver script is configured, require Node.js runtime setup
+	// with the default version so workflows consistently execute the driver with Node 24.
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.DriverScript != "" {
+		nodeRuntime := findRuntimeByID("node")
+		if nodeRuntime != nil {
+			updateRequiredRuntime(nodeRuntime, string(constants.DefaultNodeVersion), requirements)
 		}
 	}
 
