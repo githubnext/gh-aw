@@ -52,6 +52,7 @@ func GetAllCodemods() []Codemod {
 		getGitHubAppClientIDCodemod(),                 // Rename deprecated github-app.app-id to github-app.client-id
 		getSafeInputsToMCPScriptsCodemod(),            // Rename safe-inputs to mcp-scripts
 		getPluginsToDependenciesCodemod(),             // Migrate plugins to dependencies (plugins removed in favour of APM)
+		getSerenaToSharedImportCodemod(),              // Migrate removed tools.serena to shared/mcp/serena.md import
 		getGitHubReposToAllowedReposCodemod(),         // Rename deprecated tools.github.repos to tools.github.allowed-repos
 		getDIFCProxyToIntegrityProxyCodemod(),         // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 	}

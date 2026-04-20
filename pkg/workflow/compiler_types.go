@@ -548,6 +548,7 @@ type SafeOutputsConfig struct {
 	UnassignFromUser                *UnassignFromUserConfig                `yaml:"unassign-from-user,omitempty"` // Remove assignees from issues
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
 	UpdatePullRequests              *UpdatePullRequestsConfig              `yaml:"update-pull-request,omitempty"` // Update GitHub pull request title/body
+	MergePullRequest                *MergePullRequestConfig                `yaml:"merge-pull-request,omitempty"`  // Merge pull requests under constrained policy checks
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
 	UploadArtifact                  *UploadArtifactConfig                  `yaml:"upload-artifact,omitempty"`              // Upload files as run-scoped GitHub Actions artifacts

@@ -174,6 +174,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Validate safe-outputs merge-pull-request configuration
+	log.Printf("Validating safe-outputs merge-pull-request")
+	if err := validateSafeOutputsMergePullRequest(workflowData.SafeOutputs); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Validate safe-job needs: declarations against known generated job IDs
 	log.Printf("Validating safe-job needs declarations")
 	if err := validateSafeJobNeeds(workflowData); err != nil {
@@ -301,6 +307,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	// Emit experimental warning for dispatch_repository feature
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: dispatch_repository"))
+		c.IncrementWarningCount()
+	}
+
+	// Emit experimental warning for merge-pull-request feature
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: merge-pull-request"))
 		c.IncrementWarningCount()
 	}
 

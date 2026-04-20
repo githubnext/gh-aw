@@ -109,7 +109,7 @@ The available safe-outputs map directly to GitHub actions:
 | `comment-issue` | Post a comment on an issue |
 | `comment-pull-request` | Post a comment on a pull request |
 | `create-pull-request` | Open a new pull request |
-| `merge-pull-request` | Merge a pull request |
+| `merge-pull-request` | Merge a pull request (experimental) |
 | `close-issue` | Close an issue |
 | `create-issue` | Open a new issue |
 | `assign-issue` | Assign an issue to a user or team |

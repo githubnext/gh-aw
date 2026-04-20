@@ -243,7 +243,7 @@ The author of the parent issue, PR, or discussion receiving the comment is autom
 
 #### Hide Older Comments
 
-Set `hide-older-comments: true` to minimize previous comments from the same workflow (identified by `GITHUB_WORKFLOW`) before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`.
+Set `hide-older-comments: true` to minimize previous comments from the same workflow (identified by `GITHUB_WORKFLOW`) before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, `low_quality`.
 
 #### Append-Only Status Comments
 
@@ -261,7 +261,7 @@ When enabled, the workflow completion notifier creates a new comment instead of 
 
 ### Hide Comment (`hide-comment:`)
 
-Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`.
+Collapses comments in GitHub UI with reason. Requires GraphQL node IDs (e.g., `IC_kwDOABCD123456`), not REST numeric IDs. Reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`, `low_quality`.
 
 ```yaml wrap
 safe-outputs:

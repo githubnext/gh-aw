@@ -335,6 +335,78 @@ Some content here.`;
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    test("does not append token usage details when token usage file exists", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const gatewayMdPath = path.join(tmpDir, "gateway.md");
+      const tokenUsagePath = path.join(tmpDir, "token-usage.jsonl");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      try {
+        fs.writeFileSync(gatewayMdPath, "# Gateway Summary\n\nSome markdown content");
+        fs.writeFileSync(
+          tokenUsagePath,
+          JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            input_tokens: 42,
+            output_tokens: 2765,
+            cache_read_tokens: 141738,
+            cache_write_tokens: 38170,
+            duration_ms: 26500,
+          })
+        );
+
+        const mockCore = {
+          info: vi.fn(),
+          debug: vi.fn(),
+          startGroup: vi.fn(),
+          endGroup: vi.fn(),
+          notice: vi.fn(),
+          warning: vi.fn(),
+          error: vi.fn(),
+          setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return true;
+          if (filepath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl") return true;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") {
+            return originalReadFileSync(gatewayMdPath, encoding);
+          }
+          if (filepath === "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl") {
+            return originalReadFileSync(tokenUsagePath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        global.core = mockCore;
+
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Gateway Summary"));
+        expect(mockCore.summary.addDetails).not.toHaveBeenCalledWith("Token Usage", expect.any(String));
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_EFFECTIVE_TOKENS", expect.any(String));
+        expect(mockCore.summary.write).toHaveBeenCalled();
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("printAllGatewayFiles", () => {

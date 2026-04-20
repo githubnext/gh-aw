@@ -207,6 +207,17 @@ interface PushToPullRequestBranchConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for merging pull requests with policy checks.
+ */
+interface MergePullRequestConfig extends SafeOutputConfig {
+  "required-labels"?: string[];
+  "allowed-labels"?: string[];
+  "allowed-branches"?: string[];
+  "allowed-files"?: string[];
+  "protected-files"?: string[];
+}
+
+/**
  * Configuration for uploading assets
  */
 interface UploadAssetConfig extends SafeOutputConfig {
@@ -335,6 +346,7 @@ type SpecificSafeOutputConfig =
   | AddReviewerConfig
   | UpdateIssueConfig
   | UpdatePullRequestConfig
+  | MergePullRequestConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | AssignMilestoneConfig
@@ -371,6 +383,7 @@ export {
   AddReviewerConfig,
   UpdateIssueConfig,
   UpdatePullRequestConfig,
+  MergePullRequestConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   AssignMilestoneConfig,

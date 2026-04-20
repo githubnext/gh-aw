@@ -65,7 +65,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --create-pull-request  # Upgrade and open a pull request
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit           # Check dependency health without upgrading
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format`,
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --audit --json    # Output audit results in JSON format
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --pre-releases    # Include prerelease versions when self-upgrading the extension`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -80,6 +81,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			skipExtensionUpgrade, _ := cmd.Flags().GetBool("skip-extension-upgrade")
 			approveUpgrade, _ := cmd.Flags().GetBool("approve")
+			preReleases, _ := cmd.Flags().GetBool("pre-releases")
 
 			// Handle audit mode
 			if auditFlag {
@@ -92,7 +94,7 @@ Examples:
 				}
 			}
 
-			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade, approveUpgrade); err != nil {
+			if err := runUpgradeCommand(cmd.Context(), verbose, dir, noFix, noCompile, noActions, skipExtensionUpgrade, approveUpgrade, preReleases); err != nil {
 				return err
 			}
 
@@ -115,6 +117,7 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing upgrades")
+	cmd.Flags().Bool("pre-releases", false, "Include pre-release versions when checking for extension upgrades")
 	cmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	cmd.Flags().Bool("skip-extension-upgrade", false, "Skip automatic extension upgrade (used internally to prevent recursion after upgrade)")
 	_ = cmd.Flags().MarkHidden("skip-extension-upgrade")
@@ -146,7 +149,7 @@ func runDependencyAudit(verbose bool, jsonOutput bool) error {
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, approve bool) error {
+func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, noFix bool, noCompile bool, noActions bool, skipExtensionUpgrade bool, approve bool, preReleases bool) error {
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, skipExtensionUpgrade=%v",
 		verbose, workflowDir, noFix, noCompile, noActions, skipExtensionUpgrade)
 
@@ -157,7 +160,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 	// prevents the re-launched process from entering this branch again.
 	if !skipExtensionUpgrade {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
-		upgraded, installPath, err := upgradeExtensionIfOutdated(verbose)
+		upgraded, installPath, err := upgradeExtensionIfOutdated(verbose, preReleases)
 		if err != nil {
 			upgradeLog.Printf("Extension upgrade failed: %v", err)
 			return err
@@ -303,7 +306,7 @@ func runUpgradeCommand(ctx context.Context, verbose bool, workflowDir string, no
 
 	// Print success message
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Upgrade complete"))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Upgrade complete"))
 
 	return nil
 }

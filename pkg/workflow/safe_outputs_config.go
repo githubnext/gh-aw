@@ -258,6 +258,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdatePullRequests = updatePullRequestsConfig
 			}
 
+			// Handle merge-pull-request
+			mergePullRequestConfig := c.parseMergePullRequestConfig(outputMap)
+			if mergePullRequestConfig != nil {
+				config.MergePullRequest = mergePullRequestConfig
+			}
+
 			// Handle push-to-pull-request-branch
 			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
 			if pushToBranchConfig != nil {

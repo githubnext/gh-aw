@@ -233,9 +233,13 @@ func compileAllFilesInDirectory(
 	if err != nil {
 		return nil, fmt.Errorf("failed to find markdown files: %w", err)
 	}
+	mdFiles, err = filterMarkdownFilesWithFrontmatter(mdFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter markdown files: %w", err)
+	}
 
 	if len(mdFiles) == 0 {
-		return nil, fmt.Errorf("no markdown files found in %s", workflowsDir)
+		return nil, fmt.Errorf("no workflow markdown files found in %s (workflow files must start with a frontmatter opener on the first line)", workflowsDir)
 	}
 
 	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))

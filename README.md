@@ -13,9 +13,6 @@ Here are some pointers to get you started in using this tool.
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
-> [!NOTE]
-> The Team and the Agents are in Spring Break. Expect delays.
-
 ## Contents
 
 - [Quick Start](#quick-start)

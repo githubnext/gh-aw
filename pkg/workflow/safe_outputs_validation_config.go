@@ -165,6 +165,16 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"merge_pull_request": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"pull_request_number": {IssueOrPRNumber: true},
+			"merge_method":        {Type: "string", Enum: []string{"merge", "squash", "rebase"}},
+			"commit_title":        {Type: "string", Sanitize: true, MaxLength: 256},
+			"commit_message":      {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+		},
+	},
 	"push_to_pull_request_branch": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -354,7 +364,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		DefaultMax: 5,
 		Fields: map[string]FieldValidation{
 			"comment_id": {Required: true, Type: "string", MaxLength: 256},
-			"reason":     {Type: "string", Enum: []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"}},
+			"reason":     {Type: "string", Enum: []string{"SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED", "LOW_QUALITY"}},
 			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},

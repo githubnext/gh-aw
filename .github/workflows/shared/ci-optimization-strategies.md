@@ -21,8 +21,10 @@ Comprehensive strategies for analyzing CI workflows to identify optimization opp
 Read and understand the current CI workflow structure:
 
 ```bash
-# Read the CI workflow configuration
+# Read split CI workflow configurations
 cat .github/workflows/ci.yml
+cat .github/workflows/cgo.yml
+cat .github/workflows/cjs.yml
 
 # Understand the job structure
 # - lint (runs first)
@@ -42,52 +44,27 @@ cat .github/workflows/ci.yml
 
 ## Phase 2: Test Coverage Analysis
 
-### Critical: Ensure ALL Tests are Executed
+### Critical: Ensure ALL Tests are Executed (quick path)
 
 **Step 1: Get complete list of all tests**
 ```bash
-# List all test functions in the repository
 go test -list='^Test' ./... 2>&1 | grep -E '^Test' > /tmp/all-tests.txt
-
-# Count total tests
-TOTAL_TESTS=$(wc -l < /tmp/all-tests.txt)
-echo "Total tests found: $TOTAL_TESTS"
 ```
 
-**Step 2: Analyze unit test coverage**
+**Step 2: Analyze unit/integration split**
 ```bash
-# Unit tests run all non-integration tests
-# Verify the test job's command captures all non-integration tests
-# Current: go test -v -parallel=8 -timeout=3m -tags '!integration' -run='^Test' ./...
-
-# Get list of integration tests (tests with integration build tag)
 grep -r "//go:build integration" --include="*_test.go" . | cut -d: -f1 | sort -u > /tmp/integration-test-files.txt
-
-# Estimate number of integration tests
-echo "Files with integration tests:"
-wc -l < /tmp/integration-test-files.txt
 ```
 
-**Step 3: Analyze integration test matrix coverage**
+**Step 3: Analyze integration matrix coverage**
 ```bash
-# The integration job has a matrix with specific patterns
-# Each matrix entry targets specific packages and test patterns
-
-# CRITICAL CHECK: Are there tests that don't match ANY pattern?
-
-# Extract all integration test patterns from ci.yml
 cat .github/workflows/ci.yml | grep -A 2 'pattern:' | grep 'pattern:' > /tmp/matrix-patterns.txt
-
-# Check for catch-all groups
 cat .github/workflows/ci.yml | grep -B 2 'pattern: ""' | grep 'name:' > /tmp/catchall-groups.txt
 ```
 
 **Step 4: Identify coverage gaps**
-```bash
-# Check if each package with tests is covered by at least one matrix group
-# Compare packages with tests vs. packages in CI matrix
-# Identify any "orphaned" tests not executed by any job
-```
+- Compare test packages against matrix package patterns
+- Flag orphaned tests not matched by any matrix rule
 
 **Required Action if Gaps Found:**
 If any tests are not covered by the CI matrix, propose adding:
@@ -102,7 +79,7 @@ Example fix for missing catch-all (add to `.github/workflows/ci.yml`):
   pattern: ""  # Empty pattern runs all remaining tests
 ```
 
-## Phase 3: Test Performance Optimization
+## Phase 3: Test Performance Optimization (top 3 only)
 
 ### A. Test Splitting Analysis
 - Review current test matrix configuration
@@ -118,20 +95,15 @@ Example fix for missing catch-all (add to `.github/workflows/ci.yml`):
 - Suggest path-based test filtering to skip irrelevant tests
 - Recommend running only affected tests for non-main branch pushes
 
-### D. Test Timeout Optimization
-- Review current timeout settings
-- Check if timeouts are too conservative or too tight
-- Suggest adjusting per-job timeouts based on historical data
-
-### E. Test Dependencies Analysis
+### D. Test Dependencies Analysis
 - Examine test job dependencies
 - Suggest removing unnecessary dependencies to enable more parallelism
 
-### F. Selective Test Execution
+### E. Selective Test Execution
 - Suggest running expensive tests only on main branch or on-demand
 - Recommend running security scans conditionally
 
-### G. Matrix Strategy Optimization
+### F. Matrix Strategy Optimization
 - Analyze if all integration test matrix jobs are necessary
 - Check if some matrix jobs could be combined or run conditionally
 - Suggest reducing matrix size for PR builds vs. main branch builds
