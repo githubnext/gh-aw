@@ -45,7 +45,7 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `WithFailFast(bool)` | Stop at first validation error |
 | `WithWorkflowIdentifier(string)` | Set the workflow identifier |
 | `NewCompiler(opts ...CompilerOption)` | Creates a new `Compiler` |
-| `NewCompilerWithVersion(string)` | Creates a `Compiler` with a specific version |
+| `WithVersion(string) CompilerOption` | Sets a specific compiler version |
 
 ### Engine Architecture
 

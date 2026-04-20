@@ -16,7 +16,10 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 |---------|-------------|-------------|
 | `gh aw add` | `NewAddCommand` | Add remote or local workflows to the repository |
 | `gh aw add-wizard` | `NewAddWizardCommand` | Interactive wizard for adding workflows |
+| `gh aw new` | `newCmd` (main.go) | Create a new workflow file (supports `--force`, `--interactive`, `--engine`) |
 | `gh aw compile` | (compile_command.go) | Compile `.md` workflow files into GitHub Actions `.lock.yml` |
+| `gh aw enable` | `enableCmd` (main.go) | Enable a workflow |
+| `gh aw disable` | `disableCmd` (main.go) | Disable a workflow |
 | `gh aw run` | `RunWorkflowOnGitHub` (main.go) | Dispatch and monitor workflow runs |
 | `gh aw audit` | `NewAuditCommand` | Audit a specific workflow run by run ID |
 | `gh aw audit diff` | `NewAuditDiffSubcommand` | Diff audit data between multiple runs |
@@ -47,7 +50,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw secrets set` | (secret_set_command.go) | Create or update a repository secret |
 | `gh aw secrets bootstrap` | (secret_set_command.go) | Validate and configure all required secrets for workflows |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
-| `gh aw deps` | (deps_*.go) | Dependency inspection and security advisories |
+| _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
+| `gh aw version` | `versionCmd` (main.go) | Show version information |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |
 
 ## Public API
