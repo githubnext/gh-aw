@@ -63,6 +63,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		TrialMode:             c.trialMode,
 		TrialLogicalRepo:      c.trialLogicalRepoSlug,
 		StrictMode:            c.strictMode,
+		AllowActionRefs:       c.allowActionRefs,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
 		RawFrontmatter:        result.Frontmatter,

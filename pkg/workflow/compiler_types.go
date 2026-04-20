@@ -63,6 +63,7 @@ type Compiler struct {
 	skipValidation          bool                     // If true, skip schema validation
 	noEmit                  bool                     // If true, validate without generating lock files
 	strictMode              bool                     // If true, enforce strict validation requirements
+	allowActionRefs         bool                     // If true, unresolved action refs are warnings instead of errors
 	approve                 bool                     // If true, approve safe update changes (skip safe update enforcement)
 	trialMode               bool                     // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug    string                   // If set in trial mode, the logical repository to checkout
@@ -187,6 +188,12 @@ func (c *Compiler) SetTrialLogicalRepoSlug(repo string) {
 // SetStrictMode configures whether to enable strict validation mode
 func (c *Compiler) SetStrictMode(strict bool) {
 	c.strictMode = strict
+}
+
+// SetAllowActionRefs configures whether unresolved action refs are warnings.
+// When false (default), unresolved action refs are compiler errors.
+func (c *Compiler) SetAllowActionRefs(allow bool) {
+	c.allowActionRefs = allow
 }
 
 // SetRefreshStopTime configures whether to force regeneration of stop-after times
@@ -472,6 +479,7 @@ type WorkflowData struct {
 	DockerImages                []string                  // container images collected at compile time (pinned refs when pins are cached)
 	DockerImagePins             []GHAWManifestContainer   // full container pin info (image, digest, pinned_image) for manifest
 	StrictMode                  bool                      // strict mode for action pinning
+	AllowActionRefs             bool                      // if true, unresolved action refs are warnings instead of errors
 	SecretMasking               *SecretMaskingConfig      // secret masking configuration
 	ParsedFrontmatter           *FrontmatterConfig        // cached parsed frontmatter configuration (for performance optimization)
 	RawFrontmatter              map[string]any            // raw parsed frontmatter map (for passing to hash functions without re-parsing)
@@ -504,8 +512,10 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 		d.ActionPinWarnings = make(map[string]bool)
 	}
 	ctx := &actionpins.PinContext{
-		StrictMode: d.StrictMode,
-		Warnings:   d.ActionPinWarnings,
+		StrictMode:      d.StrictMode,
+		EnforcePinned:   true,
+		AllowActionRefs: d.AllowActionRefs,
+		Warnings:        d.ActionPinWarnings,
 	}
 	// Only set Resolver if non-nil to avoid passing a typed nil interface value
 	// (which would be non-nil in actionpins but crash on method call).

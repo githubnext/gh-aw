@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"context"
-
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -40,6 +38,7 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			failFast, _ := cmd.Flags().GetBool("fail-fast")
 			stats, _ := cmd.Flags().GetBool("stats")
+			allowActionRefs, _ := cmd.Flags().GetBool("allow-action-refs")
 			noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 			validateImages, _ := cmd.Flags().GetBool("validate-images")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -54,22 +53,23 @@ Examples:
 			validateLog.Printf("Running validate command: workflows=%v, dir=%s", args, dir)
 
 			config := CompileConfig{
-				MarkdownFiles:  args,
-				Verbose:        verbose,
-				EngineOverride: engineOverride,
-				Validate:       true,
-				NoEmit:         true,
-				Zizmor:         true,
-				Actionlint:     true,
-				Poutine:        true,
-				WorkflowDir:    dir,
-				Strict:         strict,
-				JSONOutput:     jsonOutput,
-				FailFast:       failFast,
-				Stats:          stats,
-				ValidateImages: validateImages,
+				MarkdownFiles:   args,
+				Verbose:         verbose,
+				EngineOverride:  engineOverride,
+				Validate:        true,
+				NoEmit:          true,
+				Zizmor:          true,
+				Actionlint:      true,
+				Poutine:         true,
+				WorkflowDir:     dir,
+				Strict:          strict,
+				JSONOutput:      jsonOutput,
+				FailFast:        failFast,
+				Stats:           stats,
+				AllowActionRefs: allowActionRefs,
+				ValidateImages:  validateImages,
 			}
-			if _, err := CompileWorkflows(context.Background(), config); err != nil {
+			if _, err := CompileWorkflows(cmd.Context(), config); err != nil {
 				return err
 			}
 			return nil
@@ -83,6 +83,7 @@ Examples:
 	cmd.Flags().Bool("fail-fast", false, "Stop at the first validation error instead of collecting all errors")
 	cmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
 	cmd.Flags().Bool("stats", false, "Display statistics table sorted by workflow file size (shows jobs, steps, scripts, and shells)")
+	cmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing validation")
 	cmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 
 	// Register completions

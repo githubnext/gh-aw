@@ -47,12 +47,7 @@ type ResolvedWorkflows struct {
 // ResolveWorkflows resolves workflow specifications by parsing specs and fetching workflow content.
 // For remote workflows, content is fetched directly from GitHub without cloning.
 // Wildcards are only supported for local workflows (not remote repositories).
-func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, error) {
-	return ResolveWorkflowsWithContext(context.Background(), workflows, verbose)
-}
-
-// ResolveWorkflowsWithContext resolves workflow specifications and supports cancellation.
-func ResolveWorkflowsWithContext(ctx context.Context, workflows []string, verbose bool) (*ResolvedWorkflows, error) {
+func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*ResolvedWorkflows, error) {
 	resolutionLog.Printf("Resolving workflows: count=%d", len(workflows))
 
 	if len(workflows) == 0 {

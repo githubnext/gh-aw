@@ -57,6 +57,11 @@ type PinContext struct {
 	Resolver SHAResolver
 	// StrictMode controls how resolution failures are handled.
 	StrictMode bool
+	// EnforcePinned requires unresolved refs to fail unless AllowActionRefs is true.
+	EnforcePinned bool
+	// AllowActionRefs lowers unresolved pinning failures to warnings.
+	// When false, unresolved action refs return an error.
+	AllowActionRefs bool
 	// Warnings is a shared map for deduplicating warning messages.
 	// Keys are cache keys in the form "repo@version".
 	Warnings map[string]bool
@@ -301,6 +306,13 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 		ctx.Warnings = make(map[string]bool)
 	}
 	cacheKey := FormatCacheKey(actionRepo, version)
+	if ctx.EnforcePinned && !ctx.AllowActionRefs {
+		if ctx.Resolver != nil {
+			return "", fmt.Errorf("unable to pin action %s@%s: resolution failed", actionRepo, version)
+		}
+		return "", fmt.Errorf("unable to pin action %s@%s", actionRepo, version)
+	}
+
 	if !ctx.Warnings[cacheKey] {
 		warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
 		if ctx.Resolver != nil {

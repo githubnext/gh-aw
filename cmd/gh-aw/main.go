@@ -276,6 +276,7 @@ Examples:
 		forceOverwrite, _ := cmd.Flags().GetBool("force")
 		refreshStopTime, _ := cmd.Flags().GetBool("refresh-stop-time")
 		forceRefreshActionPins, _ := cmd.Flags().GetBool("force-refresh-action-pins")
+		allowActionRefs, _ := cmd.Flags().GetBool("allow-action-refs")
 		zizmor, _ := cmd.Flags().GetBool("zizmor")
 		poutine, _ := cmd.Flags().GetBool("poutine")
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
@@ -335,6 +336,7 @@ Examples:
 			ForceOverwrite:         forceOverwrite,
 			RefreshStopTime:        refreshStopTime,
 			ForceRefreshActionPins: forceRefreshActionPins,
+			AllowActionRefs:        allowActionRefs,
 			Zizmor:                 zizmor,
 			Poutine:                poutine,
 			Actionlint:             actionlint,
@@ -684,6 +686,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("force", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
 	compileCmd.Flags().Bool("force-refresh-action-pins", false, "Force refresh of action pins by clearing the cache and resolving all action SHAs from GitHub API")
+	compileCmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing compilation")
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
