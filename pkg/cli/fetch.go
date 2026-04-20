@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -11,6 +12,16 @@ import (
 )
 
 var remoteWorkflowLog = logger.New("cli:remote_workflow")
+
+var resolveRefToSHAForHost = parser.ResolveRefToSHAForHost
+var downloadFileFromGitHubForHost = parser.DownloadFileFromGitHubForHost
+var sleepBeforeSHAResolutionRetry = time.Sleep
+
+var shaResolutionRetryDelays = []time.Duration{
+	1 * time.Second,
+	3 * time.Second,
+	9 * time.Second,
+}
 
 // FetchedWorkflow contains content and metadata from a directly fetched workflow file.
 // This is the unified type that combines content with source information.
@@ -82,21 +93,17 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching %s/%s/%s@%s...", owner, repo, spec.WorkflowPath, ref)))
 	}
 
-	// Resolve the ref to a commit SHA for source tracking
-	commitSHA, err := parser.ResolveRefToSHAForHost(owner, repo, ref, spec.Host)
+	// Resolve the ref to a commit SHA for source tracking.
+	commitSHA, err := resolveCommitSHAWithRetries(owner, repo, ref, spec.WorkflowPath, spec.Host, verbose)
 	if err != nil {
-		remoteWorkflowLog.Printf("Failed to resolve ref to SHA: %v", err)
-		// Continue without SHA - we can still fetch the content
-		commitSHA = ""
-	} else {
-		remoteWorkflowLog.Printf("Resolved ref %s to SHA: %s", ref, commitSHA)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resolved to commit: "+commitSHA[:7]))
-		}
+		return nil, err
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Resolved to commit: "+commitSHA[:7]))
 	}
 
 	// Download the workflow file from GitHub
-	content, err := parser.DownloadFileFromGitHubForHost(owner, repo, spec.WorkflowPath, ref, spec.Host)
+	content, err := downloadFileFromGitHubForHost(owner, repo, spec.WorkflowPath, ref, spec.Host)
 	if err != nil {
 		// Try with common workflow directory prefixes if the direct path fails.
 		// This handles short workflow names without path separators (e.g. "my-workflow.md").
@@ -107,7 +114,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 					altPath += ".md"
 				}
 				remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
-				if altContent, altErr := parser.DownloadFileFromGitHubForHost(owner, repo, altPath, ref, spec.Host); altErr == nil {
+				if altContent, altErr := downloadFileFromGitHubForHost(owner, repo, altPath, ref, spec.Host); altErr == nil {
 					return &FetchedWorkflow{
 						Content:    altContent,
 						CommitSHA:  commitSHA,
@@ -130,4 +137,74 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 		IsLocal:    false,
 		SourcePath: spec.WorkflowPath,
 	}, nil
+}
+
+func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, verbose bool) (string, error) {
+	retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<exact-sha>", owner, repo, workflowPath)
+	attempts := len(shaResolutionRetryDelays) + 1
+	var lastErr error
+
+	for attempt := 1; attempt <= attempts; attempt++ {
+		commitSHA, err := resolveRefToSHAForHost(owner, repo, ref, host)
+		if err == nil {
+			remoteWorkflowLog.Printf("Resolved ref %s to SHA: %s", ref, commitSHA)
+			return commitSHA, nil
+		}
+
+		lastErr = err
+		remoteWorkflowLog.Printf("Failed to resolve ref %s to SHA (attempt %d/%d): %v", ref, attempt, attempts, err)
+
+		if !isTransientSHAResolutionError(err) {
+			message := fmt.Sprintf(
+				"failed to resolve '%s' to commit SHA for '%s/%s': %v. Expected the GitHub API to return a commit SHA for the ref. Try: %s.",
+				ref, owner, repo, err, retryCommand,
+			)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(message))
+			return "", fmt.Errorf("%s: %w", message, err)
+		}
+
+		if attempt < attempts {
+			delay := shaResolutionRetryDelays[attempt-1]
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Transient SHA resolution failure for '%s' (attempt %d/%d). Retrying in %s...", ref, attempt, attempts, delay),
+				))
+			}
+			sleepBeforeSHAResolutionRetry(delay)
+		}
+	}
+
+	message := fmt.Sprintf(
+		"failed to resolve '%s' to commit SHA after %d retries for '%s/%s': %v. Expected the GitHub API to return a commit SHA for the ref. Check rate limits or try: %s.",
+		ref, len(shaResolutionRetryDelays), owner, repo, lastErr, retryCommand,
+	)
+	fmt.Fprintln(os.Stderr, console.FormatErrorMessage(message))
+	return "", fmt.Errorf("%s: %w", message, lastErr)
+}
+
+func isTransientSHAResolutionError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errorText := strings.ToLower(err.Error())
+	if strings.Contains(errorText, "http 429") ||
+		strings.Contains(errorText, "rate limit") ||
+		strings.Contains(errorText, "timeout") ||
+		strings.Contains(errorText, "timed out") ||
+		strings.Contains(errorText, "context deadline exceeded") ||
+		strings.Contains(errorText, "temporary") ||
+		strings.Contains(errorText, "connection reset") ||
+		strings.Contains(errorText, "connection refused") ||
+		strings.Contains(errorText, "eof") {
+		return true
+	}
+
+	for statusCode := 500; statusCode <= 599; statusCode++ {
+		if strings.Contains(errorText, fmt.Sprintf("http %d", statusCode)) {
+			return true
+		}
+	}
+
+	return false
 }

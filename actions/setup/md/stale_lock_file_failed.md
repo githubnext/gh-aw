@@ -45,6 +45,13 @@ The workflow run logs contain a verbose debug pass that shows exactly what was h
 
 This makes it easy to spot accidental whitespace changes, encoding differences, or import path drift.
 
+This mismatch can also happen on a **fresh install** (even without any manual edits) if `gh aw add <path>@<ref>` could not resolve the ref to an exact commit SHA during installation. In that case, rerun the add command with an exact SHA (or retry when API/rate-limit conditions recover), then recompile:
+
+```bash
+gh aw add <path>@<exact-sha>
+gh aw compile
+```
+
 </details>
 
 <details>
