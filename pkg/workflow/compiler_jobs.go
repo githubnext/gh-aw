@@ -832,7 +832,7 @@ func shouldInjectNodeSetupForGPUCustomJob(configMap map[string]any) bool {
 		return false
 	}
 	runsOn, hasRunsOn := configMap["runs-on"]
-	if !hasRunsOn || !containsRunnerLabel(runsOn, "aw-gpu-runner-t4") {
+	if !hasRunsOn || !containsRunnerLabel(runsOn, "aw-gpu-runner-T4") {
 		return false
 	}
 	return !jobStepsContainSetupNode(configMap)
@@ -893,6 +893,7 @@ func generateNodeSetupStepForCustomJob(data *WorkflowData) string {
 	requirements := map[string]*RuntimeRequirement{}
 	nodeRuntime := findRuntimeByID("node")
 	if nodeRuntime == nil {
+		compilerJobsLog.Print("Node runtime definition not found; skipping Node setup step injection for GPU custom job")
 		return ""
 	}
 
@@ -902,6 +903,7 @@ func generateNodeSetupStepForCustomJob(data *WorkflowData) string {
 	}
 	nodeRequirement, exists := requirements["node"]
 	if !exists {
+		compilerJobsLog.Print("Node runtime requirement missing after overrides; skipping Node setup step injection for GPU custom job")
 		return ""
 	}
 

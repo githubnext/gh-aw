@@ -2688,8 +2688,8 @@ func TestBuildCustomJobsSkipsNodeSetupForAWGPURunnerWhenAlreadyPresent(t *testin
 	}
 
 	stepsContent := strings.Join(job.Steps, "")
-	if strings.Count(stepsContent, "name: Setup Node.js") > 1 {
-		t.Fatalf("Expected at most one Node setup step when already present, got:\n%s", stepsContent)
+	if strings.Count(stepsContent, "uses: actions/setup-node@") != 1 {
+		t.Fatalf("Expected exactly one setup-node action step when already present, got:\n%s", stepsContent)
 	}
 }
 
