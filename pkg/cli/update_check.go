@@ -21,6 +21,8 @@ const (
 	lastCheckFileName = "gh-aw-last-update-check"
 	// checkInterval is how often we check for updates (24 hours)
 	checkInterval = 24 * time.Hour
+	// maxReleasesToQuery is the maximum number of releases queried when prereleases are included.
+	maxReleasesToQuery = 50
 )
 
 // Release represents a GitHub release
@@ -219,7 +221,7 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 
 	if includePrereleases {
 		var releases []Release
-		err = client.Get("repos/github/gh-aw/releases?per_page=50", &releases)
+		err = client.Get(fmt.Sprintf("repos/github/gh-aw/releases?per_page=%d", maxReleasesToQuery), &releases)
 		if err != nil {
 			return "", fmt.Errorf("failed to query releases: %w", err)
 		}
@@ -247,6 +249,8 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 	return release.TagName, nil
 }
 
+// findLatestPublishedReleaseTag returns the first non-draft release tag from the
+// releases API response, skipping entries without tag names.
 func findLatestPublishedReleaseTag(releases []Release) string {
 	for _, release := range releases {
 		if release.Draft || release.TagName == "" {
