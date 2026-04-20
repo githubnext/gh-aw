@@ -164,10 +164,10 @@ func TestSpec_Types_TokenWeights(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, 2.5, weights.Multipliers["gpt-4o"], "Multipliers must map model names to cost multipliers")
+	assert.InDelta(t, 2.5, weights.Multipliers["gpt-4o"], 1e-9, "Multipliers must map model names to cost multipliers")
 	require.NotNil(t, weights.TokenClassWeights, "TokenClassWeights must be settable")
-	assert.Equal(t, 1.0, weights.TokenClassWeights.Input, "TokenClassWeights.Input must hold the input token weight")
-	assert.Equal(t, 3.0, weights.TokenClassWeights.Output, "TokenClassWeights.Output must hold the output token weight")
+	assert.InDelta(t, 1.0, weights.TokenClassWeights.Input, 1e-9, "TokenClassWeights.Input must hold the input token weight")
+	assert.InDelta(t, 3.0, weights.TokenClassWeights.Output, 1e-9, "TokenClassWeights.Output must hold the output token weight")
 }
 
 // TestSpec_Types_TokenClassWeights validates the TokenClassWeights type documented in the README.
@@ -188,16 +188,16 @@ func TestSpec_Types_TokenClassWeights(t *testing.T) {
 		CacheWrite:  1.5,
 	}
 
-	assert.Equal(t, 1.0, w.Input, "Input must hold the standard input token weight")
-	assert.Equal(t, 0.1, w.CachedInput, "CachedInput must hold the cache-hit input token weight")
-	assert.Equal(t, 3.0, w.Output, "Output must hold the generated output token weight")
-	assert.Equal(t, 2.0, w.Reasoning, "Reasoning must hold the internal reasoning token weight")
-	assert.Equal(t, 1.5, w.CacheWrite, "CacheWrite must hold the cache-write token weight")
+	assert.InDelta(t, 1.0, w.Input, 1e-9, "Input must hold the standard input token weight")
+	assert.InDelta(t, 0.1, w.CachedInput, 1e-9, "CachedInput must hold the cache-hit input token weight")
+	assert.InDelta(t, 3.0, w.Output, 1e-9, "Output must hold the generated output token weight")
+	assert.InDelta(t, 2.0, w.Reasoning, 1e-9, "Reasoning must hold the internal reasoning token weight")
+	assert.InDelta(t, 1.5, w.CacheWrite, 1e-9, "CacheWrite must hold the cache-write token weight")
 
 	// Spec: "a zero value means 'use the default weight'"
 	zero := types.TokenClassWeights{}
-	assert.Equal(t, float64(0), zero.Input, "zero value of Input must be 0 (use default)")
-	assert.Equal(t, float64(0), zero.CachedInput, "zero value of CachedInput must be 0 (use default)")
+	assert.InDelta(t, 0.0, zero.Input, 1e-9, "zero value of Input must be 0 (use default)")
+	assert.InDelta(t, 0.0, zero.CachedInput, 1e-9, "zero value of CachedInput must be 0 (use default)")
 
 	// Verify JSON field names from struct tags (hyphens, matching frontmatter schema)
 	data, err := json.Marshal(w)
@@ -212,7 +212,7 @@ func TestSpec_Types_TokenClassWeights(t *testing.T) {
 func TestSpec_Types_ZeroValueSafety(t *testing.T) {
 	// Zero value of BaseMCPServerConfig must be usable without panicking.
 	var cfg types.BaseMCPServerConfig
-	assert.Equal(t, "", cfg.Type, "zero value Type must be empty string")
+	assert.Empty(t, cfg.Type, "zero value Type must be empty string")
 	assert.Nil(t, cfg.Auth, "zero value Auth must be nil")
 	assert.Nil(t, cfg.Args, "zero value Args must be nil")
 
