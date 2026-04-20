@@ -118,7 +118,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 				StopAfter:              stopAfter,
 				DisableSecurityScanner: disableSecurityScanner,
 			}
-			_, err := AddWorkflows(workflows, opts)
+			_, err := AddWorkflowsWithContext(cmd.Context(), workflows, opts)
 			return err
 		},
 	}
@@ -173,8 +173,13 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`,
 // with optional repository installation and PR creation.
 // Returns AddWorkflowsResult containing PR number (if created) and other metadata.
 func AddWorkflows(workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
+	return AddWorkflowsWithContext(context.Background(), workflows, opts)
+}
+
+// AddWorkflowsWithContext adds one or more workflows and supports cancellation.
+func AddWorkflowsWithContext(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
 	// Resolve workflows first - fetches content directly from GitHub
-	resolved, err := ResolveWorkflows(workflows, opts.Verbose)
+	resolved, err := ResolveWorkflowsWithContext(ctx, workflows, opts.Verbose)
 	if err != nil {
 		return nil, err
 	}

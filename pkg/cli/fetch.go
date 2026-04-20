@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -16,7 +17,7 @@ var remoteWorkflowLog = logger.New("cli:remote_workflow")
 
 var resolveRefToSHAForHost = parser.ResolveRefToSHAForHost
 var downloadFileFromGitHubForHost = parser.DownloadFileFromGitHubForHost
-var sleepBeforeSHAResolutionRetry = time.Sleep
+var waitBeforeSHAResolutionRetry = sleepForSHAResolutionRetry
 
 var shaResolutionRetryDelays = []time.Duration{
 	1 * time.Second,
@@ -42,6 +43,12 @@ type FetchedWorkflow struct {
 // For local workflows (local filesystem paths), it reads from the local filesystem.
 // For remote workflows, it uses the GitHub API to fetch the file content.
 func FetchWorkflowFromSource(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
+	return FetchWorkflowFromSourceWithContext(context.Background(), spec, verbose)
+}
+
+// FetchWorkflowFromSourceWithContext fetches a workflow file from local disk or GitHub.
+// The context is used to cancel remote ref resolution retries (for example, on Ctrl-C).
+func FetchWorkflowFromSourceWithContext(ctx context.Context, spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
 	remoteWorkflowLog.Printf("Fetching workflow from source: spec=%s", spec.String())
 
 	// Handle local workflows
@@ -50,7 +57,7 @@ func FetchWorkflowFromSource(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow
 	}
 
 	// Handle remote workflows from GitHub
-	return fetchRemoteWorkflow(spec, verbose)
+	return fetchRemoteWorkflow(ctx, spec, verbose)
 }
 
 // fetchLocalWorkflow reads a workflow file from the local filesystem
@@ -73,7 +80,7 @@ func fetchLocalWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, err
 }
 
 // fetchRemoteWorkflow fetches a workflow file directly from GitHub using the API
-func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
+func fetchRemoteWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, error) {
 	remoteWorkflowLog.Printf("Fetching remote workflow: repo=%s, path=%s, version=%s",
 		spec.RepoSlug, spec.WorkflowPath, spec.Version)
 
@@ -97,7 +104,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	}
 
 	// Resolve the ref to a commit SHA for source tracking.
-	commitSHA, err := resolveCommitSHAWithRetries(owner, repo, ref, spec.WorkflowPath, spec.Host, verbose)
+	commitSHA, err := resolveCommitSHAWithRetries(ctx, owner, repo, ref, spec.WorkflowPath, spec.Host, verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +149,7 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	}, nil
 }
 
-func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, verbose bool) (string, error) {
+func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflowPath, host string, verbose bool) (string, error) {
 	attempts := len(shaResolutionRetryDelays) + 1
 	var lastErr error
 
@@ -158,12 +165,10 @@ func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, ve
 
 		if !isTransientSHAResolutionError(err) {
 			retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
-			message := fmt.Sprintf(
-				"failed to resolve '%s' to commit SHA for '%s/%s': %v. Expected the GitHub API to return a commit SHA for the ref. Try: %s.",
-				ref, owner, repo, err, retryCommand,
+			return "", fmt.Errorf(
+				"failed to resolve '%s' to commit SHA for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Try: %s: %w",
+				ref, owner, repo, retryCommand, err,
 			)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(message))
-			return "", fmt.Errorf("%s: %w", message, err)
 		}
 
 		if attempt < attempts {
@@ -173,17 +178,33 @@ func resolveCommitSHAWithRetries(owner, repo, ref, workflowPath, host string, ve
 					fmt.Sprintf("Transient SHA resolution failure for '%s' (attempt %d/%d). Retrying in %s...", ref, attempt, attempts, delay),
 				))
 			}
-			sleepBeforeSHAResolutionRetry(delay)
+			if waitErr := waitBeforeSHAResolutionRetry(ctx, delay); waitErr != nil {
+				retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
+				return "", fmt.Errorf(
+					"failed to resolve '%s' to commit SHA because retry wait was cancelled. Expected the GitHub API to return a commit SHA for the ref. Try: %s: %w",
+					ref, retryCommand, waitErr,
+				)
+			}
 		}
 	}
 
 	retryCommand := fmt.Sprintf("gh aw add %s/%s/%s@<40-char-sha>", owner, repo, workflowPath)
-	message := fmt.Sprintf(
-		"failed to resolve '%s' to commit SHA after %d retries for '%s/%s': %v. Expected the GitHub API to return a commit SHA for the ref. Check rate limits or try: %s.",
-		ref, len(shaResolutionRetryDelays), owner, repo, lastErr, retryCommand,
+	return "", fmt.Errorf(
+		"failed to resolve '%s' to commit SHA after %d retries for '%s/%s'. Expected the GitHub API to return a commit SHA for the ref. Check rate limits or try: %s: %w",
+		ref, len(shaResolutionRetryDelays), owner, repo, retryCommand, lastErr,
 	)
-	fmt.Fprintln(os.Stderr, console.FormatErrorMessage(message))
-	return "", fmt.Errorf("%s: %w", message, lastErr)
+}
+
+func sleepForSHAResolutionRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // isTransientSHAResolutionError returns true when the ref-to-SHA failure appears

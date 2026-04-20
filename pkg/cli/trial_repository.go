@@ -232,14 +232,14 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
 			}
-			return FetchWorkflowFromSource(specToFetch, opts.Verbose)
+			return FetchWorkflowFromSourceWithContext(ctx, specToFetch, opts.Verbose)
 		}()
 	} else {
 		// Remote workflows can be fetched from any directory
 		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.RepoSlug)))
 		}
-		fetched, err = FetchWorkflowFromSource(specToFetch, opts.Verbose)
+		fetched, err = FetchWorkflowFromSourceWithContext(ctx, specToFetch, opts.Verbose)
 	}
 
 	if err != nil {
