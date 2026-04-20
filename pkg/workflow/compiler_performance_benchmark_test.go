@@ -301,12 +301,16 @@ Test validation performance.
 	}
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
-	_ = compiler.validateWorkflowData(workflowData, testFile)
+	if err := compiler.validateWorkflowData(workflowData, testFile); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = compiler.validateWorkflowData(workflowData, testFile)
+		if err := compiler.validateWorkflowData(workflowData, testFile); err != nil {
+			b.Fatalf("validateWorkflowData failed: %v", err)
+		}
 	}
 }
 
