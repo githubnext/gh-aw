@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -293,18 +294,27 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 	workflowFiles := make([]string, 0, len(mdFiles))
 	for _, file := range mdFiles {
-		content, err := os.ReadFile(file)
+		fd, err := os.Open(file)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
 		}
-		if len(content) == 0 {
+
+		reader := bufio.NewReader(fd)
+		firstLine, readErr := reader.ReadString('\n')
+		closeErr := fd.Close()
+		if closeErr != nil {
+			return nil, fmt.Errorf("failed to close workflow file %s: %w", file, closeErr)
+		}
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, readErr)
+		}
+
+		if firstLine == "" {
 			workflowsLog.Printf("Skipping empty markdown file: %s", file)
 			continue
 		}
 
-		firstLine := bytes.SplitN(content, []byte("\n"), 2)[0]
-
-		if !bytes.Equal(firstLine, []byte("---")) {
+		if strings.TrimSpace(firstLine) != "---" {
 			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
 			continue
 		}

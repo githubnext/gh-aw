@@ -245,9 +245,10 @@ func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
 
 	testFiles := map[string]string{
 		"workflow1.md":           "---\non: push\n---\n# Workflow 1",
+		"workflow-crlf.md":       "---\r\non: push\r\n---\r\n# Workflow CRLF",
 		"docs.md":                "# This is documentation",
 		"empty.md":               "",
-		"leading-whitespace.md":  "  ---\non: push\n---\n# Not Valid Frontmatter Start",
+		"leading-whitespace.md":  "  ---\non: push\n---\n# Valid Frontmatter Start",
 		"delimiter-not-first.md": "# Header\n---\non: push\n---\n# Not Valid Frontmatter Start",
 	}
 
@@ -259,6 +260,7 @@ func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
 
 	inputFiles := []string{
 		filepath.Join(workflowsDir, "workflow1.md"),
+		filepath.Join(workflowsDir, "workflow-crlf.md"),
 		filepath.Join(workflowsDir, "docs.md"),
 		filepath.Join(workflowsDir, "empty.md"),
 		filepath.Join(workflowsDir, "leading-whitespace.md"),
@@ -267,6 +269,8 @@ func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
 
 	filtered, err := filterMarkdownFilesWithFrontmatter(inputFiles)
 	require.NoError(t, err)
-	assert.Len(t, filtered, 1)
-	assert.Equal(t, filepath.Join(workflowsDir, "workflow1.md"), filtered[0])
+	assert.Len(t, filtered, 3)
+	assert.Contains(t, filtered, filepath.Join(workflowsDir, "workflow1.md"))
+	assert.Contains(t, filtered, filepath.Join(workflowsDir, "workflow-crlf.md"))
+	assert.Contains(t, filtered, filepath.Join(workflowsDir, "leading-whitespace.md"))
 }
