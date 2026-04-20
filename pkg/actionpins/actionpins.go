@@ -234,7 +234,7 @@ func findCompatiblePin(pins []ActionPin, version string) (ActionPin, bool) {
 	return ActionPin{}, false
 }
 
-func recordResolutionFailure(ctx *PinContext, actionRepo, version string, errorType ResolutionErrorType) {
+func notifyResolutionFailure(ctx *PinContext, actionRepo, version string, errorType ResolutionErrorType) {
 	if ctx == nil || ctx.RecordResolutionFailure == nil {
 		return
 	}
@@ -340,7 +340,7 @@ func ResolveActionPin(actionRepo, version string, ctx *PinContext) (string, erro
 	if ctx.Resolver != nil {
 		errorType = ResolutionErrorTypeDynamicResolutionFailed
 	}
-	recordResolutionFailure(ctx, actionRepo, version, errorType)
+	notifyResolutionFailure(ctx, actionRepo, version, errorType)
 	if ctx.EnforcePinned && !ctx.AllowActionRefs {
 		if ctx.Resolver != nil {
 			return "", fmt.Errorf("unable to pin action %s@%s: resolution failed", actionRepo, version)

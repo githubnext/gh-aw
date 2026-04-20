@@ -176,7 +176,12 @@ func parseActionRefs(refs []string) []GHAWManifestAction {
 }
 
 func normalizeResolutionFailures(failures []GHAWManifestResolutionFailure) []GHAWManifestResolutionFailure {
-	seen := make(map[string]bool)
+	type failureKey struct {
+		Repo      string
+		Ref       string
+		ErrorType string
+	}
+	seen := make(map[failureKey]bool)
 	normalized := make([]GHAWManifestResolutionFailure, 0, len(failures))
 	for _, f := range failures {
 		repo := strings.TrimSpace(f.Repo)
@@ -185,7 +190,7 @@ func normalizeResolutionFailures(failures []GHAWManifestResolutionFailure) []GHA
 		if repo == "" || ref == "" || errorType == "" {
 			continue
 		}
-		key := repo + "@" + ref + ":" + errorType
+		key := failureKey{Repo: repo, Ref: ref, ErrorType: errorType}
 		if seen[key] {
 			continue
 		}
