@@ -2,7 +2,8 @@
 name: Daily Safe Output Tool Optimizer
 description: Analyzes gateway logs for errored safe output tool calls and creates issues to improve tool descriptions
 on:
-  schedule: daily
+  schedule:
+    - cron: "35 23 * * *"
   workflow_dispatch:
   skip-if-match: 'is:issue is:open in:title "[safeoutputs]"'
 

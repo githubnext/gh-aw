@@ -2,6 +2,101 @@
 /// <reference types="@actions/github-script" />
 
 /**
+ * @param {any} error
+ * @returns {string}
+ */
+function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * @param {any} error
+ * @returns {boolean}
+ */
+function isInstallationRateLimitError(error) {
+  const message = getErrorMessage(error).toLowerCase();
+  const status = error?.status ?? error?.response?.status;
+
+  if (message.includes("api rate limit exceeded for installation")) {
+    return true;
+  }
+
+  if ((status === 403 || status === 429) && message.includes("rate limit")) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * @param {any} error
+ * @returns {number}
+ */
+function getRetryDelayMs(error) {
+  const retryAfterHeader = error?.response?.headers?.["retry-after"];
+  const retryAfterSeconds = Number.parseInt(String(retryAfterHeader || ""), 10);
+  if (!Number.isNaN(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return retryAfterSeconds * 1000;
+  }
+
+  const resetHeader = error?.response?.headers?.["x-ratelimit-reset"];
+  const resetEpochSeconds = Number.parseInt(String(resetHeader || ""), 10);
+  if (!Number.isNaN(resetEpochSeconds) && resetEpochSeconds > 0) {
+    const waitMs = resetEpochSeconds * 1000 - Date.now();
+    if (waitMs > 0) {
+      return waitMs;
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * @param {any} github
+ * @param {string} owner
+ * @param {string} repo
+ * @param {any} core
+ * @returns {Promise<any>}
+ */
+async function getRepositoryWithRetry(github, owner, repo, core) {
+  const maxAttempts = 3;
+  let delayMs = 2000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const { data: repository } = await github.rest.repos.get({
+        owner,
+        repo,
+      });
+      return repository;
+    } catch (error) {
+      if (!isInstallationRateLimitError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+
+      const headerDelayMs = getRetryDelayMs(error);
+      const waitMs = headerDelayMs > 0 ? headerDelayMs : delayMs;
+      core.warning(`GitHub App installation rate limit hit while determining guard policy (attempt ${attempt}/${maxAttempts}). Retrying in ${Math.ceil(waitMs / 1000)}s.`);
+      await sleep(waitMs);
+
+      if (headerDelayMs <= 0) {
+        delayMs = Math.min(delayMs * 2, 8000);
+      }
+    }
+  }
+
+  throw new Error("failed to fetch repository");
+}
+
+/**
  * Determines automatic guard policy for GitHub MCP server based on repository visibility.
  *
  * This step always sets `min_integrity` and `repos` outputs so that the GitHub MCP
@@ -31,10 +126,7 @@ async function determineAutomaticLockdown(github, context, core) {
     core.info(`Checking repository: ${owner}/${repo}`);
 
     // Fetch repository information
-    const { data: repository } = await github.rest.repos.get({
-      owner,
-      repo,
-    });
+    const repository = await getRepositoryWithRetry(github, owner, repo, core);
 
     const isPrivate = repository.private;
     const visibility = repository.visibility || (isPrivate ? "private" : "public");
@@ -103,7 +195,7 @@ async function determineAutomaticLockdown(github, context, core) {
     const details = `<details>\n<summary>GitHub MCP Guard Policy</summary>\n\n${tableRows}\n\n</details>\n`;
     await core.summary.addRaw(details).write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to determine automatic guard policy: ${errorMessage}`);
     // Default to safe guard policy for public repos on error
     core.setOutput("min_integrity", "approved");

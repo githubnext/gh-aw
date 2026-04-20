@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("determine_automatic_lockdown", () => {
   let mockContext;
@@ -47,6 +47,10 @@ describe("determine_automatic_lockdown", () => {
 
     // Import the module
     determineAutomaticLockdown = (await import("./determine_automatic_lockdown.cjs")).default;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should set min_integrity=approved and repos=all for public repository (no guard policy configured)", async () => {
@@ -153,6 +157,57 @@ describe("determine_automatic_lockdown", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "unknown");
     expect(mockCore.setOutput).not.toHaveBeenCalledWith("lockdown", expect.anything());
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to determine repository visibility"));
+  });
+
+  it("should retry when installation rate limit is exceeded and then succeed", async () => {
+    vi.useFakeTimers();
+    const rateLimitError = Object.assign(new Error("API rate limit exceeded for installation"), {
+      status: 403,
+      response: {
+        status: 403,
+        headers: {
+          "retry-after": "1",
+        },
+      },
+    });
+
+    mockGithub.rest.repos.get.mockRejectedValueOnce(rateLimitError).mockResolvedValueOnce({
+      data: {
+        private: false,
+        visibility: "public",
+      },
+    });
+
+    const promise = determineAutomaticLockdown(mockGithub, mockContext, mockCore);
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(2);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("installation rate limit hit"));
+    expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
+  });
+
+  it("should fall back to safe defaults after installation rate limit retries are exhausted", async () => {
+    vi.useFakeTimers();
+    const rateLimitError = Object.assign(new Error("API rate limit exceeded for installation"), {
+      status: 403,
+      response: {
+        status: 403,
+        headers: {
+          "retry-after": "1",
+        },
+      },
+    });
+    mockGithub.rest.repos.get.mockRejectedValue(rateLimitError);
+
+    const promise = determineAutomaticLockdown(mockGithub, mockContext, mockCore);
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(3);
+    expect(mockCore.error).toHaveBeenCalledWith("Failed to determine automatic guard policy: API rate limit exceeded for installation");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("min_integrity", "approved");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("repos", "all");
   });
 
   it("should infer visibility from private field when visibility field is missing", async () => {
