@@ -298,10 +298,7 @@ func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
 			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
 		}
 
-		firstLine := content
-		if line, _, found := bytes.Cut(content, []byte("\n")); found {
-			firstLine = line
-		}
+		firstLine := bytes.SplitN(content, []byte("\n"), 2)[0]
 
 		if !bytes.Equal(firstLine, []byte("---")) {
 			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)

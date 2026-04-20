@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestWatchAndCompileWorkflows tests the watchAndCompileWorkflows function
@@ -193,14 +194,17 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 	t.Run("compile all skips markdown files without frontmatter", func(t *testing.T) {
 		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
-		os.MkdirAll(workflowsDir, 0o755)
+		err := os.MkdirAll(workflowsDir, 0o755)
+		require.NoError(t, err)
 
 		validWorkflow := filepath.Join(workflowsDir, "valid.md")
 		validContent := "---\non: push\nengine: claude\n---\n# Valid Workflow\n\nContent"
-		os.WriteFile(validWorkflow, []byte(validContent), 0o644)
+		err = os.WriteFile(validWorkflow, []byte(validContent), 0o644)
+		require.NoError(t, err)
 
 		docsFile := filepath.Join(workflowsDir, "docs.md")
-		os.WriteFile(docsFile, []byte("# Documentation\n\nNo frontmatter here."), 0o644)
+		err = os.WriteFile(docsFile, []byte("# Documentation\n\nNo frontmatter here."), 0o644)
+		require.NoError(t, err)
 
 		compiler := workflow.NewCompiler()
 		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, false)
