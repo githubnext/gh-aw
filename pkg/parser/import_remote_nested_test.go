@@ -519,7 +519,7 @@ func TestImportQueueItemRemoteOriginField(t *testing.T) {
 	})
 }
 
-func TestIsNotFoundError(t *testing.T) {
+func TestIsNotFoundError_RemoteNested(t *testing.T) {
 	tests := []struct {
 		name     string
 		errMsg   string
