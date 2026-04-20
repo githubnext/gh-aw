@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -93,16 +94,18 @@ func TestRenamePathForUpgrade(t *testing.T) {
 	exe := filepath.Join(dir, "gh-aw")
 	require.NoError(t, os.WriteFile(exe, []byte("binary"), 0o755), "Should create temp executable")
 
-	installPath, err := renamePathForUpgrade(exe)
+	installPath, backupPath, err := renamePathForUpgrade(exe)
 	require.NoError(t, err, "renamePathForUpgrade should succeed")
 	assert.Equal(t, exe, installPath, "installPath should equal the original exe path")
+	assert.NotEmpty(t, backupPath, "backupPath should be non-empty")
+	assert.Contains(t, backupPath, ".bak", "backupPath should have .bak suffix")
 
 	// The original path should no longer exist.
 	_, statErr := os.Stat(exe)
 	assert.True(t, os.IsNotExist(statErr), "Original executable should have been renamed away")
 
-	// The backup should exist.
-	_, statErr = os.Stat(exe + ".bak")
+	// The backup should exist at the returned path.
+	_, statErr = os.Stat(backupPath)
 	assert.NoError(t, statErr, "Backup file should exist")
 }
 
@@ -110,7 +113,7 @@ func TestRenamePathForUpgrade_NonExistentFile(t *testing.T) {
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "nonexistent")
 
-	_, err := renamePathForUpgrade(exe)
+	_, _, err := renamePathForUpgrade(exe)
 	assert.Error(t, err, "renamePathForUpgrade should fail for non-existent file")
 }
 
@@ -118,11 +121,11 @@ func TestRestoreExecutableBackup_NoNewBinary(t *testing.T) {
 	// Simulate: backup exists, new binary was NOT written (upgrade failed).
 	dir := t.TempDir()
 	installPath := filepath.Join(dir, "gh-aw")
-	backup := installPath + ".bak"
+	backup := installPath + ".99999.bak"
 
 	require.NoError(t, os.WriteFile(backup, []byte("old binary"), 0o755), "Should create backup")
 
-	restoreExecutableBackup(installPath)
+	restoreExecutableBackup(installPath, backup)
 
 	// Backup should be renamed back to installPath.
 	_, statErr := os.Stat(installPath)
@@ -137,12 +140,12 @@ func TestRestoreExecutableBackup_NewBinaryPresent(t *testing.T) {
 	// Simulate: both backup and new binary exist (upgrade partially succeeded).
 	dir := t.TempDir()
 	installPath := filepath.Join(dir, "gh-aw")
-	backup := installPath + ".bak"
+	backup := installPath + ".99999.bak"
 
 	require.NoError(t, os.WriteFile(installPath, []byte("new binary"), 0o755), "Should create new binary")
 	require.NoError(t, os.WriteFile(backup, []byte("old binary"), 0o755), "Should create backup")
 
-	restoreExecutableBackup(installPath)
+	restoreExecutableBackup(installPath, backup)
 
 	// New binary should still be present.
 	_, statErr := os.Stat(installPath)
@@ -155,23 +158,69 @@ func TestRestoreExecutableBackup_NewBinaryPresent(t *testing.T) {
 
 func TestCleanupExecutableBackup(t *testing.T) {
 	dir := t.TempDir()
-	installPath := filepath.Join(dir, "gh-aw")
-	backup := installPath + ".bak"
+	backupPath := filepath.Join(dir, "gh-aw.99999.bak")
 
-	require.NoError(t, os.WriteFile(backup, []byte("old binary"), 0o755), "Should create backup")
+	require.NoError(t, os.WriteFile(backupPath, []byte("old binary"), 0o755), "Should create backup")
 
-	cleanupExecutableBackup(installPath)
+	cleanupExecutableBackup(backupPath)
 
 	// Backup file should be removed.
-	_, statErr := os.Stat(backup)
+	_, statErr := os.Stat(backupPath)
 	assert.True(t, os.IsNotExist(statErr), "Backup file should be removed after cleanup")
 }
 
 func TestCleanupExecutableBackup_NoBackup(t *testing.T) {
 	// Should not fail if backup doesn't exist.
 	dir := t.TempDir()
-	installPath := filepath.Join(dir, "gh-aw")
+	backupPath := filepath.Join(dir, "gh-aw.99999.bak")
 
 	// No panic or error expected.
-	cleanupExecutableBackup(installPath)
+	cleanupExecutableBackup(backupPath)
+}
+
+func TestIsWindowsLockError(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "access denied in output",
+			output:   "gh: Access is denied.\n",
+			err:      nil,
+			expected: true,
+		},
+		{
+			name:     "sharing violation in output",
+			output:   "The process cannot access the file because it is being used by another process.",
+			err:      nil,
+			expected: true,
+		},
+		{
+			name:     "access denied in error",
+			output:   "",
+			err:      errors.New("exit status 1: Access is denied"),
+			expected: true,
+		},
+		{
+			name:     "unrelated error",
+			output:   "gh: 401 Unauthorized",
+			err:      errors.New("exit status 1"),
+			expected: false,
+		},
+		{
+			name:     "empty output and nil error",
+			output:   "",
+			err:      nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isWindowsLockError(tt.output, tt.err)
+			assert.Equal(t, tt.expected, result, "isWindowsLockError result mismatch")
+		})
+	}
 }
