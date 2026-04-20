@@ -795,6 +795,9 @@ jobs:
           GH_AW_CODEX_SHELL_POLICY_fd0494d129bb4dc0_EOF
           cat "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" >> "/tmp/gh-aw/mcp-config/config.toml"
           chmod 600 "/tmp/gh-aw/mcp-config/config.toml"
+          mkdir -p "${CODEX_HOME}"
+          cp "/tmp/gh-aw/mcp-config/config.toml" "${CODEX_HOME}/config.toml"
+          chmod 600 "${CODEX_HOME}/config.toml"
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
