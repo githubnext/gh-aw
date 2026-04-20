@@ -244,8 +244,11 @@ func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
 	require.NoError(t, err)
 
 	testFiles := map[string]string{
-		"workflow1.md": "---\non: push\n---\n# Workflow 1",
-		"docs.md":      "# This is documentation",
+		"workflow1.md":           "---\non: push\n---\n# Workflow 1",
+		"docs.md":                "# This is documentation",
+		"empty.md":               "",
+		"leading-whitespace.md":  "  ---\non: push\n---\n# Not Valid Frontmatter Start",
+		"delimiter-not-first.md": "# Header\n---\non: push\n---\n# Not Valid Frontmatter Start",
 	}
 
 	for filename, content := range testFiles {
@@ -257,6 +260,9 @@ func TestFilterMarkdownFilesWithFrontmatter(t *testing.T) {
 	inputFiles := []string{
 		filepath.Join(workflowsDir, "workflow1.md"),
 		filepath.Join(workflowsDir, "docs.md"),
+		filepath.Join(workflowsDir, "empty.md"),
+		filepath.Join(workflowsDir, "leading-whitespace.md"),
+		filepath.Join(workflowsDir, "delimiter-not-first.md"),
 	}
 
 	filtered, err := filterMarkdownFilesWithFrontmatter(inputFiles)
