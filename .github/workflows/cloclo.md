@@ -115,7 +115,7 @@ Analyze the comment content above and determine what action the user is requesti
 1. Use the **Serena MCP** for code analysis and understanding
 2. Use the **gh-aw MCP** to inspect existing workflows if relevant
 3. Make necessary code changes using the **edit** tool
-4. **ALWAYS create a new pull request** via the `create-pull-request` safe output (do not push directly to existing branches)
+4. 🚨 **MANDATORY**: If you changed ANY files, you MUST call the `create-pull-request` safe output to create a new PR. This is non-negotiable — if you modified any files, a PR must be created. Never commit directly to any branch.
 5. **ALWAYS add a glamorous comment** on the original conversation thread with a summary of changes made (using the `add-comment` safe output)
 
 ### If Web Automation Is Needed:
@@ -132,10 +132,18 @@ Analyze the comment content above and determine what action the user is requesti
 
 ## Critical Constraints
 
-⚠️ **NEVER commit or modify any files inside the `.github/.workflows` directory**
+🚨 **MANDATORY: If ANY files were changed, you MUST create a pull request via `create-pull-request`**
+
+1. If you modified even a single file, you must call `create-pull-request`.
+2. Never commit directly to any branch.
+3. Never push directly to any branch.
+4. There are no exceptions or alternatives to this rule.
+5. If you modified files but did not call `create-pull-request`, you have **failed** the task.
+
+⚠️ **NEVER commit or modify any files inside the `.github/workflows` directory**
 
 This is a hard constraint. If the user request involves workflow modifications:
-1. Politely explain that you cannot modify files in `.github/.workflows`
+1. Politely explain that you cannot modify files in `.github/workflows`
 2. Suggest alternative approaches
 3. Provide guidance on how they can make the changes themselves
 
@@ -194,11 +202,12 @@ When adding a comment, structure it like:
 Now analyze the content above and execute the appropriate action. Remember:
 - ✨ **ALWAYS add a glamorous comment** summarizing your work on the original conversation thread
 - ✅ Use safe outputs (create-pull-request, add-comment)
-- ✅ **ALWAYS create a new pull request** for code changes (do not push directly to existing branches)
+- 🚨 **MANDATORY: If you changed any files, call `create-pull-request` — no exceptions, no alternatives**
 - ✅ Leverage available tools (Serena, gh-aw, Playwright, JQ)
 - ✅ Store context in cache memory if needed
 - ✅ Add 👍 reaction after posting comments
-- ❌ Never modify `.github/.workflows` directory
+- ❌ Never push or commit directly to any branch
+- ❌ Never modify `.github/workflows` directory
 - ❌ Don't make changes without understanding the request
 
 {{#import shared/noop-reminder.md}}
