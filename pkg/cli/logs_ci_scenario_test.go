@@ -153,8 +153,8 @@ func TestLogsJSONRunDataFields(t *testing.T) {
 	// Create a mock aw_info.json with engine_id
 	awInfoPath := filepath.Join(tmpDir, "aw_info.json")
 	awInfo := map[string]any{
-		"engine_id":     "copilot-claude-3.5-sonnet",
-		"engine_name":   "copilot",
+		"engine_id":     "copilot",
+		"engine_name":   "GitHub Copilot CLI",
 		"workflow_name": "Test Workflow",
 	}
 	awInfoBytes, _ := json.Marshal(awInfo)
@@ -208,24 +208,24 @@ func TestLogsJSONRunDataFields(t *testing.T) {
 
 	// Verify specific values
 	if agent, ok := run["agent"].(string); ok {
-		if agent != "copilot-claude-3.5-sonnet" {
-			t.Errorf("Expected agent to be 'copilot-claude-3.5-sonnet', got '%s'", agent)
+		if agent != "copilot" {
+			t.Errorf("Expected agent to be 'copilot', got '%s'", agent)
 		}
 	} else {
 		t.Error("Agent field should be a string")
 	}
 
 	if engine, ok := run["engine"].(string); ok {
-		if engine != "copilot" {
-			t.Errorf("Expected engine to be 'copilot', got '%s'", engine)
+		if engine != "GitHub Copilot CLI" {
+			t.Errorf("Expected engine to be 'GitHub Copilot CLI', got '%s'", engine)
 		}
 	} else {
 		t.Error("Engine field should be a string")
 	}
 
 	if engineID, ok := run["engine_id"].(string); ok {
-		if engineID != "copilot-claude-3.5-sonnet" {
-			t.Errorf("Expected engine_id to be 'copilot-claude-3.5-sonnet', got '%s'", engineID)
+		if engineID != "copilot" {
+			t.Errorf("Expected engine_id to be 'copilot', got '%s'", engineID)
 		}
 	} else {
 		t.Error("Engine ID field should be a string")

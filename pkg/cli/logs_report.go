@@ -175,27 +175,27 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 		totalGitHubAPICalls += gitHubAPICalls
 
-		// Extract agent/engine ID and aw_context from aw_info.json.
-		agentID := ""
+		// Extract engine ID and aw_context from aw_info.json.
+		engineID := ""
 		engineName := ""
 		var awContext *AwContext
 		var awInfo *AwInfo
 		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
 		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
 			awInfo = info
-			agentID = info.EngineID
+			engineID = info.EngineID
 			engineName = info.EngineName
 			awContext = info.Context
 		}
 		if engineName == "" {
-			engineName = agentID
+			engineName = engineID
 		}
 		if awContext == nil {
 			awContext = pr.AwContext
 		}
 		// Accumulate engine counts from aw_info.json data (authoritative source).
-		if agentID != "" {
-			engineCounts[agentID]++
+		if engineID != "" {
+			engineCounts[engineID]++
 		}
 
 		comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
@@ -210,9 +210,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Number:              run.Number,
 			WorkflowName:        run.WorkflowName,
 			WorkflowPath:        run.WorkflowPath,
-			Agent:               agentID,
+			Agent:               engineID,
 			Engine:              engineName,
-			EngineID:            agentID,
+			EngineID:            engineID,
 			Status:              run.Status,
 			Conclusion:          run.Conclusion,
 			Classification:      deriveRunClassification(comparison),
