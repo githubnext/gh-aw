@@ -258,12 +258,13 @@ func TestResolveCommitSHAWithRetries_ContextCanceledDuringBackoff(t *testing.T) 
 	}
 
 	waitBeforeSHAResolutionRetry = func(ctx context.Context, delay time.Duration) error {
-		cancelledCtx, cancel := context.WithCancel(ctx)
-		cancel()
-		return cancelledCtx.Err()
+		return ctx.Err()
 	}
 
-	sha, err := resolveCommitSHAWithRetries(context.Background(), "owner", "repo", "main", ".github/workflows/test.md", "", false)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	sha, err := resolveCommitSHAWithRetries(ctx, "owner", "repo", "main", ".github/workflows/test.md", "", false)
 	require.Error(t, err, "Cancellation during retry backoff should fail fast")
 	assert.Empty(t, sha, "No SHA should be returned when retry wait is canceled")
 	assert.Contains(t, err.Error(), "retry wait was cancelled", "Error should explain cancellation reason")

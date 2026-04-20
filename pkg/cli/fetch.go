@@ -196,8 +196,8 @@ func resolveCommitSHAWithRetries(ctx context.Context, owner, repo, ref, workflow
 }
 
 // sleepForSHAResolutionRetry waits for the retry delay or context cancellation.
-// The timer is stopped on return in all cases; it returns ctx.Err() when cancelled
-// and nil when the delay elapses normally.
+// It returns ctx.Err() when the context is cancelled before the delay elapses,
+// otherwise nil when the delay completes normally.
 func sleepForSHAResolutionRetry(ctx context.Context, delay time.Duration) error {
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
