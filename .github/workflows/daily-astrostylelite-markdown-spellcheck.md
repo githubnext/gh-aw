@@ -20,7 +20,6 @@ jobs:
   spellcheck:
     runs-on: ubuntu-latest
     needs: [activation]
-    if: needs.activation.outputs.activated == 'true'
     permissions:
       contents: read
     outputs:
