@@ -181,7 +181,7 @@ safe-outputs:
     allowed-reasons: [outdated]  # Optional: restrict hiding reasons
 ```
 
-Before posting, the system finds and minimizes previous comments from the same workflow (identified by `GITHUB_WORKFLOW`). Comments are hidden, not deleted. Use `allowed-reasons` to restrict which minimization reason is applied: `spam`, `abuse`, `off_topic`, `outdated` (default), or `resolved`. Useful for status updates, build notifications, and health checks where only the latest result matters.
+Before posting, the system finds and minimizes previous comments from the same workflow (identified by `GITHUB_WORKFLOW`). Comments are hidden, not deleted. Use `allowed-reasons` to restrict which minimization reason is applied: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`, or `low_quality`. Useful for status updates, build notifications, and health checks where only the latest result matters.
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#hide-older-comments) for complete documentation.
 

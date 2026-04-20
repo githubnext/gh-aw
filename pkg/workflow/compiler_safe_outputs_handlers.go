@@ -447,6 +447,20 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfTrue("staged", c.Staged).
 			Build()
 	},
+	"merge_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.MergePullRequest == nil {
+			return nil
+		}
+		c := cfg.MergePullRequest
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddStringSlice("allowed_labels", c.AllowedLabels).
+			AddStringSlice("allowed_branches", c.AllowedBranches).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfTrue("staged", c.Staged).
+			Build()
+	},
 	"close_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.ClosePullRequests == nil {
 			return nil

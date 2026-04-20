@@ -167,6 +167,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
 	}
+	if safeOutputs.MergePullRequest != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.MergePullRequest.Staged) {
+		safeOutputsPermissionsLog.Print("Adding permissions for merge-pull-request")
+		permissions.Merge(NewPermissionsContentsWritePRWrite())
+	}
 	if safeOutputs.ClosePullRequests != nil && !isHandlerStaged(safeOutputs.Staged, safeOutputs.ClosePullRequests.Staged) {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-pull-request")
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
@@ -329,6 +333,8 @@ func SafeOutputsConfigFromKeys(keys []string) *SafeOutputsConfig {
 			config.UpdateIssues = &UpdateIssuesConfig{}
 		case "update-pull-request":
 			config.UpdatePullRequests = &UpdatePullRequestsConfig{}
+		case "merge-pull-request":
+			config.MergePullRequest = &MergePullRequestConfig{}
 		case "push-to-pull-request-branch":
 			config.PushToPullRequestBranch = &PushToPullRequestBranchConfig{}
 		case "upload-asset":

@@ -808,6 +808,45 @@
     }
   },
   {
+    "name": "merge_pull_request",
+    "description": "Merge an existing pull request only after policy checks pass (status checks, approvals, resolved review threads, label/branch constraints, and mergeability gates). Use this when workflows require controlled merges instead of direct merge operations.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to merge. This is the numeric ID from the GitHub URL (e.g., 321 in github.com/owner/repo/pull/321). If omitted, uses the triggering pull request context."
+        },
+        "merge_method": {
+          "type": "string",
+          "enum": ["merge", "squash", "rebase"],
+          "description": "Merge strategy to use: 'merge', 'squash', or 'rebase'. Defaults to 'merge'."
+        },
+        "commit_title": {
+          "type": "string",
+          "description": "Optional custom commit title to use for the merge commit/squash commit."
+        },
+        "commit_message": {
+          "type": "string",
+          "description": "Optional custom commit message body for the merge."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format for cross-repository merge operations. If omitted, uses the configured default target repository."
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "push_to_pull_request_branch",
     "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.",
     "inputSchema": {
@@ -1024,7 +1063,7 @@
   },
   {
     "name": "hide_comment",
-    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, or resolved. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
+    "description": "Hide a comment on a GitHub issue, pull request, or discussion. This collapses the comment and marks it as spam, abuse, off-topic, outdated, resolved, or low-quality. Use this for inappropriate, off-topic, or outdated comments. The comment_id must be a GraphQL node ID (string like 'IC_kwDOABCD123456'), not a numeric REST API comment ID.",
     "inputSchema": {
       "type": "object",
       "required": ["comment_id"],
@@ -1035,8 +1074,8 @@
         },
         "reason": {
           "type": "string",
-          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED"],
-          "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved)."
+          "enum": ["SPAM", "ABUSE", "OFF_TOPIC", "OUTDATED", "RESOLVED", "LOW_QUALITY"],
+          "description": "Optional reason for hiding the comment. Defaults to SPAM if not provided. Valid values: SPAM (spam content), ABUSE (abusive/harassment content), OFF_TOPIC (not relevant to discussion), OUTDATED (no longer applicable), RESOLVED (issue/question has been resolved), LOW_QUALITY (low-quality content)."
         },
         "secrecy": {
           "type": "string",

@@ -35,7 +35,7 @@ var updateExtensionCheckLog = logger.New("cli:update_extension_check")
 // baked in. The caller should re-launch the freshly-installed binary (at
 // installPath) so that subsequent work (e.g. lock-file compilation) uses the
 // correct new version string.
-func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
+func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, string, error) {
 	currentVersion := GetVersion()
 	updateExtensionCheckLog.Printf("Checking if extension needs upgrade (current: %s)", currentVersion)
 
@@ -49,7 +49,7 @@ func upgradeExtensionIfOutdated(verbose bool) (bool, string, error) {
 	}
 
 	// Query GitHub API for latest release
-	latestVersion, err := getLatestRelease()
+	latestVersion, err := getLatestRelease(includePrereleases)
 	if err != nil {
 		// Fail silently - don't block the upgrade command if we can't reach GitHub
 		updateExtensionCheckLog.Printf("Failed to check for latest release (silently ignoring): %v", err)

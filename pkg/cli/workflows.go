@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -286,6 +288,41 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 
 	workflowsLog.Printf("Found %d markdown workflow file(s) in %s", len(mdFiles), workflowsDir)
 	return mdFiles, nil
+}
+
+// filterMarkdownFilesWithFrontmatter keeps only markdown files that begin with frontmatter.
+func filterMarkdownFilesWithFrontmatter(mdFiles []string) ([]string, error) {
+	workflowFiles := make([]string, 0, len(mdFiles))
+	for _, file := range mdFiles {
+		fd, err := os.Open(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, err)
+		}
+
+		reader := bufio.NewReader(fd)
+		firstLine, readErr := reader.ReadString('\n')
+		closeErr := fd.Close()
+		if closeErr != nil {
+			return nil, fmt.Errorf("failed to close workflow file %s: %w", file, closeErr)
+		}
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return nil, fmt.Errorf("failed to read workflow file %s: %w", file, readErr)
+		}
+
+		if firstLine == "" {
+			workflowsLog.Printf("Skipping empty markdown file: %s", file)
+			continue
+		}
+
+		if strings.TrimSpace(firstLine) != "---" {
+			workflowsLog.Printf("Skipping markdown file without frontmatter: %s", file)
+			continue
+		}
+
+		workflowFiles = append(workflowFiles, file)
+	}
+
+	return workflowFiles, nil
 }
 
 // fastParseTitle scans markdown content for the first H1 header, skipping an
