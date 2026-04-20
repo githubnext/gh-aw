@@ -37,7 +37,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Add shell environment policy to control which environment variables are passed through
 	// This is a security feature to prevent accidental exposure of secrets
-	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools, workflowData)
+	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools)
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexToolsFromMap(tools)

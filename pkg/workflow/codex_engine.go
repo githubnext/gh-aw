@@ -518,8 +518,7 @@ func (e *CodexEngine) getShellEnvironmentPolicyVars(tools map[string]any, mcpToo
 
 // renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml
 // This controls which environment variables are passed through to MCP servers for security
-func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	_ = workflowData
+func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
 	sortedEnvVars := e.getShellEnvironmentPolicyVars(tools, mcpTools)
 
 	// Render [shell_environment_policy] section
