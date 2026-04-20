@@ -57,9 +57,6 @@ func (s *StatVar) Add(v float64) {
 // Count returns the number of observations added so far.
 func (s *StatVar) Count() int { return s.count }
 
-// Sum returns the arithmetic sum of all observations, or 0 if none.
-func (s *StatVar) Sum() float64 { return s.sum }
-
 // Min returns the smallest observed value, or 0 if no observations have been added.
 func (s *StatVar) Min() float64 {
 	if s.count == 0 {
@@ -84,15 +81,6 @@ func (s *StatVar) Mean() float64 {
 	return s.mean
 }
 
-// Variance returns the population variance (divides by N).
-// Returns 0 when fewer than two observations are present.
-func (s *StatVar) Variance() float64 {
-	if s.count < 2 {
-		return 0
-	}
-	return s.m2 / float64(s.count)
-}
-
 // SampleVariance returns the sample variance with Bessel's correction (divides
 // by N−1), giving an unbiased estimator when the observations are a random
 // sample from a larger population.  Returns 0 when fewer than two observations
@@ -102,11 +90,6 @@ func (s *StatVar) SampleVariance() float64 {
 		return 0
 	}
 	return s.m2 / float64(s.count-1)
-}
-
-// StdDev returns the population standard deviation (sqrt of Variance).
-func (s *StatVar) StdDev() float64 {
-	return math.Sqrt(s.Variance())
 }
 
 // SampleStdDev returns the sample standard deviation with Bessel's correction

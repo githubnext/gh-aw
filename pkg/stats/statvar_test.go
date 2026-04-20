@@ -13,13 +13,10 @@ import (
 func TestStatVar_Empty(t *testing.T) {
 	var s StatVar
 	assert.Equal(t, 0, s.Count(), "empty: count should be 0")
-	assert.InDelta(t, 0.0, s.Sum(), 1e-9, "empty: sum should be 0")
 	assert.InDelta(t, 0.0, s.Min(), 1e-9, "empty: min should be 0")
 	assert.InDelta(t, 0.0, s.Max(), 1e-9, "empty: max should be 0")
 	assert.InDelta(t, 0.0, s.Mean(), 1e-9, "empty: mean should be 0")
-	assert.InDelta(t, 0.0, s.Variance(), 1e-9, "empty: variance should be 0")
 	assert.InDelta(t, 0.0, s.SampleVariance(), 1e-9, "empty: sample variance should be 0")
-	assert.InDelta(t, 0.0, s.StdDev(), 1e-9, "empty: stddev should be 0")
 	assert.InDelta(t, 0.0, s.SampleStdDev(), 1e-9, "empty: sample stddev should be 0")
 	assert.InDelta(t, 0.0, s.Median(), 1e-9, "empty: median should be 0")
 }
@@ -29,13 +26,10 @@ func TestStatVar_SingleObservation(t *testing.T) {
 	s.Add(42.0)
 
 	assert.Equal(t, 1, s.Count(), "single: count should be 1")
-	assert.InDelta(t, 42.0, s.Sum(), 1e-9, "single: sum should be 42")
 	assert.InDelta(t, 42.0, s.Min(), 1e-9, "single: min should be 42")
 	assert.InDelta(t, 42.0, s.Max(), 1e-9, "single: max should be 42")
 	assert.InDelta(t, 42.0, s.Mean(), 1e-9, "single: mean should be 42")
-	assert.InDelta(t, 0.0, s.Variance(), 1e-9, "single: variance should be 0 (needs >=2)")
 	assert.InDelta(t, 0.0, s.SampleVariance(), 1e-9, "single: sample variance should be 0 (needs >=2)")
-	assert.InDelta(t, 0.0, s.StdDev(), 1e-9, "single: stddev should be 0")
 	assert.InDelta(t, 42.0, s.Median(), 1e-9, "single: median should be 42")
 }
 
@@ -45,15 +39,11 @@ func TestStatVar_TwoObservations(t *testing.T) {
 	s.Add(20.0)
 
 	assert.Equal(t, 2, s.Count(), "two: count should be 2")
-	assert.InDelta(t, 30.0, s.Sum(), 1e-9, "two: sum should be 30")
 	assert.InDelta(t, 10.0, s.Min(), 1e-9, "two: min should be 10")
 	assert.InDelta(t, 20.0, s.Max(), 1e-9, "two: max should be 20")
 	assert.InDelta(t, 15.0, s.Mean(), 1e-9, "two: mean should be 15")
-	// Population variance: ((10-15)² + (20-15)²) / 2 = 50/2 = 25
-	assert.InDelta(t, 25.0, s.Variance(), 1e-9, "two: population variance should be 25")
 	// Sample variance: 50 / (2-1) = 50
 	assert.InDelta(t, 50.0, s.SampleVariance(), 1e-9, "two: sample variance should be 50")
-	assert.InDelta(t, 5.0, s.StdDev(), 1e-9, "two: population stddev should be 5")
 	assert.InDelta(t, math.Sqrt(50), s.SampleStdDev(), 1e-9, "two: sample stddev should be sqrt(50)")
 	// Median of [10, 20] → (10+20)/2 = 15
 	assert.InDelta(t, 15.0, s.Median(), 1e-9, "two: median should be 15")
@@ -67,7 +57,6 @@ func TestStatVar_OddCount(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, s.Count(), "odd: count should be 3")
-	assert.InDelta(t, 9.0, s.Sum(), 1e-9, "odd: sum should be 9")
 	assert.InDelta(t, 1.0, s.Min(), 1e-9, "odd: min should be 1")
 	assert.InDelta(t, 5.0, s.Max(), 1e-9, "odd: max should be 5")
 	assert.InDelta(t, 3.0, s.Mean(), 1e-9, "odd: mean should be 3")
@@ -82,7 +71,6 @@ func TestStatVar_EvenCount(t *testing.T) {
 	}
 
 	assert.Equal(t, 4, s.Count(), "even: count should be 4")
-	assert.InDelta(t, 20.0, s.Sum(), 1e-9, "even: sum should be 20")
 	assert.InDelta(t, 2.0, s.Min(), 1e-9, "even: min should be 2")
 	assert.InDelta(t, 8.0, s.Max(), 1e-9, "even: max should be 8")
 	assert.InDelta(t, 5.0, s.Mean(), 1e-9, "even: mean should be 5")
@@ -102,8 +90,6 @@ func TestStatVar_KnownVariance(t *testing.T) {
 
 	require.Equal(t, 8, s.Count(), "known: count should be 8")
 	assert.InDelta(t, 5.0, s.Mean(), 1e-9, "known: mean should be 5")
-	assert.InDelta(t, 4.0, s.Variance(), 1e-9, "known: population variance should be 4")
-	assert.InDelta(t, 2.0, s.StdDev(), 1e-9, "known: population stddev should be 2")
 	assert.InDelta(t, 32.0/7.0, s.SampleVariance(), 1e-9, "known: sample variance should be 32/7")
 	assert.InDelta(t, math.Sqrt(32.0/7.0), s.SampleStdDev(), 1e-9, "known: sample stddev should be sqrt(32/7)")
 	// Median of [2,4,4,4,5,5,7,9] → (4+5)/2 = 4.5
@@ -120,9 +106,6 @@ func TestStatVar_NumericalStability(t *testing.T) {
 	}
 	// 500 observations at 1e9 and 500 at 1e9+1 → mean = 1e9 + 0.5
 	assert.InDelta(t, 1e9+0.5, s.Mean(), 1e-6, "stability: mean should be ~1e9+0.5")
-	// Population variance = 0.25
-	assert.InDelta(t, 0.25, s.Variance(), 1e-6, "stability: population variance should be ~0.25")
-	assert.InDelta(t, 0.5, s.StdDev(), 1e-6, "stability: population stddev should be ~0.5")
 }
 
 func TestStatVar_MedianDoesNotMutateState(t *testing.T) {
@@ -148,7 +131,5 @@ func TestStatVar_AllIdentical(t *testing.T) {
 		s.Add(7.0)
 	}
 	assert.InDelta(t, 7.0, s.Mean(), 1e-9, "identical: mean should be 7")
-	assert.InDelta(t, 0.0, s.Variance(), 1e-9, "identical: variance should be 0")
-	assert.InDelta(t, 0.0, s.StdDev(), 1e-9, "identical: stddev should be 0")
 	assert.InDelta(t, 7.0, s.Median(), 1e-9, "identical: median should be 7")
 }

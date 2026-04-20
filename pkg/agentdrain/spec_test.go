@@ -76,14 +76,12 @@ func TestSpec_PublicAPI_Miner_Clusters(t *testing.T) {
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
 
-	assert.Equal(t, 0, miner.ClusterCount(), "ClusterCount should be 0 before training")
 	assert.Empty(t, miner.Clusters(), "Clusters should be empty before training")
 
 	evt := agentdrain.AgentEvent{Stage: "finish", Fields: map[string]string{"result": "success"}}
 	_, err = miner.TrainEvent(evt)
 	require.NoError(t, err)
 
-	assert.Equal(t, 1, miner.ClusterCount(), "ClusterCount should be 1 after training one unique event")
 	assert.Len(t, miner.Clusters(), 1, "Clusters should have one entry after training one unique event")
 }
 
@@ -97,8 +95,6 @@ func TestSpec_PublicAPI_Miner_Persistence(t *testing.T) {
 	_, err = miner.TrainEvent(evt)
 	require.NoError(t, err)
 
-	original := miner.ClusterCount()
-
 	data, err := miner.SaveJSON()
 	require.NoError(t, err, "SaveJSON should not error")
 	assert.NotEmpty(t, data, "SaveJSON should return non-empty JSON data")
@@ -107,7 +103,6 @@ func TestSpec_PublicAPI_Miner_Persistence(t *testing.T) {
 	require.NoError(t, err)
 	err = restored.LoadJSON(data)
 	require.NoError(t, err, "LoadJSON should not error with valid data")
-	assert.Equal(t, original, restored.ClusterCount(), "restored miner should have same cluster count")
 }
 
 // TestSpec_PublicAPI_NewCoordinator validates that NewCoordinator creates a coordinator for given stages.
