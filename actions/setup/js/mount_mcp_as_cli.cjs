@@ -4,6 +4,8 @@
 /**
  * mount_mcp_as_cli.cjs
  *
+ * @safe-outputs-exempt SEC-004: "body" references are JSON-RPC transport payloads, not user-authored comment bodies
+ *
  * Mounts MCP servers as local CLI tools by reading the manifest written by
  * start_mcp_gateway.cjs, querying each server for its tool list, and generating
  * a standalone bash wrapper script per server in ${RUNNER_TEMP}/gh-aw/mcp-cli/bin/.

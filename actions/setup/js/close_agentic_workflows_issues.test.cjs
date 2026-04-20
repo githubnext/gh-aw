@@ -56,7 +56,7 @@ describe("close_agentic_workflows_issues", () => {
       owner: "testowner",
       repo: "testrepo",
       issue_number: 101,
-      body: module.NO_REPRO_MESSAGE,
+      body: module.getNoReproCommentBody(),
     });
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
@@ -74,5 +74,12 @@ describe("close_agentic_workflows_issues", () => {
 
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
     expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes and validates the close comment body", async () => {
+    const module = await import("./close_agentic_workflows_issues.cjs");
+
+    expect(module.getNoReproCommentBody()).toBe(module.NO_REPRO_MESSAGE);
+    expect(() => module.getNoReproCommentBody(() => "")).toThrow("empty after sanitization");
   });
 });

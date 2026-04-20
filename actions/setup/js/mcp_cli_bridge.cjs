@@ -3,6 +3,8 @@
 /**
  * mcp_cli_bridge.cjs
  *
+ * @safe-outputs-exempt SEC-004: "body" references are transport payloads/responses, not user-authored comment bodies
+ *
  * Node.js bridge that handles MCP session protocol for CLI wrapper scripts.
  * Each CLI wrapper is a thin bash script that invokes this bridge with the
  * server configuration and user-provided command + arguments.

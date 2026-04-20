@@ -138,6 +138,11 @@ check_sanitization() {
     for handler in actions/setup/js/*.cjs; do
         # Skip test and utility files
         [[ "$handler" =~ (test|parse|buffer) ]] && continue
+
+        # Skip files with a documented SEC-004 exemption annotation
+        if grep -q "@safe-outputs-exempt.*SEC-004" "$handler"; then
+            continue
+        fi
         
         # Check if handler has body/content fields
         if grep -q "\"body\"\|body:" "$handler"; then

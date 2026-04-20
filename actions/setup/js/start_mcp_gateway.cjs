@@ -7,6 +7,8 @@ require("./shim.cjs");
 /**
  * start_mcp_gateway.cjs
  *
+ * @safe-outputs-exempt SEC-004: "body" references are local healthcheck response payloads, not user-authored comment bodies
+ *
  * Starts the MCP gateway process that proxies MCP servers through a unified HTTP endpoint.
  * Following the MCP Gateway Specification:
  *   https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/mcp-gateway.md
