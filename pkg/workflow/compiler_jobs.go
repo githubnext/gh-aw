@@ -808,6 +808,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					// don't inherit GITHUB_ENV from the agent job, so the gh CLI won't
 					// know which host to target without this step.
 					job.Steps = append(job.Steps, generateGHESHostConfigurationStep())
+					if shouldInjectNodeSetupForGPUCustomJob(configMap) {
+						job.Steps = append(job.Steps, generateNodeSetupStepForCustomJob(data))
+					}
 					job.Steps = append(job.Steps, preSteps...)
 					job.Steps = append(job.Steps, regularSteps...)
 				}
@@ -822,6 +825,87 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 
 	compilerJobsLog.Print("Completed building all custom jobs")
 	return nil
+}
+
+func shouldInjectNodeSetupForGPUCustomJob(configMap map[string]any) bool {
+	if configMap == nil {
+		return false
+	}
+	runsOn, hasRunsOn := configMap["runs-on"]
+	if !hasRunsOn || !containsRunnerLabel(runsOn, "aw-gpu-runner-t4") {
+		return false
+	}
+	return !jobStepsContainSetupNode(configMap)
+}
+
+func containsRunnerLabel(value any, target string) bool {
+	switch v := value.(type) {
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), target)
+	case []any:
+		for _, item := range v {
+			if containsRunnerLabel(item, target) {
+				return true
+			}
+		}
+	case map[string]any:
+		for _, item := range v {
+			if containsRunnerLabel(item, target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func jobStepsContainSetupNode(configMap map[string]any) bool {
+	for _, fieldName := range []string{"pre-steps", "steps"} {
+		fieldValue, hasField := configMap[fieldName]
+		if !hasField {
+			continue
+		}
+		steps, ok := fieldValue.([]any)
+		if !ok {
+			continue
+		}
+		for _, step := range steps {
+			stepMap, ok := step.(map[string]any)
+			if !ok {
+				continue
+			}
+			usesValue, hasUses := stepMap["uses"]
+			if !hasUses {
+				continue
+			}
+			usesStr, ok := usesValue.(string)
+			if !ok {
+				continue
+			}
+			if strings.Contains(strings.ToLower(usesStr), "setup-node") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func generateNodeSetupStepForCustomJob(data *WorkflowData) string {
+	requirements := map[string]*RuntimeRequirement{}
+	nodeRuntime := findRuntimeByID("node")
+	if nodeRuntime == nil {
+		return ""
+	}
+
+	updateRequiredRuntime(nodeRuntime, "", requirements)
+	if data != nil && data.Runtimes != nil {
+		applyRuntimeOverrides(data.Runtimes, requirements)
+	}
+	nodeRequirement, exists := requirements["node"]
+	if !exists {
+		return ""
+	}
+
+	return strings.Join(generateSetupStep(nodeRequirement), "\n") + "\n"
 }
 
 func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {

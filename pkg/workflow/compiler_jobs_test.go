@@ -2576,6 +2576,123 @@ func TestBuildCustomJobsRunsOnForms(t *testing.T) {
 	}
 }
 
+func TestBuildCustomJobsAddsNodeSetupForAWGPURunner(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		AI:   "copilot",
+		Jobs: map[string]any{
+			"gpu_job": map[string]any{
+				"runs-on": "aw-gpu-runner-T4",
+				"steps": []any{
+					map[string]any{"name": "Work", "run": "echo hi"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned unexpected error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob("gpu_job")
+	if !exists {
+		t.Fatal("Expected gpu_job to be added")
+	}
+
+	stepsContent := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsContent, "name: Setup Node.js") {
+		t.Fatalf("Expected custom GPU job to include Node setup step, got:\n%s", stepsContent)
+	}
+	if !strings.Contains(stepsContent, "node-version: '24'") {
+		t.Fatalf("Expected default Node 24 for custom GPU job, got:\n%s", stepsContent)
+	}
+}
+
+func TestBuildCustomJobsAddsNodeSetupForAWGPURunnerWithRuntimeOverride(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		AI:   "copilot",
+		Runtimes: map[string]any{
+			"node": map[string]any{
+				"version": "20",
+			},
+		},
+		Jobs: map[string]any{
+			"gpu_job": map[string]any{
+				"runs-on": "aw-gpu-runner-T4",
+				"steps": []any{
+					map[string]any{"name": "Work", "run": "echo hi"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned unexpected error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob("gpu_job")
+	if !exists {
+		t.Fatal("Expected gpu_job to be added")
+	}
+
+	stepsContent := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsContent, "name: Setup Node.js") {
+		t.Fatalf("Expected custom GPU job to include Node setup step, got:\n%s", stepsContent)
+	}
+	if !strings.Contains(stepsContent, "node-version: '20'") {
+		t.Fatalf("Expected Node version to respect runtime override for custom GPU job, got:\n%s", stepsContent)
+	}
+}
+
+func TestBuildCustomJobsSkipsNodeSetupForAWGPURunnerWhenAlreadyPresent(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		AI:   "copilot",
+		Jobs: map[string]any{
+			"gpu_job": map[string]any{
+				"runs-on": "aw-gpu-runner-T4",
+				"steps": []any{
+					map[string]any{
+						"name": "Setup Node.js (manual)",
+						"uses": "actions/setup-node@v6",
+						"with": map[string]any{
+							"node-version": "24",
+						},
+					},
+					map[string]any{"name": "Work", "run": "echo hi"},
+				},
+			},
+		},
+	}
+
+	err := compiler.buildCustomJobs(data, false)
+	if err != nil {
+		t.Fatalf("buildCustomJobs() returned unexpected error: %v", err)
+	}
+
+	job, exists := compiler.jobManager.GetJob("gpu_job")
+	if !exists {
+		t.Fatal("Expected gpu_job to be added")
+	}
+
+	stepsContent := strings.Join(job.Steps, "")
+	if strings.Count(stepsContent, "name: Setup Node.js") > 1 {
+		t.Fatalf("Expected at most one Node setup step when already present, got:\n%s", stepsContent)
+	}
+}
+
 // TestBuildCustomJobsNewSimpleFields tests extraction of simple job fields via CompileWorkflow
 func TestBuildCustomJobsNewSimpleFields(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "new-simple-fields-test")
