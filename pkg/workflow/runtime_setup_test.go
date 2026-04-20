@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetectRuntimeFromCommand(t *testing.T) {
@@ -1062,9 +1063,7 @@ func TestDetectRuntimeRequirements_CustomCopilotDriverAddsNode24(t *testing.T) {
 		}
 	}
 
-	if nodeReq == nil {
-		t.Fatal("Expected Node.js runtime requirement when custom copilot driver is configured")
-	}
+	require.NotNil(t, nodeReq, "Expected Node.js runtime requirement when custom copilot driver is configured")
 
 	assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version, "Custom copilot driver should require Node.js 24 runtime")
 }

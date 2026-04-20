@@ -5,6 +5,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestValidateSingleEngineSpecification tests the validateSingleEngineSpecification function
@@ -348,18 +351,14 @@ func TestValidateEngineDriverScript(t *testing.T) {
 			err := compiler.validateEngineDriverScript(tt.workflow)
 
 			if tt.expectError {
-				if err == nil {
-					t.Fatal("Expected error but got nil")
-				}
-				if tt.errorSubstr != "" && !strings.Contains(err.Error(), tt.errorSubstr) {
-					t.Fatalf("Expected error containing %q, got: %s", tt.errorSubstr, err.Error())
+				require.Error(t, err, "Expected validation error")
+				if tt.errorSubstr != "" {
+					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
 				}
 				return
 			}
 
-			if err != nil {
-				t.Fatalf("Expected no error, got: %v", err)
-			}
+			assert.NoError(t, err, "Expected driver validation to pass")
 		})
 	}
 }
