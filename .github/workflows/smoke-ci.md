@@ -4,7 +4,7 @@ description: Smoke CI workflow that exercises pull request safe outputs through 
 on:
   push:
     branches: [main]
-  schedule: every 24h
+  schedule: daily
   pull_request:
     types: [opened, synchronize, reopened]
   reaction: "eyes"
