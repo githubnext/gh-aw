@@ -327,3 +327,141 @@ func TestSpec_DesignDecision_CoordinatorRouting(t *testing.T) {
 	assert.Len(t, all["plan"], 1, "plan stage should have one cluster")
 	assert.Len(t, all["tool_call"], 1, "tool_call stage should have one cluster")
 }
+
+// TestSpec_PublicAPI_Coordinator_AnalyzeEvent validates Coordinator.AnalyzeEvent routes events
+// to stage-specific miners and returns MatchResult and AnomalyReport.
+func TestSpec_PublicAPI_Coordinator_AnalyzeEvent(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	stages := []string{"plan", "tool_call", "finish"}
+	coord, err := agentdrain.NewCoordinator(cfg, stages)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{
+		Stage:  "plan",
+		Fields: map[string]string{"action": "evaluate", "step": "1"},
+	}
+	result, report, err := coord.AnalyzeEvent(evt)
+	require.NoError(t, err, "AnalyzeEvent should not error for a registered stage")
+	assert.NotNil(t, result, "AnalyzeEvent should return a MatchResult")
+	assert.NotNil(t, report, "AnalyzeEvent should return an AnomalyReport")
+	assert.Equal(t, "plan", result.Stage, "MatchResult.Stage should match the event stage")
+}
+
+// TestSpec_PublicAPI_Coordinator_WeightsPersistence validates SaveWeightsJSON/LoadWeightsJSON
+// round-trip as documented in the specification.
+func TestSpec_PublicAPI_Coordinator_WeightsPersistence(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	stages := []string{"plan", "finish"}
+	coord, err := agentdrain.NewCoordinator(cfg, stages)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"step": "start"}}
+	_, err = coord.TrainEvent(evt)
+	require.NoError(t, err)
+
+	data, err := coord.SaveWeightsJSON()
+	require.NoError(t, err, "SaveWeightsJSON should not error")
+	assert.NotEmpty(t, data, "SaveWeightsJSON should return non-empty JSON")
+
+	coord2, err := agentdrain.NewCoordinator(cfg, stages)
+	require.NoError(t, err)
+	err = coord2.LoadWeightsJSON(data)
+	require.NoError(t, err, "LoadWeightsJSON should not error with valid data")
+}
+
+// TestSpec_PublicAPI_AnomalyDetector_Analyze validates that AnomalyDetector.Analyze
+// returns an AnomalyReport with AnomalyScore in the documented [0, 1] range.
+func TestSpec_PublicAPI_AnomalyDetector_Analyze(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"action": "start"}}
+	_, report, err := miner.AnalyzeEvent(evt)
+	require.NoError(t, err)
+
+	assert.NotNil(t, report, "AnomalyReport should not be nil")
+	assert.GreaterOrEqual(t, report.AnomalyScore, 0.0, "AnomalyScore should be >= 0 (documented range [0,1])")
+	assert.LessOrEqual(t, report.AnomalyScore, 1.0, "AnomalyScore should be <= 1 (documented range [0,1])")
+}
+
+// TestSpec_Types_Cluster validates the documented Cluster type structure.
+// Spec: ID (unique identifier), Template (tokenized template), Size (count), Stage (pipeline stage).
+func TestSpec_Types_Cluster(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"step": "1"}}
+	_, err = miner.TrainEvent(evt)
+	require.NoError(t, err)
+
+	clusters := miner.Clusters()
+	require.Len(t, clusters, 1, "should have one cluster after training one unique event")
+	c := clusters[0]
+	assert.Positive(t, c.ID, "Cluster.ID should be a positive unique identifier")
+	assert.NotEmpty(t, c.Template, "Cluster.Template should be a non-empty tokenized template")
+	assert.Equal(t, 1, c.Size, "Cluster.Size should be 1 after one training event")
+	assert.Equal(t, "plan", c.Stage, "Cluster.Stage should match the event stage")
+}
+
+// TestSpec_Types_MatchResult validates the documented MatchResult type structure.
+// Spec: ClusterID, Template (space-joined), Params, Similarity in [0,1], Stage.
+func TestSpec_Types_MatchResult(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{Stage: "tool_call", Fields: map[string]string{"tool": "bash"}}
+	result, err := miner.TrainEvent(evt)
+	require.NoError(t, err)
+
+	assert.Positive(t, result.ClusterID, "MatchResult.ClusterID should be positive")
+	assert.NotEmpty(t, result.Template, "MatchResult.Template should be a space-joined template string")
+	assert.GreaterOrEqual(t, result.Similarity, 0.0, "MatchResult.Similarity should be >= 0")
+	assert.LessOrEqual(t, result.Similarity, 1.0, "MatchResult.Similarity should be <= 1")
+	assert.Equal(t, "tool_call", result.Stage, "MatchResult.Stage should match event stage")
+}
+
+// TestSpec_Types_AnomalyReport validates the documented AnomalyReport type structure.
+// Spec: IsNewTemplate, LowSimilarity, RareCluster, NewClusterCreated, AnomalyScore in [0,1], Reason.
+func TestSpec_Types_AnomalyReport(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{Stage: "finish", Fields: map[string]string{"result": "success"}}
+	_, report, err := miner.AnalyzeEvent(evt)
+	require.NoError(t, err)
+
+	// Verify all documented fields are accessible
+	_ = report.IsNewTemplate
+	_ = report.LowSimilarity
+	_ = report.RareCluster
+	_ = report.NewClusterCreated
+	_ = report.Reason
+	assert.GreaterOrEqual(t, report.AnomalyScore, 0.0, "AnomalyReport.AnomalyScore should be in documented range [0, 1]")
+	assert.LessOrEqual(t, report.AnomalyScore, 1.0, "AnomalyReport.AnomalyScore should be in documented range [0, 1]")
+}
+
+// TestSpec_Types_Snapshot validates the documented Snapshot/SnapshotCluster type structures.
+// Spec: Snapshot{Config, Clusters []SnapshotCluster, NextID}, SnapshotCluster{ID, Template, Size, Stage}.
+func TestSpec_Types_Snapshot(t *testing.T) {
+	cfg := agentdrain.DefaultConfig()
+	miner, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+
+	evt := agentdrain.AgentEvent{Stage: "plan", Fields: map[string]string{"step": "init"}}
+	_, err = miner.TrainEvent(evt)
+	require.NoError(t, err)
+
+	data, err := miner.SaveJSON()
+	require.NoError(t, err, "SaveJSON should succeed to produce snapshot bytes")
+	assert.NotEmpty(t, data, "Snapshot data should be non-empty JSON bytes")
+
+	restored, err := agentdrain.NewMiner(cfg)
+	require.NoError(t, err)
+	err = restored.LoadJSON(data)
+	require.NoError(t, err, "LoadJSON should restore miner from snapshot bytes")
+	assert.Len(t, restored.Clusters(), 1, "restored miner should have the same cluster count as the original")
+}

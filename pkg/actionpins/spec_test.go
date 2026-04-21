@@ -234,3 +234,67 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	assert.Contains(t, reference, sha, "reference should contain sha")
 	assert.Contains(t, reference, version, "reference should contain version comment")
 }
+
+// TestSpec_Types_ActionPin validates the documented ActionPin type structure.
+// Spec: Repo, Version, SHA fields plus optional Inputs map.
+func TestSpec_Types_ActionPin(t *testing.T) {
+	pin := actionpins.ActionPin{
+		Repo:    "actions/checkout",
+		Version: "v5",
+		SHA:     "abcdef1234567890abcdef1234567890abcdef12",
+	}
+	assert.Equal(t, "actions/checkout", pin.Repo, "ActionPin.Repo field")
+	assert.Equal(t, "v5", pin.Version, "ActionPin.Version field")
+	assert.Equal(t, "abcdef1234567890abcdef1234567890abcdef12", pin.SHA, "ActionPin.SHA field")
+	assert.Nil(t, pin.Inputs, "ActionPin.Inputs should be nil when not set")
+}
+
+// TestSpec_Types_ActionYAMLInput validates the documented ActionYAMLInput type structure.
+// Spec: Description, Required, Default fields.
+func TestSpec_Types_ActionYAMLInput(t *testing.T) {
+	input := actionpins.ActionYAMLInput{
+		Description: "The branch to checkout",
+		Required:    true,
+		Default:     "main",
+	}
+	assert.Equal(t, "The branch to checkout", input.Description, "ActionYAMLInput.Description field")
+	assert.True(t, input.Required, "ActionYAMLInput.Required field")
+	assert.Equal(t, "main", input.Default, "ActionYAMLInput.Default field")
+}
+
+// TestSpec_Types_ActionPinsData validates the documented ActionPinsData container type.
+// Spec: ActionPinsData is a JSON container used to load embedded pin entries.
+func TestSpec_Types_ActionPinsData(t *testing.T) {
+	data := actionpins.ActionPinsData{
+		Entries: map[string]actionpins.ActionPin{
+			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
+		},
+	}
+	assert.Len(t, data.Entries, 1, "ActionPinsData.Entries should hold pin entries")
+	entry := data.Entries["actions/checkout@v5"]
+	assert.Equal(t, "actions/checkout", entry.Repo, "entry Repo should match")
+}
+
+// TestSpec_ThreadSafety_ConcurrentGetActionPins validates that concurrent calls to GetActionPins
+// are safe after initialization (sync.Once guarantee from the spec).
+func TestSpec_ThreadSafety_ConcurrentGetActionPins(t *testing.T) {
+	const goroutines = 10
+	results := make([][]actionpins.ActionPin, goroutines)
+	done := make(chan int, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func(idx int) {
+			results[idx] = actionpins.GetActionPins()
+			done <- idx
+		}(i)
+	}
+
+	for i := 0; i < goroutines; i++ {
+		<-done
+	}
+
+	for i := 1; i < goroutines; i++ {
+		assert.Equal(t, len(results[0]), len(results[i]),
+			"concurrent GetActionPins should return same number of pins (goroutine %d vs 0)", i)
+	}
+}
