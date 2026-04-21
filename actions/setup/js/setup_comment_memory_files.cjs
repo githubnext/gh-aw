@@ -12,23 +12,58 @@ const PROMPT_PATH = "/tmp/gh-aw/aw-prompts/prompt.txt";
 const PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:start -->";
 const PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
 const MAX_SCAN_PAGES = 50;
+const MAX_SCAN_EMPTY_PAGES = 5;
+const MAX_MEMORY_ID_LENGTH = 64;
+
+function isSafeMemoryId(memoryId) {
+  if (typeof memoryId !== "string" || memoryId.length === 0 || memoryId.length > MAX_MEMORY_ID_LENGTH) {
+    return false;
+  }
+  if (memoryId.includes("..") || memoryId.includes("/") || memoryId.includes("\\")) {
+    return false;
+  }
+  return /^[A-Za-z0-9_-]+$/.test(memoryId);
+}
 
 function extractCommentMemoryEntries(commentBody) {
   if (!commentBody || typeof commentBody !== "string") {
     return [];
   }
 
-  const pattern = new RegExp(`<${COMMENT_MEMORY_TAG}\\s+id="([A-Za-z0-9_-]+)">([\\s\\S]*?)<\\/${COMMENT_MEMORY_TAG}>`, "g");
-  const matches = [];
-  let match = pattern.exec(commentBody);
-  while (match) {
-    matches.push({
-      memoryId: match[1],
-      content: String(match[2] || "").trim(),
-    });
-    match = pattern.exec(commentBody);
+  const entries = [];
+  const closeTag = `</${COMMENT_MEMORY_TAG}>`;
+  let cursor = 0;
+  while (cursor < commentBody.length) {
+    const openStart = commentBody.indexOf(`<${COMMENT_MEMORY_TAG} id="`, cursor);
+    if (openStart < 0) {
+      break;
+    }
+
+    const idStart = openStart + `<${COMMENT_MEMORY_TAG} id="`.length;
+    const idEnd = commentBody.indexOf('">', idStart);
+    if (idEnd < 0) {
+      break;
+    }
+
+    const memoryId = commentBody.slice(idStart, idEnd);
+    const contentStart = idEnd + 2;
+    const closeStart = commentBody.indexOf(closeTag, contentStart);
+    if (closeStart < 0) {
+      break;
+    }
+
+    if (isSafeMemoryId(memoryId)) {
+      entries.push({
+        memoryId,
+        content: String(commentBody.slice(contentStart, closeStart) || "").trim(),
+      });
+    } else {
+      core.warning(`comment_memory setup: skipping unsafe memory_id '${memoryId}' found in managed comment`);
+    }
+
+    cursor = closeStart + closeTag.length;
   }
-  return matches;
+  return entries;
 }
 
 function loadSafeOutputsConfig() {
@@ -90,6 +125,7 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
 
   core.info(`comment_memory setup: loading managed comment memory from ${targetRepo.slug}#${targetNumber}`);
   const memoryMap = new Map();
+  let emptyPageCount = 0;
 
   for (let page = 1; page <= MAX_SCAN_PAGES; page++) {
     const { data } = await githubClient.rest.issues.listComments({
@@ -104,11 +140,25 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
       break;
     }
 
+    let pageAddedEntries = 0;
     for (const comment of data) {
       const entries = extractCommentMemoryEntries(comment.body);
       for (const entry of entries) {
+        if (!memoryMap.has(entry.memoryId) || memoryMap.get(entry.memoryId) !== entry.content) {
+          pageAddedEntries++;
+        }
         memoryMap.set(entry.memoryId, entry.content);
       }
+    }
+
+    if (pageAddedEntries === 0) {
+      emptyPageCount++;
+      if (emptyPageCount >= MAX_SCAN_EMPTY_PAGES) {
+        core.info(`comment_memory setup: stopping scan after ${emptyPageCount} pages without new memory entries`);
+        break;
+      }
+    } else {
+      emptyPageCount = 0;
     }
 
     if (data.length < 100) {
@@ -119,6 +169,10 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   fs.mkdirSync(COMMENT_MEMORY_DIR, { recursive: true });
   const writtenFiles = [];
   for (const [memoryId, content] of memoryMap.entries()) {
+    if (!isSafeMemoryId(memoryId)) {
+      core.warning(`comment_memory setup: skipping unsafe memory_id '${memoryId}' while writing files`);
+      continue;
+    }
     const filePath = path.join(COMMENT_MEMORY_DIR, `${memoryId}.md`);
     fs.writeFileSync(filePath, `${content}\n`);
     writtenFiles.push(filePath);

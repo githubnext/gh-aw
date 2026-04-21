@@ -816,6 +816,8 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
  * @param {string} messageType - Type of the message
  * @param {any} message - The message object
  * @param {any} [result] - Handler result (used for transformed/managed bodies)
+ * For comment_memory, handlers return a managedBody that includes XML wrapper/footer;
+ * this differs from message.body and must be used for temporary ID detection.
  * @returns {string|null} Content to check for temporary IDs
  */
 function getContentToCheck(messageType, message, result) {
