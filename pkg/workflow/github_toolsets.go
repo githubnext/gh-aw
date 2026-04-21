@@ -19,8 +19,7 @@ var DefaultGitHubToolsets = []string{"context", "repos", "issues", "pull_request
 var ActionFriendlyGitHubToolsets = []string{"context", "repos", "issues", "pull_requests"}
 
 // GitHubToolsetsExcludedFromAll defines toolsets that are NOT included when "all" is specified.
-// These toolsets require GitHub App-only permissions (e.g., vulnerability-alerts) that
-// cannot be granted via GITHUB_TOKEN, so they must be opted-in to explicitly.
+// These toolsets are opt-in only to avoid granting unnecessary permissions by default.
 var GitHubToolsetsExcludedFromAll = []string{"dependabot"}
 
 // ParseGitHubToolsets parses the toolsets string and expands "default" and "all"

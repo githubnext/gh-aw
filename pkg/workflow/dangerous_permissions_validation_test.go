@@ -153,7 +153,7 @@ func TestFindWritePermissions(t *testing.T) {
 		{
 			name:               "write-all shorthand",
 			permissions:        NewPermissionsWriteAll(),
-			expectedWriteCount: 14,  // All GitHub Actions permission scopes except id-token and metadata (which are excluded)
+			expectedWriteCount: 15,  // All GitHub Actions permission scopes except id-token and metadata (which are excluded)
 			expectedScopes:     nil, // Don't check specific scopes for shorthand
 		},
 		{

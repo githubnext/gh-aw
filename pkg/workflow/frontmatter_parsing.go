@@ -204,6 +204,8 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.SecurityEvents = levelStr
 			case "statuses":
 				config.Statuses = levelStr
+			case "vulnerability-alerts":
+				config.VulnerabilityAlerts = levelStr
 			case "organization-projects":
 				config.OrganizationProjects = levelStr
 			// GitHub App-only permission scopes
@@ -213,8 +215,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.Environments = levelStr
 			case "git-signing":
 				config.GitSigning = levelStr
-			case "vulnerability-alerts":
-				config.VulnerabilityAlerts = levelStr
 			case "workflows":
 				config.Workflows = levelStr
 			case "repository-hooks":

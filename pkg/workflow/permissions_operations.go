@@ -21,7 +21,7 @@ func SortPermissionScopes(s []PermissionScope) {
 // filterJobLevelPermissions takes a raw permissions YAML string (as stored in WorkflowData.Permissions)
 // and returns a version suitable for use in a GitHub Actions job-level permissions block.
 //
-// GitHub App-only permission scopes (e.g., vulnerability-alerts, members, administration) are not
+// GitHub App-only permission scopes (e.g., members, administration) are not
 // valid GitHub Actions workflow permissions and cause a parse error when GitHub Actions tries to
 // queue the workflow. Those scopes must only appear as permission-* inputs when minting GitHub App
 // installation access tokens via actions/create-github-app-token, not in the job-level block.
