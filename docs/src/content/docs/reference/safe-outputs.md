@@ -1259,6 +1259,8 @@ safe-outputs:
     private-key: ${{ needs.secrets_fetcher.outputs.app_private_key }}
 ```
 
+Use the single `safe-outputs.needs` field for all explicit custom dependencies.
+
 Validation rules:
 
 - Values must reference workflow custom jobs from top-level `jobs:`
