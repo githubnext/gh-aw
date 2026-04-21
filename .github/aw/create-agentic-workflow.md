@@ -242,11 +242,16 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool. For **visual regression testing** (comparing screenshots across PRs), consult `.github/aw/visual-regression.md` for the reference pattern using `playwright` + `cache-memory`.
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: all`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.
 
-   **Scheduling Best Practices:**
+    **Scheduling Best Practices:**
 
-   - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
-   - ✨ **Recommended**: `schedule: daily on weekdays` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
-   - 🏢 **Prefer weekday schedules for daily workflows**: For daily scheduled workflows, strongly prefer **`daily on weekdays`** to run only Monday-Friday. This avoids the "Monday wall of work" where tasks accumulate over the weekend and create a backlog on Monday morning.
+    - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
+    - 📅 **For scheduled workflows**: Ask **"How quickly do you need to be notified after an event?"** before defaulting to `daily`.
+      - Answers like "within the hour", "as fast as possible", or "incident response" → suggest `every 6 hours` or `every 4 hours`
+      - Answers like "next morning", "daily summary", or "digest" → `daily on weekdays` (default)
+      - Answers like "weekly report" or "end of week" → `weekly`
+      - Tip: If the user describes an **incident-response** or **monitoring** scenario, always ask about cadence before scheduling
+    - ✨ **Recommended**: `schedule: daily on weekdays` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+    - 🏢 **Prefer weekday schedules for daily workflows**: For daily scheduled workflows, strongly prefer **`daily on weekdays`** to run only Monday-Friday. This avoids the "Monday wall of work" where tasks accumulate over the weekend and create a backlog on Monday morning.
    - 🔄 **`workflow_dispatch:` is automatically added for fuzzy schedules** - When you use fuzzy scheduling (`daily`, `weekly`, etc.), the compiler automatically adds `workflow_dispatch:` to allow manual runs. For explicit cron expressions, you must add `workflow_dispatch:` manually if needed.
    - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
    - Example fuzzy daily weekday schedule: `schedule: daily on weekdays` (compiler will scatter to something like `43 5 * * 1-5` and add workflow_dispatch)
