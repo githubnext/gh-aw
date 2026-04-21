@@ -62,6 +62,20 @@ func TestBuildStandardNpmEngineInstallSteps(t *testing.T) {
 			expectedSteps:  2,
 			expectedInStep: "latest",
 		},
+		{
+			name: "engine config version takes precedence over feature override",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Version: "1.2.3",
+				},
+				Features: map[string]any{
+					string(constants.CopilotVersionFeatureFlag): "latest",
+				},
+			},
+			featureFlag:    constants.CopilotVersionFeatureFlag,
+			expectedSteps:  2,
+			expectedInStep: "1.2.3",
+		},
 	}
 
 	for _, tt := range tests {

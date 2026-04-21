@@ -158,6 +158,10 @@ func BuildStandardNpmEngineInstallSteps(
 // 1. explicit engine.version in frontmatter
 // 2. feature flag version override (if provided)
 // 3. default pinned version
+//
+// Note: some engines may apply additional post-resolution overrides.
+// For example, Copilot's byok-copilot feature forces "latest" after this
+// resolver returns.
 func resolveEngineInstallVersion(
 	defaultVersion string,
 	featureVersionFlag constants.FeatureFlag,
