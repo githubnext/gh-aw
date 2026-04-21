@@ -101,7 +101,7 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
     return [];
   }
 
-  const existingMemoryIDs = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => message.memory_id));
+  const existingMemoryIds = new Set(existingMessages.filter(isCommentMemoryMessage).map(message => message.memory_id));
 
   const fileEntries = listCommentMemoryFiles(COMMENT_MEMORY_DIR);
   if (fileEntries.length === 0) {
@@ -110,7 +110,7 @@ function buildCommentMemoryMessagesFromFiles(existingMessages, config) {
 
   const messages = [];
   for (const entry of fileEntries) {
-    if (existingMemoryIDs.has(entry.memoryId)) {
+    if (existingMemoryIds.has(entry.memoryId)) {
       continue;
     }
     let body = "";

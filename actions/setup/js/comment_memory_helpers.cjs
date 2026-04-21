@@ -56,7 +56,7 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
         content: (commentBody.slice(contentStart, closeStart) || "").trim(),
       });
     } else {
-      warn(`comment_memory: skipping unsafe memory_id '${memoryId}'`);
+      warn(`skipping unsafe memory_id '${memoryId}'`);
     }
 
     cursor = closeStart + closeTag.length;
