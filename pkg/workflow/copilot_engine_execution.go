@@ -191,6 +191,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// - Fall back to `command -v node` if GH_AW_NODE_BIN points to a non-mounted toolcache path.
 	// This prevents agent startup failures when host toolcache paths are not present in the AWF container.
 	driverScriptName := e.GetDriverScriptName()
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.DriverScript != "" {
+		driverScriptName = workflowData.EngineConfig.DriverScript
+	}
 	var execPrefix string
 	if driverScriptName != "" {
 		// Driver wraps the copilot subprocess; ${RUNNER_TEMP} and ${GH_AW_NODE_BIN} expand in the shell context.

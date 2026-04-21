@@ -23,6 +23,7 @@ type EngineConfig struct {
 	Concurrency      string // Agent job-level concurrency configuration (YAML format)
 	UserAgent        string
 	Command          string // Custom executable path (when set, skip installation steps)
+	DriverScript     string // Custom Node.js driver script filename (replaces engine default driver script when supported)
 	Env              map[string]string
 	Config           string
 	Args             []string
@@ -242,6 +243,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if command, hasCommand := engineObj["command"]; hasCommand {
 				if commandStr, ok := command.(string); ok {
 					config.Command = commandStr
+				}
+			}
+
+			// Extract optional 'driver' field (string - validated separately)
+			if driver, hasDriver := engineObj["driver"]; hasDriver {
+				if driverStr, ok := driver.(string); ok {
+					config.DriverScript = driverStr
 				}
 			}
 
