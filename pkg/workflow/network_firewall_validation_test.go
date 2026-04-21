@@ -173,8 +173,8 @@ func TestValidateNetworkAllowedDomains_EcosystemIdentifiers(t *testing.T) {
 			"nodexyz",
 			"unknown",
 			"fakeecosystem",
-			"pypi",
-			"npm",
+			"notarealecosystem",
+			"invalidname123",
 		}
 		for _, ecosystem := range invalidEcosystems {
 			t.Run(ecosystem, func(t *testing.T) {
