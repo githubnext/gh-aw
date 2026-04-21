@@ -57,12 +57,6 @@ func getActionPin(repo string) string {
 	return actionpins.FormatReference(repo, pins[0].SHA, pins[0].Version)
 }
 
-// getActionPins returns all loaded action pins (sorted by version descending).
-// Package-private wrapper used by tests in this package.
-func getActionPins() []ActionPin {
-	return actionpins.GetActionPins()
-}
-
 // getCachedActionPinFromResolver returns the pinned action reference for repo,
 // preferring dynamic resolution via resolver over the embedded pins.
 // For use within pkg/workflow when only a resolver is available (no WorkflowData).

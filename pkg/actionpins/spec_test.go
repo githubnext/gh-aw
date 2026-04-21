@@ -129,12 +129,6 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 	}
 }
 
-// TestSpec_PublicAPI_GetActionPins validates that GetActionPins returns a non-nil slice.
-func TestSpec_PublicAPI_GetActionPins(t *testing.T) {
-	pins := actionpins.GetActionPins()
-	assert.NotNil(t, pins, "GetActionPins should return non-nil slice of all loaded pins")
-}
-
 // TestSpec_PublicAPI_GetActionPinsByRepo validates GetActionPinsByRepo for known and unknown repos.
 func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	t.Run("returns no pins for unknown repository", func(t *testing.T) {
@@ -144,11 +138,7 @@ func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 	})
 
 	t.Run("returns pins for a known repository when embedded data is loaded", func(t *testing.T) {
-		all := actionpins.GetActionPins()
-		if len(all) == 0 {
-			t.Skip("no embedded pin data available")
-		}
-		known := all[0].Repo
+		known := "actions/checkout"
 		pins := actionpins.GetActionPinsByRepo(known)
 		assert.NotEmpty(t, pins, "should return pins for a known repo from embedded data")
 	})
@@ -162,11 +152,7 @@ func TestSpec_PublicAPI_GetActionPinByRepo(t *testing.T) {
 	})
 
 	t.Run("returns a pin for a known repository", func(t *testing.T) {
-		all := actionpins.GetActionPins()
-		if len(all) == 0 {
-			t.Skip("no embedded pin data available")
-		}
-		known := all[0].Repo
+		known := "actions/checkout"
 		pin, ok := actionpins.GetActionPinByRepo(known)
 		assert.True(t, ok, "should return true for a known repo")
 		assert.Equal(t, known, pin.Repo, "returned pin should belong to the queried repo")
@@ -189,12 +175,7 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 // TestSpec_PublicAPI_ResolveLatestActionPin validates latest-version resolution behavior.
 func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 	t.Run("returns latest pinned reference for known repository", func(t *testing.T) {
-		all := actionpins.GetActionPins()
-		if len(all) == 0 {
-			t.Skip("no embedded pin data available")
-		}
-
-		known := all[0].Repo
+		known := "actions/checkout"
 		latestPin, ok := actionpins.GetActionPinByRepo(known)
 		require.True(t, ok, "expected latest pin for known repository")
 

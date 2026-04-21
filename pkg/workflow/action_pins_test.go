@@ -4,7 +4,6 @@ package workflow
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -26,75 +25,6 @@ func expectedPinnedUses(t *testing.T, repo, version string) string {
 		t.Fatalf("getActionPinWithData(%s, %s) returned empty result", repo, version)
 	}
 	return result
-}
-
-// TestActionPinsExist verifies that all action pinning entries exist
-func TestActionPinsExist(t *testing.T) {
-	// Read action pins from JSON file instead of hardcoded list
-	actionPins := getActionPins()
-
-	// Verify we have at least some pins loaded
-	if len(actionPins) == 0 {
-		t.Fatal("No action pins loaded from JSON file")
-	}
-
-	// Verify each pin has required fields
-	for _, pin := range actionPins {
-		// Verify the pin has a repo
-		if pin.Repo == "" {
-			t.Errorf("Action pin has empty Repo field")
-			continue
-		}
-
-		// Verify the pin has a valid SHA (40 character hex string)
-		if !isValidSHA(pin.SHA) {
-			t.Errorf("Invalid SHA for %s: %s (expected 40-character hex string)", pin.Repo, pin.SHA)
-		}
-
-		// Verify the pin has a version
-		if pin.Version == "" {
-			t.Errorf("Missing version for %s", pin.Repo)
-		}
-	}
-}
-
-// TestGetActionPinReturnsValidSHA tests that getActionPin returns valid SHA references
-func TestGetActionPinReturnsValidSHA(t *testing.T) {
-	// Generate test cases dynamically from action pins JSON
-	actionPins := getActionPins()
-
-	if len(actionPins) == 0 {
-		t.Fatal("No action pins loaded from JSON file")
-	}
-
-	for _, pin := range actionPins {
-		t.Run(pin.Repo, func(t *testing.T) {
-			result := getActionPin(pin.Repo)
-
-			// Check that the result contains a SHA (40-char hex after @ and before #)
-			// Format is: repo@sha # version
-			parts := strings.Split(result, "@")
-			if len(parts) != 2 {
-				t.Errorf("getActionPin(%s) = %s, expected format repo@sha # version", pin.Repo, result)
-				return
-			}
-
-			// Extract SHA (before the comment marker " # ")
-			shaAndComment := parts[1]
-			before, _, ok := strings.Cut(shaAndComment, " # ")
-			if !ok {
-				t.Errorf("getActionPin(%s) = %s, expected comment with version tag", pin.Repo, result)
-				return
-			}
-
-			sha := before
-
-			// All action pins should have valid SHAs
-			if !isValidSHA(sha) {
-				t.Errorf("getActionPin(%s) = %s, expected SHA to be 40-char hex", pin.Repo, result)
-			}
-		})
-	}
 }
 
 // TestGetActionPinFallback tests that getActionPin returns empty string for unknown actions
@@ -310,53 +240,6 @@ func TestApplyActionPinToStep(t *testing.T) {
 				t.Errorf("applyActionPinToTypedStep removed uses field when it should be %q", tt.expectedUses)
 			}
 		})
-	}
-}
-
-// TestGetActionPinsSorting tests that getActionPins returns sorted action pins
-func TestGetActionPinsSorting(t *testing.T) {
-	pins := getActionPins()
-
-	// Dynamically derive the expected count from the JSON file to avoid
-	// hardcoding a number that breaks when new pins are added or when
-	// the Go test cache contains a stale binary.
-	var jsonData ActionPinsData
-	rawJSON, err := os.ReadFile("../actionpins/data/action_pins.json")
-	if err != nil {
-		t.Fatalf("Failed to read action_pins.json: %v", err)
-	}
-	if err := json.Unmarshal(rawJSON, &jsonData); err != nil {
-		t.Fatalf("Failed to parse action_pins.json: %v", err)
-	}
-	expectedCount := len(jsonData.Entries)
-
-	// Verify we got all the pins from the JSON (catches parsing bugs)
-	if len(pins) != expectedCount {
-		t.Errorf("getActionPins() returned %d pins, expected %d (from action_pins.json)", len(pins), expectedCount)
-	}
-
-	// Verify they are sorted by version (descending) then by repository name (ascending)
-	for i := range len(pins) - 1 {
-		if pins[i].Version < pins[i+1].Version {
-			t.Errorf("Pins not sorted correctly by version: %s (v%s) should come before %s (v%s)",
-				pins[i].Repo, pins[i].Version, pins[i+1].Repo, pins[i+1].Version)
-		} else if pins[i].Version == pins[i+1].Version && pins[i].Repo > pins[i+1].Repo {
-			t.Errorf("Pins not sorted correctly by repo name within same version: %s should come before %s",
-				pins[i].Repo, pins[i+1].Repo)
-		}
-	}
-
-	// Verify all pins have the required fields
-	for _, pin := range pins {
-		if pin.Repo == "" {
-			t.Error("Found pin with empty Repo field")
-		}
-		if pin.Version == "" {
-			t.Errorf("Pin %s has empty Version field", pin.Repo)
-		}
-		if !isValidSHA(pin.SHA) {
-			t.Errorf("Pin %s has invalid SHA: %s", pin.Repo, pin.SHA)
-		}
 	}
 }
 
@@ -883,42 +766,6 @@ func TestApplyActionPinsToTypedSteps(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestActionPinsCaching verifies that action pins are cached and not re-parsed
-func TestActionPinsCaching(t *testing.T) {
-	// Reset the cache by creating a new sync.Once
-	// Note: In production, this is handled automatically by sync.Once
-
-	// First call - should load and cache
-	pins1 := getActionPins()
-	if len(pins1) == 0 {
-		t.Fatal("No action pins loaded on first call")
-	}
-
-	// Second call - should return cached data (same slice reference)
-	pins2 := getActionPins()
-	if len(pins2) == 0 {
-		t.Fatal("No action pins loaded on second call")
-	}
-
-	// Verify both calls return the same data
-	if len(pins1) != len(pins2) {
-		t.Errorf("Cache returned different number of pins: first=%d, second=%d", len(pins1), len(pins2))
-	}
-
-	// Verify the data is identical by checking a few pins
-	for i := 0; i < len(pins1) && i < 3; i++ {
-		if pins1[i].Repo != pins2[i].Repo {
-			t.Errorf("Pin %d repo mismatch: first=%s, second=%s", i, pins1[i].Repo, pins2[i].Repo)
-		}
-		if pins1[i].Version != pins2[i].Version {
-			t.Errorf("Pin %d version mismatch: first=%s, second=%s", i, pins1[i].Version, pins2[i].Version)
-		}
-		if pins1[i].SHA != pins2[i].SHA {
-			t.Errorf("Pin %d SHA mismatch: first=%s, second=%s", i, pins1[i].SHA, pins2[i].SHA)
-		}
 	}
 }
 

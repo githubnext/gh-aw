@@ -92,11 +92,6 @@ var (
 	actionPinsOnce         sync.Once
 )
 
-// GetActionPins returns all loaded action pins sorted by version descending.
-func GetActionPins() []ActionPin {
-	return getActionPins()
-}
-
 func getActionPins() []ActionPin {
 	actionPinsOnce.Do(func() {
 		log.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")

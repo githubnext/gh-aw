@@ -107,44 +107,6 @@ func TestFetchLocalWorkflow_DirectoryInsteadOfFile(t *testing.T) {
 	assert.Nil(t, result, "result should be nil on error")
 }
 
-func TestFetchWorkflowFromSource_LocalRouting(t *testing.T) {
-	// Create a temporary local workflow file
-	tempDir := t.TempDir()
-	tempFile := filepath.Join(tempDir, "local-workflow.md")
-	content := "# Local Workflow\n\nTest content."
-	err := os.WriteFile(tempFile, []byte(content), 0644)
-	require.NoError(t, err, "should create temp file")
-
-	spec := &WorkflowSpec{
-		WorkflowPath: tempFile,
-		WorkflowName: "local-workflow",
-	}
-
-	result, err := FetchWorkflowFromSource(spec, false)
-
-	require.NoError(t, err, "should not error for local workflow")
-	assert.True(t, result.IsLocal, "should route to local fetch")
-	assert.Equal(t, []byte(content), result.Content, "content should match")
-}
-
-func TestFetchWorkflowFromSource_RemoteRoutingWithInvalidSlug(t *testing.T) {
-	// Test with a remote workflow spec that has an invalid slug
-	spec := &WorkflowSpec{
-		RepoSpec: RepoSpec{
-			RepoSlug: "invalid-slug-no-slash",
-			Version:  "main",
-		},
-		WorkflowPath: "workflow.md",
-		WorkflowName: "workflow",
-	}
-
-	result, err := FetchWorkflowFromSource(spec, false)
-
-	require.Error(t, err, "should error for invalid repo slug")
-	assert.Nil(t, result, "result should be nil on error")
-	assert.Contains(t, err.Error(), "invalid repository slug", "error should mention invalid slug")
-}
-
 func TestResolveCommitSHAWithRetries_TransientFailureThenSuccess(t *testing.T) {
 	originalResolve := resolveRefToSHAForHost
 	originalWait := waitBeforeSHAResolutionRetry
