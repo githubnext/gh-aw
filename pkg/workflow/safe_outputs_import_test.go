@@ -2363,8 +2363,8 @@ Run a task.
 
 	needs := make([]string, 0, len(needsRaw))
 	for _, need := range needsRaw {
-		needStr, typeOK := need.(string)
-		require.True(t, typeOK, "safe_outputs needs entries should be strings")
+		require.IsType(t, "", need, "safe_outputs needs entries should be strings")
+		needStr := need.(string)
 		needs = append(needs, needStr)
 	}
 
