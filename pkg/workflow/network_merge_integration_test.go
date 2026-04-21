@@ -51,8 +51,8 @@ Provides network access to Node.js package registries.
 		t.Fatalf("Failed to write shared-node file: %v", err)
 	}
 
-	// Create a workflow file that imports both shared files and has its own network config
-	// With firewall enabled to trigger AWF integration
+	// Create a workflow file that imports both shared files and has its own network config.
+	// Restricted network config should trigger AWF integration.
 	workflowPath := filepath.Join(tempDir, "test-workflow.md")
 	workflowContent := `---
 on: issues
@@ -66,7 +66,6 @@ network:
   allowed:
     - defaults
     - github.com
-  firewall: true
 imports:
   - shared-python.md
   - shared-node.md
