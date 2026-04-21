@@ -29,8 +29,8 @@ func TestFirewallDisableIntegration(t *testing.T) {
 			t.Fatal("Expected network permissions to be extracted")
 		}
 
-		// sandbox.agent: false is the supported firewall-disable pattern and should not trigger
-		// warnings from deprecated network.firewall validation paths.
+		// sandbox.agent: false replaces deprecated network.firewall: "disable" and should
+		// not trigger warnings from deprecated network.firewall validation paths.
 		initialWarnings := compiler.warningCount
 		err := compiler.checkFirewallDisable(networkPerms)
 		if err != nil {

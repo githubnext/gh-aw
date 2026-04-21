@@ -186,7 +186,8 @@ sandbox:
     args:
       - "--ssl-bump"
       - "--allow-urls"
-      # AWF expects allow-urls patterns as a single comma-separated argument.
+      # Keep this as a single comma-separated argument to match getSSLBumpArgs()
+      # in awf_helpers.go, which emits --allow-urls with joined patterns.
       - "https://github.com/githubnext/*,https://api.github.com/repos/*"
       - "--log-level"
       - "debug"
