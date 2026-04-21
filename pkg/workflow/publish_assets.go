@@ -12,6 +12,17 @@ import (
 
 var publishAssetsLog = logger.New("workflow:publish_assets")
 
+func normalizeAllowedExtension(extension string) string {
+	normalized := strings.ToLower(strings.TrimSpace(extension))
+	if normalized == "" {
+		return ""
+	}
+	if !strings.HasPrefix(normalized, ".") {
+		normalized = "." + normalized
+	}
+	return normalized
+}
+
 // UploadAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type UploadAssetsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
@@ -59,9 +70,18 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 			if allowedExts, exists := configMap["allowed-exts"]; exists {
 				if allowedExtsArray, ok := allowedExts.([]any); ok {
 					var extStrings []string
+					seen := make(map[string]struct{})
 					for _, ext := range allowedExtsArray {
 						if extStr, ok := ext.(string); ok {
-							extStrings = append(extStrings, extStr)
+							normalized := normalizeAllowedExtension(extStr)
+							if normalized == "" {
+								continue
+							}
+							if _, exists := seen[normalized]; exists {
+								continue
+							}
+							seen[normalized] = struct{}{}
+							extStrings = append(extStrings, normalized)
 						}
 					}
 					if len(extStrings) > 0 {
