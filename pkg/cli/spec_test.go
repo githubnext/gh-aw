@@ -851,11 +851,11 @@ func TestSpec_PublicAPI_IsRunningInCI(t *testing.T) {
 // TestSpec_Types_ShellType validates the documented ShellType string alias and its constants.
 // Spec: "bash", "zsh", "fish", "powershell", "unknown"
 func TestSpec_Types_ShellType(t *testing.T) {
-	assert.Equal(t, ShellType("bash"), ShellBash, "ShellBash constant should be \"bash\"")
-	assert.Equal(t, ShellType("zsh"), ShellZsh, "ShellZsh constant should be \"zsh\"")
-	assert.Equal(t, ShellType("fish"), ShellFish, "ShellFish constant should be \"fish\"")
-	assert.Equal(t, ShellType("powershell"), ShellPowerShell, "ShellPowerShell constant should be \"powershell\"")
-	assert.Equal(t, ShellType("unknown"), ShellUnknown, "ShellUnknown constant should be \"unknown\"")
+	assert.Equal(t, ShellBash, ShellType("bash"), "ShellBash constant should be \"bash\"")
+	assert.Equal(t, ShellZsh, ShellType("zsh"), "ShellZsh constant should be \"zsh\"")
+	assert.Equal(t, ShellFish, ShellType("fish"), "ShellFish constant should be \"fish\"")
+	assert.Equal(t, ShellPowerShell, ShellType("powershell"), "ShellPowerShell constant should be \"powershell\"")
+	assert.Equal(t, ShellUnknown, ShellType("unknown"), "ShellUnknown constant should be \"unknown\"")
 }
 
 // TestSpec_PublicAPI_DetectShell validates DetectShell returns one of the documented ShellType values.
@@ -1009,4 +1009,3 @@ func TestSpec_DesignDecision_StderrDiagnostics(t *testing.T) {
 	names := ValidArtifactSetNames()
 	assert.NotEmpty(t, names, "ValidArtifactSetNames returns data via return value, not stdout")
 }
-

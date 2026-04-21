@@ -256,26 +256,29 @@ func TestSpec_Types_ActionPinsData(t *testing.T) {
 	assert.Equal(t, "actions/checkout", entry.Repo, "entry Repo should match")
 }
 
-// TestSpec_ThreadSafety_ConcurrentGetActionPins validates that concurrent calls to GetActionPins
+// TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
 // are safe after initialization (sync.Once guarantee from the spec).
-func TestSpec_ThreadSafety_ConcurrentGetActionPins(t *testing.T) {
+func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
 	const goroutines = 10
+	const repo = "actions/checkout"
 	results := make([][]actionpins.ActionPin, goroutines)
 	done := make(chan int, goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(idx int) {
-			results[idx] = actionpins.GetActionPins()
+			results[idx] = actionpins.GetActionPinsByRepo(repo)
 			done <- idx
 		}(i)
 	}
 
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		<-done
 	}
 
 	for i := 1; i < goroutines; i++ {
-		assert.Equal(t, len(results[0]), len(results[i]),
-			"concurrent GetActionPins should return same number of pins (goroutine %d vs 0)", i)
+		assert.NotEmpty(t, results[i], "concurrent GetActionPinsByRepo should return pins for known repo")
+		assert.Len(t, results[i], len(results[0]),
+			"concurrent GetActionPinsByRepo should return same number of pins (goroutine %d vs 0)", i)
 	}
+	assert.NotEmpty(t, results[0], "concurrent GetActionPinsByRepo should return pins for known repo")
 }
