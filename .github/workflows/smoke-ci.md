@@ -41,6 +41,7 @@ safe-outputs:
   update-issue:
     body:
     max: 1
+    target: "*"
   update-pull-request:
     body: true
     max: 1
