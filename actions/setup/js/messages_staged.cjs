@@ -23,7 +23,8 @@ const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cj
 function getStagedTitle(ctx) {
   const messages = getMessages();
   const templateContext = toSnakeCase(ctx);
-  return renderTemplate(messages?.stagedTitle ?? "## 🔍 Preview: {operation}", templateContext);
+  const configuredTemplate = typeof messages?.stagedTitle === "string" ? messages.stagedTitle : "";
+  return renderTemplate(configuredTemplate || "## 🔍 Preview: {operation}", templateContext);
 }
 
 /**
@@ -34,7 +35,8 @@ function getStagedTitle(ctx) {
 function getStagedDescription(ctx) {
   const messages = getMessages();
   const templateContext = toSnakeCase(ctx);
-  return renderTemplate(messages?.stagedDescription ?? "📋 The following operations would be performed if staged mode was disabled:", templateContext);
+  const configuredTemplate = typeof messages?.stagedDescription === "string" ? messages.stagedDescription : "";
+  return renderTemplate(configuredTemplate || "📋 The following operations would be performed if staged mode was disabled:", templateContext);
 }
 
 module.exports = {

@@ -44,16 +44,28 @@ describe("messages_staged", () => {
       expect(title).toBe(`## 🔍 Preview: ${OPERATION}`);
     });
 
+    it("falls back to default when stagedTitle is an empty string", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedTitle: "" });
+      const title = getStagedTitle({ operation: OPERATION });
+      expect(title).toBe(`## 🔍 Preview: ${OPERATION}`);
+    });
+
+    it("falls back to default when stagedTitle is a falsy non-string value", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedTitle: 0 });
+      const title = getStagedTitle({ operation: OPERATION });
+      expect(title).toBe(`## 🔍 Preview: ${OPERATION}`);
+    });
+
     it("falls back to default when config is invalid JSON", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = "not-json";
       const title = getStagedTitle({ operation: OPERATION });
       expect(title).toBe(`## 🔍 Preview: ${OPERATION}`);
     });
 
-    it("substitutes camelCase operation key as well as snake_case", () => {
-      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedTitle: "Op: {operation}" });
-      const title = getStagedTitle({ operation: OPERATION });
-      expect(title).toContain(OPERATION);
+    it("supports snake_case placeholders from camelCase context keys", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedTitle: "{operation_name}: {operation}" });
+      const title = getStagedTitle({ operation: OPERATION, operationName: "Create Comment" });
+      expect(title).toBe(`Create Comment: ${OPERATION}`);
     });
 
     it("returns an empty-operation title when operation is an empty string", () => {
@@ -82,6 +94,18 @@ describe("messages_staged", () => {
 
     it("falls back to default when stagedDescription is absent from config", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedTitle: "title only" });
+      const desc = getStagedDescription({ operation: OPERATION });
+      expect(desc).toBe("📋 The following operations would be performed if staged mode was disabled:");
+    });
+
+    it("falls back to default when stagedDescription is an empty string", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedDescription: "" });
+      const desc = getStagedDescription({ operation: OPERATION });
+      expect(desc).toBe("📋 The following operations would be performed if staged mode was disabled:");
+    });
+
+    it("falls back to default when stagedDescription is a falsy non-string value", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ stagedDescription: false });
       const desc = getStagedDescription({ operation: OPERATION });
       expect(desc).toBe("📋 The following operations would be performed if staged mode was disabled:");
     });
